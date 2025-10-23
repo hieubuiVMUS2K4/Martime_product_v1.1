@@ -1,0 +1,1 @@
+export { WorkAssignmentPage } from './WorkAssignmentPage';

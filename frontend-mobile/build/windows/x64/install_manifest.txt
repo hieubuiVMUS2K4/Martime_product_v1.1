@@ -1,0 +1,13 @@
+D:/Martime_product_v1/frontend-mobile/build/windows/x64/runner/Debug/data/icudtl.dat
+D:/Martime_product_v1/frontend-mobile/build/windows/x64/runner/Debug/flutter_windows.dll
+D:/Martime_product_v1/frontend-mobile/build/windows/x64/runner/Debug/connectivity_plus_plugin.dll
+D:/Martime_product_v1/frontend-mobile/build/windows/x64/runner/Debug/flutter_secure_storage_windows_plugin.dll
+D:/Martime_product_v1/frontend-mobile/build/windows/x64/runner/Debug/data/flutter_assets/AssetManifest.bin
+D:/Martime_product_v1/frontend-mobile/build/windows/x64/runner/Debug/data/flutter_assets/AssetManifest.json
+D:/Martime_product_v1/frontend-mobile/build/windows/x64/runner/Debug/data/flutter_assets/FontManifest.json
+D:/Martime_product_v1/frontend-mobile/build/windows/x64/runner/Debug/data/flutter_assets/fonts/MaterialIcons-Regular.otf
+D:/Martime_product_v1/frontend-mobile/build/windows/x64/runner/Debug/data/flutter_assets/kernel_blob.bin
+D:/Martime_product_v1/frontend-mobile/build/windows/x64/runner/Debug/data/flutter_assets/NativeAssetsManifest.json
+D:/Martime_product_v1/frontend-mobile/build/windows/x64/runner/Debug/data/flutter_assets/NOTICES.Z
+D:/Martime_product_v1/frontend-mobile/build/windows/x64/runner/Debug/data/flutter_assets/packages/cupertino_icons/assets/CupertinoIcons.ttf
+D:/Martime_product_v1/frontend-mobile/build/windows/x64/runner/Debug/data/flutter_assets/shaders/ink_sparkle.frag

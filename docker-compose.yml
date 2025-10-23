@@ -1,0 +1,112 @@
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-product}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-productpwd}
+      POSTGRES_DB: ${POSTGRES_DB:-productdb}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-product} -d ${POSTGRES_DB:-productdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - product-net
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - product-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@localhost.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "8081:80"
+    networks:
+      - product-net
+
+  backend:
+    build: ./backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB:-productdb};Username=${POSTGRES_USER:-product};Password=${POSTGRES_PASSWORD:-productpwd}
+      - JWT__Key=${JWT__Key:-VerySecretKey12345}
+      - JWT__Issuer=product
+      - JWT__Audience=product-users
+    ports:
+      - "5000:5000"
+    networks:
+      - product-net
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://backend:5000
+    networks:
+      - product-net
+
+  # Maritime Edge Services
+  edge-collector:
+    build: ./edge-services
+    depends_on:
+      - redis
+      - backend
+    environment:
+      - SHORE_API_URL=http://backend:5000
+      - REDIS_URL=redis:6379
+    volumes:
+      - edge-data:/app/data
+      - /dev/ttyUSB0:/dev/ttyUSB0  # Serial port mapping (Linux)
+    networks:
+      - product-net
+    restart: unless-stopped
+    # Only for development - in production, run on separate edge device
+    profiles: ["edge", "development"]
+
+  # MQTT Broker for ship internal communication
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    ports:
+      - "1883:1883"
+      - "8883:8883"
+    volumes:
+      - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mqtt-data:/mosquitto/data
+    networks:
+      - product-net
+    profiles: ["edge", "development"]
+
+volumes:
+  postgres-data:
+  redis-data:
+  edge-data:
+  mqtt-data:
+
+networks:
+  product-net:
+    driver: bridge

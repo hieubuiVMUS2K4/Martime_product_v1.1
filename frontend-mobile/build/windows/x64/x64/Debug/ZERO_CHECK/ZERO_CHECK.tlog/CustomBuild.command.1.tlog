@@ -1,0 +1,10 @@
+^D:\MARTIME_PRODUCT_V1\FRONTEND-MOBILE\BUILD\WINDOWS\X64\CMAKEFILES\6A3EBDB6D956FDE61B764BB0AF39720C\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SD:/Martime_product_v1/frontend-mobile/windows -BD:/Martime_product_v1/frontend-mobile/build/windows/x64 --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file D:/Martime_product_v1/frontend-mobile/build/windows/x64/maritime_crew_app.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

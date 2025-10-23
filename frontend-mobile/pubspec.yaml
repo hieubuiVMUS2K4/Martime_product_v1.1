@@ -1,0 +1,71 @@
+name: maritime_crew_app
+description: Mobile app for ship crew members to manage tasks and schedules
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  provider: ^6.1.1
+  flutter_riverpod: ^3.0.3
+
+  # Network & API
+  dio: ^5.4.0
+  connectivity_plus: ^7.0.0
+  retrofit: ^4.0.3
+  pretty_dio_logger: ^1.3.1
+
+  # Local Storage & Cache
+  shared_preferences: ^2.2.2
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.1.1
+
+  # Authentication & Security
+  flutter_secure_storage: ^9.0.0
+  jwt_decoder: ^2.0.1
+
+  # UI Components
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+  flutter_svg: ^2.0.9
+  cached_network_image: ^3.3.0
+  shimmer: ^3.0.0
+  lottie: ^3.3.2
+
+  # Date & Time
+  intl: ^0.20.2
+  timeago: ^3.6.0
+
+  # Forms & Validation
+  flutter_form_builder: ^10.2.0
+  form_builder_validators: ^11.2.0
+
+  # QR Code Scanner (Optional)
+  qr_code_scanner: ^1.0.1
+  mobile_scanner: ^7.1.2
+
+  # Utils
+  get_it: ^8.2.0
+  logger: ^2.0.2
+  uuid: ^4.2.2
+  equatable: ^2.0.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.7
+  hive_generator: ^2.0.1
+  retrofit_generator: ^8.0.4
+  mockito: ^5.4.4
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/

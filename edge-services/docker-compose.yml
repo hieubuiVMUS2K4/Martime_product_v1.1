@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for Edge Server
+  edge-postgres:
+    image: postgres:15-alpine
+    container_name: maritime-edge-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${EDGE_POSTGRES_DB:-maritime_edge}
+      POSTGRES_USER: ${EDGE_POSTGRES_USER:-edge_user}
+      POSTGRES_PASSWORD: ${EDGE_POSTGRES_PASSWORD:-ChangeMe_EdgePassword123!}
+    ports:
+      - "${EDGE_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - edge-postgres-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EDGE_POSTGRES_USER:-edge_user} -d ${EDGE_POSTGRES_DB:-maritime_edge}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - edge-network
+
+  # pgAdmin for Edge Database Management
+  edge-pgadmin:
+    image: dpage/pgadmin4
+    container_name: maritime-edge-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${EDGE_PGADMIN_EMAIL:-admin@localhost.com}
+      PGADMIN_DEFAULT_PASSWORD: ${EDGE_PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - "${EDGE_PGADMIN_PORT:-5050}:80"
+    volumes:
+      - edge-pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - edge-postgres
+    networks:
+      - edge-network
+
+  # Edge Collector Service (Optional - for development)
+  edge-collector:
+    build: .
+    container_name: maritime-edge-collector
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Database__ConnectionString=Host=edge-postgres;Port=5432;Database=${EDGE_POSTGRES_DB:-maritime_edge};Username=${EDGE_POSTGRES_USER:-edge_user};Password=${EDGE_POSTGRES_PASSWORD:-edge_password}
+    depends_on:
+      edge-postgres:
+        condition: service_healthy
+    volumes:
+      - ./appsettings.json:/app/appsettings.json:ro
+      - edge-logs:/app/logs
+    networks:
+      - edge-network
+    # Serial port mapping (uncomment for production on Linux)
+    # devices:
+    #   - /dev/ttyUSB0:/dev/ttyUSB0
+    #   - /dev/ttyUSB1:/dev/ttyUSB1
+    profiles:
+      - development
+
+volumes:
+  edge-postgres-data:
+    driver: local
+  edge-pgadmin-data:
+    driver: local
+  edge-logs:
+    driver: local
+
+networks:
+  edge-network:
+    driver: bridge
