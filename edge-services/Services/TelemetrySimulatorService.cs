@@ -14,6 +14,12 @@ namespace MaritimeEdge.Services
         private readonly ILogger<TelemetrySimulatorService> _logger;
         private readonly IConfiguration _configuration;
         private readonly Random _random = new Random();
+        
+        // Counters for different update intervals
+        private int _tickCounter = 0;
+        private const int POSITION_NAV_INTERVAL = 1;  // Every tick (60s)
+        private const int ENGINE_GEN_INTERVAL = 1;    // Every tick (60s)
+        private const int ENVIRONMENTAL_INTERVAL = 5;  // Every 5 ticks (300s = 5min)
 
         public TelemetrySimulatorService(
             IServiceProvider serviceProvider,
@@ -53,18 +59,38 @@ namespace MaritimeEdge.Services
             {
                 try
                 {
+                    _tickCounter++;
+                    
                     using var scope = _serviceProvider.CreateScope();
                     var dbContext = scope.ServiceProvider.GetRequiredService<EdgeDbContext>();
 
-                    await SimulatePositionData(dbContext);
-                    await SimulateNavigationData(dbContext);
-                    await SimulateEngineData(dbContext);
-                    await SimulateGeneratorData(dbContext);
-                    await SimulateEnvironmentalData(dbContext);
+                    // Position and Navigation: Every tick (60s)
+                    if (_tickCounter % POSITION_NAV_INTERVAL == 0)
+                    {
+                        await SimulatePositionData(dbContext);
+                        await SimulateNavigationData(dbContext);
+                    }
+
+                    // Engine and Generator: Every tick (60s)
+                    if (_tickCounter % ENGINE_GEN_INTERVAL == 0)
+                    {
+                        await SimulateEngineData(dbContext);
+                        await SimulateGeneratorData(dbContext);
+                    }
+
+                    // Environmental: Every 5 ticks (300s = 5 minutes)
+                    if (_tickCounter % ENVIRONMENTAL_INTERVAL == 0)
+                    {
+                        await SimulateEnvironmentalData(dbContext);
+                    }
 
                     await dbContext.SaveChangesAsync(stoppingToken);
 
-                    _logger.LogDebug("Telemetry data simulated successfully");
+                    _logger.LogDebug("Telemetry data simulated (tick {Tick}): Pos/Nav={PosNav}, Engine/Gen={EngGen}, Env={Env}",
+                        _tickCounter,
+                        _tickCounter % POSITION_NAV_INTERVAL == 0,
+                        _tickCounter % ENGINE_GEN_INTERVAL == 0,
+                        _tickCounter % ENVIRONMENTAL_INTERVAL == 0);
                 }
                 catch (Exception ex)
                 {
