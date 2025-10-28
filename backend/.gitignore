@@ -1,5 +1,5 @@
 # ========================================
-# EDGE SERVICES (.NET Core) - GITIGNORE
+# BACKEND (.NET Core) - GITIGNORE
 # ========================================
 
 # ====================
@@ -79,18 +79,6 @@ logs/
 Logs/
 
 # ====================
-# SQL FILES (Keep only fixed version)
-# ====================
-insert-sample-data.sql
-insert-sample-data-complete.sql
-sample-data-insert.sql
-insert-data.ps1
-
-# Keep these:
-# !insert-sample-data-fixed.sql
-# !INSERT-SAMPLE-DATA.ps1
-
-# ====================
 # DOCKER
 # ====================
 docker-compose.override.yml
@@ -101,7 +89,6 @@ docker-compose.override.yml
 # ====================
 *.sql.backup
 *.dump
-backup-*.ps1.log
 
 # ====================
 # TEMP FILES
@@ -109,5 +96,3 @@ backup-*.ps1.log
 *.tmp
 *.temp
 *.cache
-.vs/
-.vscode/settings.json

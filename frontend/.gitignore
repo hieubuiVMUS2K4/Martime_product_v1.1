@@ -1,0 +1,69 @@
+# ========================================
+# FRONTEND (React + Vite) - GITIGNORE
+# ========================================
+
+# ====================
+# DEPENDENCIES
+# ====================
+node_modules/
+.pnp
+.pnp.js
+
+# ====================
+# TESTING
+# ====================
+coverage/
+*.coverage
+.nyc_output
+
+# ====================
+# PRODUCTION BUILD
+# ====================
+dist/
+dist-ssr/
+build/
+
+# ====================
+# ENVIRONMENT
+# ====================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# ====================
+# LOGS
+# ====================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ====================
+# EDITOR
+# ====================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ====================
+# VITE
+# ====================
+*.local
+.cache/
+
+# ====================
+# MISC
+# ====================
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
