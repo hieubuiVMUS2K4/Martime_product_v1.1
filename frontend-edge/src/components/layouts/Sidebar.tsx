@@ -10,11 +10,8 @@ import {
   FileText,
   RefreshCw,
   Anchor,
-<<<<<<< HEAD
   Boxes,
-=======
   Fuel,
->>>>>>> master
 } from 'lucide-react'
 
 const navigation = [

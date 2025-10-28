@@ -7,9 +7,12 @@
 # ====================
 bin/
 obj/
+[Bb]in/
+[Oo]bj/
 *.dll
 *.exe
 *.pdb
+*.cache
 
 # Build results
 [Dd]ebug/

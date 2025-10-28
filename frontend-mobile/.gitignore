@@ -119,13 +119,13 @@ android/key.properties
 !lib/**/*.g.dart
 
 # ====================
-# CODE GENERATION
+# CODE GENERATION (Build Runner)
 # ====================
 *.freezed.dart
 *.config.dart
-# Keep these if needed:
-# !lib/**/*.g.dart
-# !lib/**/*.freezed.dart
+**/*.g.dart
+# Exception: Keep hand-written files if any
+# !lib/path/to/handwritten.g.dart
 
 # ====================
 # ENVIRONMENT & SECRETS
