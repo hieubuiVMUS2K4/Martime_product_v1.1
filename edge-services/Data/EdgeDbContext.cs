@@ -43,15 +43,13 @@ public class EdgeDbContext : DbContext
     public DbSet<WatchkeepingLog> WatchkeepingLogs { get; set; } = null!;
     public DbSet<OilRecordBook> OilRecordBooks { get; set; } = null!;
 
-<<<<<<< HEAD
     // Inventory & Materials
     public DbSet<MaterialCategory> MaterialCategories { get; set; } = null!;
     public DbSet<MaterialItem> MaterialItems { get; set; } = null!;
-=======
+
     // Fuel Analytics (IMO DCS / EU MRV / CII Compliance)
     public DbSet<FuelAnalyticsSummary> FuelAnalyticsSummaries { get; set; } = null!;
     public DbSet<FuelEfficiencyAlert> FuelEfficiencyAlerts { get; set; } = null!;
->>>>>>> master
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -529,7 +527,6 @@ public class EdgeDbContext : DbContext
                 .HasFilter("is_synced = false");
         });
 
-<<<<<<< HEAD
         // ========== MATERIAL CATEGORIES ==========
         modelBuilder.Entity<MaterialCategory>(entity =>
         {
@@ -593,7 +590,6 @@ public class EdgeDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-=======
         // ========== FUEL ANALYTICS SUMMARY ==========
         modelBuilder.Entity<FuelAnalyticsSummary>(entity =>
         {
@@ -666,7 +662,6 @@ public class EdgeDbContext : DbContext
                 .HasDatabaseName("idx_fuel_alert_synced")
                 .HasFilter("is_synced = false");
         });
->>>>>>> master
     }
 
     /// <summary>
