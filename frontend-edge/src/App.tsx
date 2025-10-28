@@ -13,7 +13,11 @@ import { MaintenanceDetailPage } from './pages/Maintenance/MaintenanceDetailPage
 import { VoyagePage } from './pages/Voyage/VoyagePage'
 import { CompliancePage } from './pages/Compliance/CompliancePage'
 import { SyncPage } from './pages/Sync/SyncPage'
+<<<<<<< HEAD
 import { MaterialPage } from './pages/Material/MaterialPage'
+=======
+import { FuelAnalyticsPage } from './pages/FuelAnalytics'
+>>>>>>> master
 
 function App() {
   return (
@@ -29,7 +33,11 @@ function App() {
         <Route path="voyage" element={<VoyagePage />} />
         <Route path="compliance" element={<CompliancePage />} />
         <Route path="sync" element={<SyncPage />} />
+<<<<<<< HEAD
         <Route path="materials" element={<MaterialPage />} />
+=======
+        <Route path="fuel-analytics" element={<FuelAnalyticsPage />} />
+>>>>>>> master
       </Route>
       
       {/* Full-screen pages outside MainLayout */}

@@ -43,9 +43,15 @@ public class EdgeDbContext : DbContext
     public DbSet<WatchkeepingLog> WatchkeepingLogs { get; set; } = null!;
     public DbSet<OilRecordBook> OilRecordBooks { get; set; } = null!;
 
+<<<<<<< HEAD
     // Inventory & Materials
     public DbSet<MaterialCategory> MaterialCategories { get; set; } = null!;
     public DbSet<MaterialItem> MaterialItems { get; set; } = null!;
+=======
+    // Fuel Analytics (IMO DCS / EU MRV / CII Compliance)
+    public DbSet<FuelAnalyticsSummary> FuelAnalyticsSummaries { get; set; } = null!;
+    public DbSet<FuelEfficiencyAlert> FuelEfficiencyAlerts { get; set; } = null!;
+>>>>>>> master
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -523,6 +529,7 @@ public class EdgeDbContext : DbContext
                 .HasFilter("is_synced = false");
         });
 
+<<<<<<< HEAD
         // ========== MATERIAL CATEGORIES ==========
         modelBuilder.Entity<MaterialCategory>(entity =>
         {
@@ -586,6 +593,80 @@ public class EdgeDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+=======
+        // ========== FUEL ANALYTICS SUMMARY ==========
+        modelBuilder.Entity<FuelAnalyticsSummary>(entity =>
+        {
+            entity.ToTable("fuel_analytics_summaries");
+            
+            entity.Property(e => e.DistanceNauticalMiles).HasColumnType("decimal(12,2)");
+            entity.Property(e => e.TimeUnderwayHours).HasColumnType("decimal(10,2)");
+            entity.Property(e => e.TimeBerthHours).HasColumnType("decimal(10,2)");
+            entity.Property(e => e.AverageSpeedKnots).HasColumnType("decimal(5,2)");
+            
+            entity.Property(e => e.TotalFuelConsumedMT).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.MainEngineFuelMT).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.AuxiliaryFuelMT).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.BoilerFuelMT).HasColumnType("decimal(10,3)");
+            
+            entity.Property(e => e.EEOI).HasColumnType("decimal(10,2)");
+            entity.Property(e => e.FuelPerNauticalMile).HasColumnType("decimal(8,4)");
+            entity.Property(e => e.FuelPerHour).HasColumnType("decimal(8,4)");
+            entity.Property(e => e.SFOC).HasColumnType("decimal(8,2)");
+            
+            entity.Property(e => e.CO2EmissionsMT).HasColumnType("decimal(12,3)");
+            entity.Property(e => e.CII).HasColumnType("decimal(10,2)");
+            
+            entity.Property(e => e.AvgMainEngineRPM).HasColumnType("decimal(6,2)");
+            entity.Property(e => e.AvgMainEngineLoad).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.AvgSeaState).HasColumnType("decimal(3,1)");
+            entity.Property(e => e.AvgWindSpeed).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.CargoWeightMT).HasColumnType("decimal(12,3)");
+            
+            entity.Property(e => e.EstimatedFuelCostUSD).HasColumnType("decimal(15,2)");
+            entity.Property(e => e.FuelPricePerMT).HasColumnType("decimal(10,2)");
+            entity.Property(e => e.DataQualityScore).HasColumnType("decimal(5,2)");
+            
+            entity.HasIndex(e => new { e.PeriodType, e.PeriodStart })
+                .HasDatabaseName("idx_fuel_analytics_period")
+                .IsDescending(false, true);
+            
+            entity.HasIndex(e => e.VoyageId)
+                .HasDatabaseName("idx_fuel_analytics_voyage");
+            
+            entity.HasIndex(e => e.CIIRating)
+                .HasDatabaseName("idx_fuel_analytics_cii");
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_fuel_analytics_synced")
+                .HasFilter("is_synced = false");
+        });
+
+        // ========== FUEL EFFICIENCY ALERTS ==========
+        modelBuilder.Entity<FuelEfficiencyAlert>(entity =>
+        {
+            entity.ToTable("fuel_efficiency_alerts");
+            
+            entity.Property(e => e.CurrentValue).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.ExpectedValue).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.DeviationPercent).HasColumnType("decimal(6,2)");
+            
+            entity.HasIndex(e => e.Timestamp)
+                .HasDatabaseName("idx_fuel_alert_timestamp")
+                .IsDescending();
+            
+            entity.HasIndex(e => new { e.IsResolved, e.Severity })
+                .HasDatabaseName("idx_fuel_alert_unresolved")
+                .HasFilter("is_resolved = false");
+            
+            entity.HasIndex(e => e.AlertType)
+                .HasDatabaseName("idx_fuel_alert_type");
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_fuel_alert_synced")
+                .HasFilter("is_synced = false");
+        });
+>>>>>>> master
     }
 
     /// <summary>

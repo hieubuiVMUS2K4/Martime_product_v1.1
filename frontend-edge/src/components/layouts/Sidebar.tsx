@@ -10,13 +10,18 @@ import {
   FileText,
   RefreshCw,
   Anchor,
+<<<<<<< HEAD
   Boxes,
+=======
+  Fuel,
+>>>>>>> master
 } from 'lucide-react'
 
 const navigation = [
   { name: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
   { name: 'Navigation', to: '/navigation', icon: Navigation },
   { name: 'Engine Room', to: '/engine', icon: Zap },
+  { name: 'Fuel Analytics', to: '/fuel-analytics', icon: Fuel },
   { name: 'Alarms', to: '/alarms', icon: AlertTriangle },
   { name: 'Crew', to: '/crew', icon: Users },
   { name: 'Maintenance', to: '/maintenance', icon: Wrench },

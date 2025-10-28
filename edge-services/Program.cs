@@ -21,6 +21,9 @@ namespace MaritimeEdge
                 options.UseNpgsql(connectionString)
             );
 
+            // Add Business Services
+            builder.Services.AddScoped<FuelAnalyticsService>();
+
             // Add Background Services
             builder.Services.AddHostedService<TelemetrySimulatorService>();
             builder.Services.AddHostedService<DataCleanupService>();
