@@ -4,9 +4,9 @@
 -- =====================================================
 
 -- Clear existing data (optional - comment out if you want to keep existing data)
--- TRUNCATE TABLE position_data, navigation_data, engine_data, generator_data, 
---   tank_levels, environmental_data, safety_alarms, maintenance_tasks, 
---   voyage_records, crew_members CASCADE;
+TRUNCATE TABLE position_data, navigation_data, engine_data, generator_data, 
+  tank_levels, environmental_data, safety_alarms, maintenance_tasks, 
+  voyage_records, crew_members, material_categories, material_items CASCADE;
 
 -- =====================================================
 -- 1. CREW MEMBERS
@@ -382,3 +382,240 @@ SELECT
     (SELECT COUNT(*) FROM safety_alarms WHERE is_resolved = false AND severity = 'CRITICAL') as critical_alarms;
 
 SELECT '✅ SAMPLE DATA INSERTED SUCCESSFULLY!' as result;
+
+-- =====================================================
+-- 11. MATERIAL CATEGORIES
+-- =====================================================
+
+INSERT INTO material_categories (
+    category_code, name, description, parent_category_id,
+    is_active, is_synced, created_at
+) VALUES
+-- Top Level Categories
+('CAT-ENG', 'Engine Parts', 'Spare parts and consumables for main engine and auxiliary engines', NULL, true, false, NOW()),
+('CAT-ELEC', 'Electrical Components', 'Electrical parts, cables, switches, and components', NULL, true, false, NOW()),
+('CAT-DECK', 'Deck Equipment', 'Deck machinery spare parts and equipment', NULL, true, false, NOW()),
+('CAT-SAFETY', 'Safety Equipment', 'Safety and lifesaving equipment', NULL, true, false, NOW()),
+('CAT-CHEM', 'Chemicals & Oils', 'Lubricants, chemicals, paints, and cleaning supplies', NULL, true, false, NOW()),
+('CAT-TOOL', 'Tools & Consumables', 'Hand tools, power tools, and general consumables', NULL, true, false, NOW());
+
+-- Sub-categories (using parent_category_id)
+INSERT INTO material_categories (
+    category_code, name, description, parent_category_id,
+    is_active, is_synced, created_at
+) VALUES
+-- Engine Sub-categories
+('CAT-ENG-FILTER', 'Filters', 'Oil filters, fuel filters, air filters', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-ENG'), true, false, NOW()),
+('CAT-ENG-GASKET', 'Gaskets & Seals', 'Engine gaskets, O-rings, and sealing materials', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-ENG'), true, false, NOW()),
+('CAT-ENG-BEARING', 'Bearings', 'Main bearings, connecting rod bearings', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-ENG'), true, false, NOW()),
+
+-- Electrical Sub-categories
+('CAT-ELEC-FUSE', 'Fuses & Breakers', 'Electrical fuses and circuit breakers', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-ELEC'), true, false, NOW()),
+('CAT-ELEC-CABLE', 'Cables & Wires', 'Power cables, control cables, wires', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-ELEC'), true, false, NOW()),
+
+-- Chemical Sub-categories
+('CAT-CHEM-OIL', 'Lubricating Oils', 'Engine oils, hydraulic oils, gear oils', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-CHEM'), true, false, NOW());
+
+-- =====================================================
+-- 12. MATERIAL ITEMS
+-- =====================================================
+
+INSERT INTO material_items (
+    item_code, name, category_id, specification, unit,
+    on_hand_quantity, min_stock, max_stock, reorder_level, reorder_quantity,
+    location, manufacturer, supplier, part_number, barcode,
+    batch_tracked, serial_tracked, expiry_required,
+    unit_cost, currency, notes,
+    is_active, is_synced, created_at
+) VALUES
+-- Engine Filters
+('ITEM-001', 'Main Engine Oil Filter', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-ENG-FILTER'),
+    'Spin-on type, 10 micron, flow rate 200 L/min', 'PCS',
+    8.000, 4.000, 20.000, 6.000, 10.000,
+    'Engine Store - Shelf A3', 'Mann Filter', 'Marine Supply Co.', 'W950/26', 'EAN-001-12345',
+    true, false, false,
+    125.50, 'USD', 'Compatible with MAN B&W engines',
+    true, false, NOW()),
+
+('ITEM-002', 'Fuel Filter Element', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-ENG-FILTER'),
+    'Cartridge type, 5 micron, replaceable element', 'PCS',
+    12.000, 6.000, 30.000, 8.000, 15.000,
+    'Engine Store - Shelf A4', 'Racor', 'Marine Supply Co.', 'R90T', 'EAN-002-12346',
+    true, false, false,
+    85.00, 'USD', 'High efficiency particulate filter',
+    true, false, NOW()),
+
+('ITEM-003', 'Air Filter', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-ENG-FILTER'),
+    'Panel type, pleated paper element', 'PCS',
+    6.000, 3.000, 15.000, 4.000, 8.000,
+    'Engine Store - Shelf A5', 'Donaldson', 'Marine Supply Co.', 'P181050', 'EAN-003-12347',
+    false, false, false,
+    95.75, 'USD', 'Replace every 1000 hours',
+    true, false, NOW()),
+
+-- Gaskets & Seals
+('ITEM-004', 'Cylinder Head Gasket', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-ENG-GASKET'),
+    'Multi-layer steel, high temperature resistant', 'PCS',
+    3.000, 2.000, 8.000, 2.000, 4.000,
+    'Engine Store - Shelf B2', 'Elring', 'Engine Parts Ltd.', 'EL-CH-001', 'EAN-004-12348',
+    false, false, false,
+    450.00, 'USD', 'Critical spare - keep minimum stock',
+    true, false, NOW()),
+
+('ITEM-005', 'O-Ring Set (Assorted)', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-ENG-GASKET'),
+    '419 pieces, NBR material, metric sizes', 'SET',
+    4.000, 2.000, 10.000, 3.000, 5.000,
+    'Engine Store - Drawer C1', 'Generic', 'Marine Supply Co.', 'OR-SET-419', 'EAN-005-12349',
+    false, false, false,
+    65.00, 'USD', 'General purpose O-ring assortment',
+    true, false, NOW()),
+
+-- Bearings
+('ITEM-006', 'Main Bearing Shell (Upper)', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-ENG-BEARING'),
+    'Tri-metal, standard size, for 500mm crankshaft', 'PCS',
+    2.000, 1.000, 6.000, 2.000, 4.000,
+    'Engine Store - Shelf B5', 'Glacier', 'Engine Parts Ltd.', 'GB-MB-500-U', 'EAN-006-12350',
+    false, true, false,
+    850.00, 'USD', 'Serial number tracking required',
+    true, false, NOW()),
+
+-- Electrical Components
+('ITEM-007', 'Circuit Breaker 100A', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-ELEC-FUSE'),
+    '3-pole, 690V AC, thermal-magnetic type', 'PCS',
+    5.000, 3.000, 15.000, 4.000, 8.000,
+    'Electrical Store - Panel 1', 'ABB', 'Electrical Supplies Inc.', 'S203-C100', 'EAN-007-12351',
+    false, true, false,
+    275.00, 'USD', 'For main switchboard',
+    true, false, NOW()),
+
+('ITEM-008', 'Power Cable 4x10mm²', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-ELEC-CABLE'),
+    'Marine grade, flame retardant, 4-core', 'METER',
+    250.000, 100.000, 500.000, 150.000, 300.000,
+    'Electrical Store - Cable Rack A', 'Nexans', 'Cable Co.', 'NX-MC-4x10', 'EAN-008-12352',
+    false, false, false,
+    12.50, 'USD', 'Sold per meter',
+    true, false, NOW()),
+
+-- Lubricating Oils
+('ITEM-009', 'Engine Oil SAE 40', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-CHEM-OIL'),
+    'Mineral oil, API CF, cylinder oil', 'LITER',
+    1500.000, 500.000, 3000.000, 800.000, 2000.000,
+    'Oil Store - Tank 1', 'Shell', 'Fuel & Oil Supplier', 'SHELL-RIMULA-40', 'EAN-009-12353',
+    true, false, true,
+    8.50, 'USD', 'Check expiry date - 2 years shelf life',
+    true, false, NOW()),
+
+('ITEM-010', 'Hydraulic Oil ISO 68', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-CHEM-OIL'),
+    'Anti-wear hydraulic oil, ISO VG 68', 'LITER',
+    800.000, 300.000, 1500.000, 500.000, 1000.000,
+    'Oil Store - Tank 2', 'Mobil', 'Fuel & Oil Supplier', 'MOBIL-DTE-68', 'EAN-010-12354',
+    true, false, true,
+    11.00, 'USD', 'For deck machinery hydraulic systems',
+    true, false, NOW()),
+
+-- Deck Equipment
+('ITEM-011', 'Wire Rope 24mm', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-DECK'),
+    '6x36 IWRC, galvanized steel, breaking load 50 tons', 'METER',
+    150.000, 50.000, 300.000, 80.000, 200.000,
+    'Deck Store - Outside', 'Bridon', 'Rigging Supply', 'BR-WR-24-6x36', 'EAN-011-12355',
+    false, false, false,
+    25.00, 'USD', 'Inspect before use',
+    true, false, NOW()),
+
+-- Safety Equipment
+('ITEM-012', 'Life Jacket (Adult)', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-SAFETY'),
+    'SOLAS approved, 150N buoyancy, with light and whistle', 'PCS',
+    45.000, 30.000, 60.000, 35.000, 20.000,
+    'Safety Store - Locker 1', 'Crewsaver', 'Safety Equipment Ltd.', 'CS-LJ-150', 'EAN-012-12356',
+    false, true, true,
+    85.00, 'USD', '5-year expiry from manufacture date',
+    true, false, NOW()),
+
+-- Tools
+('ITEM-013', 'Wrench Set (Metric)', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-TOOL'),
+    '12-piece combination wrench set, 8-19mm, chrome vanadium', 'SET',
+    3.000, 2.000, 8.000, 2.000, 4.000,
+    'Tool Store - Cabinet A', 'Stanley', 'Tool Supply Co.', 'ST-WS-M12', 'EAN-013-12357',
+    false, false, false,
+    125.00, 'USD', 'Standard workshop tools',
+    true, false, NOW()),
+
+-- Low Stock Item (trigger reorder alert)
+('ITEM-014', 'Impeller (Bilge Pump)', 
+    (SELECT id FROM material_categories WHERE category_code = 'CAT-ENG'),
+    'Neoprene, 6-blade, for 2" pump', 'PCS',
+    2.000, 4.000, 12.000, 4.000, 8.000,
+    'Engine Store - Shelf D3', 'Johnson Pump', 'Marine Supply Co.', 'JP-IMP-09-1027B', 'EAN-014-12358',
+    false, false, false,
+    45.00, 'USD', 'URGENT: Below minimum stock',
+    true, false, NOW());
+
+-- =====================================================
+-- VERIFICATION QUERIES FOR MATERIAL TABLES
+-- =====================================================
+
+SELECT '=== MATERIAL CATEGORIES ===' as info;
+SELECT 
+    mc.category_code, 
+    mc.name, 
+    COALESCE(parent.category_code, 'TOP LEVEL') as parent,
+    (SELECT COUNT(*) FROM material_items WHERE category_id = mc.id) as items_count
+FROM material_categories mc
+LEFT JOIN material_categories parent ON mc.parent_category_id = parent.id
+ORDER BY mc.category_code;
+
+SELECT '=== MATERIAL ITEMS SUMMARY ===' as info;
+SELECT 
+    mi.item_code,
+    mi.name,
+    mc.name as category,
+    mi.on_hand_quantity,
+    mi.min_stock,
+    mi.unit,
+    mi.location,
+    CASE 
+        WHEN mi.on_hand_quantity < mi.min_stock THEN 'REORDER NEEDED'
+        WHEN mi.on_hand_quantity >= mi.max_stock THEN 'OVERSTOCKED'
+        ELSE 'OK'
+    END as stock_status
+FROM material_items mi
+JOIN material_categories mc ON mi.category_id = mc.id
+ORDER BY 
+    CASE 
+        WHEN mi.on_hand_quantity < mi.min_stock THEN 1
+        ELSE 2
+    END,
+    mi.item_code;
+
+SELECT '=== LOW STOCK ALERTS ===' as info;
+SELECT 
+    item_code,
+    name,
+    on_hand_quantity,
+    min_stock,
+    (min_stock - on_hand_quantity) as quantity_needed,
+    location
+FROM material_items
+WHERE on_hand_quantity < min_stock
+ORDER BY (min_stock - on_hand_quantity) DESC;
+
+SELECT '✅ MATERIAL DATA INSERTED SUCCESSFULLY!' as result;

@@ -13,6 +13,7 @@ import { MaintenanceDetailPage } from './pages/Maintenance/MaintenanceDetailPage
 import { VoyagePage } from './pages/Voyage/VoyagePage'
 import { CompliancePage } from './pages/Compliance/CompliancePage'
 import { SyncPage } from './pages/Sync/SyncPage'
+import { MaterialPage } from './pages/Material/MaterialPage'
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
         <Route path="voyage" element={<VoyagePage />} />
         <Route path="compliance" element={<CompliancePage />} />
         <Route path="sync" element={<SyncPage />} />
+        <Route path="materials" element={<MaterialPage />} />
       </Route>
       
       {/* Full-screen pages outside MainLayout */}

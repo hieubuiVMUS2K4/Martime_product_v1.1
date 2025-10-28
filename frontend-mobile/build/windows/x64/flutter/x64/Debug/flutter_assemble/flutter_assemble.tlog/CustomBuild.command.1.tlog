@@ -1,6 +1,6 @@
-^D:\MARTIME_PRODUCT_V1\FRONTEND-MOBILE\BUILD\WINDOWS\X64\CMAKEFILES\731C81DE7ADF6BAB8A7739C81FE035B0\FLUTTER_WINDOWS.DLL.RULE
+^E:\NCKH\MARTIME_PRODUCT_V1.1\FRONTEND-MOBILE\BUILD\WINDOWS\X64\CMAKEFILES\2C94CC7690D797B390DEDFFB01BC7D3A\FLUTTER_WINDOWS.DLL.RULE
 setlocal
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E env FLUTTER_ROOT=D:\sdkFlutter\flutter PROJECT_DIR=D:\Martime_product_v1\frontend-mobile FLUTTER_ROOT=D:\sdkFlutter\flutter FLUTTER_EPHEMERAL_DIR=D:\Martime_product_v1\frontend-mobile\windows\flutter\ephemeral PROJECT_DIR=D:\Martime_product_v1\frontend-mobile FLUTTER_TARGET=D:\Martime_product_v1\frontend-mobile\lib\main.dart DART_DEFINES=RkxVVFRFUl9WRVJTSU9OPTMuMzUuNg==,RkxVVFRFUl9DSEFOTkVMPXN0YWJsZQ==,RkxVVFRFUl9HSVRfVVJMPWh0dHBzOi8vZ2l0aHViLmNvbS9mbHV0dGVyL2ZsdXR0ZXIuZ2l0,RkxVVFRFUl9GUkFNRVdPUktfUkVWSVNJT049OWY0NTVkMjQ4Ng==,RkxVVFRFUl9FTkdJTkVfUkVWSVNJT049ZDI5MTM2MzJhNA==,RkxVVFRFUl9EQVJUX1ZFUlNJT049My45LjI= DART_OBFUSCATION=false TRACK_WIDGET_CREATION=true TREE_SHAKE_ICONS=false PACKAGE_CONFIG=D:\Martime_product_v1\frontend-mobile\.dart_tool\package_config.json D:/sdkFlutter/flutter/packages/flutter_tools/bin/tool_backend.bat windows-x64 Debug
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E env FLUTTER_ROOT=E:\NCKH\SDK\flutter PROJECT_DIR=E:\NCKH\Martime_product_v1.1\frontend-mobile FLUTTER_ROOT=E:\NCKH\SDK\flutter FLUTTER_EPHEMERAL_DIR=E:\NCKH\Martime_product_v1.1\frontend-mobile\windows\flutter\ephemeral PROJECT_DIR=E:\NCKH\Martime_product_v1.1\frontend-mobile FLUTTER_TARGET=E:\NCKH\Martime_product_v1.1\frontend-mobile\lib\main.dart DART_DEFINES=RkxVVFRFUl9WRVJTSU9OPTMuMzUuNg==,RkxVVFRFUl9DSEFOTkVMPXN0YWJsZQ==,RkxVVFRFUl9HSVRfVVJMPWh0dHBzOi8vZ2l0aHViLmNvbS9mbHV0dGVyL2ZsdXR0ZXIuZ2l0,RkxVVFRFUl9GUkFNRVdPUktfUkVWSVNJT049OWY0NTVkMjQ4Ng==,RkxVVFRFUl9FTkdJTkVfUkVWSVNJT049ZDI5MTM2MzJhNA==,RkxVVFRFUl9EQVJUX1ZFUlNJT049My45LjI= DART_OBFUSCATION=false TRACK_WIDGET_CREATION=true TREE_SHAKE_ICONS=false PACKAGE_CONFIG=E:\NCKH\Martime_product_v1.1\frontend-mobile\.dart_tool\package_config.json E:/NCKH/SDK/flutter/packages/flutter_tools/bin/tool_backend.bat windows-x64 Debug
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
@@ -8,7 +8,7 @@ endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd
-^D:\MARTIME_PRODUCT_V1\FRONTEND-MOBILE\BUILD\WINDOWS\X64\CMAKEFILES\8C19394297A642DD1EB010EE666EDB69\FLUTTER_ASSEMBLE.RULE
+^E:\NCKH\MARTIME_PRODUCT_V1.1\FRONTEND-MOBILE\BUILD\WINDOWS\X64\CMAKEFILES\76298922B911DBACB79EF7FDCE53D73B\FLUTTER_ASSEMBLE.RULE
 setlocal
 :cmEnd
 endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
@@ -16,9 +16,9 @@ endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
 exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd
-^D:\MARTIME_PRODUCT_V1\FRONTEND-MOBILE\WINDOWS\FLUTTER\CMAKELISTS.TXT
+^E:\NCKH\MARTIME_PRODUCT_V1.1\FRONTEND-MOBILE\WINDOWS\FLUTTER\CMAKELISTS.TXT
 setlocal
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SD:/Martime_product_v1/frontend-mobile/windows -BD:/Martime_product_v1/frontend-mobile/build/windows/x64 --check-stamp-file D:/Martime_product_v1/frontend-mobile/build/windows/x64/flutter/CMakeFiles/generate.stamp
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SE:/NCKH/Martime_product_v1.1/frontend-mobile/windows -BE:/NCKH/Martime_product_v1.1/frontend-mobile/build/windows/x64 --check-stamp-file E:/NCKH/Martime_product_v1.1/frontend-mobile/build/windows/x64/flutter/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone

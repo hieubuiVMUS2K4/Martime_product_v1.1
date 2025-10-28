@@ -17,6 +17,8 @@ import type {
   OilRecordBook,
   SyncQueue,
   DashboardStats,
+  MaterialCategory,
+  MaterialItem,
 } from '@/types/maritime.types'
 
 // ============================================================
@@ -132,6 +134,43 @@ export class MaritimeService {
       this.request<CrewMember[]>(`/crew/expiring-certificates?days=${days}`),
   }
 
+  // === MATERIAL MANAGEMENT (thêm mới) ===
+  material = {
+    getCategories: (onlyActive = true, parentId?: number) => {
+      const params = new URLSearchParams()
+      params.set('onlyActive', String(onlyActive))
+      if (typeof parentId === 'number') params.set('parentId', String(parentId))
+      return this.request<MaterialCategory[]>(`/material/categories?${params.toString()}`)
+    },
+
+    getItems: (params?: { categoryId?: number; q?: string; onlyActive?: boolean }) => {
+      const qs = new URLSearchParams()
+      if (typeof params?.categoryId === 'number') qs.set('categoryId', String(params.categoryId))
+      if (params?.q) qs.set('q', params.q)
+      if (params?.onlyActive !== undefined) qs.set('onlyActive', String(params.onlyActive))
+      return this.request<MaterialItem[]>(`/material/items?${qs.toString()}`)
+    },
+
+    getLowStock: () => this.request<MaterialItem[]>('/material/items/low-stock'),
+
+    getItemById: (id: number) => this.request<MaterialItem>(`/material/items/${id}`),
+
+    createItem: (payload: Partial<MaterialItem>) =>
+      this.request<MaterialItem>('/material/items', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+
+    updateItem: (id: number, payload: Partial<MaterialItem>) =>
+      this.request<MaterialItem>(`/material/items/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }),
+
+    deleteItem: (id: number) =>
+      this.request(`/material/items/${id}`, { method: 'DELETE' }),
+  }
+
   maintenance = {
     getAll: () => this.request<MaintenanceTask[]>('/maintenance/tasks'),
     getPending: () => this.request<MaintenanceTask[]>('/maintenance/tasks/pending'),
@@ -201,6 +240,9 @@ export class MaritimeService {
 // ============================================================
 
 export const maritimeService = new MaritimeService()
+
+// Alias (tùy chọn) nếu muốn import { materialService } ở các trang:
+export const materialService = maritimeService.material
 
 // ============================================================
 // TELEMETRY & SENSOR DATA

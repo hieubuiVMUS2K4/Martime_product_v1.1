@@ -10,6 +10,7 @@ import {
   FileText,
   RefreshCw,
   Anchor,
+  Boxes,
 } from 'lucide-react'
 
 const navigation = [
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Alarms', to: '/alarms', icon: AlertTriangle },
   { name: 'Crew', to: '/crew', icon: Users },
   { name: 'Maintenance', to: '/maintenance', icon: Wrench },
+  { name: 'Materials', to: '/materials', icon: Boxes },
   { name: 'Voyage', to: '/voyage', icon: Ship },
   { name: 'Compliance', to: '/compliance', icon: FileText },
   { name: 'Sync Status', to: '/sync', icon: RefreshCw },

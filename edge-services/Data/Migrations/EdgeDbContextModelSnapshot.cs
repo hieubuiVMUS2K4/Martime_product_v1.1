@@ -887,6 +887,209 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("maintenance_tasks", "public");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.MaterialCategory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("CategoryCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("category_code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<long?>("ParentCategoryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("parent_category_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_material_categories");
+
+                    b.HasIndex("CategoryCode")
+                        .IsUnique()
+                        .HasDatabaseName("idx_material_category_code_unique");
+
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("idx_material_category_active")
+                        .HasFilter("is_active = true");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_material_category_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("ParentCategoryId")
+                        .HasDatabaseName("idx_material_category_parent");
+
+                    b.ToTable("material_categories", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.MaterialItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("barcode");
+
+                    b.Property<bool>("BatchTracked")
+                        .HasColumnType("boolean")
+                        .HasColumnName("batch_tracked");
+
+                    b.Property<long>("CategoryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<bool>("ExpiryRequired")
+                        .HasColumnType("boolean")
+                        .HasColumnName("expiry_required");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("item_code");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("location");
+
+                    b.Property<string>("Manufacturer")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("manufacturer");
+
+                    b.Property<double?>("MaxStock")
+                        .HasColumnType("decimal(14,3)")
+                        .HasColumnName("max_stock");
+
+                    b.Property<double?>("MinStock")
+                        .HasColumnType("decimal(14,3)")
+                        .HasColumnName("min_stock");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<double>("OnHandQuantity")
+                        .HasColumnType("decimal(14,3)")
+                        .HasColumnName("on_hand_quantity");
+
+                    b.Property<string>("PartNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("part_number");
+
+                    b.Property<double?>("ReorderLevel")
+                        .HasColumnType("decimal(14,3)")
+                        .HasColumnName("reorder_level");
+
+                    b.Property<double?>("ReorderQuantity")
+                        .HasColumnType("decimal(14,3)")
+                        .HasColumnName("reorder_quantity");
+
+                    b.Property<bool>("SerialTracked")
+                        .HasColumnType("boolean")
+                        .HasColumnName("serial_tracked");
+
+                    b.Property<string>("Specification")
+                        .HasColumnType("text")
+                        .HasColumnName("specification");
+
+                    b.Property<string>("Supplier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("supplier");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("unit");
+
+                    b.Property<decimal?>("UnitCost")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("unit_cost");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_material_items");
+
+                    b.HasIndex("Barcode")
+                        .HasDatabaseName("idx_material_item_barcode");
+
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("idx_material_item_category");
+
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("idx_material_item_active")
+                        .HasFilter("is_active = true");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_material_item_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("ItemCode")
+                        .IsUnique()
+                        .HasDatabaseName("idx_material_item_code_unique");
+
+                    b.ToTable("material_items", "public");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.NavigationData", b =>
                 {
                     b.Property<long>("Id")
@@ -1625,6 +1828,23 @@ namespace MaritimeEdge.Data.Migrations
                         .HasDatabaseName("idx_watchkeeping_date_period");
 
                     b.ToTable("watchkeeping_logs", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.MaterialCategory", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.MaterialCategory", null)
+                        .WithMany()
+                        .HasForeignKey("ParentCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.MaterialItem", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.MaterialCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

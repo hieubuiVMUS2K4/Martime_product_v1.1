@@ -1,25 +1,27 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Martime_product_v1\\edge-services\\EdgeCollector.csproj": {}
+    "E:\\NCKH\\Martime_product_v1.1\\edge-services\\EdgeCollector.csproj": {}
   },
   "projects": {
-    "D:\\Martime_product_v1\\edge-services\\EdgeCollector.csproj": {
+    "E:\\NCKH\\Martime_product_v1.1\\edge-services\\EdgeCollector.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Martime_product_v1\\edge-services\\EdgeCollector.csproj",
+        "projectUniqueName": "E:\\NCKH\\Martime_product_v1.1\\edge-services\\EdgeCollector.csproj",
         "projectName": "MaritimeEdgeServer",
-        "projectPath": "D:\\Martime_product_v1\\edge-services\\EdgeCollector.csproj",
-        "packagesPath": "C:\\Users\\hieuu\\.nuget\\packages\\",
-        "outputPath": "D:\\Martime_product_v1\\edge-services\\obj\\",
+        "projectPath": "E:\\NCKH\\Martime_product_v1.1\\edge-services\\EdgeCollector.csproj",
+        "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
+        "outputPath": "E:\\NCKH\\Martime_product_v1.1\\edge-services\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\hieuu\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -37,7 +39,8 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        }
+        },
+        "SdkAnalysisLevel": "9.0.300"
       },
       "frameworks": {
         "net8.0": {
@@ -111,7 +114,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.414/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.306/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

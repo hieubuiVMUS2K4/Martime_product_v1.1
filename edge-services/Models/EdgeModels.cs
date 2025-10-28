@@ -846,3 +846,99 @@ public class OilRecordBook
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
+
+/// <summary>
+/// Material categories (hierarchical)
+/// </summary>
+public class MaterialCategory
+{
+    [Key]
+    public long Id { get; set; }
+
+    [Required]
+    [MaxLength(50)]
+    public string CategoryCode { get; set; } = string.Empty;
+
+    [Required]
+    [MaxLength(200)]
+    public string Name { get; set; } = string.Empty;
+
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Self-reference to parent category (nullable)
+    /// </summary>
+    public long? ParentCategoryId { get; set; }
+
+    public bool IsActive { get; set; } = true;
+
+    public bool IsSynced { get; set; } = false;
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Material items (spare parts, consumables)
+/// </summary>
+public class MaterialItem
+{
+    [Key]
+    public long Id { get; set; }
+
+    [Required]
+    [MaxLength(50)]
+    public string ItemCode { get; set; } = string.Empty;
+
+    [Required]
+    [MaxLength(200)]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// FK -> MaterialCategory.Id
+    /// </summary>
+    public long CategoryId { get; set; }
+
+    public string? Specification { get; set; }
+
+    [MaxLength(20)]
+    public string Unit { get; set; } = "PCS";
+
+    public double OnHandQuantity { get; set; } = 0;
+
+    public double? MinStock { get; set; }
+    public double? MaxStock { get; set; }
+    public double? ReorderLevel { get; set; }
+    public double? ReorderQuantity { get; set; }
+
+    [MaxLength(100)]
+    public string? Location { get; set; }
+
+    [MaxLength(100)]
+    public string? Manufacturer { get; set; }
+
+    [MaxLength(200)]
+    public string? Supplier { get; set; }
+
+    [MaxLength(100)]
+    public string? PartNumber { get; set; }
+
+    [MaxLength(50)]
+    public string? Barcode { get; set; }
+
+    public bool BatchTracked { get; set; } = false;
+    public bool SerialTracked { get; set; } = false;
+    public bool ExpiryRequired { get; set; } = false;
+
+    public decimal? UnitCost { get; set; }
+
+    [MaxLength(3)]
+    public string? Currency { get; set; } = "USD";
+
+    public string? Notes { get; set; }
+
+    public bool IsActive { get; set; } = true;
+
+    public bool IsSynced { get; set; } = false;
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}

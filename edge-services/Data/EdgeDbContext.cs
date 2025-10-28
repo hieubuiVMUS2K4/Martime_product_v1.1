@@ -43,6 +43,10 @@ public class EdgeDbContext : DbContext
     public DbSet<WatchkeepingLog> WatchkeepingLogs { get; set; } = null!;
     public DbSet<OilRecordBook> OilRecordBooks { get; set; } = null!;
 
+    // Inventory & Materials
+    public DbSet<MaterialCategory> MaterialCategories { get; set; } = null!;
+    public DbSet<MaterialItem> MaterialItems { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -518,6 +522,70 @@ public class EdgeDbContext : DbContext
                 .HasDatabaseName("idx_orb_synced")
                 .HasFilter("is_synced = false");
         });
+
+        // ========== MATERIAL CATEGORIES ==========
+        modelBuilder.Entity<MaterialCategory>(entity =>
+        {
+            entity.ToTable("material_categories");
+
+            entity.HasIndex(e => e.CategoryCode)
+                .IsUnique()
+                .HasDatabaseName("idx_material_category_code_unique");
+
+            entity.HasIndex(e => e.ParentCategoryId)
+                .HasDatabaseName("idx_material_category_parent");
+
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_material_category_active")
+                .HasFilter("is_active = true");
+
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_material_category_synced")
+                .HasFilter("is_synced = false");
+
+            // Self reference
+            entity.HasOne<MaterialCategory>()
+                .WithMany()
+                .HasForeignKey(e => e.ParentCategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ========== MATERIAL ITEMS ==========
+        modelBuilder.Entity<MaterialItem>(entity =>
+        {
+            entity.ToTable("material_items");
+
+            entity.Property(e => e.OnHandQuantity).HasColumnType("decimal(14,3)");
+            entity.Property(e => e.MinStock).HasColumnType("decimal(14,3)");
+            entity.Property(e => e.MaxStock).HasColumnType("decimal(14,3)");
+            entity.Property(e => e.ReorderLevel).HasColumnType("decimal(14,3)");
+            entity.Property(e => e.ReorderQuantity).HasColumnType("decimal(14,3)");
+            entity.Property(e => e.UnitCost).HasColumnType("decimal(18,2)");
+
+            entity.HasIndex(e => e.ItemCode)
+                .IsUnique()
+                .HasDatabaseName("idx_material_item_code_unique");
+
+            entity.HasIndex(e => e.CategoryId)
+                .HasDatabaseName("idx_material_item_category");
+
+            entity.HasIndex(e => e.Barcode)
+                .HasDatabaseName("idx_material_item_barcode");
+
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_material_item_active")
+                .HasFilter("is_active = true");
+
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_material_item_synced")
+                .HasFilter("is_synced = false");
+
+            entity.HasOne<MaterialCategory>()
+                .WithMany()
+                .HasForeignKey(e => e.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
     }
 
     /// <summary>

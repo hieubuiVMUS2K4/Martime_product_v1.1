@@ -351,3 +351,42 @@ export interface AlarmSummary {
   info: number
   unacknowledged: number
 }
+
+export interface MaterialCategory {
+  id: number;
+  categoryCode: string;
+  name: string;
+  description?: string | null;
+  parentCategoryId?: number | null;
+  isActive: boolean;
+  isSynced: boolean;
+  createdAt: string;
+}
+
+export interface MaterialItem {
+  id: number;
+  itemCode: string;
+  name: string;
+  categoryId: number;
+  specification?: string | null;
+  unit: string;
+  onHandQuantity: number;
+  minStock?: number | null;
+  maxStock?: number | null;
+  reorderLevel?: number | null;
+  reorderQuantity?: number | null;
+  location?: string | null;
+  manufacturer?: string | null;
+  supplier?: string | null;
+  partNumber?: string | null;
+  barcode?: string | null;
+  batchTracked: boolean;
+  serialTracked: boolean;
+  expiryRequired: boolean;
+  unitCost?: number | null;
+  currency: string;
+  notes?: string | null;
+  isActive: boolean;
+  isSynced: boolean;
+  createdAt: string;
+}

@@ -21,7 +21,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{9CE6B2D8-9156-3DCE-B343-60FBBC1D8B1C}</ProjectGuid>
+    <ProjectGuid>{D78A3B13-0577-3C17-A889-BDC467A65B45}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
     <Platform>x64</Platform>
@@ -88,11 +88,11 @@
     </Midl>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CustomBuild Include="D:\Martime_product_v1\frontend-mobile\windows\flutter\ephemeral\.plugin_symlinks\flutter_secure_storage_windows\windows\CMakeLists.txt">
+    <CustomBuild Include="E:\NCKH\Martime_product_v1.1\frontend-mobile\windows\flutter\ephemeral\.plugin_symlinks\flutter_secure_storage_windows\windows\CMakeLists.txt">
       <UseUtf8Encoding>Always</UseUtf8Encoding>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/Martime_product_v1/frontend-mobile/windows/flutter/ephemeral/.plugin_symlinks/flutter_secure_storage_windows/windows/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule E:/NCKH/Martime_product_v1.1/frontend-mobile/windows/flutter/ephemeral/.plugin_symlinks/flutter_secure_storage_windows/windows/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SD:/Martime_product_v1/frontend-mobile/windows -BD:/Martime_product_v1/frontend-mobile/build/windows/x64 --check-stamp-file D:/Martime_product_v1/frontend-mobile/build/windows/x64/plugins/flutter_secure_storage_windows/CMakeFiles/generate.stamp
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SE:/NCKH/Martime_product_v1.1/frontend-mobile/windows -BE:/NCKH/Martime_product_v1.1/frontend-mobile/build/windows/x64 --check-stamp-file E:/NCKH/Martime_product_v1.1/frontend-mobile/build/windows/x64/plugins/flutter_secure_storage_windows/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -101,11 +101,11 @@ exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\Martime_product_v1\frontend-mobile\build\windows\x64\plugins\flutter_secure_storage_windows\CMakeFiles\generate.stamp</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">E:\NCKH\Martime_product_v1.1\frontend-mobile\build\windows\x64\plugins\flutter_secure_storage_windows\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">Building Custom Rule D:/Martime_product_v1/frontend-mobile/windows/flutter/ephemeral/.plugin_symlinks/flutter_secure_storage_windows/windows/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">Building Custom Rule E:/NCKH/Martime_product_v1.1/frontend-mobile/windows/flutter/ephemeral/.plugin_symlinks/flutter_secure_storage_windows/windows/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">setlocal
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SD:/Martime_product_v1/frontend-mobile/windows -BD:/Martime_product_v1/frontend-mobile/build/windows/x64 --check-stamp-file D:/Martime_product_v1/frontend-mobile/build/windows/x64/plugins/flutter_secure_storage_windows/CMakeFiles/generate.stamp
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SE:/NCKH/Martime_product_v1.1/frontend-mobile/windows -BE:/NCKH/Martime_product_v1.1/frontend-mobile/build/windows/x64 --check-stamp-file E:/NCKH/Martime_product_v1.1/frontend-mobile/build/windows/x64/plugins/flutter_secure_storage_windows/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -114,11 +114,11 @@ exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">D:\Martime_product_v1\frontend-mobile\build\windows\x64\plugins\flutter_secure_storage_windows\CMakeFiles\generate.stamp</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">E:\NCKH\Martime_product_v1.1\frontend-mobile\build\windows\x64\plugins\flutter_secure_storage_windows\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule D:/Martime_product_v1/frontend-mobile/windows/flutter/ephemeral/.plugin_symlinks/flutter_secure_storage_windows/windows/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule E:/NCKH/Martime_product_v1.1/frontend-mobile/windows/flutter/ephemeral/.plugin_symlinks/flutter_secure_storage_windows/windows/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SD:/Martime_product_v1/frontend-mobile/windows -BD:/Martime_product_v1/frontend-mobile/build/windows/x64 --check-stamp-file D:/Martime_product_v1/frontend-mobile/build/windows/x64/plugins/flutter_secure_storage_windows/CMakeFiles/generate.stamp
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SE:/NCKH/Martime_product_v1.1/frontend-mobile/windows -BE:/NCKH/Martime_product_v1.1/frontend-mobile/build/windows/x64 --check-stamp-file E:/NCKH/Martime_product_v1.1/frontend-mobile/build/windows/x64/plugins/flutter_secure_storage_windows/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -127,7 +127,7 @@ exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\Martime_product_v1\frontend-mobile\build\windows\x64\plugins\flutter_secure_storage_windows\CMakeFiles\generate.stamp</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">E:\NCKH\Martime_product_v1.1\frontend-mobile\build\windows\x64\plugins\flutter_secure_storage_windows\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
     </CustomBuild>
   </ItemGroup>
@@ -135,14 +135,14 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
-    <ProjectReference Include="D:\Martime_product_v1\frontend-mobile\build\windows\x64\ZERO_CHECK.vcxproj">
-      <Project>{D49DAF87-A00C-394D-9D06-B7C6EC3844E1}</Project>
+    <ProjectReference Include="E:\NCKH\Martime_product_v1.1\frontend-mobile\build\windows\x64\ZERO_CHECK.vcxproj">
+      <Project>{56292BEF-00F8-3525-BDA3-47E1123737F5}</Project>
       <Name>ZERO_CHECK</Name>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </ProjectReference>
-    <ProjectReference Include="D:\Martime_product_v1\frontend-mobile\build\windows\x64\plugins\flutter_secure_storage_windows\flutter_secure_storage_windows_plugin.vcxproj">
-      <Project>{F19D6CAD-7AED-3871-BA37-E9EB3537C098}</Project>
+    <ProjectReference Include="E:\NCKH\Martime_product_v1.1\frontend-mobile\build\windows\x64\plugins\flutter_secure_storage_windows\flutter_secure_storage_windows_plugin.vcxproj">
+      <Project>{4B592C43-460E-372D-9085-A8FD33BC5D38}</Project>
       <Name>flutter_secure_storage_windows_plugin</Name>
     </ProjectReference>
   </ItemGroup>
