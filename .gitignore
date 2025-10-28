@@ -1,0 +1,214 @@
+# ========================================
+# MARITIME MANAGEMENT SYSTEM - ROOT GITIGNORE
+# ========================================
+
+# ====================
+# ENVIRONMENT & SECRETS
+# ====================
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# ====================
+# IDE & EDITORS
+# ====================
+# Visual Studio Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.history/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# JetBrains IDEs (Rider, WebStorm, IntelliJ)
+.idea/
+*.iml
+*.iws
+*.ipr
+.idea_modules/
+
+# ====================
+# OPERATING SYSTEM
+# ====================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+
+# ====================
+# NODE.JS / NPM
+# ====================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ====================
+# .NET / C#
+# ====================
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.cache
+*.suo
+*.user
+*.userosscache
+.vs/
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# NuGet
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+
+# ====================
+# FLUTTER / DART
+# ====================
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+flutter_*.log
+
+# ====================
+# REACT / VITE
+# ====================
+dist/
+dist-ssr/
+*.local
+.cache/
+
+# ====================
+# DOCKER
+# ====================
+# Ignore Docker volumes data (keep configs)
+docker-compose.override.yml
+.docker/
+
+# ====================
+# DATABASES
+# ====================
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# PostgreSQL
+*.sql.backup
+*.dump
+
+# ====================
+# LOGS & TEMP FILES
+# ====================
+logs/
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# ====================
+# BACKUP FILES
+# ====================
+*.bak
+*.backup
+*.old
+backup*/
+backups/
+
+# ====================
+# FILES RÁC ĐÃ XÁC ĐỊNH
+# ====================
+# Files lỗi typing command
+cd
+npm
+
+# Files config đặt sai vị trí
+/vite.config.ts
+/package-lock.json
+
+# SQL files cũ/trùng lặp (giữ insert-sample-data-fixed.sql)
+edge-services/insert-sample-data.sql
+edge-services/insert-sample-data-complete.sql
+edge-services/sample-data-insert.sql
+edge-services/insert-data.ps1
+
+# ====================
+# DOCUMENTATION TRÙNG LẶP (Optional - uncomment nếu muốn ignore)
+# ====================
+# /QUICK_START.md
+# /QUICK_REFERENCE.md
+# /SETUP_GUIDE.md
+# frontend-mobile/QUICKSTART.md
+# frontend-mobile/QUICK_TEST_NOW.md
+# frontend-mobile/INTEGRATION_COMPLETE.md
+# frontend-mobile/DEVELOPMENT_SUMMARY.md
+# frontend-edge/QUICK_TEST_CREW.md
+# edge-services/API_SETUP_COMPLETE.md
+
+# ====================
+# TEST & COVERAGE
+# ====================
+coverage/
+*.coverage
+.nyc_output/
+test-results/
+*.test.cache
+
+# ====================
+# MISC
+# ====================
+*.pid
+*.seed
+*.pid.lock
+.eslintcache
+.stylelintcache
+.cache

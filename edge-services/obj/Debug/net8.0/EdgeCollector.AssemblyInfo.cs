@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MaritimeEdgeServer")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7e8e3dff2bce9b80b59f7196fb1476fb17f365d5")]
 [assembly: System.Reflection.AssemblyProductAttribute("MaritimeEdgeServer")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MaritimeEdgeServer")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

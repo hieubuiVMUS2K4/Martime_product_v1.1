@@ -1,0 +1,166 @@
+# ========================================
+# FRONTEND-MOBILE (Flutter) - GITIGNORE
+# ========================================
+
+# ====================
+# FLUTTER / DART
+# ====================
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# ====================
+# FLUTTER BUILD OUTPUT
+# ====================
+build/
+.flutter-plugins-dependencies
+
+# ====================
+# FLUTTER WEB
+# ====================
+/web/flutter_service_worker.js
+/web/version.json
+
+# ====================
+# FLUTTER WINDOWS
+# ====================
+windows/flutter/ephemeral/
+windows/flutter/generated_plugin_registrant.cc
+windows/flutter/generated_plugin_registrant.h
+windows/flutter/generated_plugins.cmake
+
+# ====================
+# FLUTTER MACOS
+# ====================
+macos/Flutter/ephemeral/
+macos/Flutter/GeneratedPluginRegistrant.swift
+
+# ====================
+# FLUTTER LINUX
+# ====================
+linux/flutter/ephemeral/
+linux/flutter/generated_plugin_registrant.cc
+linux/flutter/generated_plugin_registrant.h
+linux/flutter/generated_plugins.cmake
+
+# ====================
+# FLUTTER IOS
+# ====================
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Runner/GeneratedPluginRegistrant.*
+ios/Pods/
+ios/Podfile.lock
+
+# ====================
+# FLUTTER ANDROID
+# ====================
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+android/.gradle/
+android/captures/
+android/local.properties
+android/.idea/
+android/gradle/
+android/gradlew
+android/gradlew.bat
+android/key.properties
+
+# ====================
+# HIVE DATABASE
+# ====================
+*.hive
+*.lock
+*.g.dart
+# Keep model adapters that are generated
+!lib/**/*.g.dart
+
+# ====================
+# CODE GENERATION
+# ====================
+*.freezed.dart
+*.config.dart
+# Keep these if needed:
+# !lib/**/*.g.dart
+# !lib/**/*.freezed.dart
+
+# ====================
+# ENVIRONMENT & SECRETS
+# ====================
+.env
+.env.local
+!.env.example
+
+# ====================
+# TESTING
+# ====================
+coverage/
+test/coverage/
+.test_coverage.dart
+
+# ====================
+# LOGS
+# ====================
+*.log
+logs/
+
+# ====================
+# MISC
+# ====================
+.metadata
+.flutter-plugins-dependencies
+pubspec.lock
+*.tmp
+*.temp
+
+# ====================
+# DOCUMENTATION TRÙNG LẶP (Optional)
+# ====================
+# QUICKSTART.md
+# QUICK_TEST_NOW.md
+# INTEGRATION_COMPLETE.md
+# DEVELOPMENT_SUMMARY.md
+# COMPLETE_GUIDE.md

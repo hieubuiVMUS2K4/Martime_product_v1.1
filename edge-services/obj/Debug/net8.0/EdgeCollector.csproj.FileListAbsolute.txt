@@ -113,3 +113,4 @@ D:\Martime_product_v1\edge-services\obj\Debug\net8.0\refint\MaritimeEdgeServer.d
 D:\Martime_product_v1\edge-services\obj\Debug\net8.0\MaritimeEdgeServer.pdb
 D:\Martime_product_v1\edge-services\obj\Debug\net8.0\EdgeCollector.genruntimeconfig.cache
 D:\Martime_product_v1\edge-services\obj\Debug\net8.0\ref\MaritimeEdgeServer.dll
+D:\Martime_product_v1\edge-services\obj\Debug\net8.0\EdgeCollector.sourcelink.json
