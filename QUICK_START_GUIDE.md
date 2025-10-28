@@ -82,7 +82,7 @@ cd "F:\NCKH\Product\sampleProduct-master (1)\sampleProduct-master\edge-services"
 dotnet restore
 
 # Run backend API
-dotnet run --urls "http://localhost:5001"
+dotnet run --urls "http://0.0.0.0:5001"
 ```
 
 **✅ Kết quả mong đợi:**
@@ -154,7 +154,11 @@ Bạn sẽ thấy:
 - [x] **DashboardController** - Thống kê tổng quan
 - [x] **CrewController** - Quản lý thuyền viên + chứng chỉ STCW
 - [x] **MaintenanceController** - Hệ thống bảo dưỡng ISM Code
-- [x] **VoyageController** - Quản lý chuyến đi + hàng hóa
+- [x] **VoyageController** - Quản lý chuyến đi + hàng hóa$flutterBin = "F:\src\flutter\bin"
+$env:Path = "$flutterBin;$env:Path"
+flutter --version$flutterBin = "F:\src\flutter\bin"
+$env:Path = "$flutterBin;$env:Path"
+flutter --version
 - [x] **ComplianceController** - Nhật ký trực ca + Oil Record Book
 - [x] **AlarmsController** - Hệ thống cảnh báo
 - [x] **SyncController** - Đồng bộ dữ liệu với bờ

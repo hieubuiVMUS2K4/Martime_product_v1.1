@@ -610,6 +610,163 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("environmental_data", "public");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.FuelAnalyticsSummary", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<double>("AuxiliaryFuelMT")
+                        .HasColumnType("decimal(10,3)")
+                        .HasColumnName("auxiliary_fuel_m_t");
+
+                    b.Property<double>("AverageSpeedKnots")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("average_speed_knots");
+
+                    b.Property<double?>("AvgMainEngineLoad")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("avg_main_engine_load");
+
+                    b.Property<double?>("AvgMainEngineRPM")
+                        .HasColumnType("decimal(6,2)")
+                        .HasColumnName("avg_main_engine_r_p_m");
+
+                    b.Property<double?>("AvgSeaState")
+                        .HasColumnType("decimal(3,1)")
+                        .HasColumnName("avg_sea_state");
+
+                    b.Property<double?>("AvgWindSpeed")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("avg_wind_speed");
+
+                    b.Property<double>("BoilerFuelMT")
+                        .HasColumnType("decimal(10,3)")
+                        .HasColumnName("boiler_fuel_m_t");
+
+                    b.Property<double?>("CII")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("c_i_i");
+
+                    b.Property<string>("CIIRating")
+                        .HasMaxLength(1)
+                        .HasColumnType("character varying(1)")
+                        .HasColumnName("c_i_i_rating");
+
+                    b.Property<double>("CO2EmissionsMT")
+                        .HasColumnType("decimal(12,3)")
+                        .HasColumnName("c_o2_emissions_m_t");
+
+                    b.Property<double?>("CargoWeightMT")
+                        .HasColumnType("decimal(12,3)")
+                        .HasColumnName("cargo_weight_m_t");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DataPointsCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("data_points_count");
+
+                    b.Property<double>("DataQualityScore")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("data_quality_score");
+
+                    b.Property<double>("DistanceNauticalMiles")
+                        .HasColumnType("decimal(12,2)")
+                        .HasColumnName("distance_nautical_miles");
+
+                    b.Property<double?>("EEOI")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("e_e_o_i");
+
+                    b.Property<double?>("EstimatedFuelCostUSD")
+                        .HasColumnType("decimal(15,2)")
+                        .HasColumnName("estimated_fuel_cost_u_s_d");
+
+                    b.Property<double>("FuelPerHour")
+                        .HasColumnType("decimal(8,4)")
+                        .HasColumnName("fuel_per_hour");
+
+                    b.Property<double>("FuelPerNauticalMile")
+                        .HasColumnType("decimal(8,4)")
+                        .HasColumnName("fuel_per_nautical_mile");
+
+                    b.Property<double?>("FuelPricePerMT")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("fuel_price_per_m_t");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<double>("MainEngineFuelMT")
+                        .HasColumnType("decimal(10,3)")
+                        .HasColumnName("main_engine_fuel_m_t");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_end");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_start");
+
+                    b.Property<string>("PeriodType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("period_type");
+
+                    b.Property<double?>("SFOC")
+                        .HasColumnType("decimal(8,2)")
+                        .HasColumnName("s_f_o_c");
+
+                    b.Property<double>("TimeBerthHours")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("time_berth_hours");
+
+                    b.Property<double>("TimeUnderwayHours")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("time_underway_hours");
+
+                    b.Property<double>("TotalFuelConsumedMT")
+                        .HasColumnType("decimal(10,3)")
+                        .HasColumnName("total_fuel_consumed_m_t");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("VoyageId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("voyage_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_fuel_analytics_summaries");
+
+                    b.HasIndex("CIIRating")
+                        .HasDatabaseName("idx_fuel_analytics_cii");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_fuel_analytics_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_fuel_analytics_voyage");
+
+                    b.HasIndex("PeriodType", "PeriodStart")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("idx_fuel_analytics_period");
+
+                    b.ToTable("fuel_analytics_summaries", "public");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.FuelConsumption", b =>
                 {
                     b.Property<long>("Id")
@@ -685,6 +842,100 @@ namespace MaritimeEdge.Data.Migrations
                         .HasDatabaseName("idx_fuel_timestamp");
 
                     b.ToTable("fuel_consumption", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.FuelEfficiencyAlert", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("AcknowledgedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("acknowledged_at");
+
+                    b.Property<string>("AcknowledgedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("acknowledged_by");
+
+                    b.Property<string>("AlertType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("alert_type");
+
+                    b.Property<double>("CurrentValue")
+                        .HasColumnType("decimal(10,3)")
+                        .HasColumnName("current_value");
+
+                    b.Property<double>("DeviationPercent")
+                        .HasColumnType("decimal(6,2)")
+                        .HasColumnName("deviation_percent");
+
+                    b.Property<double>("ExpectedValue")
+                        .HasColumnType("decimal(10,3)")
+                        .HasColumnName("expected_value");
+
+                    b.Property<bool>("IsAcknowledged")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_acknowledged");
+
+                    b.Property<bool>("IsResolved")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_resolved");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("message");
+
+                    b.Property<string>("RecommendedAction")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("recommended_action");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("severity");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("timestamp");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_fuel_efficiency_alerts");
+
+                    b.HasIndex("AlertType")
+                        .HasDatabaseName("idx_fuel_alert_type");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_fuel_alert_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("Timestamp")
+                        .IsDescending()
+                        .HasDatabaseName("idx_fuel_alert_timestamp");
+
+                    b.HasIndex("IsResolved", "Severity")
+                        .HasDatabaseName("idx_fuel_alert_unresolved")
+                        .HasFilter("is_resolved = false");
+
+                    b.ToTable("fuel_efficiency_alerts", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.GeneratorData", b =>

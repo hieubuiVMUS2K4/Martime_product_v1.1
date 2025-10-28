@@ -1,6 +1,6 @@
-^D:\MARTIME_PRODUCT_V1\FRONTEND-MOBILE\WINDOWS\CMAKELISTS.TXT
+^F:\NCKH\PRODUCT\MARTIME_PRODUCT_V1.1\FRONTEND-MOBILE\WINDOWS\CMAKELISTS.TXT
 setlocal
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SD:/Martime_product_v1/frontend-mobile/windows -BD:/Martime_product_v1/frontend-mobile/build/windows/x64 --check-stamp-file D:/Martime_product_v1/frontend-mobile/build/windows/x64/CMakeFiles/generate.stamp
+"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SF:/NCKH/Product/Martime_product_v1.1/frontend-mobile/windows -BF:/NCKH/Product/Martime_product_v1.1/frontend-mobile/build/windows/x64 --check-stamp-file F:/NCKH/Product/Martime_product_v1.1/frontend-mobile/build/windows/x64/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone

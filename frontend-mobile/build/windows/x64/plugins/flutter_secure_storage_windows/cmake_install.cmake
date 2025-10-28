@@ -1,4 +1,4 @@
-# Install script for directory: D:/Martime_product_v1/frontend-mobile/windows/flutter/ephemeral/.plugin_symlinks/flutter_secure_storage_windows/windows
+# Install script for directory: F:/NCKH/Product/Martime_product_v1.1/frontend-mobile/windows/flutter/ephemeral/.plugin_symlinks/flutter_secure_storage_windows/windows
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -35,6 +35,6 @@ endif()
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
 if(CMAKE_INSTALL_LOCAL_ONLY)
-  file(WRITE "D:/Martime_product_v1/frontend-mobile/build/windows/x64/plugins/flutter_secure_storage_windows/install_local_manifest.txt"
+  file(WRITE "F:/NCKH/Product/Martime_product_v1.1/frontend-mobile/build/windows/x64/plugins/flutter_secure_storage_windows/install_local_manifest.txt"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
 endif()

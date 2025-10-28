@@ -1,13 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <CustomBuild Include="D:\Martime_product_v1\frontend-mobile\build\windows\x64\CMakeFiles\6138a1e40ff648adabb00ac582bd396d\INSTALL_force.rule">
+    <CustomBuild Include="F:\NCKH\Product\Martime_product_v1.1\frontend-mobile\build\windows\x64\CMakeFiles\1c773fbe7ec3b152665a177db856c440\INSTALL_force.rule">
       <Filter>CMake Rules</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="CMake Rules">
-      <UniqueIdentifier>{76C72AEF-C80E-3FBD-AFF2-78DAAF7BBF1C}</UniqueIdentifier>
+      <UniqueIdentifier>{241B3E48-3E45-31DE-BBAB-42B23A12C6FD}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
