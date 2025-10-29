@@ -669,6 +669,8 @@ public class MaintenanceTask
     [MaxLength(100)]
     public string? AssignedTo { get; set; } // Crew member name
     
+    public DateTime? StartedAt { get; set; } // When task was started
+    
     public DateTime? CompletedAt { get; set; }
     
     [MaxLength(100)]

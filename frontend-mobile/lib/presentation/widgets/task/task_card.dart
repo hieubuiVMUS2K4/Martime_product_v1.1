@@ -17,10 +17,22 @@ class TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: task.isOverdue && !task.isCompleted
+            ? BorderSide(color: Colors.red.shade700, width: 2)
+            : BorderSide.none,
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
+        child: Container(
+          decoration: task.isOverdue && !task.isCompleted
+              ? BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.red.shade50,
+                )
+              : null,
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

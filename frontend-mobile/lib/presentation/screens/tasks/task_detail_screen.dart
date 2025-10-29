@@ -28,6 +28,29 @@ class TaskDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Overdue Warning Banner
+            if (task.isOverdue && !task.isCompleted)
+              Container(
+                width: double.infinity,
+                color: Colors.red.shade700,
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '⚠️ OVERDUE: ${task.daysUntilDue.abs()} days past due date',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
             // Header Card
             Card(
               margin: const EdgeInsets.all(16),
@@ -281,11 +304,49 @@ class TaskDetailScreen extends StatelessWidget {
         onPressed: taskProvider.isLoading
             ? null
             : () async {
+                // Show warning if task is overdue
+                if (task.isOverdue) {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      icon: const Icon(Icons.warning, color: Colors.red, size: 48),
+                      title: const Text('Task Overdue'),
+                      content: Text(
+                        'This task is ${task.daysUntilDue.abs()} days overdue!\n\n'
+                        'Due date: ${task.nextDueAt}\n\n'
+                        'Do you still want to start this task?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                          ),
+                          child: const Text('Start Anyway'),
+                        ),
+                      ],
+                    ),
+                  );
+                  
+                  if (confirmed != true) return;
+                }
+                
                 try {
                   await taskProvider.startTask(task.id);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Task started successfully!')),
+                      SnackBar(
+                        content: Text(
+                          task.isOverdue 
+                            ? 'Overdue task started! Please complete ASAP.'
+                            : 'Task started successfully!',
+                        ),
+                        backgroundColor: task.isOverdue ? Colors.orange : null,
+                      ),
                     );
                     Navigator.pop(context);
                   }
@@ -301,7 +362,8 @@ class TaskDetailScreen extends StatelessWidget {
                 }
               },
         icon: const Icon(Icons.play_arrow),
-        label: const Text('Start Task'),
+        label: Text(task.isOverdue ? 'Start Overdue Task' : 'Start Task'),
+        backgroundColor: task.isOverdue ? Colors.red : null,
       );
     }
 

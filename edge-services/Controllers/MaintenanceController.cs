@@ -76,7 +76,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpGet("tasks/my-tasks")]
-    public async Task<IActionResult> GetMyTasks([FromQuery] string? crewId = null, [FromQuery] string? assignedTo = null)
+    public async Task<IActionResult> GetMyTasks([FromQuery] string? crewId = null, [FromQuery] string? assignedTo = null, [FromQuery] bool includeCompleted = true)
     {
         try
         {
@@ -101,15 +101,20 @@ public class MaintenanceController : ControllerBase
                 }
             }
 
-            // Only return pending or in-progress tasks
-            query = query.Where(t => t.Status == "PENDING" || t.Status == "IN_PROGRESS");
+            // Filter by status based on includeCompleted flag
+            if (!includeCompleted)
+            {
+                // Only return pending or in-progress tasks (for TaskListScreen)
+                query = query.Where(t => t.Status == "PENDING" || t.Status == "IN_PROGRESS");
+            }
+            // If includeCompleted = true, return all statuses (for Dashboard)
 
             var tasks = await query
                 .OrderBy(t => t.NextDueAt)
                 .ToListAsync();
 
-            _logger.LogInformation("Retrieved {Count} tasks for crew: {CrewId}/{AssignedTo}", 
-                tasks.Count, crewId, assignedTo);
+            _logger.LogInformation("Retrieved {Count} tasks for crew: {CrewId}/{AssignedTo}, includeCompleted: {IncludeCompleted}", 
+                tasks.Count, crewId, assignedTo, includeCompleted);
 
             return Ok(tasks);
         }
@@ -207,6 +212,46 @@ public class MaintenanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting task {Id}", id);
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
+
+    [HttpPost("tasks/{id}/start")]
+    public async Task<IActionResult> StartTask(long id)
+    {
+        try
+        {
+            var task = await _context.MaintenanceTasks.FindAsync(id);
+            if (task == null)
+            {
+                return NotFound(new { error = "Task not found", id });
+            }
+
+            // Check if task is already in progress or completed
+            if (task.Status == "IN_PROGRESS")
+            {
+                return BadRequest(new { error = "Task is already in progress" });
+            }
+
+            if (task.Status == "COMPLETED")
+            {
+                return BadRequest(new { error = "Task is already completed" });
+            }
+
+            // Update task status to IN_PROGRESS
+            task.Status = "IN_PROGRESS";
+            task.StartedAt = DateTime.UtcNow;
+            task.IsSynced = false;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Started task: {Id} - {TaskId} - {EquipmentName}", id, task.TaskId, task.EquipmentName);
+
+            return Ok(task);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error starting task {Id}", id);
             return StatusCode(500, new { error = "Internal server error", details = ex.Message });
         }
     }
