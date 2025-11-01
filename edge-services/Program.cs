@@ -21,11 +21,21 @@ namespace MaritimeEdge
                 options.UseNpgsql(connectionString)
             );
 
+            // Add HttpClient for SignalK
+            builder.Services.AddHttpClient("SignalK", client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+                client.DefaultRequestHeaders.Add("User-Agent", "MaritimeEdge/1.0");
+            });
+
             // Add Business Services
             builder.Services.AddScoped<FuelAnalyticsService>();
+            builder.Services.AddScoped<ISignalKHttpClient, SignalKHttpClient>();
+            builder.Services.AddScoped<TaskManagementService>();
 
             // Add Background Services
             builder.Services.AddHostedService<TelemetrySimulatorService>();
+            builder.Services.AddHostedService<SignalKDataCollectorService>();
             builder.Services.AddHostedService<DataCleanupService>();
 
             // Add Controllers

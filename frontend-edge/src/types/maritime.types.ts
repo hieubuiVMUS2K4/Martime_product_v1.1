@@ -331,6 +331,57 @@ export interface SyncQueue {
 }
 
 // ============================================================
+// TASK MANAGEMENT SYSTEM
+// ============================================================
+
+export interface TaskType {
+  id: number
+  taskTypeCode: string
+  typeName: string
+  category: string
+  description?: string | null
+  estimatedDurationMinutes?: number | null
+  requiresApproval: boolean
+  priority: string
+  isActive: boolean
+  createdAt: string
+  updatedAt?: string | null
+  totalDetails?: number
+  completedTasks?: number
+  pendingTasks?: number
+}
+
+export interface TaskDetail {
+  id: number
+  taskTypeId: number
+  detailCode: string
+  detailName: string
+  detailType: string
+  orderIndex: number
+  description?: string | null
+  isMandatory: boolean
+  expectedValue?: string | null
+  minValue?: number | null
+  maxValue?: number | null
+  unit?: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt?: string | null
+}
+
+export interface TaskTypeWithDetails {
+  taskType: TaskType
+  details: TaskDetail[]
+}
+
+export interface TaskTypeCategoryStats {
+  category: string
+  count: number
+  activeCount: number
+  totalDetails: number
+}
+
+// ============================================================
 // UI/UX Types
 // ============================================================
 

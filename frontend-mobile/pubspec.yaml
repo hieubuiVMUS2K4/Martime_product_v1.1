@@ -49,7 +49,6 @@ dependencies:
   form_builder_validators: ^11.2.0
 
   # QR Code Scanner (Optional)
-  qr_code_scanner: ^1.0.1
   mobile_scanner: ^7.1.2
 
   # Utils

@@ -12,6 +12,7 @@ import {
   Anchor,
   Boxes,
   Fuel,
+  ListChecks,
 } from 'lucide-react'
 
 const navigation = [
@@ -22,6 +23,7 @@ const navigation = [
   { name: 'Alarms', to: '/alarms', icon: AlertTriangle },
   { name: 'Crew', to: '/crew', icon: Users },
   { name: 'Maintenance', to: '/maintenance', icon: Wrench },
+  { name: 'Task Management', to: '/task-management', icon: ListChecks },
   { name: 'Materials', to: '/materials', icon: Boxes },
   { name: 'Voyage', to: '/voyage', icon: Ship },
   { name: 'Compliance', to: '/compliance', icon: FileText },
