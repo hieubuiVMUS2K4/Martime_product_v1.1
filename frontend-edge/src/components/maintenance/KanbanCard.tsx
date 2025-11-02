@@ -11,9 +11,6 @@ interface KanbanCardProps {
 }
 
 export function KanbanCard({ task, onClick, isDragging = false }: KanbanCardProps) {
-  // Disable drag for COMPLETED and IN_PROGRESS tasks
-  const isLocked = task.status === 'COMPLETED' || task.status === 'IN_PROGRESS'
-  
   const {
     attributes,
     listeners,
@@ -22,7 +19,7 @@ export function KanbanCard({ task, onClick, isDragging = false }: KanbanCardProp
     transition,
   } = useSortable({ 
     id: task.id,
-    disabled: isLocked // Disable drag if locked
+    disabled: false // Allow all cards to be dragged, validation handles restrictions
   })
 
   const style = {
@@ -59,27 +56,17 @@ export function KanbanCard({ task, onClick, isDragging = false }: KanbanCardProp
       onClick={onClick}
       className={`bg-white rounded-lg p-3 shadow-sm relative
         transition-all duration-200
-        border-2
-        ${isLocked 
-          ? 'cursor-not-allowed bg-gray-50 border-gray-300' 
-          : 'cursor-grab active:cursor-grabbing hover:shadow-md hover:border-blue-400 border-gray-200'
-        }
+        border-2 border-gray-200
+        cursor-grab active:cursor-grabbing hover:shadow-md hover:border-blue-400
         ${isDragging ? 'shadow-xl scale-105 opacity-70 border-blue-500' : ''}
       `}
-      title={isLocked ? `🔒 ${task.status === 'COMPLETED' ? 'Task đã hoàn thành' : 'Đang thực hiện'}` : 'Kéo để di chuyển'}
+      title="Kéo để di chuyển"
     >
-      {/* Top Bar: Priority + Lock Icon */}
+      {/* Top Bar: Priority */}
       <div className="flex items-start justify-between mb-2">
         <span className={`${priority.bg} ${priority.text} px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide shadow-sm`}>
           {priority.label}
         </span>
-        {isLocked && (
-          <div className="bg-amber-100 border border-amber-300 rounded p-1">
-            <svg className="w-3 h-3 text-amber-700" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-            </svg>
-          </div>
-        )}
       </div>
 
       {/* Equipment Name (Title) */}
@@ -120,7 +107,7 @@ export function KanbanCard({ task, onClick, isDragging = false }: KanbanCardProp
         {/* Assigned Person */}
         {task.assignedTo && (
           <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">
+            <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">
               {task.assignedTo.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
             </div>
             <span className="text-[10px] text-gray-700 font-medium truncate">
@@ -140,7 +127,7 @@ export function KanbanCard({ task, onClick, isDragging = false }: KanbanCardProp
 
       {/* IN_PROGRESS indicator */}
       {task.status === 'IN_PROGRESS' && (
-        <div className="mt-2 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full animate-pulse" />
+        <div className="mt-2 h-1 bg-blue-500 rounded-full" />
       )}
     </div>
   )

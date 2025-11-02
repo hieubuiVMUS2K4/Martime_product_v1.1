@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/task_provider.dart';
@@ -15,27 +16,55 @@ class TaskListScreen extends StatefulWidget {
 }
 
 class _TaskListScreenState extends State<TaskListScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  
+  // Auto-refresh timer để sync với backend khi Captain giao task mới
+  Timer? _refreshTimer;
+  static const _refreshInterval = Duration(seconds: 5); // Reduced from 30s to 5s for faster sync
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    WidgetsBinding.instance.addObserver(this);
     
     // Fetch tasks on init
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<TaskProvider>(context, listen: false).fetchMyTasks();
+      _fetchAndStartTimer();
     });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _tabController.dispose();
     _searchController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Refresh khi app quay lại foreground
+    if (state == AppLifecycleState.resumed) {
+      Provider.of<TaskProvider>(context, listen: false).fetchMyTasks(forceRefresh: true);
+    }
+  }
+
+  void _fetchAndStartTimer() {
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    taskProvider.fetchMyTasks(forceRefresh: true); // Force API call on init
+    
+    // Auto-refresh every 5s to get task updates from Captain
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
+      if (mounted) {
+        taskProvider.fetchMyTasks(forceRefresh: true); // Always force refresh from API
+      }
+    });
   }
 
   Widget _buildTab({

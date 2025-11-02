@@ -311,14 +311,20 @@ class TaskRepository {
     bool? checkResult,
     String? inspectionNotes,
     String? photoUrl,
-    required bool isCompleted,
+    required bool isCompleted, // Keep for offline sync compatibility
   }) async {
+    // Parse measuredValue string to double if provided
+    double? parsedMeasuredValue;
+    if (measuredValue != null && measuredValue.trim().isNotEmpty) {
+      parsedMeasuredValue = double.tryParse(measuredValue.trim());
+    }
+
     final request = CompleteChecklistItemRequest(
-      measuredValue: measuredValue,
+      measuredValue: parsedMeasuredValue,
       checkResult: checkResult,
-      inspectionNotes: inspectionNotes,
+      notes: inspectionNotes, // Changed parameter name to match backend
       photoUrl: photoUrl,
-      isCompleted: isCompleted,
+      completedBy: 'Crew', // TODO: Get from auth state
     );
 
     try {

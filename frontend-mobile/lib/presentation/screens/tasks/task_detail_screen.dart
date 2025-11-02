@@ -63,6 +63,39 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
   }
 
+  Future<void> _refreshTaskData() async {
+    // Refresh cả task info và checklist khi Captain update
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    
+    try {
+      // Reload task list để có task mới nhất
+      await taskProvider.fetchMyTasks();
+      
+      // Reload checklist nếu có TaskType
+      if (widget.task.hasTaskType) {
+        await _loadChecklistIfNeeded();
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Task data refreshed'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to refresh: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final taskProvider = Provider.of<TaskProvider>(context);
@@ -71,11 +104,21 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Task Details'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh task data',
+            onPressed: _refreshTaskData,
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: RefreshIndicator(
+        onRefresh: _refreshTaskData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Overdue Warning Banner
             if (widget.task.isOverdue && !widget.task.isCompleted)
               Container(
@@ -283,6 +326,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
             const SizedBox(height: 100), // Space for FAB
           ],
+        ),
         ),
       ),
       floatingActionButton: _buildActionButton(context, taskProvider),
@@ -657,10 +701,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               style: const TextStyle(fontSize: 11),
             ),
           ],
-          if (execution.inspectionNotes != null && execution.inspectionNotes!.isNotEmpty) ...[
+          if (execution.notes != null && execution.notes!.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              'Ghi chú: ${execution.inspectionNotes}',
+              'Ghi chú: ${execution.notes}',
               style: const TextStyle(fontSize: 11),
             ),
           ],
@@ -678,7 +722,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       text: item.executionDetail?.measuredValue ?? '',
     );
     final notesController = TextEditingController(
-      text: item.executionDetail?.inspectionNotes ?? '',
+      text: item.executionDetail?.notes ?? '',
     );
     bool checkResult = item.executionDetail?.checkResult ?? false;
 
@@ -771,21 +815,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               });
                             },
                             icon: Icon(
-                              !checkResult && item.executionDetail != null
-                                  ? Icons.cancel
-                                  : Icons.cancel_outlined,
-                              color: !checkResult && item.executionDetail != null
-                                  ? Colors.white
-                                  : Colors.red,
+                              checkResult == false ? Icons.cancel : Icons.cancel_outlined,
+                              color: checkResult == false ? Colors.white : Colors.red,
                             ),
                             label: const Text('NG / Lỗi'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: !checkResult && item.executionDetail != null
-                                  ? Colors.red
-                                  : Colors.grey.shade200,
-                              foregroundColor: !checkResult && item.executionDetail != null
-                                  ? Colors.white
-                                  : Colors.black87,
+                              backgroundColor: checkResult == false ? Colors.red : Colors.grey.shade200,
+                              foregroundColor: checkResult == false ? Colors.white : Colors.black87,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                           ),

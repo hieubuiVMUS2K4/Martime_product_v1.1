@@ -17,11 +17,11 @@ export function KanbanColumn({ id, title, gradient, icon, count, children }: Kan
   return (
     <div className="flex flex-col w-[280px] flex-shrink-0">
       {/* Column Container - Trello Style with shadow */}
-      <div className={`bg-gray-50 rounded-xl shadow-md transition-all duration-200 ${
+      <div className={`bg-white rounded-xl shadow-md transition-all duration-200 ${
         isOver ? 'shadow-lg ring-2 ring-blue-400 ring-opacity-50' : ''
       }`}>
         {/* Column Header */}
-        <div className="px-3 py-2.5 border-b border-gray-200">
+        <div className="px-3 py-2.5 border-b border-gray-200 bg-gray-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className={`${gradient} p-1.5 rounded-lg text-white shadow-sm`}>
@@ -38,8 +38,8 @@ export function KanbanColumn({ id, title, gradient, icon, count, children }: Kan
         {/* Column Body - Scrollable area */}
         <div
           ref={setNodeRef}
-          className={`p-2.5 min-h-[450px] max-h-[calc(100vh-250px)] overflow-y-auto transition-colors ${
-            isOver ? 'bg-blue-50' : 'bg-gray-50'
+          className={`p-2.5 min-h-[200px] max-h-[calc(100vh-250px)] overflow-y-auto transition-colors ${
+            isOver ? 'bg-blue-50' : 'bg-white'
           }`}
           style={{
             scrollbarWidth: 'thin',

@@ -105,6 +105,47 @@ public class MaintenanceController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Auto-correct task status based on due date
+    /// PENDING tasks past due → OVERDUE
+    /// OVERDUE tasks not yet due → PENDING
+    /// Does not touch IN_PROGRESS or COMPLETED
+    /// </summary>
+    private async Task<int> AutoCorrectTaskStatuses(List<MaintenanceTask> tasks)
+    {
+        var now = DateTime.UtcNow;
+        var tasksToUpdate = new List<MaintenanceTask>();
+
+        foreach (var task in tasks)
+        {
+            // Only update PENDING and OVERDUE statuses (don't touch IN_PROGRESS or COMPLETED)
+            if (task.Status == "PENDING" || task.Status == "OVERDUE")
+            {
+                var shouldBeOverdue = task.NextDueAt < now;
+                
+                if (shouldBeOverdue && task.Status != "OVERDUE")
+                {
+                    task.Status = "OVERDUE";
+                    tasksToUpdate.Add(task);
+                }
+                else if (!shouldBeOverdue && task.Status == "OVERDUE")
+                {
+                    // Fix incorrectly marked OVERDUE tasks
+                    task.Status = "PENDING";
+                    tasksToUpdate.Add(task);
+                }
+            }
+        }
+
+        if (tasksToUpdate.Any())
+        {
+            await _context.SaveChangesAsync();
+            _logger.LogInformation($"Auto-corrected {tasksToUpdate.Count} task statuses based on due dates");
+        }
+
+        return tasksToUpdate.Count;
+    }
+
     [HttpGet("tasks")]
     public async Task<IActionResult> GetAllTasks()
     {
@@ -113,6 +154,9 @@ public class MaintenanceController : ControllerBase
             var tasks = await _context.MaintenanceTasks
                 .OrderBy(t => t.NextDueAt)
                 .ToListAsync();
+
+            // Auto-correct status based on current time
+            await AutoCorrectTaskStatuses(tasks);
 
             return Ok(tasks);
         }
@@ -133,6 +177,9 @@ public class MaintenanceController : ControllerBase
                 .OrderBy(t => t.NextDueAt)
                 .ToListAsync();
 
+            // Auto-correct status
+            await AutoCorrectTaskStatuses(tasks);
+
             return Ok(tasks);
         }
         catch (Exception ex)
@@ -152,6 +199,9 @@ public class MaintenanceController : ControllerBase
                 .Where(t => t.Status != "COMPLETED" && t.NextDueAt < now)
                 .OrderBy(t => t.NextDueAt)
                 .ToListAsync();
+
+            // Auto-correct status
+            await AutoCorrectTaskStatuses(tasks);
 
             return Ok(tasks);
         }
@@ -220,6 +270,9 @@ public class MaintenanceController : ControllerBase
             var tasks = await query
                 .OrderBy(t => t.NextDueAt)
                 .ToListAsync();
+
+            // Auto-correct status based on current time
+            await AutoCorrectTaskStatuses(tasks);
 
             _logger.LogInformation("Retrieved {Count} tasks for crew: {CrewId}/{AssignedTo}, includeCompleted: {IncludeCompleted}", 
                 tasks.Count, crewId, assignedTo, includeCompleted);
@@ -380,19 +433,16 @@ public class MaintenanceController : ControllerBase
             return (false, "Cannot change status of completed tasks. Task was completed by crew member. Create a new task if rework is needed.");
         }
 
-        // Rule 2: IN_PROGRESS → only crew can change (not from Kanban)
-        if (currentStatus == "IN_PROGRESS" && newStatus != "COMPLETED")
+        // Rule 2: IN_PROGRESS can move to PENDING (Captain unassigns) or COMPLETED (Crew finishes)
+        // Allow IN_PROGRESS → PENDING: Captain can unassign a task that crew started (StartedAt timestamp is kept)
+        // Allow IN_PROGRESS → COMPLETED: Crew finishes the task via mobile
+        if (currentStatus == "IN_PROGRESS" && newStatus != "PENDING" && newStatus != "COMPLETED")
         {
-            // Allow IN_PROGRESS → COMPLETED (crew finishing work)
-            // Block IN_PROGRESS → PENDING (would lose StartedAt timestamp)
-            if (newStatus == "PENDING")
-            {
-                return (false, "Cannot move in-progress tasks back to pending. Task has already been started by crew. If needed, wait for completion or assign to different crew.");
-            }
+            return (false, $"In-progress tasks can only move to PENDING (unassign) or COMPLETED, not {newStatus}");
         }
 
-        // Rule 3: Only allow PENDING ↔ OVERDUE (automatic or manual)
-        if (currentStatus == "PENDING" && (newStatus != "IN_PROGRESS" && newStatus != "OVERDUE"))
+        // Rule 3: PENDING can move to IN_PROGRESS (assign) or OVERDUE (auto by system)
+        if (currentStatus == "PENDING" && newStatus != "IN_PROGRESS" && newStatus != "OVERDUE")
         {
             return (false, $"Pending tasks can only move to IN_PROGRESS or OVERDUE, not {newStatus}");
         }

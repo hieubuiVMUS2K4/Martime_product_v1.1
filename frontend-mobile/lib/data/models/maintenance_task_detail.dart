@@ -7,7 +7,7 @@ class MaintenanceTaskDetail extends Equatable {
   final int taskDetailId;
   final String? measuredValue;
   final bool? checkResult;
-  final String? inspectionNotes;
+  final String? notes; // Changed from inspectionNotes to match backend
   final String? photoUrl;
   final bool isCompleted;
   final String? completedBy;
@@ -22,7 +22,7 @@ class MaintenanceTaskDetail extends Equatable {
     required this.taskDetailId,
     this.measuredValue,
     this.checkResult,
-    this.inspectionNotes,
+    this.notes,
     this.photoUrl,
     required this.isCompleted,
     this.completedBy,
@@ -37,9 +37,10 @@ class MaintenanceTaskDetail extends Equatable {
       id: json['id'],
       maintenanceTaskId: json['maintenanceTaskId'],
       taskDetailId: json['taskDetailId'],
-      measuredValue: json['measuredValue'],
+      // Backend sends double, convert to string for display
+      measuredValue: json['measuredValue']?.toString(),
       checkResult: json['checkResult'],
-      inspectionNotes: json['inspectionNotes'],
+      notes: json['notes'], // Backend uses 'notes' not 'inspectionNotes'
       photoUrl: json['photoUrl'],
       isCompleted: json['isCompleted'] ?? false,
       completedBy: json['completedBy'],
@@ -57,7 +58,7 @@ class MaintenanceTaskDetail extends Equatable {
       'taskDetailId': taskDetailId,
       'measuredValue': measuredValue,
       'checkResult': checkResult,
-      'inspectionNotes': inspectionNotes,
+      'notes': notes, // Backend uses 'notes' not 'inspectionNotes'
       'photoUrl': photoUrl,
       'isCompleted': isCompleted,
       'completedBy': completedBy,

@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Wrench, Clock, AlertCircle, CheckCircle, Calendar, Download, LayoutGrid, Plus } from 'lucide-react'
+import { Calendar, Download, LayoutGrid, Plus } from 'lucide-react'
 import { MaintenanceTask } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import { KanbanBoard } from '../../components/maintenance/KanbanBoard'
 import { AddTaskModal } from '../../components/maintenance/AddTaskModal'
+import { toast } from 'sonner'
 
-type TabType = 'kanban' | 'schedule' | 'all'
+type TabType = 'kanban' | 'schedule'
 
 export function MaintenancePage() {
   const navigate = useNavigate()
@@ -19,31 +20,81 @@ export function MaintenancePage() {
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
   const [equipmentFilter, setEquipmentFilter] = useState<string>('all')
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false)
+  const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false)
+  
+  // Time window filter (Jira/ShipNet pattern)
+  const [timeWindow, setTimeWindow] = useState<'7days' | '30days' | '90days' | 'all'>('30days')
+  const [showCompleted, setShowCompleted] = useState(false)
 
+  // Auto-refresh every 10 seconds to sync with mobile changes
   useEffect(() => {
-    loadMaintenanceData()
+    loadMaintenanceData(true) // Initial load with spinner
+    
+    const intervalId = setInterval(() => {
+      loadMaintenanceData(false) // Background refresh without spinner
+    }, 10000) // Refresh every 10 seconds
+    
+    return () => clearInterval(intervalId)
   }, [activeTab])
 
   useEffect(() => {
     applyFilters()
-  }, [tasks, searchQuery, priorityFilter, equipmentFilter])
+  }, [tasks, searchQuery, priorityFilter, equipmentFilter, timeWindow, showCompleted])
 
-  const loadMaintenanceData = async () => {
+  const loadMaintenanceData = async (showSpinner = true) => {
     try {
-      setLoading(true)
+      if (showSpinner) {
+        setLoading(true)
+      } else {
+        setIsBackgroundRefreshing(true)
+      }
       // Always load all tasks, filtering is done by view
       const data = await maritimeService.maintenance.getAll()
       setTasks(data)
     } catch (error) {
       console.error('Failed to load maintenance data:', error)
     } finally {
-      setLoading(false)
+      if (showSpinner) {
+        setLoading(false)
+      } else {
+        setIsBackgroundRefreshing(false)
+      }
     }
   }
 
   const applyFilters = () => {
     let filtered = [...tasks]
 
+    // Time window filter (Jira/ShipNet pattern)
+    const now = new Date()
+    if (timeWindow !== 'all') {
+      filtered = filtered.filter(task => {
+        const daysUntilDue = differenceInDays(parseISO(task.nextDueAt), now)
+        
+        // Always show OVERDUE and IN_PROGRESS regardless of time window
+        if (task.status === 'OVERDUE' || task.status === 'IN_PROGRESS') {
+          return true
+        }
+        
+        switch (timeWindow) {
+          case '7days':
+            return daysUntilDue <= 7
+          case '30days':
+            return daysUntilDue <= 30
+          case '90days':
+            return daysUntilDue <= 90
+          default:
+            return true
+        }
+      })
+    }
+
+    // Hide completed filter (Industry standard)
+    if (!showCompleted) {
+      filtered = filtered.filter(task => task.status !== 'COMPLETED')
+    }
+
+    // Search filter
     if (searchQuery) {
       filtered = filtered.filter(task =>
         task.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -52,13 +103,24 @@ export function MaintenancePage() {
       )
     }
 
+    // Priority filter
     if (priorityFilter !== 'all') {
       filtered = filtered.filter(task => task.priority === priorityFilter)
     }
 
+    // Equipment filter
     if (equipmentFilter !== 'all') {
       filtered = filtered.filter(task => task.equipmentId === equipmentFilter)
     }
+
+    console.log('📊 Tasks by status:', {
+      PENDING: filtered.filter(t => t.status === 'PENDING').length,
+      IN_PROGRESS: filtered.filter(t => t.status === 'IN_PROGRESS').length,
+      OVERDUE: filtered.filter(t => t.status === 'OVERDUE').length,
+      COMPLETED: filtered.filter(t => t.status === 'COMPLETED').length,
+      total: filtered.length,
+      hiddenCompleted: !showCompleted ? tasks.filter(t => t.status === 'COMPLETED').length : 0
+    })
 
     setFilteredTasks(filtered)
   }
@@ -66,32 +128,60 @@ export function MaintenancePage() {
   const handleTaskUpdate = async (taskId: number, newStatus: string) => {
     try {
       const validStatus = newStatus as 'PENDING' | 'OVERDUE' | 'IN_PROGRESS' | 'COMPLETED'
-      await maritimeService.maintenance.update(taskId, { status: validStatus })
-      await loadMaintenanceData()
-    } catch (error: any) {
-      console.error('Failed to update task:', error)
+      console.log(`🔄 Updating task ${taskId}: ${validStatus}`)
       
-      // Show specific error message from backend validation
-      const errorMessage = error?.response?.data?.message || error?.response?.data?.error || 'Failed to update task status'
+      // Find the task to get all required fields
+      const task = tasks.find(t => t.id === taskId)
+      if (!task) {
+        throw new Error('Task not found in local state')
+      }
       
-      // Show friendly alert with explanation
-      if (error?.response?.status === 400) {
-        alert(
-          `❌ Cannot move task\n\n` +
-          `${errorMessage}\n\n` +
-          `Tip: Completed tasks are locked to protect crew work. Create a new task if rework is needed.`
+      // Optimistic update - update UI immediately
+      setTasks(prevTasks => 
+        prevTasks.map(t => 
+          t.id === taskId ? { ...t, status: validStatus } : t
         )
+      )
+      
+      // Send full task object with updated status (backend requires all fields)
+      await maritimeService.maintenance.update(taskId, {
+        ...task,
+        status: validStatus
+      })
+      
+      console.log(`✅ Task ${taskId} updated successfully`)
+      // Refresh from server to ensure consistency
+      await loadMaintenanceData(false)
+    } catch (error: any) {
+      console.error('❌ Failed to update task:', error)
+      console.error('Error details:', { 
+        status: error?.status, 
+        message: error?.message, 
+        details: error?.details,
+        data: error?.data 
+      })
+      
+      // Extract error message from structured error (thrown from maritime.service.ts)
+      const errorMessage = error?.details || error?.data?.message || error?.data?.error || error?.message || 'Failed to update task status'
+      
+      // Show toast error based on status
+      if (error?.status === 400) {
+        toast.error('❌ Cannot move task', {
+          description: errorMessage
+        })
+      } else if (error?.status === 404) {
+        toast.error('❌ Task not found', {
+          description: 'The task may have been deleted.'
+        })
       } else {
-        alert(`Failed to update task status: ${errorMessage}`)
+        toast.error('❌ Failed to update task', {
+          description: errorMessage
+        })
       }
       
       // Reload to reset UI to actual state
-      await loadMaintenanceData()
+      await loadMaintenanceData(false)
     }
-  }
-
-  const getDaysUntilDue = (dueDate: string) => {
-    return differenceInDays(parseISO(dueDate), new Date())
   }
 
   const uniqueEquipment = [...new Set(tasks.map(t => t.equipmentId))]
@@ -102,18 +192,26 @@ export function MaintenancePage() {
         {/* Header */}
         <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Planned Maintenance System</h1>
-          <p className="text-sm text-gray-600 mt-1">ISM Code Compliance - Equipment Maintenance Tracking</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-900">Planned Maintenance System</h1>
+            {isBackgroundRefreshing && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                <span className="text-xs text-blue-700 font-medium">Syncing...</span>
+              </div>
+            )}
+          </div>
+          <p className="text-sm text-gray-600 mt-1">ISM Code Compliance - Equipment Maintenance Tracking • Auto-refresh: 10s</p>
         </div>
         <div className="flex gap-3">
           <button 
             onClick={() => setIsAddTaskModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm hover:shadow"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow"
           >
             <Plus className="w-5 h-5" />
             Add New Task
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow">
+          <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm hover:shadow">
             <Download className="w-5 h-5" />
             Export Report
           </button>
@@ -136,31 +234,49 @@ export function MaintenancePage() {
               icon={<Calendar className="w-5 h-5" />}
               label="Schedule View"
             />
-            <TabButton
-              active={activeTab === 'all'}
-              onClick={() => setActiveTab('all')}
-              icon={<Wrench className="w-5 h-5" />}
-              label="All Tasks"
-            />
           </nav>
         </div>
 
-        {/* Filters */}
+        {/* Single Row Filters */}
         <div className="p-4 border-b border-gray-200">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex-1 min-w-[300px]">
-              <input
-                type="text"
-                placeholder="Search by equipment, task description, or task ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+          <div className="flex items-center gap-3">
+            {/* View Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700 whitespace-nowrap">View:</span>
+              <select
+                value={timeWindow}
+                onChange={(e) => setTimeWindow(e.target.value as any)}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="7days">Next 7 Days</option>
+                <option value="30days">Next 30 Days</option>
+                <option value="90days">Next 3 Months</option>
+              </select>
             </div>
+
+            {/* Show Completed Toggle */}
+            <label className="flex items-center gap-2 cursor-pointer px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={showCompleted}
+                onChange={(e) => setShowCompleted(e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Show Completed
+                {!showCompleted && tasks.filter(t => t.status === 'COMPLETED').length > 0 && (
+                  <span className="ml-1.5 text-xs text-gray-500">
+                    ({tasks.filter(t => t.status === 'COMPLETED').length} hidden)
+                  </span>
+                )}
+              </span>
+            </label>
+
+            {/* Priority Filter */}
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
             >
               <option value="all">All Priorities</option>
               <option value="CRITICAL">Critical</option>
@@ -168,16 +284,27 @@ export function MaintenancePage() {
               <option value="NORMAL">Normal</option>
               <option value="LOW">Low</option>
             </select>
+
+            {/* Equipment Filter */}
             <select
               value={equipmentFilter}
               onChange={(e) => setEquipmentFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
             >
               <option value="all">All Equipment</option>
               {uniqueEquipment.map(eq => (
                 <option key={eq} value={eq}>{eq}</option>
               ))}
             </select>
+
+            {/* Search - Takes remaining space */}
+            <input
+              type="text"
+              placeholder="Search by equipment, task description, or task ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
         </div>
 
@@ -202,16 +329,6 @@ export function MaintenancePage() {
                 <CalendarView tasks={filteredTasks} navigate={navigate} />
               </div>
             )}
-            
-            {activeTab === 'all' && (
-              <div className="p-6">
-                <TaskListView 
-                  tasks={filteredTasks} 
-                  getDaysUntilDue={getDaysUntilDue}
-                  navigate={navigate}
-                />
-              </div>
-            )}
           </>
         )}
       </div>
@@ -226,172 +343,6 @@ export function MaintenancePage() {
           setIsAddTaskModalOpen(false)
         }}
       />
-    </div>
-  )
-}
-
-// Task List View Component
-function TaskListView({ 
-  tasks, 
-  getDaysUntilDue,
-  navigate
-}: { 
-  tasks: MaintenanceTask[]
-  getDaysUntilDue: (dueDate: string) => number
-  navigate: (path: string) => void
-}) {
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'CRITICAL': return 'bg-red-100 text-red-700 border-red-200'
-      case 'HIGH': return 'bg-orange-100 text-orange-700 border-orange-200'
-      case 'NORMAL': return 'bg-blue-100 text-blue-700 border-blue-200'
-      case 'LOW': return 'bg-gray-100 text-gray-700 border-gray-200'
-      default: return 'bg-gray-100 text-gray-700 border-gray-200'
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'OVERDUE': return 'bg-red-100 text-red-700'
-      case 'IN_PROGRESS': return 'bg-yellow-100 text-yellow-700'
-      case 'PENDING': return 'bg-blue-100 text-blue-700'
-      case 'COMPLETED': return 'bg-green-100 text-green-700'
-      default: return 'bg-gray-100 text-gray-700'
-    }
-  }
-
-  const getDueDateColor = (daysLeft: number) => {
-    if (daysLeft < 0) return 'text-red-600 font-semibold'
-    if (daysLeft <= 7) return 'text-red-600'
-    if (daysLeft <= 30) return 'text-yellow-600'
-    return 'text-green-600'
-  }
-
-  return (
-    <div className="space-y-4">
-      {tasks.map((task) => {
-        const daysLeft = getDaysUntilDue(task.nextDueAt)
-        
-        return (
-          <div 
-            key={task.id} 
-            onClick={() => navigate(`/maintenance/${task.id}`)}
-            className="border border-gray-200 rounded-lg p-5 hover:shadow-lg hover:border-blue-300 transition-all cursor-pointer bg-white"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                {/* Header */}
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <Wrench className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-lg font-semibold text-gray-900">{task.equipmentName}</h3>
-                      <span className={`px-2 py-1 text-xs font-semibold rounded border ${getPriorityColor(task.priority)}`}>
-                        {task.priority}
-                      </span>
-                      <span className={`px-2 py-1 text-xs font-semibold rounded ${getStatusColor(task.status)}`}>
-                        {task.status.replace('_', ' ')}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">{task.taskDescription}</p>
-                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                      <span>Task ID: {task.taskId}</span>
-                      <span>Equipment: {task.equipmentId}</span>
-                      <span>Type: {task.taskType.replace('_', ' ')}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Details Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                  {/* Next Due */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Calendar className="w-4 h-4 text-gray-500" />
-                      <span className="text-xs font-medium text-gray-600">Next Due</span>
-                    </div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {format(parseISO(task.nextDueAt), 'dd MMM yyyy')}
-                    </p>
-                    <p className={`text-xs mt-1 ${getDueDateColor(daysLeft)}`}>
-                      {daysLeft < 0 ? `${Math.abs(daysLeft)} days overdue` : `${daysLeft} days left`}
-                    </p>
-                  </div>
-
-                  {/* Last Done */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <CheckCircle className="w-4 h-4 text-gray-500" />
-                      <span className="text-xs font-medium text-gray-600">Last Done</span>
-                    </div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {task.lastDoneAt ? format(parseISO(task.lastDoneAt), 'dd MMM yyyy') : 'Never'}
-                    </p>
-                    {task.runningHoursAtLastDone && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        @ {task.runningHoursAtLastDone.toFixed(1)} hrs
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Interval */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Clock className="w-4 h-4 text-gray-500" />
-                      <span className="text-xs font-medium text-gray-600">Interval</span>
-                    </div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {task.intervalHours ? `${task.intervalHours} hrs` : 
-                       task.intervalDays ? `${task.intervalDays} days` : 'N/A'}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {task.taskType === 'RUNNING_HOURS' ? 'Running Hours' : 'Calendar Based'}
-                    </p>
-                  </div>
-
-                  {/* Assigned To */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <AlertCircle className="w-4 h-4 text-gray-500" />
-                      <span className="text-xs font-medium text-gray-600">Assigned To</span>
-                    </div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {task.assignedTo || 'Unassigned'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Notes */}
-                {task.notes && (
-                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-sm text-gray-700">
-                      <span className="font-medium">Notes:</span> {task.notes}
-                    </p>
-                  </div>
-                )}
-
-                {/* Spare Parts */}
-                {task.sparePartsUsed && (
-                  <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-gray-700">
-                      <span className="font-medium">Spare Parts:</span> {task.sparePartsUsed}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )
-      })}
-
-      {tasks.length === 0 && (
-        <div className="text-center py-12">
-          <Wrench className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">No maintenance tasks found</p>
-        </div>
-      )}
     </div>
   )
 }

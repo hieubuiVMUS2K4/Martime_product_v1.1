@@ -2,27 +2,27 @@ import 'package:equatable/equatable.dart';
 
 /// Request to complete a checklist item
 class CompleteChecklistItemRequest extends Equatable {
-  final String? measuredValue;
+  final double? measuredValue; // Changed from String to double to match backend
   final bool? checkResult;
-  final String? inspectionNotes;
+  final String? notes; // Changed from inspectionNotes to match backend field name
   final String? photoUrl;
-  final bool isCompleted;
+  final String? completedBy; // Added to match backend field
 
   const CompleteChecklistItemRequest({
     this.measuredValue,
     this.checkResult,
-    this.inspectionNotes,
+    this.notes,
     this.photoUrl,
-    required this.isCompleted,
+    this.completedBy,
   });
 
   Map<String, dynamic> toJson() {
     return {
       'measuredValue': measuredValue,
       'checkResult': checkResult,
-      'inspectionNotes': inspectionNotes,
+      'notes': notes, // Backend expects 'notes' not 'inspectionNotes'
       'photoUrl': photoUrl,
-      'isCompleted': isCompleted,
+      'completedBy': completedBy ?? 'Unknown', // Backend requires this field
     };
   }
 
@@ -30,8 +30,8 @@ class CompleteChecklistItemRequest extends Equatable {
   List<Object?> get props => [
         measuredValue,
         checkResult,
-        inspectionNotes,
+        notes,
         photoUrl,
-        isCompleted,
+        completedBy,
       ];
 }
