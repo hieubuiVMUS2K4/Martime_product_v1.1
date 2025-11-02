@@ -63,8 +63,6 @@ export function TaskManagementPage() {
 
   // Task Type handlers
   const handleCreateTaskType = async (data: any) => {
-    // Note: Backend doesn't support selectedDetailIds yet
-    // This is for future implementation
     const createDto = {
       taskTypeCode: data.taskTypeCode,
       typeName: data.typeName,
@@ -74,13 +72,83 @@ export function TaskManagementPage() {
       requiresApproval: data.requiresApproval,
       priority: data.priority,
     }
-    await taskManagementService.createTaskType(createDto)
+    
+    // Tạo TaskType trước
+    const createdTaskType = await taskManagementService.createTaskType(createDto)
+    
+    // Sau đó assign các details đã chọn
+    if (data.selectedDetailIds && data.selectedDetailIds.length > 0) {
+      try {
+        // Update taskTypeId cho từng detail
+        await Promise.all(
+          data.selectedDetailIds.map((detailId: number) =>
+            taskManagementService.updateTaskDetail(detailId, {
+              taskTypeId: createdTaskType.id
+            })
+          )
+        )
+        console.log(`✅ Đã gán ${data.selectedDetailIds.length} chi tiết cho TaskType ${createdTaskType.id}`)
+      } catch (error) {
+        console.error('❌ Lỗi khi gán chi tiết:', error)
+        alert('TaskType đã được tạo nhưng có lỗi khi gán chi tiết. Vui lòng thử lại.')
+      }
+    }
+    
     await loadData()
   }
 
   const handleUpdateTaskType = async (data: any) => {
     if (!editingTaskType) return
+    
+    // Update TaskType
     await taskManagementService.updateTaskType(editingTaskType.id, data)
+    
+    // Nếu có selectedDetailIds, cập nhật các details
+    if (data.selectedDetailIds) {
+      try {
+        // Lấy danh sách details hiện tại của TaskType
+        const currentDetails = taskDetails.filter(d => d.taskTypeId === editingTaskType.id)
+        const currentDetailIds = currentDetails.map(d => d.id)
+        
+        // Details cần thêm vào (có trong selected nhưng chưa có taskTypeId)
+        const detailsToAdd = data.selectedDetailIds.filter(
+          (id: number) => !currentDetailIds.includes(id)
+        )
+        
+        // Details cần xóa khỏi (có taskTypeId nhưng không có trong selected)
+        const detailsToRemove = currentDetailIds.filter(
+          id => !data.selectedDetailIds.includes(id)
+        )
+        
+        // Thêm details mới
+        if (detailsToAdd.length > 0) {
+          await Promise.all(
+            detailsToAdd.map((detailId: number) =>
+              taskManagementService.updateTaskDetail(detailId, {
+                taskTypeId: editingTaskType.id
+              })
+            )
+          )
+        }
+        
+        // Xóa details (set taskTypeId = null hoặc 0)
+        if (detailsToRemove.length > 0) {
+          await Promise.all(
+            detailsToRemove.map((detailId: number) =>
+              taskManagementService.updateTaskDetail(detailId, {
+                taskTypeId: null
+              })
+            )
+          )
+        }
+        
+        console.log(`✅ Đã cập nhật: +${detailsToAdd.length} chi tiết, -${detailsToRemove.length} chi tiết`)
+      } catch (error) {
+        console.error('❌ Lỗi khi cập nhật chi tiết:', error)
+        alert('TaskType đã được cập nhật nhưng có lỗi khi cập nhật chi tiết. Vui lòng thử lại.')
+      }
+    }
+    
     setEditingTaskType(null)
     await loadData()
   }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../data/models/maintenance_task.dart';
+import '../../data/models/task_checklist_item.dart';
+import '../../data/models/task_progress.dart';
 import '../../data/repositories/task_repository.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/network_info.dart';
@@ -14,6 +16,10 @@ class TaskProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   
+  // Checklist state for currently viewed task
+  List<TaskChecklistItem> _currentChecklist = [];
+  TaskProgress? _currentProgress;
+  
   TaskProvider()
       : _taskRepository = TaskRepository(
           apiClient: ApiClient(),
@@ -26,6 +32,8 @@ class TaskProvider with ChangeNotifier {
   List<MaintenanceTask> get tasks => _tasks;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  List<TaskChecklistItem> get currentChecklist => _currentChecklist;
+  TaskProgress? get currentProgress => _currentProgress;
   
   List<MaintenanceTask> get pendingTasks =>
       _tasks.where((t) => t.isPending).toList();
@@ -39,7 +47,7 @@ class TaskProvider with ChangeNotifier {
   List<MaintenanceTask> get overdueTasks =>
       _tasks.where((t) => t.isOverdue && !t.isCompleted).toList();
   
-  // Fetch tasks from API/Cache
+  // Fetch tasks from API/Cache - NO MOCK DATA
   Future<void> fetchMyTasks({bool forceRefresh = false}) async {
     _isLoading = true;
     _error = null;
@@ -48,19 +56,9 @@ class TaskProvider with ChangeNotifier {
     print('🔍 TaskProvider: fetchMyTasks() called');
     
     try {
-      // ============================================
-      // Try to fetch from repository (will return empty if API not ready)
-      // ============================================
-      try {
-        print('📡 TaskProvider: Trying to fetch from API...');
-        _tasks = await _taskRepository.getMyTasks(forceRefresh: forceRefresh);
-        print('✅ TaskProvider: API returned ${_tasks.length} tasks');
-      } catch (e) {
-        // If API fails, use mock data for testing UI
-        print('⚠️ API not available, using mock data: $e');
-        _tasks = _generateMockTasks();
-        print('✅ TaskProvider: Generated ${_tasks.length} mock tasks');
-      }
+      print('📡 TaskProvider: Fetching from API...');
+      _tasks = await _taskRepository.getMyTasks(forceRefresh: forceRefresh);
+      print('✅ TaskProvider: API returned ${_tasks.length} tasks');
       
       _isLoading = false;
       notifyListeners();
@@ -70,124 +68,8 @@ class TaskProvider with ChangeNotifier {
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
+      rethrow; // Throw error instead of using mock data
     }
-  }
-  
-  // Generate mock tasks for testing
-  List<MaintenanceTask> _generateMockTasks() {
-    final now = DateTime.now();
-    return [
-      MaintenanceTask(
-        id: 1,
-        taskId: 'TASK-001',
-        equipmentId: 'EQ-ME-001',
-        equipmentName: 'Main Engine',
-        taskType: 'SCHEDULED',
-        taskDescription: 'Check and clean fuel filters, inspect fuel lines',
-        intervalHours: 500.0,
-        intervalDays: null,
-        lastDoneAt: now.subtract(const Duration(days: 45)).toIso8601String(),
-        nextDueAt: now.add(const Duration(days: 5)).toIso8601String(),
-        runningHoursAtLastDone: 1500.0,
-        priority: 'HIGH',
-        status: 'PENDING',
-        assignedTo: 'CM001',
-        completedAt: null,
-        completedBy: null,
-        notes: null,
-        sparePartsUsed: null,
-        isSynced: true,
-        createdAt: now.subtract(const Duration(days: 90)).toIso8601String(),
-      ),
-      MaintenanceTask(
-        id: 2,
-        taskId: 'TASK-002',
-        equipmentId: 'EQ-GE-001',
-        equipmentName: 'Generator 1',
-        taskType: 'SCHEDULED',
-        taskDescription: 'Oil change and filter replacement',
-        intervalHours: 250.0,
-        intervalDays: null,
-        lastDoneAt: now.subtract(const Duration(days: 3)).toIso8601String(),
-        nextDueAt: now.subtract(const Duration(days: 2)).toIso8601String(),
-        runningHoursAtLastDone: 800.0,
-        priority: 'CRITICAL',
-        status: 'PENDING',
-        assignedTo: 'CM001',
-        completedAt: null,
-        completedBy: null,
-        notes: null,
-        sparePartsUsed: null,
-        isSynced: true,
-        createdAt: now.subtract(const Duration(days: 60)).toIso8601String(),
-      ),
-      MaintenanceTask(
-        id: 3,
-        taskId: 'TASK-003',
-        equipmentId: 'EQ-PUMP-001',
-        equipmentName: 'Cooling Water Pump',
-        taskType: 'SCHEDULED',
-        taskDescription: 'Lubricate bearings and check alignment',
-        intervalHours: null,
-        intervalDays: 30,
-        lastDoneAt: now.subtract(const Duration(days: 20)).toIso8601String(),
-        nextDueAt: now.add(const Duration(days: 10)).toIso8601String(),
-        runningHoursAtLastDone: null,
-        priority: 'NORMAL',
-        status: 'IN_PROGRESS',
-        assignedTo: 'CM001',
-        completedAt: null,
-        completedBy: null,
-        notes: 'Started inspection',
-        sparePartsUsed: null,
-        isSynced: true,
-        createdAt: now.subtract(const Duration(days: 50)).toIso8601String(),
-      ),
-      MaintenanceTask(
-        id: 4,
-        taskId: 'TASK-004',
-        equipmentId: 'EQ-AC-001',
-        equipmentName: 'Air Compressor',
-        taskType: 'SCHEDULED',
-        taskDescription: 'Clean air filters and check safety valves',
-        intervalHours: null,
-        intervalDays: 14,
-        lastDoneAt: now.subtract(const Duration(days: 14)).toIso8601String(),
-        nextDueAt: now.toIso8601String(),
-        runningHoursAtLastDone: null,
-        priority: 'HIGH',
-        status: 'PENDING',
-        assignedTo: 'CM001',
-        completedAt: null,
-        completedBy: null,
-        notes: null,
-        sparePartsUsed: null,
-        isSynced: true,
-        createdAt: now.subtract(const Duration(days: 40)).toIso8601String(),
-      ),
-      MaintenanceTask(
-        id: 5,
-        taskId: 'TASK-005',
-        equipmentId: 'EQ-ME-001',
-        equipmentName: 'Main Engine',
-        taskType: 'SCHEDULED',
-        taskDescription: 'Complete overhaul and inspection',
-        intervalHours: 2000.0,
-        intervalDays: null,
-        lastDoneAt: now.subtract(const Duration(days: 180)).toIso8601String(),
-        nextDueAt: now.subtract(const Duration(days: 1)).toIso8601String(),
-        runningHoursAtLastDone: 500.0,
-        priority: 'CRITICAL',
-        status: 'COMPLETED',
-        assignedTo: 'CM001',
-        completedAt: now.subtract(const Duration(hours: 2)).toIso8601String(),
-        completedBy: 'John Smith',
-        notes: 'All checks passed. Replaced worn gaskets.',
-        sparePartsUsed: 'Gasket set, Oil filter x2',
-        isSynced: true,
-        createdAt: now.subtract(const Duration(days: 200)).toIso8601String(),
-      ),
-    ];
   }
   
   // Start task
@@ -240,5 +122,92 @@ class TaskProvider with ChangeNotifier {
       notifyListeners();
       rethrow;
     }
+  }
+
+  // ========== NEW: TaskType Checklist Methods ==========
+
+  /// Fetch task checklist with execution status
+  Future<void> fetchTaskChecklist(int taskId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    
+    print('🔍 TaskProvider: fetchTaskChecklist() for task $taskId');
+    
+    try {
+      _currentChecklist = await _taskRepository.getTaskChecklist(taskId);
+      print('✅ TaskProvider: Loaded ${_currentChecklist.length} checklist items');
+      
+      // Also fetch progress
+      await fetchTaskProgress(taskId);
+      
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      print('❌ TaskProvider: Error fetching checklist: $e');
+      _error = e.toString();
+      _currentChecklist = [];
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Complete a checklist item
+  Future<void> completeChecklistItem({
+    required int taskId,
+    required int detailId,
+    String? measuredValue,
+    bool? checkResult,
+    String? inspectionNotes,
+    String? photoUrl,
+    required bool isCompleted,
+  }) async {
+    try {
+      await _taskRepository.completeChecklistItem(
+        taskId: taskId,
+        detailId: detailId,
+        measuredValue: measuredValue,
+        checkResult: checkResult,
+        inspectionNotes: inspectionNotes,
+        photoUrl: photoUrl,
+        isCompleted: isCompleted,
+      );
+      
+      print('✅ TaskProvider: Completed checklist item $detailId');
+      
+      // Refresh checklist and progress
+      await fetchTaskChecklist(taskId);
+    } catch (e) {
+      print('❌ TaskProvider: Error completing checklist item: $e');
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Fetch task progress
+  Future<void> fetchTaskProgress(int taskId) async {
+    try {
+      _currentProgress = await _taskRepository.getTaskProgress(taskId);
+      print('✅ TaskProvider: Progress ${_currentProgress?.completionPercentage.toStringAsFixed(1)}%');
+      notifyListeners();
+    } catch (e) {
+      print('❌ TaskProvider: Error fetching progress: $e');
+      _currentProgress = null;
+    }
+  }
+
+  /// Check if task can be completed (all mandatory items done)
+  bool canCompleteTask() {
+    if (_currentProgress == null) return false;
+    return _currentProgress!.canComplete;
+  }
+
+  /// Clear current checklist state
+  void clearCurrentChecklist() {
+    _currentChecklist = [];
+    _currentProgress = null;
+    notifyListeners();
   }
 }

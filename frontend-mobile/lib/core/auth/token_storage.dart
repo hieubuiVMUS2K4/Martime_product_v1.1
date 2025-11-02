@@ -19,18 +19,49 @@ class TokenStorage {
     String? fullName,
     String? position,
   }) async {
-    await Future.wait([
-      _storage.write(key: _accessTokenKey, value: accessToken),
-      _storage.write(key: _refreshTokenKey, value: refreshToken),
-      _storage.write(key: _userIdKey, value: userId.toString()),
-      _storage.write(key: _crewIdKey, value: crewId),
-      if (fullName != null) _storage.write(key: _fullNameKey, value: fullName),
-      if (position != null) _storage.write(key: _positionKey, value: position),
-    ]);
+    try {
+      print('💾 TokenStorage: Starting to save tokens...');
+      print('   - Access Token: ${accessToken.substring(0, 30)}...');
+      print('   - Crew ID: $crewId');
+      
+      await _storage.write(key: _accessTokenKey, value: accessToken);
+      print('✅ TokenStorage: Access token saved');
+      
+      await _storage.write(key: _refreshTokenKey, value: refreshToken);
+      print('✅ TokenStorage: Refresh token saved');
+      
+      await _storage.write(key: _userIdKey, value: userId.toString());
+      print('✅ TokenStorage: User ID saved');
+      
+      await _storage.write(key: _crewIdKey, value: crewId);
+      print('✅ TokenStorage: Crew ID saved');
+      
+      if (fullName != null) {
+        await _storage.write(key: _fullNameKey, value: fullName);
+        print('✅ TokenStorage: Full name saved');
+      }
+      
+      if (position != null) {
+        await _storage.write(key: _positionKey, value: position);
+        print('✅ TokenStorage: Position saved');
+      }
+      
+      print('✅ TokenStorage: All tokens saved successfully');
+      
+      // Verify immediately
+      final savedToken = await _storage.read(key: _accessTokenKey);
+      final savedCrewId = await _storage.read(key: _crewIdKey);
+      print('🔍 TokenStorage: Verification - Token exists: ${savedToken != null}, CrewId: $savedCrewId');
+    } catch (e) {
+      print('❌ TokenStorage: Error saving tokens: $e');
+      rethrow;
+    }
   }
   
   Future<String?> getAccessToken() async {
-    return await _storage.read(key: _accessTokenKey);
+    final token = await _storage.read(key: _accessTokenKey);
+    print('🔑 TokenStorage.getAccessToken(): ${token != null ? "Found" : "NOT FOUND"}');
+    return token;
   }
   
   Future<String?> getRefreshToken() async {
@@ -42,7 +73,9 @@ class TokenStorage {
   }
   
   Future<String?> getCrewId() async {
-    return await _storage.read(key: _crewIdKey);
+    final crewId = await _storage.read(key: _crewIdKey);
+    print('👤 TokenStorage.getCrewId(): ${crewId ?? "NOT FOUND"}');
+    return crewId;
   }
   
   Future<String?> getFullName() async {

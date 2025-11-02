@@ -52,8 +52,11 @@ export function TaskTypeFormModal({
         isActive: taskType.isActive,
       })
       // Load selected details for this task type if editing
-      // This would need to be fetched from backend
-      setSelectedDetailIds([])
+      // Filter allDetails to find ones with this taskTypeId
+      const currentDetailIds = allDetails
+        .filter(d => d.taskTypeId === taskType.id)
+        .map(d => d.id)
+      setSelectedDetailIds(currentDetailIds)
     } else {
       setFormData({
         typeCode: '',
@@ -69,7 +72,7 @@ export function TaskTypeFormModal({
       setSelectedDetailIds([])
     }
     setError('')
-  }, [taskType, isOpen])
+  }, [taskType, isOpen, allDetails])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

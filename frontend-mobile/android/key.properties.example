@@ -1,0 +1,11 @@
+# ⚠️ KHÔNG COMMIT FILE NÀY LÊN GIT!
+# File này chứa thông tin signing key bảo mật
+
+# Hướng dẫn tạo keystore:
+# keytool -genkey -v -keystore maritime-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias maritime-key
+
+# Điền thông tin của bạn bên dưới:
+storePassword=YOUR_KEYSTORE_PASSWORD_HERE
+keyPassword=YOUR_KEY_PASSWORD_HERE
+keyAlias=maritime-key
+storeFile=maritime-release-key.jks

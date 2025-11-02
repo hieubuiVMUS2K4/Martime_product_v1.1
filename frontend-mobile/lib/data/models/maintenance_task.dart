@@ -28,6 +28,10 @@ class MaintenanceTask extends Equatable {
   final String createdAt;
   final String? updatedAt;
   
+  // New fields for TaskType integration
+  final int? taskTypeId;
+  final String? taskTypeName;
+  
   const MaintenanceTask({
     required this.id,
     required this.taskId,
@@ -54,6 +58,8 @@ class MaintenanceTask extends Equatable {
     required this.isSynced,
     required this.createdAt,
     this.updatedAt,
+    this.taskTypeId,
+    this.taskTypeName,
   });
   
   factory MaintenanceTask.fromJson(Map<String, dynamic> json) {
@@ -83,6 +89,8 @@ class MaintenanceTask extends Equatable {
       isSynced: json['isSynced'] ?? false,
       createdAt: json['createdAt'],
       updatedAt: json['updatedAt'],
+      taskTypeId: json['taskTypeId'],
+      taskTypeName: json['taskTypeName'],
     );
   }
   
@@ -113,6 +121,8 @@ class MaintenanceTask extends Equatable {
       'isSynced': isSynced,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
+      'taskTypeId': taskTypeId,
+      'taskTypeName': taskTypeName,
     };
   }
   
@@ -127,6 +137,9 @@ class MaintenanceTask extends Equatable {
   bool get isPending => status == 'PENDING';
   bool get isInProgress => status == 'IN_PROGRESS';
   bool get isCompleted => status == 'COMPLETED';
+  
+  /// Check if this task uses the new TaskType system
+  bool get hasTaskType => taskTypeId != null;
   
   Color get priorityColor {
     switch (priority) {

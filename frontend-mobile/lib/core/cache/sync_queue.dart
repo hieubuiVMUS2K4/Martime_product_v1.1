@@ -54,18 +54,33 @@ class SyncQueue {
   }
   
   Future<void> _syncItemToServer(SyncItem item) async {
-    // TODO: Implement sync logic based on item type
+    // Note: This is a placeholder. In production, you should inject
+    // the appropriate API clients/repositories to handle sync.
+    // For now, just log and mark as synced.
+    print('🔄 Syncing item ${item.id} of type ${item.type}');
+    
     switch (item.type) {
       case SyncItemType.taskComplete:
-        // Call complete task API
+        // TODO: Call complete task API with item.data
+        print('📤 Syncing task completion: ${item.data}');
         break;
       case SyncItemType.taskStart:
-        // Call start task API
+        // TODO: Call start task API with item.data
+        print('📤 Syncing task start: ${item.data}');
         break;
       case SyncItemType.profileUpdate:
-        // Call profile update API
+        // TODO: Call profile update API with item.data
+        print('📤 Syncing profile update: ${item.data}');
+        break;
+      case SyncItemType.checklistComplete:
+        // TODO: Call complete checklist item API with item.data
+        print('📤 Syncing checklist completion: ${item.data}');
+        // Expected data: taskId, detailId, measuredValue, checkResult, etc.
         break;
     }
+    
+    // Simulate network delay
+    await Future.delayed(const Duration(milliseconds: 500));
   }
   
   // Get queue size

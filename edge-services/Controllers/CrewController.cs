@@ -76,45 +76,36 @@ public class CrewController : ControllerBase
     {
         try
         {
-            // Try to extract crewId from Authorization header (JWT token)
+            // Try to extract crewId from Authorization header token
             string? userCrewId = crewId;
             
-            if (string.IsNullOrWhiteSpace(userCrewId))
-            {
-                // Extract from JWT token claim
-                var crewIdClaim = User.FindFirst("crew_id")?.Value 
-                               ?? User.FindFirst("sub")?.Value 
-                               ?? User.FindFirst("crewId")?.Value;
-                
-                userCrewId = crewIdClaim;
-            }
-            
-            // If still no crewId, try to get from Authorization header
             if (string.IsNullOrWhiteSpace(userCrewId) && Request.Headers.ContainsKey("Authorization"))
             {
-                // For development: return first onboard crew as demo
-                _logger.LogWarning("No crew ID found in token, using demo profile");
-                var demoCrew = await _context.CrewMembers
-                    .FirstOrDefaultAsync(c => c.IsOnboard);
-                
-                if (demoCrew != null)
+                // Extract token from "Bearer {token}"
+                var authHeader = Request.Headers["Authorization"].ToString();
+                if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
                 {
-                    return Ok(demoCrew);
+                    var token = authHeader.Substring("Bearer ".Length).Trim();
+                    
+                    // Token format: access_{userId}_{crewId}_{timestamp}_{random}
+                    var parts = token.Split('_');
+                    if (parts.Length >= 3)
+                    {
+                        userCrewId = parts[2]; // crewId is at index 2
+                        _logger.LogInformation("Extracted crew ID from token: {CrewId}", userCrewId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Token format invalid, expected at least 3 parts but got {Count}", parts.Length);
+                    }
                 }
             }
 
             if (string.IsNullOrWhiteSpace(userCrewId))
             {
-                // Return first crew member as fallback for testing
-                _logger.LogWarning("No crew ID provided, returning first crew member");
-                var firstCrew = await _context.CrewMembers.FirstOrDefaultAsync();
-                
-                if (firstCrew == null)
-                {
-                    return NotFound(new { error = "No crew members found in database" });
-                }
-                
-                return Ok(firstCrew);
+                // Return error instead of fallback
+                _logger.LogWarning("No crew ID found in request or token");
+                return BadRequest(new { error = "Crew ID not found. Please provide crewId parameter or valid authorization token." });
             }
 
             var crew = await _context.CrewMembers
@@ -126,6 +117,7 @@ public class CrewController : ControllerBase
                 return NotFound(new { error = "Crew member not found", crewId = userCrewId });
             }
 
+            _logger.LogInformation("Profile retrieved for: {CrewId} - {FullName}", crew.CrewId, crew.FullName);
             return Ok(crew);
         }
         catch (Exception ex)

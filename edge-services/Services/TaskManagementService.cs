@@ -445,6 +445,13 @@ public class TaskManagementService
             }
 
             // Update only non-null properties
+            // IMPORTANT: Allow updating TaskTypeId to assign/unassign from TaskType
+            if (dto.TaskTypeId.HasValue) 
+            {
+                detail.TaskTypeId = dto.TaskTypeId.Value;
+                _logger.LogInformation("Updated TaskDetail {Id} TaskTypeId to {TaskTypeId}", id, dto.TaskTypeId.Value);
+            }
+            
             if (dto.DetailName != null) detail.DetailName = dto.DetailName;
             if (dto.Description != null) detail.Description = dto.Description;
             if (dto.OrderIndex.HasValue) detail.OrderIndex = dto.OrderIndex.Value;

@@ -1,21 +1,24 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Wrench, Clock, AlertCircle, CheckCircle, Calendar, TrendingUp, Download } from 'lucide-react'
+import { Wrench, Clock, AlertCircle, CheckCircle, Calendar, Download, LayoutGrid, Plus } from 'lucide-react'
 import { MaintenanceTask } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { format, parseISO, differenceInDays } from 'date-fns'
+import { KanbanBoard } from '../../components/maintenance/KanbanBoard'
+import { AddTaskModal } from '../../components/maintenance/AddTaskModal'
 
-type TabType = 'all' | 'pending' | 'overdue' | 'completed' | 'calendar'
+type TabType = 'kanban' | 'schedule' | 'all'
 
 export function MaintenancePage() {
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<TabType>('pending')
+  const [activeTab, setActiveTab] = useState<TabType>('kanban')
   const [tasks, setTasks] = useState<MaintenanceTask[]>([])
   const [filteredTasks, setFilteredTasks] = useState<MaintenanceTask[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
   const [equipmentFilter, setEquipmentFilter] = useState<string>('all')
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false)
 
   useEffect(() => {
     loadMaintenanceData()
@@ -28,21 +31,8 @@ export function MaintenancePage() {
   const loadMaintenanceData = async () => {
     try {
       setLoading(true)
-      let data: MaintenanceTask[]
-      
-      switch (activeTab) {
-        case 'pending':
-          data = await maritimeService.maintenance.getPending()
-          break
-        case 'overdue':
-          data = await maritimeService.maintenance.getOverdue()
-          break
-        case 'all':
-        default:
-          data = await maritimeService.maintenance.getAll()
-          break
-      }
-      
+      // Always load all tasks, filtering is done by view
+      const data = await maritimeService.maintenance.getAll()
       setTasks(data)
     } catch (error) {
       console.error('Failed to load maintenance data:', error)
@@ -73,19 +63,38 @@ export function MaintenancePage() {
     setFilteredTasks(filtered)
   }
 
+  const handleTaskUpdate = async (taskId: number, newStatus: string) => {
+    try {
+      const validStatus = newStatus as 'PENDING' | 'OVERDUE' | 'IN_PROGRESS' | 'COMPLETED'
+      await maritimeService.maintenance.update(taskId, { status: validStatus })
+      await loadMaintenanceData()
+    } catch (error: any) {
+      console.error('Failed to update task:', error)
+      
+      // Show specific error message from backend validation
+      const errorMessage = error?.response?.data?.message || error?.response?.data?.error || 'Failed to update task status'
+      
+      // Show friendly alert with explanation
+      if (error?.response?.status === 400) {
+        alert(
+          `❌ Cannot move task\n\n` +
+          `${errorMessage}\n\n` +
+          `Tip: Completed tasks are locked to protect crew work. Create a new task if rework is needed.`
+        )
+      } else {
+        alert(`Failed to update task status: ${errorMessage}`)
+      }
+      
+      // Reload to reset UI to actual state
+      await loadMaintenanceData()
+    }
+  }
+
   const getDaysUntilDue = (dueDate: string) => {
     return differenceInDays(parseISO(dueDate), new Date())
   }
 
   const uniqueEquipment = [...new Set(tasks.map(t => t.equipmentId))]
-
-  const stats = {
-    total: tasks.length,
-    pending: tasks.filter(t => t.status === 'PENDING').length,
-    overdue: tasks.filter(t => t.status === 'OVERDUE').length,
-    inProgress: tasks.filter(t => t.status === 'IN_PROGRESS').length,
-    critical: tasks.filter(t => t.priority === 'CRITICAL').length,
-  }
 
   return (
     <div className="h-full w-full overflow-y-auto">
@@ -96,39 +105,19 @@ export function MaintenancePage() {
           <h1 className="text-2xl font-bold text-gray-900">Planned Maintenance System</h1>
           <p className="text-sm text-gray-600 mt-1">ISM Code Compliance - Equipment Maintenance Tracking</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-          <Download className="w-5 h-5" />
-          Export PMS Report
-        </button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <StatCard
-          icon={<Wrench className="w-6 h-6 text-blue-600" />}
-          label="Total Tasks"
-          value={stats.total}
-        />
-        <StatCard
-          icon={<Clock className="w-6 h-6 text-yellow-600" />}
-          label="Pending"
-          value={stats.pending}
-        />
-        <StatCard
-          icon={<AlertCircle className="w-6 h-6 text-red-600" />}
-          label="Overdue"
-          value={stats.overdue}
-        />
-        <StatCard
-          icon={<TrendingUp className="w-6 h-6 text-purple-600" />}
-          label="In Progress"
-          value={stats.inProgress}
-        />
-        <StatCard
-          icon={<AlertCircle className="w-6 h-6 text-red-600" />}
-          label="Critical"
-          value={stats.critical}
-        />
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setIsAddTaskModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm hover:shadow"
+          >
+            <Plus className="w-5 h-5" />
+            Add New Task
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow">
+            <Download className="w-5 h-5" />
+            Export Report
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -136,31 +125,22 @@ export function MaintenancePage() {
         <div className="border-b border-gray-200">
           <nav className="flex -mb-px">
             <TabButton
-              active={activeTab === 'pending'}
-              onClick={() => setActiveTab('pending')}
-              icon={<Clock className="w-5 h-5" />}
-              label="Pending Tasks"
-              badge={stats.pending}
+              active={activeTab === 'kanban'}
+              onClick={() => setActiveTab('kanban')}
+              icon={<LayoutGrid className="w-5 h-5" />}
+              label="Kanban Board"
             />
             <TabButton
-              active={activeTab === 'overdue'}
-              onClick={() => setActiveTab('overdue')}
-              icon={<AlertCircle className="w-5 h-5" />}
-              label="Overdue"
-              badge={stats.overdue}
-              badgeColor="red"
+              active={activeTab === 'schedule'}
+              onClick={() => setActiveTab('schedule')}
+              icon={<Calendar className="w-5 h-5" />}
+              label="Schedule View"
             />
             <TabButton
               active={activeTab === 'all'}
               onClick={() => setActiveTab('all')}
               icon={<Wrench className="w-5 h-5" />}
               label="All Tasks"
-            />
-            <TabButton
-              active={activeTab === 'calendar'}
-              onClick={() => setActiveTab('calendar')}
-              icon={<Calendar className="w-5 h-5" />}
-              label="Schedule View"
             />
           </nav>
         </div>
@@ -202,28 +182,50 @@ export function MaintenancePage() {
         </div>
 
         {/* Content */}
-        <div className="p-6">
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-gray-600 mt-4">Loading maintenance tasks...</p>
-            </div>
-          ) : (
-            <>
-              {activeTab === 'calendar' ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="text-gray-600 mt-4">Loading maintenance tasks...</p>
+          </div>
+        ) : (
+          <>
+            {activeTab === 'kanban' && (
+              <KanbanBoard 
+                tasks={filteredTasks} 
+                onTaskUpdate={handleTaskUpdate}
+                onTaskClick={(id) => navigate(`/maintenance/${id}`)}
+              />
+            )}
+            
+            {activeTab === 'schedule' && (
+              <div className="p-6">
                 <CalendarView tasks={filteredTasks} navigate={navigate} />
-              ) : (
+              </div>
+            )}
+            
+            {activeTab === 'all' && (
+              <div className="p-6">
                 <TaskListView 
                   tasks={filteredTasks} 
                   getDaysUntilDue={getDaysUntilDue}
                   navigate={navigate}
                 />
-              )}
-            </>
-          )}
-        </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
       </div>
+
+      {/* Add Task Modal */}
+      <AddTaskModal
+        isOpen={isAddTaskModalOpen}
+        onClose={() => setIsAddTaskModalOpen(false)}
+        onTaskAdded={() => {
+          loadMaintenanceData()
+          setIsAddTaskModalOpen(false)
+        }}
+      />
     </div>
   )
 }
@@ -469,20 +471,6 @@ function CalendarView({ tasks, navigate }: { tasks: MaintenanceTask[]; navigate:
 }
 
 // Helper Components
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
-  return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-sm text-gray-600">{label}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-        </div>
-        <div className="ml-4">{icon}</div>
-      </div>
-    </div>
-  )
-}
-
 function TabButton({ 
   active, 
   onClick, 

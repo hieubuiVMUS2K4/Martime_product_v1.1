@@ -41,6 +41,7 @@ export interface CreateTaskDetailDto {
 }
 
 export interface UpdateTaskDetailDto {
+  taskTypeId?: number | null  // Allow updating taskTypeId to assign/unassign from TaskType
   detailName?: string
   detailType?: string
   description?: string

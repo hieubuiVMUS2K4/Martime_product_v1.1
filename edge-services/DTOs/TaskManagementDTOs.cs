@@ -145,6 +145,9 @@ public class CreateTaskDetailDto
 /// </summary>
 public class UpdateTaskDetailDto
 {
+    [JsonPropertyName("taskTypeId")]
+    public int? TaskTypeId { get; set; }  // Cho phép assign/unassign từ TaskType
+    
     [JsonPropertyName("detailName")]
     public string? DetailName { get; set; }
     
