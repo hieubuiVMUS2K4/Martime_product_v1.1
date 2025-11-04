@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Boxes, Layers, Plus, Search, AlertTriangle, Tag } from 'lucide-react';
-import { maritimeService } from '../../services/maritime.service';
+﻿import { useEffect, useMemo, useState } from 'react';
+import { Boxes, Layers, Plus, Search, AlertTriangle, Tag, Edit2, Trash2, TrendingUp } from 'lucide-react';
+import { materialService } from '../../services/materialService';
 import type { MaterialItem, MaterialCategory } from '../../types/maritime.types';
+import type { CreateMaterialItemDto, UpdateMaterialItemDto, CreateMaterialCategoryDto, UpdateMaterialCategoryDto, StockAdjustmentDto } from '../../services/materialService';
+import { ItemFormModal } from './ItemFormModal';
+import { CategoryFormModal } from './CategoryFormModal';
+import { StockAdjustmentModal } from './StockAdjustmentModal';
 
 type TabType = 'items' | 'low' | 'categories';
 
@@ -14,6 +18,14 @@ export function MaterialPage() {
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState<number | 'all'>('all');
 
+  // Modal states
+  const [itemModalOpen, setItemModalOpen] = useState(false);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [stockAdjustmentModalOpen, setStockAdjustmentModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<MaterialItem | null>(null);
+  const [editingCategory, setEditingCategory] = useState<MaterialCategory | null>(null);
+  const [adjustingItem, setAdjustingItem] = useState<MaterialItem | null>(null);
+
   useEffect(() => {
     loadData();
   }, [activeTab]);
@@ -23,26 +35,81 @@ export function MaterialPage() {
       setLoading(true);
       if (activeTab === 'low') {
         const [ls, cats] = await Promise.all([
-          maritimeService.material.getLowStock(),
-          maritimeService.material.getCategories(true)
+          materialService.getLowStockItems(),
+          materialService.getCategories(true)
         ]);
         setLowStock(ls);
         setCategories(cats);
       } else if (activeTab === 'categories') {
-        const cats = await maritimeService.material.getCategories(false);
+        const cats = await materialService.getCategories(false);
         setCategories(cats);
       } else {
-        const [its, cats] = await Promise.all([
-          maritimeService.material.getItems({ onlyActive: true }),
-          maritimeService.material.getCategories(true)
+        // Load items, categories, and lowStock for stats
+        const [its, cats, ls] = await Promise.all([
+          materialService.getItems({ onlyActive: true }),
+          materialService.getCategories(true),
+          materialService.getLowStockItems()
         ]);
         setItems(its);
         setCategories(cats);
+        setLowStock(ls);
       }
     } catch (e) {
       console.error('Failed to load material data:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Item handlers
+  const handleCreateItem = async (data: CreateMaterialItemDto) => {
+    await materialService.createItem(data);
+    await loadData();
+  };
+
+  const handleUpdateItem = async (data: UpdateMaterialItemDto) => {
+    if (!editingItem) return;
+    await materialService.updateItem(editingItem.id, data);
+    setEditingItem(null);
+    await loadData();
+  };
+
+  const handleDeleteItem = async (item: MaterialItem) => {
+    if (!confirm(`Are you sure you want to delete "${item.name}"?`)) return;
+    try {
+      await materialService.deleteItem(item.id);
+      await loadData();
+    } catch (error: any) {
+      alert(error.message || 'Failed to delete item');
+    }
+  };
+
+  const handleStockAdjustment = async (data: StockAdjustmentDto) => {
+    await materialService.adjustStock(data);
+    setAdjustingItem(null);
+    await loadData();
+  };
+
+  // Category handlers
+  const handleCreateCategory = async (data: CreateMaterialCategoryDto) => {
+    await materialService.createCategory(data);
+    await loadData();
+  };
+
+  const handleUpdateCategory = async (data: UpdateMaterialCategoryDto) => {
+    if (!editingCategory) return;
+    await materialService.updateCategory(editingCategory.id, data);
+    setEditingCategory(null);
+    await loadData();
+  };
+
+  const handleDeleteCategory = async (category: MaterialCategory) => {
+    if (!confirm(`Are you sure you want to delete category "${category.name}"?`)) return;
+    try {
+      await materialService.deleteCategory(category.id);
+      await loadData();
+    } catch (error: any) {
+      alert(error.message || 'Failed to delete category');
     }
   };
 
@@ -55,14 +122,24 @@ export function MaterialPage() {
         x.itemCode.toLowerCase().includes(q) ||
         x.name.toLowerCase().includes(q) ||
         (x.partNumber && x.partNumber.toLowerCase().includes(q)) ||
-        (x.barcode && x.barcode.toLowerCase().includes(q))
+        (x.barcode && x.barcode.toLowerCase().includes(q)) ||
+        (x.manufacturer && x.manufacturer.toLowerCase().includes(q))
       );
     }
     return data;
   }, [items, search, categoryId]);
 
+  const totalValue = useMemo(() => {
+    return items.reduce((sum, item) => {
+      if (item.unitCost) {
+        return sum + (item.unitCost * item.onHandQuantity);
+      }
+      return sum;
+    }, 0);
+  }, [items]);
+
   return (
-    <div className="h-full w-full overflow-y-auto">
+    <div className="h-full w-full overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -71,20 +148,50 @@ export function MaterialPage() {
             <p className="text-sm text-gray-600 mt-1">Inventory items, categories, and low stock alerts</p>
           </div>
           <div className="flex gap-2">
-            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            <button 
+              onClick={() => {
+                setEditingItem(null);
+                setItemModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
               <Plus className="w-5 h-5" /> Add Item
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+            <button 
+              onClick={() => {
+                setEditingCategory(null);
+                setCategoryModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
               <Layers className="w-5 h-5" /> Add Category
             </button>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <StatCard icon={<Boxes className="w-6 h-6 text-blue-600" />} label="Total Items" value={items.length} />
-          <StatCard icon={<AlertTriangle className="w-6 h-6 text-red-600" />} label="Low Stock" value={lowStock.length} />
-          <StatCard icon={<Layers className="w-6 h-6 text-green-600" />} label="Active Categories" value={categories.filter(c => c.isActive).length} />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <StatCard 
+            icon={<Boxes className="w-6 h-6 text-blue-600" />} 
+            label="Total Items" 
+            value={items.length}
+          />
+          <StatCard 
+            icon={<AlertTriangle className="w-6 h-6 text-red-600" />} 
+            label="Low Stock Items" 
+            value={lowStock.length}
+          />
+          <StatCard 
+            icon={<Layers className="w-6 h-6 text-green-600" />} 
+            label="Active Categories" 
+            value={categories.filter(c => c.isActive).length}
+          />
+          <StatCard 
+            icon={<Boxes className="w-6 h-6 text-purple-600" />} 
+            label="Total Inventory Value" 
+            value={`$${totalValue.toFixed(2)}`}
+            subtitle="USD"
+          />
         </div>
 
         {/* Tabs */}
@@ -130,57 +237,229 @@ export function MaterialPage() {
             ) : (
               <>
                 {activeTab === 'categories' ? (
-                  <CategoryList categories={categories} />
+                  <CategoryList 
+                    categories={categories}
+                    onEdit={(cat) => {
+                      setEditingCategory(cat);
+                      setCategoryModalOpen(true);
+                    }}
+                    onDelete={handleDeleteCategory}
+                  />
                 ) : activeTab === 'low' ? (
-                  <ItemList items={lowStock} highlightLow />
+                  <ItemList 
+                    items={lowStock} 
+                    categories={categories} 
+                    highlightLow
+                    onEdit={(item) => {
+                      setEditingItem(item);
+                      setItemModalOpen(true);
+                    }}
+                    onDelete={handleDeleteItem}
+                    onAdjustStock={(item) => {
+                      setAdjustingItem(item);
+                      setStockAdjustmentModalOpen(true);
+                    }}
+                  />
                 ) : (
-                  <ItemList items={filteredItems} />
+                  <ItemList 
+                    items={filteredItems} 
+                    categories={categories}
+                    onEdit={(item) => {
+                      setEditingItem(item);
+                      setItemModalOpen(true);
+                    }}
+                    onDelete={handleDeleteItem}
+                    onAdjustStock={(item) => {
+                      setAdjustingItem(item);
+                      setStockAdjustmentModalOpen(true);
+                    }}
+                  />
                 )}
               </>
             )}
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <ItemFormModal
+        isOpen={itemModalOpen}
+        onClose={() => {
+          setItemModalOpen(false);
+          setEditingItem(null);
+        }}
+        onSubmit={editingItem ? handleUpdateItem : handleCreateItem}
+        item={editingItem}
+        categories={categories}
+        title={editingItem ? 'Edit Material Item' : 'Add New Material Item'}
+      />
+
+      <CategoryFormModal
+        isOpen={categoryModalOpen}
+        onClose={() => {
+          setCategoryModalOpen(false);
+          setEditingCategory(null);
+        }}
+        onSubmit={editingCategory ? handleUpdateCategory : handleCreateCategory}
+        category={editingCategory}
+        categories={categories}
+        title={editingCategory ? 'Edit Category' : 'Add New Category'}
+      />
+
+      <StockAdjustmentModal
+        isOpen={stockAdjustmentModalOpen}
+        onClose={() => {
+          setStockAdjustmentModalOpen(false);
+          setAdjustingItem(null);
+        }}
+        onSubmit={handleStockAdjustment}
+        item={adjustingItem}
+      />
     </div>
   );
 }
 
-function ItemList({ items, highlightLow = false }: { items: MaterialItem[]; highlightLow?: boolean }) {
+function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, onAdjustStock }: { 
+  items: MaterialItem[]; 
+  highlightLow?: boolean; 
+  categories: MaterialCategory[];
+  onEdit: (item: MaterialItem) => void;
+  onDelete: (item: MaterialItem) => void;
+  onAdjustStock: (item: MaterialItem) => void;
+}) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  const getCategoryName = (catId: number) => {
+    const cat = categories.find(c => c.id === catId);
+    return cat?.name || 'Unknown';
+  };
+
+  const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedItems = items.slice(startIndex, endIndex);
+
   return (
-    <div className="overflow-x-auto">
+    <div className="space-y-4">
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            Showing {startIndex + 1} - {Math.min(endIndex, items.length)} of {items.length} items
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ← Previous
+            </button>
+            <span className="text-sm text-gray-600">
+              Page {currentPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
             <Th>Code</Th>
             <Th>Name</Th>
-            <Th>Unit</Th>
-            <Th className="text-right">On Hand</Th>
-            <Th className="text-right">Min</Th>
-            <Th>Location</Th>
-            <Th>Manufacturer</Th>
-            <Th>Part No.</Th>
+            <Th className="text-center">Category</Th>
+            <Th className="text-center">Unit</Th>
+            <Th className="text-center">On Hand</Th>
+            <Th className="text-center">Min/Max</Th>
+            <Th className="text-center">Location</Th>
+            <Th className="text-center">Unit Cost</Th>
+            <Th className="text-center">Status</Th>
+            <Th className="text-center">Actions</Th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {items.map(it => {
+          {paginatedItems.map(it => {
             const low = it.minStock != null && it.onHandQuantity < (it.minStock ?? 0);
+            const over = it.maxStock != null && it.onHandQuantity > (it.maxStock ?? 0);
+            
             return (
-              <tr key={it.id} className={highlightLow && low ? 'bg-red-50' : ''}>
-                <Td><span className="font-mono">{it.itemCode}</span></Td>
+              <tr 
+                key={it.id} 
+                onClick={() => onEdit(it)}
+                className={`cursor-pointer transition-colors hover:bg-blue-50 ${highlightLow && low ? 'bg-red-50' : ''}`}
+              >
+                <Td><span className="font-mono text-xs">{it.itemCode}</span></Td>
                 <Td>
-                  <div className="flex items-center gap-2">
-                    <span>{it.name}</span>
-                    {low && <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700">LOW</span>}
-                    {it.serialTracked && <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700">SN</span>}
-                    {it.batchTracked && <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700">BATCH</span>}
+                  <div className="flex flex-col">
+                    <span className="font-medium">{it.name}</span>
+                    {it.specification && <span className="text-xs text-gray-500">{it.specification}</span>}
                   </div>
                 </Td>
-                <Td>{it.unit}</Td>
-                <Td className="text-right">{it.onHandQuantity?.toFixed(3)}</Td>
-                <Td className="text-right">{it.minStock != null ? Number(it.minStock).toFixed(3) : '-'}</Td>
-                <Td>{it.location || '-'}</Td>
-                <Td>{it.manufacturer || '-'}</Td>
-                <Td>{it.partNumber || '-'}</Td>
+                <Td className="text-center">
+                  <span className="text-xs text-gray-600">{getCategoryName(it.categoryId)}</span>
+                </Td>
+                <Td className="text-center"><span className="text-xs">{it.unit}</span></Td>
+                <Td className="text-center">
+                  <span className={`font-medium ${low ? 'text-red-600' : over ? 'text-orange-600' : ''}`}>
+                    {it.onHandQuantity.toFixed(2)}
+                  </span>
+                </Td>
+                <Td className="text-center">
+                  <span className="text-xs text-gray-600">
+                    {it.minStock != null ? it.minStock.toFixed(0) : '-'} / {it.maxStock != null ? it.maxStock.toFixed(0) : '-'}
+                  </span>
+                </Td>
+                <Td className="text-center"><span className="text-xs">{it.location || '-'}</span></Td>
+                <Td className="text-center">
+                  {it.unitCost ? (
+                    <span className="text-xs font-medium">{it.unitCost.toFixed(2)} {it.currency || 'USD'}</span>
+                  ) : (
+                    <span className="text-xs text-gray-400">-</span>
+                  )}
+                </Td>
+                <Td className="text-center">
+                  <div className="flex flex-wrap gap-1 justify-center">
+                    {low && <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700">LOW</span>}
+                    {over && <span className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700">OVER</span>}
+                    {it.serialTracked && <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700">SN</span>}
+                    {it.batchTracked && <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700">BATCH</span>}
+                    {it.expiryRequired && <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">EXP</span>}
+                    {!it.isActive && <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">INACTIVE</span>}
+                  </div>
+                </Td>
+                <Td className="text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAdjustStock(it);
+                      }}
+                      className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
+                      title="Adjust Stock"
+                    >
+                      <TrendingUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(it);
+                      }}
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </Td>
               </tr>
             );
           })}
@@ -193,17 +472,59 @@ function ItemList({ items, highlightLow = false }: { items: MaterialItem[]; high
           <p className="text-gray-500">No items found</p>
         </div>
       )}
+      </div>
     </div>
   );
 }
 
-function CategoryList({ categories }: { categories: MaterialCategory[] }) {
+function CategoryList({ categories, onEdit, onDelete }: { 
+  categories: MaterialCategory[];
+  onEdit: (category: MaterialCategory) => void;
+  onDelete: (category: MaterialCategory) => void;
+}) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
   const roots = categories.filter(c => !c.parentCategoryId);
   const children = (pid: number) => categories.filter(c => c.parentCategoryId === pid);
 
+  const totalPages = Math.ceil(roots.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedRoots = roots.slice(startIndex, endIndex);
+
   return (
-    <div className="space-y-3">
-      {roots.map(root => (
+    <div className="space-y-4">
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            Showing {startIndex + 1} - {Math.min(endIndex, roots.length)} of {roots.length} categories
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ← Previous
+            </button>
+            <span className="text-sm text-gray-600">
+              Page {currentPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-3">
+      {paginatedRoots.map(root => (
         <div key={root.id} className="border border-gray-200 rounded-lg">
           <div className="p-4 flex items-center justify-between bg-gray-50">
             <div className="flex items-center gap-2">
@@ -213,9 +534,27 @@ function CategoryList({ categories }: { categories: MaterialCategory[] }) {
                 <p className="text-xs text-gray-500">{root.categoryCode}</p>
               </div>
             </div>
-            <span className={`px-2 py-1 text-xs rounded-full ${root.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-              {root.isActive ? 'Active' : 'Inactive'}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className={`px-2 py-1 text-xs rounded-full ${root.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                {root.isActive ? 'Active' : 'Inactive'}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => onEdit(root)}
+                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                  title="Edit"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onDelete(root)}
+                  className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
           {children(root.id).length > 0 && (
             <div className="p-4">
@@ -227,9 +566,27 @@ function CategoryList({ categories }: { categories: MaterialCategory[] }) {
                         <p className="font-medium">{sc.name}</p>
                         <p className="text-xs text-gray-500">{sc.categoryCode}</p>
                       </div>
-                      <span className={`px-2 py-1 text-xs rounded-full ${sc.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                        {sc.isActive ? 'Active' : 'Inactive'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 text-xs rounded-full ${sc.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {sc.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => onEdit(sc)}
+                            className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="Edit"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => onDelete(sc)}
+                            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                     {sc.description && <p className="text-sm text-gray-600 mt-2">{sc.description}</p>}
                   </div>
@@ -246,17 +603,19 @@ function CategoryList({ categories }: { categories: MaterialCategory[] }) {
           <p className="text-gray-500">No categories found</p>
         </div>
       )}
+      </div>
     </div>
   );
 }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
+function StatCard({ icon, label, value, subtitle }: { icon: React.ReactNode; label: string; value: string | number; subtitle?: string }) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-600">{label}</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+          {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
         </div>
         {icon}
       </div>

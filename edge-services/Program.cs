@@ -14,6 +14,9 @@ namespace MaritimeEdge
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            // Configure port
+            builder.WebHost.UseUrls("http://localhost:5001");
+
             // Add services to the container
             var connectionString = builder.Configuration.GetValue<string>("Database:ConnectionString");
             

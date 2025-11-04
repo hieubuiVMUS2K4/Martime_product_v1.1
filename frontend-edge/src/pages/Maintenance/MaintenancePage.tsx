@@ -88,7 +88,7 @@ export function MaintenancePage() {
   }
 
   return (
-    <div className="h-full w-full overflow-y-auto">
+    <div className="h-full w-full overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
