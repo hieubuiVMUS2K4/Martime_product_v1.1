@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ListChecks, Layers, Plus, Search, Edit2, Trash2, CheckSquare } from 'lucide-react'
+import { ListChecks, Layers, Plus, Search, Trash2, CheckSquare } from 'lucide-react'
 import { taskManagementService } from '../../services/taskManagementService'
 import type { TaskType, TaskDetail } from '../../types/maritime.types'
 import { TaskTypeFormModal } from './TaskTypeFormModal'
@@ -13,6 +13,15 @@ export function TaskManagementPage() {
   const [taskDetails, setTaskDetails] = useState<TaskDetail[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [filterDetailType, setFilterDetailType] = useState<string>('ALL')
+  const [filterCategory, setFilterCategory] = useState<string>('ALL')
+  const [filterPriority, setFilterPriority] = useState<string>('ALL')
+  
+  // Pagination for details and types
+  const [currentPage, setCurrentPage] = useState(1)
+  const [currentTypePage, setCurrentTypePage] = useState(1)
+  const itemsPerPage = 12
+  const typesPerPage = 10
 
   // Utility data
   const [categories, setCategories] = useState<Array<{ code: string; name: string }>>([])
@@ -37,7 +46,14 @@ export function TaskManagementPage() {
         taskManagementService.getAllTaskTypes(false),
         taskManagementService.getAllTaskDetails(false), // Use new API
       ])
-      setTaskTypes(types)
+      // Map backend fields to frontend expected fields
+      const mappedTypes = types.map((t: any) => ({
+        ...t,
+        taskTypeCode: t.typeCode || t.taskTypeCode,
+        priority: t.defaultPriority || t.priority,
+        estimatedDurationMinutes: t.estimatedDurationHours ? t.estimatedDurationHours * 60 : (t.estimatedDurationMinutes || null)
+      }))
+      setTaskTypes(mappedTypes)
       setTaskDetails(details)
     } catch (e) {
       console.error('Failed to load task management data:', e)
@@ -201,25 +217,91 @@ export function TaskManagementPage() {
   }
 
   const filteredTaskTypes = useMemo(() => {
-    if (!search) return taskTypes
-    const q = search.toLowerCase()
-    return taskTypes.filter(t =>
-      t.taskTypeCode.toLowerCase().includes(q) ||
-      t.typeName.toLowerCase().includes(q) ||
-      (t.description && t.description.toLowerCase().includes(q))
-    )
-  }, [taskTypes, search])
+    let filtered = taskTypes
+    
+    // Filter by category
+    if (filterCategory !== 'ALL') {
+      filtered = filtered.filter(t => t.category === filterCategory)
+    }
+    
+    // Filter by priority
+    if (filterPriority !== 'ALL') {
+      filtered = filtered.filter(t => t.priority === filterPriority)
+    }
+    
+    // Filter by search
+    if (search) {
+      const q = search.toLowerCase()
+      filtered = filtered.filter(t =>
+        t.taskTypeCode.toLowerCase().includes(q) ||
+        t.typeName.toLowerCase().includes(q) ||
+        (t.description && t.description.toLowerCase().includes(q))
+      )
+    }
+    
+    return filtered
+  }, [taskTypes, search, filterCategory, filterPriority])
+
+  // Pagination for types
+  const paginatedTaskTypes = useMemo(() => {
+    const startIndex = (currentTypePage - 1) * typesPerPage
+    const endIndex = startIndex + typesPerPage
+    return filteredTaskTypes.slice(startIndex, endIndex)
+  }, [filteredTaskTypes, currentTypePage, typesPerPage])
+
+  const totalTypePages = Math.ceil(filteredTaskTypes.length / typesPerPage)
 
   const filteredDetails = useMemo(() => {
-    if (!search) return taskDetails
-    const q = search.toLowerCase()
-    return taskDetails.filter(d =>
-      d.detailName.toLowerCase().includes(q) ||
-      (d.description && d.description.toLowerCase().includes(q))
-    )
-  }, [taskDetails, search])
+    let filtered = taskDetails
+    
+    // Filter by detail type
+    if (filterDetailType !== 'ALL') {
+      filtered = filtered.filter(d => d.detailType === filterDetailType)
+    }
+    
+    // Filter by search
+    if (search) {
+      const q = search.toLowerCase()
+      filtered = filtered.filter(d =>
+        d.detailName.toLowerCase().includes(q) ||
+        (d.description && d.description.toLowerCase().includes(q))
+      )
+    }
+    
+    return filtered
+  }, [taskDetails, search, filterDetailType])
+
+  // Pagination for details
+  const paginatedDetails = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    return filteredDetails.slice(startIndex, endIndex)
+  }, [filteredDetails, currentPage, itemsPerPage])
+
+  const totalPages = Math.ceil(filteredDetails.length / itemsPerPage)
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, filterDetailType])
+
+  // Reset type page when switching tabs or search changes
+  useEffect(() => {
+    setCurrentTypePage(1)
+  }, [search, activeTab, filterCategory, filterPriority])
 
   const getCategoryName = (code: string) => categories.find(c => c.code === code)?.name || code
+  
+  const getPriorityName = (priority: string) => {
+    switch (priority) {
+      case 'CRITICAL': return 'Khẩn cấp'
+      case 'HIGH': return 'Cao'
+      case 'NORMAL': return 'Trung bình'
+      case 'LOW': return 'Thấp'
+      default: return priority
+    }
+  }
+  
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'CRITICAL': return 'bg-red-100 text-red-700'
@@ -231,7 +313,7 @@ export function TaskManagementPage() {
   }
 
   return (
-    <div className="h-full w-full overflow-y-auto">
+    <div className="h-full w-full overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -314,16 +396,66 @@ export function TaskManagementPage() {
             </nav>
           </div>
 
-          {/* Search */}
+          {/* Search and Filter */}
           <div className="p-4 border-b border-gray-200">
-            <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tìm kiếm..."
-                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+            <div className="flex items-center gap-3">
+              {/* Search Input */}
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Tìm kiếm..."
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Detail Type Filter - Only show on details tab */}
+              {activeTab === 'details' && (
+                <select
+                  value={filterDetailType}
+                  onChange={(e) => setFilterDetailType(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-[180px]"
+                >
+                  <option value="ALL">Tất cả loại chi tiết</option>
+                  {detailTypes.map((dt) => (
+                    <option key={dt.code} value={dt.code}>
+                      {dt.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {/* Category and Priority Filters - Only show on types tab */}
+              {activeTab === 'types' && (
+                <>
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-[180px]"
+                  >
+                    <option value="ALL">Tất cả danh mục</option>
+                    {categories.map((cat) => (
+                      <option key={cat.code} value={cat.code}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={filterPriority}
+                    onChange={(e) => setFilterPriority(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-[180px]"
+                  >
+                    <option value="ALL">Tất cả độ ưu tiên</option>
+                    {priorities.map((pri) => (
+                      <option key={pri.code} value={pri.code}>
+                        {getPriorityName(pri.code)}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
             </div>
           </div>
 
@@ -335,26 +467,99 @@ export function TaskManagementPage() {
                 <p className="text-gray-600 mt-4">Đang tải...</p>
               </div>
             ) : activeTab === 'details' ? (
-              <TaskDetailList
-                details={filteredDetails}
-                onEdit={(detail: TaskDetail) => {
-                  setEditingTaskDetail(detail)
-                  setTaskDetailModalOpen(true)
-                }}
-                onDelete={handleDeleteTaskDetail}
-              />
+              <div>
+                {/* Info and Pagination */}
+                <div className="flex items-center justify-between mb-4">
+                  {/* Left - Display info */}
+                  <div className="text-sm text-gray-600">
+                    Hiển thị {filteredDetails.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredDetails.length)} trong tổng số {filteredDetails.length} chi tiết
+                  </div>
+
+                  {/* Right - Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        ← Trước
+                      </button>
+                      
+                      <span className="text-sm text-gray-600 px-2">
+                        Trang {currentPage} / {totalPages}
+                      </span>
+
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        Sau →
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <TaskDetailList
+                  details={paginatedDetails}
+                  onEdit={(detail: TaskDetail) => {
+                    setEditingTaskDetail(detail)
+                    setTaskDetailModalOpen(true)
+                  }}
+                  onDelete={handleDeleteTaskDetail}
+                />
+              </div>
             ) : (
-              <TaskTypeList
-                taskTypes={filteredTaskTypes}
-                taskDetails={taskDetails}
-                onEdit={(type: TaskType) => {
-                  setEditingTaskType(type)
-                  setTaskTypeModalOpen(true)
-                }}
-                onDelete={handleDeleteTaskType}
-                getCategoryName={getCategoryName}
-                getPriorityColor={getPriorityColor}
-              />
+              <div>
+                {/* Info and Pagination */}
+                <div className="flex items-center justify-between mb-4">
+                  {/* Left - Display info */}
+                  <div className="text-sm text-gray-600">
+                    Hiển thị {filteredTaskTypes.length === 0 ? 0 : (currentTypePage - 1) * typesPerPage + 1} - {Math.min(currentTypePage * typesPerPage, filteredTaskTypes.length)} trong tổng số {filteredTaskTypes.length} loại công việc
+                  </div>
+
+                  {/* Right - Pagination */}
+                  {totalTypePages > 1 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentTypePage(p => Math.max(1, p - 1))}
+                        disabled={currentTypePage === 1}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        ← Trước
+                      </button>
+                      
+                      <span className="text-sm text-gray-600 px-2">
+                        Trang {currentTypePage} / {totalTypePages}
+                      </span>
+
+                      <button
+                        onClick={() => setCurrentTypePage(p => Math.min(totalTypePages, p + 1))}
+                        disabled={currentTypePage === totalTypePages}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        Sau →
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <TaskTypeTable
+                  taskTypes={paginatedTaskTypes}
+                  taskDetails={taskDetails}
+                  onEdit={(type: TaskType) => {
+                    setEditingTaskType(type)
+                    setTaskTypeModalOpen(true)
+                  }}
+                  onDelete={handleDeleteTaskType}
+                  getCategoryName={getCategoryName}
+                  getPriorityName={getPriorityName}
+                  getPriorityColor={getPriorityColor}
+                  currentPage={currentTypePage}
+                  itemsPerPage={typesPerPage}
+                />
+              </div>
             )}
           </div>
         </div>
@@ -373,6 +578,8 @@ export function TaskManagementPage() {
         categories={categories}
         priorities={priorities}
         title={editingTaskType ? 'Sửa Loại Công Việc' : 'Thêm Loại Công Việc Mới'}
+        detailTypes={detailTypes}
+        onDetailCreated={loadData}
       />
 
       <TaskDetailFormModal
@@ -406,59 +613,100 @@ function TaskDetailList({ details, onEdit, onDelete }: any) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {details.map((detail: TaskDetail) => (
-        <div key={detail.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <h3 className="font-semibold text-gray-900">{detail.detailName}</h3>
-              </div>
-              
-              <div className="flex flex-wrap gap-2 mb-2">
-                <span className="text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-700">
-                  {detail.detailType}
+        <div 
+          key={detail.id} 
+          className="group border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200 bg-white relative cursor-pointer"
+          onClick={(e) => {
+            // Don't trigger if clicking delete button
+            if ((e.target as HTMLElement).closest('button')) return
+            onEdit(detail)
+          }}
+        >
+          {/* Delete button - shown on hover */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(detail)
+            }}
+            className="absolute top-2 right-2 p-2 text-red-600 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-50 z-10"
+            title="Xóa"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+
+          {/* Content */}
+          <div className="p-4 min-h-[140px] flex flex-col">
+            {/* Detail Type Badge */}
+            <div className="mb-3">
+              <span className={`inline-flex items-center text-xs px-2.5 py-1 rounded-full font-medium ${
+                detail.detailType === 'CHECKLIST' ? 'bg-green-100 text-green-700' :
+                detail.detailType === 'MEASUREMENT' ? 'bg-purple-100 text-purple-700' :
+                detail.detailType === 'INSPECTION' ? 'bg-blue-100 text-blue-700' :
+                detail.detailType === 'PHOTO' ? 'bg-pink-100 text-pink-700' :
+                'bg-indigo-100 text-indigo-700'
+              }`}>
+                {detail.detailType}
+              </span>
+            </div>
+
+            {/* Detail Name */}
+            <h3 className="font-semibold text-gray-900 mb-2 text-base leading-tight">
+              {detail.detailName}
+            </h3>
+
+            {/* Description */}
+            <p className="text-sm text-gray-600 line-clamp-2 flex-grow">
+              {detail.description || '\u00A0'}
+            </p>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-gray-200"></div>
+
+          {/* Footer with status badges - Fixed height */}
+          <div className="px-4 py-3 bg-gray-50 flex items-center justify-between gap-2 h-14">
+            {/* Left side - Mandatory Badge */}
+            <div className="flex items-center gap-2">
+              {detail.isMandatory ? (
+                <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 font-medium whitespace-nowrap">
+                  Bắt buộc
                 </span>
-                {detail.isMandatory && (
-                  <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">
-                    Bắt buộc
-                  </span>
-                )}
-                {!detail.isActive && (
-                  <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
-                    Không hoạt động
-                  </span>
-                )}
-              </div>
-
-              {detail.description && (
-                <p className="text-sm text-gray-600 mb-2">{detail.description}</p>
-              )}
-
-              {detail.detailType === 'MEASUREMENT' && (
-                <div className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
-                  📊 Khoảng: <span className="font-mono">{detail.minValue ?? '?'}</span> - 
-                  <span className="font-mono"> {detail.maxValue ?? '?'}</span>
-                  {detail.unit && <span className="ml-1">{detail.unit}</span>}
-                </div>
+              ) : (
+                <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">
+                  Tuỳ chọn
+                </span>
               )}
             </div>
 
-            <div className="flex items-center gap-1 ml-3">
-              <button
-                onClick={() => onEdit(detail)}
-                className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                title="Sửa"
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => onDelete(detail)}
-                className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                title="Xóa"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+            {/* Center - Measurement (if applicable) */}
+            {detail.detailType === 'MEASUREMENT' && (
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {(detail.minValue !== null || detail.maxValue !== null) && (
+                  <span className="px-2 py-0.5 bg-gray-100 border border-gray-300 rounded font-mono text-xs">
+                    {detail.minValue ?? '?'} - {detail.maxValue ?? '?'}
+                  </span>
+                )}
+                {detail.unit && (
+                  <span className="px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded font-medium text-xs text-blue-700">
+                    {detail.unit}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Right side - Active Status */}
+            <div className="flex items-center">
+              {detail.isActive ? (
+                <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium whitespace-nowrap">
+                  Hoạt động
+                </span>
+              ) : (
+                <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">
+                  Không hoạt động
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -467,7 +715,7 @@ function TaskDetailList({ details, onEdit, onDelete }: any) {
   )
 }
 
-function TaskTypeList({ taskTypes, taskDetails, onEdit, onDelete, getCategoryName, getPriorityColor }: any) {
+function TaskTypeTable({ taskTypes, taskDetails, onEdit, onDelete, getCategoryName, getPriorityName, getPriorityColor, currentPage, itemsPerPage }: any) {
   if (taskTypes.length === 0) {
     return (
       <div className="text-center py-12">
@@ -479,106 +727,102 @@ function TaskTypeList({ taskTypes, taskDetails, onEdit, onDelete, getCategoryNam
   }
 
   return (
-    <div className="space-y-4">
-      {taskTypes.map((type: TaskType) => {
-        const typeDetails = taskDetails.filter((d: TaskDetail) => d.taskTypeId === type.id)
-        
-        return (
-          <div key={type.id} className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-            {/* Header */}
-            <div className="p-4 bg-gradient-to-r from-gray-50 to-white">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-lg font-bold text-gray-900">{type.typeName}</h3>
-                    <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                      {type.taskTypeCode}
-                    </span>
-                  </div>
-                  
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
-                      {getCategoryName(type.category)}
-                    </span>
-                    <span className={`text-xs px-2 py-1 rounded-full ${getPriorityColor(type.priority)}`}>
-                      {type.priority}
-                    </span>
-                    {type.requiresApproval && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-700">
-                        Cần phê duyệt
-                      </span>
-                    )}
-                    {!type.isActive && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
-                        Không hoạt động
-                      </span>
-                    )}
-                    {type.estimatedDurationMinutes && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">
-                        ⏱️ {Math.round(type.estimatedDurationMinutes / 60)}h
-                      </span>
-                    )}
-                  </div>
-
+    <div className="overflow-x-auto border border-gray-200 rounded-lg">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">STT</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên loại công việc</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Danh mục</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ưu tiên</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Thời gian (h)</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Chi tiết</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Phê duyệt</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {taskTypes.map((type: TaskType, index: number) => {
+            const typeDetails = taskDetails.filter((d: TaskDetail) => d.taskTypeId === type.id)
+            const globalIndex = (currentPage - 1) * itemsPerPage + index + 1
+            
+            return (
+              <tr 
+                key={type.id} 
+                className="hover:bg-gray-50 cursor-pointer"
+                onClick={(e) => {
+                  // Don't trigger if clicking delete button
+                  if ((e.target as HTMLElement).closest('button')) return
+                  onEdit(type)
+                }}
+              >
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center">{globalIndex}</td>
+                <td className="px-4 py-3">
+                  <div className="text-sm font-medium text-gray-900">{type.typeName}</div>
                   {type.description && (
-                    <p className="text-sm text-gray-600 mt-2">{type.description}</p>
+                    <div className="text-xs text-gray-500 mt-1 line-clamp-1">{type.description}</div>
                   )}
-                </div>
-
-                <div className="flex items-center gap-2 ml-4">
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-center">
+                  <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                    {getCategoryName(type.category)}
+                  </span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-center">
+                  {type.priority ? (
+                    <span className={`text-xs px-2 py-1 rounded-full ${getPriorityColor(type.priority)}`}>
+                      {getPriorityName(type.priority)}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400">N/A</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center">
+                  {type.estimatedDurationMinutes != null && type.estimatedDurationMinutes !== undefined 
+                    ? `${Math.round(type.estimatedDurationMinutes / 60)} giờ`
+                    : '-'}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-center">
+                  <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-700">
+                    {typeDetails.length} chi tiết
+                  </span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-center">
+                  {type.requiresApproval ? (
+                    <CheckSquare className="w-5 h-5 text-green-600 mx-auto" />
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-center">
+                  {type.isActive ? (
+                    <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">
+                      Hoạt động
+                    </span>
+                  ) : (
+                    <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                      Không hoạt động
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-center">
                   <button
-                    onClick={() => onEdit(type)}
-                    className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                    title="Sửa"
-                  >
-                    <Edit2 className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => onDelete(type)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDelete(type)
+                    }}
+                    className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
                     title="Xóa"
                   >
-                    <Trash2 className="w-5 h-5" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Details */}
-            {typeDetails.length > 0 && (
-              <div className="p-4 bg-gray-50 border-t border-gray-200">
-                <p className="text-sm font-medium text-gray-700 mb-3">
-                  📋 Chi tiết công việc ({typeDetails.length})
-                </p>
-                <div className="space-y-2">
-                  {typeDetails.map((detail: TaskDetail, index: number) => (
-                    <div key={detail.id} className="flex items-center gap-2 text-sm bg-white p-2 rounded border border-gray-200">
-                      <span className="font-mono text-gray-500">{index + 1}.</span>
-                      <span className="flex-1">{detail.detailName}</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-                        {detail.detailType}
-                      </span>
-                      {detail.isMandatory && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                          Bắt buộc
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {typeDetails.length === 0 && (
-              <div className="p-4 bg-yellow-50 border-t border-yellow-200 text-center">
-                <p className="text-sm text-yellow-700">
-                  ⚠️ Chưa có chi tiết nào được gán cho loại công việc này
-                </p>
-              </div>
-            )}
-          </div>
-        )
-      })}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }

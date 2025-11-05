@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { X, Info } from 'lucide-react'
+import { X, Info, Plus } from 'lucide-react'
 import type { TaskType, TaskDetail } from '../../types/maritime.types'
+import { TaskDetailFormModal } from './TaskDetailFormModal'
 
 interface TaskTypeFormModalProps {
   isOpen: boolean
@@ -11,6 +12,8 @@ interface TaskTypeFormModalProps {
   title: string
   categories: Array<{ code: string; name: string }>
   priorities: Array<{ code: string; name: string; level: number }>
+  detailTypes: Array<{ code: string; name: string; description: string }>
+  onDetailCreated: () => void
 }
 
 export function TaskTypeFormModal({
@@ -22,6 +25,8 @@ export function TaskTypeFormModal({
   title,
   categories,
   priorities,
+  detailTypes,
+  onDetailCreated,
 }: TaskTypeFormModalProps) {
   const [formData, setFormData] = useState({
     typeCode: '',
@@ -37,6 +42,7 @@ export function TaskTypeFormModal({
   const [selectedDetailIds, setSelectedDetailIds] = useState<number[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
 
   useEffect(() => {
     if (taskType) {
@@ -285,6 +291,13 @@ export function TaskTypeFormModal({
                   Đã chọn: <span className="font-medium text-blue-600">{selectedDetailIds.length}</span> chi tiết
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => setDetailModalOpen(true)}
+                className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700"
+              >
+                <Plus className="w-4 h-4" /> Thêm chi tiết
+              </button>
             </div>
 
             {availableDetails.length === 0 ? (
@@ -362,6 +375,20 @@ export function TaskTypeFormModal({
           </div>
         </form>
       </div>
+
+      {/* Task Detail Modal */}
+      <TaskDetailFormModal
+        isOpen={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        onSubmit={async () => {
+          // Refresh the list after creating new detail
+          await onDetailCreated()
+          setDetailModalOpen(false)
+        }}
+        taskDetail={null}
+        detailTypes={detailTypes}
+        title="Thêm Chi Tiết Mới"
+      />
     </div>
   )
 }
