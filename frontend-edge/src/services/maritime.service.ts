@@ -176,6 +176,7 @@ export class MaritimeService {
     getPending: () => this.request<MaintenanceTask[]>('/maintenance/tasks/pending'),
     getOverdue: () => this.request<MaintenanceTask[]>('/maintenance/tasks/overdue'),
     getById: (id: number) => this.request<MaintenanceTask>(`/maintenance/tasks/${id}`),
+    getChecklist: (id: number) => this.request<any[]>(`/maintenance/tasks/${id}/checklist`),
     create: (task: Partial<MaintenanceTask>) =>
       this.request<MaintenanceTask>('/maintenance/tasks', {
         method: 'POST',

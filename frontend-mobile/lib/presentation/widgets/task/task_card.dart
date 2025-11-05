@@ -15,13 +15,28 @@ class TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+    
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: task.isOverdue && !task.isCompleted
+            ? BorderSide(color: Colors.red.shade700, width: 2)
+            : BorderSide.none,
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+        child: Container(
+          decoration: task.isOverdue && !task.isCompleted
+              ? BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.red.shade50,
+                )
+              : null,
+          padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -33,38 +48,46 @@ class TaskCard extends StatelessWidget {
                       task.equipmentName,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
+                            fontSize: isSmallScreen ? 15 : 16,
                           ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   PriorityBadge(priority: task.priority),
                 ],
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: isSmallScreen ? 6 : 8),
 
               // Task ID
               Text(
                 'Task ID: ${task.taskId}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.grey.shade600,
+                      fontSize: isSmallScreen ? 11 : 12,
                     ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: isSmallScreen ? 4 : 6),
 
               // Task description (preview)
               Text(
                 task.taskDescription,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontSize: isSmallScreen ? 13 : 14,
+                    ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: isSmallScreen ? 10 : 12),
 
               // Footer: Status + Due date
               Row(
                 children: [
-                  StatusBadge(task: task),
+                  Flexible(child: StatusBadge(task: task)),
+                  const SizedBox(width: 8),
                   const Spacer(),
-                  _buildDueDate(context),
+                  Flexible(child: _buildDueDate(context, isSmallScreen)),
                 ],
               ),
             ],
@@ -74,7 +97,7 @@ class TaskCard extends StatelessWidget {
     );
   }
 
-  Widget _buildDueDate(BuildContext context) {
+  Widget _buildDueDate(BuildContext context, bool isSmallScreen) {
     final daysUntilDue = task.daysUntilDue;
     final isOverdue = task.isOverdue;
     final isDueSoon = task.isDueSoon;
@@ -86,25 +109,32 @@ class TaskCard extends StatelessWidget {
     if (isOverdue) {
       color = Colors.red.shade700;
       icon = Icons.warning;
-      text = '${daysUntilDue.abs()} days overdue';
+      text = isSmallScreen 
+          ? '${daysUntilDue.abs()}d late'
+          : '${daysUntilDue.abs()} days overdue';
     } else if (isDueSoon) {
       color = Colors.orange.shade700;
       icon = Icons.schedule;
-      text = '$daysUntilDue days left';
+      text = isSmallScreen 
+          ? '${daysUntilDue}d left'
+          : '$daysUntilDue days left';
     } else {
       color = Colors.grey.shade600;
       icon = Icons.calendar_today;
-      text = '$daysUntilDue days';
+      text = isSmallScreen 
+          ? '${daysUntilDue}d'
+          : '$daysUntilDue days';
     }
 
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: color),
+        Icon(icon, size: isSmallScreen ? 14 : 16, color: color),
         const SizedBox(width: 4),
         Text(
           text,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: isSmallScreen ? 11 : 12,
             color: color,
             fontWeight: isOverdue || isDueSoon ? FontWeight.bold : FontWeight.normal,
           ),

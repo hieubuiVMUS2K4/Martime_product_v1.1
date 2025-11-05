@@ -80,6 +80,10 @@ class AuthProvider with ChangeNotifier {
       print('   - Full Name: ${response.fullName}');
       print('   - Position: ${response.position}');
       
+      // Clear old cache to prevent showing stale data
+      await _cacheManager.clearAllCache();
+      print('🧹 AuthProvider: Cleared old cache');
+      
       // Tokens are already saved by AuthRepository
       _userId = response.userId;
       _crewId = response.crewId;

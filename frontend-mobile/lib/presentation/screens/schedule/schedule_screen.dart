@@ -7,6 +7,7 @@ import '../../widgets/task/task_card.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/empty_state_widget.dart';
 import '../tasks/task_detail_screen.dart';
+import 'watch_schedule_tab.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
@@ -15,15 +16,23 @@ class ScheduleScreen extends StatefulWidget {
   State<ScheduleScreen> createState() => _ScheduleScreenState();
 }
 
-class _ScheduleScreenState extends State<ScheduleScreen> {
+class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProviderStateMixin {
   String _filter = 'upcoming'; // upcoming, week, month, all
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<TaskProvider>(context, listen: false).fetchMyTasks();
     });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   List<MaintenanceTask> _getFilteredTasks(List<MaintenanceTask> allTasks) {
@@ -71,18 +80,42 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Schedule'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(
+              icon: Icon(Icons.build),
+              text: 'Maintenance',
+            ),
+            Tab(
+              icon: Icon(Icons.access_time),
+              text: 'Watch Schedule',
+            ),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildMaintenanceTab(),
+          const WatchScheduleTab(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMaintenanceTab() {
     final taskProvider = Provider.of<TaskProvider>(context);
     final allTasks = taskProvider.tasks;
     final filteredTasks = _getFilteredTasks(allTasks);
     final groupedTasks = _groupTasksByDate(filteredTasks);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Maintenance Schedule'),
-      ),
-      body: taskProvider.isLoading
-          ? const Center(child: LoadingWidget(message: 'Loading schedule...'))
-          : Column(
+    return taskProvider.isLoading
+        ? const Center(child: LoadingWidget(message: 'Loading schedule...'))
+        : Column(
               children: [
                 // Filter chips
                 SingleChildScrollView(
@@ -213,8 +246,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         ),
                 ),
               ],
-            ),
-    );
+            );
   }
 
   Widget _buildFilterChip(String label, String value) {

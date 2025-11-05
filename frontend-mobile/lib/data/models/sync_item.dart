@@ -40,4 +40,7 @@ enum SyncItemType {
   
   @HiveField(2)
   profileUpdate,
+  
+  @HiveField(3)
+  checklistComplete,
 }

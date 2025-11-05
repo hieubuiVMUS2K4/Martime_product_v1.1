@@ -33,6 +33,10 @@ export function MaintenanceDetailPage() {
   const [deleting, setDeleting] = useState(false)
   const [completing, setCompleting] = useState(false)
 
+  // Checklist state
+  const [checklist, setChecklist] = useState<any[]>([])
+  const [loadingChecklist, setLoadingChecklist] = useState(false)
+
   // Completion form state
   const [showCompleteForm, setShowCompleteForm] = useState(false)
   const [completionData, setCompletionData] = useState({
@@ -53,11 +57,30 @@ export function MaintenanceDetailPage() {
       setLoading(true)
       const data = await maritimeService.maintenance.getById(Number(id))
       setTask(data)
+      
+      // Load checklist if task is IN_PROGRESS or COMPLETED
+      if (data.status === 'IN_PROGRESS' || data.status === 'COMPLETED') {
+        await loadChecklist(Number(id))
+      }
     } catch (error) {
       console.error('Failed to load task details:', error)
       alert('Failed to load maintenance task details')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadChecklist = async (taskId: number) => {
+    try {
+      setLoadingChecklist(true)
+      const data = await maritimeService.maintenance.getChecklist(taskId)
+      setChecklist(data)
+      console.log('✅ Loaded checklist:', data)
+    } catch (error) {
+      console.error('Failed to load checklist:', error)
+      // Don't alert on checklist failure - not all tasks have checklists
+    } finally {
+      setLoadingChecklist(false)
     }
   }
 
@@ -544,6 +567,126 @@ export function MaintenanceDetailPage() {
                   <div>
                     <p className="text-sm text-green-700 dark:text-green-300 font-medium">Completed By</p>
                     <p className="text-green-900 dark:text-green-100">{task.completedBy || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Task Checklist */}
+            {(task.status === 'IN_PROGRESS' || task.status === 'COMPLETED') && checklist.length > 0 && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <CheckSquare className="w-5 h-5 text-blue-600" />
+                  Checklist Items
+                  {loadingChecklist && (
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  )}
+                </h2>
+                
+                <div className="space-y-3">
+                  {checklist.map((item, index) => {
+                    const detail = item.taskDetail
+                    const execution = item.executionDetail
+                    const isCompleted = execution?.isCompleted || false
+                    
+                    return (
+                      <div 
+                        key={index}
+                        className={`border-l-4 p-4 rounded-r-lg ${
+                          isCompleted 
+                            ? 'border-green-500 bg-green-50 dark:bg-green-900/20' 
+                            : 'border-gray-300 bg-gray-50 dark:bg-gray-700/50'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              {isCompleted ? (
+                                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                              ) : (
+                                <Clock className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                              )}
+                              <span className={`font-medium ${isCompleted ? 'text-green-900 dark:text-green-100' : 'text-gray-700 dark:text-gray-300'}`}>
+                                {detail.detailName || detail.description}
+                              </span>
+                              {detail.isMandatory && (
+                                <span className="px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded">
+                                  Required
+                                </span>
+                              )}
+                            </div>
+                            
+                            {detail.description && detail.detailName !== detail.description && (
+                              <p className="ml-7 text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                {detail.description}
+                              </p>
+                            )}
+                            
+                            {detail.detailType === 'MEASUREMENT' && (
+                              <div className="ml-7 space-y-1">
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  Expected Range: {detail.minValue ?? '-'} - {detail.maxValue ?? '-'} {detail.unit || ''}
+                                </p>
+                                {execution?.measuredValue && (
+                                  <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                                    Measured: {execution.measuredValue} {detail.unit || ''}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            
+                            {detail.detailType === 'CHECKLIST' && execution?.checkResult !== undefined && (
+                              <div className="ml-7">
+                                <p className={`text-sm font-medium ${execution.checkResult ? 'text-green-700' : 'text-red-700'}`}>
+                                  Result: {execution.checkResult ? '✓ OK' : '✗ Not OK'}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {detail.detailType === 'INSPECTION' && execution?.inspectionNotes && (
+                              <div className="ml-7">
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  <span className="font-medium">Notes:</span> {execution.inspectionNotes}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {execution?.completedAt && (
+                              <p className="ml-7 text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                Completed: {format(parseISO(execution.completedAt), 'dd MMM yyyy HH:mm')}
+                                {execution.completedBy && ` by ${execution.completedBy}`}
+                              </p>
+                            )}
+                          </div>
+                          
+                          <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                            detail.detailType === 'MEASUREMENT' ? 'bg-blue-100 text-blue-700' :
+                            detail.detailType === 'CHECKLIST' ? 'bg-purple-100 text-purple-700' :
+                            'bg-orange-100 text-orange-700'
+                          }`}>
+                            {detail.detailType}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                
+                {/* Progress Summary */}
+                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">Progress</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {checklist.filter(item => item.executionDetail?.isCompleted).length} / {checklist.length} completed
+                    </span>
+                  </div>
+                  <div className="mt-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div 
+                      className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${(checklist.filter(item => item.executionDetail?.isCompleted).length / checklist.length) * 100}%` 
+                      }}
+                    />
                   </div>
                 </div>
               </div>

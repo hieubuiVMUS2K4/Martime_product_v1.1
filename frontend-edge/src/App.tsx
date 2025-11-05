@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'sonner'
 import { MainLayout } from './components/layouts/MainLayout'
 
 // Pages
@@ -15,10 +16,15 @@ import { CompliancePage } from './pages/Compliance/CompliancePage'
 import { SyncPage } from './pages/Sync/SyncPage'
 import { MaterialPage } from './pages/Material/MaterialPage'
 import { FuelAnalyticsPage } from './pages/FuelAnalytics'
+import { TaskManagementPage } from './pages/TaskManagement/TaskManagementPage'
 
 function App() {
   return (
-    <Routes>
+    <>
+      {/* Global toast provider (sonner) */}
+      <Toaster position="top-right" />
+
+      <Routes>
       <Route path="/" element={<MainLayout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
@@ -27,6 +33,7 @@ function App() {
         <Route path="alarms" element={<AlarmsPage />} />
         <Route path="crew" element={<CrewPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
+        <Route path="task-management" element={<TaskManagementPage />} />
         <Route path="voyage" element={<VoyagePage />} />
         <Route path="compliance" element={<CompliancePage />} />
         <Route path="sync" element={<SyncPage />} />
@@ -37,7 +44,8 @@ function App() {
       {/* Full-screen pages outside MainLayout */}
       <Route path="/crew/:id" element={<CrewDetailPage />} />
       <Route path="/maintenance/:id" element={<MaintenanceDetailPage />} />
-    </Routes>
+      </Routes>
+    </>
   )
 }
 

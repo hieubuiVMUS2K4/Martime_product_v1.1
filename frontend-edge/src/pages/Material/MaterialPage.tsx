@@ -44,15 +44,12 @@ export function MaterialPage() {
         const cats = await materialService.getCategories(false);
         setCategories(cats);
       } else {
-        // Load items, categories, and lowStock for stats
-        const [its, cats, ls] = await Promise.all([
+        const [its, cats] = await Promise.all([
           materialService.getItems({ onlyActive: true }),
-          materialService.getCategories(true),
-          materialService.getLowStockItems()
+          materialService.getCategories(true)
         ]);
         setItems(its);
         setCategories(cats);
-        setLowStock(ls);
       }
     } catch (e) {
       console.error('Failed to load material data:', e);
@@ -139,7 +136,7 @@ export function MaterialPage() {
   }, [items]);
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+    <div className="h-full w-full overflow-y-auto">
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -327,76 +324,39 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
   onDelete: (item: MaterialItem) => void;
   onAdjustStock: (item: MaterialItem) => void;
 }) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
-
   const getCategoryName = (catId: number) => {
     const cat = categories.find(c => c.id === catId);
     return cat?.name || 'Unknown';
   };
 
-  const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const paginatedItems = items.slice(startIndex, endIndex);
-
   return (
-    <div className="space-y-4">
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-600">
-            Showing {startIndex + 1} - {Math.min(endIndex, items.length)} of {items.length} items
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              ← Previous
-            </button>
-            <span className="text-sm text-gray-600">
-              Page {currentPage} / {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next →
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="overflow-x-auto">
+    <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
             <Th>Code</Th>
             <Th>Name</Th>
-            <Th className="text-center">Category</Th>
-            <Th className="text-center">Unit</Th>
-            <Th className="text-center">On Hand</Th>
-            <Th className="text-center">Min/Max</Th>
-            <Th className="text-center">Location</Th>
-            <Th className="text-center">Unit Cost</Th>
-            <Th className="text-center">Status</Th>
-            <Th className="text-center">Actions</Th>
+            <Th>Category</Th>
+            <Th>Unit</Th>
+            <Th className="text-right">On Hand</Th>
+            <Th className="text-right">Min</Th>
+            <Th className="text-right">Max</Th>
+            <Th>Location</Th>
+            <Th>Manufacturer</Th>
+            <Th>Part No.</Th>
+            <Th className="text-right">Unit Cost</Th>
+            <Th>Status</Th>
+            <Th className="text-right">Actions</Th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {paginatedItems.map(it => {
+          {items.map(it => {
             const low = it.minStock != null && it.onHandQuantity < (it.minStock ?? 0);
             const over = it.maxStock != null && it.onHandQuantity > (it.maxStock ?? 0);
+            const totalValue = it.unitCost ? (it.unitCost * it.onHandQuantity) : null;
             
             return (
-              <tr 
-                key={it.id} 
-                onClick={() => onEdit(it)}
-                className={`cursor-pointer transition-colors hover:bg-blue-50 ${highlightLow && low ? 'bg-red-50' : ''}`}
-              >
+              <tr key={it.id} className={highlightLow && low ? 'bg-red-50' : ''}>
                 <Td><span className="font-mono text-xs">{it.itemCode}</span></Td>
                 <Td>
                   <div className="flex flex-col">
@@ -404,30 +364,37 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
                     {it.specification && <span className="text-xs text-gray-500">{it.specification}</span>}
                   </div>
                 </Td>
-                <Td className="text-center">
+                <Td>
                   <span className="text-xs text-gray-600">{getCategoryName(it.categoryId)}</span>
                 </Td>
-                <Td className="text-center"><span className="text-xs">{it.unit}</span></Td>
-                <Td className="text-center">
+                <Td><span className="text-xs">{it.unit}</span></Td>
+                <Td className="text-right">
                   <span className={`font-medium ${low ? 'text-red-600' : over ? 'text-orange-600' : ''}`}>
                     {it.onHandQuantity.toFixed(2)}
                   </span>
                 </Td>
-                <Td className="text-center">
-                  <span className="text-xs text-gray-600">
-                    {it.minStock != null ? it.minStock.toFixed(0) : '-'} / {it.maxStock != null ? it.maxStock.toFixed(0) : '-'}
-                  </span>
+                <Td className="text-right">{it.minStock != null ? it.minStock.toFixed(2) : '-'}</Td>
+                <Td className="text-right">{it.maxStock != null ? it.maxStock.toFixed(2) : '-'}</Td>
+                <Td><span className="text-xs">{it.location || '-'}</span></Td>
+                <Td><span className="text-xs">{it.manufacturer || '-'}</span></Td>
+                <Td>
+                  <span className="text-xs font-mono">{it.partNumber || '-'}</span>
+                  {it.barcode && <div className="text-xs text-gray-400">🔖 {it.barcode}</div>}
                 </Td>
-                <Td className="text-center"><span className="text-xs">{it.location || '-'}</span></Td>
-                <Td className="text-center">
-                  {it.unitCost ? (
-                    <span className="text-xs font-medium">{it.unitCost.toFixed(2)} {it.currency || 'USD'}</span>
-                  ) : (
-                    <span className="text-xs text-gray-400">-</span>
-                  )}
+                <Td className="text-right">
+                  <div className="flex flex-col items-end">
+                    {it.unitCost ? (
+                      <>
+                        <span className="text-xs font-medium">{it.unitCost.toFixed(2)} {it.currency || 'USD'}</span>
+                        {totalValue && <span className="text-xs text-gray-500">= {totalValue.toFixed(2)}</span>}
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
+                  </div>
                 </Td>
-                <Td className="text-center">
-                  <div className="flex flex-wrap gap-1 justify-center">
+                <Td>
+                  <div className="flex flex-wrap gap-1">
                     {low && <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700">LOW</span>}
                     {over && <span className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700">OVER</span>}
                     {it.serialTracked && <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700">SN</span>}
@@ -436,23 +403,24 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
                     {!it.isActive && <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">INACTIVE</span>}
                   </div>
                 </Td>
-                <Td className="text-center">
-                  <div className="flex items-center justify-center gap-2">
+                <Td className="text-right">
+                  <div className="flex items-center justify-end gap-2">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAdjustStock(it);
-                      }}
+                      onClick={() => onAdjustStock(it)}
                       className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
                       title="Adjust Stock"
                     >
                       <TrendingUp className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(it);
-                      }}
+                      onClick={() => onEdit(it)}
+                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title="Edit"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onDelete(it)}
                       className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
                       title="Delete"
                     >
@@ -472,7 +440,6 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
           <p className="text-gray-500">No items found</p>
         </div>
       )}
-      </div>
     </div>
   );
 }
@@ -482,49 +449,12 @@ function CategoryList({ categories, onEdit, onDelete }: {
   onEdit: (category: MaterialCategory) => void;
   onDelete: (category: MaterialCategory) => void;
 }) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
-
   const roots = categories.filter(c => !c.parentCategoryId);
   const children = (pid: number) => categories.filter(c => c.parentCategoryId === pid);
 
-  const totalPages = Math.ceil(roots.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const paginatedRoots = roots.slice(startIndex, endIndex);
-
   return (
-    <div className="space-y-4">
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-600">
-            Showing {startIndex + 1} - {Math.min(endIndex, roots.length)} of {roots.length} categories
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              ← Previous
-            </button>
-            <span className="text-sm text-gray-600">
-              Page {currentPage} / {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next →
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="space-y-3">
-      {paginatedRoots.map(root => (
+    <div className="space-y-3">
+      {roots.map(root => (
         <div key={root.id} className="border border-gray-200 rounded-lg">
           <div className="p-4 flex items-center justify-between bg-gray-50">
             <div className="flex items-center gap-2">
@@ -603,7 +533,6 @@ function CategoryList({ categories, onEdit, onDelete }: {
           <p className="text-gray-500">No categories found</p>
         </div>
       )}
-      </div>
     </div>
   );
 }

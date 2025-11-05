@@ -10,8 +10,13 @@ part 'auth_api.g.dart';
 abstract class AuthApi {
   factory AuthApi(Dio dio, {String baseUrl}) = _AuthApi;
 
+  /// New login endpoint using username (crew_id) and password
   @POST('/api/auth/login')
   Future<LoginResponse> login(@Body() LoginRequest request);
+
+  /// Legacy login endpoint for backward compatibility
+  @POST('/api/auth/login-legacy')
+  Future<LoginResponse> loginLegacy(@Body() Map<String, dynamic> request);
 
   @POST('/api/auth/refresh')
   Future<LoginResponse> refreshToken(@Body() RefreshTokenRequest request);

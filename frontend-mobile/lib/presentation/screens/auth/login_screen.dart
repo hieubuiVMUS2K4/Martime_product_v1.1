@@ -116,13 +116,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         children: [
-                          // Crew ID field
+                          // Crew ID field (used as username)
                           TextFormField(
                             controller: _crewIdController,
                             decoration: const InputDecoration(
-                              labelText: 'Crew ID',
+                              labelText: 'Crew ID (Username)',
                               prefixIcon: Icon(Icons.person),
                               hintText: 'Enter your Crew ID',
+                              helperText: 'Use your Crew ID as username',
                             ),
                             textInputAction: TextInputAction.next,
                             validator: (value) {
@@ -142,6 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               labelText: 'Password',
                               prefixIcon: Icon(Icons.lock),
                               hintText: 'Enter your password',
+                              helperText: 'Default: Your date of birth (ddMMyyyy)',
                             ),
                             textInputAction: TextInputAction.done,
                             onFieldSubmitted: (_) => _login(),

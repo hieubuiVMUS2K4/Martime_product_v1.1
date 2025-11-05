@@ -76,27 +76,54 @@ public class CrewController : ControllerBase
     {
         try
         {
-            // For simple auth, accept crewId from query parameter
-            // TODO: Extract from JWT token in production
-            if (string.IsNullOrWhiteSpace(crewId))
+            // Try to extract crewId from Authorization header token
+            string? userCrewId = crewId;
+            
+            if (string.IsNullOrWhiteSpace(userCrewId) && Request.Headers.ContainsKey("Authorization"))
             {
-                return BadRequest(new { error = "Crew ID is required" });
+                // Extract token from "Bearer {token}"
+                var authHeader = Request.Headers["Authorization"].ToString();
+                if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    var token = authHeader.Substring("Bearer ".Length).Trim();
+                    
+                    // Token format: access_{userId}_{crewId}_{timestamp}_{random}
+                    var parts = token.Split('_');
+                    if (parts.Length >= 3)
+                    {
+                        userCrewId = parts[2]; // crewId is at index 2
+                        _logger.LogInformation("Extracted crew ID from token: {CrewId}", userCrewId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Token format invalid, expected at least 3 parts but got {Count}", parts.Length);
+                    }
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(userCrewId))
+            {
+                // Return error instead of fallback
+                _logger.LogWarning("No crew ID found in request or token");
+                return BadRequest(new { error = "Crew ID not found. Please provide crewId parameter or valid authorization token." });
             }
 
             var crew = await _context.CrewMembers
-                .FirstOrDefaultAsync(c => c.CrewId == crewId);
+                .FirstOrDefaultAsync(c => c.CrewId == userCrewId);
 
             if (crew == null)
             {
-                return NotFound(new { message = "Crew member not found" });
+                _logger.LogWarning("Crew member not found for ID: {CrewId}", userCrewId);
+                return NotFound(new { error = "Crew member not found", crewId = userCrewId });
             }
 
+            _logger.LogInformation("Profile retrieved for: {CrewId} - {FullName}", crew.CrewId, crew.FullName);
             return Ok(crew);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting crew profile");
-            return StatusCode(500, new { error = "Internal server error" });
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
         }
     }
 

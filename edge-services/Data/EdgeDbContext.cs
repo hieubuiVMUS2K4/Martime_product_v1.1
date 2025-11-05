@@ -39,6 +39,9 @@ public class EdgeDbContext : DbContext
     // Critical Operational Tables (SOLAS/ISM/MARPOL)
     public DbSet<CrewMember> CrewMembers { get; set; } = null!;
     public DbSet<MaintenanceTask> MaintenanceTasks { get; set; } = null!;
+    public DbSet<TaskType> TaskTypes { get; set; } = null!;
+    public DbSet<TaskDetail> TaskDetails { get; set; } = null!;
+    public DbSet<MaintenanceTaskDetail> MaintenanceTaskDetails { get; set; } = null!;
     public DbSet<CargoOperation> CargoOperations { get; set; } = null!;
     public DbSet<WatchkeepingLog> WatchkeepingLogs { get; set; } = null!;
     public DbSet<OilRecordBook> OilRecordBooks { get; set; } = null!;
@@ -50,6 +53,10 @@ public class EdgeDbContext : DbContext
     // Fuel Analytics (IMO DCS / EU MRV / CII Compliance)
     public DbSet<FuelAnalyticsSummary> FuelAnalyticsSummaries { get; set; } = null!;
     public DbSet<FuelEfficiencyAlert> FuelEfficiencyAlerts { get; set; } = null!;
+
+    // Authentication & Authorization
+    public DbSet<Role> Roles { get; set; } = null!;
+    public DbSet<User> Users { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -444,6 +451,95 @@ public class EdgeDbContext : DbContext
             entity.HasIndex(e => e.IsSynced)
                 .HasDatabaseName("idx_maintenance_synced")
                 .HasFilter("is_synced = false");
+
+            entity.HasIndex(e => e.TaskTypeId)
+                .HasDatabaseName("idx_maintenance_task_type_id");
+
+            // Foreign key to TaskType (optional)
+            entity.HasOne<TaskType>()
+                .WithMany()
+                .HasForeignKey(e => e.TaskTypeId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ========== TASK TYPES ==========
+        modelBuilder.Entity<TaskType>(entity =>
+        {
+            entity.ToTable("task_types");
+
+            entity.HasIndex(e => e.TypeCode)
+                .IsUnique()
+                .HasDatabaseName("idx_task_type_code_unique");
+
+            entity.HasIndex(e => e.Category)
+                .HasDatabaseName("idx_task_type_category");
+
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_task_type_active")
+                .HasFilter("is_active = true");
+        });
+
+        // ========== TASK DETAILS ==========
+        modelBuilder.Entity<TaskDetail>(entity =>
+        {
+            entity.ToTable("task_details");
+
+            entity.Property(e => e.MinValue).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.MaxValue).HasColumnType("decimal(10,3)");
+
+            entity.HasIndex(e => e.TaskTypeId)
+                .HasDatabaseName("idx_task_detail_type_id");
+
+            entity.HasIndex(e => new { e.TaskTypeId, e.OrderIndex })
+                .HasDatabaseName("idx_task_detail_type_order");
+
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_task_detail_active")
+                .HasFilter("is_active = true");
+
+            // Foreign key to TaskType - now optional (nullable)
+            entity.HasOne<TaskType>()
+                .WithMany()
+                .HasForeignKey(e => e.TaskTypeId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+        });
+
+        // ========== MAINTENANCE TASK DETAILS (N-N junction table) ==========
+        modelBuilder.Entity<MaintenanceTaskDetail>(entity =>
+        {
+            entity.ToTable("maintenance_task_details");
+
+            entity.Property(e => e.MeasuredValue).HasColumnType("decimal(10,3)");
+
+            entity.HasIndex(e => e.MaintenanceTaskId)
+                .HasDatabaseName("idx_mtd_maintenance_task_id");
+
+            entity.HasIndex(e => e.TaskDetailId)
+                .HasDatabaseName("idx_mtd_task_detail_id");
+
+            entity.HasIndex(e => new { e.MaintenanceTaskId, e.TaskDetailId })
+                .IsUnique()
+                .HasDatabaseName("idx_mtd_task_detail_unique");
+
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("idx_mtd_status");
+
+            entity.HasIndex(e => e.IsCompleted)
+                .HasDatabaseName("idx_mtd_completed")
+                .HasFilter("is_completed = false");
+
+            // Foreign key to MaintenanceTask
+            entity.HasOne<MaintenanceTask>()
+                .WithMany()
+                .HasForeignKey(e => e.MaintenanceTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Foreign key to TaskDetail
+            entity.HasOne<TaskDetail>()
+                .WithMany()
+                .HasForeignKey(e => e.TaskDetailId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ========== CARGO OPERATIONS ==========
@@ -661,6 +757,53 @@ public class EdgeDbContext : DbContext
             entity.HasIndex(e => e.IsSynced)
                 .HasDatabaseName("idx_fuel_alert_synced")
                 .HasFilter("is_synced = false");
+        });
+
+        // ========== ROLES ==========
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.ToTable("roles");
+
+            entity.HasIndex(e => e.RoleCode)
+                .IsUnique()
+                .HasDatabaseName("idx_role_code_unique");
+
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_role_active")
+                .HasFilter("is_active = true");
+        });
+
+        // ========== USERS ==========
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.ToTable("users");
+
+            entity.HasIndex(e => e.Username)
+                .IsUnique()
+                .HasDatabaseName("idx_user_username_unique");
+
+            entity.HasIndex(e => e.CrewId)
+                .HasDatabaseName("idx_user_crew_id");
+
+            entity.HasIndex(e => e.RoleId)
+                .HasDatabaseName("idx_user_role_id");
+
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_user_active")
+                .HasFilter("is_active = true");
+
+            // Foreign key relationship with Role
+            entity.HasOne<Role>()
+                .WithMany()
+                .HasForeignKey(e => e.RoleId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Foreign key relationship with CrewMember (optional)
+            entity.HasOne<CrewMember>()
+                .WithMany()
+                .HasForeignKey(e => e.CrewId)
+                .HasPrincipalKey(c => c.CrewId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 

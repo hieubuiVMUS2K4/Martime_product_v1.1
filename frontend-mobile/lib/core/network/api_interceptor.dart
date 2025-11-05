@@ -5,18 +5,21 @@ class ApiInterceptor extends Interceptor {
   final TokenStorage _tokenStorage = TokenStorage();
   
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+  Future<void> onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
     // Add JWT token to header if exists
     final token = await _tokenStorage.getAccessToken();
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
+      print('🔑 ApiInterceptor: Added Authorization header with token: ${token.substring(0, 20)}...');
+    } else {
+      print('⚠️ ApiInterceptor: No token found!');
     }
     
-    super.onRequest(options, handler);
+    handler.next(options);
   }
   
   @override
-  void onError(DioException err, ErrorInterceptorHandler handler) async {
+  Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
     // Handle 401 Unauthorized - Refresh token or logout
     if (err.response?.statusCode == 401) {
       // Try to refresh token
@@ -40,7 +43,7 @@ class ApiInterceptor extends Interceptor {
       }
     }
     
-    super.onError(err, handler);
+    handler.next(err);
   }
   
   Future<bool> _refreshToken() async {

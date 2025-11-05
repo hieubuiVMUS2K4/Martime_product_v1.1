@@ -23,7 +23,7 @@ class AuthRepository {
     _authApi = AuthApi(_apiClient.dio);
   }
 
-  /// Login with crew ID and password
+  /// Login with crew ID and password (using new auth system)
   Future<LoginResponse> login({
     required String crewId,
     required String password,
@@ -34,9 +34,16 @@ class AuthRepository {
         throw Exception('No internet connection');
       }
 
-      // Call API
-      final request = LoginRequest(crewId: crewId, password: password);
+      // Call new login API with username (crew_id is used as username)
+      final request = LoginRequest(username: crewId, password: password);
       final response = await _authApi.login(request);
+
+      print('🔐 AuthRepository: Login response received');
+      print('   - Access Token: ${response.accessToken.substring(0, 30)}...');
+      print('   - User ID: ${response.userId}');
+      print('   - Crew ID: ${response.crewId}');
+      print('   - Full Name: ${response.fullName}');
+      print('   - Position: ${response.position}');
 
       // Save tokens to secure storage
       await _tokenStorage.saveTokens(
@@ -48,10 +55,23 @@ class AuthRepository {
         position: response.position,
       );
 
+      print('💾 AuthRepository: Tokens saved to storage');
+      
+      // Verify tokens were saved
+      final savedToken = await _tokenStorage.getAccessToken();
+      if (savedToken != null) {
+        print('✅ AuthRepository: Token verification successful');
+      } else {
+        print('❌ AuthRepository: Token NOT found after save!');
+      }
+
       return response;
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
         throw Exception('Invalid crew ID or password');
+      } else if (e.response?.statusCode == 400) {
+        final errorMsg = e.response?.data['message'] as String? ?? 'Bad request';
+        throw Exception(errorMsg);
       } else if (e.response?.statusCode == 500) {
         throw Exception('Server error. Please try again later');
       }
