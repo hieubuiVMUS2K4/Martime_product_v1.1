@@ -17,6 +17,7 @@ export function MaterialPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState<number | 'all'>('all');
+  const [filterUnit, setFilterUnit] = useState<string>('all');
 
   // Modal states
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -25,6 +26,10 @@ export function MaterialPage() {
   const [editingItem, setEditingItem] = useState<MaterialItem | null>(null);
   const [editingCategory, setEditingCategory] = useState<MaterialCategory | null>(null);
   const [adjustingItem, setAdjustingItem] = useState<MaterialItem | null>(null);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     loadData();
@@ -44,12 +49,14 @@ export function MaterialPage() {
         const cats = await materialService.getCategories(false);
         setCategories(cats);
       } else {
-        const [its, cats] = await Promise.all([
+        const [its, cats, ls] = await Promise.all([
           materialService.getItems({ onlyActive: true }),
-          materialService.getCategories(true)
+          materialService.getCategories(true),
+          materialService.getLowStockItems()
         ]);
         setItems(its);
         setCategories(cats);
+        setLowStock(ls);
       }
     } catch (e) {
       console.error('Failed to load material data:', e);
@@ -113,6 +120,7 @@ export function MaterialPage() {
   const filteredItems = useMemo(() => {
     let data = [...items];
     if (categoryId !== 'all') data = data.filter(x => x.categoryId === categoryId);
+    if (filterUnit !== 'all') data = data.filter(x => x.unit === filterUnit);
     if (search) {
       const q = search.toLowerCase();
       data = data.filter(x =>
@@ -124,7 +132,26 @@ export function MaterialPage() {
       );
     }
     return data;
-  }, [items, search, categoryId]);
+  }, [items, search, categoryId, filterUnit]);
+
+  // Pagination for items
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredItems.slice(startIndex, endIndex);
+  }, [filteredItems, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, categoryId, filterUnit]);
+
+  // Get unique units
+  const uniqueUnits = useMemo(() => {
+    return [...new Set(items.map(item => item.unit))].sort();
+  }, [items]);
 
   const totalValue = useMemo(() => {
     return items.reduce((sum, item) => {
@@ -136,7 +163,7 @@ export function MaterialPage() {
   }, [items]);
 
   return (
-    <div className="h-full w-full overflow-y-auto">
+    <div className="h-full w-full overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -216,10 +243,18 @@ export function MaterialPage() {
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[180px]"
               >
                 <option value="all">All Categories</option>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <select
+                value={filterUnit}
+                onChange={(e) => setFilterUnit(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[150px]"
+              >
+                <option value="all">All Units</option>
+                {uniqueUnits.map(unit => <option key={unit} value={unit}>{unit}</option>)}
               </select>
             </div>
           )}
@@ -258,19 +293,56 @@ export function MaterialPage() {
                     }}
                   />
                 ) : (
-                  <ItemList 
-                    items={filteredItems} 
-                    categories={categories}
-                    onEdit={(item) => {
-                      setEditingItem(item);
-                      setItemModalOpen(true);
-                    }}
-                    onDelete={handleDeleteItem}
-                    onAdjustStock={(item) => {
-                      setAdjustingItem(item);
-                      setStockAdjustmentModalOpen(true);
-                    }}
-                  />
+                  <div>
+                    {/* Info and Pagination */}
+                    <div className="flex items-center justify-between mb-4">
+                      {/* Left - Display info */}
+                      <div className="text-sm text-gray-600">
+                        Hiển thị {filteredItems.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredItems.length)} trong tổng số {filteredItems.length} vật tư
+                      </div>
+
+                      {/* Right - Pagination */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            ← Trước
+                          </button>
+                          
+                          <span className="text-sm text-gray-600 px-2">
+                            Trang {currentPage} / {totalPages}
+                          </span>
+
+                          <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            Sau →
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <ItemList 
+                      items={paginatedItems} 
+                      categories={categories}
+                      onEdit={(item) => {
+                        setEditingItem(item);
+                        setItemModalOpen(true);
+                      }}
+                      onDelete={handleDeleteItem}
+                      onAdjustStock={(item) => {
+                        setAdjustingItem(item);
+                        setStockAdjustmentModalOpen(true);
+                      }}
+                      currentPage={currentPage}
+                      itemsPerPage={itemsPerPage}
+                    />
+                  </div>
                 )}
               </>
             )}
@@ -316,13 +388,15 @@ export function MaterialPage() {
   );
 }
 
-function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, onAdjustStock }: { 
+function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, onAdjustStock, currentPage, itemsPerPage }: { 
   items: MaterialItem[]; 
   highlightLow?: boolean; 
   categories: MaterialCategory[];
   onEdit: (item: MaterialItem) => void;
   onDelete: (item: MaterialItem) => void;
   onAdjustStock: (item: MaterialItem) => void;
+  currentPage?: number;
+  itemsPerPage?: number;
 }) {
   const getCategoryName = (catId: number) => {
     const cat = categories.find(c => c.id === catId);
@@ -334,50 +408,59 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <Th>Code</Th>
+            <Th className="text-center">STT</Th>
             <Th>Name</Th>
-            <Th>Category</Th>
-            <Th>Unit</Th>
-            <Th className="text-right">On Hand</Th>
-            <Th className="text-right">Min</Th>
-            <Th className="text-right">Max</Th>
-            <Th>Location</Th>
-            <Th>Manufacturer</Th>
-            <Th>Part No.</Th>
+            <Th className="text-center">Category</Th>
+            <Th className="text-center">Unit</Th>
+            <Th className="text-center">On Hand</Th>
+            <Th className="text-center">Min / Max</Th>
+            <Th className="text-center">Location</Th>
+            <Th className="text-center">Part No.</Th>
             <Th className="text-right">Unit Cost</Th>
-            <Th>Status</Th>
-            <Th className="text-right">Actions</Th>
+            <Th className="text-center">Status</Th>
+            <Th className="text-center">Actions</Th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {items.map(it => {
+          {items.map((it, index) => {
             const low = it.minStock != null && it.onHandQuantity < (it.minStock ?? 0);
             const over = it.maxStock != null && it.onHandQuantity > (it.maxStock ?? 0);
             const totalValue = it.unitCost ? (it.unitCost * it.onHandQuantity) : null;
+            const globalIndex = currentPage && itemsPerPage ? (currentPage - 1) * itemsPerPage + index + 1 : index + 1;
             
             return (
-              <tr key={it.id} className={highlightLow && low ? 'bg-red-50' : ''}>
-                <Td><span className="font-mono text-xs">{it.itemCode}</span></Td>
+              <tr 
+                key={it.id} 
+                className={`cursor-pointer hover:bg-blue-50 transition-colors ${highlightLow && low ? 'bg-red-50' : ''}`}
+                onClick={(e) => {
+                  // Don't trigger if clicking action buttons
+                  if ((e.target as HTMLElement).closest('button')) return;
+                  onEdit(it);
+                }}
+              >
+                <Td className="text-center"><span className="text-sm text-gray-900">{globalIndex}</span></Td>
                 <Td>
                   <div className="flex flex-col">
                     <span className="font-medium">{it.name}</span>
                     {it.specification && <span className="text-xs text-gray-500">{it.specification}</span>}
                   </div>
                 </Td>
-                <Td>
+                <Td className="text-center">
                   <span className="text-xs text-gray-600">{getCategoryName(it.categoryId)}</span>
                 </Td>
-                <Td><span className="text-xs">{it.unit}</span></Td>
-                <Td className="text-right">
+                <Td className="text-center"><span className="text-xs">{it.unit}</span></Td>
+                <Td className="text-center">
                   <span className={`font-medium ${low ? 'text-red-600' : over ? 'text-orange-600' : ''}`}>
                     {it.onHandQuantity.toFixed(2)}
                   </span>
                 </Td>
-                <Td className="text-right">{it.minStock != null ? it.minStock.toFixed(2) : '-'}</Td>
-                <Td className="text-right">{it.maxStock != null ? it.maxStock.toFixed(2) : '-'}</Td>
-                <Td><span className="text-xs">{it.location || '-'}</span></Td>
-                <Td><span className="text-xs">{it.manufacturer || '-'}</span></Td>
-                <Td>
+                <Td className="text-center">
+                  <span className="text-xs">
+                    {it.minStock != null ? it.minStock.toFixed(2) : '-'} / {it.maxStock != null ? it.maxStock.toFixed(2) : '-'}
+                  </span>
+                </Td>
+                <Td className="text-center"><span className="text-xs">{it.location || '-'}</span></Td>
+                <Td className="text-center">
                   <span className="text-xs font-mono">{it.partNumber || '-'}</span>
                   {it.barcode && <div className="text-xs text-gray-400">🔖 {it.barcode}</div>}
                 </Td>
@@ -393,8 +476,8 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
                     )}
                   </div>
                 </Td>
-                <Td>
-                  <div className="flex flex-wrap gap-1">
+                <Td className="text-center">
+                  <div className="flex flex-wrap gap-1 justify-center">
                     {low && <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700">LOW</span>}
                     {over && <span className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700">OVER</span>}
                     {it.serialTracked && <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700">SN</span>}
@@ -403,24 +486,23 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
                     {!it.isActive && <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">INACTIVE</span>}
                   </div>
                 </Td>
-                <Td className="text-right">
-                  <div className="flex items-center justify-end gap-2">
+                <Td className="text-center">
+                  <div className="flex items-center justify-center gap-2">
                     <button
-                      onClick={() => onAdjustStock(it)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAdjustStock(it);
+                      }}
                       className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
                       title="Adjust Stock"
                     >
                       <TrendingUp className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => onEdit(it)}
-                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                      title="Edit"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => onDelete(it)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(it);
+                      }}
                       className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
                       title="Delete"
                     >
