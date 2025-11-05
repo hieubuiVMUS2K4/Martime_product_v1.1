@@ -244,7 +244,7 @@ export function MaintenanceDetailPage() {
   const isDueSoon = daysLeft <= 7 && daysLeft >= 0
 
   return (
-    <div className="fixed inset-0 bg-gray-50 dark:bg-gray-900 overflow-y-auto z-50">
+    <div className="fixed inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:bg-gray-900 overflow-y-auto z-50">
       {/* Header Bar */}
       <div className="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4">

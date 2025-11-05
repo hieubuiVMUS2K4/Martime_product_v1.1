@@ -24,6 +24,11 @@ const FuelAnalyticsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper function to safely format numbers
+  const safeFixed = (value: number | null | undefined, decimals: number): string => {
+    return value != null ? value.toFixed(decimals) : 'N/A';
+  };
+
   useEffect(() => {
     loadDashboardData();
     const interval = setInterval(loadDashboardData, 5 * 60 * 1000);
@@ -169,18 +174,18 @@ const FuelAnalyticsPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-slate-50 dark:bg-gray-900 rounded-lg">
                   <div className="space-y-0.5">
                     <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Actual CII</span>
-                    <div className="text-xl font-bold">{ciiRating.actualCII.toFixed(2)}</div>
+                    <div className="text-xl font-bold">{safeFixed(ciiRating.actualCII, 2)}</div>
                     <span className="text-xs text-slate-500">gCO₂/dwt-nm</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Required CII</span>
-                    <div className="text-xl font-bold text-blue-600">{ciiRating.requiredCII.toFixed(2)}</div>
+                    <div className="text-xl font-bold text-blue-600">{safeFixed(ciiRating.requiredCII, 2)}</div>
                     <span className="text-xs text-slate-500">gCO₂/dwt-nm</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Deviation</span>
-                    <div className={`text-xl font-bold ${ciiRating.deviationPercent > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {ciiRating.deviationPercent > 0 ? '+' : ''}{ciiRating.deviationPercent.toFixed(1)}%
+                    <div className={`text-xl font-bold ${(ciiRating.deviationPercent ?? 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {(ciiRating.deviationPercent ?? 0) > 0 ? '+' : ''}{safeFixed(ciiRating.deviationPercent, 1)}%
                     </div>
                     <span className="text-xs text-slate-500">from target</span>
                   </div>
@@ -201,11 +206,11 @@ const FuelAnalyticsPage = () => {
             </CardHeader>
             <CardContent className="pt-1">
               <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                {weeklySummary.totalFuelConsumedMT.toFixed(1)} MT
+                {safeFixed(weeklySummary.totalFuelConsumedMT, 1)} MT
               </div>
               <p className="text-xs text-blue-600 dark:text-blue-400 mt-1.5 flex items-center gap-1">
                 <Target className="h-3 w-3" />
-                {weeklySummary.fuelPerNauticalMile.toFixed(2)} MT/NM
+                {safeFixed(weeklySummary.fuelPerNauticalMile, 2)} MT/NM
               </p>
             </CardContent>
           </Card>
@@ -219,7 +224,7 @@ const FuelAnalyticsPage = () => {
             </CardHeader>
             <CardContent className="pt-1">
               <div className="text-2xl font-bold text-green-900 dark:text-green-100">
-                {weeklySummary.eeoi.toFixed(1)}
+                {safeFixed(weeklySummary.eeoi, 1)}
               </div>
               <p className="text-xs text-green-600 dark:text-green-400 mt-1.5">
                 gCO₂/tonne-nm
@@ -236,10 +241,10 @@ const FuelAnalyticsPage = () => {
             </CardHeader>
             <CardContent className="pt-1">
               <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
-                {weeklySummary.distanceNauticalMiles.toFixed(1)} NM
+                {safeFixed(weeklySummary.distanceNauticalMiles, 1)} NM
               </div>
               <p className="text-xs text-purple-600 dark:text-purple-400 mt-1.5">
-                {weeklySummary.averageSpeedKnots.toFixed(1)} knots avg
+                {safeFixed(weeklySummary.averageSpeedKnots, 1)} knots avg
               </p>
             </CardContent>
           </Card>
@@ -253,7 +258,7 @@ const FuelAnalyticsPage = () => {
             </CardHeader>
             <CardContent className="pt-1">
               <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
-                {weeklySummary.cO2EmissionsMT.toFixed(1)} MT
+                {safeFixed(weeklySummary.cO2EmissionsMT, 1)} MT
               </div>
               <p className="text-xs text-orange-600 dark:text-orange-400 mt-1.5 flex items-center gap-2">
                 <Badge variant={getCIIRatingBadgeVariant(weeklySummary.ciiRating)} className="text-xs">
@@ -297,19 +302,19 @@ const FuelAnalyticsPage = () => {
                 <CardContent className="space-y-2 pt-4">
                   <div className="flex justify-between py-1.5 border-b text-sm">
                     <span className="text-xs font-medium text-slate-600">Fuel</span>
-                    <span className="font-bold">{weeklySummary.totalFuelConsumedMT.toFixed(2)} MT</span>
+                    <span className="font-bold">{safeFixed(weeklySummary.totalFuelConsumedMT, 2)} MT</span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b text-sm">
                     <span className="text-xs font-medium text-slate-600">Distance</span>
-                    <span className="font-bold">{weeklySummary.distanceNauticalMiles.toFixed(2)} NM</span>
+                    <span className="font-bold">{safeFixed(weeklySummary.distanceNauticalMiles, 2)} NM</span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b text-sm">
                     <span className="text-xs font-medium text-slate-600">SFOC</span>
-                    <span className="font-bold">{weeklySummary.sfoc?.toFixed(2) || 'N/A'} g/kWh</span>
+                    <span className="font-bold">{safeFixed(weeklySummary.sfoc, 2)} g/kWh</span>
                   </div>
                   <div className="flex justify-between py-1.5 text-sm">
                     <span className="text-xs font-medium text-slate-600">Quality</span>
-                    <span className="font-bold">{weeklySummary.dataQualityScore.toFixed(0)}%</span>
+                    <span className="font-bold">{safeFixed(weeklySummary.dataQualityScore, 0)}%</span>
                   </div>
                 </CardContent>
               </Card>
@@ -325,11 +330,11 @@ const FuelAnalyticsPage = () => {
                 <CardContent className="space-y-2 pt-4">
                   <div className="flex justify-between py-1.5 border-b text-sm">
                     <span className="text-xs font-medium text-slate-600">Fuel</span>
-                    <span className="font-bold">{monthlySummary.totalFuelConsumedMT.toFixed(2)} MT</span>
+                    <span className="font-bold">{safeFixed(monthlySummary.totalFuelConsumedMT, 2)} MT</span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b text-sm">
                     <span className="text-xs font-medium text-slate-600">EEOI</span>
-                    <span className="font-bold">{monthlySummary.eeoi.toFixed(2)}</span>
+                    <span className="font-bold">{safeFixed(monthlySummary.eeoi, 2)}</span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b text-sm">
                     <span className="text-xs font-medium text-slate-600">CII</span>
@@ -339,7 +344,7 @@ const FuelAnalyticsPage = () => {
                   </div>
                   <div className="flex justify-between py-1.5 text-sm">
                     <span className="text-xs font-medium text-slate-600">Quality</span>
-                    <span className="font-bold">{monthlySummary.dataQualityScore.toFixed(0)}%</span>
+                    <span className="font-bold">{safeFixed(monthlySummary.dataQualityScore, 0)}%</span>
                   </div>
                 </CardContent>
               </Card>
@@ -394,7 +399,7 @@ const FuelAnalyticsPage = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="text-3xl font-bold">{weeklySummary.avgMainEngineRPM.toFixed(0)}</div>
+                  <div className="text-3xl font-bold">{safeFixed(weeklySummary.avgMainEngineRPM, 0)}</div>
                 </CardContent>
               </Card>
 
@@ -406,7 +411,7 @@ const FuelAnalyticsPage = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="text-3xl font-bold">{weeklySummary.avgMainEngineLoad.toFixed(1)}%</div>
+                  <div className="text-3xl font-bold">{safeFixed(weeklySummary.avgMainEngineLoad, 1)}%</div>
                 </CardContent>
               </Card>
 
@@ -418,7 +423,7 @@ const FuelAnalyticsPage = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="text-3xl font-bold">{weeklySummary.sfoc?.toFixed(1) || 'N/A'}</div>
+                  <div className="text-3xl font-bold">{safeFixed(weeklySummary.sfoc, 1)}</div>
                 </CardContent>
               </Card>
             </div>
