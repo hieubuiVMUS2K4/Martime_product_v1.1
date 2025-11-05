@@ -7,6 +7,7 @@ import '../../../core/network/network_info.dart';
 import '../../../core/cache/cache_manager.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
+import '../../../l10n/app_localizations.dart';
 
 class CertificatesScreen extends StatefulWidget {
   const CertificatesScreen({super.key});
@@ -40,20 +41,21 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Certificates'),
+        title: Text(l10n.myCertificates),
       ),
       body: FutureBuilder<CrewMember?>(
         future: _profileFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: LoadingWidget(message: 'Loading certificates...'));
+            return Center(child: LoadingWidget(message: l10n.loadingCertificates));
           }
 
           if (snapshot.hasError) {
             return ErrorDisplayWidget(
-              message: 'Failed to load certificates',
+              message: l10n.failedToLoadCertificates,
               onRetry: () {
                 setState(() {
                   _loadProfile();
@@ -64,7 +66,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
 
           final profile = snapshot.data;
           if (profile == null) {
-            return const ErrorDisplayWidget(message: 'No certificate data found');
+            return ErrorDisplayWidget(message: l10n.noCertificateDataFound);
           }
 
           return RefreshIndicator(
@@ -83,7 +85,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
                 // STCW Certificate
                 _buildCertificateCard(
                   context,
-                  title: 'STCW Certificate',
+                  title: l10n.stcwCertificate,
                   icon: Icons.card_membership,
                   number: profile.certificateNumber,
                   issueDate: profile.certificateIssue,
@@ -95,7 +97,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
                 // Medical Certificate
                 _buildCertificateCard(
                   context,
-                  title: 'Medical Certificate',
+                  title: l10n.medicalCertificate,
                   icon: Icons.medical_services,
                   issueDate: profile.medicalIssue,
                   expiryDate: profile.medicalExpiry,
@@ -106,7 +108,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
                 // Passport
                 _buildCertificateCard(
                   context,
-                  title: 'Passport',
+                  title: l10n.passport,
                   icon: Icons.badge,
                   number: profile.passportNumber,
                   expiryDate: profile.passportExpiry,
@@ -118,7 +120,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
                 if (profile.visaNumber != null || profile.visaExpiry != null)
                   _buildCertificateCard(
                     context,
-                    title: 'Visa',
+                    title: l10n.visa,
                     icon: Icons.flight,
                     number: profile.visaNumber,
                     expiryDate: profile.visaExpiry,
@@ -130,7 +132,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
                 if (profile.seamanBookNumber != null)
                   _buildCertificateCard(
                     context,
-                    title: 'Seaman Book',
+                    title: l10n.seamanBook,
                     icon: Icons.menu_book,
                     number: profile.seamanBookNumber,
                     isExpiring: false,
@@ -154,6 +156,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
   }
 
   Widget _buildWarningBanner(CrewMember profile) {
+    final l10n = AppLocalizations.of(context);
     final expiredCount = [
       profile.isCertificateExpired,
       profile.isMedicalExpired,
@@ -177,9 +180,9 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
       borderColor = Colors.red.shade300;
       textColor = Colors.red.shade900;
       icon = Icons.error_outline;
-      message = '$expiredCount certificate(s) have expired!';
+      message = l10n.certificatesExpired(expiredCount);
     } else if (expiringCount > 0) {
-      message = '$expiringCount certificate(s) expiring soon';
+      message = l10n.certificatesExpiringSoon(expiringCount);
     }
 
     return Container(
@@ -218,6 +221,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     required bool isExpiring,
     required bool isExpired,
   }) {
+    final l10n = AppLocalizations.of(context);
     final dateFormat = DateFormat('dd MMM yyyy');
 
     Color? statusColor;
@@ -226,15 +230,15 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
 
     if (isExpired) {
       statusColor = Colors.red.shade700;
-      statusText = 'EXPIRED';
+      statusText = l10n.expired.toUpperCase();
       statusIcon = Icons.error;
     } else if (isExpiring) {
       statusColor = Colors.orange.shade700;
-      statusText = 'EXPIRING SOON';
+      statusText = l10n.expiringSoon.toUpperCase();
       statusIcon = Icons.warning;
     } else if (expiryDate != null) {
       statusColor = Colors.green.shade700;
-      statusText = 'VALID';
+      statusText = l10n.valid.toUpperCase();
       statusIcon = Icons.check_circle;
     }
 
@@ -292,15 +296,15 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
               const SizedBox(height: 12),
             ],
             if (number != null)
-              _buildInfoRow('Number', number),
+              _buildInfoRow(l10n.number, number),
             if (issueDate != null)
               _buildInfoRow(
-                'Issued',
+                l10n.issued,
                 dateFormat.format(DateTime.parse(issueDate)),
               ),
             if (expiryDate != null) ...[
               _buildInfoRow(
-                'Expires',
+                l10n.expires,
                 dateFormat.format(DateTime.parse(expiryDate)),
               ),
               if (!isExpired) ...[
@@ -341,6 +345,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
   }
 
   Widget _buildDaysRemaining(String expiryDate) {
+    final l10n = AppLocalizations.of(context);
     final expiry = DateTime.parse(expiryDate);
     final daysLeft = expiry.difference(DateTime.now()).inDays;
 
@@ -349,7 +354,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
         const SizedBox(width: 80),
         Expanded(
           child: Text(
-            '$daysLeft days remaining',
+            l10n.daysRemaining(daysLeft),
             style: TextStyle(
               color: daysLeft <= 90
                   ? Colors.orange.shade700

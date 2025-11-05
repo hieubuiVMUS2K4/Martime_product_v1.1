@@ -9,6 +9,7 @@ class SyncProvider with ChangeNotifier {
   bool _isSyncing = false;
   int _queueSize = 0;
   bool _isOnline = false;
+  DateTime? _lastSyncTime;
   
   SyncProvider()
       : _syncQueue = SyncQueue(NetworkInfo()),
@@ -19,6 +20,7 @@ class SyncProvider with ChangeNotifier {
   bool get isSyncing => _isSyncing;
   int get queueSize => _queueSize;
   bool get isOnline => _isOnline;
+  DateTime? get lastSyncTime => _lastSyncTime;
   
   Future<void> _init() async {
     await _syncQueue.init();
@@ -54,6 +56,7 @@ class SyncProvider with ChangeNotifier {
     try {
       await _syncQueue.processSyncQueue();
       await _updateQueueSize();
+      _lastSyncTime = DateTime.now();
     } catch (e) {
       print('Sync error: $e');
     }

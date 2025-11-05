@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/alarm_provider.dart';
+import '../../../l10n/app_localizations.dart';
 
 class AlarmStatisticsScreen extends StatefulWidget {
   const AlarmStatisticsScreen({super.key});
@@ -22,9 +23,10 @@ class _AlarmStatisticsScreenState extends State<AlarmStatisticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Alarm Statistics'),
+        title: Text(l10n.alarmStatistics),
       ),
       body: Consumer<AlarmProvider>(
         builder: (context, provider, child) {
@@ -49,7 +51,7 @@ class _AlarmStatisticsScreenState extends State<AlarmStatisticsScreen> {
                     onPressed: () {
                       provider.fetchStatistics(days: _selectedDays);
                     },
-                    child: const Text('Retry'),
+                    child: Text(l10n.retry),
                   ),
                 ],
               ),
@@ -58,7 +60,7 @@ class _AlarmStatisticsScreenState extends State<AlarmStatisticsScreen> {
 
           final stats = provider.statistics;
           if (stats == null) {
-            return const Center(child: Text('No data available'));
+            return Center(child: Text(l10n.noDataAvailable));
           }
 
           return SingleChildScrollView(

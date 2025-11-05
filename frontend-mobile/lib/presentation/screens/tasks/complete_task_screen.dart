@@ -6,6 +6,7 @@ import '../../providers/task_provider.dart';
 import '../../providers/sync_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/loading_widget.dart';
+import '../../../l10n/app_localizations.dart';
 
 class CompleteTaskScreen extends StatefulWidget {
   final MaintenanceTask task;
@@ -45,6 +46,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
   }
 
   Future<void> _submitCompletion() async {
+    final l10n = AppLocalizations.of(context);
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -89,8 +91,8 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                 const SizedBox(width: 8),
                 Text(
                   syncProvider.isOnline
-                      ? 'Task completed successfully!'
-                      : 'Task saved. Will sync when online.',
+                      ? l10n.taskCompletedSuccessfully
+                      : l10n.taskSavedWillSync,
                 ),
               ],
             ),
@@ -100,14 +102,18 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
         );
 
         // Pop twice to go back to list
-        Navigator.pop(context); // Close complete screen
-        Navigator.pop(context); // Close detail screen
+        if (mounted) {
+          Navigator.pop(context); // Close complete screen
+          if (mounted) {
+            Navigator.pop(context); // Close detail screen
+          }
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error completing task: $e'),
+            content: Text(AppLocalizations.of(context).errorCompletingTask(e.toString())),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 4),
           ),
@@ -125,10 +131,11 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
   @override
   Widget build(BuildContext context) {
     final syncProvider = Provider.of<SyncProvider>(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Complete Task'),
+        title: Text(l10n.completeTask),
       ),
       body: Stack(
         children: [
@@ -155,7 +162,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Task ID: ${widget.task.taskId}',
+                              '${l10n.taskId}: ${widget.task.taskId}',
                               style: TextStyle(color: Colors.grey.shade600),
                             ),
                             const SizedBox(height: 8),
@@ -186,7 +193,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                'You are offline. Task will be synced when connection is restored.',
+                                l10n.offlineTaskWillSync,
                                 style: TextStyle(color: Colors.orange.shade900),
                               ),
                             ),
@@ -196,7 +203,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
 
                     // Running Hours Field
                     Text(
-                      'Running Hours *',
+                      l10n.runningHoursRequired,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -204,11 +211,11 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _runningHoursController,
-                      decoration: const InputDecoration(
-                        hintText: 'Enter current running hours',
-                        prefixIcon: Icon(Icons.access_time),
-                        suffixText: 'hours',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        hintText: l10n.enterCurrentRunningHours,
+                        prefixIcon: const Icon(Icons.access_time),
+                        suffixText: l10n.hours,
+                        border: const OutlineInputBorder(),
                       ),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       inputFormatters: [
@@ -216,15 +223,15 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                       ],
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter running hours';
+                          return l10n.pleaseEnterRunningHours;
                         }
                         final hours = double.tryParse(value);
                         if (hours == null || hours < 0) {
-                          return 'Please enter a valid number';
+                          return l10n.pleaseEnterValidNumber;
                         }
                         if (widget.task.runningHoursAtLastDone != null &&
                             hours < widget.task.runningHoursAtLastDone!) {
-                          return 'Running hours cannot be less than last maintenance (${widget.task.runningHoursAtLastDone})';
+                          return l10n.runningHoursCannotBeLess(widget.task.runningHoursAtLastDone!);
                         }
                         return null;
                       },
@@ -234,7 +241,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
 
                     // Spare Parts Field
                     Text(
-                      'Spare Parts Used',
+                      l10n.sparePartsUsed,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -242,10 +249,10 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _sparePartsController,
-                      decoration: const InputDecoration(
-                        hintText: 'List any spare parts used (optional)',
-                        prefixIcon: Icon(Icons.build),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        hintText: l10n.listSparePartsUsed,
+                        prefixIcon: const Icon(Icons.build),
+                        border: const OutlineInputBorder(),
                       ),
                       maxLines: 2,
                     ),
@@ -254,7 +261,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
 
                     // Notes Field
                     Text(
-                      'Notes',
+                      l10n.notes,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -262,10 +269,10 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _notesController,
-                      decoration: const InputDecoration(
-                        hintText: 'Add any additional notes or observations (optional)',
-                        prefixIcon: Icon(Icons.notes),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        hintText: l10n.addAdditionalNotes,
+                        prefixIcon: const Icon(Icons.notes),
+                        border: const OutlineInputBorder(),
                       ),
                       maxLines: 4,
                     ),
@@ -291,9 +298,9 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text(
-                                'Complete Task',
-                                style: TextStyle(
+                            : Text(
+                                l10n.completeTask,
+                                style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -312,8 +319,8 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
           if (_isSubmitting)
             LoadingOverlay(
               message: syncProvider.isOnline
-                  ? 'Completing task...'
-                  : 'Saving for offline sync...',
+                  ? l10n.completingTask
+                  : l10n.savingForOfflineSync,
             ),
         ],
       ),

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../data/models/safety_alarm.dart';
 import '../../providers/alarm_provider.dart';
+import '../../../l10n/app_localizations.dart';
 
 class AlarmDetailScreen extends StatefulWidget {
   final SafetyAlarm alarm;
@@ -19,6 +20,7 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     Color severityColor;
     if (widget.alarm.isCritical) {
       severityColor = Colors.red;
@@ -30,7 +32,7 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Alarm Details'),
+        title: Text(l10n.alarmDetails),
         backgroundColor: severityColor,
       ),
       body: SingleChildScrollView(
@@ -98,14 +100,14 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
                         color: Colors.blue.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(Icons.notification_important,
+                          const Icon(Icons.notification_important,
                               color: Colors.blue),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
-                            'NEEDS ACKNOWLEDGMENT',
-                            style: TextStyle(
+                            l10n.needsAcknowledgment,
+                            style: const TextStyle(
                               color: Colors.blue,
                               fontWeight: FontWeight.bold,
                             ),
@@ -126,7 +128,7 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
                 children: [
                   if (widget.alarm.description != null) ...[
                     _buildInfoCard(
-                      'Description',
+                      l10n.description,
                       widget.alarm.description!,
                       Icons.description,
                     ),
@@ -136,7 +138,7 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
                     children: [
                       Expanded(
                         child: _buildInfoCard(
-                          'Location',
+                          l10n.location,
                           widget.alarm.locationDisplay,
                           Icons.location_on,
                         ),
@@ -144,7 +146,7 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: _buildInfoCard(
-                          'Alarm Code',
+                          l10n.alarmCode,
                           widget.alarm.alarmCode ?? 'N/A',
                           Icons.tag,
                         ),
@@ -153,7 +155,7 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
                   ),
                   const SizedBox(height: 16),
                   _buildInfoCard(
-                    'Timestamp',
+                    l10n.timestamp,
                     DateFormat('dd/MM/yyyy HH:mm:ss')
                         .format(widget.alarm.timestamp.toLocal()),
                     Icons.access_time,
@@ -161,7 +163,7 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
                   ),
                   const SizedBox(height: 16),
                   _buildInfoCard(
-                    'Status',
+                    l10n.status,
                     widget.alarm.statusDisplay,
                     Icons.info_outline,
                   ),
@@ -172,7 +174,7 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
                     const Divider(),
                     const SizedBox(height: 16),
                     Text(
-                      'Acknowledgment Info',
+                      l10n.acknowledgmentInfo,
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -181,13 +183,13 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
                     ),
                     const SizedBox(height: 12),
                     _buildInfoCard(
-                      'Acknowledged By',
+                      l10n.acknowledgedBy,
                       widget.alarm.acknowledgedBy ?? 'N/A',
                       Icons.person,
                     ),
                     const SizedBox(height: 12),
                     _buildInfoCard(
-                      'Acknowledged At',
+                      l10n.acknowledgedAt,
                       widget.alarm.acknowledgedAt != null
                           ? DateFormat('dd/MM/yyyy HH:mm:ss')
                               .format(widget.alarm.acknowledgedAt!.toLocal())
@@ -200,7 +202,7 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
                   if (widget.alarm.isResolved) ...[
                     const SizedBox(height: 16),
                     _buildInfoCard(
-                      'Resolved At',
+                      l10n.resolvedAt,
                       widget.alarm.resolvedAt != null
                           ? DateFormat('dd/MM/yyyy HH:mm:ss')
                               .format(widget.alarm.resolvedAt!.toLocal())
@@ -235,7 +237,7 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
                             ),
                           )
                         : const Icon(Icons.check),
-                    label: const Text('Acknowledge'),
+                    label: Text(l10n.acknowledge),
                   ),
                 if (widget.alarm.isAcknowledged) ...[
                   const SizedBox(height: 12),
@@ -252,7 +254,7 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
                             ),
                           )
                         : const Icon(Icons.done_all),
-                    label: const Text('Resolve'),
+                    label: Text(l10n.resolve),
                   ),
                 ],
               ],
@@ -333,16 +335,18 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Alarm acknowledged'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context).alarmAcknowledged),
               backgroundColor: Colors.green,
             ),
           );
-          Navigator.pop(context);
+          if (mounted) {
+            Navigator.pop(context);
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to acknowledge alarm'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context).failedToAcknowledgeAlarm),
               backgroundColor: Colors.red,
             ),
           );
@@ -352,7 +356,7 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi: $e'),
+            content: Text('${AppLocalizations.of(context).error}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -365,23 +369,22 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
   }
 
   Future<void> _resolveAlarm() async {
+    final l10n = AppLocalizations.of(context);
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Resolution'),
-        content: const Text(
-          'Are you sure you want to mark this alarm as resolved?',
-        ),
+        title: Text(l10n.confirmResolution),
+        content: Text(l10n.areYouSureResolveAlarm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-            child: const Text('Confirm'),
+            child: Text(l10n.confirm),
           ),
         ],
       ),
@@ -398,16 +401,18 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Alarm resolved'),
+            SnackBar(
+              content: Text(l10n.alarmResolved),
               backgroundColor: Colors.green,
             ),
           );
-          Navigator.pop(context);
+          if (mounted) {
+            Navigator.pop(context);
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to resolve alarm'),
+            SnackBar(
+              content: Text(l10n.failedToResolveAlarm),
               backgroundColor: Colors.red,
             ),
           );
@@ -417,7 +422,7 @@ class _AlarmDetailScreenState extends State<AlarmDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi: $e'),
+            content: Text('${AppLocalizations.of(context).error}: $e'),
             backgroundColor: Colors.red,
           ),
         );

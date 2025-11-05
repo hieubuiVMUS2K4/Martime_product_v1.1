@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:provider/provider.dart';
 import 'app.dart';
 import 'core/network/api_client.dart';
+import 'core/localization/locale_provider.dart';
 import 'data/models/sync_item.dart';
 
 void main() async {
@@ -21,5 +23,14 @@ void main() async {
   // Initialize ApiClient with saved server URL
   await ApiClient().initialize();
   
-  runApp(const MyApp());
+  // Initialize LocaleProvider
+  final localeProvider = LocaleProvider();
+  await localeProvider.initialize();
+  
+  runApp(
+    ChangeNotifierProvider.value(
+      value: localeProvider,
+      child: const MyApp(),
+    ),
+  );
 }

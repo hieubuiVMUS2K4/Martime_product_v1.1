@@ -11,6 +11,20 @@
 
 ---
 
+
+-- 5. Xem password hash của tất cả users kèm password gốc (nếu là ngày sinh)
+SELECT 
+    u.username,
+    u.password_hash,
+    cm.full_name,
+    to_char(cm.date_of_birth, 'DDMMYYYY') as original_password,
+    cm.date_of_birth,
+    r.role_name
+FROM users u
+LEFT JOIN crew_members cm ON u.crew_id = cm.crew_id
+LEFT JOIN roles r ON u.role_id = r.id
+ORDER BY u.username;
+
 ## 🔐 Giới thiệu về Hash Password
 
 ### Tại sao không lưu mật khẩu trực tiếp?

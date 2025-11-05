@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../data/models/safety_alarm.dart';
 import '../../providers/alarm_provider.dart';
 import 'alarm_detail_screen.dart';
+import '../../../l10n/app_localizations.dart';
 
 class AlarmListScreen extends StatefulWidget {
   const AlarmListScreen({super.key});
@@ -26,9 +27,10 @@ class _AlarmListScreenState extends State<AlarmListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Safety Alarms'),
+        title: Text(l10n.safetyAlarms),
         actions: [
           IconButton(
             icon: const Icon(Icons.analytics_outlined),
@@ -67,7 +69,7 @@ class _AlarmListScreenState extends State<AlarmListScreen> {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: _refresh,
-                    child: const Text('Retry'),
+                    child: Text(l10n.retry),
                   ),
                 ],
               ),
@@ -89,20 +91,20 @@ class _AlarmListScreenState extends State<AlarmListScreen> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  const Text('All systems normal'),
+                  Text(l10n.allSystemsNormal),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
                     onPressed: () async {
                       await provider.generateSampleAlarms();
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Sample alarms generated')),
+                          SnackBar(
+                              content: Text(l10n.sampleAlarmsGenerated)),
                         );
                       }
                     },
                     icon: const Icon(Icons.add_alert),
-                    label: const Text('Generate Sample Alarms'),
+                    label: Text(l10n.generateSampleAlarms),
                   ),
                 ],
               ),

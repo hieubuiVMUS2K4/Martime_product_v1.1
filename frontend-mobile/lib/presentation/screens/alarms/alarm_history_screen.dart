@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../data/models/safety_alarm.dart';
 import '../../providers/alarm_provider.dart';
 import 'alarm_detail_screen.dart';
+import '../../../l10n/app_localizations.dart';
 
 class AlarmHistoryScreen extends StatefulWidget {
   const AlarmHistoryScreen({super.key});
@@ -29,9 +30,10 @@ class _AlarmHistoryScreenState extends State<AlarmHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Alarm History'),
+        title: Text(l10n.alarmHistory),
       ),
       body: Consumer<AlarmProvider>(
         builder: (context, provider, child) {
@@ -47,14 +49,14 @@ class _AlarmHistoryScreenState extends State<AlarmHistoryScreen> {
                   const Icon(Icons.error_outline, size: 64, color: Colors.red),
                   const SizedBox(height: 16),
                   Text(
-                    'Lỗi: ${provider.error}',
+                    '${l10n.error}: ${provider.error}',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.red),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: _refresh,
-                    child: const Text('Retry'),
+                    child: Text(l10n.retry),
                   ),
                 ],
               ),
@@ -73,9 +75,9 @@ class _AlarmHistoryScreenState extends State<AlarmHistoryScreen> {
                   color: Colors.grey[100],
                   child: Row(
                     children: [
-                      const Text(
-                        'Show:',
-                        style: TextStyle(fontWeight: FontWeight.w500),
+                      Text(
+                        l10n.show,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -84,7 +86,7 @@ class _AlarmHistoryScreenState extends State<AlarmHistoryScreen> {
                           children: [7, 30, 90].map((days) {
                             final isSelected = _selectedDays == days;
                             return ChoiceChip(
-                              label: Text('$days days'),
+                              label: Text(l10n.daysCount(days)),
                               selected: isSelected,
                               onSelected: (selected) {
                                 if (selected) {
@@ -111,7 +113,7 @@ class _AlarmHistoryScreenState extends State<AlarmHistoryScreen> {
                                   size: 64, color: Colors.grey[400]),
                               const SizedBox(height: 16),
                               Text(
-                                'No alarm history',
+                                l10n.noAlarmHistory,
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Colors.grey[600],
@@ -138,6 +140,7 @@ class _AlarmHistoryScreenState extends State<AlarmHistoryScreen> {
   }
 
   Widget _buildHistoryCard(SafetyAlarm alarm) {
+    final l10n = AppLocalizations.of(context);
     Color severityColor;
     if (alarm.isCritical) {
       severityColor = Colors.red;
@@ -217,13 +220,13 @@ class _AlarmHistoryScreenState extends State<AlarmHistoryScreen> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.green),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(Icons.check_circle, size: 14, color: Colors.green),
-                          SizedBox(width: 4),
+                          const Icon(Icons.check_circle, size: 14, color: Colors.green),
+                          const SizedBox(width: 4),
                           Text(
-                            'Resolved',
-                            style: TextStyle(
+                            l10n.resolved,
+                            style: const TextStyle(
                               fontSize: 11,
                               color: Colors.green,
                               fontWeight: FontWeight.bold,
@@ -243,13 +246,13 @@ class _AlarmHistoryScreenState extends State<AlarmHistoryScreen> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.blue),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(Icons.check, size: 14, color: Colors.blue),
-                          SizedBox(width: 4),
+                          const Icon(Icons.check, size: 14, color: Colors.blue),
+                          const SizedBox(width: 4),
                           Text(
-                            'Acknowledged',
-                            style: TextStyle(
+                            l10n.acknowledged,
+                            style: const TextStyle(
                               fontSize: 11,
                               color: Colors.blue,
                               fontWeight: FontWeight.bold,

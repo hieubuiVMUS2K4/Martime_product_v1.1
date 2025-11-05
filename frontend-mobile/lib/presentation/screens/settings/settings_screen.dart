@@ -3,8 +3,11 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/sync_provider.dart';
 import '../../../core/cache/cache_manager.dart';
+import '../../../core/localization/locale_provider.dart';
 import '../auth/login_screen.dart';
 import 'server_config_screen.dart';
+import 'language_selection_screen.dart';
+import '../../../l10n/app_localizations.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -13,17 +16,50 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final syncProvider = Provider.of<SyncProvider>(context);
+    final localeProvider = Provider.of<LocaleProvider>(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(l10n.settings),
       ),
       body: ListView(
         children: [
+          // Language Section
+          _buildSection(
+            context,
+            title: l10n.language,
+            children: [
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.language, size: 24),
+                ),
+                title: Text(l10n.languageSettings),
+                subtitle: Text(
+                  '${localeProvider.currentLanguageFlag} ${localeProvider.currentLanguageName}',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LanguageSelectionScreen(),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+
           // User Info Section
           _buildSection(
             context,
-            title: 'Account',
+            title: l10n.account,
             children: [
               ListTile(
                 leading: CircleAvatar(
@@ -31,10 +67,10 @@ class SettingsScreen extends StatelessWidget {
                     authProvider.fullName?.substring(0, 1).toUpperCase() ?? '?',
                   ),
                 ),
-                title: Text(authProvider.fullName ?? 'User'),
-                subtitle: Text(authProvider.position ?? 'Position'),
+                title: Text(authProvider.fullName ?? l10n.user),
+                subtitle: Text(authProvider.position ?? l10n.position),
                 trailing: Text(
-                  'ID: ${authProvider.crewId ?? 'N/A'}',
+                  '${l10n.crewId}: ${authProvider.crewId ?? l10n.notAvailable}',
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
               ),
@@ -44,20 +80,22 @@ class SettingsScreen extends StatelessWidget {
           // Sync Section
           _buildSection(
             context,
-            title: 'Synchronization',
+            title: l10n.synchronization,
             children: [
               ListTile(
                 leading: Icon(
                   syncProvider.isOnline ? Icons.cloud_done : Icons.cloud_off,
                   color: syncProvider.isOnline ? Colors.green : Colors.red,
                 ),
-                title: const Text('Connection Status'),
-                subtitle: Text(syncProvider.isOnline ? 'Online' : 'Offline'),
+                title: Text(l10n.syncStatus),
+                subtitle: Text(syncProvider.isOnline ? l10n.online : l10n.offline),
               ),
               ListTile(
                 leading: const Icon(Icons.sync),
-                title: const Text('Pending Sync Items'),
-                subtitle: Text('${syncProvider.queueSize} items waiting to sync'),
+                title: Text(l10n.itemsWaitingToSync(syncProvider.queueSize)),
+                subtitle: syncProvider.lastSyncTime != null 
+                    ? Text(l10n.lastSyncAt(_formatDateTime(syncProvider.lastSyncTime!, context)))
+                    : null,
                 trailing: syncProvider.isSyncing
                     ? const SizedBox(
                         width: 20,
@@ -69,8 +107,7 @@ class SettingsScreen extends StatelessWidget {
               if (syncProvider.queueSize > 0 && syncProvider.isOnline)
                 ListTile(
                   leading: const Icon(Icons.cloud_upload),
-                  title: const Text('Sync Now'),
-                  subtitle: const Text('Upload pending changes to server'),
+                  title: Text(l10n.syncNow),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: syncProvider.isSyncing
                       ? null
@@ -78,7 +115,7 @@ class SettingsScreen extends StatelessWidget {
                           await syncProvider.syncQueue();
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Sync completed')),
+                              SnackBar(content: Text(l10n.connectionSuccessful)),
                             );
                           }
                         },
@@ -89,12 +126,11 @@ class SettingsScreen extends StatelessWidget {
           // Server Section
           _buildSection(
             context,
-            title: 'Server',
+            title: l10n.serverConfiguration,
             children: [
               ListTile(
                 leading: const Icon(Icons.dns),
-                title: const Text('Server Configuration'),
-                subtitle: const Text('Configure API server address'),
+                title: Text(l10n.serverConfiguration),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.push(
@@ -111,12 +147,12 @@ class SettingsScreen extends StatelessWidget {
           // Cache Section
           _buildSection(
             context,
-            title: 'Data & Storage',
+            title: l10n.dataStorage,
             children: [
               ListTile(
                 leading: const Icon(Icons.storage),
-                title: const Text('Clear Cache'),
-                subtitle: const Text('Remove all cached data'),
+                title: Text(l10n.clearCache),
+                subtitle: Text(l10n.removeAllCachedData),
                 trailing: const Icon(Icons.delete_outline),
                 onTap: () {
                   _showClearCacheDialog(context);
@@ -128,17 +164,17 @@ class SettingsScreen extends StatelessWidget {
           // About Section
           _buildSection(
             context,
-            title: 'About',
+            title: l10n.about,
             children: [
-              const ListTile(
-                leading: Icon(Icons.info_outline),
-                title: Text('Version'),
-                subtitle: Text('1.0.0'),
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: Text(l10n.version),
+                subtitle: const Text('1.0.0'),
               ),
-              const ListTile(
-                leading: Icon(Icons.description),
-                title: Text('License'),
-                subtitle: Text('Proprietary'),
+              ListTile(
+                leading: const Icon(Icons.description),
+                title: Text(l10n.license),
+                subtitle: Text(l10n.proprietary),
               ),
             ],
           ),
@@ -156,12 +192,28 @@ class SettingsScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
               icon: const Icon(Icons.logout),
-              label: const Text('Logout'),
+              label: Text(l10n.logout),
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatDateTime(DateTime dateTime, BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inMinutes < 1) {
+      return l10n.justNow;
+    } else if (difference.inMinutes < 60) {
+      return l10n.minutesAgo(difference.inMinutes);
+    } else if (difference.inHours < 24) {
+      return l10n.hoursAgo(difference.inHours);
+    } else {
+      return '${dateTime.day}/${dateTime.month} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+    }
   }
 
   Widget _buildSection(
@@ -193,17 +245,16 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _showClearCacheDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear Cache'),
-        content: const Text(
-          'This will remove all cached data. You will need an internet connection to reload data. Continue?',
-        ),
+        title: Text(l10n.clearCacheTitle),
+        content: Text(l10n.clearCacheMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -212,7 +263,7 @@ class SettingsScreen extends StatelessWidget {
               if (context.mounted) {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Cache cleared successfully')),
+                  SnackBar(content: Text(l10n.cacheClearedSuccess)),
                 );
               }
             },
@@ -220,7 +271,7 @@ class SettingsScreen extends StatelessWidget {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Clear'),
+            child: Text(l10n.confirm),
           ),
         ],
       ),
@@ -228,15 +279,16 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
+        title: Text(l10n.logoutTitle),
+        content: Text(l10n.logoutMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -252,7 +304,7 @@ class SettingsScreen extends StatelessWidget {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Logout'),
+            child: Text(l10n.logout),
           ),
         ],
       ),

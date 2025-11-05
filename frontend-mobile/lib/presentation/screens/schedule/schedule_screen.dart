@@ -8,6 +8,7 @@ import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/empty_state_widget.dart';
 import '../tasks/task_detail_screen.dart';
 import 'watch_schedule_tab.dart';
+import '../../../l10n/app_localizations.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
@@ -80,19 +81,20 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Schedule'),
+        title: Text(l10n.schedule),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
+          tabs: [
             Tab(
-              icon: Icon(Icons.build),
-              text: 'Maintenance',
+              icon: const Icon(Icons.build),
+              text: l10n.maintenance,
             ),
             Tab(
-              icon: Icon(Icons.access_time),
-              text: 'Watch Schedule',
+              icon: const Icon(Icons.access_time),
+              text: l10n.watchSchedule,
             ),
           ],
         ),
@@ -108,13 +110,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
   }
 
   Widget _buildMaintenanceTab() {
+    final l10n = AppLocalizations.of(context);
     final taskProvider = Provider.of<TaskProvider>(context);
     final allTasks = taskProvider.tasks;
     final filteredTasks = _getFilteredTasks(allTasks);
     final groupedTasks = _groupTasksByDate(filteredTasks);
 
     return taskProvider.isLoading
-        ? const Center(child: LoadingWidget(message: 'Loading schedule...'))
+        ? Center(child: LoadingWidget(message: l10n.loadingSchedule))
         : Column(
               children: [
                 // Filter chips
@@ -123,13 +126,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      _buildFilterChip('Upcoming (7 days)', 'upcoming'),
+                      _buildFilterChip(l10n.upcomingDays(7), 'upcoming'),
                       const SizedBox(width: 8),
-                      _buildFilterChip('This Week', 'week'),
+                      _buildFilterChip(l10n.thisWeek, 'week'),
                       const SizedBox(width: 8),
-                      _buildFilterChip('This Month', 'month'),
+                      _buildFilterChip(l10n.thisMonth, 'month'),
                       const SizedBox(width: 8),
-                      _buildFilterChip('All Tasks', 'all'),
+                      _buildFilterChip(l10n.allTasks, 'all'),
                     ],
                   ),
                 ),
@@ -147,20 +150,20 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
                     children: [
                       _buildStatItem(
                         context,
-                        'Total',
+                        l10n.total,
                         filteredTasks.length,
                         Icons.list,
                       ),
                       _buildStatItem(
                         context,
-                        'Overdue',
+                        l10n.overdue,
                         filteredTasks.where((t) => t.isOverdue).length,
                         Icons.error,
                         color: Colors.red,
                       ),
                       _buildStatItem(
                         context,
-                        'Due Soon',
+                        l10n.dueSoon,
                         filteredTasks.where((t) => t.isDueSoon).length,
                         Icons.warning,
                         color: Colors.orange,
@@ -174,10 +177,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
                 // Task list grouped by date
                 Expanded(
                   child: filteredTasks.isEmpty
-                      ? const EmptyStateWidget(
+                      ? EmptyStateWidget(
                           icon: Icons.check_circle_outline,
-                          message: 'No tasks scheduled',
-                          subtitle: 'No maintenance tasks match the selected filter',
+                          message: l10n.noTasksScheduled,
+                          subtitle: l10n.noMaintenanceTasksMatch,
                         )
                       : ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 16),

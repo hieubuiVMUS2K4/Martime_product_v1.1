@@ -7,6 +7,7 @@ import '../../providers/task_provider.dart';
 import '../../widgets/task/priority_badge.dart';
 import '../../widgets/task/status_badge.dart';
 import 'complete_task_screen.dart';
+import '../../../l10n/app_localizations.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final MaintenanceTask task;
@@ -78,8 +79,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Task data refreshed'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).taskDataRefreshed),
             duration: Duration(seconds: 1),
           ),
         );
@@ -88,7 +89,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to refresh: $e'),
+            content: Text(AppLocalizations.of(context).failedToRefresh(e.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -100,14 +101,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   Widget build(BuildContext context) {
     final taskProvider = Provider.of<TaskProvider>(context);
     final dateFormat = DateFormat('dd MMM yyyy');
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Task Details'),
+        title: Text(l10n.taskDetails),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh task data',
+            tooltip: l10n.refreshTaskData,
             onPressed: _refreshTaskData,
           ),
         ],
@@ -131,7 +133,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        '⚠️ OVERDUE: ${widget.task.daysUntilDue.abs()} days past due date',
+                        l10n.overdueDaysPastDue(widget.task.daysUntilDue.abs()),
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -165,7 +167,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         Icon(Icons.tag, size: 16, color: Colors.grey.shade600),
                         const SizedBox(width: 4),
                         Text(
-                          'Task ID: ${widget.task.taskId}',
+                          '${l10n.taskId} ${widget.task.taskId}',
                           style: TextStyle(color: Colors.grey.shade600),
                         ),
                       ],
@@ -188,7 +190,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             // Task Description
             _buildSection(
               context,
-              title: 'Description',
+              title: l10n.description,
               icon: Icons.description,
               child: Text(
                 widget.task.taskDescription,
@@ -199,23 +201,23 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             // Task Type & Interval
             _buildSection(
               context,
-              title: 'Maintenance Schedule',
+              title: l10n.maintenanceSchedule,
               icon: Icons.schedule,
               child: Column(
                 children: [
                   _buildInfoRow(
-                    'Type',
+                    l10n.type,
                     widget.task.taskType.replaceAll('_', ' '),
                   ),
                   if (widget.task.intervalHours != null)
                     _buildInfoRow(
-                      'Interval',
-                      '${widget.task.intervalHours} running hours',
+                      l10n.interval,
+                      l10n.runningHoursValue(widget.task.intervalHours!.toInt()),
                     ),
                   if (widget.task.intervalDays != null)
                     _buildInfoRow(
-                      'Interval',
-                      '${widget.task.intervalDays} days',
+                      l10n.interval,
+                      l10n.daysValue(widget.task.intervalDays!.toInt()),
                     ),
                 ],
               ),
@@ -224,22 +226,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             // Due Date Info
             _buildSection(
               context,
-              title: 'Schedule',
+              title: l10n.schedule,
               icon: Icons.calendar_today,
               child: Column(
                 children: [
                   if (widget.task.lastDoneAt != null)
                     _buildInfoRow(
-                      'Last Done',
+                      l10n.lastDone,
                       dateFormat.format(DateTime.parse(widget.task.lastDoneAt!)),
                     ),
                   _buildInfoRow(
-                    'Next Due',
+                    l10n.nextDue,
                     dateFormat.format(DateTime.parse(widget.task.nextDueAt)),
                   ),
                   _buildInfoRow(
-                    'Days Until Due',
-                    '${widget.task.daysUntilDue} days',
+                    l10n.daysUntilDue,
+                    l10n.daysValue(widget.task.daysUntilDue),
                     valueColor: widget.task.isOverdue
                         ? Colors.red.shade700
                         : widget.task.isDueSoon
@@ -254,13 +256,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             if (widget.task.runningHoursAtLastDone != null)
               _buildSection(
                 context,
-                title: 'Running Hours',
+                title: l10n.runningHours,
                 icon: Icons.access_time,
                 child: Column(
                   children: [
                     _buildInfoRow(
-                      'At Last Maintenance',
-                      '${widget.task.runningHoursAtLastDone} hours',
+                      l10n.atLastMaintenance,
+                      l10n.hoursValue(widget.task.runningHoursAtLastDone!.toInt()),
                     ),
                   ],
                 ),
@@ -270,11 +272,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             if (widget.task.assignedTo != null)
               _buildSection(
                 context,
-                title: 'Assignment',
+                title: l10n.assignment,
                 icon: Icons.person,
                 child: Column(
                   children: [
-                    _buildInfoRow('Assigned To', widget.task.assignedTo!),
+                    _buildInfoRow(l10n.assignedTo, widget.task.assignedTo!),
                   ],
                 ),
               ),
@@ -283,7 +285,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             if (widget.task.hasTaskType) ...[
               _buildSection(
                 context,
-                title: '📋 Checklist công việc',
+                title: l10n.taskChecklist,
                 icon: Icons.checklist,
                 child: _buildChecklistContent(),
               ),
@@ -293,28 +295,28 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             if (widget.task.isCompleted)
               _buildSection(
                 context,
-                title: 'Completion Details',
+                title: l10n.completionDetails,
                 icon: Icons.check_circle,
                 child: Column(
                   children: [
                     if (widget.task.completedBy != null)
-                      _buildInfoRow('Completed By', widget.task.completedBy!),
+                      _buildInfoRow(l10n.completedBy, widget.task.completedBy!),
                     if (widget.task.completedAt != null)
                       _buildInfoRow(
-                        'Completed At',
+                        l10n.completedAt,
                         dateFormat.format(DateTime.parse(widget.task.completedAt!)),
                       ),
                     if (widget.task.runningHoursAtCompletion != null)
                       _buildInfoRow(
-                        'Running Hours',
-                        '${widget.task.runningHoursAtCompletion} hours',
+                        l10n.runningHours,
+                        l10n.hoursValue(widget.task.runningHoursAtCompletion!.toInt()),
                       ),
                     if (widget.task.sparePartsUsed != null)
-                      _buildInfoRow('Spare Parts', widget.task.sparePartsUsed!),
+                      _buildInfoRow(l10n.spareParts, widget.task.sparePartsUsed!),
                     if (widget.task.notes != null) ...[
                       const SizedBox(height: 8),
-                      const Text(
-                        'Notes:',
+                      Text(
+                        '${l10n.notes}:',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
@@ -397,6 +399,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildChecklistContent() {
+    final l10n = AppLocalizations.of(context);
     if (_loadingChecklist) {
       return const Center(
         child: Padding(
@@ -415,7 +418,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               const Icon(Icons.error_outline, color: Colors.red, size: 48),
               const SizedBox(height: 8),
               Text(
-                'Lỗi tải checklist',
+                l10n.errorLoadingChecklist,
                 style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
@@ -428,7 +431,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ElevatedButton.icon(
                 onPressed: _loadChecklistIfNeeded,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Thử lại'),
+                label: Text(l10n.tryAgain),
               ),
             ],
           ),
@@ -445,12 +448,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               Icon(Icons.checklist, color: Colors.grey.shade400, size: 64),
               const SizedBox(height: 12),
               Text(
-                'Chưa có checklist',
+                l10n.noChecklistYet,
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
               ),
               const SizedBox(height: 4),
               Text(
-                'Task này chưa có chi tiết công việc',
+                l10n.thisTaskHasNoDetails,
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
               ),
             ],
@@ -484,6 +487,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildProgressBar() {
+    final l10n = AppLocalizations.of(context);
     final totalItems = _checklistItems!.length;
     final completedItems = _checklistItems!.where((item) => item.isCompleted).length;
     final progress = totalItems > 0 ? completedItems / totalItems : 0.0;
@@ -495,7 +499,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Tiến độ: $completedItems/$totalItems',
+              l10n.progressCount(completedItems, totalItems),
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
             Text(
@@ -522,6 +526,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildChecklistItem(TaskChecklistItem item, int index) {
+    final l10n = AppLocalizations.of(context);
     final detail = item.taskDetail;
     final isCompleted = item.isCompleted;
     
@@ -562,7 +567,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 border: Border.all(color: Colors.red.shade200),
               ),
               child: Text(
-                'BẮT BUỘC',
+                l10n.mandatory,
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.bold,
@@ -582,7 +587,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               if (detail.detailType == 'MEASUREMENT' && detail.unit != null) ...[
                 const SizedBox(width: 8),
                 Text(
-                  'Đơn vị: ${detail.unit}',
+                  l10n.unitLabel(detail.unit!),
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                 ),
               ],
@@ -620,20 +625,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     String label;
     IconData icon;
 
+    final l10n = AppLocalizations.of(context);
+
     switch (type) {
       case 'MEASUREMENT':
         color = Colors.blue;
-        label = 'Đo đạc';
+        label = l10n.measurement;
         icon = Icons.straighten;
         break;
       case 'CHECKLIST':
         color = Colors.green;
-        label = 'Kiểm tra';
+        label = l10n.checklist;
         icon = Icons.check_box;
         break;
       case 'INSPECTION':
         color = Colors.orange;
-        label = 'Quan sát';
+        label = l10n.inspection;
         icon = Icons.search;
         break;
       default:
@@ -669,6 +676,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildExecutionResult(TaskChecklistItem item) {
     final execution = item.executionDetail!;
+    final l10n = AppLocalizations.of(context);
     
     return Container(
       padding: const EdgeInsets.all(8),
@@ -685,7 +693,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               Icon(Icons.check_circle, size: 14, color: Colors.green.shade700),
               const SizedBox(width: 4),
               Text(
-                'Đã hoàn thành',
+                l10n.completed,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
@@ -697,14 +705,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           if (execution.measuredValue != null) ...[
             const SizedBox(height: 4),
             Text(
-              'Giá trị đo: ${execution.measuredValue} ${item.taskDetail.unit ?? ""}',
+              l10n.measuredValueWithUnit(
+                execution.measuredValue!,
+                item.taskDetail.unit ?? "",
+              ),
               style: const TextStyle(fontSize: 11),
             ),
           ],
           if (execution.notes != null && execution.notes!.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              'Ghi chú: ${execution.notes}',
+              '${l10n.notes}: ${execution.notes}',
               style: const TextStyle(fontSize: 11),
             ),
           ],
@@ -716,6 +727,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   void _showChecklistItemDialog(TaskChecklistItem item) {
     final detail = item.taskDetail;
     final isAlreadyCompleted = item.isCompleted;
+    final l10n = AppLocalizations.of(context);
 
     // Controllers for input
     final measurementController = TextEditingController(
@@ -748,7 +760,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       border: Border.all(color: Colors.red.shade200),
                     ),
                     child: Text(
-                      'BẮT BUỘC',
+                      l10n.mandatory,
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.bold,
@@ -780,8 +792,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
                   // Input based on type
                   if (detail.detailType == 'CHECKLIST') ...[
-                    const Text(
-                      'Kết quả kiểm tra:',
+                    Text(
+                      l10n.checkResult,
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     const SizedBox(height: 8),
@@ -798,7 +810,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               checkResult ? Icons.check_circle : Icons.check_circle_outline,
                               color: checkResult ? Colors.white : Colors.green,
                             ),
-                            label: const Text('OK / Đạt'),
+                            label: Text(l10n.okPass),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: checkResult ? Colors.green : Colors.grey.shade200,
                               foregroundColor: checkResult ? Colors.white : Colors.black87,
@@ -818,7 +830,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               checkResult == false ? Icons.cancel : Icons.cancel_outlined,
                               color: checkResult == false ? Colors.white : Colors.red,
                             ),
-                            label: const Text('NG / Lỗi'),
+                            label: Text(l10n.ngFail),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: checkResult == false ? Colors.red : Colors.grey.shade200,
                               foregroundColor: checkResult == false ? Colors.white : Colors.black87,
@@ -831,8 +843,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   ],
 
                   if (detail.detailType == 'MEASUREMENT') ...[
-                    const Text(
-                      'Giá trị đo được:',
+                    Text(
+                      l10n.measuredValue,
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     const SizedBox(height: 8),
@@ -840,7 +852,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       controller: measurementController,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       decoration: InputDecoration(
-                        hintText: 'Nhập giá trị...',
+                        hintText: l10n.enterValue,
                         suffixText: detail.unit ?? '',
                         border: const OutlineInputBorder(),
                         contentPadding: const EdgeInsets.symmetric(
@@ -864,7 +876,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Giới hạn: ${detail.minValue ?? '?'} - ${detail.maxValue ?? '?'} ${detail.unit ?? ''}',
+                                l10n.limitRange(
+                                  detail.minValue?.toString() ?? '?',
+                                  detail.maxValue?.toString() ?? '?',
+                                  detail.unit ?? '',
+                                ),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.blue.shade700,
@@ -878,16 +894,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   ],
 
                   if (detail.detailType == 'INSPECTION') ...[
-                    const Text(
-                      'Ghi chú quan sát:',
+                    Text(
+                      l10n.observationNotes,
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: notesController,
                       maxLines: 4,
-                      decoration: const InputDecoration(
-                        hintText: 'Nhập ghi chú chi tiết...',
+                      decoration: InputDecoration(
+                        hintText: l10n.enterDetailedNotes,
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.all(12),
                       ),
@@ -897,16 +913,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   // Notes for all types
                   if (detail.detailType != 'INSPECTION') ...[
                     const SizedBox(height: 16),
-                    const Text(
-                      'Ghi chú (tùy chọn):',
+                    Text(
+                      l10n.notesOptional,
                       style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                     ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: notesController,
                       maxLines: 3,
-                      decoration: const InputDecoration(
-                        hintText: 'Thêm ghi chú nếu cần...',
+                      decoration: InputDecoration(
+                        hintText: l10n.addNotesIfNeeded,
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.all(12),
                       ),
@@ -928,7 +944,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Đã hoàn thành trước đó. Bạn có thể cập nhật lại.',
+                              l10n.alreadyCompletedCanUpdate,
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.green.shade700,
@@ -945,7 +961,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Hủy'),
+                child: Text(l10n.cancel),
               ),
               ElevatedButton.icon(
                 onPressed: () async {
@@ -953,8 +969,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   if (detail.detailType == 'MEASUREMENT') {
                     if (measurementController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Vui lòng nhập giá trị đo!'),
+                        SnackBar(
+                          content: Text(l10n.pleaseEnterMeasuredValue),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -965,8 +981,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     final value = double.tryParse(measurementController.text.trim());
                     if (value == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Giá trị không hợp lệ!'),
+                        SnackBar(
+                          content: Text(l10n.invalidValue),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -976,7 +992,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     if (detail.minValue != null && value < detail.minValue!) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Giá trị quá thấp! Tối thiểu: ${detail.minValue}'),
+                          content: Text(l10n.valueTooLow(detail.minValue.toString())),
                           backgroundColor: Colors.orange,
                         ),
                       );
@@ -985,7 +1001,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     if (detail.maxValue != null && value > detail.maxValue!) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Giá trị quá cao! Tối đa: ${detail.maxValue}'),
+                          content: Text(l10n.valueTooHigh(detail.maxValue.toString())),
                           backgroundColor: Colors.orange,
                         ),
                       );
@@ -994,8 +1010,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
                   if (detail.detailType == 'INSPECTION' && notesController.text.trim().isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Vui lòng nhập ghi chú quan sát!'),
+                      SnackBar(
+                        content: Text(l10n.pleaseEnterObservationNote),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -1024,7 +1040,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('✅ Đã lưu: ${detail.detailName}'),
+                          content: Text(l10n.savedItem(detail.detailName)),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -1038,7 +1054,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('❌ Lỗi: $e'),
+                          content: Text(l10n.errorMessage(e.toString())),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -1046,7 +1062,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   }
                 },
                 icon: const Icon(Icons.check),
-                label: Text(isAlreadyCompleted ? 'Cập nhật' : 'Hoàn thành'),
+                label: Text(isAlreadyCompleted ? l10n.update : l10n.complete),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
@@ -1061,6 +1077,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget? _buildActionButton(BuildContext context, TaskProvider taskProvider) {
+    final l10n = AppLocalizations.of(context);
     if (widget.task.isCompleted) {
       return null; // No action for completed tasks
     }
@@ -1076,23 +1093,21 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     context: context,
                     builder: (context) => AlertDialog(
                       icon: const Icon(Icons.warning, color: Colors.red, size: 48),
-                      title: const Text('Task Overdue'),
+                      title: Text(l10n.taskOverdue),
                       content: Text(
-                        'This task is ${widget.task.daysUntilDue.abs()} days overdue!\n\n'
-                        'Due date: ${widget.task.nextDueAt}\n\n'
-                        'Do you still want to start this task?',
+                        l10n.thisTaskIsOverdue,
                       ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel'),
+                          child: Text(l10n.cancel),
                         ),
                         ElevatedButton(
                           onPressed: () => Navigator.pop(context, true),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
                           ),
-                          child: const Text('Start Anyway'),
+                          child: Text(l10n.startAnyway),
                         ),
                       ],
                     ),
@@ -1108,8 +1123,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       SnackBar(
                         content: Text(
                           widget.task.isOverdue 
-                            ? 'Overdue task started! Please complete ASAP.'
-                            : 'Task started successfully!',
+                            ? l10n.overdueTaskStarted
+                            : l10n.taskStartedSuccessfully,
                         ),
                         backgroundColor: widget.task.isOverdue ? Colors.orange : null,
                       ),
@@ -1120,7 +1135,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Failed to start task: $e'),
+                        content: Text(l10n.failedToStartTask(e.toString())),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -1128,7 +1143,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 }
               },
         icon: const Icon(Icons.play_arrow),
-        label: Text(widget.task.isOverdue ? 'Start Overdue Task' : 'Start Task'),
+        label: Text(l10n.startTask),
         backgroundColor: widget.task.isOverdue ? Colors.red : null,
       );
     }
@@ -1144,7 +1159,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           );
         },
         icon: const Icon(Icons.check),
-        label: const Text('Complete Task'),
+        label: Text(l10n.completeTask),
         backgroundColor: Colors.green,
       );
     }

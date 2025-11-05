@@ -14,8 +14,9 @@ namespace MaritimeEdge
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Configure port
-            builder.WebHost.UseUrls("http://localhost:5001");
+            // Configure port - Listen on all network interfaces for mobile access
+            // Can be overridden by command line: dotnet run --urls "http://0.0.0.0:5001"
+            builder.WebHost.UseUrls("http://0.0.0.0:5001");
 
             // Add services to the container
             var connectionString = builder.Configuration.GetValue<string>("Database:ConnectionString");

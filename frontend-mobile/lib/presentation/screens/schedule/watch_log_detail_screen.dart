@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../providers/watchkeeping_provider.dart';
 import '../../../data/models/watchkeeping_log.dart';
 import '../../widgets/common/loading_widget.dart';
+import '../../../l10n/app_localizations.dart';
 
 class WatchLogDetailScreen extends StatefulWidget {
   final int logId;
@@ -35,22 +36,23 @@ class _WatchLogDetailScreenState extends State<WatchLogDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Watch Log Details'),
+        title: Text(l10n.watchLogDetails),
         actions: [
           if (_log != null && !_log!.isSigned)
             IconButton(
               icon: const Icon(Icons.add_chart),
               onPressed: () => _showUpdateLogDialog(),
-              tooltip: 'Update Log Entry',
+              tooltip: l10n.updateLogEntry,
             ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: LoadingWidget(message: 'Loading watch log...'))
+          ? Center(child: LoadingWidget(message: l10n.loadingWatchLog))
           : _log == null
-              ? const Center(child: Text('Watch log not found'))
+              ? Center(child: Text(l10n.watchLogNotFound))
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -110,13 +112,13 @@ class _WatchLogDetailScreenState extends State<WatchLogDetailScreen> {
                                         color: Colors.green.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
-                                      child: const Row(
+                                      child: Row(
                                         children: [
-                                          Icon(Icons.check_circle, color: Colors.green, size: 16),
-                                          SizedBox(width: 4),
+                                          const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                                          const SizedBox(width: 4),
                                           Text(
-                                            'Signed',
-                                            style: TextStyle(
+                                            l10n.signed,
+                                            style: const TextStyle(
                                               color: Colors.green,
                                               fontWeight: FontWeight.bold,
                                             ),
@@ -131,13 +133,13 @@ class _WatchLogDetailScreenState extends State<WatchLogDetailScreen> {
                                         color: Colors.red.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
-                                      child: const Row(
+                                      child: Row(
                                         children: [
-                                          Icon(Icons.warning, color: Colors.red, size: 16),
-                                          SizedBox(width: 4),
+                                          const Icon(Icons.warning, color: Colors.red, size: 16),
+                                          const SizedBox(width: 4),
                                           Text(
-                                            'Unsigned',
-                                            style: TextStyle(
+                                            l10n.unsigned,
+                                            style: const TextStyle(
                                               color: Colors.red,
                                               fontWeight: FontWeight.bold,
                                             ),
@@ -156,60 +158,60 @@ class _WatchLogDetailScreenState extends State<WatchLogDetailScreen> {
 
                       // Personnel
                       _buildSection(
-                        'Personnel',
+                        l10n.personnel,
                         Icons.people,
                         [
-                          _buildInfoRow('Officer on Watch', _log!.officerOnWatch),
+                          _buildInfoRow(l10n.officerOnWatch, _log!.officerOnWatch),
                           if (_log!.lookout != null)
-                            _buildInfoRow('Lookout', _log!.lookout!),
+                            _buildInfoRow(l10n.lookout, _log!.lookout!),
                         ],
                       ),
 
                       // Weather & Sea Conditions
                       _buildSection(
-                        'Weather & Sea Conditions',
+                        l10n.weatherSeaConditions,
                         Icons.wb_cloudy,
                         [
                           if (_log!.weatherConditions != null)
-                            _buildInfoRow('Weather', _log!.weatherConditions!),
+                            _buildInfoRow(l10n.weather, _log!.weatherConditions!),
                           if (_log!.seaState != null)
-                            _buildInfoRow('Sea State', _log!.seaStateDisplay),
+                            _buildInfoRow(l10n.seaState, _log!.seaStateDisplay),
                           if (_log!.visibility != null)
-                            _buildInfoRow('Visibility', _log!.visibilityDisplay),
+                            _buildInfoRow(l10n.visibility, _log!.visibilityDisplay),
                         ],
                       ),
 
                       // Navigation Data
                       if (_log!.courseLogged != null || _log!.speedLogged != null || _log!.positionLat != null)
                         _buildSection(
-                          'Navigation Data',
+                          l10n.navigationData,
                           Icons.explore,
                           [
                             if (_log!.courseLogged != null)
-                              _buildInfoRow('Course', '${_log!.courseLogged!.toStringAsFixed(0)}° True'),
+                              _buildInfoRow(l10n.course, '${_log!.courseLogged!.toStringAsFixed(0)}° True'),
                             if (_log!.speedLogged != null)
-                              _buildInfoRow('Speed', '${_log!.speedLogged!.toStringAsFixed(1)} knots'),
+                              _buildInfoRow(l10n.speed, '${_log!.speedLogged!.toStringAsFixed(1)} knots'),
                             if (_log!.distanceRun != null)
-                              _buildInfoRow('Distance Run', '${_log!.distanceRun!.toStringAsFixed(1)} NM'),
+                              _buildInfoRow(l10n.distanceRun, '${_log!.distanceRun!.toStringAsFixed(1)} NM'),
                             if (_log!.positionLat != null)
-                              _buildInfoRow('Position', _log!.positionDisplay),
+                              _buildInfoRow(l10n.shipPosition, _log!.positionDisplay),
                           ],
                         ),
 
                       // Engine Status
                       if (_log!.engineStatus != null)
                         _buildSection(
-                          'Engine Status',
+                          l10n.engineStatus,
                           Icons.settings,
                           [
-                            _buildInfoRow('Status', _log!.engineStatus!),
+                            _buildInfoRow(l10n.status, _log!.engineStatus!),
                           ],
                         ),
 
                       // Notable Events
                       if (_log!.hasNotableEvents)
                         _buildSection(
-                          'Notable Events',
+                          l10n.notableEvents,
                           Icons.event_note,
                           [
                             Container(
@@ -230,7 +232,7 @@ class _WatchLogDetailScreenState extends State<WatchLogDetailScreen> {
                       // Signature
                       if (_log!.isSigned)
                         _buildSection(
-                          'Master Signature',
+                          l10n.masterSignature,
                           Icons.draw,
                           [
                             Container(
@@ -323,25 +325,26 @@ class _WatchLogDetailScreenState extends State<WatchLogDetailScreen> {
   }
 
   Future<void> _showUpdateLogDialog() async {
+    final l10n = AppLocalizations.of(context);
     // Simple dialog to add notable events or update weather conditions
     final notesController = TextEditingController(text: _log?.notableEvents ?? '');
     
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add Log Entry'),
+        title: Text(l10n.addLogEntry),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Add notable events or observations during your watch:'),
+            Text(l10n.addNotableEvents),
             const SizedBox(height: 16),
             TextField(
               controller: notesController,
-              decoration: const InputDecoration(
-                labelText: 'Notable Events',
-                hintText: 'Course alterations, ships sighted, weather changes, etc.',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.notableEvents,
+                hintText: l10n.notableEventsHint,
+                border: const OutlineInputBorder(),
               ),
               maxLines: 4,
               autofocus: true,
@@ -353,14 +356,14 @@ class _WatchLogDetailScreenState extends State<WatchLogDetailScreen> {
                 color: Colors.blue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 16, color: Colors.blue),
-                  SizedBox(width: 8),
+                  const Icon(Icons.info_outline, size: 16, color: Colors.blue),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Only the Master can sign and finalize watch logs.',
-                      style: TextStyle(fontSize: 12, color: Colors.blue),
+                      l10n.onlyMasterCanSign,
+                      style: const TextStyle(fontSize: 12, color: Colors.blue),
                     ),
                   ),
                 ],
@@ -371,11 +374,11 @@ class _WatchLogDetailScreenState extends State<WatchLogDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save'),
+            child: Text(l10n.save),
           ),
         ],
       ),
@@ -385,8 +388,8 @@ class _WatchLogDetailScreenState extends State<WatchLogDetailScreen> {
       // In a real app, you would call an API to update the log
       // For now, just show a success message
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Log entry saved. Waiting for Master signature.'),
+        SnackBar(
+          content: Text(l10n.logEntrySaved),
         ),
       );
     }

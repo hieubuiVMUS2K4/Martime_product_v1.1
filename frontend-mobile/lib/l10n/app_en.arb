@@ -1,0 +1,569 @@
+{
+  "@@locale": "en",
+  "appName": "Maritime Crew App",
+  "@appName": {
+    "description": "The application name"
+  },
+  
+  "login": "Login",
+  "logout": "Logout",
+  "username": "Username",
+  "password": "Password",
+  "pleaseEnterUsername": "Please enter username",
+  "pleaseEnterPassword": "Please enter password",
+  "loginFailed": "Login failed",
+  "loginSuccess": "Login successful",
+  
+  "dashboard": "Dashboard",
+  "tasks": "Tasks",
+  "schedule": "Schedule",
+  "alarms": "Alarms",
+  "settings": "Settings",
+  
+  "myTasks": "My Tasks",
+  "taskDetails": "Task Details",
+  "startTask": "Start Task",
+  "completeTask": "Complete Task",
+  "taskStatus": "Task Status",
+  "taskPriority": "Priority",
+  "dueDate": "Due Date",
+  "estimatedTime": "Estimated Time",
+  "description": "Description",
+  
+  "statusPending": "Pending",
+  "statusInProgress": "In Progress",
+  "statusCompleted": "Completed",
+  "statusOverdue": "Overdue",
+  
+  "priorityCritical": "Critical",
+  "priorityHigh": "High",
+  "priorityNormal": "Normal",
+  "priorityLow": "Low",
+  
+  "account": "Account",
+  "synchronization": "Synchronization",
+  "serverConfiguration": "Server Configuration",
+  "dataStorage": "Data & Storage",
+  "clearCache": "Clear Cache",
+  "removeAllCachedData": "Remove all cached data",
+  "about": "About",
+  "version": "Version",
+  "license": "License",
+  "proprietary": "Proprietary",
+  
+  "syncStatus": "Sync Status",
+  "offline": "Offline",
+  "online": "Online",
+  "itemsWaitingToSync": "{count} items waiting to sync",
+  "@itemsWaitingToSync": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncNow": "Sync Now",
+  "lastSyncAt": "Last sync at {time}",
+  "@lastSyncAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  
+  "serverUrl": "Server URL",
+  "testConnection": "Test Connection",
+  "saveConfiguration": "Save Configuration",
+  "connectionSuccessful": "Connection successful!",
+  "connectionFailed": "Connection failed",
+  "pleaseEnterServerUrl": "Please enter server URL",
+  "invalidUrlFormat": "Invalid URL format (must start with http:// or https://)",
+  
+  "clearCacheTitle": "Clear Cache",
+  "clearCacheMessage": "Are you sure you want to clear all cached data? This will remove all offline data.",
+  "cacheClearedSuccess": "Cache cleared successfully",
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  
+  "logoutTitle": "Logout",
+  "logoutMessage": "Are you sure you want to logout?",
+  
+  "noTasksAvailable": "No tasks available",
+  "loadingTasks": "Loading tasks...",
+  "errorLoadingTasks": "Error loading tasks",
+  "retry": "Retry",
+  
+  "language": "Language",
+  "languageSettings": "Language Settings",
+  "selectLanguage": "Select Language",
+  "languageChanged": "Language changed successfully",
+  "restartRequired": "Please restart the app to apply language changes",
+  
+  "english": "English",
+  "vietnamese": "Tiếng Việt",
+  "filipino": "Filipino",
+  "hindi": "हिंदी",
+  "chinese": "简体中文",
+  "japanese": "日本語",
+  "korean": "한국어",
+  
+  "user": "User",
+  "position": "Position",
+  "crewId": "ID",
+  "notAvailable": "N/A",
+  
+  "justNow": "Just now",
+  "minutesAgo": "{minutes}m ago",
+  "@minutesAgo": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "hoursAgo": "{hours}h ago",
+  "@hoursAgo": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  
+  "home": "Home",
+  "profile": "Profile",
+  "myCertificates": "My Certificates",
+  "myProfile": "My Profile",
+  "expired": "EXPIRED",
+  "expiring": "EXPIRING",
+  
+  "safetyAlarms": "Safety Alarms",
+  "alarmDetails": "Alarm Details",
+  "alarmStatistics": "Alarm Statistics",
+  "alarmHistory": "Alarm History",
+  "acknowledge": "Acknowledge",
+  "resolve": "Resolve",
+  "alarmAcknowledged": "Alarm acknowledged",
+  "alarmResolved": "Alarm resolved",
+  "failedToAcknowledgeAlarm": "Failed to acknowledge alarm",
+  "failedToResolveAlarm": "Failed to resolve alarm",
+  "confirmResolution": "Confirm Resolution",
+  "areYouSureResolveAlarm": "Are you sure you want to resolve this alarm?",
+  "allSystemsNormal": "All systems normal",
+  "generateSampleAlarms": "Generate Sample Alarms",
+  "sampleAlarmsGenerated": "Sample alarms generated",
+  "noDataAvailable": "No data available",
+  
+  "newWatchLog": "New Watch Log",
+  "watchLogDetails": "Watch Log Details",
+  "watchLogNotFound": "Watch log not found",
+  "addLogEntry": "Add Log Entry",
+  "addNotableEvents": "Add notable events or observations during your watch:",
+  "logEntrySaved": "Log entry saved. Waiting for Master signature.",
+  "watchLogCreatedSuccessfully": "Watch log created successfully",
+  "watchDate": "Watch Date",
+  
+  "errorCompletingTask": "Error completing task: {error}",
+  "@errorCompletingTask": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  
+  "pleaseEnterMeasuredValue": "Please enter measured value!",
+  "invalidValue": "Invalid value!",
+  "valueTooLow": "Value too low! Minimum: {min}",
+  "@valueTooLow": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      }
+    }
+  },
+  "valueTooHigh": "Value too high! Maximum: {max}",
+  "@valueTooHigh": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "pleaseEnterObservationNote": "Please enter observation note!",
+  
+  "serverConfigurationSaved": "Server URL saved successfully! Please restart the app.",
+  "failedToSaveUrl": "Failed to save URL: {error}",
+  "@failedToSaveUrl": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "resetToDefault": "Reset to Default",
+  
+  "loginFailedError": "Login failed: {error}",
+  "@loginFailedError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "serverSettings": "Server Settings",
+  
+  "sync": "Sync",
+  "save": "Save",
+  
+  "taskOverview": "Task Overview",
+  "quickAccess": "Quick Access",
+  "crewMember": "Crew Member",
+  "urgentAttention": "Urgent Attention!",
+  "overdueTasksCount": "{count} overdue task(s)",
+  "@overdueTasksCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "itemsPending": "{count} item(s) pending",
+  "@itemsPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "watchSchedule": "Watch\nSchedule",
+  "goodMorning": "Good Morning",
+  "goodAfternoon": "Good Afternoon",
+  "goodEvening": "Good Evening",
+  "goodNight": "Good Night",
+  
+  "updateLogEntry": "Update Log Entry",
+  "loadingWatchLog": "Loading watch log...",
+  "notableEvents": "Notable Events",
+  "notableEventsHint": "Course alterations, ships sighted, weather changes, etc.",
+  "onlyMasterCanSign": "Only the Master can sign and finalize watch logs.",
+  
+  "needsAcknowledgment": "NEEDS ACKNOWLEDGMENT",
+  "location": "Location",
+  "alarmCode": "Alarm Code",
+  "timestamp": "Timestamp",
+  "status": "Status",
+  "acknowledgmentInfo": "Acknowledgment Info",
+  "acknowledgedBy": "Acknowledged By",
+  "acknowledgedAt": "Acknowledged At",
+  "resolvedAt": "Resolved At",
+  "error": "Error",
+  
+  "show": "Show",
+  "daysCount": "{count} days",
+  "@daysCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noAlarmHistory": "No alarm history",
+  "resolved": "Resolved",
+  "acknowledged": "Acknowledged",
+  
+  "viewCertificates": "View Certificates",
+  "loadingProfile": "Loading profile...",
+  "failedToLoadProfile": "Failed to load profile",
+  "profileNotFound": "Profile not found",
+  "crewId": "Crew ID",
+  "personalInformation": "Personal Information",
+  "nationality": "Nationality",
+  "dateOfBirth": "Date of Birth",
+  "rank": "Rank",
+  "department": "Department",
+  "contactInformation": "Contact Information",
+  "email": "Email",
+  "phone": "Phone",
+  "address": "Address",
+  "emergencyContact": "Emergency Contact",
+  "contactInfo": "Contact Info",
+  "documents": "Documents",
+  "passportNumber": "Passport Number",
+  "passportExpiry": "Passport Expiry",
+  "seamanBookNumber": "Seaman Book Number",
+  "visaNumber": "Visa Number",
+  "visaExpiry": "Visa Expiry",
+  "employment": "Employment",
+  "onboard": "ONBOARD",
+  "offboard": "OFFBOARD",
+  "joinDate": "Join Date",
+  "embarkDate": "Embark Date",
+  "disembarkDate": "Disembark Date",
+  "contractEnd": "Contract End",
+  
+  "loadingCertificates": "Loading certificates...",
+  "failedToLoadCertificates": "Failed to load certificates",
+  "noCertificateDataFound": "No certificate data found",
+  "stcwCertificate": "STCW Certificate",
+  "medicalCertificate": "Medical Certificate",
+  "passport": "Passport",
+  "visa": "Visa",
+  "seamanBook": "Seaman Book",
+  "certificatesExpired": "{count} certificate(s) have expired!",
+  "@certificatesExpired": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "certificatesExpiringSoon": "{count} certificate(s) expiring soon",
+  "@certificatesExpiringSoon": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "expiringSoon": "Expiring Soon",
+  "valid": "Valid",
+  "number": "Number",
+  "issued": "Issued",
+  "expires": "Expires",
+  "daysRemaining": "{count} days remaining",
+  "@daysRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  
+  "maintenance": "Maintenance",
+  "loadingSchedule": "Loading schedule...",
+  "upcomingDays": "Upcoming ({count} days)",
+  "@upcomingDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "thisWeek": "This Week",
+  "thisMonth": "This Month",
+  "allTasks": "All Tasks",
+  "total": "Total",
+  "overdue": "Overdue",
+  "dueSoon": "Due Soon",
+  "noTasksScheduled": "No tasks scheduled",
+  "noMaintenanceTasksMatch": "No maintenance tasks match the selected filter",
+  
+  "signed": "Signed",
+  "unsigned": "Unsigned",
+  "personnel": "Personnel",
+  "officerOnWatch": "Officer on Watch",
+  "lookout": "Lookout",
+  "weatherSeaConditions": "Weather & Sea Conditions",
+  "weather": "Weather",
+  "seaState": "Sea State",
+  "visibility": "Visibility",
+  "navigationData": "Navigation Data",
+  "course": "Course",
+  "speed": "Speed",
+  "distanceRun": "Distance Run",
+  "shipPosition": "Position",
+  "engineStatus": "Engine Status",
+  "masterSignature": "Master Signature",
+  
+  "taskCompletedSuccessfully": "Task completed successfully!",
+  "taskSavedWillSync": "Task saved. Will sync when online.",
+  "taskId": "Task ID",
+  "offlineTaskWillSync": "You are offline. Task will be synced when connection is restored.",
+  "runningHoursRequired": "Running Hours *",
+  "enterCurrentRunningHours": "Enter current running hours",
+  "hours": "hours",
+  "pleaseEnterRunningHours": "Please enter running hours",
+  "pleaseEnterValidNumber": "Please enter a valid number",
+  "runningHoursCannotBeLess": "Running hours cannot be less than last maintenance ({hours})",
+  "@runningHoursCannotBeLess": {
+    "placeholders": {
+      "hours": {
+        "type": "double"
+      }
+    }
+  },
+  "sparePartsUsed": "Spare Parts Used",
+  "listSparePartsUsed": "List any spare parts used (optional)",
+  "notes": "Notes",
+  "addAdditionalNotes": "Add any additional notes or observations (optional)",
+  "completingTask": "Completing task...",
+  "savingForOfflineSync": "Saving for offline sync...",
+  
+  "refreshTaskData": "Refresh task data",
+  "taskDataRefreshed": "✅ Task data refreshed",
+  "failedToRefresh": "Failed to refresh: {error}",
+  "@failedToRefresh": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "overdueDaysPastDue": "⚠️ OVERDUE: {days} days past due date",
+  "@overdueDaysPastDue": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "maintenanceSchedule": "Maintenance Schedule",
+  "type": "Type",
+  "interval": "Interval",
+  "runningHoursValue": "{hours} running hours",
+  "@runningHoursValue": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "daysValue": "{days} days",
+  "@daysValue": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "lastDone": "Last Done",
+  "nextDue": "Next Due",
+  "daysUntilDue": "Days Until Due",
+  "runningHours": "Running Hours",
+  "atLastMaintenance": "At Last Maintenance",
+  "hoursValue": "{hours} hours",
+  "@hoursValue": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "assignment": "Assignment",
+  "assignedTo": "Assigned To",
+  "taskChecklist": "📋 Task Checklist",
+  "completionDetails": "Completion Details",
+  "completedBy": "Completed By",
+  "completedAt": "Completed At",
+  "spareParts": "Spare Parts",
+  "errorLoadingChecklist": "Error loading checklist",
+  "tryAgain": "Try Again",
+  "noChecklistYet": "No checklist yet",
+  "thisTaskHasNoDetails": "This task has no details",
+  "progressCount": "Progress: {completed}/{total}",
+  "@progressCount": {
+    "placeholders": {
+      "completed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "mandatory": "MANDATORY",
+  "unitLabel": "Unit: {unit}",
+  "@unitLabel": {
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "measurement": "Measurement",
+  "checklist": "Checklist",
+  "inspection": "Inspection",
+  "completed": "Completed",
+  "measuredValueWithUnit": "Measured value: {value} {unit}",
+  "@measuredValueWithUnit": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "checkResult": "Check Result:",
+  "okPass": "OK / Pass",
+  "ngFail": "NG / Fail",
+  "measuredValue": "Measured Value:",
+  "enterValue": "Enter value...",
+  "limitRange": "Limit: {min} - {max} {unit}",
+  "@limitRange": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "observationNotes": "Observation Notes:",
+  "enterDetailedNotes": "Enter detailed notes...",
+  "notesOptional": "Notes (optional):",
+  "addNotesIfNeeded": "Add notes if needed...",
+  "alreadyCompletedCanUpdate": "Already completed. You can update it.",
+  "savedItem": "✅ Saved: {item}",
+  "@savedItem": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "errorMessage": "❌ Error: {error}",
+  "@errorMessage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "update": "Update",
+  "complete": "Complete",
+  "taskOverdue": "Task Overdue",
+  "thisTaskIsOverdue": "This task is overdue. Starting it now will help catch up on maintenance, but please complete it as soon as possible.",
+  "startAnyway": "Start Anyway",
+  "overdueTaskStarted": "Overdue task started! Please complete ASAP.",
+  "taskStartedSuccessfully": "Task started successfully!",
+  "failedToStartTask": "Failed to start task: {error}",
+  "@failedToStartTask": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  
+  "searchByEquipmentName": "Search by equipment name...",
+  "noTasksFound": "No tasks found",
+  "noTasksInCategory": "You have no tasks in this category",
+  "noPendingTasks": "No pending tasks",
+  "allTasksStartedOrCompleted": "All tasks have been started or completed",
+  "noTasksInProgress": "No tasks in progress",
+  "startPendingTaskToSeeHere": "Start a pending task to see it here",
+  "noOverdueTasks": "No overdue tasks",
+  "allTasksOnSchedule": "Great! All tasks are on schedule",
+  "noCompletedTasks": "No completed tasks",
+  "completedTasksAppearHere": "Complete tasks will appear here",
+  "noTasksMatchSearch": "No tasks match your search",
+  "tryDifferentSearchTerm": "Try a different search term"
+}

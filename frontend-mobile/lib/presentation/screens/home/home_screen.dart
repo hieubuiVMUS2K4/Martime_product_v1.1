@@ -7,6 +7,7 @@ import '../tasks/task_list_screen.dart';
 import '../schedule/schedule_screen.dart';
 import '../profile/profile_screen.dart';
 import '../settings/settings_screen.dart';
+import '../../../l10n/app_localizations.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -38,10 +39,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final taskProvider = Provider.of<TaskProvider>(context);
     final syncProvider = Provider.of<SyncProvider>(context);
+    final l10n = AppLocalizations.of(context);
     
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Maritime Crew App'),
+        title: Text(l10n.appName),
         actions: [
           // Sync indicator
           if (syncProvider.queueSize > 0)
@@ -88,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.home),
-              title: const Text('Home'),
+              title: Text(l10n.home),
               selected: _selectedIndex == 0,
               onTap: () {
                 Navigator.pop(context);
@@ -97,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.task),
-              title: const Text('My Tasks'),
+              title: Text(l10n.myTasks),
               selected: _selectedIndex == 1,
               onTap: () {
                 Navigator.pop(context);
@@ -106,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.calendar_today),
-              title: const Text('Schedule'),
+              title: Text(l10n.schedule),
               selected: _selectedIndex == 2,
               onTap: () {
                 Navigator.pop(context);
@@ -115,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.person),
-              title: const Text('Profile'),
+              title: Text(l10n.profile),
               selected: _selectedIndex == 3,
               onTap: () {
                 Navigator.pop(context);
@@ -125,31 +127,35 @@ class _HomeScreenState extends State<HomeScreen> {
             const Divider(),
             ListTile(
               leading: const Icon(Icons.notifications_active, color: Colors.red),
-              title: const Text(
-                'Safety Alarms',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              title: Text(
+                l10n.safetyAlarms,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/alarms');
+                if (mounted) {
+                  Navigator.pushNamed(context, '/alarms');
+                }
               },
             ),
             ListTile(
               leading: const Icon(Icons.settings),
-              title: const Text('Settings'),
+              title: Text(l10n.settings),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const SettingsScreen(),
-                  ),
-                );
+                if (mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsScreen(),
+                    ),
+                  );
+                }
               },
             ),
             ListTile(
               leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
+              title: Text(l10n.logout),
               onTap: () async {
                 await authProvider.logout();
                 if (context.mounted) {
@@ -170,22 +176,22 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
+            icon: const Icon(Icons.home),
+            label: l10n.home,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.task),
-            label: 'Tasks',
+            icon: const Icon(Icons.task),
+            label: l10n.tasks,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Schedule',
+            icon: const Icon(Icons.calendar_today),
+            label: l10n.schedule,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
+            icon: const Icon(Icons.person),
+            label: l10n.profile,
           ),
         ],
         currentIndex: _selectedIndex,
@@ -196,6 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
   
   Widget _buildHomeTab(TaskProvider taskProvider, SyncProvider syncProvider) {
+    final l10n = AppLocalizations.of(context);
     return RefreshIndicator(
       onRefresh: () => taskProvider.fetchMyTasks(),
       child: SingleChildScrollView(
@@ -214,14 +221,14 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildUrgentAlert(context, taskProvider),
             
             // Task Overview section
-            _buildSectionTitle(context, 'Task Overview'),
+            _buildSectionTitle(context, l10n.taskOverview),
             const SizedBox(height: 10),
             _buildTaskStatsGrid(taskProvider),
             
             const SizedBox(height: 20),
             
             // Quick Access section
-            _buildSectionTitle(context, 'Quick Access'),
+            _buildSectionTitle(context, l10n.quickAccess),
             const SizedBox(height: 10),
             _buildQuickAccessGrid(context),
             
@@ -240,6 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Welcome header with greeting and time
   Widget _buildWelcomeHeader(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return SizedBox(
       height: 64, // Fixed height to prevent overflow
       child: Row(
@@ -251,7 +259,7 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  _getGreeting(),
+                  _getGreeting(l10n),
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         fontSize: 20,
@@ -262,7 +270,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 2),
                 Consumer<AuthProvider>(
                   builder: (context, auth, _) => Text(
-                    auth.fullName ?? 'Crew Member',
+                    auth.fullName ?? l10n.crewMember,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.grey.shade600,
                           fontSize: 14,
@@ -312,6 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Urgent alert banner
   Widget _buildUrgentAlert(BuildContext context, TaskProvider taskProvider) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -332,7 +341,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Urgent Attention!',
+                    l10n.urgentAttention,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.red.shade900,
@@ -340,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   Text(
-                    '${taskProvider.overdueTasks.length} overdue task${taskProvider.overdueTasks.length > 1 ? 's' : ''}',
+                    l10n.overdueTasksCount(taskProvider.overdueTasks.length),
                     style: TextStyle(color: Colors.red.shade700, fontSize: 11),
                   ),
                 ],
@@ -366,6 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Task stats grid (2x2)
   Widget _buildTaskStatsGrid(TaskProvider taskProvider) {
+    final l10n = AppLocalizations.of(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         final cardWidth = (constraints.maxWidth - 8) / 2; // 8 = gap
@@ -379,7 +389,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: cardWidth,
               height: cardHeight,
               child: _buildStatCard(
-                'Pending',
+                l10n.statusPending,
                 taskProvider.pendingTasks.length.toString(),
                 Colors.blue,
                 Icons.pending_actions,
@@ -389,7 +399,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: cardWidth,
               height: cardHeight,
               child: _buildStatCard(
-                'Overdue',
+                l10n.statusOverdue,
                 taskProvider.overdueTasks.length.toString(),
                 Colors.red,
                 Icons.warning,
@@ -399,7 +409,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: cardWidth,
               height: cardHeight,
               child: _buildStatCard(
-                'In Progress',
+                l10n.statusInProgress,
                 taskProvider.inProgressTasks.length.toString(),
                 Colors.orange,
                 Icons.play_circle,
@@ -409,7 +419,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: cardWidth,
               height: cardHeight,
               child: _buildStatCard(
-                'Completed',
+                l10n.statusCompleted,
                 taskProvider.completedTasks.length.toString(),
                 Colors.green,
                 Icons.check_circle,
@@ -423,6 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Quick access grid (3 columns)
   Widget _buildQuickAccessGrid(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         final cardWidth = (constraints.maxWidth - 16) / 3; // 16 = 2 gaps of 8
@@ -437,7 +448,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: cardHeight,
               child: _buildQuickActionCard(
                 context,
-                'Safety\nAlarms',
+                l10n.safetyAlarms,
                 Icons.notifications_active,
                 Colors.red,
                 '/alarms',
@@ -448,7 +459,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: cardHeight,
               child: _buildQuickActionCard(
                 context,
-                'My\nTasks',
+                l10n.myTasks,
                 Icons.task_alt,
                 Colors.blue,
                 null,
@@ -460,7 +471,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: cardHeight,
               child: _buildQuickActionCard(
                 context,
-                'Watch\nSchedule',
+                l10n.watchSchedule,
                 Icons.access_time,
                 Colors.orange,
                 null,
@@ -475,6 +486,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Sync status card
   Widget _buildSyncStatus(SyncProvider syncProvider) {
+    final l10n = AppLocalizations.of(context);
     return Card(
       margin: EdgeInsets.zero,
       color: Colors.orange.shade50,
@@ -486,7 +498,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '${syncProvider.queueSize} item${syncProvider.queueSize > 1 ? 's' : ''} pending',
+                l10n.itemsPending(syncProvider.queueSize),
                 style: TextStyle(
                   color: Colors.orange.shade900,
                   fontSize: 12,
@@ -502,7 +514,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text('Sync', style: TextStyle(fontSize: 11)),
+                child: Text(l10n.sync, style: const TextStyle(fontSize: 11)),
               ),
           ],
         ),
@@ -631,12 +643,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Helper methods for greetings and time
-  String _getGreeting() {
+  String _getGreeting(AppLocalizations l10n) {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    if (hour < 21) return 'Good Evening';
-    return 'Good Night';
+    if (hour < 12) return l10n.goodMorning;
+    if (hour < 17) return l10n.goodAfternoon;
+    if (hour < 21) return l10n.goodEvening;
+    return l10n.goodNight;
   }
 
   String _getCurrentDate() {

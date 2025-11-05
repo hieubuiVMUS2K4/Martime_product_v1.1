@@ -8,6 +8,7 @@ import '../../../core/cache/cache_manager.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
 import 'certificates_screen.dart';
+import '../../../l10n/app_localizations.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -41,9 +42,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Profile'),
+        title: Text(l10n.myProfile),
         actions: [
           IconButton(
             icon: const Icon(Icons.card_membership),
@@ -55,7 +57,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               );
             },
-            tooltip: 'View Certificates',
+            tooltip: l10n.viewCertificates,
           ),
         ],
       ),
@@ -63,12 +65,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         future: _profileFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: LoadingWidget(message: 'Loading profile...'));
+            return Center(child: LoadingWidget(message: l10n.loadingProfile));
           }
 
           if (snapshot.hasError) {
             return ErrorDisplayWidget(
-              message: 'Failed to load profile',
+              message: l10n.failedToLoadProfile,
               onRetry: () {
                 setState(() {
                   _loadProfile();
@@ -79,7 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           final profile = snapshot.data;
           if (profile == null) {
-            return const ErrorDisplayWidget(message: 'Profile not found');
+            return ErrorDisplayWidget(message: l10n.profileNotFound);
           }
 
           return RefreshIndicator(
@@ -109,6 +111,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildHeader(CrewMember profile) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -145,7 +148,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 8),
           Chip(
             label: Text(
-              'Crew ID: ${profile.crewId}',
+              '${l10n.crewId}: ${profile.crewId}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
@@ -155,72 +158,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildPersonalInfo(CrewMember profile) {
+    final l10n = AppLocalizations.of(context);
     final dateFormat = DateFormat('dd MMM yyyy');
     return _buildSection(
-      title: 'Personal Information',
+      title: l10n.personalInformation,
       icon: Icons.person,
       children: [
         if (profile.nationality != null)
-          _buildInfoTile('Nationality', profile.nationality!),
+          _buildInfoTile(l10n.nationality, profile.nationality!),
         if (profile.dateOfBirth != null)
           _buildInfoTile(
-            'Date of Birth',
+            l10n.dateOfBirth,
             dateFormat.format(DateTime.parse(profile.dateOfBirth!)),
           ),
-        if (profile.rank != null) _buildInfoTile('Rank', profile.rank!),
-        if (profile.department != null) _buildInfoTile('Department', profile.department!),
+        if (profile.rank != null) _buildInfoTile(l10n.rank, profile.rank!),
+        if (profile.department != null) _buildInfoTile(l10n.department, profile.department!),
       ],
     );
   }
 
   Widget _buildContactInfo(CrewMember profile) {
+    final l10n = AppLocalizations.of(context);
     return _buildSection(
-      title: 'Contact Information',
+      title: l10n.contactInformation,
       icon: Icons.contact_phone,
       children: [
         if (profile.email != null)
-          _buildInfoTile('Email', profile.email!, icon: Icons.email),
+          _buildInfoTile(l10n.email, profile.email!, icon: Icons.email),
         if (profile.phoneNumber != null)
-          _buildInfoTile('Phone', profile.phoneNumber!, icon: Icons.phone),
+          _buildInfoTile(l10n.phone, profile.phoneNumber!, icon: Icons.phone),
         if (profile.address != null)
-          _buildInfoTile('Address', profile.address!, icon: Icons.home),
+          _buildInfoTile(l10n.address, profile.address!, icon: Icons.home),
       ],
     );
   }
 
   Widget _buildEmergencyContact(CrewMember profile) {
+    final l10n = AppLocalizations.of(context);
     if (profile.emergencyContact == null) return const SizedBox.shrink();
     
     return _buildSection(
-      title: 'Emergency Contact',
+      title: l10n.emergencyContact,
       icon: Icons.emergency,
       children: [
-        _buildInfoTile('Contact Info', profile.emergencyContact!),
+        _buildInfoTile(l10n.contactInfo, profile.emergencyContact!),
       ],
     );
   }
 
   Widget _buildDocuments(CrewMember profile) {
+    final l10n = AppLocalizations.of(context);
     final dateFormat = DateFormat('dd MMM yyyy');
     return _buildSection(
-      title: 'Documents',
+      title: l10n.documents,
       icon: Icons.badge,
       children: [
         if (profile.passportNumber != null)
-          _buildInfoTile('Passport Number', profile.passportNumber!),
+          _buildInfoTile(l10n.passportNumber, profile.passportNumber!),
         if (profile.passportExpiry != null)
           _buildInfoTile(
-            'Passport Expiry',
+            l10n.passportExpiry,
             dateFormat.format(DateTime.parse(profile.passportExpiry!)),
             trailing: _buildExpiryWarning(profile.isPassportExpiring, profile.isPassportExpired),
           ),
         if (profile.seamanBookNumber != null)
-          _buildInfoTile('Seaman Book Number', profile.seamanBookNumber!),
+          _buildInfoTile(l10n.seamanBookNumber, profile.seamanBookNumber!),
         if (profile.visaNumber != null)
-          _buildInfoTile('Visa Number', profile.visaNumber!),
+          _buildInfoTile(l10n.visaNumber, profile.visaNumber!),
         if (profile.visaExpiry != null)
           _buildInfoTile(
-            'Visa Expiry',
+            l10n.visaExpiry,
             dateFormat.format(DateTime.parse(profile.visaExpiry!)),
           ),
       ],
@@ -228,30 +235,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildEmploymentInfo(CrewMember profile) {
+    final l10n = AppLocalizations.of(context);
     final dateFormat = DateFormat('dd MMM yyyy');
     return _buildSection(
-      title: 'Employment',
+      title: l10n.employment,
       icon: Icons.work,
       children: [
-        _buildInfoTile('Status', profile.isOnboard ? 'ONBOARD' : 'OFFBOARD'),
+        _buildInfoTile(l10n.status, profile.isOnboard ? l10n.onboard : l10n.offboard),
         if (profile.joinDate != null)
           _buildInfoTile(
-            'Join Date',
+            l10n.joinDate,
             dateFormat.format(DateTime.parse(profile.joinDate!)),
           ),
         if (profile.embarkDate != null)
           _buildInfoTile(
-            'Embark Date',
+            l10n.embarkDate,
             dateFormat.format(DateTime.parse(profile.embarkDate!)),
           ),
         if (profile.disembarkDate != null)
           _buildInfoTile(
-            'Disembark Date',
+            l10n.disembarkDate,
             dateFormat.format(DateTime.parse(profile.disembarkDate!)),
           ),
         if (profile.contractEnd != null)
           _buildInfoTile(
-            'Contract End',
+            l10n.contractEnd,
             dateFormat.format(DateTime.parse(profile.contractEnd!)),
           ),
       ],
@@ -323,16 +331,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget? _buildExpiryWarning(bool isExpiring, bool isExpired) {
+    final l10n = AppLocalizations.of(context);
     if (isExpired) {
       return Chip(
-        label: const Text('EXPIRED', style: TextStyle(fontSize: 10)),
+        label: Text(l10n.expired, style: const TextStyle(fontSize: 10)),
         backgroundColor: Colors.red.shade100,
         labelStyle: TextStyle(color: Colors.red.shade900),
         padding: EdgeInsets.zero,
       );
     } else if (isExpiring) {
       return Chip(
-        label: const Text('EXPIRING', style: TextStyle(fontSize: 10)),
+        label: Text(l10n.expiring, style: const TextStyle(fontSize: 10)),
         backgroundColor: Colors.orange.shade100,
         labelStyle: TextStyle(color: Colors.orange.shade900),
         padding: EdgeInsets.zero,

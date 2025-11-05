@@ -8,6 +8,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # State Management
   provider: ^6.1.1
@@ -69,6 +71,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true  # Enable l10n generation
   assets:
     - assets/images/
     - assets/icons/

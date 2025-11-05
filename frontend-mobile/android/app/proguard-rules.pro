@@ -74,3 +74,11 @@
     java.lang.Object writeReplace();
     java.lang.Object readResolve();
 }
+
+# Google Play Core
+-keep class com.google.android.play.core.** { *; }
+-dontwarn com.google.android.play.core.**
+
+# Keep Flutter deferred components (optional feature)
+-keep class io.flutter.embedding.engine.deferredcomponents.** { *; }
+-dontwarn io.flutter.embedding.engine.deferredcomponents.**

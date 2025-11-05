@@ -7,6 +7,7 @@ import '../../widgets/common/error_widget.dart';
 import '../../widgets/common/empty_state_widget.dart';
 import '../../widgets/task/task_card.dart';
 import 'task_detail_screen.dart';
+import '../../../l10n/app_localizations.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
@@ -124,10 +125,11 @@ class _TaskListScreenState extends State<TaskListScreen>
     final taskProvider = Provider.of<TaskProvider>(context);
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 400;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Tasks'),
+        title: Text(l10n.myTasks),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: TabBar(
@@ -140,25 +142,25 @@ class _TaskListScreenState extends State<TaskListScreen>
             ),
             tabs: [
               _buildTab(
-                label: 'Pending',
+                label: l10n.statusPending,
                 count: taskProvider.pendingTasks.length,
                 icon: Icons.pending_actions,
                 isSmallScreen: isSmallScreen,
               ),
               _buildTab(
-                label: 'In Progress',
+                label: l10n.statusInProgress,
                 count: taskProvider.inProgressTasks.length,
                 icon: Icons.play_arrow,
                 isSmallScreen: isSmallScreen,
               ),
               _buildTab(
-                label: 'Overdue',
+                label: l10n.statusOverdue,
                 count: taskProvider.overdueTasks.length,
                 icon: Icons.warning,
                 isSmallScreen: isSmallScreen,
               ),
               _buildTab(
-                label: 'Completed',
+                label: l10n.statusCompleted,
                 count: taskProvider.completedTasks.length,
                 icon: Icons.check_circle,
                 isSmallScreen: isSmallScreen,
@@ -178,7 +180,7 @@ class _TaskListScreenState extends State<TaskListScreen>
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search by equipment name...',
+                hintText: l10n.searchByEquipmentName,
                 hintStyle: TextStyle(fontSize: isSmallScreen ? 13 : 14),
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isNotEmpty
@@ -226,8 +228,10 @@ class _TaskListScreenState extends State<TaskListScreen>
   }
 
   Widget _buildTaskList(List<dynamic> tasks, TaskProvider taskProvider, String tabType) {
+    final l10n = AppLocalizations.of(context);
+    
     if (taskProvider.isLoading && tasks.isEmpty) {
-      return const LoadingWidget(message: 'Loading tasks...');
+      return LoadingWidget(message: l10n.loadingTasks);
     }
 
     if (taskProvider.error != null && tasks.isEmpty) {
@@ -248,31 +252,31 @@ class _TaskListScreenState extends State<TaskListScreen>
     }).toList();
 
     if (filteredTasks.isEmpty) {
-      String emptyMessage = 'No tasks found';
-      String emptySubtitle = 'You have no tasks in this category';
+      String emptyMessage = l10n.noTasksFound;
+      String emptySubtitle = l10n.noTasksInCategory;
       
       if (_searchQuery.isEmpty) {
         switch (tabType) {
           case 'pending':
-            emptyMessage = 'No pending tasks';
-            emptySubtitle = 'All tasks have been started or completed';
+            emptyMessage = l10n.noPendingTasks;
+            emptySubtitle = l10n.allTasksStartedOrCompleted;
             break;
           case 'in_progress':
-            emptyMessage = 'No tasks in progress';
-            emptySubtitle = 'Start a pending task to see it here';
+            emptyMessage = l10n.noTasksInProgress;
+            emptySubtitle = l10n.startPendingTaskToSeeHere;
             break;
           case 'overdue':
-            emptyMessage = 'No overdue tasks';
-            emptySubtitle = 'Great! All tasks are on schedule';
+            emptyMessage = l10n.noOverdueTasks;
+            emptySubtitle = l10n.allTasksOnSchedule;
             break;
           case 'completed':
-            emptyMessage = 'No completed tasks';
-            emptySubtitle = 'Complete tasks will appear here';
+            emptyMessage = l10n.noCompletedTasks;
+            emptySubtitle = l10n.completedTasksAppearHere;
             break;
         }
       } else {
-        emptyMessage = 'No tasks match your search';
-        emptySubtitle = 'Try a different search term';
+        emptyMessage = l10n.noTasksMatchSearch;
+        emptySubtitle = l10n.tryDifferentSearchTerm;
       }
       
       return EmptyStateWidget(
