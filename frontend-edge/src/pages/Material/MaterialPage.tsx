@@ -404,21 +404,21 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
   };
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto border border-gray-200 rounded-lg">
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <Th className="text-center">STT</Th>
-            <Th>Name</Th>
-            <Th className="text-center">Category</Th>
-            <Th className="text-center">Unit</Th>
-            <Th className="text-center">On Hand</Th>
-            <Th className="text-center">Min / Max</Th>
-            <Th className="text-center">Location</Th>
-            <Th className="text-center">Part No.</Th>
-            <Th className="text-right">Unit Cost</Th>
-            <Th className="text-center">Status</Th>
-            <Th className="text-center">Actions</Th>
+            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">STT</th>
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">Tên vật tư</th>
+            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Danh mục</th>
+            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Đơn vị</th>
+            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Tồn kho</th>
+            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Min / Max</th>
+            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Vị trí</th>
+            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Mã linh kiện</th>
+            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Đơn giá</th>
+            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-40">Trạng thái</th>
+            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Thao tác</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
@@ -431,52 +431,58 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
             return (
               <tr 
                 key={it.id} 
-                className={`cursor-pointer hover:bg-blue-50 transition-colors ${highlightLow && low ? 'bg-red-50' : ''}`}
+                className={`cursor-pointer hover:bg-gray-50 transition-colors ${highlightLow && low ? 'bg-red-50' : ''}`}
                 onClick={(e) => {
                   // Don't trigger if clicking action buttons
                   if ((e.target as HTMLElement).closest('button')) return;
                   onEdit(it);
                 }}
               >
-                <Td className="text-center"><span className="text-sm text-gray-900">{globalIndex}</span></Td>
-                <Td>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{it.name}</span>
-                    {it.specification && <span className="text-xs text-gray-500">{it.specification}</span>}
-                  </div>
-                </Td>
-                <Td className="text-center">
-                  <span className="text-xs text-gray-600">{getCategoryName(it.categoryId)}</span>
-                </Td>
-                <Td className="text-center"><span className="text-xs">{it.unit}</span></Td>
-                <Td className="text-center">
-                  <span className={`font-medium ${low ? 'text-red-600' : over ? 'text-orange-600' : ''}`}>
+                <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-center">{globalIndex}</td>
+                <td className="px-3 py-3">
+                  <div className="text-sm font-medium text-gray-900">{it.name}</div>
+                  {it.specification && (
+                    <div className="text-xs text-gray-500 mt-1 line-clamp-1">{it.specification}</div>
+                  )}
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap text-center">
+                  <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                    {getCategoryName(it.categoryId)}
+                  </span>
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap text-center">
+                  <span className="text-xs">{it.unit}</span>
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap text-center">
+                  <span className={`text-sm font-medium ${low ? 'text-red-600' : over ? 'text-orange-600' : 'text-gray-900'}`}>
                     {it.onHandQuantity.toFixed(2)}
                   </span>
-                </Td>
-                <Td className="text-center">
-                  <span className="text-xs">
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap text-center">
+                  <span className="text-xs text-gray-600">
                     {it.minStock != null ? it.minStock.toFixed(2) : '-'} / {it.maxStock != null ? it.maxStock.toFixed(2) : '-'}
                   </span>
-                </Td>
-                <Td className="text-center"><span className="text-xs">{it.location || '-'}</span></Td>
-                <Td className="text-center">
-                  <span className="text-xs font-mono">{it.partNumber || '-'}</span>
-                  {it.barcode && <div className="text-xs text-gray-400">🔖 {it.barcode}</div>}
-                </Td>
-                <Td className="text-right">
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap text-center">
+                  <span className="text-xs text-gray-600">{it.location || '-'}</span>
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap text-center">
+                  <span className="text-xs font-mono text-gray-700">{it.partNumber || '-'}</span>
+                  {it.barcode && <div className="text-xs text-gray-400 mt-0.5">🔖 {it.barcode}</div>}
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap text-right">
                   <div className="flex flex-col items-end">
                     {it.unitCost ? (
                       <>
-                        <span className="text-xs font-medium">{it.unitCost.toFixed(2)} {it.currency || 'USD'}</span>
+                        <span className="text-xs font-medium text-gray-900">{it.unitCost.toFixed(2)} {it.currency || 'USD'}</span>
                         {totalValue && <span className="text-xs text-gray-500">= {totalValue.toFixed(2)}</span>}
                       </>
                     ) : (
                       <span className="text-xs text-gray-400">-</span>
                     )}
                   </div>
-                </Td>
-                <Td className="text-center">
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap text-center">
                   <div className="flex flex-wrap gap-1 justify-center">
                     {low && <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700">LOW</span>}
                     {over && <span className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700">OVER</span>}
@@ -485,16 +491,16 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
                     {it.expiryRequired && <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">EXP</span>}
                     {!it.isActive && <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">INACTIVE</span>}
                   </div>
-                </Td>
-                <Td className="text-center">
-                  <div className="flex items-center justify-center gap-2">
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap text-center">
+                  <div className="flex items-center justify-center gap-1.5">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onAdjustStock(it);
                       }}
                       className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
-                      title="Adjust Stock"
+                      title="Điều chỉnh tồn kho"
                     >
                       <TrendingUp className="w-4 h-4" />
                     </button>
@@ -504,12 +510,12 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
                         onDelete(it);
                       }}
                       className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                      title="Delete"
+                      title="Xóa"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                </Td>
+                </td>
               </tr>
             );
           })}
@@ -645,11 +651,4 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
       {icon}{label}
     </button>
   );
-}
-
-function Th({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <th className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${className}`}>{children}</th>;
-}
-function Td({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${className}`}>{children}</td>;
 }
