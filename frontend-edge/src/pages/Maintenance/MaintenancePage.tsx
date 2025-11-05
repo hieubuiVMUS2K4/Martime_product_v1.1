@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Calendar, Download, LayoutGrid, Plus } from 'lucide-react'
+import { Calendar, Download, LayoutGrid } from 'lucide-react'
 import { MaintenanceTask } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { format, parseISO, differenceInDays } from 'date-fns'
@@ -22,8 +22,8 @@ export function MaintenancePage() {
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false)
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false)
   
-  // Time window filter (Jira/ShipNet pattern)
-  const [timeWindow, setTimeWindow] = useState<'7days' | '30days' | '90days' | 'all'>('30days')
+  // Time window filter (Maritime PMS pattern) - Default to Week view for better overview
+  const [timeWindow, setTimeWindow] = useState<'today' | 'week' | '2weeks' | 'month' | 'all'>('week')
   const [showCompleted, setShowCompleted] = useState(false)
 
   // Auto-refresh every 10 seconds to sync with mobile changes
@@ -65,7 +65,7 @@ export function MaintenancePage() {
   const applyFilters = () => {
     let filtered = [...tasks]
 
-    // Time window filter (Jira/ShipNet pattern)
+    // Time window filter (Maritime PMS pattern - Focus on immediate tasks)
     const now = new Date()
     if (timeWindow !== 'all') {
       filtered = filtered.filter(task => {
@@ -77,12 +77,14 @@ export function MaintenancePage() {
         }
         
         switch (timeWindow) {
-          case '7days':
-            return daysUntilDue <= 7
-          case '30days':
-            return daysUntilDue <= 30
-          case '90days':
-            return daysUntilDue <= 90
+          case 'today':
+            return daysUntilDue <= 0 // Due today or earlier
+          case 'week':
+            return daysUntilDue <= 7 // Due within 7 days
+          case '2weeks':
+            return daysUntilDue <= 14 // Due within 2 weeks
+          case 'month':
+            return daysUntilDue <= 30 // Due within 30 days
           default:
             return true
         }
@@ -123,6 +125,51 @@ export function MaintenancePage() {
     })
 
     setFilteredTasks(filtered)
+  }
+
+  // Calculate quick stats for time windows
+  const getTimeWindowStats = () => {
+    const now = new Date()
+    const activeTasks = tasks.filter(t => t.status !== 'COMPLETED')
+    
+    return {
+      today: activeTasks.filter(t => differenceInDays(parseISO(t.nextDueAt), now) <= 0).length,
+      week: activeTasks.filter(t => differenceInDays(parseISO(t.nextDueAt), now) <= 7).length,
+      twoWeeks: activeTasks.filter(t => differenceInDays(parseISO(t.nextDueAt), now) <= 14).length,
+      month: activeTasks.filter(t => differenceInDays(parseISO(t.nextDueAt), now) <= 30).length,
+      all: activeTasks.length
+    }
+  }
+
+  const timeWindowStats = getTimeWindowStats()
+
+  const handleTaskDelete = async (taskId: number) => {
+    try {
+      console.log(`🗑️ Deleting task ${taskId}`)
+      
+      // Optimistic update - remove from UI immediately
+      setTasks(prevTasks => prevTasks.filter(t => t.id !== taskId))
+      
+      // Call API to delete from database
+      await maritimeService.maintenance.delete(taskId)
+      
+      console.log(`✅ Task ${taskId} deleted successfully`)
+      toast.success('Task deleted successfully')
+      
+      // Refresh from server to ensure consistency
+      await loadMaintenanceData(false)
+    } catch (error: any) {
+      console.error('❌ Failed to delete task:', error)
+      
+      // Revert optimistic update on error
+      await loadMaintenanceData(false)
+      
+      const errorMessage = error?.details || error?.data?.message || error?.data?.error || error?.message || 'Failed to delete task'
+      toast.error('Failed to delete task', {
+        description: errorMessage
+      })
+      throw error
+    }
   }
 
   const handleTaskUpdate = async (taskId: number, newStatus: string) => {
@@ -201,16 +248,21 @@ export function MaintenancePage() {
               </div>
             )}
           </div>
-          <p className="text-sm text-gray-600 mt-1">ISM Code Compliance - Equipment Maintenance Tracking • Auto-refresh: 10s</p>
+          <p className="text-sm text-gray-600 mt-1">
+            ISM Code Compliance - Equipment Maintenance Tracking • Auto-refresh: 10s
+            {timeWindow !== 'all' && (
+              <span className="ml-2 text-blue-600 font-medium">
+                • Filtered by: {
+                  timeWindow === 'today' ? 'Today' :
+                  timeWindow === 'week' ? 'This Week' :
+                  timeWindow === '2weeks' ? 'Next 2 Weeks' :
+                  'This Month'
+                }
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex gap-3">
-          <button 
-            onClick={() => setIsAddTaskModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow"
-          >
-            <Plus className="w-5 h-5" />
-            Add New Task
-          </button>
           <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm hover:shadow">
             <Download className="w-5 h-5" />
             Export Report
@@ -240,17 +292,19 @@ export function MaintenancePage() {
         {/* Single Row Filters */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            {/* View Selector */}
+            {/* View Selector - Maritime PMS Standard */}
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-700 whitespace-nowrap">View:</span>
               <select
                 value={timeWindow}
                 onChange={(e) => setTimeWindow(e.target.value as any)}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium"
               >
-                <option value="7days">Next 7 Days</option>
-                <option value="30days">Next 30 Days</option>
-                <option value="90days">Next 3 Months</option>
+                <option value="today">Today ({timeWindowStats.today})</option>
+                <option value="week">This Week ({timeWindowStats.week})</option>
+                <option value="2weeks">Next 2 Weeks ({timeWindowStats.twoWeeks})</option>
+                <option value="month">This Month ({timeWindowStats.month})</option>
+                <option value="all">All Tasks ({timeWindowStats.all})</option>
               </select>
             </div>
 
@@ -320,7 +374,9 @@ export function MaintenancePage() {
               <KanbanBoard 
                 tasks={filteredTasks} 
                 onTaskUpdate={handleTaskUpdate}
+                onTaskDelete={handleTaskDelete}
                 onTaskClick={(id) => navigate(`/maintenance/${id}`)}
+                onAddTask={() => setIsAddTaskModalOpen(true)}
               />
             )}
             

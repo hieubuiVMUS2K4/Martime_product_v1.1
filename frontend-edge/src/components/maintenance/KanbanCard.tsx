@@ -1,8 +1,8 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { MaintenanceTask } from '../../types/maritime.types'
-import { format, parseISO, differenceInDays } from 'date-fns'
-import { Clock, Calendar } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { Calendar } from 'lucide-react'
 
 interface KanbanCardProps {
   task: MaintenanceTask
@@ -27,25 +27,53 @@ export function KanbanCard({ task, onClick, isDragging = false }: KanbanCardProp
     transition,
   }
 
-  const daysUntilDue = differenceInDays(parseISO(task.nextDueAt), new Date())
-
-  const getPriorityLabel = () => {
-    switch (task.priority) {
-      case 'CRITICAL': return { bg: 'bg-red-500', text: 'text-white', label: 'CRITICAL' }
-      case 'HIGH': return { bg: 'bg-orange-500', text: 'text-white', label: 'HIGH' }
-      case 'NORMAL': return { bg: 'bg-cyan-500', text: 'text-white', label: 'NORMAL' }
-      case 'LOW': return { bg: 'bg-gray-400', text: 'text-white', label: 'LOW' }
-      default: return { bg: 'bg-gray-400', text: 'text-white', label: 'UNKNOWN' }
+  const getStatusConfig = () => {
+    switch (task.status) {
+      case 'PENDING': return { 
+        bg: 'bg-blue-50', 
+        text: 'text-blue-700',
+        dot: 'bg-blue-500',
+        label: 'Not Started' 
+      }
+      case 'OVERDUE': return { 
+        bg: 'bg-red-50', 
+        text: 'text-red-700',
+        dot: 'bg-red-500',
+        label: 'Overdue' 
+      }
+      case 'IN_PROGRESS': return { 
+        bg: 'bg-orange-50', 
+        text: 'text-orange-700',
+        dot: 'bg-orange-500',
+        label: 'In Research' 
+      }
+      case 'COMPLETED': return { 
+        bg: 'bg-green-50', 
+        text: 'text-green-700',
+        dot: 'bg-green-500',
+        label: 'Complete' 
+      }
+      default: return { 
+        bg: 'bg-gray-50', 
+        text: 'text-gray-700',
+        dot: 'bg-gray-500',
+        label: 'Unknown' 
+      }
     }
   }
 
-  const getDueDateColor = () => {
-    if (daysUntilDue < 0) return 'bg-red-100 text-red-700 border-red-300'
-    if (daysUntilDue <= 7) return 'bg-orange-100 text-orange-700 border-orange-300'
-    return 'bg-green-100 text-green-700 border-green-300'
+  const getPriorityConfig = () => {
+    switch (task.priority) {
+      case 'CRITICAL': return { badge: 'bg-red-500 text-white', label: 'High' }
+      case 'HIGH': return { badge: 'bg-orange-500 text-white', label: 'High' }
+      case 'NORMAL': return { badge: 'bg-yellow-100 text-yellow-800', label: 'Medium' }
+      case 'LOW': return { badge: 'bg-blue-100 text-blue-800', label: 'Low' }
+      default: return { badge: 'bg-gray-100 text-gray-800', label: 'Low' }
+    }
   }
 
-  const priority = getPriorityLabel()
+  const status = getStatusConfig()
+  const priority = getPriorityConfig()
 
   return (
     <div
@@ -54,81 +82,61 @@ export function KanbanCard({ task, onClick, isDragging = false }: KanbanCardProp
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className={`bg-white rounded-lg p-3 shadow-sm relative
+      className={`
+        bg-white rounded-lg p-3 
+        border border-indigo-300
+        shadow
         transition-all duration-200
-        border-2 border-gray-200
-        cursor-grab active:cursor-grabbing hover:shadow-md hover:border-blue-400
-        ${isDragging ? 'shadow-xl scale-105 opacity-70 border-blue-500' : ''}
+        cursor-grab active:cursor-grabbing 
+        hover:shadow-lg hover:border-indigo-400
+        ${isDragging ? 'shadow-xl scale-105 opacity-60 rotate-2' : ''}
       `}
-      title="Kéo để di chuyển"
     >
-      {/* Top Bar: Priority */}
-      <div className="flex items-start justify-between mb-2">
-        <span className={`${priority.bg} ${priority.text} px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide shadow-sm`}>
-          {priority.label}
+      {/* Status Badge */}
+      <div className="mb-2">
+        <span className={`inline-flex items-center gap-1 ${status.bg} ${status.text} px-2 py-0.5 rounded text-[10px] font-medium`}>
+          <div className={`w-1 h-1 rounded-full ${status.dot}`} />
+          {status.label}
         </span>
       </div>
 
-      {/* Equipment Name (Title) */}
-      <h4 className="font-bold text-gray-900 text-sm mb-1 line-clamp-1 leading-tight">
+      {/* Title */}
+      <h4 className="font-semibold text-gray-900 text-sm leading-tight mb-2 line-clamp-2">
         {task.equipmentName}
       </h4>
 
-      {/* Task ID */}
-      <p className="text-[10px] text-gray-500 font-mono mb-2">
-        {task.taskId}
-      </p>
-
-      {/* Description - 1 line only */}
-      <p className="text-xs text-gray-600 mb-2.5 line-clamp-1">
+      {/* Description */}
+      <p className="text-xs text-gray-500 mb-3 line-clamp-2 leading-relaxed">
         {task.taskDescription}
       </p>
 
-      {/* Due Date - Compact */}
-      <div className="mb-2.5">
-        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded border ${getDueDateColor()}`}>
-          <Calendar className="w-3 h-3" />
-          <span className="text-[10px] font-semibold">
-            {format(parseISO(task.nextDueAt), 'dd/MM/yyyy')}
+      {/* Assignees */}
+      <div className="flex items-center gap-1.5 mb-3">
+        <span className="text-[11px] text-gray-600 font-medium">Assignees:</span>
+        {task.assignedTo ? (
+          <span className="text-[11px] text-gray-900 font-medium">
+            {task.assignedTo}
           </span>
-          <span className="text-[9px] font-bold ml-1">
-            {daysUntilDue < 0 
-              ? `(-${Math.abs(daysUntilDue)}d)` 
-              : daysUntilDue === 0 
-              ? '(Hôm nay!)' 
-              : `(${daysUntilDue}d)`
-            }
-          </span>
-        </div>
-      </div>
-
-      {/* Bottom: Assignee + Interval */}
-      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-        {/* Assigned Person */}
-        {task.assignedTo && (
-          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">
-              {task.assignedTo.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-            </div>
-            <span className="text-[10px] text-gray-700 font-medium truncate">
-              {task.assignedTo}
-            </span>
-          </div>
+        ) : (
+          <span className="text-[11px] text-gray-400 italic">Unassigned</span>
         )}
-        
-        {/* Interval */}
-        <div className="flex items-center gap-0.5 text-gray-500 flex-shrink-0 ml-2">
-          <Clock className="w-3 h-3" />
-          <span className="text-[10px] font-medium">
-            {task.intervalDays ? `${task.intervalDays}d` : task.intervalHours ? `${task.intervalHours}h` : '-'}
-          </span>
-        </div>
       </div>
 
-      {/* IN_PROGRESS indicator */}
-      {task.status === 'IN_PROGRESS' && (
-        <div className="mt-2 h-1 bg-blue-500 rounded-full" />
-      )}
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+        {/* Due Date */}
+        <div className="flex items-center gap-1 text-gray-600">
+          <Calendar className="w-3.5 h-3.5" />
+          <span className="text-[11px] font-medium">
+            {format(parseISO(task.nextDueAt), 'dd MMM yyyy')}
+          </span>
+        </div>
+
+        {/* Priority Badge */}
+        <span className={`${priority.badge} px-2 py-0.5 rounded text-[10px] font-semibold`}>
+          {priority.label}
+        </span>
+      </div>
     </div>
   )
 }
