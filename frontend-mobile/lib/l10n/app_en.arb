@@ -521,6 +521,7 @@
   "notesOptional": "Notes (optional):",
   "addNotesIfNeeded": "Add notes if needed...",
   "alreadyCompletedCanUpdate": "Already completed. You can update it.",
+  "tapToComplete": "👆 Tap to complete",
   "savedItem": "✅ Saved: {item}",
   "@savedItem": {
     "placeholders": {

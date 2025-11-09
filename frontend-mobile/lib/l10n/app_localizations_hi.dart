@@ -944,6 +944,9 @@ class AppLocalizationsHi extends AppLocalizations {
       'Already completed. You can update it.';
 
   @override
+  String get tapToComplete => '👆 Tap to complete';
+
+  @override
   String savedItem(String item) {
     return '✅ Saved: $item';
   }

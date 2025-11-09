@@ -324,6 +324,7 @@
   "notesOptional": "Ghi chú (tùy chọn):",
   "addNotesIfNeeded": "Thêm ghi chú nếu cần...",
   "alreadyCompletedCanUpdate": "Đã hoàn thành trước đó. Bạn có thể cập nhật lại.",
+  "tapToComplete": "👆 Chạm để hoàn thành",
   "savedItem": "✅ Đã lưu: {item}",
   "errorMessage": "❌ Lỗi: {error}",
   "update": "Cập nhật",

@@ -44,6 +44,7 @@ class TaskCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
+                    flex: 3,
                     child: Text(
                       task.equipmentName,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -55,7 +56,10 @@ class TaskCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  PriorityBadge(priority: task.priority),
+                  Flexible(
+                    flex: 1,
+                    child: PriorityBadge(priority: task.priority),
+                  ),
                 ],
               ),
               SizedBox(height: isSmallScreen ? 6 : 8),
@@ -81,13 +85,18 @@ class TaskCard extends StatelessWidget {
               ),
               SizedBox(height: isSmallScreen ? 10 : 12),
 
-              // Footer: Status + Due date
+              // Footer: Status + Due date - Fixed responsive
               Row(
                 children: [
-                  Flexible(child: StatusBadge(task: task)),
+                  Flexible(
+                    flex: 1,
+                    child: StatusBadge(task: task),
+                  ),
                   const SizedBox(width: 8),
-                  const Spacer(),
-                  Flexible(child: _buildDueDate(context, isSmallScreen)),
+                  Flexible(
+                    flex: 1,
+                    child: _buildDueDate(context, isSmallScreen),
+                  ),
                 ],
               ),
             ],
@@ -131,12 +140,16 @@ class TaskCard extends StatelessWidget {
       children: [
         Icon(icon, size: isSmallScreen ? 14 : 16, color: color),
         const SizedBox(width: 4),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: isSmallScreen ? 11 : 12,
-            color: color,
-            fontWeight: isOverdue || isDueSoon ? FontWeight.bold : FontWeight.normal,
+        Flexible(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 11 : 12,
+              color: color,
+              fontWeight: isOverdue || isDueSoon ? FontWeight.bold : FontWeight.normal,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
