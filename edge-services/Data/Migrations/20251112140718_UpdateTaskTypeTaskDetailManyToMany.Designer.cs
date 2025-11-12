@@ -3,6 +3,7 @@ using System;
 using MaritimeEdge.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MaritimeEdge.Data.Migrations
 {
     [DbContext(typeof(EdgeDbContext))]
-    partial class EdgeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251112140718_UpdateTaskTypeTaskDetailManyToMany")]
+    partial class UpdateTaskTypeTaskDetailManyToMany
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2092,6 +2095,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("requires_signature");
 
+                    b.Property<int?>("TaskTypeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("task_type_id");
+
                     b.Property<string>("Unit")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
@@ -2103,6 +2110,12 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("IsActive")
                         .HasDatabaseName("idx_task_detail_active")
                         .HasFilter("is_active = true");
+
+                    b.HasIndex("TaskTypeId")
+                        .HasDatabaseName("idx_task_detail_type_id");
+
+                    b.HasIndex("TaskTypeId", "OrderIndex")
+                        .HasDatabaseName("idx_task_detail_type_order");
 
                     b.ToTable("task_details", "public");
                 });
@@ -2456,23 +2469,22 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("watchkeeping_logs", "public");
                 });
 
-            modelBuilder.Entity("TaskTypeTaskDetail", b =>
+            modelBuilder.Entity("TaskDetailTaskType", b =>
                 {
-                    b.Property<int>("TaskTypeId")
-                        .HasColumnType("integer");
+                    b.Property<long>("TaskDetailsId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("task_details_id");
 
-                    b.Property<long>("TaskDetailId")
-                        .HasColumnType("bigint");
+                    b.Property<int>("TaskTypesId")
+                        .HasColumnType("integer")
+                        .HasColumnName("task_types_id");
 
-                    b.HasKey("TaskTypeId", "TaskDetailId");
+                    b.HasKey("TaskDetailsId", "TaskTypesId")
+                        .HasName("p_k_task_detail_task_type");
 
-                    b.HasIndex("TaskDetailId")
-                        .HasDatabaseName("idx_tttd_task_detail_id");
+                    b.HasIndex("TaskTypesId");
 
-                    b.HasIndex("TaskTypeId")
-                        .HasDatabaseName("idx_tttd_task_type_id");
-
-                    b.ToTable("task_type_task_details", "public");
+                    b.ToTable("task_detail_task_type", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.MaintenanceTask", b =>
@@ -2529,6 +2541,14 @@ namespace MaritimeEdge.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.TaskDetail", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.TaskType", null)
+                        .WithMany()
+                        .HasForeignKey("TaskTypeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.User", b =>
                 {
                     b.HasOne("MaritimeEdge.Models.CrewMember", null)
@@ -2544,19 +2564,21 @@ namespace MaritimeEdge.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("TaskTypeTaskDetail", b =>
+            modelBuilder.Entity("TaskDetailTaskType", b =>
                 {
                     b.HasOne("MaritimeEdge.Models.TaskDetail", null)
                         .WithMany()
-                        .HasForeignKey("TaskDetailId")
+                        .HasForeignKey("TaskDetailsId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("f_k_task_detail_task_type_task_details_task_details_id");
 
                     b.HasOne("MaritimeEdge.Models.TaskType", null)
                         .WithMany()
-                        .HasForeignKey("TaskTypeId")
+                        .HasForeignKey("TaskTypesId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("f_k_task_detail_task_type_task_types_task_types_id");
                 });
 #pragma warning restore 612, 618
         }

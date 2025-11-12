@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Users, UserPlus, Shield, Calendar, AlertTriangle, FileText } from 'lucide-react'
 import { CrewMember } from '../../types/maritime.types'
@@ -17,6 +17,10 @@ export function CrewPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterRank, setFilterRank] = useState<string>('all')
   const [showAddModal, setShowAddModal] = useState(false)
+
+  // Sorting states
+  const [sortType, setSortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>(null)
+  const [sortMenu, setSortMenu] = useState<string | null>(null)
 
   useEffect(() => {
     loadCrewData()
@@ -64,6 +68,77 @@ export function CrewPage() {
 
     setFilteredCrew(filtered)
   }
+
+  // Sorted crew members with sorting logic
+  const sortedCrew = useMemo(() => {
+    if (!sortType) return filteredCrew;
+    const sorted = [...filteredCrew];
+    switch (sortType.col) {
+      case 'fullName':
+        sorted.sort((a, b) => {
+          return sortType.dir === 'asc'
+            ? a.fullName.localeCompare(b.fullName)
+            : b.fullName.localeCompare(a.fullName);
+        });
+        break;
+      case 'position':
+        sorted.sort((a, b) => {
+          return sortType.dir === 'asc'
+            ? a.position.localeCompare(b.position)
+            : b.position.localeCompare(a.position);
+        });
+        break;
+      case 'rank':
+        sorted.sort((a, b) => {
+          const aRank = a.rank || '';
+          const bRank = b.rank || '';
+          return sortType.dir === 'asc'
+            ? aRank.localeCompare(bRank)
+            : bRank.localeCompare(aRank);
+        });
+        break;
+      case 'crewId':
+        sorted.sort((a, b) => {
+          return sortType.dir === 'asc'
+            ? a.crewId.localeCompare(b.crewId)
+            : b.crewId.localeCompare(a.crewId);
+        });
+        break;
+      case 'certificateExpiry':
+        sorted.sort((a, b) => {
+          const aDate = a.certificateExpiry ? new Date(a.certificateExpiry).getTime() : 0;
+          const bDate = b.certificateExpiry ? new Date(b.certificateExpiry).getTime() : 0;
+          return sortType.dir === 'asc' ? aDate - bDate : bDate - aDate;
+        });
+        break;
+      case 'medicalExpiry':
+        sorted.sort((a, b) => {
+          const aDate = a.medicalExpiry ? new Date(a.medicalExpiry).getTime() : 0;
+          const bDate = b.medicalExpiry ? new Date(b.medicalExpiry).getTime() : 0;
+          return sortType.dir === 'asc' ? aDate - bDate : bDate - aDate;
+        });
+        break;
+      case 'embarkDate':
+        sorted.sort((a, b) => {
+          const aDate = a.embarkDate ? new Date(a.embarkDate).getTime() : 0;
+          const bDate = b.embarkDate ? new Date(b.embarkDate).getTime() : 0;
+          return sortType.dir === 'asc' ? aDate - bDate : bDate - aDate;
+        });
+        break;
+      case 'status':
+        sorted.sort((a, b) => {
+          const aStatus = a.isOnboard ? 'Onboard' : 'Ashore';
+          const bStatus = b.isOnboard ? 'Onboard' : 'Ashore';
+          return sortType.dir === 'asc'
+            ? aStatus.localeCompare(bStatus)
+            : bStatus.localeCompare(aStatus);
+        });
+        break;
+      default:
+        break;
+    }
+    return sorted;
+  }, [filteredCrew, sortType]);
 
   const getCertificateStatus = (expiryDate?: string) => {
     if (!expiryDate) return { status: 'unknown', daysLeft: null, color: 'text-gray-500' }
@@ -193,13 +268,23 @@ export function CrewPage() {
           ) : (
             <>
               {activeTab === 'certificates' ? (
-                <CertificateMonitorView crewMembers={filteredCrew} />
+                <CertificateMonitorView 
+                  crewMembers={sortedCrew}
+                  sortType={sortType}
+                  setSortType={setSortType}
+                  sortMenu={sortMenu}
+                  setSortMenu={setSortMenu}  
+                />
               ) : activeTab === 'reports' ? (
                 <ReportsView crewMembers={crewMembers} />
               ) : (
                 <CrewListView 
-                  crewMembers={filteredCrew} 
+                  crewMembers={sortedCrew} 
                   onViewCrew={(id) => navigate(`/crew/${id}`)} 
+                  sortType={sortType}
+                  setSortType={setSortType}
+                  sortMenu={sortMenu}
+                  setSortMenu={setSortMenu}
                 />
               )}
             </>
@@ -219,7 +304,21 @@ export function CrewPage() {
 }
 
 // Crew List View Component
-function CrewListView({ crewMembers, onViewCrew }: { crewMembers: CrewMember[]; onViewCrew: (id: number) => void }) {
+function CrewListView({ 
+  crewMembers, 
+  onViewCrew, 
+  sortType, 
+  setSortType, 
+  sortMenu, 
+  setSortMenu 
+}: { 
+  crewMembers: CrewMember[]; 
+  onViewCrew: (id: number) => void;
+  sortType?: { col: string; dir: 'asc'|'desc' } | null;
+  setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
+  sortMenu?: string | null;
+  setSortMenu?: (sortMenu: string | null) => void;
+}) {
   const [currentPage, setCurrentPage] = useState(1)
   const ITEMS_PER_PAGE = 10
 
@@ -254,6 +353,41 @@ function CrewListView({ crewMembers, onViewCrew }: { crewMembers: CrewMember[]; 
   const endIndex = startIndex + ITEMS_PER_PAGE
   const paginatedCrew = crewMembers.slice(startIndex, endIndex)
 
+  // SortDropdown component
+  function SortDropdown({ col, options, sortType, setSortType, sortMenu, setSortMenu }: {
+    col: string;
+    options: Array<{ label: string; dir: 'asc'|'desc' }>;
+    sortType: any;
+    setSortType: any;
+    sortMenu: any;
+    setSortMenu: any;
+  }) {
+    return (
+      <div className="absolute top-1/2 right-0 -translate-y-1/2" style={{zIndex:2}}>
+        <button
+          className="text-gray-400 hover:text-blue-600 text-base p-1"
+          onClick={e => { e.stopPropagation(); setSortMenu(sortMenu === col ? null : col) }}
+          style={{lineHeight:0}}
+        >
+          ▼
+        </button>
+        {sortMenu === col && (
+          <div className="absolute right-0 mt-6 w-40 bg-white border border-gray-200 rounded shadow-lg z-20">
+            {options.map(opt => (
+              <button
+                key={opt.label}
+                className={`block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${sortType?.col === col && sortType?.dir === opt.dir ? 'text-blue-600 font-bold' : 'text-gray-700'}`}
+                onClick={e => { e.stopPropagation(); setSortType({col,dir:opt.dir}); setSortMenu(null) }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       {/* Pagination */}
@@ -284,21 +418,61 @@ function CrewListView({ crewMembers, onViewCrew }: { crewMembers: CrewMember[]; 
         </div>
       )}
 
-      <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
+      <div className="overflow-x-auto border border-gray-200 rounded-lg">
+      <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
         <thead className="bg-gray-50 dark:bg-gray-800">
           <tr>
-            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Crew ID</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
-            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Position</th>
-            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rank</th>
-            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">STCW Cert</th>
-            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Medical</th>
-            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Embark Date</th>
-            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '8%', position:'relative'}}>
+              Crew ID
+              {setSortType && setSortMenu && (
+                <SortDropdown col="crewId" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+              )}
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '22%', position:'relative'}}>
+              Name
+              {setSortType && setSortMenu && (
+                <SortDropdown col="fullName" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+              )}
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '12%', position:'relative'}}>
+              Position
+              {setSortType && setSortMenu && (
+                <SortDropdown col="position" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+              )}
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '8%', position:'relative'}}>
+              Rank
+              {setSortType && setSortMenu && (
+                <SortDropdown col="rank" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+              )}
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '12%', position:'relative'}}>
+              STCW Cert
+              {setSortType && setSortMenu && (
+                <SortDropdown col="certificateExpiry" options={[{label:'Hết hạn sớm nhất',dir:'asc'},{label:'Hết hạn muộn nhất',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+              )}
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '12%', position:'relative'}}>
+              Medical
+              {setSortType && setSortMenu && (
+                <SortDropdown col="medicalExpiry" options={[{label:'Hết hạn sớm nhất',dir:'asc'},{label:'Hết hạn muộn nhất',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+              )}
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '10%', position:'relative'}}>
+              Embark Date
+              {setSortType && setSortMenu && (
+                <SortDropdown col="embarkDate" options={[{label:'Ngày gần nhất',dir:'desc'},{label:'Ngày xa nhất',dir:'asc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+              )}
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider relative" style={{width: '16%', position:'relative'}}>
+              Status
+              {setSortType && setSortMenu && (
+                <SortDropdown col="status" options={[{label:'Onboard trước',dir:'desc'},{label:'Ashore trước',dir:'asc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+              )}
+            </th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white">
           {paginatedCrew.map((crew) => {
             const certStatus = getCertStatus(crew.certificateExpiry)
             const medicalStatus = getCertStatus(crew.medicalExpiry)
@@ -307,54 +481,58 @@ function CrewListView({ crewMembers, onViewCrew }: { crewMembers: CrewMember[]; 
               <tr 
                 key={crew.id} 
                 onClick={() => onViewCrew(crew.id)}
-                className="hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                className="hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer transition-colors border-b border-gray-200"
               >
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white text-center">
-                  {crew.crewId}
+                <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white text-center border-r border-gray-200" style={{width: '8%'}}>
+                  <div className="truncate">{crew.crewId}</div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-4 py-3 border-r border-gray-200" style={{width: '22%'}}>
                   <div className="flex items-center">
-                    <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                      <span className="text-blue-600 dark:text-blue-300 font-semibold">
+                    <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
+                      <span className="text-blue-600 dark:text-blue-300 font-semibold text-xs">
                         {crew.fullName.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </span>
                     </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{crew.fullName}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{crew.nationality || 'N/A'}</p>
+                    <div className="ml-2 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{crew.fullName}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{crew.nationality || 'N/A'}</p>
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{crew.position}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getRankColor(crew.rank)}`}>
+                <td className="px-4 py-3 text-sm text-gray-900 text-center border-r border-gray-200" style={{width: '12%'}}>
+                  <div className="truncate">{crew.position}</div>
+                </td>
+                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getRankColor(crew.rank)} truncate`}>
                     {crew.rank || 'N/A'}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
+                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '12%'}}>
                   <div className="text-xs flex flex-col items-center">
-                    <span className={`px-2 py-1 rounded-full font-semibold ${certStatus.className}`}>
+                    <span className={`px-2 py-1 rounded-full font-semibold ${certStatus.className} truncate`}>
                       {certStatus.badge}
                     </span>
                     {crew.certificateExpiry && (
-                      <p className="text-gray-500 mt-1">{format(parseISO(crew.certificateExpiry), 'dd MMM yyyy')}</p>
+                      <p className="text-gray-500 mt-1 truncate">{format(parseISO(crew.certificateExpiry), 'dd MMM yyyy')}</p>
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
+                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '12%'}}>
                   <div className="text-xs flex flex-col items-center">
-                    <span className={`px-2 py-1 rounded-full font-semibold ${medicalStatus.className}`}>
+                    <span className={`px-2 py-1 rounded-full font-semibold ${medicalStatus.className} truncate`}>
                       {medicalStatus.badge}
                     </span>
                     {crew.medicalExpiry && (
-                      <p className="text-gray-500 mt-1">{format(parseISO(crew.medicalExpiry), 'dd MMM yyyy')}</p>
+                      <p className="text-gray-500 mt-1 truncate">{format(parseISO(crew.medicalExpiry), 'dd MMM yyyy')}</p>
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                  {crew.embarkDate ? format(parseISO(crew.embarkDate), 'dd MMM yyyy') : 'N/A'}
+                <td className="px-4 py-3 text-sm text-gray-500 text-center border-r border-gray-200" style={{width: '10%'}}>
+                  <div className="truncate">
+                    {crew.embarkDate ? format(parseISO(crew.embarkDate), 'dd MMM yyyy') : 'N/A'}
+                  </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
+                <td className="px-4 py-3 text-center" style={{width: '16%'}}>
                   {crew.isOnboard ? (
                     <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
                       Onboard
@@ -383,7 +561,19 @@ function CrewListView({ crewMembers, onViewCrew }: { crewMembers: CrewMember[]; 
 }
 
 // Certificate Monitor View Component
-function CertificateMonitorView({ crewMembers }: { crewMembers: CrewMember[] }) {
+function CertificateMonitorView({ 
+  crewMembers, 
+  sortType, 
+  setSortType, 
+  sortMenu, 
+  setSortMenu 
+}: { 
+  crewMembers: CrewMember[];
+  sortType?: { col: string; dir: 'asc'|'desc' } | null;
+  setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
+  sortMenu?: string | null;
+  setSortMenu?: (sortMenu: string | null) => void;
+}) {
   const [currentPage, setCurrentPage] = useState(1)
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const ITEMS_PER_PAGE = 10
@@ -437,6 +627,41 @@ function CertificateMonitorView({ crewMembers }: { crewMembers: CrewMember[] }) 
   const endIndex = startIndex + ITEMS_PER_PAGE
   const paginatedCrew = expiringCrew.slice(startIndex, endIndex)
 
+  // SortDropdown component for certificate monitor
+  function SortDropdown({ col, options, sortType, setSortType, sortMenu, setSortMenu }: {
+    col: string;
+    options: Array<{ label: string; dir: 'asc'|'desc' }>;
+    sortType: any;
+    setSortType: any;
+    sortMenu: any;
+    setSortMenu: any;
+  }) {
+    return (
+      <div className="absolute top-1/2 right-0 -translate-y-1/2" style={{zIndex:2}}>
+        <button
+          className="text-gray-400 hover:text-blue-600 text-base p-1"
+          onClick={e => { e.stopPropagation(); setSortMenu(sortMenu === col ? null : col) }}
+          style={{lineHeight:0}}
+        >
+          ▼
+        </button>
+        {sortMenu === col && (
+          <div className="absolute right-0 mt-6 w-40 bg-white border border-gray-200 rounded shadow-lg z-20">
+            {options.map(opt => (
+              <button
+                key={opt.label}
+                className={`block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${sortType?.col === col && sortType?.dir === opt.dir ? 'text-blue-600 font-bold' : 'text-gray-700'}`}
+                onClick={e => { e.stopPropagation(); setSortType({col,dir:opt.dir}); setSortMenu(null) }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -477,20 +702,40 @@ function CertificateMonitorView({ crewMembers }: { crewMembers: CrewMember[] }) 
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+      <div className="overflow-x-auto border border-gray-200 rounded-lg">
+        <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-8"></th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Crew Member</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Crew ID</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Certificates</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '5%'}}></th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '20%', position:'relative'}}>
+                Crew Member
+                {setSortType && setSortMenu && (
+                  <SortDropdown col="fullName" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+                )}
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '15%', position:'relative'}}>
+                Position
+                {setSortType && setSortMenu && (
+                  <SortDropdown col="position" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+                )}
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '12%', position:'relative'}}>
+                Rank
+                {setSortType && setSortMenu && (
+                  <SortDropdown col="rank" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+                )}
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '12%', position:'relative'}}>
+                Crew ID
+                {setSortType && setSortMenu && (
+                  <SortDropdown col="crewId" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+                )}
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '18%'}}>Certificates</th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '18%'}}>Status</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white">
             {paginatedCrew.map((crew) => {
               const isExpanded = expandedId === crew.id
               const statusColor = crew.expiredCount > 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
@@ -515,28 +760,28 @@ function CertificateMonitorView({ crewMembers }: { crewMembers: CrewMember[] }) 
                   <tr 
                     key={crew.id}
                     onClick={() => setExpandedId(isExpanded ? null : crew.id)}
-                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                    className="hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-200"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                    <td className="px-4 py-3 text-sm text-gray-500 text-center border-r border-gray-200" style={{width: '5%'}}>
                       <button className="text-gray-400 hover:text-gray-600">
                         {isExpanded ? '▼' : '▶'}
                       </button>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{crew.fullName}</div>
+                    <td className="px-4 py-3 border-r border-gray-200" style={{width: '20%'}}>
+                      <div className="text-sm font-medium text-gray-900 truncate">{crew.fullName}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="text-sm text-gray-900">{crew.position}</div>
+                    <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '15%'}}>
+                      <div className="text-sm text-gray-900 truncate">{crew.position}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getRankColor(crew.rank)}`}>
+                    <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '12%'}}>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getRankColor(crew.rank)} truncate`}>
                         {crew.rank || 'N/A'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="text-sm text-gray-500">{crew.crewId}</div>
+                    <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '12%'}}>
+                      <div className="text-sm text-gray-500 truncate">{crew.crewId}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '18%'}}>
                       <div className="flex items-center justify-center gap-2">
                         <span 
                           className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-700 text-sm font-semibold relative group cursor-help"
@@ -562,8 +807,8 @@ function CertificateMonitorView({ crewMembers }: { crewMembers: CrewMember[] }) 
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}`}>
+                    <td className="px-4 py-3 text-center" style={{width: '18%'}}>
+                      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor} truncate`}>
                         {crew.expiredCount > 0 ? 'Expired' : 'Expiring Soon'}
                       </span>
                     </td>
@@ -572,7 +817,7 @@ function CertificateMonitorView({ crewMembers }: { crewMembers: CrewMember[] }) 
                   {/* Expanded Certificate Details */}
                   {isExpanded && (
                     <tr>
-                      <td colSpan={7} className="px-6 py-4 bg-gray-50">
+                      <td colSpan={7} className="px-4 py-4 bg-gray-50 border-b border-gray-200">
                         <div className="space-y-4">
                           <div className={`grid gap-4 ${
                             crew.certificates.length === 1 ? 'grid-cols-1 md:grid-cols-2' :

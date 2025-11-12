@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Info, Plus, Search, ChevronRight, ChevronLeft } from 'lucide-react'
 import type { TaskType, TaskDetail } from '../../types/maritime.types'
 import { TaskDetailFormModal } from './TaskDetailFormModal'
+import { taskManagementService } from '../../services/taskManagementService'
 
 interface TaskTypeFormModalProps {
   isOpen: boolean
@@ -49,39 +50,47 @@ export function TaskTypeFormModal({
   const [selectedRightItems, setSelectedRightItems] = useState<number[]>([])
 
   useEffect(() => {
-    if (taskType) {
-      setFormData({
-        typeCode: taskType.taskTypeCode,
-        typeName: taskType.typeName,
-        category: taskType.category,
-        description: taskType.description || '',
-        defaultPriority: taskType.priority,
-        estimatedDurationHours: taskType.estimatedDurationMinutes ? (taskType.estimatedDurationMinutes / 60).toString() : '',
-        requiredCertification: '',
-        requiresApproval: taskType.requiresApproval,
-        isActive: taskType.isActive,
-      })
-      // Load selected details for this task type if editing
-      // Filter allDetails to find ones with this taskTypeId
-      const currentDetailIds = allDetails
-        .filter(d => d.taskTypeId === taskType.id)
-        .map(d => d.id)
-      setSelectedDetailIds(currentDetailIds)
-    } else {
-      setFormData({
-        typeCode: '',
-        typeName: '',
-        category: 'ENGINE',
-        description: '',
-        defaultPriority: 'NORMAL',
-        estimatedDurationHours: '',
-        requiredCertification: '',
-        requiresApproval: false,
-        isActive: true,
-      })
-      setSelectedDetailIds([])
+    const loadData = async () => {
+      if (taskType) {
+        setFormData({
+          typeCode: taskType.taskTypeCode,
+          typeName: taskType.typeName,
+          category: taskType.category,
+          description: taskType.description || '',
+          defaultPriority: taskType.priority,
+          estimatedDurationHours: taskType.estimatedDurationMinutes ? (taskType.estimatedDurationMinutes / 60).toString() : '',
+          requiredCertification: '',
+          requiresApproval: taskType.requiresApproval,
+          isActive: taskType.isActive,
+        })
+        
+        // Load chi tiết đã được gán cho task type này qua API many-to-many
+        try {
+          const assignedDetails = await taskManagementService.getTaskTypeDetails(taskType.id)
+          const currentDetailIds = assignedDetails.map(d => d.id)
+          setSelectedDetailIds(currentDetailIds)
+        } catch (error) {
+          console.error('Error loading assigned details:', error)
+          setSelectedDetailIds([])
+        }
+      } else {
+        setFormData({
+          typeCode: '',
+          typeName: '',
+          category: 'ENGINE',
+          description: '',
+          defaultPriority: 'NORMAL',
+          estimatedDurationHours: '',
+          requiredCertification: '',
+          requiresApproval: false,
+          isActive: true,
+        })
+        setSelectedDetailIds([])
+      }
+      setError('')
     }
-    setError('')
+    
+    loadData()
   }, [taskType, isOpen, allDetails])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -142,7 +151,9 @@ export function TaskTypeFormModal({
     }
   }
 
-  const availableDetails = allDetails.filter(d => d.isActive && !selectedDetailIds.includes(d.id))
+  // Sửa: Cho phép một chi tiết được chọn cho nhiều loại công việc
+  // availableDetails: tất cả chi tiết đang hoạt động, trừ những chi tiết đã được chọn trong modal này
+  const availableDetails = allDetails.filter(d => d.isActive)
   const selectedDetails = allDetails.filter(d => selectedDetailIds.includes(d.id))
 
   // Filter by search

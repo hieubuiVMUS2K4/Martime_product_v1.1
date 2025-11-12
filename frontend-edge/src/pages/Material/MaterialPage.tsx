@@ -32,6 +32,14 @@ export function MaterialPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // State filter/sort cho bảng
+  const [sortType, setSortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>(null);
+  const [sortMenu, setSortMenu] = useState<string | null>(null); // col name or null
+  
+  // Category sorting state
+  const [categorySortType, setCategorySortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>(null);
+  const [categorySortMenu, setCategorySortMenu] = useState<string | null>(null);
+
   useEffect(() => {
     loadData();
   }, [activeTab]);
@@ -136,6 +144,47 @@ export function MaterialPage() {
     return data;
   }, [items, search, categoryId, filterUnit]);
 
+  // Sorting for items
+  const sortedItems = useMemo(() => {
+    if (!sortType) return filteredItems;
+    const sorted = [...filteredItems];
+    switch (sortType.col) {
+      case 'name':
+        sorted.sort((a, b) => {
+          return sortType.dir === 'asc'
+            ? a.name.localeCompare(b.name)
+            : b.name.localeCompare(a.name);
+        });
+        break;
+      case 'category':
+        sorted.sort((a, b) => {
+          const aCat = categories.find(c => c.id === a.categoryId)?.name || '';
+          const bCat = categories.find(c => c.id === b.categoryId)?.name || '';
+          return sortType.dir === 'asc'
+            ? aCat.localeCompare(bCat)
+            : bCat.localeCompare(aCat);
+        });
+        break;
+      case 'stock':
+        sorted.sort((a, b) => {
+          return sortType.dir === 'asc' 
+            ? a.onHandQuantity - b.onHandQuantity 
+            : b.onHandQuantity - a.onHandQuantity;
+        });
+        break;
+      case 'unitCost':
+        sorted.sort((a, b) => {
+          const aCost = a.unitCost || 0;
+          const bCost = b.unitCost || 0;
+          return sortType.dir === 'asc' ? aCost - bCost : bCost - aCost;
+        });
+        break;
+      default:
+        break;
+    }
+    return sorted;
+  }, [filteredItems, sortType, categories]);
+
   const filteredCategories = useMemo(() => {
     if (!categorySearch) return categories;
     const q = categorySearch.toLowerCase();
@@ -146,14 +195,46 @@ export function MaterialPage() {
     );
   }, [categories, categorySearch]);
 
+  // Sorting for categories
+  const sortedCategories = useMemo(() => {
+    if (!categorySortType) return filteredCategories;
+    const sorted = [...filteredCategories];
+    switch (categorySortType.col) {
+      case 'name':
+        sorted.sort((a, b) => {
+          return categorySortType.dir === 'asc'
+            ? a.name.localeCompare(b.name)
+            : b.name.localeCompare(a.name);
+        });
+        break;
+      case 'code':
+        sorted.sort((a, b) => {
+          return categorySortType.dir === 'asc'
+            ? a.categoryCode.localeCompare(b.categoryCode)
+            : b.categoryCode.localeCompare(a.categoryCode);
+        });
+        break;
+      case 'status':
+        sorted.sort((a, b) => {
+          const aActive = a.isActive ? 1 : 0;
+          const bActive = b.isActive ? 1 : 0;
+          return categorySortType.dir === 'asc' ? aActive - bActive : bActive - aActive;
+        });
+        break;
+      default:
+        break;
+    }
+    return sorted;
+  }, [filteredCategories, categorySortType]);
+
   // Pagination for items
   const paginatedItems = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return filteredItems.slice(startIndex, endIndex);
-  }, [filteredItems, currentPage, itemsPerPage]);
+    return sortedItems.slice(startIndex, endIndex);
+  }, [sortedItems, currentPage, itemsPerPage]);
 
-  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedItems.length / itemsPerPage);
 
   // Reset to page 1 when filter changes
   useEffect(() => {
@@ -297,12 +378,16 @@ export function MaterialPage() {
               <>
                 {activeTab === 'categories' ? (
                   <CategoryList 
-                    categories={filteredCategories}
+                    categories={sortedCategories}
                     onEdit={(cat) => {
                       setEditingCategory(cat);
                       setCategoryModalOpen(true);
                     }}
                     onDelete={handleDeleteCategory}
+                    sortType={categorySortType}
+                    setSortType={setCategorySortType}
+                    sortMenu={categorySortMenu}
+                    setSortMenu={setCategorySortMenu}
                   />
                 ) : activeTab === 'low' ? (
                   <ItemList 
@@ -325,7 +410,7 @@ export function MaterialPage() {
                     <div className="flex items-center justify-between mb-4">
                       {/* Left - Display info */}
                       <div className="text-sm text-gray-600">
-                        Hiển thị {filteredItems.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredItems.length)} trong tổng số {filteredItems.length} vật tư
+                        Hiển thị {sortedItems.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedItems.length)} trong tổng số {sortedItems.length} vật tư
                       </div>
 
                       {/* Right - Pagination */}
@@ -368,6 +453,10 @@ export function MaterialPage() {
                       }}
                       currentPage={currentPage}
                       itemsPerPage={itemsPerPage}
+                      sortType={sortType}
+                      setSortType={setSortType}
+                      sortMenu={sortMenu}
+                      setSortMenu={setSortMenu}
                     />
                   </div>
                 )}
@@ -415,7 +504,7 @@ export function MaterialPage() {
   );
 }
 
-function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, onAdjustStock, currentPage, itemsPerPage }: { 
+function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, onAdjustStock, currentPage, itemsPerPage, sortType, setSortType, sortMenu, setSortMenu }: { 
   items: MaterialItem[]; 
   highlightLow?: boolean; 
   categories: MaterialCategory[];
@@ -424,30 +513,89 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
   onAdjustStock: (item: MaterialItem) => void;
   currentPage?: number;
   itemsPerPage?: number;
+  sortType?: { col: string; dir: 'asc'|'desc' } | null;
+  setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
+  sortMenu?: string | null;
+  setSortMenu?: (sortMenu: string | null) => void;
 }) {
   const getCategoryName = (catId: number) => {
     const cat = categories.find(c => c.id === catId);
     return cat?.name || 'Unknown';
   };
+
+  // SortDropdown component
+  function SortDropdown({ col, options, sortType, setSortType, sortMenu, setSortMenu }: {
+    col: string;
+    options: Array<{ label: string; dir: 'asc'|'desc' }>;
+    sortType: any;
+    setSortType: any;
+    sortMenu: any;
+    setSortMenu: any;
+  }) {
+    return (
+      <div className="absolute top-1/2 right-0 -translate-y-1/2" style={{zIndex:2}}>
+        <button
+          className="text-gray-400 hover:text-blue-600 text-base p-1"
+          onClick={e => { e.stopPropagation(); setSortMenu(sortMenu === col ? null : col) }}
+          style={{lineHeight:0}}
+        >
+          ▼
+        </button>
+        {sortMenu === col && (
+          <div className="absolute right-0 mt-6 w-40 bg-white border border-gray-200 rounded shadow-lg z-20">
+            {options.map(opt => (
+              <button
+                key={opt.label}
+                className={`block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${sortType?.col === col && sortType?.dir === opt.dir ? 'text-blue-600 font-bold' : 'text-gray-700'}`}
+                onClick={e => { e.stopPropagation(); setSortType({col,dir:opt.dir}); setSortMenu(null) }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="overflow-x-auto border border-gray-200 rounded-lg">
-      <table className="min-w-full divide-y divide-gray-200">
+      <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">STT</th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">Tên vật tư</th>
-            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Danh mục</th>
-            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Đơn vị</th>
-            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Tồn kho</th>
-            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Min / Max</th>
-            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Vị trí</th>
-            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Mã linh kiện</th>
-            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Đơn giá</th>
-            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-40">Trạng thái</th>
-            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Thao tác</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '5%'}}>STT</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '26%'}}>
+              Tên vật tư
+              {setSortType && setSortMenu && (
+                <SortDropdown col="name" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+              )}
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '12%'}}>
+              Danh mục
+              {setSortType && setSortMenu && (
+                <SortDropdown col="category" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+              )}
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '6%'}}>Đơn vị</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '8%'}}>
+              Tồn kho
+              {setSortType && setSortMenu && (
+                <SortDropdown col="stock" options={[{label:'Sắp xếp tăng dần',dir:'asc'},{label:'Sắp xếp giảm dần',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+              )}
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '12%'}}>Min / Max</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '12%'}}>Mã linh kiện</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '10%'}}>
+              Đơn giá
+              {setSortType && setSortMenu && (
+                <SortDropdown col="unitCost" options={[{label:'Sắp xếp tăng dần',dir:'asc'},{label:'Sắp xếp giảm dần',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+              )}
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '12%'}}>Trạng thái</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8%'}}>Thao tác</th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white">
           {items.map((it, index) => {
             const low = it.minStock != null && it.onHandQuantity < (it.minStock ?? 0);
             const over = it.maxStock != null && it.onHandQuantity > (it.maxStock ?? 0);
@@ -457,47 +605,44 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
             return (
               <tr 
                 key={it.id} 
-                className={`cursor-pointer hover:bg-gray-50 transition-colors ${highlightLow && low ? 'bg-red-50' : ''}`}
+                className={`cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-200 ${highlightLow && low ? 'bg-red-50' : ''}`}
                 onClick={(e) => {
                   // Don't trigger if clicking action buttons
                   if ((e.target as HTMLElement).closest('button')) return;
                   onEdit(it);
                 }}
               >
-                <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-center">{globalIndex}</td>
-                <td className="px-3 py-3">
-                  <div className="text-sm font-medium text-gray-900">{it.name}</div>
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center border-r border-gray-300" style={{width: '5%'}}>{globalIndex}</td>
+                <td className="px-4 py-3 border-r border-gray-300" style={{width: '26%'}}>
+                  <div className="text-sm font-medium text-gray-900 truncate">{it.name}</div>
                   {it.specification && (
-                    <div className="text-xs text-gray-500 mt-1 line-clamp-1">{it.specification}</div>
+                    <div className="text-xs text-gray-500 mt-1 truncate">{it.specification}</div>
                   )}
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap text-center">
-                  <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '12%'}}>
+                  <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 truncate">
                     {getCategoryName(it.categoryId)}
                   </span>
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap text-center">
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '6%'}}>
                   <span className="text-xs">{it.unit}</span>
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap text-center">
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '8%'}}>
                   <span className={`text-sm font-medium ${low ? 'text-red-600' : over ? 'text-orange-600' : 'text-gray-900'}`}>
                     {it.onHandQuantity.toFixed(2)}
                   </span>
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap text-center">
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '12%'}}>
                   <span className="text-xs text-gray-600">
                     {it.minStock != null ? it.minStock.toFixed(2) : '-'} / {it.maxStock != null ? it.maxStock.toFixed(2) : '-'}
                   </span>
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap text-center">
-                  <span className="text-xs text-gray-600">{it.location || '-'}</span>
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '12%'}}>
+                  <span className="text-xs font-mono text-gray-700 truncate">{it.partNumber || '-'}</span>
+                  {it.barcode && <div className="text-xs text-gray-400 mt-0.5 truncate">🔖 {it.barcode}</div>}
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap text-center">
-                  <span className="text-xs font-mono text-gray-700">{it.partNumber || '-'}</span>
-                  {it.barcode && <div className="text-xs text-gray-400 mt-0.5">🔖 {it.barcode}</div>}
-                </td>
-                <td className="px-3 py-3 whitespace-nowrap text-right">
-                  <div className="flex flex-col items-end">
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '10%'}}>
+                  <div className="flex flex-col items-center">
                     {it.unitCost ? (
                       <>
                         <span className="text-xs font-medium text-gray-900">{it.unitCost.toFixed(2)} {it.currency || 'USD'}</span>
@@ -508,17 +653,17 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
                     )}
                   </div>
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap text-center">
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '12%'}}>
                   <div className="flex flex-wrap gap-1 justify-center">
-                    {low && <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700">LOW</span>}
-                    {over && <span className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700">OVER</span>}
-                    {it.serialTracked && <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700">SN</span>}
-                    {it.batchTracked && <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700">BATCH</span>}
-                    {it.expiryRequired && <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">EXP</span>}
-                    {!it.isActive && <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">INACTIVE</span>}
+                    {low && <span className="px-1 py-0.5 text-xs rounded-full bg-red-100 text-red-700">LOW</span>}
+                    {over && <span className="px-1 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700">OVER</span>}
+                    {it.serialTracked && <span className="px-1 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700">SN</span>}
+                    {it.batchTracked && <span className="px-1 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700">BATCH</span>}
+                    {it.expiryRequired && <span className="px-1 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">EXP</span>}
+                    {!it.isActive && <span className="px-1 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">INACTIVE</span>}
                   </div>
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap text-center">
+                <td className="px-4 py-3 whitespace-nowrap text-center" style={{width: '8%'}}>
                   <div className="flex items-center justify-center gap-1.5">
                     <button
                       onClick={(e) => {
@@ -558,90 +703,152 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
   );
 }
 
-function CategoryList({ categories, onEdit, onDelete }: { 
+function CategoryList({ categories, onEdit, onDelete, sortType, setSortType, sortMenu, setSortMenu }: { 
   categories: MaterialCategory[];
   onEdit: (category: MaterialCategory) => void;
   onDelete: (category: MaterialCategory) => void;
+  sortType?: { col: string; dir: 'asc'|'desc' } | null;
+  setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
+  sortMenu?: string | null;
+  setSortMenu?: (sortMenu: string | null) => void;
 }) {
-  const roots = categories.filter(c => !c.parentCategoryId);
-  const children = (pid: number) => categories.filter(c => c.parentCategoryId === pid);
+  // SortDropdown component for categories
+  function SortDropdown({ col, options, sortType, setSortType, sortMenu, setSortMenu }: {
+    col: string;
+    options: Array<{ label: string; dir: 'asc'|'desc' }>;
+    sortType: any;
+    setSortType: any;
+    sortMenu: any;
+    setSortMenu: any;
+  }) {
+    return (
+      <div className="absolute top-1/2 right-0 -translate-y-1/2" style={{zIndex:2}}>
+        <button
+          className="text-gray-400 hover:text-blue-600 text-base p-1"
+          onClick={e => { e.stopPropagation(); setSortMenu(sortMenu === col ? null : col) }}
+          style={{lineHeight:0}}
+        >
+          ▼
+        </button>
+        {sortMenu === col && (
+          <div className="absolute right-0 mt-6 w-40 bg-white border border-gray-200 rounded shadow-lg z-20">
+            {options.map(opt => (
+              <button
+                key={opt.label}
+                className={`block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${sortType?.col === col && sortType?.dir === opt.dir ? 'text-blue-600 font-bold' : 'text-gray-700'}`}
+                onClick={e => { e.stopPropagation(); setSortType({col,dir:opt.dir}); setSortMenu(null) }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-3">
-      {roots.map(root => (
-        <div key={root.id} className="border border-gray-200 rounded-lg">
-          <div className="p-4 flex items-center justify-between bg-gray-50">
-            <div className="flex items-center gap-2">
-              <Tag className="w-4 h-4 text-blue-600" />
-              <div>
-                <p className="font-semibold text-gray-900">{root.name}</p>
-                <p className="text-xs text-gray-500">{root.categoryCode}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className={`px-2 py-1 text-xs rounded-full ${root.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                {root.isActive ? 'Active' : 'Inactive'}
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => onEdit(root)}
-                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                  title="Edit"
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => onDelete(root)}
-                  className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-          {children(root.id).length > 0 && (
-            <div className="p-4">
-              <div className="grid md:grid-cols-2 gap-3">
-                {children(root.id).map(sc => (
-                  <div key={sc.id} className="border border-gray-200 rounded p-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{sc.name}</p>
-                        <p className="text-xs text-gray-500">{sc.categoryCode}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 text-xs rounded-full ${sc.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                          {sc.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => onEdit(sc)}
-                            className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => onDelete(sc)}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    {sc.description && <p className="text-sm text-gray-600 mt-2">{sc.description}</p>}
+    <div className="overflow-x-auto border border-gray-200 rounded-lg">
+      <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '8%'}}>STT</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '25%'}}>
+              Tên danh mục
+              {setSortType && setSortMenu && (
+                <SortDropdown col="name" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+              )}
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '15%'}}>
+              Mã danh mục
+              {setSortType && setSortMenu && (
+                <SortDropdown col="code" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+              )}
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '25%'}}>Mô tả</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '15%'}}>Danh mục cha</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '12%'}}>
+              Trạng thái
+              {setSortType && setSortMenu && (
+                <SortDropdown col="status" options={[{label:'Hoạt động trước',dir:'desc'},{label:'Không hoạt động trước',dir:'asc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+              )}
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10%'}}>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white">
+          {categories.map((cat, index) => {
+            const parentCat = cat.parentCategoryId ? categories.find(c => c.id === cat.parentCategoryId) : null;
+            return (
+              <tr 
+                key={cat.id} 
+                className="cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-200"
+                onClick={(e) => {
+                  // Don't trigger if clicking action buttons
+                  if ((e.target as HTMLElement).closest('button')) return;
+                  onEdit(cat);
+                }}
+              >
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center border-r border-gray-300" style={{width: '8%'}}>{index + 1}</td>
+                <td className="px-4 py-3 border-r border-gray-300" style={{width: '25%'}}>
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <div className="text-sm font-medium text-gray-900 truncate">{cat.name}</div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '15%'}}>
+                  <span className="text-xs font-mono text-gray-700">{cat.categoryCode}</span>
+                </td>
+                <td className="px-4 py-3 border-r border-gray-300" style={{width: '25%'}}>
+                  <div className="text-xs text-gray-600 line-clamp-2">
+                    {cat.description || '-'}
+                  </div>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '15%'}}>
+                  {parentCat ? (
+                    <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700 truncate">
+                      {parentCat.name}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400">Root</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '12%'}}>
+                  <span className={`text-xs px-2 py-1 rounded-full ${cat.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                    {cat.isActive ? 'Hoạt động' : 'Không hoạt động'}
+                  </span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-center" style={{width: '10%'}}>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(cat);
+                      }}
+                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title="Sửa"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(cat);
+                      }}
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Xóa"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
 
-      {roots.length === 0 && (
+      {categories.length === 0 && (
         <div className="text-center py-12">
           <Layers className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500">No categories found</p>

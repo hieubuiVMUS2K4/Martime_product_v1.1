@@ -477,6 +477,21 @@ public class EdgeDbContext : DbContext
             entity.HasIndex(e => e.IsActive)
                 .HasDatabaseName("idx_task_type_active")
                 .HasFilter("is_active = true");
+
+            // Many-to-many relationship with TaskDetail
+            entity.HasMany(e => e.TaskDetails)
+                .WithMany(e => e.TaskTypes)
+                .UsingEntity<Dictionary<string, object>>(
+                    "TaskTypeTaskDetail",
+                    j => j.HasOne<TaskDetail>().WithMany().HasForeignKey("TaskDetailId"),
+                    j => j.HasOne<TaskType>().WithMany().HasForeignKey("TaskTypeId"),
+                    j =>
+                    {
+                        j.ToTable("task_type_task_details");
+                        j.HasKey("TaskTypeId", "TaskDetailId");
+                        j.HasIndex("TaskTypeId").HasDatabaseName("idx_tttd_task_type_id");
+                        j.HasIndex("TaskDetailId").HasDatabaseName("idx_tttd_task_detail_id");
+                    });
         });
 
         // ========== TASK DETAILS ==========
@@ -487,22 +502,13 @@ public class EdgeDbContext : DbContext
             entity.Property(e => e.MinValue).HasColumnType("decimal(10,3)");
             entity.Property(e => e.MaxValue).HasColumnType("decimal(10,3)");
 
-            entity.HasIndex(e => e.TaskTypeId)
-                .HasDatabaseName("idx_task_detail_type_id");
-
-            entity.HasIndex(e => new { e.TaskTypeId, e.OrderIndex })
-                .HasDatabaseName("idx_task_detail_type_order");
+            // Indexes for TaskTypeId removed - now using many-to-many relationship
 
             entity.HasIndex(e => e.IsActive)
                 .HasDatabaseName("idx_task_detail_active")
                 .HasFilter("is_active = true");
 
-            // Foreign key to TaskType - now optional (nullable)
-            entity.HasOne<TaskType>()
-                .WithMany()
-                .HasForeignKey(e => e.TaskTypeId)
-                .OnDelete(DeleteBehavior.SetNull)
-                .IsRequired(false);
+            // TaskTypeId removed - now using many-to-many relationship
         });
 
         // ========== MAINTENANCE TASK DETAILS (N-N junction table) ==========

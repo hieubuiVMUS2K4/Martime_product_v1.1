@@ -3,6 +3,7 @@ using System;
 using MaritimeEdge.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MaritimeEdge.Data.Migrations
 {
     [DbContext(typeof(EdgeDbContext))]
-    partial class EdgeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251112143317_CreateTaskTypeTaskDetailJoinTable")]
+    partial class CreateTaskTypeTaskDetailJoinTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2092,6 +2095,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("requires_signature");
 
+                    b.Property<int?>("TaskTypeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("task_type_id");
+
                     b.Property<string>("Unit")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
@@ -2103,6 +2110,12 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("IsActive")
                         .HasDatabaseName("idx_task_detail_active")
                         .HasFilter("is_active = true");
+
+                    b.HasIndex("TaskTypeId")
+                        .HasDatabaseName("idx_task_detail_type_id");
+
+                    b.HasIndex("TaskTypeId", "OrderIndex")
+                        .HasDatabaseName("idx_task_detail_type_order");
 
                     b.ToTable("task_details", "public");
                 });
@@ -2527,6 +2540,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.TaskDetail", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.TaskType", null)
+                        .WithMany()
+                        .HasForeignKey("TaskTypeId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.User", b =>

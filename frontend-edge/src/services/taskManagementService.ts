@@ -78,6 +78,27 @@ interface ApiListResponse<T> {
 // ============================================================
 
 class TaskManagementService {
+  // Gán nhiều chi tiết cho một loại công việc (nhiều-nhiều)
+  async assignDetailsToTaskType(taskTypeId: number, detailIds: number[]): Promise<void> {
+    const response = await apiClient.put<ApiResponse<void>>(
+      `${this.baseUrl}/task-types/${taskTypeId}/details/assign`,
+      { DetailIds: detailIds }
+    )
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to assign details to task type')
+    }
+  }
+
+  // Lấy danh sách chi tiết đã được gán cho một loại công việc
+  async getTaskTypeDetails(taskTypeId: number): Promise<TaskDetail[]> {
+    const response = await apiClient.get<ApiResponse<TaskDetail[]>>(
+      `${this.baseUrl}/task-types/${taskTypeId}/assigned-details`
+    )
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to get task type details')
+    }
+    return response.data || []
+  }
   private baseUrl = '/task-management'
 
   // ============================================================

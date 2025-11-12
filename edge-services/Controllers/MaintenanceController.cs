@@ -582,9 +582,9 @@ public class MaintenanceController : ControllerBase
                 return Ok(new List<object>());
             }
 
-            // Lấy task details từ TaskType
+            // Lấy task details từ TaskType using many-to-many relationship
             var taskDetails = await _context.TaskDetails
-                .Where(td => td.TaskTypeId == task.TaskTypeId && td.IsActive)
+                .Where(td => td.TaskTypes.Any(tt => tt.Id == task.TaskTypeId) && td.IsActive)
                 .OrderBy(td => td.OrderIndex)
                 .ToListAsync();
 
@@ -602,7 +602,7 @@ public class MaintenanceController : ControllerBase
                     taskDetail = new
                     {
                         id = td.Id,
-                        taskTypeId = td.TaskTypeId,
+                        taskTypeId = task.TaskTypeId, // Use the task's TaskTypeId instead
                         detailName = td.DetailName,
                         description = td.Description,
                         orderIndex = td.OrderIndex,
@@ -733,9 +733,9 @@ public class MaintenanceController : ControllerBase
                 return Ok(new { total = 0, completed = 0, percentage = 100 });
             }
 
-            // Count total mandatory task details
+            // Count total mandatory task details using many-to-many relationship
             var totalMandatory = await _context.TaskDetails
-                .Where(td => td.TaskTypeId == task.TaskTypeId && td.IsActive && td.IsMandatory)
+                .Where(td => td.TaskTypes.Any(tt => tt.Id == task.TaskTypeId) && td.IsActive && td.IsMandatory)
                 .CountAsync();
 
             // Count completed mandatory items

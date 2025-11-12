@@ -11,6 +11,7 @@ export function TaskManagementPage() {
   const [activeTab, setActiveTab] = useState<TabType>('details')
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([])
   const [taskDetails, setTaskDetails] = useState<TaskDetail[]>([])
+  const [taskTypeDetailCounts, setTaskTypeDetailCounts] = useState<Record<number, number>>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterDetailType, setFilterDetailType] = useState<string>('ALL')
@@ -23,6 +24,10 @@ export function TaskManagementPage() {
   const [currentTypePage, setCurrentTypePage] = useState(1)
   const itemsPerPage = 12
   const typesPerPage = 10
+
+    // State filter/sort cho bảng
+  const [sortType, setSortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>(null)
+  const [sortMenu, setSortMenu] = useState<string | null>(null) // col name or null
 
   // Utility data
   const [categories, setCategories] = useState<Array<{ code: string; name: string }>>([])
@@ -40,6 +45,24 @@ export function TaskManagementPage() {
     loadUtilityData()
   }, [])
 
+  const loadTaskTypeDetailCounts = async (types: TaskType[]) => {
+    const counts: Record<number, number> = {}
+    await Promise.all(
+      types.map(async (type) => {
+        if (type.id) {
+          try {
+            const details = await taskManagementService.getTaskTypeDetails(type.id)
+            counts[type.id] = details.length
+          } catch (error) {
+            console.error(`Failed to load details for task type ${type.id}:`, error)
+            counts[type.id] = 0
+          }
+        }
+      })
+    )
+    setTaskTypeDetailCounts(counts)
+  }
+
   const loadData = async () => {
     try {
       setLoading(true)
@@ -56,6 +79,9 @@ export function TaskManagementPage() {
       }))
       setTaskTypes(mappedTypes)
       setTaskDetails(details)
+      
+      // Load detail counts for each task type using many-to-many API
+      await loadTaskTypeDetailCounts(mappedTypes)
     } catch (e) {
       console.error('Failed to load task management data:', e)
     } finally {
@@ -89,83 +115,35 @@ export function TaskManagementPage() {
       requiresApproval: data.requiresApproval,
       priority: data.priority,
     }
-    
     // Tạo TaskType trước
     const createdTaskType = await taskManagementService.createTaskType(createDto)
-    
-    // Sau đó assign các details đã chọn
+    // Gán chi tiết cho loại công việc qua API liên kết nhiều-nhiều
     if (data.selectedDetailIds && data.selectedDetailIds.length > 0) {
       try {
-        // Update taskTypeId cho từng detail
-        await Promise.all(
-          data.selectedDetailIds.map((detailId: number) =>
-            taskManagementService.updateTaskDetail(detailId, {
-              taskTypeId: createdTaskType.id
-            })
-          )
-        )
+        await taskManagementService.assignDetailsToTaskType(createdTaskType.id, data.selectedDetailIds)
         console.log(`✅ Đã gán ${data.selectedDetailIds.length} chi tiết cho TaskType ${createdTaskType.id}`)
       } catch (error) {
         console.error('❌ Lỗi khi gán chi tiết:', error)
         alert('TaskType đã được tạo nhưng có lỗi khi gán chi tiết. Vui lòng thử lại.')
       }
     }
-    
     await loadData()
   }
 
   const handleUpdateTaskType = async (data: any) => {
     if (!editingTaskType) return
-    
     // Update TaskType
     await taskManagementService.updateTaskType(editingTaskType.id, data)
-    
-    // Nếu có selectedDetailIds, cập nhật các details
+    // Gán lại chi tiết cho loại công việc qua API liên kết nhiều-nhiều
     if (data.selectedDetailIds) {
       try {
-        // Lấy danh sách details hiện tại của TaskType
-        const currentDetails = taskDetails.filter(d => d.taskTypeId === editingTaskType.id)
-        const currentDetailIds = currentDetails.map(d => d.id)
-        
-        // Details cần thêm vào (có trong selected nhưng chưa có taskTypeId)
-        const detailsToAdd = data.selectedDetailIds.filter(
-          (id: number) => !currentDetailIds.includes(id)
-        )
-        
-        // Details cần xóa khỏi (có taskTypeId nhưng không có trong selected)
-        const detailsToRemove = currentDetailIds.filter(
-          id => !data.selectedDetailIds.includes(id)
-        )
-        
-        // Thêm details mới
-        if (detailsToAdd.length > 0) {
-          await Promise.all(
-            detailsToAdd.map((detailId: number) =>
-              taskManagementService.updateTaskDetail(detailId, {
-                taskTypeId: editingTaskType.id
-              })
-            )
-          )
-        }
-        
-        // Xóa details (set taskTypeId = null hoặc 0)
-        if (detailsToRemove.length > 0) {
-          await Promise.all(
-            detailsToRemove.map((detailId: number) =>
-              taskManagementService.updateTaskDetail(detailId, {
-                taskTypeId: null
-              })
-            )
-          )
-        }
-        
-        console.log(`✅ Đã cập nhật: +${detailsToAdd.length} chi tiết, -${detailsToRemove.length} chi tiết`)
+        await taskManagementService.assignDetailsToTaskType(editingTaskType.id, data.selectedDetailIds)
+        console.log(`✅ Đã cập nhật chi tiết cho TaskType ${editingTaskType.id}`)
       } catch (error) {
         console.error('❌ Lỗi khi cập nhật chi tiết:', error)
         alert('TaskType đã được cập nhật nhưng có lỗi khi cập nhật chi tiết. Vui lòng thử lại.')
       }
     }
-    
     setEditingTaskType(null)
     await loadData()
   }
@@ -182,11 +160,8 @@ export function TaskManagementPage() {
 
   // Task Detail handlers
   const handleCreateTaskDetail = async (data: any) => {
-    // Create detail without taskTypeId - it's standalone
-    // We need to create with a dummy taskTypeId=0 or modify backend
-    // For now, let's use the first task type or create a "LIBRARY" task type
+    // Create standalone detail - no longer needs taskTypeId since we use many-to-many
     const createDto = {
-      taskTypeId: 0, // Library detail, not assigned to any type yet
       detailCode: `DETAIL_${Date.now()}`, // Auto-generate code
       detailName: data.detailName,
       detailType: data.detailType,
@@ -217,20 +192,15 @@ export function TaskManagementPage() {
     }
   }
 
+  // Chỉ giữ lại filter/sort cho dropdown và search chung
   const filteredTaskTypes = useMemo(() => {
     let filtered = taskTypes
-    
-    // Filter by category
     if (filterCategory !== 'ALL') {
       filtered = filtered.filter(t => t.category === filterCategory)
     }
-    
-    // Filter by priority
     if (filterPriority !== 'ALL') {
       filtered = filtered.filter(t => t.priority === filterPriority)
     }
-    
-    // Filter by search
     if (search) {
       const q = search.toLowerCase()
       filtered = filtered.filter(t =>
@@ -239,18 +209,66 @@ export function TaskManagementPage() {
         (t.description && t.description.toLowerCase().includes(q))
       )
     }
-    
     return filtered
   }, [taskTypes, search, filterCategory, filterPriority])
 
+  // Sorting for types
+  const sortedTaskTypes = useMemo(() => {
+    if (!sortType) return filteredTaskTypes;
+    const sorted = [...filteredTaskTypes];
+    switch (sortType.col) {
+      case 'typeName':
+        sorted.sort((a, b) => {
+          if (!a.typeName || !b.typeName) return 0;
+          return sortType.dir === 'asc'
+            ? a.typeName.localeCompare(b.typeName)
+            : b.typeName.localeCompare(a.typeName);
+        });
+        break;
+      case 'category':
+        sorted.sort((a, b) => {
+          if (!a.category || !b.category) return 0;
+          return sortType.dir === 'asc'
+            ? a.category.localeCompare(b.category)
+            : b.category.localeCompare(a.category);
+        });
+        break;
+      case 'priority':
+        sorted.sort((a, b) => {
+          if (!a.priority || !b.priority) return 0;
+          return sortType.dir === 'asc'
+            ? a.priority.localeCompare(b.priority)
+            : b.priority.localeCompare(a.priority);
+        });
+        break;
+      case 'duration':
+        sorted.sort((a, b) => {
+          const aDur = a.estimatedDurationMinutes ?? 0;
+          const bDur = b.estimatedDurationMinutes ?? 0;
+          return sortType.dir === 'asc' ? aDur - bDur : bDur - aDur;
+        });
+        break;
+      case 'details':
+        sorted.sort((a, b) => {
+          const aCount = taskTypeDetailCounts[a.id || 0] || 0;
+          const bCount = taskTypeDetailCounts[b.id || 0] || 0;
+          return sortType.dir === 'asc' ? aCount - bCount : bCount - aCount;
+        });
+        break;
+      default:
+        break;
+    }
+    return sorted;
+  }, [filteredTaskTypes, sortType, taskDetails]);
+
   // Pagination for types
   const paginatedTaskTypes = useMemo(() => {
-    const startIndex = (currentTypePage - 1) * typesPerPage
-    const endIndex = startIndex + typesPerPage
-    return filteredTaskTypes.slice(startIndex, endIndex)
-  }, [filteredTaskTypes, currentTypePage, typesPerPage])
+    const startIndex = (currentTypePage - 1) * typesPerPage;
+    const endIndex = startIndex + typesPerPage;
+    return sortedTaskTypes.slice(startIndex, endIndex);
+  }, [sortedTaskTypes, currentTypePage, typesPerPage]);
 
-  const totalTypePages = Math.ceil(filteredTaskTypes.length / typesPerPage)
+  const totalTypePages = Math.ceil(filteredTaskTypes.length / typesPerPage);
 
   const filteredDetails = useMemo(() => {
     let filtered = taskDetails
@@ -566,7 +584,7 @@ export function TaskManagementPage() {
 
                 <TaskTypeTable
                   taskTypes={paginatedTaskTypes}
-                  taskDetails={taskDetails}
+                  taskTypeDetailCounts={taskTypeDetailCounts}
                   onEdit={(type: TaskType) => {
                     setEditingTaskType(type)
                     setTaskTypeModalOpen(true)
@@ -577,6 +595,10 @@ export function TaskManagementPage() {
                   getPriorityColor={getPriorityColor}
                   currentPage={currentTypePage}
                   itemsPerPage={typesPerPage}
+                  sortType={sortType}
+                  setSortType={setSortType}
+                  sortMenu={sortMenu}
+                  setSortMenu={setSortMenu}
                 />
               </div>
             )}
@@ -734,7 +756,7 @@ function TaskDetailList({ details, onEdit, onDelete }: any) {
   )
 }
 
-function TaskTypeTable({ taskTypes, taskDetails, onEdit, onDelete, getCategoryName, getPriorityName, getPriorityColor, currentPage, itemsPerPage }: any) {
+function TaskTypeTable({ taskTypes, taskTypeDetailCounts, onEdit, onDelete, getCategoryName, getPriorityName, getPriorityColor, currentPage, itemsPerPage, sortType, setSortType, sortMenu, setSortMenu }: any) {
   if (taskTypes.length === 0) {
     return (
       <div className="text-center py-12">
@@ -745,87 +767,141 @@ function TaskTypeTable({ taskTypes, taskDetails, onEdit, onDelete, getCategoryNa
     )
   }
 
+
+
+  // Use parent sortType, setSortType, sortMenu, setSortMenu
+  function SortDropdown({ col, options, sortType, setSortType, sortMenu, setSortMenu }: {
+    col: string;
+    options: Array<{ label: string; dir: 'asc'|'desc' }>;
+    sortType: any;
+    setSortType: any;
+    sortMenu: any;
+    setSortMenu: any;
+  }) {
+    return (
+      <div className="absolute top-1/2 right-0 -translate-y-1/2" style={{zIndex:2}}>
+        <button
+          className="text-gray-400 hover:text-blue-600 text-base p-1"
+          onClick={e => { e.stopPropagation(); setSortMenu(sortMenu === col ? null : col) }}
+          style={{lineHeight:0}}
+        >
+          ▼
+        </button>
+        {sortMenu === col && (
+          <div className="absolute right-0 mt-6 w-40 bg-white border border-gray-200 rounded shadow-lg z-20">
+            {options.map(opt => (
+              <button
+                key={opt.label}
+                className={`block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${sortType?.col === col && sortType?.dir === opt.dir ? 'text-blue-600 font-bold' : 'text-gray-700'}`}
+                onClick={e => { e.stopPropagation(); setSortType({col,dir:opt.dir}); setSortMenu(null) }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="overflow-x-auto border border-gray-200 rounded-lg">
-      <table className="min-w-full divide-y divide-gray-200">
+      <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">STT</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên loại công việc</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Danh mục</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ưu tiên</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Thời gian (h)</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Chi tiết</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Phê duyệt</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '5%'}}>STT</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '25%'}}>
+              Tên loại công việc
+              <SortDropdown col="typeName" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '12%'}}>
+              Danh mục
+              <SortDropdown col="category" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '10%'}}>
+              Ưu tiên
+              <SortDropdown col="priority" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '10%'}}>
+              Thời gian (h)
+              <SortDropdown col="duration" options={[{label:'Sắp xếp tăng dần',dir:'asc'},{label:'Sắp xếp giảm dần',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '10%'}}>
+              Chi tiết
+              <SortDropdown col="details" options={[{label:'Sắp xếp tăng dần',dir:'asc'},{label:'Sắp xếp giảm dần',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '8%'}}>Phê duyệt</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '12%'}}>Trạng thái</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8%'}}>Thao tác</th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white">
           {taskTypes.map((type: TaskType, index: number) => {
-            const typeDetails = taskDetails.filter((d: TaskDetail) => d.taskTypeId === type.id)
+            const detailCount = taskTypeDetailCounts[type.id || 0] || 0
             const globalIndex = (currentPage - 1) * itemsPerPage + index + 1
-            
             return (
-              <tr 
-                key={type.id} 
-                className="hover:bg-gray-50 cursor-pointer"
+              <tr
+                key={type.id}
+                className="hover:bg-gray-50 cursor-pointer border-b border-gray-200"
                 onClick={(e) => {
-                  // Don't trigger if clicking delete button
                   if ((e.target as HTMLElement).closest('button')) return
                   onEdit(type)
                 }}
               >
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center">{globalIndex}</td>
-                <td className="px-4 py-3">
-                  <div className="text-sm font-medium text-gray-900">{type.typeName}</div>
+                <td className="px-4 py-3 text-sm text-gray-900 text-center border-r border-gray-200" style={{width: '5%'}}>
+                  <div className="truncate">{globalIndex}</div>
+                </td>
+                <td className="px-4 py-3 border-r border-gray-200" style={{width: '25%'}}>
+                  <div className="text-sm font-medium text-gray-900 truncate">{type.typeName}</div>
                   {type.description && (
-                    <div className="text-xs text-gray-500 mt-1 line-clamp-1">{type.description}</div>
+                    <div className="text-xs text-gray-500 mt-1 truncate">{type.description}</div>
                   )}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center">
-                  <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '12%'}}>
+                  <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 truncate">
                     {getCategoryName(type.category)}
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center">
+                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '10%'}}>
                   {type.priority ? (
-                    <span className={`text-xs px-2 py-1 rounded-full ${getPriorityColor(type.priority)}`}>
+                    <span className={`text-xs px-2 py-1 rounded-full ${getPriorityColor(type.priority)} truncate`}>
                       {getPriorityName(type.priority)}
                     </span>
                   ) : (
                     <span className="text-xs text-gray-400">N/A</span>
                   )}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center">
-                  {type.estimatedDurationMinutes != null && type.estimatedDurationMinutes !== undefined 
-                    ? `${Math.round(type.estimatedDurationMinutes / 60)} giờ`
-                    : '-'}
+                <td className="px-4 py-3 text-sm text-gray-900 text-center border-r border-gray-200" style={{width: '10%'}}>
+                  <div className="truncate">
+                    {type.estimatedDurationMinutes != null && type.estimatedDurationMinutes !== undefined
+                      ? `${Math.round(type.estimatedDurationMinutes / 60)} giờ`
+                      : '-'}
+                  </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center">
-                  <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-700">
-                    {typeDetails.length} chi tiết
+                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '10%'}}>
+                  <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-700 truncate">
+                    {detailCount} chi tiết
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center">
+                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
                   {type.requiresApproval ? (
                     <CheckSquare className="w-5 h-5 text-green-600 mx-auto" />
                   ) : (
                     <span className="text-gray-400">-</span>
                   )}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center">
+                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '12%'}}>
                   {type.isActive ? (
-                    <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">
+                    <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 truncate">
                       Hoạt động
                     </span>
                   ) : (
-                    <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                    <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 truncate">
                       Không hoạt động
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center">
+                <td className="px-4 py-3 text-center" style={{width: '8%'}}>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
