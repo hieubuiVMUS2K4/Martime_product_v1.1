@@ -401,9 +401,21 @@ function CertificateMonitorView({ crewMembers }: { crewMembers: CrewMember[] }) 
         const expiring = certificates.filter(c => c.days < 90)
         const expired = certificates.filter(c => c.days < 0)
         
+        // Sort certificates: expired/expiring first, then valid ones
+        const sortedCertificates = [...certificates].sort((a, b) => {
+          // Expired first
+          if (a.days < 0 && b.days >= 0) return -1
+          if (a.days >= 0 && b.days < 0) return 1
+          // Then expiring soon (< 90 days)
+          if (a.days < 90 && b.days >= 90) return -1
+          if (a.days >= 90 && b.days < 90) return 1
+          // Then by days left (ascending)
+          return a.days - b.days
+        })
+        
         return {
           ...crew,
-          certificates,
+          certificates: sortedCertificates,
           totalCerts: certificates.length,
           expiringCount: expiring.length,
           expiredCount: expired.length,
@@ -526,8 +538,15 @@ function CertificateMonitorView({ crewMembers }: { crewMembers: CrewMember[] }) 
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-700 text-sm font-semibold">
+                        <span 
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-700 text-sm font-semibold relative group cursor-help"
+                          title={`Total: ${crew.totalCerts} certificate${crew.totalCerts > 1 ? 's' : ''}`}
+                        >
                           {crew.totalCerts}
+                          <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-900 text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-gray-200">
+                            Total: {crew.totalCerts} certificate{crew.totalCerts > 1 ? 's' : ''}
+                            <span className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-white"></span>
+                          </span>
                         </span>
                         {crew.expiredCount > 0 && (
                           <span 
@@ -556,23 +575,26 @@ function CertificateMonitorView({ crewMembers }: { crewMembers: CrewMember[] }) 
                       <td colSpan={7} className="px-6 py-4 bg-gray-50">
                         <div className="space-y-4">
                           <div className={`grid gap-4 ${
-                            crew.expiringCerts.length === 1 ? 'grid-cols-1 md:grid-cols-2' :
-                            crew.expiringCerts.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
-                            crew.expiringCerts.length === 3 ? 'grid-cols-1 md:grid-cols-3' :
-                            crew.expiringCerts.length === 4 ? 'grid-cols-1 md:grid-cols-2' :
-                            crew.expiringCerts.length === 5 ? 'grid-cols-1 md:grid-cols-3' :
-                            crew.expiringCerts.length === 6 ? 'grid-cols-1 md:grid-cols-3' :
-                            crew.expiringCerts.length === 7 ? 'grid-cols-1 md:grid-cols-4' :
-                            crew.expiringCerts.length >= 8 ? 'grid-cols-1 md:grid-cols-4' :
+                            crew.certificates.length === 1 ? 'grid-cols-1 md:grid-cols-2' :
+                            crew.certificates.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+                            crew.certificates.length === 3 ? 'grid-cols-1 md:grid-cols-3' :
+                            crew.certificates.length === 4 ? 'grid-cols-1 md:grid-cols-2' :
+                            crew.certificates.length === 5 ? 'grid-cols-1 md:grid-cols-3' :
+                            crew.certificates.length === 6 ? 'grid-cols-1 md:grid-cols-3' :
+                            crew.certificates.length === 7 ? 'grid-cols-1 md:grid-cols-4' :
+                            crew.certificates.length >= 8 ? 'grid-cols-1 md:grid-cols-4' :
                             'grid-cols-1 md:grid-cols-2'
                           }`}>
-                            {crew.expiringCerts.map((cert, index) => {
-                              const bgColor = cert.days < 0 ? 'bg-red-50 border-red-200' : 
-                                             cert.days <= 30 ? 'bg-red-50 border-red-200' : 
-                                             'bg-yellow-50 border-yellow-200'
-                              const textColor = cert.days < 0 ? 'text-red-600' : 
-                                               cert.days <= 30 ? 'text-red-600' : 
-                                               'text-yellow-600'
+                            {crew.certificates.map((cert, index) => {
+                              const isExpired = cert.days < 0
+                              const isExpiringSoon = cert.days >= 0 && cert.days < 90
+                              
+                              const bgColor = isExpired ? 'bg-red-50 border-red-200' : 
+                                             isExpiringSoon ? 'bg-yellow-50 border-yellow-200' : 
+                                             'bg-green-50 border-green-200'
+                              const textColor = isExpired ? 'text-red-600' : 
+                                               isExpiringSoon ? 'text-yellow-600' : 
+                                               'text-green-600'
                               
                               return (
                                 <div key={index} className={`border rounded-lg p-4 ${bgColor}`}>
@@ -593,14 +615,33 @@ function CertificateMonitorView({ crewMembers }: { crewMembers: CrewMember[] }) 
                                     <p className="text-xs text-gray-600 mb-2">Medical Fitness</p>
                                   )}
                                   <p className={`text-sm font-bold mb-2 ${textColor}`}>
-                                    {cert.days < 0 
+                                    {isExpired 
                                       ? `EXPIRED ${Math.abs(cert.days)} days ago` 
-                                      : `Expires in ${cert.days} days`
+                                      : isExpiringSoon
+                                      ? `Expires in ${cert.days} days`
+                                      : `Valid - ${cert.days} days left`
                                     }
                                   </p>
                                   <p className="text-xs text-gray-500">
                                     Expiry: {format(parseISO(cert.expiry), 'dd MMM yyyy')}
                                   </p>
+                                  
+                                  {/* Status Badge */}
+                                  <div className="mt-3">
+                                    {isExpired ? (
+                                      <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">
+                                        EXPIRED
+                                      </span>
+                                    ) : isExpiringSoon ? (
+                                      <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-700">
+                                        EXPIRING SOON
+                                      </span>
+                                    ) : (
+                                      <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700">
+                                        VALID
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               )
                             })}

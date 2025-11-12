@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Info, Plus } from 'lucide-react'
+import { X, Info, Plus, Search, ChevronRight, ChevronLeft } from 'lucide-react'
 import type { TaskType, TaskDetail } from '../../types/maritime.types'
 import { TaskDetailFormModal } from './TaskDetailFormModal'
 
@@ -43,6 +43,10 @@ export function TaskTypeFormModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [searchLeft, setSearchLeft] = useState('')
+  const [searchRight, setSearchRight] = useState('')
+  const [selectedLeftItems, setSelectedLeftItems] = useState<number[]>([])
+  const [selectedRightItems, setSelectedRightItems] = useState<number[]>([])
 
   useEffect(() => {
     if (taskType) {
@@ -112,15 +116,45 @@ export function TaskTypeFormModal({
     }
   }
 
-  const toggleDetail = (detailId: number) => {
-    if (selectedDetailIds.includes(detailId)) {
-      setSelectedDetailIds(selectedDetailIds.filter(id => id !== detailId))
+  const moveToSelected = () => {
+    setSelectedDetailIds([...selectedDetailIds, ...selectedLeftItems])
+    setSelectedLeftItems([])
+  }
+
+  const moveToAvailable = () => {
+    setSelectedDetailIds(selectedDetailIds.filter(id => !selectedRightItems.includes(id)))
+    setSelectedRightItems([])
+  }
+
+  const toggleLeftSelection = (detailId: number) => {
+    if (selectedLeftItems.includes(detailId)) {
+      setSelectedLeftItems(selectedLeftItems.filter(id => id !== detailId))
     } else {
-      setSelectedDetailIds([...selectedDetailIds, detailId])
+      setSelectedLeftItems([...selectedLeftItems, detailId])
     }
   }
 
-  const availableDetails = allDetails.filter(d => d.isActive)
+  const toggleRightSelection = (detailId: number) => {
+    if (selectedRightItems.includes(detailId)) {
+      setSelectedRightItems(selectedRightItems.filter(id => id !== detailId))
+    } else {
+      setSelectedRightItems([...selectedRightItems, detailId])
+    }
+  }
+
+  const availableDetails = allDetails.filter(d => d.isActive && !selectedDetailIds.includes(d.id))
+  const selectedDetails = allDetails.filter(d => selectedDetailIds.includes(d.id))
+
+  // Filter by search
+  const filteredAvailable = availableDetails.filter(d =>
+    d.detailName.toLowerCase().includes(searchLeft.toLowerCase()) ||
+    d.description?.toLowerCase().includes(searchLeft.toLowerCase())
+  )
+
+  const filteredSelected = selectedDetails.filter(d =>
+    d.detailName.toLowerCase().includes(searchRight.toLowerCase()) ||
+    d.description?.toLowerCase().includes(searchRight.toLowerCase())
+  )
 
   if (!isOpen) return null
 
@@ -300,58 +334,169 @@ export function TaskTypeFormModal({
               </button>
             </div>
 
-            {availableDetails.length === 0 ? (
+            {allDetails.filter(d => d.isActive).length === 0 ? (
               <div className="text-center py-8 border border-dashed border-gray-300 rounded-lg">
                 <Info className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                 <p className="text-gray-500">Chưa có chi tiết nào</p>
                 <p className="text-sm text-gray-400 mt-1">Vui lòng tạo Task Details trước</p>
               </div>
             ) : (
-              <div className="border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
-                {availableDetails.map((detail) => (
-                  <label
-                    key={detail.id}
-                    className={`flex items-start gap-3 p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
-                      selectedDetailIds.includes(detail.id) ? 'bg-blue-50' : ''
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedDetailIds.includes(detail.id)}
-                      onChange={() => toggleDetail(detail.id)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-1"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{detail.detailName}</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-                          {detail.detailType}
-                        </span>
-                        {detail.isMandatory && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                            Bắt buộc
-                          </span>
-                        )}
+              <div className="border-2 border-gray-300 rounded-lg p-4 bg-gray-50">
+                <div className="grid grid-cols-[1fr_auto_1fr] gap-3">
+                  {/* Left Column - Available Details */}
+                  <div className="border border-gray-300 rounded-lg overflow-hidden bg-white">
+                    <div className="bg-gray-50 px-3 py-2 border-b border-gray-300">
+                      <h4 className="font-medium text-sm text-gray-700 mb-2">Có sẵn ({filteredAvailable.length})</h4>
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-gray-400 absolute left-2 top-2" />
+                        <input
+                          type="text"
+                          value={searchLeft}
+                          onChange={(e) => setSearchLeft(e.target.value)}
+                          placeholder="Tìm kiếm..."
+                          className="w-full pl-8 pr-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                        />
                       </div>
-                      {detail.description && (
-                        <p className="text-xs text-gray-600 mt-1">{detail.description}</p>
-                      )}
-                      {detail.detailType === 'MEASUREMENT' && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          📊 {detail.minValue ?? '?'} - {detail.maxValue ?? '?'} {detail.unit}
-                        </p>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {filteredAvailable.length === 0 ? (
+                        <div className="text-center py-8 text-sm text-gray-500">
+                          {searchLeft ? 'Không tìm thấy kết quả' : 'Tất cả đã được chọn'}
+                        </div>
+                      ) : (
+                        filteredAvailable.map((detail) => (
+                          <label
+                            key={detail.id}
+                            className={`flex items-start gap-2 p-2.5 border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${
+                              selectedLeftItems.includes(detail.id) ? 'bg-blue-100' : ''
+                            }`}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              toggleLeftSelection(detail.id)
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedLeftItems.includes(detail.id)}
+                              onChange={() => toggleLeftSelection(detail.id)}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-medium text-sm text-gray-900">{detail.detailName}</span>
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">
+                                  {detail.detailType}
+                                </span>
+                                {detail.isMandatory && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700">
+                                    Bắt buộc
+                                  </span>
+                                )}
+                              </div>
+                              {detail.description && (
+                                <p className="text-xs text-gray-600 mt-0.5 line-clamp-1">{detail.description}</p>
+                              )}
+                              {detail.detailType === 'MEASUREMENT' && (
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  📊 {detail.minValue ?? '?'} - {detail.maxValue ?? '?'} {detail.unit}
+                                </p>
+                              )}
+                            </div>
+                          </label>
+                        ))
                       )}
                     </div>
-                  </label>
-                ))}
-              </div>
-            )}
+                  </div>
 
-            {selectedDetailIds.length > 0 && (
-              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-sm text-green-700">
-                  ✅ Đã chọn {selectedDetailIds.length} chi tiết cho loại công việc này
-                </p>
+                  {/* Middle Column - Transfer Buttons */}
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={moveToSelected}
+                      disabled={selectedLeftItems.length === 0}
+                      className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                      title="Chuyển sang đã chọn"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={moveToAvailable}
+                      disabled={selectedRightItems.length === 0}
+                      className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                      title="Chuyển về có sẵn"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Right Column - Selected Details */}
+                  <div className="border border-gray-300 rounded-lg overflow-hidden bg-white">
+                    <div className="bg-green-50 px-3 py-2 border-b border-gray-300">
+                      <h4 className="font-medium text-sm text-gray-700 mb-2">Đã chọn ({filteredSelected.length})</h4>
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-gray-400 absolute left-2 top-2" />
+                        <input
+                          type="text"
+                          value={searchRight}
+                          onChange={(e) => setSearchRight(e.target.value)}
+                          placeholder="Tìm kiếm..."
+                          className="w-full pl-8 pr-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {filteredSelected.length === 0 ? (
+                        <div className="text-center py-8 text-sm text-gray-500">
+                          {searchRight ? 'Không tìm thấy kết quả' : 'Chưa chọn chi tiết nào'}
+                        </div>
+                      ) : (
+                        filteredSelected.map((detail) => (
+                          <label
+                            key={detail.id}
+                            className={`flex items-start gap-2 p-2.5 border-b border-gray-100 hover:bg-green-50 cursor-pointer transition-colors ${
+                              selectedRightItems.includes(detail.id) ? 'bg-green-100' : ''
+                            }`}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              toggleRightSelection(detail.id)
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedRightItems.includes(detail.id)}
+                              onChange={() => toggleRightSelection(detail.id)}
+                              className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 mt-0.5"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-medium text-sm text-gray-900">{detail.detailName}</span>
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">
+                                  {detail.detailType}
+                                </span>
+                                {detail.isMandatory && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700">
+                                    Bắt buộc
+                                  </span>
+                                )}
+                              </div>
+                              {detail.description && (
+                                <p className="text-xs text-gray-600 mt-0.5 line-clamp-1">{detail.description}</p>
+                              )}
+                              {detail.detailType === 'MEASUREMENT' && (
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  📊 {detail.minValue ?? '?'} - {detail.maxValue ?? '?'} {detail.unit}
+                                </p>
+                              )}
+                            </div>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

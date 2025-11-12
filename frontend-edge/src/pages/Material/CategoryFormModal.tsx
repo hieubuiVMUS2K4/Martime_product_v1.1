@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import type { MaterialCategory } from '@/types/maritime.types'
 import type { CreateMaterialCategoryDto, UpdateMaterialCategoryDto } from '@/services/materialService'
@@ -21,14 +21,37 @@ export function CategoryFormModal({
   title,
 }: CategoryFormModalProps) {
   const [formData, setFormData] = useState<CreateMaterialCategoryDto>({
-    categoryCode: category?.categoryCode || '',
-    name: category?.name || '',
-    description: category?.description || '',
-    parentCategoryId: category?.parentCategoryId || null,
-    isActive: category?.isActive ?? true,
+    categoryCode: '',
+    name: '',
+    description: '',
+    parentCategoryId: null,
+    isActive: true,
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Update form data when category changes
+  useEffect(() => {
+    if (category) {
+      setFormData({
+        categoryCode: category.categoryCode,
+        name: category.name,
+        description: category.description || '',
+        parentCategoryId: category.parentCategoryId || null,
+        isActive: category.isActive,
+      })
+    } else {
+      // Reset form for new category
+      setFormData({
+        categoryCode: '',
+        name: '',
+        description: '',
+        parentCategoryId: null,
+        isActive: true,
+      })
+    }
+    setError(null)
+  }, [category, isOpen])
 
   if (!isOpen) return null
 

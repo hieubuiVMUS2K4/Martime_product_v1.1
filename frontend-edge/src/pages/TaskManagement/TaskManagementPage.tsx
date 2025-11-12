@@ -14,6 +14,7 @@ export function TaskManagementPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterDetailType, setFilterDetailType] = useState<string>('ALL')
+  const [filterMandatory, setFilterMandatory] = useState<string>('ALL')
   const [filterCategory, setFilterCategory] = useState<string>('ALL')
   const [filterPriority, setFilterPriority] = useState<string>('ALL')
   
@@ -259,6 +260,12 @@ export function TaskManagementPage() {
       filtered = filtered.filter(d => d.detailType === filterDetailType)
     }
     
+    // Filter by mandatory status
+    if (filterMandatory !== 'ALL') {
+      const isMandatory = filterMandatory === 'MANDATORY'
+      filtered = filtered.filter(d => d.isMandatory === isMandatory)
+    }
+    
     // Filter by search
     if (search) {
       const q = search.toLowerCase()
@@ -269,7 +276,7 @@ export function TaskManagementPage() {
     }
     
     return filtered
-  }, [taskDetails, search, filterDetailType])
+  }, [taskDetails, search, filterDetailType, filterMandatory])
 
   // Pagination for details
   const paginatedDetails = useMemo(() => {
@@ -283,7 +290,7 @@ export function TaskManagementPage() {
   // Reset to page 1 when filter changes
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, filterDetailType])
+  }, [search, filterDetailType, filterMandatory])
 
   // Reset type page when switching tabs or search changes
   useEffect(() => {
@@ -412,18 +419,30 @@ export function TaskManagementPage() {
 
               {/* Detail Type Filter - Only show on details tab */}
               {activeTab === 'details' && (
-                <select
-                  value={filterDetailType}
-                  onChange={(e) => setFilterDetailType(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-[180px]"
-                >
-                  <option value="ALL">Tất cả loại chi tiết</option>
-                  {detailTypes.map((dt) => (
-                    <option key={dt.code} value={dt.code}>
-                      {dt.name}
-                    </option>
-                  ))}
-                </select>
+                <>
+                  <select
+                    value={filterDetailType}
+                    onChange={(e) => setFilterDetailType(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-[180px]"
+                  >
+                    <option value="ALL">Tất cả loại chi tiết</option>
+                    {detailTypes.map((dt) => (
+                      <option key={dt.code} value={dt.code}>
+                        {dt.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={filterMandatory}
+                    onChange={(e) => setFilterMandatory(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-[180px]"
+                  >
+                    <option value="ALL">Tất cả trạng thái</option>
+                    <option value="MANDATORY">Bắt buộc</option>
+                    <option value="OPTIONAL">Không bắt buộc</option>
+                  </select>
+                </>
               )}
 
               {/* Category and Priority Filters - Only show on types tab */}

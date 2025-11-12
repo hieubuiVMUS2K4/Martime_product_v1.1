@@ -16,6 +16,7 @@ export function MaterialPage() {
   const [categories, setCategories] = useState<MaterialCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [categorySearch, setCategorySearch] = useState('');
   const [categoryId, setCategoryId] = useState<number | 'all'>('all');
   const [filterUnit, setFilterUnit] = useState<string>('all');
 
@@ -134,6 +135,16 @@ export function MaterialPage() {
     }
     return data;
   }, [items, search, categoryId, filterUnit]);
+
+  const filteredCategories = useMemo(() => {
+    if (!categorySearch) return categories;
+    const q = categorySearch.toLowerCase();
+    return categories.filter(cat =>
+      cat.name.toLowerCase().includes(q) ||
+      cat.categoryCode.toLowerCase().includes(q) ||
+      (cat.description && cat.description.toLowerCase().includes(q))
+    );
+  }, [categories, categorySearch]);
 
   // Pagination for items
   const paginatedItems = useMemo(() => {
@@ -260,6 +271,21 @@ export function MaterialPage() {
             </div>
           )}
 
+          {/* Filters (Categories tab) */}
+          {activeTab === 'categories' && (
+            <div className="p-4 border-b border-gray-200">
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                <input
+                  value={categorySearch}
+                  onChange={(e) => setCategorySearch(e.target.value)}
+                  placeholder="Search by name, code, or description..."
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Content */}
           <div className="p-6">
             {loading ? (
@@ -271,7 +297,7 @@ export function MaterialPage() {
               <>
                 {activeTab === 'categories' ? (
                   <CategoryList 
-                    categories={categories}
+                    categories={filteredCategories}
                     onEdit={(cat) => {
                       setEditingCategory(cat);
                       setCategoryModalOpen(true);
