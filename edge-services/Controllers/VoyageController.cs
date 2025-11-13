@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
+using MaritimeEdge.Constants;
 
 namespace MaritimeEdge.Controllers;
 
@@ -25,7 +26,8 @@ public class VoyageController : ControllerBase
         try
         {
             var voyage = await _context.VoyageRecords
-                .Where(v => v.VoyageStatus == "UNDERWAY")
+                .AsNoTracking()
+                .Where(v => v.VoyageStatus == VoyageStatus.UNDERWAY)
                 .OrderByDescending(v => v.DepartureTime)
                 .FirstOrDefaultAsync();
 
@@ -49,6 +51,7 @@ public class VoyageController : ControllerBase
         try
         {
             var voyages = await _context.VoyageRecords
+                .AsNoTracking()
                 .OrderByDescending(v => v.DepartureTime)
                 .Take(100)
                 .ToListAsync();
@@ -68,7 +71,7 @@ public class VoyageController : ControllerBase
     {
         try
         {
-            var query = _context.CargoOperations.AsQueryable();
+            var query = _context.CargoOperations.AsNoTracking().AsQueryable();
 
             if (voyageId.HasValue)
             {

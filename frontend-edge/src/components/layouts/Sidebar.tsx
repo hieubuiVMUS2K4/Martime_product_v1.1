@@ -13,6 +13,7 @@ import {
   Boxes,
   Fuel,
   ListChecks,
+  ClipboardList,
 } from 'lucide-react'
 
 const navigation = [
@@ -25,6 +26,7 @@ const navigation = [
   { name: 'Maintenance', to: '/maintenance', icon: Wrench },
   { name: 'Task Management', to: '/task-management', icon: ListChecks },
   { name: 'Materials', to: '/materials', icon: Boxes },
+  { name: 'Reporting', to: '/reporting', icon: ClipboardList },
   { name: 'Voyage', to: '/voyage', icon: Ship },
   { name: 'Compliance', to: '/compliance', icon: FileText },
   { name: 'Sync Status', to: '/sync', icon: RefreshCw },

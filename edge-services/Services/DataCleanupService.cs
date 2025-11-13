@@ -46,8 +46,8 @@ public class DataCleanupService : BackgroundService
             try
             {
                 // Calculate next run time (today or tomorrow at cleanupHour:00)
-                var now = DateTime.Now;
-                var nextRun = new DateTime(now.Year, now.Month, now.Day, cleanupHour, 0, 0);
+                var now = DateTime.UtcNow;
+                var nextRun = new DateTime(now.Year, now.Month, now.Day, cleanupHour, 0, 0, DateTimeKind.Utc);
                 
                 if (nextRun < now)
                 {

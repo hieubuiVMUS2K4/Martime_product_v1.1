@@ -19,6 +19,7 @@ import type {
   DashboardStats,
   MaterialCategory,
   MaterialItem,
+  PaginatedResponse,
 } from '@/types/maritime.types'
 
 // ============================================================
@@ -113,7 +114,16 @@ export class MaritimeService {
   }
 
   crew = {
-    getAll: () => this.request<CrewMember[]>('/crew'),
+    getAll: (params?: { page?: number; pageSize?: number; search?: string; isOnboard?: boolean }) => {
+      const queryParams = new URLSearchParams()
+      if (params?.page) queryParams.set('page', params.page.toString())
+      if (params?.pageSize) queryParams.set('pageSize', params.pageSize.toString())
+      if (params?.search) queryParams.set('search', params.search)
+      if (params?.isOnboard !== undefined) queryParams.set('isOnboard', params.isOnboard.toString())
+      
+      const query = queryParams.toString()
+      return this.request<PaginatedResponse<CrewMember>>(`/crew${query ? `?${query}` : ''}`)
+    },
     getOnboard: () => this.request<CrewMember[]>('/crew/onboard'),
     getById: (id: number) => this.request<CrewMember>(`/crew/${id}`),
     add: (crew: Partial<CrewMember>) =>
@@ -172,7 +182,16 @@ export class MaritimeService {
   }
 
   maintenance = {
-    getAll: () => this.request<MaintenanceTask[]>('/maintenance/tasks'),
+    getAll: (params?: { page?: number; pageSize?: number; status?: string; priority?: string }) => {
+      const queryParams = new URLSearchParams()
+      if (params?.page) queryParams.set('page', params.page.toString())
+      if (params?.pageSize) queryParams.set('pageSize', params.pageSize.toString())
+      if (params?.status) queryParams.set('status', params.status)
+      if (params?.priority) queryParams.set('priority', params.priority)
+      
+      const query = queryParams.toString()
+      return this.request<PaginatedResponse<MaintenanceTask>>(`/maintenance/tasks${query ? `?${query}` : ''}`)
+    },
     getPending: () => this.request<MaintenanceTask[]>('/maintenance/tasks/pending'),
     getOverdue: () => this.request<MaintenanceTask[]>('/maintenance/tasks/overdue'),
     getById: (id: number) => this.request<MaintenanceTask>(`/maintenance/tasks/${id}`),

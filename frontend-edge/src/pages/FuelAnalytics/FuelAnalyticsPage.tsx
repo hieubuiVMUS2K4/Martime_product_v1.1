@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -29,13 +29,7 @@ const FuelAnalyticsPage = () => {
     return value != null ? value.toFixed(decimals) : 'N/A';
   };
 
-  useEffect(() => {
-    loadDashboardData();
-    const interval = setInterval(loadDashboardData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       const data = await fuelAnalyticsService.getDashboard();
@@ -47,7 +41,13 @@ const FuelAnalyticsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadDashboardData();
+    const interval = setInterval(loadDashboardData, 5 * 60 * 1000); // 5 minutes
+    return () => clearInterval(interval);
+  }, [loadDashboardData]);
 
   const getCIIRatingColor = (rating: string) => {
     switch (rating) {
@@ -260,11 +260,11 @@ const FuelAnalyticsPage = () => {
               <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
                 {safeFixed(weeklySummary.cO2EmissionsMT, 1)} MT
               </div>
-              <p className="text-xs text-orange-600 dark:text-orange-400 mt-1.5 flex items-center gap-2">
+              <div className="text-xs text-orange-600 dark:text-orange-400 mt-1.5 flex items-center gap-2">
                 <Badge variant={getCIIRatingBadgeVariant(weeklySummary.ciiRating)} className="text-xs">
                   {weeklySummary.ciiRating}
                 </Badge>
-              </p>
+              </div>
             </CardContent>
           </Card>
         </div>

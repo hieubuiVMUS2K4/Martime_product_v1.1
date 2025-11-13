@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
+using MaritimeEdge.Constants;
+using MTaskStatus = MaritimeEdge.Constants.TaskStatus; // Alias to avoid ambiguity with System.Threading.Tasks.TaskStatus
 
 namespace MaritimeEdge.Controllers;
 
@@ -25,22 +27,25 @@ public class DashboardController : ControllerBase
         {
             // 1. Aggregate alarms in single query instead of 2 separate queries
             var alarmsGrouped = await _context.SafetyAlarms
+                .AsNoTracking()
                 .Where(a => !a.IsResolved)
                 .GroupBy(a => a.Severity)
                 .Select(g => new { Severity = g.Key, Count = g.Count() })
                 .ToListAsync();
 
             var criticalAlarmsCount = alarmsGrouped
-                .FirstOrDefault(a => a.Severity == "CRITICAL")?.Count ?? 0;
+                .FirstOrDefault(a => a.Severity == AlarmSeverity.CRITICAL)?.Count ?? 0;
             var activeAlarmsCount = alarmsGrouped.Sum(a => a.Count);
 
             // 2. Execute queries sequentially to avoid DbContext concurrency issues
             var crewOnboard = await _context.CrewMembers
+                .AsNoTracking()
                 .Where(c => c.IsOnboard)
                 .CountAsync();
 
             var pendingMaintenance = await _context.MaintenanceTasks
-                .Where(m => m.Status == "PENDING" || m.Status == "OVERDUE")
+                .AsNoTracking()
+                .Where(m => m.Status == MTaskStatus.PENDING || m.Status == MTaskStatus.OVERDUE)
                 .CountAsync();
 
             // 4. Calculate fuel level (mock for now - TODO: from tank_levels)

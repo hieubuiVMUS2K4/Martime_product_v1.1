@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { dashboardService, alarmService, telemetryService } from '@/services/maritime.service'
 import { useMaritimeStore } from '@/stores/maritime.store'
 import type { DashboardStats } from '@/types/maritime.types'
@@ -22,13 +22,7 @@ export function DashboardPage() {
   const [environmental, setEnvironmental] = useState<any>(null)
   const { setDashboardStats, setActiveAlarms, setCurrentPosition, setCurrentNavigation } = useMaritimeStore()
 
-  useEffect(() => {
-    loadDashboardData()
-    const interval = setInterval(loadDashboardData, 5000) // Refresh every 5s to see simulator updates
-    return () => clearInterval(interval)
-  }, [])
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       // Load all dashboard data in parallel
       const [dashStats, alarms, posData, navData, engineData, envData] = await Promise.all([
@@ -40,22 +34,31 @@ export function DashboardPage() {
         telemetryService.getEnvironmentalData(),
       ])
 
+      // Batch state updates to minimize re-renders
       setStats(dashStats)
       setPosition(posData)
       setNavigation(navData)
       setEngine(engineData?.[0] || null) // Get first engine
       setEnvironmental(envData)
       
+      // Update Zustand store
       setDashboardStats(dashStats)
       setActiveAlarms(alarms)
       setCurrentPosition(posData)
       setCurrentNavigation(navData)
     } catch (error) {
       // Silent error handling - could log to error monitoring service in production
+      console.error('Failed to load dashboard data:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [setDashboardStats, setActiveAlarms, setCurrentPosition, setCurrentNavigation])
+
+  useEffect(() => {
+    loadDashboardData()
+    const interval = setInterval(loadDashboardData, 5000) // Refresh every 5s to see simulator updates
+    return () => clearInterval(interval)
+  }, [loadDashboardData])
 
   if (loading) {
     return (

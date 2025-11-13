@@ -29,7 +29,24 @@ export class ApiClient {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        // Try to parse error response body for more details
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        try {
+          const errorData = await response.json()
+          if (errorData.error) {
+            errorMessage = errorData.error
+          } else if (errorData.message) {
+            errorMessage = errorData.message
+          } else if (errorData.title) {
+            errorMessage = errorData.title
+          }
+        } catch {
+          // If JSON parsing fails, use default error message
+        }
+        
+        const error: any = new Error(errorMessage)
+        error.response = { status: response.status, data: { error: errorMessage } }
+        throw error
       }
 
       return await response.json()
@@ -59,6 +76,13 @@ export class ApiClient {
   async put<T>(endpoint: string, data: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async patch<T>(endpoint: string, data: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
       body: JSON.stringify(data),
     })
   }

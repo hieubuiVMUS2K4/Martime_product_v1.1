@@ -1123,3 +1123,1067 @@ public class User
     
     public DateTime? UpdatedAt { get; set; }
 }
+
+// ============================================================
+// MARITIME REPORTING SYSTEM (IMO/SOLAS/MARPOL Compliant)
+// ============================================================
+
+/// <summary>
+/// Report Types - Danh mục các loại báo cáo hàng hải
+/// IMO compliant report categories
+/// </summary>
+public class ReportType
+{
+    [Key]
+    public int Id { get; set; }
+    
+    [Required]
+    [MaxLength(50)]
+    public string TypeCode { get; set; } = string.Empty; // NOON, DEPARTURE, ARRIVAL, BUNKER, POSITION, etc.
+    
+    [Required]
+    [MaxLength(100)]
+    public string TypeName { get; set; } = string.Empty; // Noon Report, Departure Report, etc.
+    
+    [MaxLength(50)]
+    public string Category { get; set; } = string.Empty; // OPERATIONAL, COMPLIANCE, ENVIRONMENTAL, SAFETY
+    
+    public string? Description { get; set; }
+    
+    /// <summary>
+    /// IMO regulation reference (SOLAS V, MARPOL Annex VI, etc.)
+    /// </summary>
+    [MaxLength(100)]
+    public string? RegulationReference { get; set; }
+    
+    /// <summary>
+    /// Reporting frequency (DAILY, VOYAGE, MONTHLY, QUARTERLY, ANNUAL, EVENT_BASED)
+    /// </summary>
+    [MaxLength(30)]
+    public string Frequency { get; set; } = "EVENT_BASED";
+    
+    /// <summary>
+    /// Is this report type mandatory by regulation?
+    /// </summary>
+    public bool IsMandatory { get; set; } = false;
+    
+    /// <summary>
+    /// Requires master signature?
+    /// </summary>
+    public bool RequiresMasterSignature { get; set; } = false;
+    
+    /// <summary>
+    /// Template JSON schema for validation
+    /// </summary>
+    public string? TemplateSchema { get; set; }
+    
+    public bool IsActive { get; set; } = true;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Maritime Reports - Bảng chính lưu trữ tất cả báo cáo
+/// Polymorphic pattern: một bảng cho tất cả loại báo cáo
+/// </summary>
+public class MaritimeReport
+{
+    [Key]
+    public long Id { get; set; }
+    
+    /// <summary>
+    /// Unique report number (auto-generated: RPT-YYYYMMDD-NNNN)
+    /// </summary>
+    [Required]
+    [MaxLength(50)]
+    public string ReportNumber { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// FK -> ReportType.Id
+    /// </summary>
+    [Required]
+    public int ReportTypeId { get; set; }
+    
+    /// <summary>
+    /// Report datetime (UTC)
+    /// </summary>
+    [Required]
+    public DateTime ReportDateTime { get; set; }
+    
+    /// <summary>
+    /// FK -> VoyageRecord.Id (nullable for non-voyage reports)
+    /// </summary>
+    public long? VoyageId { get; set; }
+    
+    /// <summary>
+    /// Report status: DRAFT, SUBMITTED, APPROVED, REJECTED, TRANSMITTED
+    /// </summary>
+    [Required]
+    [MaxLength(30)]
+    public string Status { get; set; } = "DRAFT";
+    
+    /// <summary>
+    /// Prepared by (crew name or username)
+    /// </summary>
+    [MaxLength(100)]
+    public string? PreparedBy { get; set; }
+    
+    /// <summary>
+    /// Master signature (digital signature or name)
+    /// </summary>
+    [MaxLength(100)]
+    public string? MasterSignature { get; set; }
+    
+    /// <summary>
+    /// Signature timestamp
+    /// </summary>
+    public DateTime? SignedAt { get; set; }
+    
+    /// <summary>
+    /// Report data in JSON format (flexible schema)
+    /// Contains all report-specific fields
+    /// </summary>
+    [Required]
+    public string ReportData { get; set; } = "{}";
+    
+    /// <summary>
+    /// Additional remarks/notes
+    /// </summary>
+    public string? Remarks { get; set; }
+    
+    /// <summary>
+    /// Has been transmitted to shore?
+    /// </summary>
+    public bool IsTransmitted { get; set; } = false;
+    
+    /// <summary>
+    /// Transmission timestamp
+    /// </summary>
+    public DateTime? TransmittedAt { get; set; }
+    
+    /// <summary>
+    /// Local sync status
+    /// </summary>
+    public bool IsSynced { get; set; } = false;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    public DateTime? UpdatedAt { get; set; }
+    
+    // Soft Delete Support (IMO 3-year retention requirement)
+    public DateTime? DeletedAt { get; set; }
+    
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; }
+    
+    public string? DeletedReason { get; set; }
+}
+
+/// <summary>
+/// Report Workflow History - Audit trail for compliance
+/// Tracks all status transitions for accountability
+/// </summary>
+public class ReportWorkflowHistory
+{
+    [Key]
+    public long Id { get; set; }
+    
+    [Required]
+    public long MaritimeReportId { get; set; }
+    
+    [Required]
+    [MaxLength(20)]
+    public string FromStatus { get; set; } = string.Empty;
+    
+    [Required]
+    [MaxLength(20)]
+    public string ToStatus { get; set; } = string.Empty;
+    
+    [Required]
+    [MaxLength(100)]
+    public string ChangedBy { get; set; } = string.Empty;
+    
+    [Required]
+    public DateTime ChangedAt { get; set; } = DateTime.UtcNow;
+    
+    public string? Remarks { get; set; }
+    
+    [MaxLength(50)]
+    public string? IpAddress { get; set; }
+    
+    [MaxLength(200)]
+    public string? UserAgent { get; set; }
+}
+
+/// <summary>
+/// Noon Report Daily - Báo cáo giữa trưa hàng ngày (IMO standard)
+/// Most important daily operational report
+/// </summary>
+public class NoonReport
+{
+    [Key]
+    public long Id { get; set; }
+    
+    /// <summary>
+    /// FK -> MaritimeReport.Id (parent report)
+    /// </summary>
+    [Required]
+    public long MaritimeReportId { get; set; }
+    
+    /// <summary>
+    /// Report date (local ship time)
+    /// </summary>
+    [Required]
+    public DateTime ReportDate { get; set; }
+    
+    /// <summary>
+    /// Noon position - Latitude
+    /// </summary>
+    [Range(-90, 90)]
+    public double? Latitude { get; set; }
+    
+    /// <summary>
+    /// Noon position - Longitude
+    /// </summary>
+    [Range(-180, 180)]
+    public double? Longitude { get; set; }
+    
+    /// <summary>
+    /// Course Over Ground (degrees true)
+    /// </summary>
+    [Range(0, 360)]
+    public double? CourseOverGround { get; set; }
+    
+    /// <summary>
+    /// Speed Over Ground (knots)
+    /// </summary>
+    [Range(0, 50)]
+    public double? SpeedOverGround { get; set; }
+    
+    /// <summary>
+    /// Distance traveled in last 24h (nautical miles)
+    /// </summary>
+    [Range(0, 1000)]
+    public double? DistanceTraveled { get; set; }
+    
+    /// <summary>
+    /// Distance to go to next port (nautical miles)
+    /// </summary>
+    public double? DistanceToGo { get; set; }
+    
+    /// <summary>
+    /// Estimated Time of Arrival
+    /// </summary>
+    public DateTime? EstimatedTimeOfArrival { get; set; }
+    
+    // Weather conditions
+    [MaxLength(50)]
+    public string? WeatherConditions { get; set; } // FAIR, CLOUDY, RAIN, STORM
+    
+    [MaxLength(20)]
+    public string? SeaState { get; set; } // CALM, MODERATE, ROUGH
+    
+    [Range(-50, 50)]
+    public double? AirTemperature { get; set; } // Celsius
+    
+    [Range(-50, 50)]
+    public double? SeaTemperature { get; set; } // Celsius
+    
+    [Range(900, 1100)]
+    public double? BarometricPressure { get; set; } // hPa
+    
+    [MaxLength(20)]
+    public string? WindDirection { get; set; } // N, NE, E, SE, S, SW, W, NW
+    
+    [Range(0, 100)]
+    public double? WindSpeed { get; set; } // knots
+    
+    [MaxLength(20)]
+    public string? Visibility { get; set; } // GOOD, MODERATE, POOR
+    
+    // Fuel consumption (last 24h)
+    public double? FuelOilConsumed { get; set; } // MT (Metric Tons)
+    public double? DieselOilConsumed { get; set; } // MT
+    public double? LubOilConsumed { get; set; } // Liters
+    public double? FreshWaterConsumed { get; set; } // Tons
+    
+    // Fuel remaining on board (ROB)
+    public double? FuelOilROB { get; set; } // MT
+    public double? DieselOilROB { get; set; } // MT
+    public double? LubOilROB { get; set; } // Liters
+    public double? FreshWaterROB { get; set; } // Tons
+    
+    // Engine performance
+    [MaxLength(50)]
+    public string? MainEngineRunningHours { get; set; }
+    public double? MainEngineRPM { get; set; }
+    public double? MainEnginePower { get; set; } // kW or HP
+    
+    [MaxLength(50)]
+    public string? AuxEngineRunningHours { get; set; }
+    
+    // Cargo information
+    public double? CargoOnBoard { get; set; } // MT
+    [MaxLength(100)]
+    public string? CargoDescription { get; set; }
+    
+    // Additional remarks
+    public string? OperationalRemarks { get; set; }
+    public string? MachineryRemarks { get; set; }
+    public string? CargoRemarks { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Departure Report - Báo cáo rời cảng (SOLAS Chapter V)
+/// </summary>
+public class DepartureReport
+{
+    [Key]
+    public long Id { get; set; }
+    
+    /// <summary>
+    /// FK -> MaritimeReport.Id
+    /// </summary>
+    [Required]
+    public long MaritimeReportId { get; set; }
+    
+    /// <summary>
+    /// FK -> VoyageRecord.Id
+    /// </summary>
+    public long? VoyageId { get; set; }
+    
+    [Required]
+    [MaxLength(100)]
+    public string PortName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// UN/LOCODE (e.g., SGSIN for Singapore)
+    /// </summary>
+    [MaxLength(10)]
+    public string? PortCode { get; set; }
+    
+    [Required]
+    public DateTime DepartureDateTime { get; set; }
+    
+    /// <summary>
+    /// Pilot on board time
+    /// </summary>
+    public DateTime? PilotOnBoardTime { get; set; }
+    
+    /// <summary>
+    /// Last line ashore time
+    /// </summary>
+    public DateTime? LastLineAshoreTime { get; set; }
+    
+    /// <summary>
+    /// Departure position - Latitude
+    /// </summary>
+    public double? DepartureLatitude { get; set; }
+    
+    /// <summary>
+    /// Departure position - Longitude
+    /// </summary>
+    public double? DepartureLongitude { get; set; }
+    
+    [MaxLength(100)]
+    public string? NextPort { get; set; }
+    
+    [MaxLength(10)]
+    public string? NextPortCode { get; set; }
+    
+    public DateTime? EstimatedTimeOfArrival { get; set; }
+    
+    public double? DistanceToNextPort { get; set; } // Nautical miles
+    
+    // Draft readings (vessel draft in meters)
+    public double? DraftForward { get; set; }
+    public double? DraftAft { get; set; }
+    public double? DraftMidship { get; set; }
+    
+    // Bunker quantities at departure (ROB)
+    public double? FuelOilROB { get; set; } // MT
+    public double? DieselOilROB { get; set; } // MT
+    public double? LubOilROB { get; set; } // Liters
+    public double? FreshWaterROB { get; set; } // Tons
+    
+    // Cargo
+    public double? CargoOnBoard { get; set; } // MT
+    [MaxLength(200)]
+    public string? CargoDescription { get; set; }
+    
+    public int? CrewOnBoard { get; set; }
+    public int? PassengersOnBoard { get; set; }
+    
+    public string? Remarks { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Arrival Report - Báo cáo đến cảng (SOLAS Chapter V)
+/// </summary>
+public class ArrivalReport
+{
+    [Key]
+    public long Id { get; set; }
+    
+    /// <summary>
+    /// FK -> MaritimeReport.Id
+    /// </summary>
+    [Required]
+    public long MaritimeReportId { get; set; }
+    
+    /// <summary>
+    /// FK -> VoyageRecord.Id
+    /// </summary>
+    public long? VoyageId { get; set; }
+    
+    [Required]
+    [MaxLength(100)]
+    public string PortName { get; set; } = string.Empty;
+    
+    [MaxLength(10)]
+    public string? PortCode { get; set; }
+    
+    [Required]
+    public DateTime ArrivalDateTime { get; set; }
+    
+    /// <summary>
+    /// Pilot on board time
+    /// </summary>
+    public DateTime? PilotOnBoardTime { get; set; }
+    
+    /// <summary>
+    /// First line ashore time (mooring completion)
+    /// </summary>
+    public DateTime? FirstLineAshoreTime { get; set; }
+    
+    /// <summary>
+    /// Arrival position - Latitude
+    /// </summary>
+    public double? ArrivalLatitude { get; set; }
+    
+    /// <summary>
+    /// Arrival position - Longitude
+    /// </summary>
+    public double? ArrivalLongitude { get; set; }
+    
+    /// <summary>
+    /// Total voyage distance (nautical miles)
+    /// </summary>
+    public double? VoyageDistance { get; set; }
+    
+    /// <summary>
+    /// Voyage duration (hours)
+    /// </summary>
+    public double? VoyageDuration { get; set; }
+    
+    /// <summary>
+    /// Average speed during voyage (knots)
+    /// </summary>
+    public double? AverageSpeed { get; set; }
+    
+    // Draft readings on arrival
+    public double? DraftForward { get; set; }
+    public double? DraftAft { get; set; }
+    public double? DraftMidship { get; set; }
+    
+    // Bunker ROB on arrival
+    public double? FuelOilROB { get; set; }
+    public double? DieselOilROB { get; set; }
+    public double? LubOilROB { get; set; }
+    public double? FreshWaterROB { get; set; }
+    
+    // Total fuel consumed during voyage
+    public double? TotalFuelConsumed { get; set; }
+    public double? TotalDieselConsumed { get; set; }
+    
+    // Cargo
+    public double? CargoOnBoard { get; set; }
+    [MaxLength(200)]
+    public string? CargoDescription { get; set; }
+    
+    public int? CrewOnBoard { get; set; }
+    public int? PassengersOnBoard { get; set; }
+    
+    public string? Remarks { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Bunker Delivery Note Report - Báo cáo nhận nhiên liệu
+/// IMO DCS / MARPOL Annex VI compliance
+/// </summary>
+public class BunkerReport
+{
+    [Key]
+    public long Id { get; set; }
+    
+    /// <summary>
+    /// FK -> MaritimeReport.Id
+    /// </summary>
+    [Required]
+    public long MaritimeReportId { get; set; }
+    
+    [Required]
+    public DateTime BunkerDate { get; set; }
+    
+    [Required]
+    [MaxLength(100)]
+    public string PortName { get; set; } = string.Empty;
+    
+    [MaxLength(10)]
+    public string? PortCode { get; set; }
+    
+    /// <summary>
+    /// Bunker supplier name
+    /// </summary>
+    [Required]
+    [MaxLength(200)]
+    public string SupplierName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Bunker Delivery Note (BDN) number
+    /// </summary>
+    [Required]
+    [MaxLength(50)]
+    public string BDNNumber { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Fuel type (HFO, MGO, LSFO, etc.)
+    /// </summary>
+    [Required]
+    [MaxLength(20)]
+    public string FuelType { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Fuel grade (ISO 8217)
+    /// </summary>
+    [MaxLength(50)]
+    public string? FuelGrade { get; set; }
+    
+    /// <summary>
+    /// Quantity received (MT)
+    /// </summary>
+    [Required]
+    [Range(0, 10000)]
+    public double QuantityReceived { get; set; }
+    
+    /// <summary>
+    /// Density at 15°C (kg/m³)
+    /// </summary>
+    public double? Density { get; set; }
+    
+    /// <summary>
+    /// Sulphur content (% m/m) - MARPOL compliance
+    /// </summary>
+    [Range(0, 5)]
+    public double? SulphurContent { get; set; }
+    
+    /// <summary>
+    /// Viscosity (cSt)
+    /// </summary>
+    public double? Viscosity { get; set; }
+    
+    /// <summary>
+    /// Flash point (°C)
+    /// </summary>
+    public double? FlashPoint { get; set; }
+    
+    /// <summary>
+    /// ROB before bunkering (MT)
+    /// </summary>
+    public double? ROBBefore { get; set; }
+    
+    /// <summary>
+    /// ROB after bunkering (MT)
+    /// </summary>
+    public double? ROBAfter { get; set; }
+    
+    /// <summary>
+    /// Tank(s) where fuel was loaded
+    /// </summary>
+    [MaxLength(200)]
+    public string? TanksLoaded { get; set; }
+    
+    /// <summary>
+    /// Seal numbers (if applicable)
+    /// </summary>
+    [MaxLength(200)]
+    public string? SealNumbers { get; set; }
+    
+    /// <summary>
+    /// Chief Engineer signature/name
+    /// </summary>
+    [MaxLength(100)]
+    public string? ChiefEngineerSignature { get; set; }
+    
+    public string? Remarks { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Position Report - Báo cáo vị trí (SOLAS Chapter V Regulation 19)
+/// For vessels in special areas or upon request
+/// </summary>
+public class PositionReport
+{
+    [Key]
+    public long Id { get; set; }
+    
+    /// <summary>
+    /// FK -> MaritimeReport.Id
+    /// </summary>
+    [Required]
+    public long MaritimeReportId { get; set; }
+    
+    [Required]
+    public DateTime ReportDateTime { get; set; }
+    
+    [Required]
+    [Range(-90, 90)]
+    public double Latitude { get; set; }
+    
+    [Required]
+    [Range(-180, 180)]
+    public double Longitude { get; set; }
+    
+    [Range(0, 360)]
+    public double? CourseOverGround { get; set; }
+    
+    [Range(0, 50)]
+    public double? SpeedOverGround { get; set; }
+    
+    /// <summary>
+    /// Report reason: ROUTINE, EMERGENCY, REQUEST, SPECIAL_AREA
+    /// </summary>
+    [MaxLength(50)]
+    public string ReportReason { get; set; } = "ROUTINE";
+    
+    [MaxLength(100)]
+    public string? LastPort { get; set; }
+    
+    [MaxLength(100)]
+    public string? NextPort { get; set; }
+    
+    public DateTime? ETA { get; set; }
+    
+    public double? CargoOnBoard { get; set; }
+    
+    public int? CrewOnBoard { get; set; }
+    
+    public string? Remarks { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Report Attachments - File đính kèm báo cáo
+/// Supporting documents, photos, certificates, etc.
+/// </summary>
+public class ReportAttachment
+{
+    [Key]
+    public long Id { get; set; }
+    
+    /// <summary>
+    /// FK -> MaritimeReport.Id
+    /// </summary>
+    [Required]
+    public long MaritimeReportId { get; set; }
+    
+    [Required]
+    [MaxLength(255)]
+    public string FileName { get; set; } = string.Empty;
+    
+    [Required]
+    [MaxLength(100)]
+    public string FileType { get; set; } = string.Empty; // PDF, IMAGE, EXCEL, etc.
+    
+    [MaxLength(50)]
+    public string? MimeType { get; set; }
+    
+    /// <summary>
+    /// File size in bytes
+    /// </summary>
+    public long FileSize { get; set; }
+    
+    /// <summary>
+    /// File storage path or blob reference
+    /// </summary>
+    [Required]
+    public string FilePath { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Attachment description
+    /// </summary>
+    [MaxLength(500)]
+    public string? Description { get; set; }
+    
+    /// <summary>
+    /// Uploaded by (crew name)
+    /// </summary>
+    [MaxLength(100)]
+    public string? UploadedBy { get; set; }
+    
+    public bool IsSynced { get; set; } = false;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Report Distribution - Danh sách phân phối báo cáo
+/// Track who should receive each report
+/// </summary>
+public class ReportDistribution
+{
+    [Key]
+    public long Id { get; set; }
+    
+    /// <summary>
+    /// FK -> ReportType.Id
+    /// </summary>
+    [Required]
+    public int ReportTypeId { get; set; }
+    
+    /// <summary>
+    /// Recipient type: SHORE_OFFICE, OWNER, CHARTERER, PORT_AUTHORITY, CLASS_SOCIETY
+    /// </summary>
+    [Required]
+    [MaxLength(50)]
+    public string RecipientType { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Recipient name/organization
+    /// </summary>
+    [Required]
+    [MaxLength(200)]
+    public string RecipientName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Email address(es) - can be multiple, comma-separated
+    /// </summary>
+    [MaxLength(500)]
+    public string? EmailAddresses { get; set; }
+    
+    /// <summary>
+    /// Fax number (legacy but still used in maritime)
+    /// </summary>
+    [MaxLength(50)]
+    public string? FaxNumber { get; set; }
+    
+    /// <summary>
+    /// Delivery method: EMAIL, FAX, PORTAL, API
+    /// </summary>
+    [MaxLength(30)]
+    public string DeliveryMethod { get; set; } = "EMAIL";
+    
+    public bool IsActive { get; set; } = true;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Report Transmission Log - Nhật ký gửi báo cáo
+/// Track all report transmissions to shore
+/// </summary>
+public class ReportTransmissionLog
+{
+    [Key]
+    public long Id { get; set; }
+    
+    /// <summary>
+    /// FK -> MaritimeReport.Id
+    /// </summary>
+    [Required]
+    public long MaritimeReportId { get; set; }
+    
+    [Required]
+    public DateTime TransmissionDateTime { get; set; }
+    
+    /// <summary>
+    /// Transmission method: EMAIL, VSAT, INMARSAT, API, MANUAL
+    /// </summary>
+    [Required]
+    [MaxLength(30)]
+    public string TransmissionMethod { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Recipients (comma-separated emails or identifiers)
+    /// </summary>
+    [MaxLength(1000)]
+    public string? Recipients { get; set; }
+    
+    /// <summary>
+    /// Transmission status: SUCCESS, FAILED, PENDING, PARTIAL
+    /// </summary>
+    [Required]
+    [MaxLength(30)]
+    public string Status { get; set; } = "PENDING";
+    
+    /// <summary>
+    /// Error message if transmission failed
+    /// </summary>
+    public string? ErrorMessage { get; set; }
+    
+    /// <summary>
+    /// Number of retry attempts
+    /// </summary>
+    public int RetryCount { get; set; } = 0;
+    
+    /// <summary>
+    /// Transmission confirmation number (if available)
+    /// </summary>
+    [MaxLength(100)]
+    public string? ConfirmationNumber { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Report Amendment - Bản sửa đổi báo cáo
+/// ISM Code compliant amendment tracking for APPROVED/TRANSMITTED reports
+/// Original reports must NEVER be modified after approval
+/// </summary>
+public class ReportAmendment
+{
+    [Key]
+    public long Id { get; set; }
+    
+    /// <summary>
+    /// FK -> MaritimeReport.Id (original report being amended)
+    /// </summary>
+    [Required]
+    public long OriginalReportId { get; set; }
+    
+    /// <summary>
+    /// Amendment number (sequential: 1, 2, 3...)
+    /// </summary>
+    [Required]
+    public int AmendmentNumber { get; set; }
+    
+    /// <summary>
+    /// Reason for amendment
+    /// </summary>
+    [Required]
+    public string AmendmentReason { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Fields being corrected (JSON format)
+    /// Example: { "fuelOilConsumed": { "old": 45.5, "new": 47.2 }, "latitude": { "old": 0, "new": 14.5 } }
+    /// </summary>
+    [Required]
+    public string CorrectedFields { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Full amended report data (JSON)
+    /// Complete snapshot of corrected report
+    /// </summary>
+    public string? AmendedReportData { get; set; }
+    
+    /// <summary>
+    /// Who created the amendment
+    /// </summary>
+    [Required]
+    [MaxLength(100)]
+    public string AmendedBy { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Amendment status: DRAFT, SUBMITTED, APPROVED, REJECTED
+    /// </summary>
+    [Required]
+    [MaxLength(20)]
+    public string Status { get; set; } = "DRAFT";
+    
+    /// <summary>
+    /// Master signature for approval
+    /// </summary>
+    [MaxLength(100)]
+    public string? MasterSignature { get; set; }
+    
+    /// <summary>
+    /// When Master signed the amendment
+    /// </summary>
+    public DateTime? SignedAt { get; set; }
+    
+    /// <summary>
+    /// Is this amendment transmitted to shore?
+    /// </summary>
+    public bool IsTransmitted { get; set; } = false;
+    
+    /// <summary>
+    /// When transmitted
+    /// </summary>
+    public DateTime? TransmittedAt { get; set; }
+    
+    /// <summary>
+    /// Additional remarks about the amendment
+    /// </summary>
+    public string? Remarks { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    public DateTime? UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// Weekly Performance Report - Báo cáo hiệu suất tuần
+/// Aggregate of daily Noon Reports for weekly analysis
+/// </summary>
+public class WeeklyPerformanceReport
+{
+    [Key]
+    public long Id { get; set; }
+    
+    [Required]
+    [MaxLength(50)]
+    public string ReportNumber { get; set; } = string.Empty;
+    
+    [Required]
+    public int WeekNumber { get; set; }
+    
+    [Required]
+    public int Year { get; set; }
+    
+    [Required]
+    public DateTime WeekStartDate { get; set; }
+    
+    [Required]
+    public DateTime WeekEndDate { get; set; }
+    
+    public long? VoyageId { get; set; }
+    
+    // Performance Metrics
+    public double TotalDistance { get; set; }
+    public double AverageSpeed { get; set; }
+    public double TotalSteamingHours { get; set; }
+    public double TotalPortHours { get; set; }
+    
+    // Fuel Consumption
+    public double TotalFuelOilConsumed { get; set; }
+    public double TotalDieselOilConsumed { get; set; }
+    public double AverageFuelPerDay { get; set; }
+    public double FuelEfficiency { get; set; }
+    public double FuelOilROB { get; set; }
+    public double DieselOilROB { get; set; }
+    
+    // Maintenance & Operations
+    public int TotalMaintenanceTasksCompleted { get; set; }
+    public double TotalMaintenanceHours { get; set; }
+    public int CriticalIssues { get; set; }
+    public int SafetyIncidents { get; set; }
+    
+    // Cargo & Operations
+    public int PortCalls { get; set; }
+    public double TotalCargoLoaded { get; set; }
+    public double TotalCargoDischarged { get; set; }
+    
+    // Metadata
+    [Required]
+    [MaxLength(20)]
+    public string Status { get; set; } = "DRAFT";
+    
+    [MaxLength(100)]
+    public string? PreparedBy { get; set; }
+    
+    [MaxLength(100)]
+    public string? MasterSignature { get; set; }
+    
+    public DateTime? SignedAt { get; set; }
+    public string? Remarks { get; set; }
+    public bool IsTransmitted { get; set; } = false;
+    public DateTime? TransmittedAt { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// Monthly Summary Report - Báo cáo tổng hợp tháng
+/// Comprehensive monthly operations summary
+/// </summary>
+public class MonthlySummaryReport
+{
+    [Key]
+    public long Id { get; set; }
+    
+    [Required]
+    [MaxLength(50)]
+    public string ReportNumber { get; set; } = string.Empty;
+    
+    [Required]
+    public int Month { get; set; }
+    
+    [Required]
+    public int Year { get; set; }
+    
+    [Required]
+    public DateTime MonthStartDate { get; set; }
+    
+    [Required]
+    public DateTime MonthEndDate { get; set; }
+    
+    // Performance Metrics
+    public double TotalDistance { get; set; }
+    public double AverageSpeed { get; set; }
+    public double TotalSteamingDays { get; set; }
+    public double TotalPortDays { get; set; }
+    public int VoyagesCompleted { get; set; }
+    
+    // Fuel Consumption
+    public double TotalFuelOilConsumed { get; set; }
+    public double TotalDieselOilConsumed { get; set; }
+    public double? TotalFuelCost { get; set; }
+    public double AverageFuelPerDay { get; set; }
+    public double FuelEfficiency { get; set; }
+    public int TotalBunkerOperations { get; set; }
+    public double TotalFuelBunkered { get; set; }
+    
+    // Maintenance & Safety
+    public int TotalMaintenanceCompleted { get; set; }
+    public double TotalMaintenanceHours { get; set; }
+    public int OverdueMaintenanceTasks { get; set; }
+    public int SafetyDrillsConducted { get; set; }
+    public int SafetyIncidents { get; set; }
+    public int NearMissIncidents { get; set; }
+    
+    // Port Operations
+    public int TotalPortCalls { get; set; }
+    
+    [MaxLength(1000)]
+    public string? PortsVisited { get; set; }
+    
+    // Cargo Operations
+    public double TotalCargoLoaded { get; set; }
+    public double TotalCargoDischarged { get; set; }
+    public double AverageCargoOnBoard { get; set; }
+    
+    // Compliance & Reporting
+    public int TotalReportsSubmitted { get; set; }
+    public int NoonReportsSubmitted { get; set; }
+    public int DepartureReportsSubmitted { get; set; }
+    public int ArrivalReportsSubmitted { get; set; }
+    
+    // Metadata
+    [Required]
+    [MaxLength(20)]
+    public string Status { get; set; } = "DRAFT";
+    
+    [MaxLength(100)]
+    public string? PreparedBy { get; set; }
+    
+    [MaxLength(100)]
+    public string? MasterSignature { get; set; }
+    
+    public DateTime? SignedAt { get; set; }
+    public string? Remarks { get; set; }
+    public bool IsTransmitted { get; set; } = false;
+    public DateTime? TransmittedAt { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
+}
+
+

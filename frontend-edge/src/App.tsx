@@ -18,6 +18,16 @@ import { MaterialPage } from './pages/Material/MaterialPage'
 import { FuelAnalyticsPage } from './pages/FuelAnalytics'
 import { TaskManagementPage } from './pages/TaskManagement/TaskManagementPage'
 
+// Reporting Pages
+import { ReportingDashboard } from './pages/Reporting/ReportingDashboard'
+import { ReportsPage } from './pages/Reporting/ReportsPage'
+import { ReportDetailPage } from './pages/Reporting/ReportDetailPage'
+import { NoonReportForm } from './pages/Reporting/NoonReportForm'
+import { DepartureReportForm } from './pages/Reporting/DepartureReportForm'
+import { ArrivalReportForm } from './pages/Reporting/ArrivalReportForm'
+import { BunkerReportForm } from './pages/Reporting/BunkerReportForm'
+import { PositionReportForm } from './pages/Reporting/PositionReportForm'
+
 function App() {
   return (
     <>
@@ -39,6 +49,17 @@ function App() {
         <Route path="sync" element={<SyncPage />} />
         <Route path="materials" element={<MaterialPage />} />
         <Route path="fuel-analytics" element={<FuelAnalyticsPage />} />
+        
+        {/* Reporting Routes */}
+        <Route path="reporting" element={<ReportingDashboard />} />
+        <Route path="reporting/reports" element={<ReportsPage />} />
+        <Route path="reporting/reports/:id" element={<ReportDetailPage />} />
+        <Route path="reporting/noon/new" element={<NoonReportForm />} />
+        <Route path="reporting/noon/edit/:id" element={<NoonReportForm />} />
+        <Route path="reporting/departure/new" element={<DepartureReportForm />} />
+        <Route path="reporting/arrival/new" element={<ArrivalReportForm />} />
+        <Route path="reporting/bunker/new" element={<BunkerReportForm />} />
+        <Route path="reporting/position/new" element={<PositionReportForm />} />
       </Route>
       
       {/* Full-screen pages outside MainLayout */}

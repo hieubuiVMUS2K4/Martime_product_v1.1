@@ -58,6 +58,22 @@ public class EdgeDbContext : DbContext
     public DbSet<Role> Roles { get; set; } = null!;
     public DbSet<User> Users { get; set; } = null!;
 
+    // Maritime Reporting System (IMO/SOLAS/MARPOL Compliance)
+    public DbSet<ReportType> ReportTypes { get; set; } = null!;
+    public DbSet<MaritimeReport> MaritimeReports { get; set; } = null!;
+    public DbSet<NoonReport> NoonReports { get; set; } = null!;
+    public DbSet<DepartureReport> DepartureReports { get; set; } = null!;
+    public DbSet<ArrivalReport> ArrivalReports { get; set; } = null!;
+    public DbSet<BunkerReport> BunkerReports { get; set; } = null!;
+    public DbSet<PositionReport> PositionReports { get; set; } = null!;
+    public DbSet<ReportAttachment> ReportAttachments { get; set; } = null!;
+    public DbSet<ReportDistribution> ReportDistributions { get; set; } = null!;
+    public DbSet<ReportTransmissionLog> ReportTransmissionLogs { get; set; } = null!;
+    public DbSet<ReportWorkflowHistory> ReportWorkflowHistories { get; set; } = null!;
+    public DbSet<ReportAmendment> ReportAmendments { get; set; } = null!;
+    public DbSet<WeeklyPerformanceReport> WeeklyPerformanceReports { get; set; } = null!;
+    public DbSet<MonthlySummaryReport> MonthlySummaryReports { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -804,6 +820,243 @@ public class EdgeDbContext : DbContext
                 .HasForeignKey(e => e.CrewId)
                 .HasPrincipalKey(c => c.CrewId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ========== MARITIME REPORTING SYSTEM ==========
+
+        // ========== REPORT TYPES ==========
+        modelBuilder.Entity<ReportType>(entity =>
+        {
+            entity.ToTable("report_types");
+
+            entity.HasIndex(e => e.TypeCode)
+                .IsUnique()
+                .HasDatabaseName("idx_report_type_code_unique");
+
+            entity.HasIndex(e => e.Category)
+                .HasDatabaseName("idx_report_type_category");
+
+            entity.HasIndex(e => e.IsMandatory)
+                .HasDatabaseName("idx_report_type_mandatory")
+                .HasFilter("is_mandatory = true");
+
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_report_type_active")
+                .HasFilter("is_active = true");
+        });
+
+        // ========== MARITIME REPORTS (Polymorphic Parent) ==========
+        modelBuilder.Entity<MaritimeReport>(entity =>
+        {
+            entity.ToTable("maritime_reports");
+
+            entity.HasIndex(e => e.ReportNumber)
+                .IsUnique()
+                .HasDatabaseName("idx_report_number_unique");
+
+            entity.HasIndex(e => e.ReportTypeId)
+                .HasDatabaseName("idx_report_type_id");
+
+            entity.HasIndex(e => e.VoyageId)
+                .HasDatabaseName("idx_report_voyage_id");
+
+            entity.HasIndex(e => e.ReportDateTime)
+                .HasDatabaseName("idx_report_datetime")
+                .IsDescending();
+
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("idx_report_status");
+
+            entity.HasIndex(e => new { e.Status, e.ReportDateTime })
+                .HasDatabaseName("idx_report_status_datetime")
+                .HasFilter("status IN ('DRAFT', 'SUBMITTED')");
+
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_report_synced")
+                .HasFilter("is_synced = false");
+
+            // Foreign key to ReportType
+            entity.HasOne<ReportType>()
+                .WithMany()
+                .HasForeignKey(e => e.ReportTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Foreign key to VoyageRecord (optional)
+            entity.HasOne<VoyageRecord>()
+                .WithMany()
+                .HasForeignKey(e => e.VoyageId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ========== NOON REPORTS ==========
+        modelBuilder.Entity<NoonReport>(entity =>
+        {
+            entity.ToTable("noon_reports");
+
+            entity.HasIndex(e => e.MaritimeReportId)
+                .HasDatabaseName("idx_noon_report_id");
+
+            entity.HasIndex(e => e.ReportDate)
+                .HasDatabaseName("idx_noon_date")
+                .IsDescending();
+
+            // Foreign key to MaritimeReport (one-to-one)
+            entity.HasOne<MaritimeReport>()
+                .WithOne()
+                .HasForeignKey<NoonReport>(e => e.MaritimeReportId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========== DEPARTURE REPORTS ==========
+        modelBuilder.Entity<DepartureReport>(entity =>
+        {
+            entity.ToTable("departure_reports");
+
+            entity.HasIndex(e => e.MaritimeReportId)
+                .HasDatabaseName("idx_departure_report_id");
+
+            entity.HasIndex(e => e.PortName)
+                .HasDatabaseName("idx_departure_port");
+
+            entity.HasIndex(e => e.DepartureDateTime)
+                .HasDatabaseName("idx_departure_datetime")
+                .IsDescending();
+
+            // Foreign key to MaritimeReport
+            entity.HasOne<MaritimeReport>()
+                .WithOne()
+                .HasForeignKey<DepartureReport>(e => e.MaritimeReportId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========== ARRIVAL REPORTS ==========
+        modelBuilder.Entity<ArrivalReport>(entity =>
+        {
+            entity.ToTable("arrival_reports");
+
+            entity.HasIndex(e => e.MaritimeReportId)
+                .HasDatabaseName("idx_arrival_report_id");
+
+            entity.HasIndex(e => e.PortName)
+                .HasDatabaseName("idx_arrival_port");
+
+            entity.HasIndex(e => e.ArrivalDateTime)
+                .HasDatabaseName("idx_arrival_datetime")
+                .IsDescending();
+
+            // Foreign key to MaritimeReport
+            entity.HasOne<MaritimeReport>()
+                .WithOne()
+                .HasForeignKey<ArrivalReport>(e => e.MaritimeReportId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========== BUNKER REPORTS ==========
+        modelBuilder.Entity<BunkerReport>(entity =>
+        {
+            entity.ToTable("bunker_reports");
+
+            entity.HasIndex(e => e.MaritimeReportId)
+                .HasDatabaseName("idx_bunker_report_id");
+
+            entity.HasIndex(e => e.PortName)
+                .HasDatabaseName("idx_bunker_port");
+
+            entity.HasIndex(e => e.BunkerDate)
+                .HasDatabaseName("idx_bunker_date")
+                .IsDescending();
+
+            // Foreign key to MaritimeReport
+            entity.HasOne<MaritimeReport>()
+                .WithOne()
+                .HasForeignKey<BunkerReport>(e => e.MaritimeReportId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========== POSITION REPORTS ==========
+        modelBuilder.Entity<PositionReport>(entity =>
+        {
+            entity.ToTable("position_reports");
+
+            entity.HasIndex(e => e.MaritimeReportId)
+                .HasDatabaseName("idx_position_report_id");
+
+            entity.HasIndex(e => e.ReportDateTime)
+                .HasDatabaseName("idx_position_report_datetime")
+                .IsDescending();
+
+            // Foreign key to MaritimeReport
+            entity.HasOne<MaritimeReport>()
+                .WithOne()
+                .HasForeignKey<PositionReport>(e => e.MaritimeReportId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========== REPORT ATTACHMENTS ==========
+        modelBuilder.Entity<ReportAttachment>(entity =>
+        {
+            entity.ToTable("report_attachments");
+
+            entity.HasIndex(e => e.MaritimeReportId)
+                .HasDatabaseName("idx_attachment_report_id");
+
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_attachment_synced")
+                .HasFilter("is_synced = false");
+
+            // Foreign key to MaritimeReport
+            entity.HasOne<MaritimeReport>()
+                .WithMany()
+                .HasForeignKey(e => e.MaritimeReportId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========== REPORT DISTRIBUTION (N-N Junction Table) ==========
+        modelBuilder.Entity<ReportDistribution>(entity =>
+        {
+            entity.ToTable("report_distributions");
+
+            entity.HasIndex(e => e.ReportTypeId)
+                .HasDatabaseName("idx_distribution_report_type");
+
+            entity.HasIndex(e => e.RecipientType)
+                .HasDatabaseName("idx_distribution_recipient_type");
+
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_distribution_active")
+                .HasFilter("is_active = true");
+
+            // Foreign key to ReportType
+            entity.HasOne<ReportType>()
+                .WithMany()
+                .HasForeignKey(e => e.ReportTypeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========== REPORT TRANSMISSION LOG ==========
+        modelBuilder.Entity<ReportTransmissionLog>(entity =>
+        {
+            entity.ToTable("report_transmission_logs");
+
+            entity.HasIndex(e => e.MaritimeReportId)
+                .HasDatabaseName("idx_transmission_report_id");
+
+            entity.HasIndex(e => e.TransmissionDateTime)
+                .HasDatabaseName("idx_transmission_datetime")
+                .IsDescending();
+
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("idx_transmission_status");
+
+            entity.HasIndex(e => new { e.Status, e.RetryCount })
+                .HasDatabaseName("idx_transmission_failed_retry")
+                .HasFilter("status = 'FAILED'");
+
+            // Foreign key to MaritimeReport
+            entity.HasOne<MaritimeReport>()
+                .WithMany()
+                .HasForeignKey(e => e.MaritimeReportId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 
