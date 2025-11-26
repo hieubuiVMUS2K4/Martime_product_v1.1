@@ -1848,6 +1848,12 @@ abstract class AppLocalizations {
   /// **'Already completed. You can update it.'**
   String get alreadyCompletedCanUpdate;
 
+  /// No description provided for @tapToComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'👆 Tap to complete'**
+  String get tapToComplete;
+
   /// No description provided for @savedItem.
   ///
   /// In en, this message translates to:

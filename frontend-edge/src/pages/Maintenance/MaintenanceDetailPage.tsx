@@ -14,7 +14,6 @@ import {
   Package,
   Edit2,
   Trash2,
-  Play,
   CheckSquare
 } from 'lucide-react'
 import { MaintenanceTask } from '../../types/maritime.types'
@@ -31,20 +30,10 @@ export function MaintenanceDetailPage() {
   const [editedTask, setEditedTask] = useState<Partial<MaintenanceTask>>({})
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [completing, setCompleting] = useState(false)
 
   // Checklist state
   const [checklist, setChecklist] = useState<any[]>([])
   const [loadingChecklist, setLoadingChecklist] = useState(false)
-
-  // Completion form state
-  const [showCompleteForm, setShowCompleteForm] = useState(false)
-  const [completionData, setCompletionData] = useState({
-    completedBy: '',
-    notes: '',
-    sparePartsUsed: '',
-    runningHours: ''
-  })
 
   useEffect(() => {
     loadTaskDetails()
@@ -106,35 +95,6 @@ export function MaintenanceDetailPage() {
     }
   }
 
-  const handleComplete = async () => {
-    if (!task) return
-    
-    // Validate completion form
-    if (!completionData.completedBy.trim()) {
-      alert('Please enter who completed the task')
-      return
-    }
-    
-    try {
-      setCompleting(true)
-      await maritimeService.maintenance.completeTask(task.id, {
-        completedBy: completionData.completedBy,
-        notes: completionData.notes,
-        sparePartsUsed: completionData.sparePartsUsed
-      })
-      
-      console.log('✅ Task completed successfully')
-      alert('✅ Maintenance task completed successfully!')
-      navigate('/maintenance')
-    } catch (error: any) {
-      console.error('❌ Failed to complete task:', error)
-      const errorMessage = error.message || 'Failed to complete task'
-      alert(`Error: ${errorMessage}`)
-    } finally {
-      setCompleting(false)
-    }
-  }
-
   const handleDelete = async () => {
     if (!task) return
     
@@ -160,28 +120,6 @@ export function MaintenanceDetailPage() {
       alert(`Error: ${error.message || 'Failed to delete task'}`)
     } finally {
       setDeleting(false)
-    }
-  }
-
-  const handleStartTask = async () => {
-    if (!task) return
-    
-    const confirmed = window.confirm(
-      `Start this maintenance task?\n\n` +
-      `Equipment: ${task.equipmentName}\n` +
-      `Task: ${task.taskDescription}\n\n` +
-      `This will mark the task as IN PROGRESS.`
-    )
-    
-    if (!confirmed) return
-    
-    try {
-      const updated = await maritimeService.maintenance.update(task.id, { status: 'IN_PROGRESS' })
-      setTask(updated)
-      alert('✅ Task started successfully!')
-    } catch (error: any) {
-      console.error('❌ Failed to start task:', error)
-      alert(`Error: ${error.message || 'Failed to start task'}`)
     }
   }
 
@@ -245,24 +183,28 @@ export function MaintenanceDetailPage() {
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:bg-gray-900 overflow-y-auto z-50">
-      {/* Header Bar */}
-      <div className="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+      {/* Header Bar - Redesigned */}
+      <div className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-10 border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-6 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigate('/maintenance')}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all hover:scale-105"
               >
                 <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                  <Wrench className="w-7 h-7 text-blue-600" />
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                    <Wrench className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
                   {task.equipmentName}
                 </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Task ID: {task.taskId} • Equipment: {task.equipmentId}
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5 font-medium">
+                  Task ID: <span className="text-gray-700 dark:text-gray-300">{task.taskId}</span>
+                  <span className="mx-2">•</span>
+                  Equipment: <span className="text-gray-700 dark:text-gray-300">{task.equipmentId}</span>
                 </p>
               </div>
             </div>
@@ -275,7 +217,7 @@ export function MaintenanceDetailPage() {
                       setIsEditing(false)
                       setEditedTask({})
                     }}
-                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="flex items-center gap-2 px-5 py-2.5 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-medium hover:scale-105"
                   >
                     <X className="w-4 h-4" />
                     Cancel
@@ -283,7 +225,7 @@ export function MaintenanceDetailPage() {
                   <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
                   >
                     {saving ? (
                       <>
@@ -300,32 +242,12 @@ export function MaintenanceDetailPage() {
                 </>
               ) : (
                 <>
-                  {(task.status === 'PENDING' || task.status === 'OVERDUE') && (
-                    <button
-                      onClick={handleStartTask}
-                      className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
-                    >
-                      <Play className="w-4 h-4" />
-                      Start Task
-                    </button>
-                  )}
-                  
-                  {task.status !== 'COMPLETED' && (
-                    <button
-                      onClick={() => setShowCompleteForm(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                    >
-                      <CheckSquare className="w-4 h-4" />
-                      Complete Task
-                    </button>
-                  )}
-                  
                   <button
                     onClick={() => {
                       setEditedTask({ ...task })
                       setIsEditing(true)
                     }}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-medium shadow-lg hover:shadow-xl hover:scale-105"
                   >
                     <Edit2 className="w-4 h-4" />
                     Edit Task
@@ -334,7 +256,7 @@ export function MaintenanceDetailPage() {
                   <button
                     onClick={handleDelete}
                     disabled={deleting}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
                   >
                     {deleting ? (
                       <>
@@ -356,38 +278,44 @@ export function MaintenanceDetailPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content - 2 columns */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Status Cards */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className={`rounded-lg border-2 p-4 ${getPriorityColor(task.priority)}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <AlertCircle className="w-5 h-5" />
-                  <span className="text-sm font-medium">Priority Level</span>
+            {/* Status Cards - Redesigned with Gradients */}
+            <div className="grid grid-cols-2 gap-5">
+              <div className={`rounded-2xl border-2 p-6 shadow-lg transition-all hover:scale-105 ${getPriorityColor(task.priority)}`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-white/50 rounded-lg">
+                    <AlertCircle className="w-6 h-6" />
+                  </div>
+                  <span className="text-sm font-semibold uppercase tracking-wide">Priority Level</span>
                 </div>
-                <p className="text-2xl font-bold">{task.priority}</p>
+                <p className="text-3xl font-bold">{task.priority}</p>
               </div>
               
-              <div className={`rounded-lg border-2 p-4 ${getStatusColor(task.status)}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle className="w-5 h-5" />
-                  <span className="text-sm font-medium">Current Status</span>
+              <div className={`rounded-2xl border-2 p-6 shadow-lg transition-all hover:scale-105 ${getStatusColor(task.status)}`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-white/50 rounded-lg">
+                    <CheckCircle className="w-6 h-6" />
+                  </div>
+                  <span className="text-sm font-semibold uppercase tracking-wide">Current Status</span>
                 </div>
-                <p className="text-2xl font-bold">{task.status.replace('_', ' ')}</p>
+                <p className="text-3xl font-bold">{task.status.replace('_', ' ')}</p>
               </div>
             </div>
 
-            {/* Due Date Alert */}
+            {/* Due Date Alert - Redesigned */}
             {isOverdue && (
-              <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
+              <div className="bg-gradient-to-r from-red-50 to-red-100 border-2 border-red-400 rounded-2xl p-6 shadow-lg">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-red-500 rounded-xl">
+                    <AlertCircle className="w-7 h-7 text-white flex-shrink-0" />
+                  </div>
                   <div>
-                    <p className="font-bold text-red-900">OVERDUE MAINTENANCE</p>
-                    <p className="text-sm text-red-700 mt-1">
-                      This task is {Math.abs(daysLeft)} days overdue. Immediate action required!
+                    <p className="font-bold text-red-900 text-lg">⚠️ OVERDUE MAINTENANCE</p>
+                    <p className="text-sm text-red-700 mt-1.5 font-medium">
+                      This task is <span className="font-bold">{Math.abs(daysLeft)} days overdue</span>. Immediate action required!
                     </p>
                   </div>
                 </div>
@@ -395,23 +323,27 @@ export function MaintenanceDetailPage() {
             )}
             
             {isDueSoon && (
-              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <Clock className="w-6 h-6 text-yellow-600 flex-shrink-0" />
+              <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-2 border-yellow-400 rounded-2xl p-6 shadow-lg">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-yellow-500 rounded-xl">
+                    <Clock className="w-7 h-7 text-white flex-shrink-0" />
+                  </div>
                   <div>
-                    <p className="font-bold text-yellow-900">DUE SOON</p>
-                    <p className="text-sm text-yellow-700 mt-1">
-                      This task is due in {daysLeft} days. Please schedule accordingly.
+                    <p className="font-bold text-yellow-900 text-lg">⏰ DUE SOON</p>
+                    <p className="text-sm text-yellow-700 mt-1.5 font-medium">
+                      This task is due in <span className="font-bold">{daysLeft} days</span>. Please schedule accordingly.
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Task Description */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-blue-600" />
+            {/* Task Description - Redesigned */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-7 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-5 flex items-center gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                  <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
                 Task Description
               </h2>
               {isEditing ? (
@@ -419,17 +351,21 @@ export function MaintenanceDetailPage() {
                   value={editedTask.taskDescription || task.taskDescription}
                   onChange={(e) => setEditedTask({ ...editedTask, taskDescription: e.target.value })}
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all"
                 />
               ) : (
-                <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{task.taskDescription}</p>
+                <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                  {task.taskDescription}
+                </p>
               )}
             </div>
 
-            {/* Maintenance Schedule */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-blue-600" />
+            {/* Maintenance Schedule - Redesigned */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-7 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-5 flex items-center gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                  <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
                 Maintenance Schedule
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -492,10 +428,12 @@ export function MaintenanceDetailPage() {
               </div>
             </div>
 
-            {/* Assignment & Notes */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <User className="w-5 h-5 text-blue-600" />
+            {/* Assignment & Notes - Redesigned */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-7 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-5 flex items-center gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                  <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
                 Assignment & Notes
               </h2>
               <div className="space-y-4">
@@ -508,8 +446,8 @@ export function MaintenanceDetailPage() {
                   onChange={(value) => setEditedTask({ ...editedTask, assignedTo: value })}
                 />
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <div className="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                     Notes
                   </label>
                   {isEditing ? (
@@ -517,23 +455,25 @@ export function MaintenanceDetailPage() {
                       value={editedTask.notes || task.notes || ''}
                       onChange={(e) => setEditedTask({ ...editedTask, notes: e.target.value })}
                       rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all"
                       placeholder="Add maintenance notes, observations, or special instructions..."
                     />
                   ) : (
-                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                      {task.notes || 'No notes available'}
+                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                      {task.notes || <span className="text-gray-400 italic">No notes available</span>}
                     </p>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Spare Parts */}
+            {/* Spare Parts - Redesigned */}
             {(task.sparePartsUsed || isEditing) && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Package className="w-5 h-5 text-blue-600" />
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-7 border border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-5 flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                    <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
                   Spare Parts Used
                 </h2>
                 {isEditing ? (
@@ -541,42 +481,46 @@ export function MaintenanceDetailPage() {
                     value={editedTask.sparePartsUsed || task.sparePartsUsed || ''}
                     onChange={(e) => setEditedTask({ ...editedTask, sparePartsUsed: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all"
                     placeholder="List spare parts used (e.g., Oil Filter x2, Gasket Set x1)"
                   />
                 ) : (
-                  <p className="text-gray-700 dark:text-gray-300">{task.sparePartsUsed}</p>
+                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{task.sparePartsUsed}</p>
                 )}
               </div>
             )}
 
-            {/* Completion Details */}
+            {/* Completion Details - Redesigned */}
             {task.status === 'COMPLETED' && (
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6">
-                <h2 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-4 flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
+              <div className="bg-gradient-to-r from-green-50 to-green-100 dark:bg-green-900/20 border-2 border-green-300 dark:border-green-800 rounded-2xl p-7 shadow-lg">
+                <h2 className="text-xl font-bold text-green-900 dark:text-green-100 mb-5 flex items-center gap-3">
+                  <div className="p-2 bg-green-500 rounded-xl">
+                    <CheckCircle className="w-5 h-5 text-white" />
+                  </div>
                   Completion Details
                 </h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-green-700 dark:text-green-300 font-medium">Completed At</p>
-                    <p className="text-green-900 dark:text-green-100">
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="bg-white/60 dark:bg-gray-800/40 rounded-xl p-4">
+                    <p className="text-sm text-green-700 dark:text-green-300 font-semibold mb-1">Completed At</p>
+                    <p className="text-green-900 dark:text-green-100 font-medium">
                       {task.completedAt ? format(parseISO(task.completedAt), 'dd MMM yyyy HH:mm') : 'N/A'}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-green-700 dark:text-green-300 font-medium">Completed By</p>
-                    <p className="text-green-900 dark:text-green-100">{task.completedBy || 'N/A'}</p>
+                  <div className="bg-white/60 dark:bg-gray-800/40 rounded-xl p-4">
+                    <p className="text-sm text-green-700 dark:text-green-300 font-semibold mb-1">Completed By</p>
+                    <p className="text-green-900 dark:text-green-100 font-medium">{task.completedBy || 'N/A'}</p>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Task Checklist */}
+            {/* Task Checklist - Redesigned */}
             {(task.status === 'IN_PROGRESS' || task.status === 'COMPLETED') && checklist.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <CheckSquare className="w-5 h-5 text-blue-600" />
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-7 border border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-5 flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                    <CheckSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
                   Checklist Items
                   {loadingChecklist && (
                     <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -592,10 +536,10 @@ export function MaintenanceDetailPage() {
                     return (
                       <div 
                         key={index}
-                        className={`border-l-4 p-4 rounded-r-lg ${
+                        className={`border-l-4 p-5 rounded-r-2xl shadow-sm transition-all hover:shadow-md ${
                           isCompleted 
-                            ? 'border-green-500 bg-green-50 dark:bg-green-900/20' 
-                            : 'border-gray-300 bg-gray-50 dark:bg-gray-700/50'
+                            ? 'border-green-500 bg-gradient-to-r from-green-50 to-green-100 dark:bg-green-900/20' 
+                            : 'border-gray-300 bg-gradient-to-r from-gray-50 to-gray-100 dark:bg-gray-700/50'
                         }`}
                       >
                         <div className="flex items-start justify-between">
@@ -672,17 +616,17 @@ export function MaintenanceDetailPage() {
                   })}
                 </div>
                 
-                {/* Progress Summary */}
-                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Progress</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">
+                {/* Progress Summary - Redesigned */}
+                <div className="mt-6 pt-5 border-t-2 border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between text-sm mb-3">
+                    <span className="text-gray-600 dark:text-gray-400 font-semibold">Overall Progress</span>
+                    <span className="font-bold text-gray-900 dark:text-white text-lg">
                       {checklist.filter(item => item.executionDetail?.isCompleted).length} / {checklist.length} completed
                     </span>
                   </div>
-                  <div className="mt-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div className="mt-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 shadow-inner">
                     <div 
-                      className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                      className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-500 shadow-lg"
                       style={{ 
                         width: `${(checklist.filter(item => item.executionDetail?.isCompleted).length / checklist.length) * 100}%` 
                       }}
@@ -693,34 +637,34 @@ export function MaintenanceDetailPage() {
             )}
           </div>
 
-          {/* Sidebar - 1 column */}
+          {/* Sidebar - 1 column - Redesigned */}
           <div className="space-y-6">
-            {/* Equipment Info */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Equipment Information</h2>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Equipment ID</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{task.equipmentId}</p>
+            {/* Equipment Info - Redesigned */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-7 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-5">Equipment Information</h2>
+              <div className="space-y-4">
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold mb-1">Equipment ID</p>
+                  <p className="font-bold text-gray-900 dark:text-white text-lg">{task.equipmentId}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Equipment Name</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{task.equipmentName}</p>
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold mb-1">Equipment Name</p>
+                  <p className="font-bold text-gray-900 dark:text-white text-lg">{task.equipmentName}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Task ID</p>
-                  <p className="font-mono text-sm text-gray-900 dark:text-white">{task.taskId}</p>
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold mb-1">Task ID</p>
+                  <p className="font-mono text-sm text-gray-900 dark:text-white font-bold">{task.taskId}</p>
                 </div>
               </div>
             </div>
 
-            {/* Quick Stats */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Stats</h2>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Days Until Due</span>
-                  <span className={`font-bold ${
+            {/* Quick Stats - Redesigned */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-7 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-5">Quick Stats</h2>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">Days Until Due</span>
+                  <span className={`font-bold text-lg ${
                     isOverdue ? 'text-red-600' : 
                     isDueSoon ? 'text-yellow-600' : 
                     'text-green-600'
@@ -728,29 +672,34 @@ export function MaintenanceDetailPage() {
                     {isOverdue ? `${Math.abs(daysLeft)} overdue` : `${daysLeft} days`}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Priority</span>
-                  <span className="font-bold">{task.priority}</span>
+                <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">Priority</span>
+                  <span className="font-bold text-lg">{task.priority}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Status</span>
-                  <span className="font-bold">{task.status.replace('_', ' ')}</span>
+                <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">Status</span>
+                  <span className="font-bold text-lg">{task.status.replace('_', ' ')}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Sync Status</span>
-                  <span className={task.isSynced ? 'text-green-600' : 'text-yellow-600'}>
+                <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">Sync Status</span>
+                  <span className={`font-bold ${task.isSynced ? 'text-green-600' : 'text-yellow-600'}`}>
                     {task.isSynced ? '✓ Synced' : '⏳ Pending'}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Compliance Note */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <p className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-2">
-                ⚓ ISM Code Compliance
-              </p>
-              <p className="text-xs text-blue-700 dark:text-blue-300">
+            {/* Compliance Note - Redesigned */}
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-800 rounded-2xl p-6 shadow-lg">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="p-2 bg-blue-500 rounded-lg">
+                  <span className="text-2xl">⚓</span>
+                </div>
+                <p className="text-sm text-blue-900 dark:text-blue-100 font-bold text-base">
+                  ISM Code Compliance
+                </p>
+              </div>
+              <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
                 This maintenance task is part of the ship's Planned Maintenance System (PMS) 
                 as required by the ISM Code for safe vessel operations.
               </p>
@@ -758,98 +707,6 @@ export function MaintenanceDetailPage() {
           </div>
         </div>
       </div>
-
-      {/* Complete Task Modal */}
-      {showCompleteForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Complete Maintenance Task</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                {task.equipmentName} - {task.taskDescription}
-              </p>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Completed By <span className="text-red-600">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={completionData.completedBy}
-                  onChange={(e) => setCompletionData({ ...completionData, completedBy: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                  placeholder="Enter your name or rank (e.g., Chief Engineer)"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Running Hours (Optional)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={completionData.runningHours}
-                  onChange={(e) => setCompletionData({ ...completionData, runningHours: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                  placeholder="Current running hours"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Spare Parts Used
-                </label>
-                <textarea
-                  value={completionData.sparePartsUsed}
-                  onChange={(e) => setCompletionData({ ...completionData, sparePartsUsed: e.target.value })}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                  placeholder="List spare parts used (e.g., Oil Filter x2, Gasket Set x1)"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Completion Notes
-                </label>
-                <textarea
-                  value={completionData.notes}
-                  onChange={(e) => setCompletionData({ ...completionData, notes: e.target.value })}
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                  placeholder="Add notes about the maintenance work performed, observations, or issues found..."
-                />
-              </div>
-            </div>
-            
-            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-              <button
-                onClick={() => setShowCompleteForm(false)}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleComplete}
-                disabled={completing}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {completing ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-2" />
-                    Completing...
-                  </>
-                ) : (
-                  'Complete Task'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -866,8 +723,8 @@ interface InfoFieldProps {
 
 function InfoField({ label, value, isEditing, type = 'text', options, onChange }: InfoFieldProps) {
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+    <div className="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4">
+      <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase mb-2">
         {label}
       </label>
       {isEditing ? (
@@ -875,7 +732,7 @@ function InfoField({ label, value, isEditing, type = 'text', options, onChange }
           <select
             value={value}
             onChange={(e) => onChange?.(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            className="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all font-medium"
           >
             {options?.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -886,11 +743,11 @@ function InfoField({ label, value, isEditing, type = 'text', options, onChange }
             type={type}
             value={value}
             onChange={(e) => onChange?.(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            className="w-full px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all font-medium"
           />
         )
       ) : (
-        <p className="text-gray-900 dark:text-white">{value}</p>
+        <p className="text-gray-900 dark:text-white font-semibold text-base">{value}</p>
       )}
     </div>
   )

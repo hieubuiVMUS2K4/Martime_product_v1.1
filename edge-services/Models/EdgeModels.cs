@@ -35,7 +35,7 @@ public class NmeaRawData
 public class PositionData
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     public DateTime Timestamp { get; set; }
     
@@ -90,6 +90,10 @@ public class PositionData
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
@@ -98,7 +102,7 @@ public class PositionData
 public class AisData
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     public DateTime Timestamp { get; set; }
     
@@ -172,6 +176,10 @@ public class AisData
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
@@ -180,7 +188,7 @@ public class AisData
 public class NavigationData
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     public DateTime Timestamp { get; set; }
     
@@ -242,6 +250,10 @@ public class NavigationData
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
@@ -250,7 +262,7 @@ public class NavigationData
 public class EngineData
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     public DateTime Timestamp { get; set; }
     
@@ -283,6 +295,10 @@ public class EngineData
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
@@ -291,7 +307,7 @@ public class EngineData
 public class FuelConsumption
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     public DateTime Timestamp { get; set; }
     
@@ -320,6 +336,10 @@ public class FuelConsumption
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
@@ -328,7 +348,7 @@ public class FuelConsumption
 public class TankLevel
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     public DateTime Timestamp { get; set; }
     
@@ -349,6 +369,10 @@ public class TankLevel
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
@@ -357,7 +381,7 @@ public class TankLevel
 public class GeneratorData
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     public DateTime Timestamp { get; set; }
     
@@ -384,6 +408,10 @@ public class GeneratorData
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
@@ -392,7 +420,7 @@ public class GeneratorData
 public class EnvironmentalData
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     public DateTime Timestamp { get; set; }
     
@@ -415,6 +443,10 @@ public class EnvironmentalData
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
@@ -423,7 +455,7 @@ public class EnvironmentalData
 public class SafetyAlarm
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     public DateTime Timestamp { get; set; }
     
@@ -458,6 +490,10 @@ public class SafetyAlarm
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
@@ -466,7 +502,7 @@ public class SafetyAlarm
 public class VoyageRecord
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     [Required]
     [MaxLength(50)]
@@ -499,10 +535,47 @@ public class VoyageRecord
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
-/// Sync queue for store-and-forward
+/// Sync Action Types
+/// </summary>
+public enum SyncActionType
+{
+    CREATE = 0,
+    UPDATE = 1,     // Partial update (only changed fields)
+    DELETE = 2,
+    SNAPSHOT = 3    // Full record sync (recovery mode)
+}
+
+/// <summary>
+/// Sync Priority Levels
+/// </summary>
+public enum SyncPriority
+{
+    Critical = 1,    // P1: Distress Alert, Safety Alarms (Immediate)
+    Operational = 2, // P2: Noon Report, Position Data (Scheduled/Batch)
+    Low = 3          // P3: Crew Logs, Inventory (Bandwidth permitting)
+}
+
+/// <summary>
+/// Network Connection Types
+/// </summary>
+public enum NetworkType
+{
+    None = 0,
+    Satellite_Iridium = 1, // Low bandwidth, high cost
+    Satellite_VSAT = 2,    // Medium bandwidth, medium cost
+    Cellular_4G = 3,       // High bandwidth, low cost
+    Shore_WiFi = 4         // Very high bandwidth, free/low cost
+}
+
+/// <summary>
+/// Sync queue for store-and-forward with Delta Sync support
 /// </summary>
 public class SyncQueue
 {
@@ -513,12 +586,27 @@ public class SyncQueue
     [MaxLength(50)]
     public string TableName { get; set; } = string.Empty;
     
-    public long RecordId { get; set; }
-    
+    /// <summary>
+    /// Primary Key of the record (stored as string to support Guid or Long)
+    /// </summary>
     [Required]
-    public string Payload { get; set; } = string.Empty; // JSON data
+    [MaxLength(50)]
+    public string RecordKey { get; set; } = string.Empty;
     
-    public int Priority { get; set; } = 5; // 1=highest, 10=lowest
+    /// <summary>
+    /// Type of change: CREATE, UPDATE (Partial), DELETE
+    /// </summary>
+    public SyncActionType ActionType { get; set; } = SyncActionType.CREATE;
+    
+    /// <summary>
+    /// JSON Payload. 
+    /// For CREATE: Full object.
+    /// For UPDATE: Only changed properties e.g. {"Status": "COMPLETED", "UpdatedAt": "..."}
+    /// </summary>
+    [Required]
+    public string Payload { get; set; } = string.Empty;
+    
+    public SyncPriority Priority { get; set; } = SyncPriority.Low; // Default to Low
     
     public int RetryCount { get; set; } = 0;
     
@@ -544,7 +632,7 @@ public class SyncQueue
 public class CrewMember
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     [Required]
     [MaxLength(50)]
@@ -620,6 +708,10 @@ public class CrewMember
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
@@ -708,10 +800,10 @@ public class TaskDetail
 public class MaintenanceTaskDetail
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     [Required]
-    public long MaintenanceTaskId { get; set; } // Foreign key to MaintenanceTask
+    public Guid MaintenanceTaskId { get; set; } // Foreign key to MaintenanceTask
     
     [Required]
     public long TaskDetailId { get; set; } // Foreign key to TaskDetail
@@ -747,7 +839,7 @@ public class MaintenanceTaskDetail
 public class MaintenanceTask
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     [Required]
     [MaxLength(50)]
@@ -805,6 +897,10 @@ public class MaintenanceTask
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
@@ -813,13 +909,13 @@ public class MaintenanceTask
 public class CargoOperation
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     [Required]
     [MaxLength(50)]
     public string OperationId { get; set; } = string.Empty;
     
-    public long? VoyageId { get; set; } // Foreign key to VoyageRecord
+    public Guid? VoyageId { get; set; } // Foreign key to VoyageRecord
     
     [Required]
     [MaxLength(20)]
@@ -866,6 +962,10 @@ public class CargoOperation
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
@@ -874,7 +974,7 @@ public class CargoOperation
 public class WatchkeepingLog
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     public DateTime WatchDate { get; set; }
     
@@ -922,6 +1022,10 @@ public class WatchkeepingLog
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
@@ -930,7 +1034,7 @@ public class WatchkeepingLog
 public class OilRecordBook
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     public DateTime EntryDate { get; set; }
     
@@ -968,6 +1072,10 @@ public class OilRecordBook
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
@@ -1006,7 +1114,7 @@ public class MaterialCategory
 public class MaterialItem
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
 
     [Required]
     [MaxLength(50)]
@@ -1064,6 +1172,10 @@ public class MaterialItem
     public bool IsSynced { get; set; } = false;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 // ============================================================
@@ -1189,7 +1301,7 @@ public class ReportType
 public class MaritimeReport
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     /// <summary>
     /// Unique report number (auto-generated: RPT-YYYYMMDD-NNNN)
@@ -1213,7 +1325,7 @@ public class MaritimeReport
     /// <summary>
     /// FK -> VoyageRecord.Id (nullable for non-voyage reports)
     /// </summary>
-    public long? VoyageId { get; set; }
+    public Guid? VoyageId { get; set; }
     
     /// <summary>
     /// Report status: DRAFT, SUBMITTED, APPROVED, REJECTED, TRANSMITTED
@@ -1270,6 +1382,9 @@ public class MaritimeReport
     
     public DateTime? UpdatedAt { get; set; }
     
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
     // Soft Delete Support (IMO 3-year retention requirement)
     public DateTime? DeletedAt { get; set; }
     
@@ -1286,10 +1401,10 @@ public class MaritimeReport
 public class ReportWorkflowHistory
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     [Required]
-    public long MaritimeReportId { get; set; }
+    public Guid MaritimeReportId { get; set; }
     
     [Required]
     [MaxLength(20)]
@@ -1322,13 +1437,13 @@ public class ReportWorkflowHistory
 public class NoonReport
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     /// <summary>
     /// FK -> MaritimeReport.Id (parent report)
     /// </summary>
     [Required]
-    public long MaritimeReportId { get; set; }
+    public Guid MaritimeReportId { get; set; }
     
     /// <summary>
     /// Report date (local ship time)
@@ -1441,18 +1556,18 @@ public class NoonReport
 public class DepartureReport
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     /// <summary>
     /// FK -> MaritimeReport.Id
     /// </summary>
     [Required]
-    public long MaritimeReportId { get; set; }
+    public Guid MaritimeReportId { get; set; }
     
     /// <summary>
     /// FK -> VoyageRecord.Id
     /// </summary>
-    public long? VoyageId { get; set; }
+    public Guid? VoyageId { get; set; }
     
     [Required]
     [MaxLength(100)]
@@ -1527,18 +1642,18 @@ public class DepartureReport
 public class ArrivalReport
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     /// <summary>
     /// FK -> MaritimeReport.Id
     /// </summary>
     [Required]
-    public long MaritimeReportId { get; set; }
+    public Guid MaritimeReportId { get; set; }
     
     /// <summary>
     /// FK -> VoyageRecord.Id
     /// </summary>
-    public long? VoyageId { get; set; }
+    public Guid? VoyageId { get; set; }
     
     [Required]
     [MaxLength(100)]
@@ -1620,13 +1735,13 @@ public class ArrivalReport
 public class BunkerReport
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     /// <summary>
     /// FK -> MaritimeReport.Id
     /// </summary>
     [Required]
-    public long MaritimeReportId { get; set; }
+    public Guid MaritimeReportId { get; set; }
     
     [Required]
     public DateTime BunkerDate { get; set; }
@@ -1696,7 +1811,7 @@ public class BunkerReport
     /// <summary>
     /// ROB before bunkering (MT)
     /// </summary>
-    public double? ROBBefore { get; set; }
+    public double? ROBefore { get; set; }
     
     /// <summary>
     /// ROB after bunkering (MT)
@@ -1733,13 +1848,13 @@ public class BunkerReport
 public class PositionReport
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     /// <summary>
     /// FK -> MaritimeReport.Id
     /// </summary>
     [Required]
-    public long MaritimeReportId { get; set; }
+    public Guid MaritimeReportId { get; set; }
     
     [Required]
     public DateTime ReportDateTime { get; set; }
@@ -1788,13 +1903,13 @@ public class PositionReport
 public class ReportAttachment
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     /// <summary>
     /// FK -> MaritimeReport.Id
     /// </summary>
     [Required]
-    public long MaritimeReportId { get; set; }
+    public Guid MaritimeReportId { get; set; }
     
     [Required]
     [MaxLength(255)]
@@ -1833,6 +1948,10 @@ public class ReportAttachment
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 /// <summary>
@@ -1894,13 +2013,13 @@ public class ReportDistribution
 public class ReportTransmissionLog
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     /// <summary>
     /// FK -> MaritimeReport.Id
     /// </summary>
     [Required]
-    public long MaritimeReportId { get; set; }
+    public Guid MaritimeReportId { get; set; }
     
     [Required]
     public DateTime TransmissionDateTime { get; set; }
@@ -1952,13 +2071,13 @@ public class ReportTransmissionLog
 public class ReportAmendment
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     /// <summary>
     /// FK -> MaritimeReport.Id (original report being amended)
     /// </summary>
     [Required]
-    public long OriginalReportId { get; set; }
+    public Guid OriginalReportId { get; set; }
     
     /// <summary>
     /// Amendment number (sequential: 1, 2, 3...)

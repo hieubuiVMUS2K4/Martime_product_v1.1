@@ -9,6 +9,32 @@ import '../../widgets/task/status_badge.dart';
 import 'complete_task_screen.dart';
 import '../../../l10n/app_localizations.dart';
 
+// 🎨 Maritime Professional Color Palette
+class MaritimeColors {
+  // Primary - Navy Blue (vững chắc, đáng tin cậy)
+  static const primary = Color(0xFF1A3A52);        // Navy Blue
+  static const primaryLight = Color(0xFF2C5F7F);   // Lighter Navy
+  static const primaryDark = Color(0xFF0D1F2D);    // Darker Navy
+  
+  // Accent - Sage Green (trầm, chuyên nghiệp)
+  static const accent = Color(0xFF6B8E7F);         // Sage Green
+  static const accentLight = Color(0xFF8FA99D);    // Light Sage
+  
+  // Status Colors - Maritime theme
+  static const completed = Color(0xFF4A7C59);      // Deep Green
+  static const inProgress = Color(0xFFD97706);     // Amber
+  static const overdue = Color(0xFFC2410C);        // Deep Orange/Red
+  static const mandatory = Color(0xFFB91C1C);      // Deep Red
+  
+  // Neutral - Professional grays
+  static const surfaceLight = Color(0xFFF8FAFC);   // Very light gray
+  static const surface = Color(0xFFF1F5F9);        // Light gray
+  static const border = Color(0xFFCBD5E1);         // Gray border
+  static const textPrimary = Color(0xFF0F172A);    // Almost black
+  static const textSecondary = Color(0xFF475569);  // Medium gray
+  static const textTertiary = Color(0xFF94A3B8);   // Light gray text
+}
+
 class TaskDetailScreen extends StatefulWidget {
   final MaintenanceTask task;
 
@@ -118,267 +144,482 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         onRefresh: _refreshTaskData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            // Overdue Warning Banner
-            if (widget.task.isOverdue && !widget.task.isCompleted)
-              Container(
-                width: double.infinity,
-                color: Colors.red.shade700,
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning, color: Colors.white),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        l10n.overdueDaysPastDue(widget.task.daysUntilDue.abs()),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+              // Overdue Warning Banner - Maritime theme
+              if (widget.task.isOverdue && !widget.task.isCompleted)
+                Container(
+                  width: double.infinity,
+                  color: MaritimeColors.overdue,
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_rounded, color: Colors.white, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          l10n.overdueDaysPastDue(widget.task.daysUntilDue.abs()),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            
-            // Header Card
-            Card(
-              margin: const EdgeInsets.all(16),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Equipment Name
-                    Text(
-                      widget.task.equipmentName,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
+              
+              // Professional Compact Header Card
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Equipment Name + Task ID in one row
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.task.equipmentName,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade900,
+                                height: 1.2,
+                              ),
+                            ),
                           ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Task ID
-                    Row(
-                      children: [
-                        Icon(Icons.tag, size: 16, color: Colors.grey.shade600),
-                        const SizedBox(width: 4),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      
+                      // Task ID + Badges in one compact row
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '#${widget.task.taskId}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          PriorityBadge(priority: widget.task.priority),
+                          const SizedBox(width: 6),
+                          StatusBadge(task: widget.task),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 10),
+                      Divider(height: 1, color: MaritimeColors.border),
+                      const SizedBox(height: 10),
+                      
+                      // Description (only show if not empty)
+                      if (widget.task.taskDescription.trim().isNotEmpty) ...[
                         Text(
-                          '${l10n.taskId} ${widget.task.taskId}',
-                          style: TextStyle(color: Colors.grey.shade600),
+                          widget.task.taskDescription,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                            height: 1.4,
+                          ),
                         ),
+                        
+                        const SizedBox(height: 12),
+                        const Divider(height: 1),
+                        const SizedBox(height: 12),
                       ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Badges
-                    Row(
-                      children: [
-                        PriorityBadge(priority: widget.task.priority),
-                        const SizedBox(width: 8),
-                        StatusBadge(task: widget.task),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Task Description
-            _buildSection(
-              context,
-              title: l10n.description,
-              icon: Icons.description,
-              child: Text(
-                widget.task.taskDescription,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            ),
-
-            // Task Type & Interval
-            _buildSection(
-              context,
-              title: l10n.maintenanceSchedule,
-              icon: Icons.schedule,
-              child: Column(
-                children: [
-                  _buildInfoRow(
-                    l10n.type,
-                    widget.task.taskType.replaceAll('_', ' '),
+                      
+                      // Compact Info Grid (2 columns)
+                      _buildCompactInfoGrid(context, dateFormat, l10n),
+                    ],
                   ),
-                  if (widget.task.intervalHours != null)
-                    _buildInfoRow(
-                      l10n.interval,
-                      l10n.runningHoursValue(widget.task.intervalHours!.toInt()),
-                    ),
-                  if (widget.task.intervalDays != null)
-                    _buildInfoRow(
-                      l10n.interval,
-                      l10n.daysValue(widget.task.intervalDays!.toInt()),
-                    ),
-                ],
-              ),
-            ),
-
-            // Due Date Info
-            _buildSection(
-              context,
-              title: l10n.schedule,
-              icon: Icons.calendar_today,
-              child: Column(
-                children: [
-                  if (widget.task.lastDoneAt != null)
-                    _buildInfoRow(
-                      l10n.lastDone,
-                      dateFormat.format(DateTime.parse(widget.task.lastDoneAt!)),
-                    ),
-                  _buildInfoRow(
-                    l10n.nextDue,
-                    dateFormat.format(DateTime.parse(widget.task.nextDueAt)),
-                  ),
-                  _buildInfoRow(
-                    l10n.daysUntilDue,
-                    l10n.daysValue(widget.task.daysUntilDue),
-                    valueColor: widget.task.isOverdue
-                        ? Colors.red.shade700
-                        : widget.task.isDueSoon
-                            ? Colors.orange.shade700
-                            : null,
-                  ),
-                ],
-              ),
-            ),
-
-            // Running Hours
-            if (widget.task.runningHoursAtLastDone != null)
-              _buildSection(
-                context,
-                title: l10n.runningHours,
-                icon: Icons.access_time,
-                child: Column(
-                  children: [
-                    _buildInfoRow(
-                      l10n.atLastMaintenance,
-                      l10n.hoursValue(widget.task.runningHoursAtLastDone!.toInt()),
-                    ),
-                  ],
                 ),
               ),
 
-            // Assignment
-            if (widget.task.assignedTo != null)
-              _buildSection(
-                context,
-                title: l10n.assignment,
-                icon: Icons.person,
-                child: Column(
-                  children: [
-                    _buildInfoRow(l10n.assignedTo, widget.task.assignedTo!),
-                  ],
-                ),
-              ),
+            const SizedBox(height: 8),
 
-            // ========== CHECKLIST SECTION (CHỈ HIỂN thị NẾU CÓ TASKTYPE) ==========
+            // CHECKLIST SECTION (CHỈ HIỂN thị NẾU CÓ TASKTYPE)
             if (widget.task.hasTaskType) ...[
-              _buildSection(
-                context,
-                title: l10n.taskChecklist,
-                icon: Icons.checklist,
-                child: _buildChecklistContent(),
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Clean header - no icon
+                      Text(
+                        l10n.taskChecklist,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade900,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildChecklistContent(),
+                    ],
+                  ),
+                ),
               ),
             ],
 
-            // Completion Info
-            if (widget.task.isCompleted)
-              _buildSection(
-                context,
-                title: l10n.completionDetails,
-                icon: Icons.check_circle,
-                child: Column(
-                  children: [
-                    if (widget.task.completedBy != null)
-                      _buildInfoRow(l10n.completedBy, widget.task.completedBy!),
-                    if (widget.task.completedAt != null)
-                      _buildInfoRow(
-                        l10n.completedAt,
-                        dateFormat.format(DateTime.parse(widget.task.completedAt!)),
-                      ),
-                    if (widget.task.runningHoursAtCompletion != null)
-                      _buildInfoRow(
-                        l10n.runningHours,
-                        l10n.hoursValue(widget.task.runningHoursAtCompletion!.toInt()),
-                      ),
-                    if (widget.task.sparePartsUsed != null)
-                      _buildInfoRow(l10n.spareParts, widget.task.sparePartsUsed!),
-                    if (widget.task.notes != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        '${l10n.notes}:',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(widget.task.notes!),
+            const SizedBox(height: 100), // Space for bottom bar + safety margin
+          ],
+        ),
+      ),
+    ),
+      bottomNavigationBar: _buildBottomActionBar(context, taskProvider),
+    );
+  }
+
+  Widget _buildCompactInfoGrid(
+    BuildContext context,
+    DateFormat dateFormat,
+    AppLocalizations l10n,
+  ) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 360;
+    final spacing = isSmallScreen ? 6.0 : 8.0;
+    
+    return Column(
+      children: [
+        // Row 1: Type + Interval (Horizontal compact)
+        Row(
+          children: [
+            Expanded(
+              child: _buildInfoItem(
+                label: l10n.type,
+                value: widget.task.taskType.replaceAll('_', ' '),
+                isSmallScreen: isSmallScreen,
+                color: MaritimeColors.primaryLight,
+              ),
+            ),
+            if (widget.task.intervalDays != null || widget.task.intervalHours != null) ...[
+              SizedBox(width: spacing),
+              Expanded(
+                child: _buildInfoItem(
+                  label: l10n.interval,
+                  value: widget.task.intervalDays != null
+                      ? l10n.daysValue(widget.task.intervalDays!.toInt())
+                      : l10n.runningHoursValue(widget.task.intervalHours!.toInt()),
+                  isSmallScreen: isSmallScreen,
+                  color: MaritimeColors.accent,
+                ),
+              ),
+            ],
+          ],
+        ),
+        SizedBox(height: spacing),
+        
+        // Row 2: Combined Next Due + Days Left (Merged for prominence)
+        Container(
+          padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: widget.task.isOverdue 
+                ? [
+                    Colors.red.withOpacity(0.1),
+                    Colors.red.withOpacity(0.05),
+                  ]
+                : widget.task.isDueSoon
+                  ? [
+                      Colors.orange.withOpacity(0.1),
+                      Colors.orange.withOpacity(0.05),
+                    ]
+                  : [
+                      Colors.blue.withOpacity(0.08),
+                      Colors.blue.withOpacity(0.03),
                     ],
+            ),
+            border: Border.all(
+              color: widget.task.isOverdue
+                  ? Colors.red.shade200
+                  : widget.task.isDueSoon
+                      ? Colors.orange.shade200
+                      : Colors.blue.shade100,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.nextDue,
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 10 : 11,
+                        fontWeight: FontWeight.w500,
+                        color: MaritimeColors.textTertiary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      dateFormat.format(DateTime.parse(widget.task.nextDueAt)),
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 13 : 14,
+                        fontWeight: FontWeight.w700,
+                        color: MaritimeColors.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),
-
-            const SizedBox(height: 100), // Space for FAB
-          ],
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    l10n.daysUntilDue,
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 10 : 11,
+                      fontWeight: FontWeight.w500,
+                      color: MaritimeColors.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    l10n.daysValue(widget.task.daysUntilDue),
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 13 : 14,
+                      fontWeight: FontWeight.w700,
+                      color: widget.task.isOverdue
+                          ? MaritimeColors.overdue
+                          : widget.task.isDueSoon
+                              ? MaritimeColors.inProgress
+                              : MaritimeColors.completed,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        ),
-      ),
-      floatingActionButton: _buildActionButton(context, taskProvider),
-    );
-  }
-
-  Widget _buildSection(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    required Widget child,
-  }) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+        
+        // Row 3: Last Done + Running Hours (if available)
+        if (widget.task.lastDoneAt != null || widget.task.runningHoursAtLastDone != null) ...[
+          SizedBox(height: spacing),
+          Row(
+            children: [
+              if (widget.task.lastDoneAt != null)
+                Expanded(
+                  child: _buildInfoItem(
+                    label: l10n.lastDone,
+                    value: dateFormat.format(DateTime.parse(widget.task.lastDoneAt!)),
+                    isSmallScreen: isSmallScreen,
+                  ),
                 ),
+              if (widget.task.lastDoneAt != null && widget.task.runningHoursAtLastDone != null)
+                SizedBox(width: spacing),
+              if (widget.task.runningHoursAtLastDone != null)
+                Expanded(
+                  child: _buildInfoItem(
+                    label: l10n.runningHours,
+                    value: l10n.hoursValue(widget.task.runningHoursAtLastDone!.toInt()),
+                    isSmallScreen: isSmallScreen,
+                  ),
+                ),
+            ],
+          ),
+        ],
+        
+        // Completion Info (if completed) - Maritime green theme
+        if (widget.task.isCompleted) ...[
+          SizedBox(height: spacing),
+          Container(
+            padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
+            decoration: BoxDecoration(
+              color: MaritimeColors.completed.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: MaritimeColors.completed.withOpacity(0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: isSmallScreen ? 18 : 20,
+                      height: isSmallScreen ? 18 : 20,
+                      decoration: const BoxDecoration(
+                        color: MaritimeColors.completed,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.check,
+                        size: isSmallScreen ? 11 : 12,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(width: isSmallScreen ? 6 : 8),
+                    Text(
+                      l10n.completionDetails,
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 11 : 12,
+                        fontWeight: FontWeight.w700,
+                        color: MaritimeColors.completed,
+                      ),
+                    ),
+                  ],
+                ),
+                if (widget.task.completedBy != null || 
+                    widget.task.completedAt != null ||
+                    widget.task.runningHoursAtCompletion != null) ...[
+                  SizedBox(height: isSmallScreen ? 6 : 8),
+                  if (widget.task.completedBy != null)
+                    _buildCompactInfoRow(
+                      l10n.completedBy,
+                      widget.task.completedBy!,
+                      isSmallScreen,
+                    ),
+                  if (widget.task.completedAt != null)
+                    _buildCompactInfoRow(
+                      l10n.completedAt,
+                      dateFormat.format(DateTime.parse(widget.task.completedAt!)),
+                      isSmallScreen,
+                    ),
+                  if (widget.task.runningHoursAtCompletion != null)
+                    _buildCompactInfoRow(
+                      l10n.runningHours,
+                      l10n.hoursValue(widget.task.runningHoursAtCompletion!.toInt()),
+                      isSmallScreen,
+                    ),
+                  if (widget.task.sparePartsUsed != null)
+                    _buildCompactInfoRow(
+                      l10n.spareParts,
+                      widget.task.sparePartsUsed!,
+                      isSmallScreen,
+                    ),
+                ],
+                if (widget.task.notes != null && widget.task.notes!.isNotEmpty) ...[
+                  SizedBox(height: isSmallScreen ? 6 : 8),
+                  Text(
+                    '${l10n.notes}:',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 10 : 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.task.notes!,
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 10 : 11,
+                      color: Colors.grey.shade800,
+                    ),
+                  ),
+                ],
               ],
             ),
-            const SizedBox(height: 12),
-            child,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildInfoItem({
+    required String label,
+    required String value,
+    required bool isSmallScreen,
+    Color? valueColor,
+    Color? color,  // Add color parameter for subtle theme variations
+    bool fullWidth = false,
+  }) {
+    final fontSize = isSmallScreen ? 10.0 : 11.0;
+    final valueFontSize = isSmallScreen ? 12.0 : 13.0;
+    final padding = isSmallScreen ? 8.0 : 10.0;
+    
+    return Container(
+      padding: EdgeInsets.all(padding),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            (color ?? Theme.of(context).primaryColor).withOpacity(0.08),
+            (color ?? Theme.of(context).primaryColor).withOpacity(0.03),
           ],
         ),
+        border: Border.all(
+          color: (color ?? Theme.of(context).primaryColor).withOpacity(0.15),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: fontSize,
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w500,
+              height: 1.2,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          SizedBox(height: isSmallScreen ? 3 : 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: valueFontSize,
+              fontWeight: FontWeight.w700,
+              color: valueColor ?? Colors.grey.shade900,
+              height: 1.2,
+            ),
+            maxLines: fullWidth ? 2 : 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {Color? valueColor}) {
+  Widget _buildCompactInfoRow(String label, String value, bool isSmallScreen) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.only(bottom: isSmallScreen ? 3 : 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 140,
+            width: isSmallScreen ? 90 : 100,
             child: Text(
               label,
               style: TextStyle(
+                fontSize: isSmallScreen ? 10 : 11,
                 color: Colors.grey.shade600,
                 fontWeight: FontWeight.w500,
               ),
@@ -388,8 +629,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             child: Text(
               value,
               style: TextStyle(
+                fontSize: isSmallScreen ? 10 : 11,
                 fontWeight: FontWeight.w600,
-                color: valueColor,
+                color: Colors.black87,
               ),
             ),
           ),
@@ -500,26 +742,37 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           children: [
             Text(
               l10n.progressCount(completedItems, totalItems),
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: MaritimeColors.textSecondary,
+              ),
             ),
             Text(
               '${(progress * 100).toStringAsFixed(0)}%',
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: progress == 1.0 ? Colors.green : Colors.blue,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: progress == 1.0 
+                    ? MaritimeColors.completed 
+                    : MaritimeColors.primary,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: progress,
-          backgroundColor: Colors.grey.shade200,
-          valueColor: AlwaysStoppedAnimation<Color>(
-            progress == 1.0 ? Colors.green : Colors.blue,
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: LinearProgressIndicator(
+            value: progress,
+            backgroundColor: MaritimeColors.surface,
+            valueColor: AlwaysStoppedAnimation<Color>(
+              progress == 1.0 
+                  ? MaritimeColors.completed 
+                  : MaritimeColors.primary,
+            ),
+            minHeight: 6,
           ),
-          minHeight: 8,
         ),
       ],
     );
@@ -530,100 +783,193 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final detail = item.taskDetail;
     final isCompleted = item.isCompleted;
     
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-      leading: CircleAvatar(
-        radius: 16,
-        backgroundColor: isCompleted ? Colors.green : Colors.grey.shade300,
-        child: isCompleted
-            ? const Icon(Icons.check, color: Colors.white, size: 18)
-            : Text(
-                '$index',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-      ),
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(
-              detail.detailName,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                decoration: isCompleted ? TextDecoration.lineThrough : null,
-                color: isCompleted ? Colors.grey : Colors.black87,
-              ),
-            ),
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          if (widget.task.isInProgress || isCompleted) {
+            // Open dialog for pending items OR completed items (allow editing)
+            _showQuickChecklistDialog(item, index);
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: isCompleted 
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.green.withOpacity(0.08),
+                    Colors.green.withOpacity(0.03),
+                  ],
+                )
+              : null,
           ),
-          if (detail.isMandatory)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.red.shade200),
-              ),
-              child: Text(
-                l10n.mandatory,
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red.shade700,
-                ),
-              ),
-            ),
-        ],
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildDetailTypeBadge(detail.detailType),
-              if (detail.detailType == 'MEASUREMENT' && detail.unit != null) ...[
-                const SizedBox(width: 8),
-                Text(
-                  l10n.unitLabel(detail.unit!),
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              // Header row with number, title, and icon
+              Row(
+                children: [
+                  // Number circle - Modern style
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: isCompleted 
+                          ? Colors.green 
+                          : Colors.blue.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: isCompleted
+                          ? const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 18,
+                            )
+                          : Text(
+                              '$index',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  
+                  // Title and badges
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          detail.detailName,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: isCompleted 
+                                ? Colors.grey.shade600
+                                : Colors.grey.shade900,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            _buildDetailTypeBadge(detail.detailType),
+                            if (detail.isMandatory) ...[
+                              const SizedBox(width: 5),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  l10n.mandatory.toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (detail.detailType == 'MEASUREMENT' && 
+                                detail.unit != null) ...[
+                              const SizedBox(width: 5),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  detail.unit!,
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Action icon - Clean modern
+                  Icon(
+                    isCompleted
+                        ? Icons.edit_outlined
+                        : Icons.chevron_right,
+                    color: isCompleted 
+                        ? Colors.green
+                        : Colors.grey.shade400,
+                    size: 20,
+                  ),
+                ],
+              ),
+              
+              // Description if exists
+              if (detail.description != null && 
+                  detail.description!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 14,
+                        color: Colors.grey.shade500,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          detail.description!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade700,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ],
           ),
-          if (detail.description != null && detail.description!.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              detail.description!,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-          ],
-          if (isCompleted && item.executionDetail != null) ...[
-            const SizedBox(height: 6),
-            _buildExecutionResult(item),
-          ],
-        ],
+        ),
       ),
-      trailing: widget.task.isInProgress
-          ? IconButton(
-              icon: Icon(
-                isCompleted ? Icons.edit : Icons.check_circle_outline,
-                color: isCompleted ? Colors.blue : Colors.green,
-              ),
-              onPressed: () {
-                _showChecklistItemDialog(item);
-              },
-            )
-          : null,
     );
   }
 
   Widget _buildDetailTypeBadge(String type) {
     Color color;
     String label;
-    IconData icon;
 
     final l10n = AppLocalizations.of(context);
 
@@ -631,100 +977,39 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       case 'MEASUREMENT':
         color = Colors.blue;
         label = l10n.measurement;
-        icon = Icons.straighten;
         break;
       case 'CHECKLIST':
         color = Colors.green;
         label = l10n.checklist;
-        icon = Icons.check_box;
         break;
       case 'INSPECTION':
         color = Colors.orange;
         label = l10n.inspection;
-        icon = Icons.search;
         break;
       default:
         color = Colors.grey;
         label = type;
-        icon = Icons.info;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(4),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
+      child: Text(
+        label.toUpperCase(),
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+          color: color,
+          letterSpacing: 0.3,
+        ),
       ),
     );
   }
 
-  Widget _buildExecutionResult(TaskChecklistItem item) {
-    final execution = item.executionDetail!;
-    final l10n = AppLocalizations.of(context);
-    
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.green.shade50,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.green.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.check_circle, size: 14, color: Colors.green.shade700),
-              const SizedBox(width: 4),
-              Text(
-                l10n.completed,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green.shade700,
-                ),
-              ),
-            ],
-          ),
-          if (execution.measuredValue != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              l10n.measuredValueWithUnit(
-                execution.measuredValue!,
-                item.taskDetail.unit ?? "",
-              ),
-              style: const TextStyle(fontSize: 11),
-            ),
-          ],
-          if (execution.notes != null && execution.notes!.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              '${l10n.notes}: ${execution.notes}',
-              style: const TextStyle(fontSize: 11),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  void _showChecklistItemDialog(TaskChecklistItem item) {
+  void _showQuickChecklistDialog(TaskChecklistItem item, int index) {
     final detail = item.taskDetail;
     final isAlreadyCompleted = item.isCompleted;
     final l10n = AppLocalizations.of(context);
@@ -736,154 +1021,145 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final notesController = TextEditingController(
       text: item.executionDetail?.notes ?? '',
     );
-    bool checkResult = item.executionDetail?.checkResult ?? false;
+    bool checkResult = item.executionDetail?.checkResult ?? true; // Default to OK
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
-          return AlertDialog(
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    detail.detailName,
-                    style: const TextStyle(fontSize: 18),
-                  ),
-                ),
-                if (detail.isMandatory)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.red.shade200),
-                    ),
-                    child: Text(
-                      l10n.mandatory,
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red.shade700,
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header with drag handle
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: MaritimeColors.border,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Type badge
-                  _buildDetailTypeBadge(detail.detailType),
-                  
-                  if (detail.description != null && detail.description!.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      detail.description!,
-                      style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
-                    ),
-                  ],
+                    const SizedBox(height: 18),
 
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 16),
-
-                  // Input based on type
-                  if (detail.detailType == 'CHECKLIST') ...[
-                    Text(
-                      l10n.checkResult,
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    const SizedBox(height: 8),
+                    // Title with number
                     Row(
                       children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              setDialogState(() {
-                                checkResult = true;
-                              });
-                            },
-                            icon: Icon(
-                              checkResult ? Icons.check_circle : Icons.check_circle_outline,
-                              color: checkResult ? Colors.white : Colors.green,
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: MaritimeColors.primary.withOpacity(0.15),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: MaritimeColors.primary.withOpacity(0.3),
+                              width: 1.5,
                             ),
-                            label: Text(l10n.okPass),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: checkResult ? Colors.green : Colors.grey.shade200,
-                              foregroundColor: checkResult ? Colors.white : Colors.black87,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$index',
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: MaritimeColors.primary,
+                              ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              setDialogState(() {
-                                checkResult = false;
-                              });
-                            },
-                            icon: Icon(
-                              checkResult == false ? Icons.cancel : Icons.cancel_outlined,
-                              color: checkResult == false ? Colors.white : Colors.red,
-                            ),
-                            label: Text(l10n.ngFail),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: checkResult == false ? Colors.red : Colors.grey.shade200,
-                              foregroundColor: checkResult == false ? Colors.white : Colors.black87,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                detail.detailName,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: MaritimeColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  _buildDetailTypeBadge(detail.detailType),
+                                  if (detail.isMandatory) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 7,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: MaritimeColors.mandatory,
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
+                                      child: Text(
+                                        l10n.mandatory.toUpperCase(),
+                                        style: const TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                          letterSpacing: 0.3,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ],
 
-                  if (detail.detailType == 'MEASUREMENT') ...[
-                    Text(
-                      l10n.measuredValue,
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: measurementController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(
-                        hintText: l10n.enterValue,
-                        suffixText: detail.unit ?? '',
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                      ),
-                    ),
-                    if (detail.minValue != null || detail.maxValue != null) ...[
-                      const SizedBox(height: 8),
+                    if (detail.description != null && detail.description!.isNotEmpty) ...[
+                      const SizedBox(height: 14),
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
+                          color: MaritimeColors.primaryLight.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.blue.shade200),
+                          border: Border.all(
+                            color: MaritimeColors.primaryLight.withOpacity(0.25),
+                            width: 1,
+                          ),
                         ),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
-                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.info_outline, 
+                              size: 16, 
+                              color: MaritimeColors.primaryLight,
+                            ),
+                            const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                l10n.limitRange(
-                                  detail.minValue?.toString() ?? '?',
-                                  detail.maxValue?.toString() ?? '?',
-                                  detail.unit ?? '',
-                                ),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.blue.shade700,
+                                detail.description!,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: MaritimeColors.textSecondary,
+                                  height: 1.3,
                                 ),
                               ),
                             ),
@@ -891,212 +1167,575 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         ),
                       ),
                     ],
-                  ],
 
-                  if (detail.detailType == 'INSPECTION') ...[
-                    Text(
-                      l10n.observationNotes,
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: notesController,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        hintText: l10n.enterDetailedNotes,
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.all(12),
-                      ),
-                    ),
-                  ],
+                    const SizedBox(height: 24),
 
-                  // Notes for all types
-                  if (detail.detailType != 'INSPECTION') ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      l10n.notesOptional,
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: notesController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        hintText: l10n.addNotesIfNeeded,
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.all(12),
+                    // ===== INPUT BASED ON TYPE =====
+                    
+                    // CHECKLIST TYPE: Big OK/NG buttons
+                    if (detail.detailType == 'CHECKLIST') ...[
+                      Text(
+                        l10n.checkResult.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                          color: MaritimeColors.textTertiary,
+                        ),
                       ),
-                    ),
-                  ],
-
-                  if (isAlreadyCompleted) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade50,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.green.shade200),
-                      ),
-                      child: Row(
+                      const SizedBox(height: 10),
+                      Row(
                         children: [
-                          Icon(Icons.check_circle, color: Colors.green.shade700, size: 20),
-                          const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
-                              l10n.alreadyCompletedCanUpdate,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.green.shade700,
-                              ),
+                            child: _buildCheckButton(
+                              context: context,
+                              label: l10n.okPass,
+                              icon: Icons.check_circle,
+                              isSelected: checkResult == true,
+                              color: MaritimeColors.completed, // Forest Green
+                              onTap: () {
+                                setDialogState(() {
+                                  checkResult = true;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildCheckButton(
+                              context: context,
+                              label: l10n.ngFail,
+                              icon: Icons.cancel,
+                              isSelected: checkResult == false,
+                              color: MaritimeColors.mandatory, // Deep Red
+                              onTap: () {
+                                setDialogState(() {
+                                  checkResult = false;
+                                });
+                              },
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(l10n.cancel),
-              ),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  // Validate based on type
-                  if (detail.detailType == 'MEASUREMENT') {
-                    if (measurementController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(l10n.pleaseEnterMeasuredValue),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
+                    ],
 
-                    // Validate min/max
-                    final value = double.tryParse(measurementController.text.trim());
-                    if (value == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(l10n.invalidValue),
-                          backgroundColor: Colors.red,
+                    // MEASUREMENT TYPE: Big number input
+                    if (detail.detailType == 'MEASUREMENT') ...[
+                      Text(
+                        l10n.measuredValue.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                          color: MaritimeColors.textTertiary,
                         ),
-                      );
-                      return;
-                    }
-
-                    if (detail.minValue != null && value < detail.minValue!) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(l10n.valueTooLow(detail.minValue.toString())),
-                          backgroundColor: Colors.orange,
-                        ),
-                      );
-                    }
-
-                    if (detail.maxValue != null && value > detail.maxValue!) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(l10n.valueTooHigh(detail.maxValue.toString())),
-                          backgroundColor: Colors.orange,
-                        ),
-                      );
-                    }
-                  }
-
-                  if (detail.detailType == 'INSPECTION' && notesController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(l10n.pleaseEnterObservationNote),
-                        backgroundColor: Colors.red,
                       ),
-                    );
-                    return;
-                  }
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: measurementController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        autofocus: true,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: MaritimeColors.textPrimary,
+                          letterSpacing: 0.5,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: '_ _ . _',
+                          hintStyle: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w400,
+                            color: MaritimeColors.textTertiary.withOpacity(0.3),
+                            letterSpacing: 2,
+                          ),
+                          suffix: Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: Text(
+                              detail.unit ?? '',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: MaritimeColors.textTertiary,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: MaritimeColors.surface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: const BorderSide(
+                              color: MaritimeColors.border,
+                              width: 1,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: const BorderSide(
+                              color: MaritimeColors.border,
+                              width: 1,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: const BorderSide(
+                              color: MaritimeColors.primary,
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                      if (detail.minValue != null || detail.maxValue != null) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF4E6),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: const Color(0xFFFFD699),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.info_outline, 
+                                size: 16, 
+                                color: Color(0xFF996600),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  l10n.limitRange(
+                                    detail.minValue?.toString() ?? '?',
+                                    detail.maxValue?.toString() ?? '?',
+                                    detail.unit ?? '',
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF663D00),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
 
-                  // Save data
-                  try {
-                    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+                    // INSPECTION TYPE: Notes field
+                    if (detail.detailType == 'INSPECTION') ...[
+                      Text(
+                        l10n.observationNotes.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                          color: MaritimeColors.textTertiary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: notesController,
+                        maxLines: 4,
+                        autofocus: true,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: MaritimeColors.textPrimary,
+                          height: 1.4,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: l10n.enterDetailedNotes,
+                          hintStyle: TextStyle(
+                            fontSize: 13,
+                            color: MaritimeColors.textTertiary.withOpacity(0.4),
+                          ),
+                          filled: true,
+                          fillColor: MaritimeColors.surface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(
+                              color: MaritimeColors.border,
+                              width: 1,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(
+                              color: MaritimeColors.border,
+                              width: 1,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: const BorderSide(
+                              color: MaritimeColors.primary,
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.all(14),
+                        ),
+                      ),
+                    ],
+
+                    // Optional notes for CHECKLIST and MEASUREMENT
+                    if (detail.detailType != 'INSPECTION') ...[
+                      const SizedBox(height: 18),
+                      Text(
+                        l10n.notesOptional.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                          color: MaritimeColors.textTertiary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: notesController,
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          hintText: l10n.addNotesIfNeeded,
+                          hintStyle: TextStyle(
+                            fontSize: 13,
+                            color: MaritimeColors.textTertiary.withOpacity(0.4),
+                          ),
+                          filled: true,
+                          fillColor: MaritimeColors.surface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(
+                              color: MaritimeColors.border,
+                              width: 1,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(
+                              color: MaritimeColors.border,
+                              width: 1,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: const BorderSide(
+                              color: MaritimeColors.primary,
+                              width: 1.5,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.all(12),
+                        ),
+                      ),
+                    ],
+
+                    if (isAlreadyCompleted) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF9E6),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: const Color(0xFFFFE699),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.edit_outlined, 
+                              color: Color(0xFF996600), 
+                              size: 18,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                l10n.alreadyCompletedCanUpdate,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF663D00),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 24),
+
+                    // Action buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              side: BorderSide(
+                                color: MaritimeColors.border,
+                                width: 1.5,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              l10n.cancel,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: MaritimeColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              // Validate based on type
+                              if (detail.detailType == 'MEASUREMENT') {
+                                if (measurementController.text.trim().isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(l10n.pleaseEnterMeasuredValue),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                final value = double.tryParse(measurementController.text.trim());
+                                if (value == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(l10n.invalidValue),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+                              }
+
+                              if (detail.detailType == 'INSPECTION' && 
+                                  notesController.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(l10n.pleaseEnterObservationNote),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              // Save data
+                              try {
+                                final taskProvider = Provider.of<TaskProvider>(
+                                  context, 
+                                  listen: false,
+                                );
+                                
+                                await taskProvider.completeChecklistItem(
+                                  taskId: widget.task.id,
+                                  detailId: detail.id,
+                                  measuredValue: detail.detailType == 'MEASUREMENT'
+                                      ? measurementController.text.trim()
+                                      : null,
+                                  checkResult: detail.detailType == 'CHECKLIST' 
+                                      ? checkResult 
+                                      : null,
+                                  inspectionNotes: notesController.text.trim().isNotEmpty
+                                      ? notesController.text.trim()
+                                      : null,
+                                  photoUrl: null,
+                                  isCompleted: true,
+                                );
+
+                                if (context.mounted) {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(Icons.check_circle, color: Colors.white),
+                                          const SizedBox(width: 8),
+                                          Text(l10n.savedItem(detail.detailName)),
+                                        ],
+                                      ),
+                                      backgroundColor: Colors.green,
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                  
+                                  // Reload checklist
+                                  setState(() {
+                                    _checklistItems = taskProvider.currentChecklist;
+                                  });
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(l10n.errorMessage(e.toString())),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: MaritimeColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              isAlreadyCompleted ? l10n.update : l10n.complete,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     
-                    await taskProvider.completeChecklistItem(
-                      taskId: widget.task.id,
-                      detailId: detail.id,
-                      measuredValue: detail.detailType == 'MEASUREMENT'
-                          ? measurementController.text.trim()
-                          : null,
-                      checkResult: detail.detailType == 'CHECKLIST' ? checkResult : null,
-                      inspectionNotes: notesController.text.trim().isNotEmpty
-                          ? notesController.text.trim()
-                          : null,
-                      photoUrl: null, // TODO: Add photo feature later
-                      isCompleted: true,
-                    );
-
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(l10n.savedItem(detail.detailName)),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                      
-                      // Reload checklist to update UI
-                      setState(() {
-                        _checklistItems = taskProvider.currentChecklist;
-                      });
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(l10n.errorMessage(e.toString())),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
-                icon: const Icon(Icons.check),
-                label: Text(isAlreadyCompleted ? l10n.update : l10n.complete),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    const SizedBox(height: 8),
+                  ],
                 ),
               ),
-            ],
+            ),
           );
         },
       ),
     );
   }
 
-  Widget? _buildActionButton(BuildContext context, TaskProvider taskProvider) {
+  Widget _buildCheckButton({
+    required BuildContext context,
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.08) : Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected ? color : MaritimeColors.border,
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected ? [
+            BoxShadow(
+              color: color.withOpacity(0.15),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ] : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: isSelected ? color : MaritimeColors.textTertiary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? color : MaritimeColors.textSecondary,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // New Bottom Action Bar - Professional Maritime Design
+  Widget? _buildBottomActionBar(BuildContext context, TaskProvider taskProvider) {
     final l10n = AppLocalizations.of(context);
+    
+    // Don't show action bar for completed tasks
     if (widget.task.isCompleted) {
-      return null; // No action for completed tasks
+      return null;
     }
 
-    if (widget.task.isPending) {
-      return FloatingActionButton.extended(
+    // Show Start button for PENDING or OVERDUE tasks
+    // Show Complete button for IN_PROGRESS tasks
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: widget.task.canStart
+              ? _buildStartTaskButton(context, taskProvider, l10n)
+              : widget.task.isInProgress
+                  ? _buildCompleteTaskButton(context, l10n)
+                  : const SizedBox.shrink(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStartTaskButton(
+    BuildContext context,
+    TaskProvider taskProvider,
+    AppLocalizations l10n,
+  ) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton.icon(
         onPressed: taskProvider.isLoading
             ? null
             : () async {
-                // Show warning if task is overdue
-                if (widget.task.isOverdue) {
+                // Show warning if task is overdue (by status or by days)
+                if (widget.task.isOverdueStatus || widget.task.isOverdue) {
                   final confirmed = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
-                      icon: const Icon(Icons.warning, color: Colors.red, size: 48),
-                      title: Text(l10n.taskOverdue),
-                      content: Text(
-                        l10n.thisTaskIsOverdue,
+                      icon: Icon(
+                        Icons.warning_rounded,
+                        color: MaritimeColors.overdue,
+                        size: 44,
                       ),
+                      title: Text(l10n.taskOverdue),
+                      content: Text(l10n.thisTaskIsOverdue),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(context, false),
@@ -1105,7 +1744,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         ElevatedButton(
                           onPressed: () => Navigator.pop(context, true),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
+                            backgroundColor: MaritimeColors.overdue,
                           ),
                           child: Text(l10n.startAnyway),
                         ),
@@ -1126,7 +1765,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             ? l10n.overdueTaskStarted
                             : l10n.taskStartedSuccessfully,
                         ),
-                        backgroundColor: widget.task.isOverdue ? Colors.orange : null,
+                        backgroundColor: widget.task.isOverdue 
+                            ? MaritimeColors.inProgress 
+                            : MaritimeColors.completed,
                       ),
                     );
                     Navigator.pop(context);
@@ -1136,20 +1777,39 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(l10n.failedToStartTask(e.toString())),
-                        backgroundColor: Colors.red,
+                        backgroundColor: MaritimeColors.overdue,
                       ),
                     );
                   }
                 }
               },
-        icon: const Icon(Icons.play_arrow),
-        label: Text(l10n.startTask),
-        backgroundColor: widget.task.isOverdue ? Colors.red : null,
-      );
-    }
+        icon: const Icon(Icons.play_arrow_rounded, size: 22),
+        label: Text(
+          l10n.startTask,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: widget.task.isOverdueStatus || widget.task.isOverdue
+              ? Colors.red 
+              : Theme.of(context).primaryColor,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 2,
+        ),
+      ),
+    );
+  }
 
-    if (widget.task.isInProgress) {
-      return FloatingActionButton.extended(
+  Widget _buildCompleteTaskButton(BuildContext context, AppLocalizations l10n) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton.icon(
         onPressed: () {
           Navigator.push(
             context,
@@ -1158,12 +1818,23 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ),
           );
         },
-        icon: const Icon(Icons.check),
-        label: Text(l10n.completeTask),
-        backgroundColor: Colors.green,
-      );
-    }
-
-    return null;
+        icon: const Icon(Icons.check_circle_rounded, size: 22),
+        label: Text(
+          l10n.completeTask,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 2,
+        ),
+      ),
+    );
   }
 }

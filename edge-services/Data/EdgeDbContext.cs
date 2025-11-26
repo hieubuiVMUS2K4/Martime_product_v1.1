@@ -1167,4 +1167,123 @@ public class EdgeDbContext : DbContext
                 : char.ToLower(c).ToString())
         );
     }
+
+    public override int SaveChanges()
+    {
+        ProcessSyncQueue();
+        return base.SaveChanges();
+    }
+
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        ProcessSyncQueue();
+        return await base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void ProcessSyncQueue()
+    {
+        // Detect changes
+        var modifiedEntries = ChangeTracker.Entries()
+            .Where(e => e.State == EntityState.Added || 
+                        e.State == EntityState.Modified || 
+                        e.State == EntityState.Deleted)
+            .ToList();
+
+        foreach (var entry in modifiedEntries)
+        {
+            // 1. Skip SyncQueue itself to avoid infinite recursion
+            if (entry.Entity is SyncQueue) continue;
+
+            // 2. Check if entity is syncable (has IsSynced property)
+            var entityType = entry.Entity.GetType();
+            var isSyncedProp = entityType.GetProperty("IsSynced");
+            if (isSyncedProp == null) continue;
+
+            // 3. Get Primary Key
+            // Assumption: All our models use "Id" as Key (Guid or Long)
+            var keyProperty = entry.Properties.FirstOrDefault(p => p.Metadata.IsPrimaryKey());
+            var recordKey = keyProperty?.CurrentValue?.ToString();
+            
+            if (string.IsNullOrEmpty(recordKey)) continue;
+
+            var tableName = ToSnakeCase(entityType.Name);
+
+            var syncItem = new SyncQueue
+            {
+                TableName = tableName,
+                RecordKey = recordKey,
+                CreatedAt = DateTime.UtcNow,
+                Priority = GetPriorityForEntity(entityType),
+                // Default to 0 retries
+                RetryCount = 0,
+                MaxRetries = 5
+            };
+
+            // 4. Handle State & Payload
+            if (entry.State == EntityState.Deleted)
+            {
+                syncItem.ActionType = SyncActionType.DELETE;
+                syncItem.Payload = "{}"; 
+            }
+            else if (entry.State == EntityState.Added)
+            {
+                syncItem.ActionType = SyncActionType.CREATE;
+                // Serialize full object
+                syncItem.Payload = System.Text.Json.JsonSerializer.Serialize(entry.Entity, new System.Text.Json.JsonSerializerOptions 
+                { 
+                    WriteIndented = false,
+                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+                });
+            }
+            else if (entry.State == EntityState.Modified)
+            {
+                syncItem.ActionType = SyncActionType.UPDATE;
+                
+                // Smart Delta Sync: Only serialize changed properties
+                var changedProps = new Dictionary<string, object?>();
+                
+                foreach (var prop in entry.Properties)
+                {
+                    // Skip if not modified
+                    if (!prop.IsModified) continue;
+                    
+                    // Skip metadata fields that don't need explicit sync logic if handled by server
+                    if (prop.Metadata.Name == "UpdatedAt" || prop.Metadata.Name == "IsSynced") continue;
+
+                    changedProps[prop.Metadata.Name] = prop.CurrentValue;
+                }
+
+                // If no meaningful changes, skip sync
+                if (changedProps.Count == 0) continue;
+
+                syncItem.Payload = System.Text.Json.JsonSerializer.Serialize(changedProps);
+            }
+
+            // 5. Add to SyncQueue
+            SyncQueue.Add(syncItem);
+        }
+    }
+
+    /// <summary>
+    /// Determine Sync Priority based on Entity Type
+    /// </summary>
+    private SyncPriority GetPriorityForEntity(Type type)
+    {
+        // P1: Critical Safety & Alerts
+        if (type == typeof(SafetyAlarm) || 
+            type == typeof(FuelEfficiencyAlert)) 
+            return SyncPriority.Critical;
+
+        // P2: Operational Reports & Tracking
+        if (type == typeof(MaritimeReport) || 
+            type == typeof(NoonReport) || 
+            type == typeof(PositionReport) ||
+            type == typeof(PositionData) ||
+            type == typeof(VoyageRecord) ||
+            type == typeof(EngineData)) 
+            return SyncPriority.Operational;
+
+        // P3: Logs & Inventory (Default)
+        return SyncPriority.Low;
+    }
 }

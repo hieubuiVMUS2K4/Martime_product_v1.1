@@ -71,22 +71,25 @@ builder.Services.AddHostedService<AlertBackgroundService>();
 
 var app = builder.Build();
 
-// Migrate DB (ensure created) with retry logic
+// Migrate DB using EF Core Migrations
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var retryCount = 0;
     while (retryCount < 5)
     {
         try
         {
-            db.Database.EnsureCreated();
+            logger.LogInformation($"Attempting database migration (Attempt {retryCount + 1}/5)...");
+            db.Database.Migrate();
+            logger.LogInformation("Database migration completed successfully.");
             break;
         }
         catch (Exception ex)
         {
             retryCount++;
-            Console.WriteLine($"Database connection attempt {retryCount} failed: {ex.Message}");
+            logger.LogError(ex, $"Database migration attempt {retryCount} failed.");
             if (retryCount >= 5) throw;
             await Task.Delay(5000); // Wait 5 seconds before retry
         }

@@ -136,7 +136,15 @@ class TaskRepository {
 
       final task = await _taskApi.startTask(taskId);
 
-      // Update cache
+      // Clear old checklist cache (in case task was reassigned)
+      final checklistCacheKey = 'task_checklist_$taskId';
+      await _cacheManager.clearCache(checklistCacheKey);
+      
+      // Clear old progress cache
+      final progressCacheKey = 'task_progress_$taskId';
+      await _cacheManager.clearCache(progressCacheKey);
+
+      // Update task cache
       await _updateTaskInCache(task);
 
       return task;
@@ -253,8 +261,27 @@ class TaskRepository {
         return [];
       }
 
-      // Try cache first
+      // Cache keys
       final cacheKey = 'task_checklist_$taskId';
+      final stateKey = 'task_state_$taskId';
+      
+      // Create a state signature to detect task reassignment
+      // Use status + updatedAt + completedAt to detect if task was reassigned
+      final currentState = '${task.status}_${task.updatedAt ?? task.createdAt}_${task.completedAt ?? ""}';
+      
+      // Check if task state changed (indicates reassignment or reset)
+      final cachedState = await _cacheManager.getDataNoExpiry(stateKey);
+      
+      // If state changed AND task is now pending/in_progress (was completed and reassigned)
+      if (cachedState != null && cachedState != currentState) {
+        if (task.isPending || task.isInProgress) {
+          print('🔄 TaskRepository: Task $taskId state changed (likely reassigned), clearing old data');
+          await _cacheManager.clearCache(cacheKey);
+          await _cacheManager.clearCache('task_progress_$taskId');
+        }
+      }
+      
+      // Try cache first
       final cached = await _cacheManager.getData(cacheKey);
       
       if (cached != null && !await _networkInfo.isConnected) {
@@ -270,11 +297,14 @@ class TaskRepository {
         
         print('✅ TaskRepository: API returned ${checklist.length} checklist items for task $taskId');
         
-        // Cache the result
+        // Cache the result along with state
         await _cacheManager.saveData(
           cacheKey,
           checklist.map((item) => item.toJson()).toList(),
         );
+        
+        // Save current state to detect reassignment
+        await _cacheManager.saveData(stateKey, currentState);
         
         return checklist;
       }

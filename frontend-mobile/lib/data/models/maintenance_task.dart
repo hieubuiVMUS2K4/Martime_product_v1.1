@@ -137,6 +137,10 @@ class MaintenanceTask extends Equatable {
   bool get isPending => status == 'PENDING';
   bool get isInProgress => status == 'IN_PROGRESS';
   bool get isCompleted => status == 'COMPLETED';
+  bool get isOverdueStatus => status == 'OVERDUE'; // For tasks with OVERDUE status
+  
+  // Helper: Can start task (PENDING or OVERDUE status)
+  bool get canStart => isPending || isOverdueStatus;
   
   /// Check if this task uses the new TaskType system
   bool get hasTaskType => taskTypeId != null;

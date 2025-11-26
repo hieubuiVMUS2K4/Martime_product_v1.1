@@ -944,6 +944,9 @@ class AppLocalizationsVi extends AppLocalizations {
       'Đã hoàn thành trước đó. Bạn có thể cập nhật lại.';
 
   @override
+  String get tapToComplete => '👆 Chạm để hoàn thành';
+
+  @override
   String savedItem(String item) {
     return '✅ Đã lưu: $item';
   }
