@@ -12,16 +12,16 @@ namespace MaritimeEdge.Services;
 /// </summary>
 public interface IAggregateReportService
 {
-    Task<(bool Success, string ReportNumber, long? ReportId, string? Error)> GenerateWeeklyReportAsync(GenerateWeeklyReportDto dto, string? username = null);
-    Task<(bool Success, string ReportNumber, long? ReportId, string? Error)> GenerateMonthlyReportAsync(GenerateMonthlyReportDto dto, string? username = null);
-    Task<WeeklyPerformanceReportDto?> GetWeeklyReportAsync(long reportId);
-    Task<MonthlySummaryReportDto?> GetMonthlyReportAsync(long reportId);
+    Task<(bool Success, string ReportNumber, Guid? ReportId, string? Error)> GenerateWeeklyReportAsync(GenerateWeeklyReportDto dto, string? username = null);
+    Task<(bool Success, string ReportNumber, Guid? ReportId, string? Error)> GenerateMonthlyReportAsync(GenerateMonthlyReportDto dto, string? username = null);
+    Task<WeeklyPerformanceReportDto?> GetWeeklyReportAsync(Guid reportId);
+    Task<MonthlySummaryReportDto?> GetMonthlyReportAsync(Guid reportId);
     Task<List<WeeklyPerformanceReportDto>> GetWeeklyReportsAsync(int year);
     Task<List<MonthlySummaryReportDto>> GetMonthlyReportsAsync(int year);
-    Task<(bool Success, long? ReportId, string? Error)> UpdateWeeklyReportAsync(long reportId, UpdateWeeklyReportDto dto, string? username = null);
-    Task<(bool Success, long? ReportId, string? Error)> UpdateMonthlyReportAsync(long reportId, UpdateMonthlyReportDto dto, string? username = null);
-    Task<(bool Success, string? Error)> DeleteWeeklyReportAsync(long reportId, string? username = null);
-    Task<(bool Success, string? Error)> DeleteMonthlyReportAsync(long reportId, string? username = null);
+    Task<(bool Success, Guid? ReportId, string? Error)> UpdateWeeklyReportAsync(Guid reportId, UpdateWeeklyReportDto dto, string? username = null);
+    Task<(bool Success, Guid? ReportId, string? Error)> UpdateMonthlyReportAsync(Guid reportId, UpdateMonthlyReportDto dto, string? username = null);
+    Task<(bool Success, string? Error)> DeleteWeeklyReportAsync(Guid reportId, string? username = null);
+    Task<(bool Success, string? Error)> DeleteMonthlyReportAsync(Guid reportId, string? username = null);
 }
 
 public class AggregateReportService : IAggregateReportService
@@ -39,7 +39,7 @@ public class AggregateReportService : IAggregateReportService
     // WEEKLY REPORTS
     // ============================================================
 
-    public async Task<(bool Success, string ReportNumber, long? ReportId, string? Error)> GenerateWeeklyReportAsync(
+    public async Task<(bool Success, string ReportNumber, Guid? ReportId, string? Error)> GenerateWeeklyReportAsync(
         GenerateWeeklyReportDto dto, string? username = null)
     {
         try
@@ -214,7 +214,7 @@ public class AggregateReportService : IAggregateReportService
         }
     }
 
-    public async Task<WeeklyPerformanceReportDto?> GetWeeklyReportAsync(long reportId)
+    public async Task<WeeklyPerformanceReportDto?> GetWeeklyReportAsync(Guid reportId)
     {
         var report = await _context.WeeklyPerformanceReports
             .AsNoTracking()
@@ -288,7 +288,7 @@ public class AggregateReportService : IAggregateReportService
     // MONTHLY REPORTS
     // ============================================================
 
-    public async Task<(bool Success, string ReportNumber, long? ReportId, string? Error)> GenerateMonthlyReportAsync(
+    public async Task<(bool Success, string ReportNumber, Guid? ReportId, string? Error)> GenerateMonthlyReportAsync(
         GenerateMonthlyReportDto dto, string? username = null)
     {
         try
@@ -460,7 +460,7 @@ public class AggregateReportService : IAggregateReportService
         }
     }
 
-    public async Task<MonthlySummaryReportDto?> GetMonthlyReportAsync(long reportId)
+    public async Task<MonthlySummaryReportDto?> GetMonthlyReportAsync(Guid reportId)
     {
         var report = await _context.MonthlySummaryReports
             .AsNoTracking()
@@ -545,8 +545,8 @@ public class AggregateReportService : IAggregateReportService
     // UPDATE & DELETE METHODS
     // ============================================================
 
-    public async Task<(bool Success, long? ReportId, string? Error)> UpdateWeeklyReportAsync(
-        long reportId, UpdateWeeklyReportDto dto, string? username = null)
+    public async Task<(bool Success, Guid? ReportId, string? Error)> UpdateWeeklyReportAsync(
+        Guid reportId, UpdateWeeklyReportDto dto, string? username = null)
     {
         try
         {
@@ -591,8 +591,8 @@ public class AggregateReportService : IAggregateReportService
         }
     }
 
-    public async Task<(bool Success, long? ReportId, string? Error)> UpdateMonthlyReportAsync(
-        long reportId, UpdateMonthlyReportDto dto, string? username = null)
+    public async Task<(bool Success, Guid? ReportId, string? Error)> UpdateMonthlyReportAsync(
+        Guid reportId, UpdateMonthlyReportDto dto, string? username = null)
     {
         try
         {
@@ -638,7 +638,7 @@ public class AggregateReportService : IAggregateReportService
     }
 
     public async Task<(bool Success, string? Error)> DeleteWeeklyReportAsync(
-        long reportId, string? username = null)
+        Guid reportId, string? username = null)
     {
         try
         {
@@ -668,7 +668,7 @@ public class AggregateReportService : IAggregateReportService
     }
 
     public async Task<(bool Success, string? Error)> DeleteMonthlyReportAsync(
-        long reportId, string? username = null)
+        Guid reportId, string? username = null)
     {
         try
         {

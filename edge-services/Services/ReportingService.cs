@@ -14,31 +14,31 @@ namespace MaritimeEdge.Services;
 public interface IReportingService
 {
     // Report CRUD
-    Task<(bool Success, string ReportNumber, long? ReportId, string? Error)> CreateNoonReportAsync(CreateNoonReportDto dto, string? username = null);
-    Task<(bool Success, string ReportNumber, long? ReportId, string? Error)> CreateDepartureReportAsync(CreateDepartureReportDto dto, string? username = null);
-    Task<(bool Success, string ReportNumber, long? ReportId, string? Error)> CreateArrivalReportAsync(CreateArrivalReportDto dto, string? username = null);
-    Task<(bool Success, string ReportNumber, long? ReportId, string? Error)> CreateBunkerReportAsync(CreateBunkerReportDto dto, string? username = null);
-    Task<(bool Success, string ReportNumber, long? ReportId, string? Error)> CreatePositionReportAsync(CreatePositionReportDto dto, string? username = null);
+    Task<(bool Success, string ReportNumber, Guid? ReportId, string? Error)> CreateNoonReportAsync(CreateNoonReportDto dto, string? username = null);
+    Task<(bool Success, string ReportNumber, Guid? ReportId, string? Error)> CreateDepartureReportAsync(CreateDepartureReportDto dto, string? username = null);
+    Task<(bool Success, string ReportNumber, Guid? ReportId, string? Error)> CreateArrivalReportAsync(CreateArrivalReportDto dto, string? username = null);
+    Task<(bool Success, string ReportNumber, Guid? ReportId, string? Error)> CreateBunkerReportAsync(CreateBunkerReportDto dto, string? username = null);
+    Task<(bool Success, string ReportNumber, Guid? ReportId, string? Error)> CreatePositionReportAsync(CreatePositionReportDto dto, string? username = null);
 
-    Task<NoonReportDto?> GetNoonReportAsync(long reportId);
-    Task<DepartureReportDto?> GetDepartureReportAsync(long reportId);
-    Task<ArrivalReportDto?> GetArrivalReportAsync(long reportId);
-    Task<BunkerReportDto?> GetBunkerReportAsync(long reportId);
-    Task<PositionReportDto?> GetPositionReportAsync(long reportId);
+    Task<NoonReportDto?> GetNoonReportAsync(Guid reportId);
+    Task<DepartureReportDto?> GetDepartureReportAsync(Guid reportId);
+    Task<ArrivalReportDto?> GetArrivalReportAsync(Guid reportId);
+    Task<BunkerReportDto?> GetBunkerReportAsync(Guid reportId);
+    Task<PositionReportDto?> GetPositionReportAsync(Guid reportId);
 
     Task<PaginatedReportResponseDto<ReportSummaryDto>> GetReportsAsync(ReportPaginationDto pagination);
     
     // Workflow
-    Task<(bool Success, string? Error)> SubmitReportAsync(long reportId);
-    Task<(bool Success, string? Error)> ApproveReportAsync(long reportId, ApproveReportDto dto);
-    Task<(bool Success, string? Error)> RejectReportAsync(long reportId, string reason);
-    Task<(bool Success, string? Error)> ReopenRejectedReportAsync(long reportId, string reopenedBy, string corrections);
-    Task<(bool Success, string? Error)> UpdateDraftReportAsync(long reportId, Dictionary<string, object> updates);
-    Task<(bool Success, string? Error)> UpdateFullNoonReportAsync(long reportId, CreateNoonReportDto dto, string? username = null);
+    Task<(bool Success, string? Error)> SubmitReportAsync(Guid reportId);
+    Task<(bool Success, string? Error)> ApproveReportAsync(Guid reportId, ApproveReportDto dto);
+    Task<(bool Success, string? Error)> RejectReportAsync(Guid reportId, string reason);
+    Task<(bool Success, string? Error)> ReopenRejectedReportAsync(Guid reportId, string reopenedBy, string corrections);
+    Task<(bool Success, string? Error)> UpdateDraftReportAsync(Guid reportId, Dictionary<string, object> updates);
+    Task<(bool Success, string? Error)> UpdateFullNoonReportAsync(Guid reportId, CreateNoonReportDto dto, string? username = null);
     
     // Transmission
-    Task<(bool Success, string? Error)> TransmitReportAsync(long reportId, TransmitReportDto dto);
-    Task<TransmissionStatusDto?> GetTransmissionStatusAsync(long reportId);
+    Task<(bool Success, string? Error)> TransmitReportAsync(Guid reportId, TransmitReportDto dto);
+    Task<TransmissionStatusDto?> GetTransmissionStatusAsync(Guid reportId);
     
     // Statistics
     Task<ReportStatisticsDto> GetReportStatisticsAsync(DateTime? fromDate = null, DateTime? toDate = null);
@@ -47,19 +47,19 @@ public interface IReportingService
     Task<List<ReportTypeDto>> GetReportTypesAsync(bool activeOnly = true);
     
     // Audit Trail
-    Task<List<WorkflowHistoryDto>> GetWorkflowHistoryAsync(long reportId);
+    Task<List<WorkflowHistoryDto>> GetWorkflowHistoryAsync(Guid reportId);
     
     // Soft Delete
-    Task<(bool Success, string? Error)> SoftDeleteReportAsync(long reportId, string deletedBy, string reason);
+    Task<(bool Success, string? Error)> SoftDeleteReportAsync(Guid reportId, string deletedBy, string reason);
     Task<List<DeletedReportDto>> GetDeletedReportsAsync(DateTime? fromDate = null, DateTime? toDate = null);
-    Task<(bool Success, string? Error)> RestoreReportAsync(long reportId, string restoredBy);
+    Task<(bool Success, string? Error)> RestoreReportAsync(Guid reportId, string restoredBy);
     
     // Amendments
-    Task<(bool Success, long? AmendmentId, int? AmendmentNumber, string? Error)> CreateAmendmentAsync(long reportId, CreateAmendmentDto dto, string amendedBy);
-    Task<List<ReportAmendmentDto>> GetAmendmentsAsync(long reportId);
-    Task<ReportAmendmentDto?> GetAmendmentAsync(long amendmentId);
-    Task<(bool Success, string? Error)> ApproveAmendmentAsync(long amendmentId, ApproveAmendmentDto dto);
-    Task<(bool Success, string? Error)> TransmitAmendmentAsync(long amendmentId, TransmitReportDto dto);
+    Task<(bool Success, Guid? AmendmentId, int? AmendmentNumber, string? Error)> CreateAmendmentAsync(Guid reportId, CreateAmendmentDto dto, string amendedBy);
+    Task<List<ReportAmendmentDto>> GetAmendmentsAsync(Guid reportId);
+    Task<ReportAmendmentDto?> GetAmendmentAsync(Guid amendmentId);
+    Task<(bool Success, string? Error)> ApproveAmendmentAsync(Guid amendmentId, ApproveAmendmentDto dto);
+    Task<(bool Success, string? Error)> TransmitAmendmentAsync(Guid amendmentId, TransmitReportDto dto);
 }
 
 public class ReportingService : IReportingService
@@ -83,7 +83,7 @@ public class ReportingService : IReportingService
     // NOON REPORT
     // ============================================================
 
-    public async Task<(bool Success, string ReportNumber, long? ReportId, string? Error)> CreateNoonReportAsync(
+    public async Task<(bool Success, string ReportNumber, Guid? ReportId, string? Error)> CreateNoonReportAsync(
         CreateNoonReportDto dto, string? username = null)
     {
         try
@@ -240,7 +240,7 @@ public class ReportingService : IReportingService
         }
     }
 
-    public async Task<NoonReportDto?> GetNoonReportAsync(long reportId)
+    public async Task<NoonReportDto?> GetNoonReportAsync(Guid reportId)
     {
         var query = from mr in _context.MaritimeReports.AsNoTracking()
                     join nr in _context.NoonReports.AsNoTracking() on mr.Id equals nr.MaritimeReportId
@@ -290,7 +290,7 @@ public class ReportingService : IReportingService
     // DEPARTURE REPORT
     // ============================================================
 
-    public async Task<(bool Success, string ReportNumber, long? ReportId, string? Error)> CreateDepartureReportAsync(
+    public async Task<(bool Success, string ReportNumber, Guid? ReportId, string? Error)> CreateDepartureReportAsync(
         CreateDepartureReportDto dto, string? username = null)
     {
         try
@@ -398,7 +398,7 @@ public class ReportingService : IReportingService
         }
     }
 
-    public async Task<DepartureReportDto?> GetDepartureReportAsync(long reportId)
+    public async Task<DepartureReportDto?> GetDepartureReportAsync(Guid reportId)
     {
         var query = from mr in _context.MaritimeReports.AsNoTracking()
                     join dr in _context.DepartureReports.AsNoTracking() on mr.Id equals dr.MaritimeReportId
@@ -434,7 +434,7 @@ public class ReportingService : IReportingService
     // ARRIVAL REPORT
     // ============================================================
 
-    public async Task<(bool Success, string ReportNumber, long? ReportId, string? Error)> CreateArrivalReportAsync(
+    public async Task<(bool Success, string ReportNumber, Guid? ReportId, string? Error)> CreateArrivalReportAsync(
         CreateArrivalReportDto dto, string? username = null)
     {
         try
@@ -529,7 +529,7 @@ public class ReportingService : IReportingService
         }
     }
 
-    public async Task<ArrivalReportDto?> GetArrivalReportAsync(long reportId)
+    public async Task<ArrivalReportDto?> GetArrivalReportAsync(Guid reportId)
     {
         var query = from mr in _context.MaritimeReports.AsNoTracking()
                     join ar in _context.ArrivalReports.AsNoTracking() on mr.Id equals ar.MaritimeReportId
@@ -564,7 +564,7 @@ public class ReportingService : IReportingService
     // BUNKER REPORT
     // ============================================================
 
-    public async Task<(bool Success, string ReportNumber, long? ReportId, string? Error)> CreateBunkerReportAsync(
+    public async Task<(bool Success, string ReportNumber, Guid? ReportId, string? Error)> CreateBunkerReportAsync(
         CreateBunkerReportDto dto, string? username = null)
     {
         try
@@ -622,11 +622,11 @@ public class ReportingService : IReportingService
                 FuelType = dto.FuelType,
                 FuelGrade = dto.FuelGrade,
                 QuantityReceived = dto.QuantityReceived,
-                Density = dto.Density,
+                Density = dto.ROBBefore,
                 SulphurContent = dto.SulphurContent,
                 Viscosity = dto.Viscosity,
                 FlashPoint = dto.FlashPoint,
-                ROBBefore = dto.ROBBefore,
+                ROBefore = dto.ROBBefore,
                 ROBAfter = dto.ROBAfter,
                 Remarks = dto.Remarks,
                 CreatedAt = DateTime.UtcNow
@@ -646,7 +646,7 @@ public class ReportingService : IReportingService
         }
     }
 
-    public async Task<BunkerReportDto?> GetBunkerReportAsync(long reportId)
+    public async Task<BunkerReportDto?> GetBunkerReportAsync(Guid reportId)
     {
         var query = from mr in _context.MaritimeReports.AsNoTracking()
                     join br in _context.BunkerReports.AsNoTracking() on mr.Id equals br.MaritimeReportId
@@ -668,7 +668,7 @@ public class ReportingService : IReportingService
                         Density = br.Density,
                         SulphurContent = br.SulphurContent,
                         Viscosity = br.Viscosity,
-                        ROBBefore = br.ROBBefore,
+                        ROBBefore = br.ROBefore,
                         ROBAfter = br.ROBAfter,
                         PreparedBy = mr.PreparedBy,
                         IsTransmitted = mr.IsTransmitted,
@@ -682,7 +682,7 @@ public class ReportingService : IReportingService
     // POSITION REPORT
     // ============================================================
 
-    public async Task<(bool Success, string ReportNumber, long? ReportId, string? Error)> CreatePositionReportAsync(
+    public async Task<(bool Success, string ReportNumber, Guid? ReportId, string? Error)> CreatePositionReportAsync(
         CreatePositionReportDto dto, string? username = null)
     {
         try
@@ -762,7 +762,7 @@ public class ReportingService : IReportingService
         }
     }
 
-    public async Task<PositionReportDto?> GetPositionReportAsync(long reportId)
+    public async Task<PositionReportDto?> GetPositionReportAsync(Guid reportId)
     {
         var query = from mr in _context.MaritimeReports.AsNoTracking()
                     join pr in _context.PositionReports.AsNoTracking() on mr.Id equals pr.MaritimeReportId
@@ -870,7 +870,7 @@ public class ReportingService : IReportingService
     // WORKFLOW OPERATIONS
     // ============================================================
 
-    public async Task<(bool Success, string? Error)> SubmitReportAsync(long reportId)
+    public async Task<(bool Success, string? Error)> SubmitReportAsync(Guid reportId)
     {
         try
         {
@@ -916,7 +916,7 @@ public class ReportingService : IReportingService
         }
     }
 
-    public async Task<(bool Success, string? Error)> ApproveReportAsync(long reportId, ApproveReportDto dto)
+    public async Task<(bool Success, string? Error)> ApproveReportAsync(Guid reportId, ApproveReportDto dto)
     {
         try
         {
@@ -991,7 +991,7 @@ public class ReportingService : IReportingService
         }
     }
 
-    public async Task<(bool Success, string? Error)> RejectReportAsync(long reportId, string reason)
+    public async Task<(bool Success, string? Error)> RejectReportAsync(Guid reportId, string reason)
     {
         try
         {
@@ -1039,7 +1039,7 @@ public class ReportingService : IReportingService
     }
 
     public async Task<(bool Success, string? Error)> ReopenRejectedReportAsync(
-        long reportId, string reopenedBy, string corrections)
+        Guid reportId, string reopenedBy, string corrections)
     {
         try
         {
@@ -1091,7 +1091,7 @@ public class ReportingService : IReportingService
     }
 
     public async Task<(bool Success, string? Error)> UpdateDraftReportAsync(
-        long reportId, Dictionary<string, object> updates)
+        Guid reportId, Dictionary<string, object> updates)
     {
         try
         {
@@ -1141,7 +1141,7 @@ public class ReportingService : IReportingService
     }
 
     public async Task<(bool Success, string? Error)> UpdateFullNoonReportAsync(
-        long reportId, CreateNoonReportDto dto, string? username = null)
+        Guid reportId, CreateNoonReportDto dto, string? username = null)
     {
         try
         {
@@ -1242,7 +1242,7 @@ public class ReportingService : IReportingService
     // TRANSMISSION (Placeholder - implement with email service)
     // ============================================================
 
-    public async Task<(bool Success, string? Error)> TransmitReportAsync(long reportId, TransmitReportDto dto)
+    public async Task<(bool Success, string? Error)> TransmitReportAsync(Guid reportId, TransmitReportDto dto)
     {
         try
         {
@@ -1308,7 +1308,7 @@ public class ReportingService : IReportingService
         }
     }
 
-    public async Task<TransmissionStatusDto?> GetTransmissionStatusAsync(long reportId)
+    public async Task<TransmissionStatusDto?> GetTransmissionStatusAsync(Guid reportId)
     {
         var report = await _context.MaritimeReports
             .AsNoTracking()
@@ -1535,7 +1535,7 @@ public class ReportingService : IReportingService
     /// Required by IMO for accountability and traceability
     /// </summary>
     private async Task TrackWorkflowChangeAsync(
-        long maritimeReportId, 
+        Guid maritimeReportId, 
         string fromStatus, 
         string toStatus, 
         string changedBy,
@@ -1576,7 +1576,7 @@ public class ReportingService : IReportingService
     /// Get workflow history for a specific report
     /// Shows complete audit trail of all status changes
     /// </summary>
-    public async Task<List<WorkflowHistoryDto>> GetWorkflowHistoryAsync(long reportId)
+    public async Task<List<WorkflowHistoryDto>> GetWorkflowHistoryAsync(Guid reportId)
     {
         var history = await _context.ReportWorkflowHistories
             .Where(h => h.MaritimeReportId == reportId)
@@ -1606,7 +1606,7 @@ public class ReportingService : IReportingService
     /// Only DRAFT reports can be deleted
     /// </summary>
     public async Task<(bool Success, string? Error)> SoftDeleteReportAsync(
-        long reportId, 
+        Guid reportId, 
         string deletedBy, 
         string reason)
     {
@@ -1691,7 +1691,7 @@ public class ReportingService : IReportingService
     /// <summary>
     /// Restore a soft-deleted report
     /// </summary>
-    public async Task<(bool Success, string? Error)> RestoreReportAsync(long reportId, string restoredBy)
+    public async Task<(bool Success, string? Error)> RestoreReportAsync(Guid reportId, string restoredBy)
     {
         try
         {
@@ -1732,8 +1732,8 @@ public class ReportingService : IReportingService
     // AMENDMENTS (ISM CODE COMPLIANCE)
     // ============================================================
 
-    public async Task<(bool Success, long? AmendmentId, int? AmendmentNumber, string? Error)> CreateAmendmentAsync(
-        long reportId, CreateAmendmentDto dto, string amendedBy)
+    public async Task<(bool Success, Guid? AmendmentId, int? AmendmentNumber, string? Error)> CreateAmendmentAsync(
+        Guid reportId, CreateAmendmentDto dto, string amendedBy)
     {
         try
         {
@@ -1789,7 +1789,7 @@ public class ReportingService : IReportingService
         }
     }
 
-    public async Task<List<ReportAmendmentDto>> GetAmendmentsAsync(long reportId)
+    public async Task<List<ReportAmendmentDto>> GetAmendmentsAsync(Guid reportId)
     {
         // Get raw data first (without JSON deserialization in LINQ)
         var rawAmendments = await (
@@ -1839,7 +1839,7 @@ public class ReportingService : IReportingService
         return amendments;
     }
 
-    public async Task<ReportAmendmentDto?> GetAmendmentAsync(long amendmentId)
+    public async Task<ReportAmendmentDto?> GetAmendmentAsync(Guid amendmentId)
     {
         // Get raw data first (without JSON deserialization in LINQ)
         var rawAmendment = await (
@@ -1893,7 +1893,7 @@ public class ReportingService : IReportingService
         return amendment;
     }
 
-    public async Task<(bool Success, string? Error)> ApproveAmendmentAsync(long amendmentId, ApproveAmendmentDto dto)
+    public async Task<(bool Success, string? Error)> ApproveAmendmentAsync(Guid amendmentId, ApproveAmendmentDto dto)
     {
         try
         {
@@ -1933,7 +1933,7 @@ public class ReportingService : IReportingService
         }
     }
 
-    public async Task<(bool Success, string? Error)> TransmitAmendmentAsync(long amendmentId, TransmitReportDto dto)
+    public async Task<(bool Success, string? Error)> TransmitAmendmentAsync(Guid amendmentId, TransmitReportDto dto)
     {
         try
         {

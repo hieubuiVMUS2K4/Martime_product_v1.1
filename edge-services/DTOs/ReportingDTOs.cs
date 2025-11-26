@@ -17,7 +17,7 @@ public class ReportPaginationDto
     public int? ReportTypeId { get; set; }
     public DateTime? FromDate { get; set; }
     public DateTime? ToDate { get; set; }
-    public long? VoyageId { get; set; }
+    public Guid? VoyageId { get; set; }
 }
 
 /// <summary>
@@ -62,7 +62,7 @@ public class CreateNoonReportDto
     [Required]
     public DateTime ReportDate { get; set; }
 
-    public long? VoyageId { get; set; }
+    public Guid? VoyageId { get; set; }
 
     // Position
     [Range(-90, 90)]
@@ -152,8 +152,8 @@ public class CreateNoonReportDto
 /// </summary>
 public class NoonReportDto
 {
-    public long Id { get; set; }
-    public long MaritimeReportId { get; set; }
+    public Guid Id { get; set; }
+    public Guid MaritimeReportId { get; set; }
     public string ReportNumber { get; set; } = string.Empty;
     public DateTime ReportDate { get; set; }
     public string Status { get; set; } = string.Empty;
@@ -200,7 +200,7 @@ public class NoonReportDto
 
 public class CreateDepartureReportDto
 {
-    public long? VoyageId { get; set; }
+    public Guid? VoyageId { get; set; }
 
     [Required]
     [MaxLength(100)]
@@ -254,8 +254,8 @@ public class CreateDepartureReportDto
 
 public class DepartureReportDto
 {
-    public long Id { get; set; }
-    public long MaritimeReportId { get; set; }
+    public Guid Id { get; set; }
+    public Guid MaritimeReportId { get; set; }
     public string ReportNumber { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
 
@@ -286,7 +286,7 @@ public class DepartureReportDto
 
 public class CreateArrivalReportDto
 {
-    public long? VoyageId { get; set; }
+    public Guid? VoyageId { get; set; }
 
     [Required]
     [MaxLength(100)]
@@ -344,8 +344,8 @@ public class CreateArrivalReportDto
 
 public class ArrivalReportDto
 {
-    public long Id { get; set; }
-    public long MaritimeReportId { get; set; }
+    public Guid Id { get; set; }
+    public Guid MaritimeReportId { get; set; }
     public string ReportNumber { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
 
@@ -433,8 +433,8 @@ public class CreateBunkerReportDto
 
 public class BunkerReportDto
 {
-    public long Id { get; set; }
-    public long MaritimeReportId { get; set; }
+    public Guid Id { get; set; }
+    public Guid MaritimeReportId { get; set; }
     public string ReportNumber { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
 
@@ -507,8 +507,8 @@ public class CreatePositionReportDto
 
 public class PositionReportDto
 {
-    public long Id { get; set; }
-    public long MaritimeReportId { get; set; }
+    public Guid Id { get; set; }
+    public Guid MaritimeReportId { get; set; }
     public string ReportNumber { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
 
@@ -537,14 +537,14 @@ public class PositionReportDto
 /// </summary>
 public class ReportSummaryDto
 {
-    public long Id { get; set; }
+    public Guid Id { get; set; }
     public string ReportNumber { get; set; } = string.Empty;
     public int ReportTypeId { get; set; }
     public string ReportTypeName { get; set; } = string.Empty;
     public string ReportTypeCode { get; set; } = string.Empty;
     public DateTime ReportDateTime { get; set; }
     public string Status { get; set; } = string.Empty;
-    public long? VoyageId { get; set; }
+    public Guid? VoyageId { get; set; }
     public string? VoyageNumber { get; set; }
     public string? PreparedBy { get; set; }
     public string? MasterSignature { get; set; }
@@ -590,7 +590,7 @@ public class TransmitReportDto
 /// </summary>
 public class TransmissionStatusDto
 {
-    public long ReportId { get; set; }
+    public Guid ReportId { get; set; }
     public string ReportNumber { get; set; } = string.Empty;
     public bool IsTransmitted { get; set; }
     public DateTime? TransmittedAt { get; set; }
@@ -607,8 +607,8 @@ public class TransmissionStatusDto
 
 public class ReportAttachmentDto
 {
-    public long Id { get; set; }
-    public long MaritimeReportId { get; set; }
+    public Guid Id { get; set; }
+    public Guid MaritimeReportId { get; set; }
     public string FileName { get; set; } = string.Empty;
     public string FilePath { get; set; } = string.Empty;
     public long FileSize { get; set; }
@@ -664,7 +664,7 @@ public class ReportStatisticsDto
 /// </summary>
 public class WorkflowHistoryDto
 {
-    public long Id { get; set; }
+    public Guid Id { get; set; }
     public string FromStatus { get; set; } = string.Empty;
     public string ToStatus { get; set; } = string.Empty;
     public string ChangedBy { get; set; } = string.Empty;
@@ -683,7 +683,7 @@ public class WorkflowHistoryDto
 /// </summary>
 public class DeletedReportDto
 {
-    public long Id { get; set; }
+    public Guid Id { get; set; }
     public string ReportNumber { get; set; } = string.Empty;
     public DateTime ReportDateTime { get; set; }
     public string Status { get; set; } = string.Empty;
@@ -735,8 +735,8 @@ public class FieldCorrection
 /// </summary>
 public class ReportAmendmentDto
 {
-    public long Id { get; set; }
-    public long OriginalReportId { get; set; }
+    public Guid Id { get; set; }
+    public Guid OriginalReportId { get; set; }
     public string OriginalReportNumber { get; set; } = string.Empty;
     public int AmendmentNumber { get; set; }
     public string AmendmentReason { get; set; } = string.Empty;
@@ -772,7 +772,7 @@ public class ApproveAmendmentDto
 /// </summary>
 public class WeeklyPerformanceReportDto
 {
-    public long Id { get; set; }
+    public Guid Id { get; set; }
     public string ReportNumber { get; set; } = string.Empty;
     public int WeekNumber { get; set; }
     public int Year { get; set; }
@@ -824,7 +824,7 @@ public class GenerateWeeklyReportDto
     [Required]
     public int Year { get; set; }
     
-    public long? VoyageId { get; set; }
+    public Guid? VoyageId { get; set; }
     
     public string? Remarks { get; set; }
 }
@@ -844,7 +844,7 @@ public class UpdateWeeklyReportDto
 /// </summary>
 public class MonthlySummaryReportDto
 {
-    public long Id { get; set; }
+    public Guid Id { get; set; }
     public string ReportNumber { get; set; } = string.Empty;
     public int Month { get; set; }
     public int Year { get; set; }

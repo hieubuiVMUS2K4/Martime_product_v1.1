@@ -2169,7 +2169,7 @@ public class ReportAmendment
 public class WeeklyPerformanceReport
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     [Required]
     [MaxLength(50)]
@@ -2187,7 +2187,7 @@ public class WeeklyPerformanceReport
     [Required]
     public DateTime WeekEndDate { get; set; }
     
-    public long? VoyageId { get; set; }
+    public Guid? VoyageId { get; set; }
     
     // Performance Metrics
     public double TotalDistance { get; set; }
@@ -2240,7 +2240,7 @@ public class WeeklyPerformanceReport
 public class MonthlySummaryReport
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     
     [Required]
     [MaxLength(50)]

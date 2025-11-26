@@ -414,7 +414,7 @@ public class MaterialController : ControllerBase
     /// Get a single material item by ID
     /// </summary>
     [HttpGet("items/{id:long}")]
-    public async Task<IActionResult> GetItemById(long id)
+    public async Task<IActionResult> GetItemById(Guid id)
     {
         try
         {
@@ -497,8 +497,8 @@ public class MaterialController : ControllerBase
     /// <summary>
     /// Update an existing material item
     /// </summary>
-    [HttpPut("items/{id:long}")]
-    public async Task<IActionResult> UpdateItem(long id, [FromBody] UpdateMaterialItemDto dto)
+    [HttpPut("items/{id}")]
+    public async Task<IActionResult> UpdateItem(Guid id, [FromBody] UpdateMaterialItemDto dto)
     {
         try
         {

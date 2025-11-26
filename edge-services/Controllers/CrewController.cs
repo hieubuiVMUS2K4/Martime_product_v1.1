@@ -320,7 +320,7 @@ public class CrewController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateCrew(long id, [FromBody] CrewMember crew)
+    public async Task<IActionResult> UpdateCrew(Guid id, [FromBody] CrewMember crew)
     {
         try
         {

@@ -550,41 +550,40 @@ public class AuthController : ControllerBase
                     var accessToken = GenerateToken(user.Id, user.Username);
                     var refreshToken = GenerateToken(user.Id, user.Username, isRefresh: true);
 
-                    user.LastLoginAt = DateTime.UtcNow;
-                    await _context.SaveChangesAsync();
 
-                    return Ok(new LegacyLoginResponse
-                    {
-                        AccessToken = accessToken,
-                        RefreshToken = refreshToken,
-                        UserId = crew?.Id ?? user.Id,
-                        CrewId = user.CrewId ?? "",
-                        FullName = crew?.FullName ?? "",
-                        Position = crew?.Position,
-                        Rank = crew?.Rank,
-                        Department = crew?.Department,
-                        ExpiresIn = 86400
-                    });
-                }
+                user.LastLoginAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                return Ok(new LegacyLoginResponse
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken,
+                    UserId = crew?.Id.GetHashCode() ?? user.Id,
+                    CrewId = user.CrewId ?? "",
+                    FullName = crew?.FullName ?? "",
+                    Position = crew?.Position,
+                    Rank = crew?.Rank,
+                    Department = crew?.Department,
+                    ExpiresIn = 86400
+                });
             }
+        }
 
-            // Fallback to old behavior (direct crew login with password123)
-            var crewMember = await _context.CrewMembers
-                .FirstOrDefaultAsync(c => c.CrewId == request.CrewId && c.IsOnboard);
-
-            if (crewMember == null || request.Password != "password123")
+        // Fallback to old behavior (direct crew login with password123)
+        var crewMember = await _context.CrewMembers
+            .FirstOrDefaultAsync(c => c.CrewId == request.CrewId && c.IsOnboard);            if (crewMember == null || request.Password != "password123")
             {
                 return Unauthorized(new { error = "Invalid credentials" });
             }
 
-            var token = GenerateToken(crewMember.Id, crewMember.CrewId);
-            var refresh = GenerateToken(crewMember.Id, crewMember.CrewId, isRefresh: true);
+            var token = GenerateToken(crewMember.Id.GetHashCode(), crewMember.CrewId);
+            var refresh = GenerateToken(crewMember.Id.GetHashCode(), crewMember.CrewId, isRefresh: true);
 
             return Ok(new LegacyLoginResponse
             {
                 AccessToken = token,
                 RefreshToken = refresh,
-                UserId = crewMember.Id,
+                UserId = crewMember.Id.GetHashCode(),
                 CrewId = crewMember.CrewId,
                 FullName = crewMember.FullName,
                 Position = crewMember.Position,
@@ -655,14 +654,14 @@ public class AuthController : ControllerBase
                 return Unauthorized(new { error = "User not found" });
             }
 
-            var token = GenerateToken(crewMember.Id, crewMember.CrewId);
-            var refresh = GenerateToken(crewMember.Id, crewMember.CrewId, isRefresh: true);
+            var token = GenerateToken(crewMember.Id.GetHashCode(), crewMember.CrewId);
+            var refresh = GenerateToken(crewMember.Id.GetHashCode(), crewMember.CrewId, isRefresh: true);
 
             return Ok(new LegacyLoginResponse
             {
                 AccessToken = token,
                 RefreshToken = refresh,
-                UserId = crewMember.Id,
+                UserId = crewMember.Id.GetHashCode(),
                 CrewId = crewMember.CrewId,
                 FullName = crewMember.FullName,
                 Position = crewMember.Position,

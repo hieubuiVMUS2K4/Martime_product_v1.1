@@ -215,7 +215,7 @@ public class UpdateMaterialItemDto
 /// </summary>
 public class MaterialItemResponseDto
 {
-    public long Id { get; set; }
+    public Guid Id { get; set; }
     public string ItemCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public long CategoryId { get; set; }
@@ -266,8 +266,7 @@ public class BulkOperationResultDto
 public class StockAdjustmentDto
 {
     [Required(ErrorMessage = "ItemId is required")]
-    [Range(1, long.MaxValue, ErrorMessage = "ItemId must be a positive number")]
-    public long ItemId { get; set; }
+    public Guid ItemId { get; set; }
 
     [Required(ErrorMessage = "Quantity is required")]
     public double Quantity { get; set; }

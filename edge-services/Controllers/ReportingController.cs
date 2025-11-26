@@ -65,7 +65,7 @@ public class ReportingController : ControllerBase
     /// Get Noon Report by ID
     /// </summary>
     [HttpGet("noon/{reportId}")]
-    public async Task<IActionResult> GetNoonReport(long reportId)
+    public async Task<IActionResult> GetNoonReport(Guid reportId)
     {
         var report = await _reportingService.GetNoonReportAsync(reportId);
         
@@ -116,7 +116,7 @@ public class ReportingController : ControllerBase
     /// Get Departure Report by ID
     /// </summary>
     [HttpGet("departure/{reportId}")]
-    public async Task<IActionResult> GetDepartureReport(long reportId)
+    public async Task<IActionResult> GetDepartureReport(Guid reportId)
     {
         var report = await _reportingService.GetDepartureReportAsync(reportId);
         
@@ -167,7 +167,7 @@ public class ReportingController : ControllerBase
     /// Get Arrival Report by ID
     /// </summary>
     [HttpGet("arrival/{reportId}")]
-    public async Task<IActionResult> GetArrivalReport(long reportId)
+    public async Task<IActionResult> GetArrivalReport(Guid reportId)
     {
         var report = await _reportingService.GetArrivalReportAsync(reportId);
         
@@ -218,7 +218,7 @@ public class ReportingController : ControllerBase
     /// Get Bunker Report by ID
     /// </summary>
     [HttpGet("bunker/{reportId}")]
-    public async Task<IActionResult> GetBunkerReport(long reportId)
+    public async Task<IActionResult> GetBunkerReport(Guid reportId)
     {
         var report = await _reportingService.GetBunkerReportAsync(reportId);
         
@@ -269,7 +269,7 @@ public class ReportingController : ControllerBase
     /// Get Position Report by ID
     /// </summary>
     [HttpGet("position/{reportId}")]
-    public async Task<IActionResult> GetPositionReport(long reportId)
+    public async Task<IActionResult> GetPositionReport(Guid reportId)
     {
         var report = await _reportingService.GetPositionReportAsync(reportId);
         
@@ -296,7 +296,7 @@ public class ReportingController : ControllerBase
         [FromQuery] int? reportTypeId = null,
         [FromQuery] DateTime? fromDate = null,
         [FromQuery] DateTime? toDate = null,
-        [FromQuery] long? voyageId = null)
+        [FromQuery] Guid? voyageId = null)
     {
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 20;
@@ -324,8 +324,8 @@ public class ReportingController : ControllerBase
     /// <summary>
     /// Submit report for approval
     /// </summary>
-    [HttpPost("{reportId}/submit")]
-    public async Task<IActionResult> SubmitReport(long reportId)
+    [HttpPut("{reportId}/submit")]
+    public async Task<IActionResult> SubmitReport(Guid reportId)
     {
         var result = await _reportingService.SubmitReportAsync(reportId);
 
@@ -340,8 +340,8 @@ public class ReportingController : ControllerBase
     /// <summary>
     /// Approve report (Master signature required)
     /// </summary>
-    [HttpPost("{reportId}/approve")]
-    public async Task<IActionResult> ApproveReport(long reportId, [FromBody] ApproveReportDto dto)
+    [HttpPut("{reportId}/approve")]
+    public async Task<IActionResult> ApproveReport(Guid reportId, [FromBody] ApproveReportDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -361,8 +361,8 @@ public class ReportingController : ControllerBase
     /// <summary>
     /// Reject report
     /// </summary>
-    [HttpPost("{reportId}/reject")]
-    public async Task<IActionResult> RejectReport(long reportId, [FromBody] Dictionary<string, string> body)
+    [HttpPut("{reportId}/reject")]
+    public async Task<IActionResult> RejectReport(Guid reportId, [FromBody] Dictionary<string, string> body)
     {
         if (!body.ContainsKey("reason") || string.IsNullOrWhiteSpace(body["reason"]))
         {
@@ -382,8 +382,8 @@ public class ReportingController : ControllerBase
     /// <summary>
     /// Reopen rejected report for corrections
     /// </summary>
-    [HttpPost("{reportId}/reopen")]
-    public async Task<IActionResult> ReopenReport(long reportId, [FromBody] Dictionary<string, string> body)
+    [HttpPut("{reportId}/reopen")]
+    public async Task<IActionResult> ReopenReport(Guid reportId, [FromBody] Dictionary<string, string> body)
     {
         if (!body.ContainsKey("corrections") || string.IsNullOrWhiteSpace(body["corrections"]))
         {
@@ -408,7 +408,7 @@ public class ReportingController : ControllerBase
     /// Update DRAFT report data (partial update)
     /// </summary>
     [HttpPatch("{reportId}")]
-    public async Task<IActionResult> UpdateDraftReport(long reportId, [FromBody] Dictionary<string, object> updates)
+    public async Task<IActionResult> UpdateDraftReport(Guid reportId, [FromBody] Dictionary<string, object> updates)
     {
         if (updates == null || updates.Count == 0)
         {
@@ -429,7 +429,7 @@ public class ReportingController : ControllerBase
     /// Update full DRAFT Noon Report (complete replacement)
     /// </summary>
     [HttpPut("noon/{reportId}")]
-    public async Task<IActionResult> UpdateFullNoonReport(long reportId, [FromBody] CreateNoonReportDto dto)
+    public async Task<IActionResult> UpdateFullNoonReport(Guid reportId, [FromBody] CreateNoonReportDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -455,7 +455,7 @@ public class ReportingController : ControllerBase
     /// Transmit report to shore
     /// </summary>
     [HttpPost("{reportId}/transmit")]
-    public async Task<IActionResult> TransmitReport(long reportId, [FromBody] TransmitReportDto dto)
+    public async Task<IActionResult> TransmitReport(Guid reportId, [FromBody] TransmitReportDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -476,7 +476,7 @@ public class ReportingController : ControllerBase
     /// Get transmission status for a report
     /// </summary>
     [HttpGet("{reportId}/transmission-status")]
-    public async Task<IActionResult> GetTransmissionStatus(long reportId)
+    public async Task<IActionResult> GetTransmissionStatus(Guid reportId)
     {
         var status = await _reportingService.GetTransmissionStatusAsync(reportId);
 
@@ -546,7 +546,7 @@ public class ReportingController : ControllerBase
     /// Shows complete status change history for compliance
     /// </summary>
     [HttpGet("{reportId}/history")]
-    public async Task<IActionResult> GetWorkflowHistory(long reportId)
+    public async Task<IActionResult> GetWorkflowHistory(Guid reportId)
     {
         var history = await _reportingService.GetWorkflowHistoryAsync(reportId);
         
@@ -573,7 +573,7 @@ public class ReportingController : ControllerBase
     /// </summary>
     [HttpDelete("{reportId}")]
     public async Task<IActionResult> DeleteReport(
-        long reportId,
+        Guid reportId,
         [FromBody] DeleteReportRequestDto request)
     {
         if (!ModelState.IsValid)
@@ -623,7 +623,7 @@ public class ReportingController : ControllerBase
     /// Restore a soft-deleted report
     /// </summary>
     [HttpPost("{reportId}/restore")]
-    public async Task<IActionResult> RestoreReport(long reportId)
+    public async Task<IActionResult> RestoreReport(Guid reportId)
     {
         var username = User.Identity?.Name ?? "Unknown";
         var result = await _reportingService.RestoreReportAsync(reportId, username);
@@ -651,7 +651,7 @@ public class ReportingController : ControllerBase
     /// ISM Code requires amendments instead of editing approved reports
     /// </summary>
     [HttpPost("{reportId}/amendments")]
-    public async Task<IActionResult> CreateAmendment(long reportId, [FromBody] CreateAmendmentDto dto)
+    public async Task<IActionResult> CreateAmendment(Guid reportId, [FromBody] CreateAmendmentDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -681,7 +681,7 @@ public class ReportingController : ControllerBase
     /// Get all amendments for a report
     /// </summary>
     [HttpGet("{reportId}/amendments")]
-    public async Task<IActionResult> GetAmendments(long reportId)
+    public async Task<IActionResult> GetAmendments(Guid reportId)
     {
         var amendments = await _reportingService.GetAmendmentsAsync(reportId);
         return Ok(new { reportId, totalAmendments = amendments.Count, amendments });
@@ -691,7 +691,7 @@ public class ReportingController : ControllerBase
     /// Get specific amendment
     /// </summary>
     [HttpGet("{reportId}/amendments/{amendmentId}")]
-    public async Task<IActionResult> GetAmendment(long reportId, long amendmentId)
+    public async Task<IActionResult> GetAmendment(Guid reportId, Guid amendmentId)
     {
         var amendment = await _reportingService.GetAmendmentAsync(amendmentId);
         
@@ -706,8 +706,8 @@ public class ReportingController : ControllerBase
     /// <summary>
     /// Approve amendment (Master signature required)
     /// </summary>
-    [HttpPost("{reportId}/amendments/{amendmentId}/approve")]
-    public async Task<IActionResult> ApproveAmendment(long reportId, long amendmentId, [FromBody] ApproveAmendmentDto dto)
+    [HttpPut("{reportId}/amendments/{amendmentId}/approve")]
+    public async Task<IActionResult> ApproveAmendment(Guid reportId, Guid amendmentId, [FromBody] ApproveAmendmentDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -728,7 +728,7 @@ public class ReportingController : ControllerBase
     /// Transmit approved amendment to shore
     /// </summary>
     [HttpPost("{reportId}/amendments/{amendmentId}/transmit")]
-    public async Task<IActionResult> TransmitAmendment(long reportId, long amendmentId, [FromBody] TransmitReportDto dto)
+    public async Task<IActionResult> TransmitAmendment(Guid reportId, Guid amendmentId, [FromBody] TransmitReportDto dto)
     {
         if (!ModelState.IsValid)
         {

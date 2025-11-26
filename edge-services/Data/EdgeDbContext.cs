@@ -411,8 +411,9 @@ public class EdgeDbContext : DbContext
             entity.HasIndex(e => e.SyncedAt)
                 .HasDatabaseName("idx_sync_synced_at");
             
-            entity.HasIndex(e => new { e.TableName, e.RecordId })
-                .HasDatabaseName("idx_sync_table_record");
+            // FIXME: SyncQueue.RecordId property does not exist - commented out
+            // entity.HasIndex(e => new { e.TableName, e.RecordId })
+            //     .HasDatabaseName("idx_sync_table_record");
         });
 
         // ========== CREW MEMBERS ==========

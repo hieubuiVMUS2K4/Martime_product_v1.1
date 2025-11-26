@@ -58,7 +58,7 @@ public class WeeklyReportController : ControllerBase
     /// Get Weekly Report by ID
     /// </summary>
     [HttpGet("{reportId}")]
-    public async Task<IActionResult> GetWeeklyReport(long reportId)
+    public async Task<IActionResult> GetWeeklyReport(Guid reportId)
     {
         var report = await _aggregateReportService.GetWeeklyReportAsync(reportId);
         
@@ -90,7 +90,7 @@ public class WeeklyReportController : ControllerBase
     /// Allows editing remarks and other non-aggregated fields
     /// </summary>
     [HttpPut("{reportId}")]
-    public async Task<IActionResult> UpdateWeeklyReport(long reportId, [FromBody] UpdateWeeklyReportDto dto)
+    public async Task<IActionResult> UpdateWeeklyReport(Guid reportId, [FromBody] UpdateWeeklyReportDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -118,7 +118,7 @@ public class WeeklyReportController : ControllerBase
     /// Delete Weekly Report
     /// </summary>
     [HttpDelete("{reportId}")]
-    public async Task<IActionResult> DeleteWeeklyReport(long reportId)
+    public async Task<IActionResult> DeleteWeeklyReport(Guid reportId)
     {
         var username = User.Identity?.Name;
         var result = await _aggregateReportService.DeleteWeeklyReportAsync(reportId, username);
@@ -188,7 +188,7 @@ public class MonthlyReportController : ControllerBase
     /// Get Monthly Report by ID
     /// </summary>
     [HttpGet("{reportId}")]
-    public async Task<IActionResult> GetMonthlyReport(long reportId)
+    public async Task<IActionResult> GetMonthlyReport(Guid reportId)
     {
         var report = await _aggregateReportService.GetMonthlyReportAsync(reportId);
         
@@ -220,7 +220,7 @@ public class MonthlyReportController : ControllerBase
     /// Allows editing remarks and other non-aggregated fields
     /// </summary>
     [HttpPut("{reportId}")]
-    public async Task<IActionResult> UpdateMonthlyReport(long reportId, [FromBody] UpdateMonthlyReportDto dto)
+    public async Task<IActionResult> UpdateMonthlyReport(Guid reportId, [FromBody] UpdateMonthlyReportDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -248,7 +248,7 @@ public class MonthlyReportController : ControllerBase
     /// Delete Monthly Report
     /// </summary>
     [HttpDelete("{reportId}")]
-    public async Task<IActionResult> DeleteMonthlyReport(long reportId)
+    public async Task<IActionResult> DeleteMonthlyReport(Guid reportId)
     {
         var username = User.Identity?.Name;
         var result = await _aggregateReportService.DeleteMonthlyReportAsync(reportId, username);

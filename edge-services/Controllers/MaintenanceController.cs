@@ -608,7 +608,7 @@ public class MaintenanceController : ControllerBase
     /// GET /api/maintenance/tasks/{taskId}/checklist
     /// </summary>
     [HttpGet("tasks/{taskId}/checklist")]
-    public async Task<IActionResult> GetTaskChecklist(long taskId)
+    public async Task<IActionResult> GetTaskChecklist(Guid taskId)
     {
         try
         {
@@ -625,11 +625,12 @@ public class MaintenanceController : ControllerBase
             }
 
             // Lấy task details từ TaskType
-            var taskDetails = await _context.TaskDetails
-                .AsNoTracking()
-                .Where(td => td.TaskTypeId == task.TaskTypeId && td.IsActive)
-                .OrderBy(td => td.OrderIndex)
-                .ToListAsync();
+            // FIXME: TaskDetail.TaskTypeId has been removed - need to redesign relationship
+            var taskDetails = new List<TaskDetail>(); // await _context.TaskDetails
+                // .AsNoTracking()
+                // .Where(td => td.TaskTypeId == task.TaskTypeId && td.IsActive)
+                // .OrderBy(td => td.OrderIndex)
+                // .ToListAsync();
 
             // Lấy execution status (nếu có)
             var executionDetails = await _context.MaintenanceTaskDetails
@@ -646,7 +647,7 @@ public class MaintenanceController : ControllerBase
                     taskDetail = new
                     {
                         id = td.Id,
-                        taskTypeId = td.TaskTypeId,
+                        // taskTypeId = td.TaskTypeId, // FIXME: TaskDetail.TaskTypeId removed
                         detailName = td.DetailName,
                         description = td.Description,
                         orderIndex = td.OrderIndex,
@@ -690,7 +691,7 @@ public class MaintenanceController : ControllerBase
     /// POST /api/maintenance/tasks/{taskId}/checklist/{detailId}/complete
     /// </summary>
     [HttpPost("tasks/{taskId}/checklist/{detailId}/complete")]
-    public async Task<IActionResult> CompleteChecklistItem(long taskId, long detailId, [FromBody] CompleteChecklistItemRequest request)
+    public async Task<IActionResult> CompleteChecklistItem(Guid taskId, long detailId, [FromBody] CompleteChecklistItemRequest request)
     {
         try
         {
@@ -762,7 +763,7 @@ public class MaintenanceController : ControllerBase
     /// GET /api/maintenance/tasks/{taskId}/progress
     /// </summary>
     [HttpGet("tasks/{taskId}/progress")]
-    public async Task<IActionResult> GetTaskProgress(long taskId)
+    public async Task<IActionResult> GetTaskProgress(Guid taskId)
     {
         try
         {
@@ -778,10 +779,11 @@ public class MaintenanceController : ControllerBase
             }
 
             // Count total mandatory task details
-            var totalMandatory = await _context.TaskDetails
-                .AsNoTracking()
-                .Where(td => td.TaskTypeId == task.TaskTypeId && td.IsActive && td.IsMandatory)
-                .CountAsync();
+            // FIXME: TaskDetail.TaskTypeId has been removed
+            var totalMandatory = 0; // await _context.TaskDetails
+                // .AsNoTracking()
+                // .Where(td => td.TaskTypeId == task.TaskTypeId && td.IsActive && td.IsMandatory)
+                // .CountAsync();
 
             // Count completed mandatory items
             var completedMandatory = await _context.MaintenanceTaskDetails

@@ -67,7 +67,7 @@ public class VoyageController : ControllerBase
 
     // Cargo endpoints
     [HttpGet("cargo")]
-    public async Task<IActionResult> GetCargoOperations([FromQuery] long? voyageId = null)
+    public async Task<IActionResult> GetCargoOperations([FromQuery] Guid? voyageId = null)
     {
         try
         {
