@@ -26,6 +26,7 @@ public class WatchkeepingController : ControllerBase
         {
             var today = DateTime.UtcNow.Date;
             var logs = await _context.WatchkeepingLogs
+                .AsNoTracking()
                 .Where(w => w.WatchDate >= today.AddDays(-7))
                 .OrderByDescending(w => w.WatchDate)
                 .ThenBy(w => w.WatchPeriod)
@@ -49,6 +50,7 @@ public class WatchkeepingController : ControllerBase
         {
             var cutoffDate = DateTime.UtcNow.Date.AddDays(-days);
             var logs = await _context.WatchkeepingLogs
+                .AsNoTracking()
                 .Where(w => w.WatchDate >= cutoffDate)
                 .OrderByDescending(w => w.WatchDate)
                 .ThenBy(w => w.WatchPeriod)
@@ -140,6 +142,7 @@ public class WatchkeepingController : ControllerBase
         try
         {
             var logs = await _context.WatchkeepingLogs
+                .AsNoTracking()
                 .Where(w => w.OfficerOnWatch.Contains(officerName))
                 .OrderByDescending(w => w.WatchDate)
                 .ToListAsync();
@@ -160,6 +163,7 @@ public class WatchkeepingController : ControllerBase
         try
         {
             var logs = await _context.WatchkeepingLogs
+                .AsNoTracking()
                 .Where(w => w.WatchPeriod == period)
                 .OrderByDescending(w => w.WatchDate)
                 .Take(100)

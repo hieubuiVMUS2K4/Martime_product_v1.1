@@ -25,6 +25,7 @@ public class ComplianceController : ControllerBase
         {
             var since = DateTime.UtcNow.AddDays(-days);
             var logs = await _context.WatchkeepingLogs
+                .AsNoTracking()
                 .Where(w => w.WatchDate >= since)
                 .OrderByDescending(w => w.WatchDate)
                 .ToListAsync();
@@ -45,6 +46,7 @@ public class ComplianceController : ControllerBase
         {
             var since = DateTime.UtcNow.AddDays(-days);
             var records = await _context.OilRecordBooks
+                .AsNoTracking()
                 .Where(o => o.EntryDate >= since)
                 .OrderByDescending(o => o.EntryDate)
                 .ToListAsync();

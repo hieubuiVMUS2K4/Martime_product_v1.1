@@ -74,7 +74,9 @@ export const useStore = create<AppStore>()(
             isLoading: { ...state.isLoading, crew: true },
           }));
 
-          const data = await maritimeService.crew.getAll();
+          // Fetch all crew (with high pageSize to get all records)
+          const response = await maritimeService.crew.getAll({ pageSize: 1000 });
+          const data = response.data;
 
           set({
             crew: data,
@@ -127,7 +129,9 @@ export const useStore = create<AppStore>()(
             isLoading: { ...state.isLoading, maintenance: true },
           }));
 
-          const data = await maritimeService.maintenance.getAll();
+          // Fetch all maintenance tasks (with high pageSize to get all records)
+          const response = await maritimeService.maintenance.getAll({ pageSize: 1000 });
+          const data = response.data;
 
           set({
             maintenanceTasks: data,

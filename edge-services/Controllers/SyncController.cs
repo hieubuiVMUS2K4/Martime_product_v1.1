@@ -23,6 +23,7 @@ public class SyncController : ControllerBase
         try
         {
             var queue = await _context.SyncQueue
+                .AsNoTracking()
                 .Where(s => s.SyncedAt == null)
                 .OrderBy(s => s.Priority)
                 .ThenBy(s => s.CreatedAt)
@@ -44,10 +45,12 @@ public class SyncController : ControllerBase
         try
         {
             var pendingRecords = await _context.SyncQueue
+                .AsNoTracking()
                 .Where(s => s.SyncedAt == null)
                 .CountAsync();
 
             var lastSync = await _context.SyncQueue
+                .AsNoTracking()
                 .Where(s => s.SyncedAt != null)
                 .OrderByDescending(s => s.SyncedAt)
                 .Select(s => s.SyncedAt)

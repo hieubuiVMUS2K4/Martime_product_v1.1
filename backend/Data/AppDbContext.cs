@@ -22,6 +22,20 @@ namespace ProductApi.Data
         public DbSet<VesselAlert> VesselAlerts { get; set; } = null!;
         public DbSet<Certificate> Certificates { get; set; } = null!;
 
+        // Edge Sync Models (Optimized for Shore - Essential Data Only)
+        // REMOVED: NmeaRawData (debug only), NavigationData (realtime only), EnvironmentalData (in NoonReport)
+        public DbSet<PositionData> PositionData { get; set; } = null!;
+        public DbSet<AisData> AisData { get; set; } = null!;
+        public DbSet<EngineData> EngineData { get; set; } = null!;
+        public DbSet<FuelConsumptionData> FuelConsumptionData { get; set; } = null!;
+        public DbSet<TankLevel> TankLevels { get; set; } = null!;
+        public DbSet<GeneratorData> GeneratorData { get; set; } = null!;
+        public DbSet<SafetyAlarm> SafetyAlarms { get; set; } = null!;
+        public DbSet<VoyageRecord> VoyageRecords { get; set; } = null!;
+        public DbSet<ReportType> ReportTypes { get; set; } = null!;
+        public DbSet<MaritimeReport> MaritimeReports { get; set; } = null!;
+        public DbSet<NoonReport> NoonReports { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

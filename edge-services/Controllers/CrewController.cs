@@ -19,12 +19,59 @@ public class CrewController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAllCrew()
+    public async Task<IActionResult> GetAllCrew(
+        [FromQuery] int page = 1, 
+        [FromQuery] int pageSize = 50,
+        [FromQuery] string? search = null,
+        [FromQuery] bool? isOnboard = null)
     {
         try
         {
-            var crew = await _context.CrewMembers.ToListAsync();
-            return Ok(crew);
+            // Validate pagination parameters
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 50;
+            if (pageSize > 100) pageSize = 100; // Max 100 items per page
+
+            var query = _context.CrewMembers.AsNoTracking().AsQueryable();
+
+            // Apply filters
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(c => 
+                    c.FullName.Contains(search) || 
+                    c.CrewId.Contains(search) ||
+                    c.Position.Contains(search));
+            }
+
+            if (isOnboard.HasValue)
+            {
+                query = query.Where(c => c.IsOnboard == isOnboard.Value);
+            }
+
+            // Get total count
+            var totalCount = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+            // Get paginated data
+            var crew = await query
+                .OrderBy(c => c.FullName)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return Ok(new
+            {
+                data = crew,
+                pagination = new
+                {
+                    currentPage = page,
+                    pageSize = pageSize,
+                    totalCount = totalCount,
+                    totalPages = totalPages,
+                    hasNextPage = page < totalPages,
+                    hasPreviousPage = page > 1
+                }
+            });
         }
         catch (Exception ex)
         {
@@ -39,6 +86,7 @@ public class CrewController : ControllerBase
         try
         {
             var crew = await _context.CrewMembers
+                .AsNoTracking()
                 .Where(c => c.IsOnboard)
                 .ToListAsync();
 
@@ -109,6 +157,7 @@ public class CrewController : ControllerBase
             }
 
             var crew = await _context.CrewMembers
+                .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.CrewId == userCrewId);
 
             if (crew == null)
@@ -138,6 +187,7 @@ public class CrewController : ControllerBase
             }
 
             var crew = await _context.CrewMembers
+                .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.CrewId == crewId);
 
             if (crew == null)
@@ -398,6 +448,7 @@ public class CrewController : ControllerBase
         {
             var expiryDate = DateTime.UtcNow.AddDays(days);
             var crew = await _context.CrewMembers
+                .AsNoTracking()
                 .Where(c => c.IsOnboard && 
                            (c.CertificateExpiry <= expiryDate || c.MedicalExpiry <= expiryDate))
                 .ToListAsync();

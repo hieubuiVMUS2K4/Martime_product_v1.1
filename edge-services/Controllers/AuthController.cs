@@ -308,6 +308,7 @@ public class AuthController : ControllerBase
         try
         {
             var users = await _context.Users
+                .AsNoTracking()
                 .Join(_context.Roles,
                     u => u.RoleId,
                     r => r.Id,
@@ -360,7 +361,7 @@ public class AuthController : ControllerBase
             var role = await _context.Roles.FindAsync(user.RoleId);
             var crew = string.IsNullOrEmpty(user.CrewId) 
                 ? null 
-                : await _context.CrewMembers.FirstOrDefaultAsync(c => c.CrewId == user.CrewId);
+                : await _context.CrewMembers.AsNoTracking().FirstOrDefaultAsync(c => c.CrewId == user.CrewId);
 
             return Ok(new
             {
@@ -469,6 +470,7 @@ public class AuthController : ControllerBase
         try
         {
             var roles = await _context.Roles
+                .AsNoTracking()
                 .Where(r => r.IsActive)
                 .OrderBy(r => r.Id)
                 .ToListAsync();
@@ -543,7 +545,7 @@ public class AuthController : ControllerBase
                 if (user.PasswordHash == hashedPassword)
                 {
                     var role = await _context.Roles.FindAsync(user.RoleId);
-                    var crew = await _context.CrewMembers.FirstOrDefaultAsync(c => c.CrewId == user.CrewId);
+                    var crew = await _context.CrewMembers.AsNoTracking().FirstOrDefaultAsync(c => c.CrewId == user.CrewId);
 
                     var accessToken = GenerateToken(user.Id, user.Username);
                     var refreshToken = GenerateToken(user.Id, user.Username, isRefresh: true);

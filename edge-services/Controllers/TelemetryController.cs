@@ -25,6 +25,7 @@ public class TelemetryController : ControllerBase
         try
         {
             var position = await _context.PositionData
+                .AsNoTracking()
                 .OrderByDescending(p => p.Timestamp)
                 .FirstOrDefaultAsync();
 
@@ -43,18 +44,51 @@ public class TelemetryController : ControllerBase
     }
 
     [HttpGet("position/history")]
-    public async Task<IActionResult> GetPositionHistory([FromQuery] int hours = 24)
+    public async Task<IActionResult> GetPositionHistory(
+        [FromQuery] int hours = 24,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 100)
     {
         try
         {
+            // Validate pagination
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 100;
+            if (pageSize > 1000) pageSize = 1000; // Max 1000 for telemetry data
+
             var since = DateTime.UtcNow.AddHours(-hours);
-            var positions = await _context.PositionData
+            
+            var query = _context.PositionData
+                .AsNoTracking()
                 .Where(p => p.Timestamp >= since)
-                .OrderByDescending(p => p.Timestamp)
-                .Take(1000)
+                .OrderByDescending(p => p.Timestamp);
+
+            var totalCount = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+            var positions = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            return Ok(positions);
+            return Ok(new
+            {
+                data = positions,
+                pagination = new
+                {
+                    currentPage = page,
+                    pageSize = pageSize,
+                    totalCount = totalCount,
+                    totalPages = totalPages,
+                    hasNextPage = page < totalPages,
+                    hasPreviousPage = page > 1
+                },
+                timeRange = new
+                {
+                    since = since,
+                    hours = hours
+                }
+            });
         }
         catch (Exception ex)
         {
@@ -70,6 +104,7 @@ public class TelemetryController : ControllerBase
         try
         {
             var navigation = await _context.NavigationData
+                .AsNoTracking()
                 .OrderByDescending(n => n.Timestamp)
                 .FirstOrDefaultAsync();
 
@@ -93,7 +128,7 @@ public class TelemetryController : ControllerBase
     {
         try
         {
-            var query = _context.EngineData.AsQueryable();
+            var query = _context.EngineData.AsNoTracking().AsQueryable();
 
             if (!string.IsNullOrEmpty(id))
             {
@@ -120,7 +155,7 @@ public class TelemetryController : ControllerBase
     {
         try
         {
-            var query = _context.GeneratorData.AsQueryable();
+            var query = _context.GeneratorData.AsNoTracking().AsQueryable();
 
             if (!string.IsNullOrEmpty(id))
             {
@@ -148,6 +183,7 @@ public class TelemetryController : ControllerBase
         try
         {
             var tanks = await _context.TankLevels
+                .AsNoTracking()
                 .GroupBy(t => t.TankId)
                 .Select(g => g.OrderByDescending(t => t.Timestamp).First())
                 .ToListAsync();
@@ -163,17 +199,46 @@ public class TelemetryController : ControllerBase
 
     // Fuel consumption
     [HttpGet("fuel/consumption")]
-    public async Task<IActionResult> GetFuelConsumption([FromQuery] int days = 7)
+    public async Task<IActionResult> GetFuelConsumption(
+        [FromQuery] int days = 7,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 100)
     {
         try
         {
+            // Validate pagination
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 100;
+            if (pageSize > 500) pageSize = 500;
+
             var since = DateTime.UtcNow.AddDays(-days);
-            var consumption = await _context.FuelConsumption
+            
+            var query = _context.FuelConsumption
+                .AsNoTracking()
                 .Where(f => f.Timestamp >= since)
-                .OrderByDescending(f => f.Timestamp)
+                .OrderByDescending(f => f.Timestamp);
+
+            var totalCount = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+            var consumption = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            return Ok(consumption);
+            return Ok(new
+            {
+                data = consumption,
+                pagination = new
+                {
+                    currentPage = page,
+                    pageSize = pageSize,
+                    totalCount = totalCount,
+                    totalPages = totalPages,
+                    hasNextPage = page < totalPages,
+                    hasPreviousPage = page > 1
+                }
+            });
         }
         catch (Exception ex)
         {
@@ -189,6 +254,7 @@ public class TelemetryController : ControllerBase
         try
         {
             var env = await _context.EnvironmentalData
+                .AsNoTracking()
                 .OrderByDescending(e => e.Timestamp)
                 .FirstOrDefaultAsync();
 
@@ -215,6 +281,7 @@ public class TelemetryController : ControllerBase
             // Get AIS data from last 30 minutes
             var since = DateTime.UtcNow.AddMinutes(-30);
             var vessels = await _context.AisData
+                .AsNoTracking()
                 .Where(a => a.Timestamp >= since && a.Latitude != null && a.Longitude != null)
                 .GroupBy(a => a.Mmsi)
                 .Select(g => g.OrderByDescending(a => a.Timestamp).First())

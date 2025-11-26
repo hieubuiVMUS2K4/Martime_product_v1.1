@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
+using MaritimeEdge.Constants;
+using MTaskStatus = MaritimeEdge.Constants.TaskStatus; // Alias to avoid ambiguity
 
 namespace MaritimeEdge.Controllers;
 
@@ -24,6 +26,7 @@ public class MaintenanceController : ControllerBase
         try
         {
             var taskTypes = await _context.TaskTypes
+                .AsNoTracking()
                 .Where(t => t.IsActive)
                 .OrderBy(t => t.Category)
                 .ThenBy(t => t.TypeName)
@@ -119,19 +122,19 @@ public class MaintenanceController : ControllerBase
         foreach (var task in tasks)
         {
             // Only update PENDING and OVERDUE statuses (don't touch IN_PROGRESS or COMPLETED)
-            if (task.Status == "PENDING" || task.Status == "OVERDUE")
+            if (task.Status == MTaskStatus.PENDING || task.Status == MTaskStatus.OVERDUE)
             {
                 var shouldBeOverdue = task.NextDueAt < now;
                 
-                if (shouldBeOverdue && task.Status != "OVERDUE")
+                if (shouldBeOverdue && task.Status != MTaskStatus.OVERDUE)
                 {
-                    task.Status = "OVERDUE";
+                    task.Status = MTaskStatus.OVERDUE;
                     tasksToUpdate.Add(task);
                 }
-                else if (!shouldBeOverdue && task.Status == "OVERDUE")
+                else if (!shouldBeOverdue && task.Status == MTaskStatus.OVERDUE)
                 {
                     // Fix incorrectly marked OVERDUE tasks
-                    task.Status = "PENDING";
+                    task.Status = MTaskStatus.PENDING;
                     tasksToUpdate.Add(task);
                 }
             }
@@ -147,18 +150,56 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpGet("tasks")]
-    public async Task<IActionResult> GetAllTasks()
+    public async Task<IActionResult> GetAllTasks(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] string? status = null,
+        [FromQuery] string? priority = null)
     {
         try
         {
-            var tasks = await _context.MaintenanceTasks
+            // Validate pagination
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 50;
+            if (pageSize > 100) pageSize = 100;
+
+            var query = _context.MaintenanceTasks.AsNoTracking().AsQueryable();
+
+            // Apply filters
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                query = query.Where(t => t.Status == status);
+            }
+
+            if (!string.IsNullOrWhiteSpace(priority))
+            {
+                query = query.Where(t => t.Priority == priority);
+            }
+
+            // Get total count
+            var totalCount = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+            // Get paginated data
+            var tasks = await query
                 .OrderBy(t => t.NextDueAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            // Auto-correct status based on current time
-            await AutoCorrectTaskStatuses(tasks);
-
-            return Ok(tasks);
+            return Ok(new
+            {
+                data = tasks,
+                pagination = new
+                {
+                    currentPage = page,
+                    pageSize = pageSize,
+                    totalCount = totalCount,
+                    totalPages = totalPages,
+                    hasNextPage = page < totalPages,
+                    hasPreviousPage = page > 1
+                }
+            });
         }
         catch (Exception ex)
         {
@@ -173,7 +214,7 @@ public class MaintenanceController : ControllerBase
         try
         {
             var tasks = await _context.MaintenanceTasks
-                .Where(t => t.Status == "PENDING" || t.Status == "IN_PROGRESS")
+                .Where(t => t.Status == MTaskStatus.PENDING || t.Status == MTaskStatus.IN_PROGRESS)
                 .OrderBy(t => t.NextDueAt)
                 .ToListAsync();
 
@@ -196,7 +237,7 @@ public class MaintenanceController : ControllerBase
         {
             var now = DateTime.UtcNow;
             var tasks = await _context.MaintenanceTasks
-                .Where(t => t.Status != "COMPLETED" && t.NextDueAt < now)
+                .Where(t => t.Status != MTaskStatus.COMPLETED && t.NextDueAt < now)
                 .OrderBy(t => t.NextDueAt)
                 .ToListAsync();
 
@@ -240,6 +281,7 @@ public class MaintenanceController : ControllerBase
             {
                 // If crewId is provided, try to find matching crew member
                 var crew = await _context.CrewMembers
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(c => c.CrewId == crewId);
                 
                 if (crew != null)
@@ -263,7 +305,7 @@ public class MaintenanceController : ControllerBase
             if (!includeCompleted)
             {
                 // Only return pending or in-progress tasks (for TaskListScreen)
-                query = query.Where(t => t.Status == "PENDING" || t.Status == "IN_PROGRESS");
+                query = query.Where(t => t.Status == MTaskStatus.PENDING || t.Status == MTaskStatus.IN_PROGRESS);
             }
             // If includeCompleted = true, return all statuses (for Dashboard)
 
@@ -343,8 +385,8 @@ public class MaintenanceController : ControllerBase
                 TaskDescription = request.TaskDescription ?? taskType.Description ?? string.Empty,
                 IntervalDays = request.IntervalDays,
                 NextDueAt = request.NextDueAt ?? DateTime.UtcNow.AddDays(7), // Default 7 days if not specified
-                Priority = request.Priority ?? taskType.DefaultPriority ?? "NORMAL",
-                Status = "PENDING", // Always start as PENDING
+                Priority = request.Priority ?? taskType.DefaultPriority ?? TaskPriority.NORMAL,
+                Status = MTaskStatus.PENDING, // Always start as PENDING
                 AssignedTo = request.AssignedTo,
                 Notes = request.Notes,
                 IsSynced = false,
@@ -428,7 +470,7 @@ public class MaintenanceController : ControllerBase
     private (bool IsValid, string Message) ValidateStatusTransition(string currentStatus, string newStatus, MaritimeEdge.Models.MaintenanceTask task)
     {
         // Rule 1: COMPLETED tasks cannot be moved back (protect crew work)
-        if (currentStatus == "COMPLETED")
+        if (currentStatus == MTaskStatus.COMPLETED)
         {
             return (false, "Cannot change status of completed tasks. Task was completed by crew member. Create a new task if rework is needed.");
         }
@@ -436,19 +478,19 @@ public class MaintenanceController : ControllerBase
         // Rule 2: IN_PROGRESS can move to PENDING (Captain unassigns) or COMPLETED (Crew finishes)
         // Allow IN_PROGRESS → PENDING: Captain can unassign a task that crew started (StartedAt timestamp is kept)
         // Allow IN_PROGRESS → COMPLETED: Crew finishes the task via mobile
-        if (currentStatus == "IN_PROGRESS" && newStatus != "PENDING" && newStatus != "COMPLETED")
+        if (currentStatus == MTaskStatus.IN_PROGRESS && newStatus != MTaskStatus.PENDING && newStatus != MTaskStatus.COMPLETED)
         {
             return (false, $"In-progress tasks can only move to PENDING (unassign) or COMPLETED, not {newStatus}");
         }
 
         // Rule 3: PENDING can move to IN_PROGRESS (assign) or OVERDUE (auto by system)
-        if (currentStatus == "PENDING" && newStatus != "IN_PROGRESS" && newStatus != "OVERDUE")
+        if (currentStatus == MTaskStatus.PENDING && newStatus != MTaskStatus.IN_PROGRESS && newStatus != MTaskStatus.OVERDUE)
         {
             return (false, $"Pending tasks can only move to IN_PROGRESS or OVERDUE, not {newStatus}");
         }
 
         // Rule 4: OVERDUE can only go to IN_PROGRESS (crew starts late task)
-        if (currentStatus == "OVERDUE" && newStatus != "IN_PROGRESS")
+        if (currentStatus == MTaskStatus.OVERDUE && newStatus != MTaskStatus.IN_PROGRESS)
         {
             return (false, "Overdue tasks must be started (IN_PROGRESS) before completion");
         }
@@ -498,18 +540,18 @@ public class MaintenanceController : ControllerBase
             }
 
             // Check if task is already in progress or completed
-            if (task.Status == "IN_PROGRESS")
+            if (task.Status == MTaskStatus.IN_PROGRESS)
             {
                 return BadRequest(new { error = "Task is already in progress" });
             }
 
-            if (task.Status == "COMPLETED")
+            if (task.Status == MTaskStatus.COMPLETED)
             {
                 return BadRequest(new { error = "Task is already completed" });
             }
 
             // Update task status to IN_PROGRESS
-            task.Status = "IN_PROGRESS";
+            task.Status = MTaskStatus.IN_PROGRESS;
             task.StartedAt = DateTime.UtcNow;
             task.IsSynced = false;
 
@@ -537,7 +579,7 @@ public class MaintenanceController : ControllerBase
                 return NotFound(new { message = "Task not found" });
             }
 
-            task.Status = "COMPLETED";
+            task.Status = MTaskStatus.COMPLETED;
             task.CompletedAt = DateTime.UtcNow;
             task.CompletedBy = request.CompletedBy;
             task.Notes = request.Notes;
@@ -584,12 +626,14 @@ public class MaintenanceController : ControllerBase
 
             // Lấy task details từ TaskType
             var taskDetails = await _context.TaskDetails
+                .AsNoTracking()
                 .Where(td => td.TaskTypeId == task.TaskTypeId && td.IsActive)
                 .OrderBy(td => td.OrderIndex)
                 .ToListAsync();
 
             // Lấy execution status (nếu có)
             var executionDetails = await _context.MaintenanceTaskDetails
+                .AsNoTracking()
                 .Where(mtd => mtd.MaintenanceTaskId == taskId)
                 .ToListAsync();
 
@@ -673,7 +717,7 @@ public class MaintenanceController : ControllerBase
                 {
                     MaintenanceTaskId = taskId,
                     TaskDetailId = detailId,
-                    Status = "COMPLETED",
+                    Status = MTaskStatus.COMPLETED,
                     IsCompleted = true,
                     MeasuredValue = request.MeasuredValue,
                     CheckResult = request.CheckResult,
@@ -689,7 +733,7 @@ public class MaintenanceController : ControllerBase
             else
             {
                 // Update existing execution record
-                execution.Status = "COMPLETED";
+                execution.Status = MTaskStatus.COMPLETED;
                 execution.IsCompleted = true;
                 execution.MeasuredValue = request.MeasuredValue;
                 execution.CheckResult = request.CheckResult;
@@ -735,11 +779,13 @@ public class MaintenanceController : ControllerBase
 
             // Count total mandatory task details
             var totalMandatory = await _context.TaskDetails
+                .AsNoTracking()
                 .Where(td => td.TaskTypeId == task.TaskTypeId && td.IsActive && td.IsMandatory)
                 .CountAsync();
 
             // Count completed mandatory items
             var completedMandatory = await _context.MaintenanceTaskDetails
+                .AsNoTracking()
                 .Where(mtd => mtd.MaintenanceTaskId == taskId && mtd.IsCompleted)
                 .Join(_context.TaskDetails,
                     mtd => mtd.TaskDetailId,

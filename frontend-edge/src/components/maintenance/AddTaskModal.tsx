@@ -65,10 +65,14 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onT
 
   const loadCrewMembers = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/crew')
+      // Fetch all crew members (no pagination limit for dropdown)
+      const response = await fetch('http://localhost:5001/api/crew?pageSize=1000')
       if (!response.ok) throw new Error('Failed to load crew members')
-      const data = await response.json()
-      setCrewMembers(data)
+      const result = await response.json()
+      
+      // Handle paginated response format
+      const data = result.data || result
+      setCrewMembers(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error('Error loading crew members:', err)
     }

@@ -122,3 +122,161 @@ a.active {
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-gray-400 dark:bg-gray-500;
 }
+
+/* ========================================
+   REPORTING SYSTEM ANIMATIONS
+   ======================================== */
+
+/* Fade In Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Slide Up Animation (for modals) */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slideUp {
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Scale In Animation (for cards) */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Reporting Form Specific Styles */
+.report-card-hover {
+  @apply transition-all duration-200 ease-in-out;
+}
+
+.report-card-hover:hover {
+  @apply transform -translate-y-1 shadow-lg;
+}
+
+/* Status Badge Pulse */
+.status-badge-pulse {
+  @apply animate-pulse;
+}
+
+/* Metric Card Gradient Backgrounds */
+.metric-card-blue {
+  @apply bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200;
+}
+
+.metric-card-green {
+  @apply bg-gradient-to-br from-green-50 to-green-100 border-green-200;
+}
+
+.metric-card-orange {
+  @apply bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200;
+}
+
+.metric-card-purple {
+  @apply bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200;
+}
+
+/* Loading Spinner Enhancement */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Report Detail Modal Backdrop */
+.modal-backdrop {
+  @apply fixed inset-0 bg-black bg-opacity-50 z-50;
+  backdrop-filter: blur(4px);
+}
+
+/* Smooth Transitions for Tab Changes */
+.tab-content-enter {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Zero Empty Space Utility */
+.compact-grid {
+  @apply grid gap-4;
+}
+
+.compact-grid-tight {
+  @apply grid gap-3;
+}
+
+/* Professional Form Inputs */
+.form-input-professional {
+  @apply w-full px-3 py-2.5 border border-gray-300 rounded-lg 
+         focus:ring-2 focus:ring-blue-500 focus:border-transparent 
+         transition-all duration-200;
+}
+
+.form-input-professional:hover {
+  @apply border-gray-400;
+}
+
+/* Success/Error Alert Animations */
+.alert-success {
+  @apply bg-green-50 border-l-4 border-green-400 rounded-r-lg p-4 animate-fadeIn;
+}
+
+.alert-error {
+  @apply bg-red-50 border-l-4 border-red-400 rounded-r-lg p-4 animate-fadeIn;
+}
+
+/* Button Hover Effects */
+.btn-primary {
+  @apply bg-gradient-to-r from-blue-600 to-blue-700 
+         hover:from-blue-700 hover:to-blue-800 
+         text-white font-medium py-3 px-6 rounded-lg shadow-sm 
+         transition-all duration-200 
+         disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-success {
+  @apply bg-gradient-to-r from-green-600 to-emerald-600 
+         hover:from-green-700 hover:to-emerald-700 
+         text-white font-medium py-3 px-6 rounded-lg shadow-sm 
+         transition-all duration-200;
+}
+
+.btn-purple {
+  @apply bg-gradient-to-r from-purple-600 to-indigo-600 
+         hover:from-purple-700 hover:to-indigo-700 
+         text-white font-medium py-3 px-6 rounded-lg shadow-sm 
+         transition-all duration-200;
+}

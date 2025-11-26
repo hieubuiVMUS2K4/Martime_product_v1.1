@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Calendar, Download, LayoutGrid } from 'lucide-react'
 import { MaintenanceTask } from '../../types/maritime.types'
@@ -26,31 +26,17 @@ export function MaintenancePage() {
   const [timeWindow, setTimeWindow] = useState<'today' | 'week' | '2weeks' | 'month' | 'all'>('week')
   const [showCompleted, setShowCompleted] = useState(false)
 
-  // Auto-refresh every 10 seconds to sync with mobile changes
-  useEffect(() => {
-    loadMaintenanceData(true) // Initial load with spinner
-    
-    const intervalId = setInterval(() => {
-      loadMaintenanceData(false) // Background refresh without spinner
-    }, 10000) // Refresh every 10 seconds
-    
-    return () => clearInterval(intervalId)
-  }, [activeTab])
-
-  useEffect(() => {
-    applyFilters()
-  }, [tasks, searchQuery, priorityFilter, equipmentFilter, timeWindow, showCompleted])
-
-  const loadMaintenanceData = async (showSpinner = true) => {
+  // Load maintenance data - wrapped in useCallback
+  const loadMaintenanceData = useCallback(async (showSpinner = true) => {
     try {
       if (showSpinner) {
         setLoading(true)
       } else {
         setIsBackgroundRefreshing(true)
       }
-      // Always load all tasks, filtering is done by view
-      const data = await maritimeService.maintenance.getAll()
-      setTasks(data)
+      // Fetch all tasks with high pageSize to get all records
+      const response = await maritimeService.maintenance.getAll({ pageSize: 1000 })
+      setTasks(response.data)
     } catch (error) {
       console.error('Failed to load maintenance data:', error)
     } finally {
@@ -60,9 +46,21 @@ export function MaintenancePage() {
         setIsBackgroundRefreshing(false)
       }
     }
-  }
+  }, [])
 
-  const applyFilters = () => {
+  // Auto-refresh every 10 seconds to sync with mobile changes
+  useEffect(() => {
+    loadMaintenanceData(true) // Initial load with spinner
+    
+    const intervalId = setInterval(() => {
+      loadMaintenanceData(false) // Background refresh without spinner
+    }, 10000) // Refresh every 10 seconds
+    
+    return () => clearInterval(intervalId)
+  }, [loadMaintenanceData])
+
+  // Filter and compute filtered tasks
+  useEffect(() => {
     let filtered = [...tasks]
 
     // Time window filter (Maritime PMS pattern - Focus on immediate tasks)
@@ -125,7 +123,7 @@ export function MaintenancePage() {
     })
 
     setFilteredTasks(filtered)
-  }
+  }, [tasks, searchQuery, priorityFilter, equipmentFilter, timeWindow, showCompleted])
 
   // Calculate quick stats for time windows
   const getTimeWindowStats = () => {

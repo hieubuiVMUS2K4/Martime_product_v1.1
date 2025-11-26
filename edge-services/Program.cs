@@ -32,15 +32,22 @@ namespace MaritimeEdge
                 client.DefaultRequestHeaders.Add("User-Agent", "MaritimeEdge/1.0");
             });
 
+            // Add Memory Cache for performance optimization
+            builder.Services.AddMemoryCache();
+
             // Add Business Services
             builder.Services.AddScoped<FuelAnalyticsService>();
             builder.Services.AddScoped<ISignalKHttpClient, SignalKHttpClient>();
             builder.Services.AddScoped<TaskManagementService>();
+            builder.Services.AddScoped<IReportingService, ReportingService>();
+            builder.Services.AddScoped<IAggregateReportService, AggregateReportService>();
+            builder.Services.AddScoped<ISyncService, SyncService>();
 
             // Add Background Services
             builder.Services.AddHostedService<TelemetrySimulatorService>();
             builder.Services.AddHostedService<SignalKDataCollectorService>();
             builder.Services.AddHostedService<DataCleanupService>();
+            builder.Services.AddHostedService<SyncBackgroundWorker>();
 
             // Add Controllers
             builder.Services.AddControllers()

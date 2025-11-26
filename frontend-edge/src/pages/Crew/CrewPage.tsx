@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Users, UserPlus, Shield, Calendar, AlertTriangle, FileText } from 'lucide-react'
-import { CrewMember } from '../../types/maritime.types'
+import { CrewMember, PaginationInfo } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { format, differenceInDays, parseISO } from 'date-fns'
 import { AddCrewModal } from '../../components/crew/AddCrewModal'
+import { Pagination } from '../../components/common/Pagination'
 
 type TabType = 'all' | 'onboard' | 'certificates' | 'reports'
 
@@ -13,31 +14,41 @@ export function CrewPage() {
   const [activeTab, setActiveTab] = useState<TabType>('onboard')
   const [crewMembers, setCrewMembers] = useState<CrewMember[]>([])
   const [filteredCrew, setFilteredCrew] = useState<CrewMember[]>([])
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterRank, setFilterRank] = useState<string>('all')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize] = useState(50)
 
   useEffect(() => {
     loadCrewData()
-  }, [activeTab])
+  }, [activeTab, currentPage, searchQuery])
 
   useEffect(() => {
     applyFilters()
-  }, [crewMembers, searchQuery, filterRank])
+  }, [crewMembers, filterRank])
 
   const loadCrewData = async () => {
     try {
       setLoading(true)
-      let data: CrewMember[]
       
       if (activeTab === 'onboard') {
-        data = await maritimeService.crew.getOnboard()
+        // For onboard tab, use the old endpoint (no pagination)
+        const data = await maritimeService.crew.getOnboard()
+        setCrewMembers(data)
+        setPagination(null)
       } else {
-        data = await maritimeService.crew.getAll()
+        // For "all" tab, use pagination
+        const response = await maritimeService.crew.getAll({
+          page: currentPage,
+          pageSize: pageSize,
+          search: searchQuery || undefined,
+        })
+        setCrewMembers(response.data)
+        setPagination(response.pagination)
       }
-      
-      setCrewMembers(data)
     } catch (error) {
       console.error('Failed to load crew data:', error)
     } finally {
@@ -48,21 +59,21 @@ export function CrewPage() {
   const applyFilters = () => {
     let filtered = [...crewMembers]
 
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter(crew =>
-        crew.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        crew.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        crew.crewId.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    }
-
-    // Rank filter
+    // Rank filter (client-side for now)
     if (filterRank !== 'all') {
       filtered = filtered.filter(crew => crew.rank === filterRank)
     }
 
     setFilteredCrew(filtered)
+  }
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value)
+    setCurrentPage(1) // Reset to first page when searching
   }
 
   const getCertificateStatus = (expiryDate?: string) => {
@@ -167,7 +178,7 @@ export function CrewPage() {
               type="text"
               placeholder="Search by name, position, or crew ID..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -199,7 +210,9 @@ export function CrewPage() {
               ) : (
                 <CrewListView 
                   crewMembers={filteredCrew} 
-                  onViewCrew={(id) => navigate(`/crew/${id}`)} 
+                  onViewCrew={(id) => navigate(`/crew/${id}`)}
+                  pagination={pagination}
+                  onPageChange={handlePageChange}
                 />
               )}
             </>
@@ -219,7 +232,17 @@ export function CrewPage() {
 }
 
 // Crew List View Component
-function CrewListView({ crewMembers, onViewCrew }: { crewMembers: CrewMember[]; onViewCrew: (id: number) => void }) {
+function CrewListView({ 
+  crewMembers, 
+  onViewCrew,
+  pagination,
+  onPageChange
+}: { 
+  crewMembers: CrewMember[]
+  onViewCrew: (id: number) => void
+  pagination: PaginationInfo | null
+  onPageChange?: (page: number) => void
+}) {
   const [currentPage, setCurrentPage] = useState(1)
   const ITEMS_PER_PAGE = 10
 
@@ -252,19 +275,38 @@ function CrewListView({ crewMembers, onViewCrew }: { crewMembers: CrewMember[]; 
   const totalPages = Math.ceil(crewMembers.length / ITEMS_PER_PAGE)
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
   const endIndex = startIndex + ITEMS_PER_PAGE
-  const paginatedCrew = crewMembers.slice(startIndex, endIndex)
+  
+  // Use server-side pagination if available, otherwise fall back to client-side
+  const paginatedCrew = pagination ? crewMembers : crewMembers.slice(startIndex, endIndex)
+  const handlePageChange = (page: number) => {
+    if (pagination && onPageChange) {
+      // Server-side pagination
+      onPageChange(page)
+    } else {
+      // Client-side pagination (fallback for onboard tab)
+      setCurrentPage(page)
+    }
+  }
 
   return (
     <div className="space-y-4">
-      {/* Pagination */}
-      {totalPages > 1 && (
+      {/* Pagination - Show only if we have data */}
+      {pagination && (
+        <Pagination
+          pagination={pagination}
+          onPageChange={handlePageChange}
+        />
+      )}
+      
+      {/* Client-side pagination for onboard tab */}
+      {!pagination && totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-600">
             Showing {startIndex + 1} - {Math.min(endIndex, crewMembers.length)} of {crewMembers.length} crew members
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
               className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -274,7 +316,7 @@ function CrewListView({ crewMembers, onViewCrew }: { crewMembers: CrewMember[]; 
               Page {currentPage} / {totalPages}
             </span>
             <button
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
               className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >

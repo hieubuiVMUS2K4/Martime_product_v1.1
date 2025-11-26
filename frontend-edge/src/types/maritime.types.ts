@@ -2,6 +2,21 @@
 // TYPE DEFINITIONS - Based on EdgeModels.cs
 // ============================================================
 
+// Pagination Response Type
+export interface PaginationInfo {
+  currentPage: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+}
+
+export interface PaginatedResponse<T> {
+  data: T[]
+  pagination: PaginationInfo
+}
+
 export interface PositionData {
   id: number
   timestamp: string

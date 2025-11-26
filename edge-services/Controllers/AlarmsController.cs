@@ -24,6 +24,7 @@ public class AlarmsController : ControllerBase
         try
         {
             var alarms = await _context.SafetyAlarms
+                .AsNoTracking()
                 .Where(a => !a.IsResolved)
                 .OrderByDescending(a => a.Timestamp)
                 .ToListAsync();
@@ -38,17 +39,46 @@ public class AlarmsController : ControllerBase
     }
 
     [HttpGet("history")]
-    public async Task<IActionResult> GetAlarmHistory([FromQuery] int days = 7)
+    public async Task<IActionResult> GetAlarmHistory(
+        [FromQuery] int days = 7,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
     {
         try
         {
+            // Validate pagination
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 50;
+            if (pageSize > 200) pageSize = 200;
+
             var since = DateTime.UtcNow.AddDays(-days);
-            var alarms = await _context.SafetyAlarms
+            
+            var query = _context.SafetyAlarms
+                .AsNoTracking()
                 .Where(a => a.Timestamp >= since)
-                .OrderByDescending(a => a.Timestamp)
+                .OrderByDescending(a => a.Timestamp);
+
+            var totalCount = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+            var alarms = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            return Ok(alarms);
+            return Ok(new
+            {
+                data = alarms,
+                pagination = new
+                {
+                    currentPage = page,
+                    pageSize = pageSize,
+                    totalCount = totalCount,
+                    totalPages = totalPages,
+                    hasNextPage = page < totalPages,
+                    hasPreviousPage = page > 1
+                }
+            });
         }
         catch (Exception ex)
         {
@@ -149,6 +179,7 @@ public class AlarmsController : ControllerBase
         {
             var since = DateTime.UtcNow.AddDays(-days);
             var alarms = await _context.SafetyAlarms
+                .AsNoTracking()
                 .Where(a => a.Timestamp >= since)
                 .ToListAsync();
 
