@@ -329,7 +329,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpGet("tasks/{id}")]
-    public async Task<IActionResult> GetTaskById(long id)
+    public async Task<IActionResult> GetTaskById(Guid id)
     {
         try
         {
@@ -409,7 +409,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpPut("tasks/{id}")]
-    public async Task<IActionResult> UpdateTask(long id, [FromBody] MaintenanceTask task)
+    public async Task<IActionResult> UpdateTask(Guid id, [FromBody] MaintenanceTask task)
     {
         try
         {
@@ -499,7 +499,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpDelete("tasks/{id}")]
-    public async Task<IActionResult> DeleteTask(long id)
+    public async Task<IActionResult> DeleteTask(Guid id)
     {
         try
         {
@@ -529,7 +529,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpPost("tasks/{id}/start")]
-    public async Task<IActionResult> StartTask(long id)
+    public async Task<IActionResult> StartTask(Guid id)
     {
         try
         {
@@ -569,7 +569,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpPost("tasks/{id}/complete")]
-    public async Task<IActionResult> CompleteTask(long id, [FromBody] CompleteTaskRequest request)
+    public async Task<IActionResult> CompleteTask(Guid id, [FromBody] CompleteTaskRequest request)
     {
         try
         {

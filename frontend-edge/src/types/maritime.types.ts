@@ -200,7 +200,7 @@ export interface VoyageRecord {
 // ============================================================
 
 export interface CrewMember {
-  id: number
+  id: string // Guid
   crewId: string
   fullName: string
   position: string
@@ -246,7 +246,7 @@ export interface CrewMember {
 }
 
 export interface MaintenanceTask {
-  id: number
+  id: string // Guid
   taskId: string
   equipmentId: string
   equipmentName: string

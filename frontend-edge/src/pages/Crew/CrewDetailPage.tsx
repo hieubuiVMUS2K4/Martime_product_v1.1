@@ -43,7 +43,7 @@ export function CrewDetailPage() {
     
     try {
       setLoading(true)
-      const crewData = await maritimeService.crew.getById(Number(id))
+      const crewData = await maritimeService.crew.getById(id)
       setCrew(crewData)
       setEditedCrew(crewData)
     } catch (error: any) {

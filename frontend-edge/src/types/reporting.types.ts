@@ -102,8 +102,8 @@ export interface CreateNoonReportDto {
 }
 
 export interface NoonReportDto extends CreateNoonReportDto {
-  id: number;
-  maritimeReportId: number;
+  id: string; // Guid
+  maritimeReportId: string; // Guid
   reportNumber: string;
   status: ReportStatus;
   masterSignature?: string;
@@ -151,8 +151,8 @@ export interface CreateDepartureReportDto {
 }
 
 export interface DepartureReportDto extends CreateDepartureReportDto {
-  id: number;
-  maritimeReportId: number;
+  id: string; // Guid
+  maritimeReportId: string; // Guid
   reportNumber: string;
   status: ReportStatus;
   masterSignature?: string;
@@ -194,8 +194,8 @@ export interface CreateArrivalReportDto {
 }
 
 export interface ArrivalReportDto extends CreateArrivalReportDto {
-  id: number;
-  maritimeReportId: number;
+  id: string; // Guid
+  maritimeReportId: string; // Guid
   reportNumber: string;
   status: ReportStatus;
   masterSignature?: string;
@@ -236,8 +236,8 @@ export interface CreateBunkerReportDto {
 }
 
 export interface BunkerReportDto extends CreateBunkerReportDto {
-  id: number;
-  maritimeReportId: number;
+  id: string; // Guid
+  maritimeReportId: string; // Guid
   reportNumber: string;
   status: ReportStatus;
   masterSignature?: string;
@@ -272,8 +272,8 @@ export interface CreatePositionReportDto {
 }
 
 export interface PositionReportDto extends CreatePositionReportDto {
-  id: number;
-  maritimeReportId: number;
+  id: string; // Guid
+  maritimeReportId: string; // Guid
   reportNumber: string;
   status: ReportStatus;
   masterSignature?: string;
@@ -299,7 +299,7 @@ export interface TransmitReportDto {
 }
 
 export interface TransmissionStatusDto {
-  reportId: number;
+  reportId: string; // Guid
   reportNumber: string;
   isTransmitted: boolean;
   transmittedAt?: string;
@@ -325,7 +325,7 @@ export interface ReportPaginationDto {
 }
 
 export interface ReportSummaryDto {
-  id: number;
+  id: string; // Guid
   reportNumber: string;
   reportTypeId: number;
   reportTypeName: string;
@@ -371,7 +371,7 @@ export interface ReportStatisticsDto {
 // ============================================================
 
 export interface WorkflowHistoryDto {
-  id: number;
+  id: string; // Guid
   fromStatus: string;
   toStatus: string;
   changedBy: string;
@@ -385,7 +385,7 @@ export interface WorkflowHistoryDto {
 // ============================================================
 
 export interface DeletedReportDto {
-  id: number;
+  id: string; // Guid
   reportNumber: string;
   reportDateTime: string;
   status: ReportStatus;
@@ -404,7 +404,7 @@ export interface DeleteReportRequestDto {
 
 export interface CreateReportResponse {
   reportNumber: string;
-  reportId: number;
+  reportId: string; // Guid from backend
   message: string;
 }
 

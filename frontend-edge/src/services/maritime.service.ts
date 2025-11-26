@@ -125,19 +125,19 @@ export class MaritimeService {
       return this.request<PaginatedResponse<CrewMember>>(`/crew${query ? `?${query}` : ''}`)
     },
     getOnboard: () => this.request<CrewMember[]>('/crew/onboard'),
-    getById: (id: number) => this.request<CrewMember>(`/crew/${id}`),
+    getById: (id: string) => this.request<CrewMember>(`/crew/${id}`),
     add: (crew: Partial<CrewMember>) =>
       this.request<CrewMember>('/crew', {
         method: 'POST',
         body: JSON.stringify(crew),
       }),
-    update: (id: number, crew: Partial<CrewMember>) =>
+    update: (id: string, crew: Partial<CrewMember>) =>
       this.request<CrewMember>(`/crew/${id}`, {
         method: 'PUT',
         body: JSON.stringify(crew),
       }),
-    delete: (id: number) =>
-      this.request<{ message: string; id: number; crewId: string; fullName: string }>(`/crew/${id}`, {
+    delete: (id: string) =>
+      this.request<{ message: string; id: string; crewId: string; fullName: string }>(`/crew/${id}`, {
         method: 'DELETE',
       }),
     getExpiringCertificates: (days: number = 90) =>
@@ -194,27 +194,27 @@ export class MaritimeService {
     },
     getPending: () => this.request<MaintenanceTask[]>('/maintenance/tasks/pending'),
     getOverdue: () => this.request<MaintenanceTask[]>('/maintenance/tasks/overdue'),
-    getById: (id: number) => this.request<MaintenanceTask>(`/maintenance/tasks/${id}`),
-    getChecklist: (id: number) => this.request<any[]>(`/maintenance/tasks/${id}/checklist`),
+    getById: (id: string) => this.request<MaintenanceTask>(`/maintenance/tasks/${id}`),
+    getChecklist: (id: string) => this.request<any[]>(`/maintenance/tasks/${id}/checklist`),
     create: (task: Partial<MaintenanceTask>) =>
       this.request<MaintenanceTask>('/maintenance/tasks', {
         method: 'POST',
         body: JSON.stringify(task),
       }),
-    update: (id: number, task: Partial<MaintenanceTask>) =>
+    update: (id: string, task: Partial<MaintenanceTask>) =>
       this.request<MaintenanceTask>(`/maintenance/tasks/${id}`, {
         method: 'PUT',
         body: JSON.stringify(task),
       }),
     completeTask: (
-      id: number,
+      id: string,
       data: { completedBy: string; notes?: string; sparePartsUsed?: string }
     ) =>
       this.request(`/maintenance/tasks/${id}/complete`, {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    delete: (id: number) =>
+    delete: (id: string) =>
       this.request(`/maintenance/tasks/${id}`, {
         method: 'DELETE',
       }),
@@ -326,9 +326,9 @@ export const alarmService = {
 export const crewService = {
   getAllCrew: () => apiClient.get<CrewMember[]>('/crew'),
   getOnboardCrew: () => apiClient.get<CrewMember[]>('/crew/onboard'),
-  getCrewById: (id: number) => apiClient.get<CrewMember>(`/crew/${id}`),
+  getCrewById: (id: string) => apiClient.get<CrewMember>(`/crew/${id}`),
   addCrew: (crew: Partial<CrewMember>) => apiClient.post<CrewMember>('/crew', crew),
-  updateCrew: (id: number, crew: Partial<CrewMember>) =>
+  updateCrew: (id: string, crew: Partial<CrewMember>) =>
     apiClient.put<CrewMember>(`/crew/${id}`, crew),
   getExpiringCertificates: (days: number = 90) =>
     apiClient.get<CrewMember[]>(`/crew/expiring-certificates?days=${days}`),
@@ -342,12 +342,12 @@ export const maintenanceService = {
   getAllTasks: () => apiClient.get<MaintenanceTask[]>('/maintenance/tasks'),
   getPendingTasks: () => apiClient.get<MaintenanceTask[]>('/maintenance/tasks/pending'),
   getOverdueTasks: () => apiClient.get<MaintenanceTask[]>('/maintenance/tasks/overdue'),
-  getTaskById: (id: number) => apiClient.get<MaintenanceTask>(`/maintenance/tasks/${id}`),
+  getTaskById: (id: string) => apiClient.get<MaintenanceTask>(`/maintenance/tasks/${id}`),
   createTask: (task: Partial<MaintenanceTask>) =>
     apiClient.post<MaintenanceTask>('/maintenance/tasks', task),
-  updateTask: (id: number, task: Partial<MaintenanceTask>) =>
+  updateTask: (id: string, task: Partial<MaintenanceTask>) =>
     apiClient.put<MaintenanceTask>(`/maintenance/tasks/${id}`, task),
-  completeTask: (id: number, completedBy: string, notes?: string, sparePartsUsed?: string) =>
+  completeTask: (id: string, completedBy: string, notes?: string, sparePartsUsed?: string) =>
     apiClient.post(`/maintenance/tasks/${id}/complete`, {
       completedBy,
       notes,

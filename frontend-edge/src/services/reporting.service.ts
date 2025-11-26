@@ -52,7 +52,7 @@ export class ReportingService {
     return await apiClient.post<CreateReportResponse>(`${BASE_URL}/weekly/generate`, data);
   }
 
-  static async getWeeklyReport(reportId: number): Promise<any> {
+  static async getWeeklyReport(reportId: string): Promise<any> {
     return await apiClient.get(`${BASE_URL}/weekly/${reportId}`);
   }
 
@@ -71,11 +71,11 @@ export class ReportingService {
     return result;
   }
 
-  static async updateWeeklyReport(reportId: number, data: { remarks?: string; masterSignature?: string; status?: string }): Promise<any> {
+  static async updateWeeklyReport(reportId: string, data: { remarks?: string; masterSignature?: string; status?: string }): Promise<any> {
     return await apiClient.put(`${BASE_URL}/weekly/${reportId}`, data);
   }
 
-  static async deleteWeeklyReport(reportId: number): Promise<any> {
+  static async deleteWeeklyReport(reportId: string): Promise<any> {
     return await apiClient.delete(`${BASE_URL}/weekly/${reportId}`);
   }
 
@@ -87,7 +87,7 @@ export class ReportingService {
     return await apiClient.post<CreateReportResponse>(`${BASE_URL}/monthly/generate`, data);
   }
 
-  static async getMonthlyReport(reportId: number): Promise<any> {
+  static async getMonthlyReport(reportId: string): Promise<any> {
     return await apiClient.get(`${BASE_URL}/monthly/${reportId}`);
   }
 
@@ -105,11 +105,11 @@ export class ReportingService {
     return result;
   }
 
-  static async updateMonthlyReport(reportId: number, data: { remarks?: string; masterSignature?: string; status?: string }): Promise<any> {
+  static async updateMonthlyReport(reportId: string, data: { remarks?: string; masterSignature?: string; status?: string }): Promise<any> {
     return await apiClient.put(`${BASE_URL}/monthly/${reportId}`, data);
   }
 
-  static async deleteMonthlyReport(reportId: number): Promise<any> {
+  static async deleteMonthlyReport(reportId: string): Promise<any> {
     return await apiClient.delete(`${BASE_URL}/monthly/${reportId}`);
   }
 
@@ -133,14 +133,14 @@ export class ReportingService {
     return await apiClient.post<CreateReportResponse>(`${BASE_URL}/noon`, data);
   }
 
-  static async getNoonReport(reportId: number): Promise<NoonReportDto> {
+  static async getNoonReport(reportId: string): Promise<NoonReportDto> {
     return await apiClient.get<NoonReportDto>(`${BASE_URL}/noon/${reportId}`);
   }
 
   /**
    * Update full DRAFT Noon Report
    */
-  static async updateNoonReport(reportId: number, data: CreateNoonReportDto): Promise<void> {
+  static async updateNoonReport(reportId: string, data: CreateNoonReportDto): Promise<void> {
     await apiClient.put(`${BASE_URL}/noon/${reportId}`, data);
   }
 
@@ -152,7 +152,7 @@ export class ReportingService {
     return await apiClient.post<CreateReportResponse>(`${BASE_URL}/departure`, data);
   }
 
-  static async getDepartureReport(reportId: number): Promise<DepartureReportDto> {
+  static async getDepartureReport(reportId: string): Promise<DepartureReportDto> {
     return await apiClient.get<DepartureReportDto>(`${BASE_URL}/departure/${reportId}`);
   }
 
@@ -164,7 +164,7 @@ export class ReportingService {
     return await apiClient.post<CreateReportResponse>(`${BASE_URL}/arrival`, data);
   }
 
-  static async getArrivalReport(reportId: number): Promise<ArrivalReportDto> {
+  static async getArrivalReport(reportId: string): Promise<ArrivalReportDto> {
     return await apiClient.get<ArrivalReportDto>(`${BASE_URL}/arrival/${reportId}`);
   }
 
@@ -176,7 +176,7 @@ export class ReportingService {
     return await apiClient.post<CreateReportResponse>(`${BASE_URL}/bunker`, data);
   }
 
-  static async getBunkerReport(reportId: number): Promise<BunkerReportDto> {
+  static async getBunkerReport(reportId: string): Promise<BunkerReportDto> {
     return await apiClient.get<BunkerReportDto>(`${BASE_URL}/bunker/${reportId}`);
   }
 
@@ -188,7 +188,7 @@ export class ReportingService {
     return await apiClient.post<CreateReportResponse>(`${BASE_URL}/position`, data);
   }
 
-  static async getPositionReport(reportId: number): Promise<PositionReportDto> {
+  static async getPositionReport(reportId: string): Promise<PositionReportDto> {
     return await apiClient.get<PositionReportDto>(`${BASE_URL}/position/${reportId}`);
   }
 
@@ -213,29 +213,29 @@ export class ReportingService {
   // WORKFLOW OPERATIONS
   // ============================================================
 
-  static async submitReport(reportId: number): Promise<void> {
+  static async submitReport(reportId: string): Promise<void> {
     await apiClient.post(`${BASE_URL}/${reportId}/submit`, {});
   }
 
-  static async approveReport(reportId: number, data: ApproveReportDto): Promise<void> {
+  static async approveReport(reportId: string, data: ApproveReportDto): Promise<void> {
     await apiClient.post(`${BASE_URL}/${reportId}/approve`, data);
   }
 
-  static async rejectReport(reportId: number, reason: string): Promise<void> {
+  static async rejectReport(reportId: string, reason: string): Promise<void> {
     await apiClient.post(`${BASE_URL}/${reportId}/reject`, { reason });
   }
 
   /**
    * Reopen rejected report for corrections
    */
-  static async reopenReport(reportId: number, corrections: string): Promise<void> {
+  static async reopenReport(reportId: string, corrections: string): Promise<void> {
     await apiClient.post(`${BASE_URL}/${reportId}/reopen`, { corrections });
   }
 
   /**
    * Update DRAFT report (partial update)
    */
-  static async updateDraftReport(reportId: number, updates: Partial<CreateNoonReportDto>): Promise<void> {
+  static async updateDraftReport(reportId: string, updates: Partial<CreateNoonReportDto>): Promise<void> {
     await apiClient.patch(`${BASE_URL}/${reportId}`, updates);
   }
 
@@ -243,11 +243,11 @@ export class ReportingService {
   // TRANSMISSION
   // ============================================================
 
-  static async transmitReport(reportId: number, data: TransmitReportDto): Promise<void> {
+  static async transmitReport(reportId: string, data: TransmitReportDto): Promise<void> {
     await apiClient.post(`${BASE_URL}/${reportId}/transmit`, data);
   }
 
-  static async getTransmissionStatus(reportId: number): Promise<TransmissionStatusDto> {
+  static async getTransmissionStatus(reportId: string): Promise<TransmissionStatusDto> {
     return await apiClient.get<TransmissionStatusDto>(`${BASE_URL}/${reportId}/transmission-status`);
   }
 
@@ -268,7 +268,7 @@ export class ReportingService {
   // AUDIT TRAIL
   // ============================================================
 
-  static async getWorkflowHistory(reportId: number): Promise<{ reportId: number; totalChanges: number; history: WorkflowHistoryDto[] }> {
+  static async getWorkflowHistory(reportId: string): Promise<{ reportId: number; totalChanges: number; history: WorkflowHistoryDto[] }> {
     return await apiClient.get(`${BASE_URL}/${reportId}/history`);
   }
 
@@ -276,7 +276,7 @@ export class ReportingService {
   // SOFT DELETE (Advanced feature - Admin only)
   // ============================================================
 
-  static async softDeleteReport(reportId: number, reason: string): Promise<void> {
+  static async softDeleteReport(reportId: string, reason: string): Promise<void> {
     // Note: DELETE with body - need custom implementation
     await fetch(`${BASE_URL}/${reportId}`, {
       method: 'DELETE',
@@ -294,7 +294,7 @@ export class ReportingService {
     return await apiClient.get(`${BASE_URL}/deleted${query}`);
   }
 
-  static async restoreReport(reportId: number): Promise<void> {
+  static async restoreReport(reportId: string): Promise<void> {
     await apiClient.post(`${BASE_URL}/${reportId}/restore`, {});
   }
 }

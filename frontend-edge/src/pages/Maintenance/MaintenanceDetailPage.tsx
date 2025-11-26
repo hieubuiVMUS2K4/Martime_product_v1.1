@@ -44,12 +44,12 @@ export function MaintenanceDetailPage() {
     
     try {
       setLoading(true)
-      const data = await maritimeService.maintenance.getById(Number(id))
+      const data = await maritimeService.maintenance.getById(id)
       setTask(data)
       
       // Load checklist if task is IN_PROGRESS or COMPLETED
       if (data.status === 'IN_PROGRESS' || data.status === 'COMPLETED') {
-        await loadChecklist(Number(id))
+        await loadChecklist(id)
       }
     } catch (error) {
       console.error('Failed to load task details:', error)

@@ -126,7 +126,7 @@ export function NoonReportForm() {
     const loadReportData = async () => {
       try {
         setLoadingReport(true);
-        const report = await ReportingService.getNoonReport(parseInt(id));
+        const report = await ReportingService.getNoonReport(id);
         
         // Populate form with existing data
         setFormData({
@@ -278,12 +278,12 @@ export function NoonReportForm() {
       setLoading(true);
       setError(null);
       
-      let reportId: number;
+      let reportId: string;
       
       if (isEditMode && id) {
         // UPDATE existing report
-        await ReportingService.updateNoonReport(parseInt(id), formData);
-        reportId = parseInt(id);
+        await ReportingService.updateNoonReport(id, formData);
+        reportId = id;
         console.log('✅ Report updated successfully');
       } else {
         // CREATE new report
