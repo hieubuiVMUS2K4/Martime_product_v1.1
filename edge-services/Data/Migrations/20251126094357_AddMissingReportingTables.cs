@@ -12,40 +12,42 @@ namespace MaritimeEdge.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_maintenance_task_details_task_details_task_detail_id",
-                schema: "public",
-                table: "maintenance_task_details");
+            // Safe drop foreign keys - ignore if not exists
+            migrationBuilder.Sql(@"
+                DO $$ BEGIN
+                    ALTER TABLE public.maintenance_task_details 
+                    DROP CONSTRAINT IF EXISTS ""FK_maintenance_task_details_task_details_task_detail_id"";
+                EXCEPTION WHEN OTHERS THEN NULL;
+                END $$;
+            ");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_task_details_task_types_task_type_id",
-                schema: "public",
-                table: "task_details");
+            migrationBuilder.Sql(@"
+                DO $$ BEGIN
+                    ALTER TABLE public.task_details 
+                    DROP CONSTRAINT IF EXISTS ""FK_task_details_task_types_task_type_id"";
+                EXCEPTION WHEN OTHERS THEN NULL;
+                END $$;
+            ");
 
-            migrationBuilder.DropIndex(
-                name: "idx_task_detail_type_id",
-                schema: "public",
-                table: "task_details");
+            // Safe drop indexes - ignore if not exists
+            migrationBuilder.Sql(@"DROP INDEX IF EXISTS public.idx_task_detail_type_id;");
+            migrationBuilder.Sql(@"DROP INDEX IF EXISTS public.idx_task_detail_type_order;");
+            migrationBuilder.Sql(@"DROP INDEX IF EXISTS public.idx_sync_table_record;");
 
-            migrationBuilder.DropIndex(
-                name: "idx_task_detail_type_order",
-                schema: "public",
-                table: "task_details");
+            // Safe drop columns - ignore if not exists
+            migrationBuilder.Sql(@"
+                DO $$ BEGIN
+                    ALTER TABLE public.task_details DROP COLUMN IF EXISTS task_type_id;
+                EXCEPTION WHEN OTHERS THEN NULL;
+                END $$;
+            ");
 
-            migrationBuilder.DropIndex(
-                name: "idx_sync_table_record",
-                schema: "public",
-                table: "sync_queue");
-
-            migrationBuilder.DropColumn(
-                name: "task_type_id",
-                schema: "public",
-                table: "task_details");
-
-            migrationBuilder.DropColumn(
-                name: "record_id",
-                schema: "public",
-                table: "sync_queue");
+            migrationBuilder.Sql(@"
+                DO $$ BEGIN
+                    ALTER TABLE public.sync_queue DROP COLUMN IF EXISTS record_id;
+                EXCEPTION WHEN OTHERS THEN NULL;
+                END $$;
+            ");
 
             migrationBuilder.RenameColumn(
                 name: "r_o_b_before",

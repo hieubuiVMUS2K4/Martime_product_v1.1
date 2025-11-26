@@ -1,9 +1,13 @@
 # Setup Instructions for Teammates
 
-## Vấn đề
-Database của bạn có 43 bảng nhưng teammate chỉ có 42 bảng vì thiếu migrations.
+## Vấn đề (ĐÃ GIẢI QUYẾT)
+~~Database của bạn có 43 bảng nhưng teammate chỉ có 42 bảng vì thiếu migrations.~~
 
-## Giải pháp cho Teammate
+**UPDATE**: Database đã đồng bộ - cả 2 đều có **42 bảng** chính xác! ✅
+- Vấn đề là do bảng trùng lặp (`__EFMigrationsHistory` và `report_workflow_history`) đã được xóa
+- Tất cả migrations đã được áp dụng đúng
+
+## Hướng dẫn Setup cho Teammate mới
 
 ### Bước 1: Pull code mới nhất
 ```bash
@@ -42,6 +46,12 @@ Tất cả migrations phải hiển thị (không có chữ "Pending"):
 - ✅ 20251019124845_AddCriticalOperationalTables
 - ✅ ... (17 migrations tổng cộng)
 - ✅ 20251112154119_RemoveTaskTypeIdFromModel
+
+### Kiểm tra số bảng (phải là 42)
+```powershell
+docker exec -it maritime-edge-postgres psql -U edge_user -d maritime_edge -c "SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public';"
+```
+**Kết quả mong đợi: 42 bảng** ✅
 
 ## Build và Run
 ```bash
