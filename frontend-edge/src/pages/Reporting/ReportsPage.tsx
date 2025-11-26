@@ -76,7 +76,7 @@ export function ReportsPage() {
 
       if (filters.reportType) params.reportType = filters.reportType;
       if (filters.status) params.status = filters.status;
-      if (filters.voyageId) params.voyageId = parseInt(filters.voyageId);
+      if (filters.voyageId) params.voyageId = filters.voyageId;
       if (filters.fromDate) params.fromDate = filters.fromDate;
       if (filters.toDate) params.toDate = filters.toDate;
       if (filters.searchTerm) params.searchTerm = filters.searchTerm;

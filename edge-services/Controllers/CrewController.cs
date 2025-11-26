@@ -100,7 +100,7 @@ public class CrewController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetCrewById(long id)
+    public async Task<IActionResult> GetCrewById(Guid id)
     {
         try
         {
@@ -407,7 +407,7 @@ public class CrewController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteCrew(long id)
+    public async Task<IActionResult> DeleteCrew(Guid id)
     {
         try
         {

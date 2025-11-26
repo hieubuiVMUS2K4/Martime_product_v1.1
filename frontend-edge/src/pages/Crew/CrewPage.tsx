@@ -38,7 +38,8 @@ export function CrewPage() {
       if (activeTab === 'onboard') {
         data = await maritimeService.crew.getOnboard()
       } else {
-        data = await maritimeService.crew.getAll()
+        const response = await maritimeService.crew.getAll()
+        data = response.data || response as any // Handle both PaginatedResponse and direct array
       }
       
       setCrewMembers(data)
@@ -313,7 +314,7 @@ function CrewListView({
   setSortMenu 
 }: { 
   crewMembers: CrewMember[]; 
-  onViewCrew: (id: number) => void;
+  onViewCrew: (id: string) => void;
   sortType?: { col: string; dir: 'asc'|'desc' } | null;
   setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
   sortMenu?: string | null;
@@ -575,7 +576,7 @@ function CertificateMonitorView({
   setSortMenu?: (sortMenu: string | null) => void;
 }) {
   const [currentPage, setCurrentPage] = useState(1)
-  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const ITEMS_PER_PAGE = 10
 
   const getExpiringCrew = () => {
@@ -830,7 +831,7 @@ function CertificateMonitorView({
                             crew.certificates.length >= 8 ? 'grid-cols-1 md:grid-cols-4' :
                             'grid-cols-1 md:grid-cols-2'
                           }`}>
-                            {crew.certificates.map((cert, index) => {
+                            {crew.certificates.map((cert) => {
                               const isExpired = cert.days < 0
                               const isExpiringSoon = cert.days >= 0 && cert.days < 90
                               
@@ -842,7 +843,7 @@ function CertificateMonitorView({
                                                'text-green-600'
                               
                               return (
-                                <div key={index} className={`border rounded-lg p-4 ${bgColor}`}>
+                                <div key={`${cert.type}-${cert.expiry}`} className={`border rounded-lg p-4 ${bgColor}`}>
                                   <div className="flex items-center justify-between mb-2">
                                     <span className="text-sm font-semibold text-gray-900">
                                       {cert.type === 'STCW' ? 'STCW Certificate' : 'Medical Certificate'}

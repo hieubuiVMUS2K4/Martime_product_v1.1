@@ -91,7 +91,7 @@ export function ReportDetailPage() {
     try {
       setLoading(true);
       // For now, only Noon Report - extend for other types
-      const data = await ReportingService.getNoonReport(parseInt(id!));
+      const data = await ReportingService.getNoonReport(id!);
       setReport(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load report');
@@ -102,7 +102,7 @@ export function ReportDetailPage() {
 
   const loadWorkflowHistory = async () => {
     try {
-      const data = await ReportingService.getWorkflowHistory(parseInt(id!));
+      const data = await ReportingService.getWorkflowHistory(id!);
       setHistory(data.history);
     } catch (err) {
       console.error('Failed to load history:', err);
@@ -111,7 +111,7 @@ export function ReportDetailPage() {
 
   const handleApprove = async () => {
     try {
-      await ReportingService.approveReport(parseInt(id!), approvalData);
+      await ReportingService.approveReport(id!, approvalData);
       setShowApproveModal(false);
       await loadReportDetails();
       await loadWorkflowHistory();
@@ -122,7 +122,7 @@ export function ReportDetailPage() {
 
   const handleReject = async () => {
     try {
-      await ReportingService.rejectReport(parseInt(id!), rejectionReason);
+      await ReportingService.rejectReport(id!, rejectionReason);
       setShowRejectModal(false);
       await loadReportDetails();
       await loadWorkflowHistory();
@@ -133,7 +133,7 @@ export function ReportDetailPage() {
 
   const handleTransmit = async () => {
     try {
-      await ReportingService.transmitReport(parseInt(id!), {
+      await ReportingService.transmitReport(id!, {
         transmissionMethod: transmitData.transmissionMethod,
         recipientEmails: transmitData.recipientEmails.split(';').map(e => e.trim()).filter(e => e),
         includeAttachments: false
@@ -205,7 +205,7 @@ export function ReportDetailPage() {
                 }
                 
                 try {
-                  await ReportingService.submitReport(parseInt(id!));
+                  await ReportingService.submitReport(id!);
                   await loadReportDetails();
                   await loadWorkflowHistory();
                   alert('✓ Report submitted successfully!\n\nIt is now pending approval by the Master.');
@@ -272,7 +272,7 @@ export function ReportDetailPage() {
               if (!corrections) return;
               
               try {
-                await ReportingService.reopenReport(parseInt(id!), corrections);
+                await ReportingService.reopenReport(id!, corrections);
                 await loadReportDetails();
                 await loadWorkflowHistory();
                 alert('Report reopened successfully. You can now edit and resubmit.');
