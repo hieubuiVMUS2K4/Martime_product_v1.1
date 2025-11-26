@@ -9,21 +9,42 @@
 
 ## Hướng dẫn Setup cho Teammate mới
 
-### Bước 1: Pull code mới nhất
-```bash
-git pull origin master
+### Phương án 1: Restore từ Backup (KHUYẾN NGHỊ) ⭐
+
+Nếu bạn gặp lỗi migration hoặc database không khớp, dùng script restore:
+
+```powershell
+cd edge-services
+.\restore-database.ps1
 ```
 
-### Bước 2: Chạy migrations
+Script sẽ:
+- Drop database cũ
+- Tạo database mới
+- Import schema đúng từ backup (42 bảng)
+- Tự động verify
+
+**Sau khi restore xong, chỉ cần:**
 ```bash
+dotnet build
+dotnet run
+```
+
+### Phương án 2: Sử dụng Migrations
+
+```bash
+git pull origin master
 cd edge-services
 dotnet ef database update
 ```
 
-**Lưu ý:** Nếu gặp lỗi migration, teammate có thể chạy script SQL thủ công:
+**Lưu ý:** Nếu migrations báo lỗi, dùng Phương án 1 thay thế.
 
 ### Bước 3 (Alternative): Chạy SQL Script qua Docker
-Nếu migrations bị lỗi, chạy trực tiếp vào database:
+⚠️ **DEPRECATED** - Dùng `restore-database.ps1` thay thế
+
+<details>
+<summary>Click để xem cách thủ công (không khuyến nghị)</summary>
 
 ```powershell
 # Kiểm tra số bảng hiện tại
@@ -32,6 +53,7 @@ docker exec -it maritime-edge-postgres psql -U edge_user -d maritime_edge -c "SE
 # Nếu thiếu bảng, đảm bảo EF Migrations History tồn tại
 docker exec -it maritime-edge-postgres psql -U edge_user -d maritime_edge -c "CREATE TABLE IF NOT EXISTS public.__efmigrationshistory (migration_id varchar(150) PRIMARY KEY, product_version varchar(32));"
 ```
+</details>
 
 ## Xác nhận Setup thành công
 
