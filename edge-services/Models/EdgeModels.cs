@@ -751,6 +751,9 @@ public class TaskType
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
     public DateTime? UpdatedAt { get; set; }
+
+        // Navigation property for many-to-many TaskType <-> TaskDetail
+        public ICollection<TaskDetail> TaskDetails { get; set; } = new List<TaskDetail>();
 }
 
 /// <summary>
@@ -762,7 +765,7 @@ public class TaskDetail
     [Key]
     public long Id { get; set; }
     
-    public int? TaskTypeId { get; set; } // Foreign key to TaskType - Nullable for library details
+    // TaskTypeId removed - now using many-to-many relationship via TaskTypes navigation property
     
     [Required]
     [MaxLength(200)]
@@ -791,6 +794,9 @@ public class TaskDetail
     public bool IsActive { get; set; } = true;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Navigation property for many-to-many TaskDetail <-> TaskType
+        public ICollection<TaskType> TaskTypes { get; set; } = new List<TaskType>();
 }
 
 /// <summary>
@@ -831,6 +837,13 @@ public class MaintenanceTaskDetail
     public DateTime? CompletedAt { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Foreign key for TaskType (for join table)
+        public int? TaskTypeId { get; set; }
+
+        // Navigation property
+        public TaskType? TaskType { get; set; }
+        public TaskDetail? TaskDetail { get; set; }
 }
 
 /// <summary>

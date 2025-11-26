@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import type { MaterialItem, MaterialCategory } from '@/types/maritime.types'
 import type { CreateMaterialItemDto, UpdateMaterialItemDto } from '@/services/materialService'
@@ -21,31 +21,88 @@ export function ItemFormModal({
   title,
 }: ItemFormModalProps) {
   const [formData, setFormData] = useState<CreateMaterialItemDto>({
-    itemCode: item?.itemCode || '',
-    name: item?.name || '',
-    categoryId: item?.categoryId || categories[0]?.id || 0,
-    specification: item?.specification || '',
-    unit: item?.unit || 'PCS',
-    onHandQuantity: item?.onHandQuantity || 0,
-    minStock: item?.minStock || null,
-    maxStock: item?.maxStock || null,
-    reorderLevel: item?.reorderLevel || null,
-    reorderQuantity: item?.reorderQuantity || null,
-    location: item?.location || '',
-    manufacturer: item?.manufacturer || '',
-    supplier: item?.supplier || '',
-    partNumber: item?.partNumber || '',
-    barcode: item?.barcode || '',
-    batchTracked: item?.batchTracked || false,
-    serialTracked: item?.serialTracked || false,
-    expiryRequired: item?.expiryRequired || false,
-    unitCost: item?.unitCost || null,
-    currency: item?.currency || 'USD',
-    notes: item?.notes || '',
-    isActive: item?.isActive ?? true,
+    itemCode: '',
+    name: '',
+    categoryId: categories[0]?.id || 0,
+    specification: '',
+    unit: 'PCS',
+    onHandQuantity: 0,
+    minStock: null,
+    maxStock: null,
+    reorderLevel: null,
+    reorderQuantity: null,
+    location: '',
+    manufacturer: '',
+    supplier: '',
+    partNumber: '',
+    barcode: '',
+    batchTracked: false,
+    serialTracked: false,
+    expiryRequired: false,
+    unitCost: null,
+    currency: 'USD',
+    notes: '',
+    isActive: true,
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Update form data when item changes
+  useEffect(() => {
+    if (item) {
+      setFormData({
+        itemCode: item.itemCode,
+        name: item.name,
+        categoryId: item.categoryId,
+        specification: item.specification || '',
+        unit: item.unit,
+        onHandQuantity: item.onHandQuantity,
+        minStock: item.minStock,
+        maxStock: item.maxStock,
+        reorderLevel: item.reorderLevel,
+        reorderQuantity: item.reorderQuantity,
+        location: item.location || '',
+        manufacturer: item.manufacturer || '',
+        supplier: item.supplier || '',
+        partNumber: item.partNumber || '',
+        barcode: item.barcode || '',
+        batchTracked: item.batchTracked,
+        serialTracked: item.serialTracked,
+        expiryRequired: item.expiryRequired,
+        unitCost: item.unitCost,
+        currency: item.currency || 'USD',
+        notes: item.notes || '',
+        isActive: item.isActive,
+      })
+    } else {
+      // Reset form for new item
+      setFormData({
+        itemCode: '',
+        name: '',
+        categoryId: categories[0]?.id || 0,
+        specification: '',
+        unit: 'PCS',
+        onHandQuantity: 0,
+        minStock: null,
+        maxStock: null,
+        reorderLevel: null,
+        reorderQuantity: null,
+        location: '',
+        manufacturer: '',
+        supplier: '',
+        partNumber: '',
+        barcode: '',
+        batchTracked: false,
+        serialTracked: false,
+        expiryRequired: false,
+        unitCost: null,
+        currency: 'USD',
+        notes: '',
+        isActive: true,
+      })
+    }
+    setError(null)
+  }, [item, categories])
 
   if (!isOpen) return null
 

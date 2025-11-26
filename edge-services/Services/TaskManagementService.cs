@@ -19,6 +19,92 @@ public class TaskManagementService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Gán nhiều chi tiết cho một loại công việc (many-to-many)
+    /// </summary>
+    public async Task<(bool Success, string Message)> AssignDetailsToTaskTypeAsync(int taskTypeId, List<long> detailIds)
+    {
+        try
+        {
+            // Lấy TaskType với navigation properties
+            var taskType = await _context.TaskTypes
+                .Include(tt => tt.TaskDetails)
+                .FirstOrDefaultAsync(tt => tt.Id == taskTypeId);
+
+            if (taskType == null)
+            {
+                return (false, "Không tìm thấy loại công việc");
+            }
+
+            // Lấy danh sách TaskDetails
+            var taskDetails = await _context.TaskDetails
+                .Where(td => detailIds.Contains(td.Id))
+                .ToListAsync();
+
+            if (taskDetails.Count != detailIds.Count)
+            {
+                return (false, "Một số chi tiết không tồn tại");
+            }
+
+            // Xóa liên kết cũ và thêm liên kết mới
+            taskType.TaskDetails.Clear();
+            foreach (var detail in taskDetails)
+            {
+                taskType.TaskDetails.Add(detail);
+            }
+
+            await _context.SaveChangesAsync();
+            return (true, "Đã cập nhật liên kết chi tiết cho loại công việc");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error assigning details to task type");
+            return (false, $"Lỗi: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Lấy danh sách chi tiết đã được gán cho một loại công việc
+    /// </summary>
+    public async Task<List<TaskDetailDto>> GetTaskTypeDetailsAsync(int taskTypeId)
+    {
+        try
+        {
+            var taskType = await _context.TaskTypes
+                .Include(tt => tt.TaskDetails)
+                .FirstOrDefaultAsync(tt => tt.Id == taskTypeId);
+
+            if (taskType == null)
+            {
+                return new List<TaskDetailDto>();
+            }
+
+            return taskType.TaskDetails.Select(td => new TaskDetailDto
+            {
+                Id = td.Id,
+                TaskTypeId = taskTypeId, // Use the parameter instead of the removed property
+                TaskTypeName = taskType.TypeName,
+                DetailName = td.DetailName,
+                DetailType = td.DetailType,
+                Description = td.Description,
+                OrderIndex = td.OrderIndex,
+                IsMandatory = td.IsMandatory,
+                Unit = td.Unit,
+                MinValue = td.MinValue,
+                MaxValue = td.MaxValue,
+                RequiresPhoto = td.RequiresPhoto,
+                RequiresSignature = td.RequiresSignature,
+                Instructions = td.Instructions,
+                IsActive = td.IsActive,
+                CreatedAt = td.CreatedAt
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting task type details");
+            return new List<TaskDetailDto>();
+        }
+    }
     // ============================================================
     // TASK TYPES METHODS
     // ============================================================
@@ -44,8 +130,9 @@ public class TaskManagementService
 
         foreach (var tt in taskTypes)
         {
+            // Use many-to-many relationship instead of TaskTypeId
             var detailStats = await _context.TaskDetails
-                .Where(td => td.TaskTypeId == tt.Id && td.IsActive)
+                .Where(td => td.TaskTypes.Any(taskType => taskType.Id == tt.Id) && td.IsActive)
                 .GroupBy(td => 1)
                 .Select(g => new
                 {
@@ -89,7 +176,7 @@ public class TaskManagementService
         if (taskType == null) return null;
 
         var detailStats = await _context.TaskDetails
-            .Where(td => td.TaskTypeId == id && td.IsActive)
+            .Where(td => td.TaskTypes.Any(taskType => taskType.Id == id) && td.IsActive)
             .GroupBy(td => 1)
             .Select(g => new
             {
@@ -271,18 +358,13 @@ public class TaskManagementService
             .OrderBy(td => td.CreatedAt)
             .ToListAsync();
 
-        var taskTypeIds = details.Select(td => td.TaskTypeId).Distinct().ToList();
-        var taskTypes = await _context.TaskTypes
-            .Where(tt => taskTypeIds.Contains(tt.Id))
-            .ToDictionaryAsync(tt => tt.Id, tt => tt.TypeName);
-
+        // For many-to-many relationship, task details don't have a single TaskTypeId
+        // Return generic task details without specific task type info
         return details.Select(td => new TaskDetailDto
         {
             Id = td.Id,
-            TaskTypeId = td.TaskTypeId ?? 0,
-            TaskTypeName = td.TaskTypeId.HasValue && taskTypes.ContainsKey(td.TaskTypeId.Value) 
-                ? taskTypes[td.TaskTypeId.Value] 
-                : "Thư viện",
+            TaskTypeId = 0, // No longer applicable with many-to-many
+            TaskTypeName = "Thư viện chi tiết", // Generic name for library details
             DetailName = td.DetailName,
             Description = td.Description,
             OrderIndex = td.OrderIndex,
@@ -304,8 +386,9 @@ public class TaskManagementService
     /// </summary>
     public async Task<List<TaskDetailDto>> GetTaskDetailsByTypeIdAsync(int taskTypeId, bool activeOnly = true)
     {
+        // Use many-to-many relationship instead of TaskTypeId
         var query = _context.TaskDetails
-            .Where(td => td.TaskTypeId == taskTypeId);
+            .Where(td => td.TaskTypes.Any(taskType => taskType.Id == taskTypeId));
 
         if (activeOnly)
         {
@@ -321,7 +404,7 @@ public class TaskManagementService
         return details.Select(td => new TaskDetailDto
         {
             Id = td.Id,
-            TaskTypeId = td.TaskTypeId ?? 0,
+            TaskTypeId = taskTypeId, // Use the parameter
             TaskTypeName = taskType?.TypeName ?? "",
             DetailName = td.DetailName,
             Description = td.Description,
@@ -347,17 +430,12 @@ public class TaskManagementService
         var detail = await _context.TaskDetails.FindAsync(id);
         if (detail == null) return null;
 
-        TaskType? taskType = null;
-        if (detail.TaskTypeId.HasValue)
-        {
-            taskType = await _context.TaskTypes.FindAsync(detail.TaskTypeId.Value);
-        }
-
+        // TaskTypeId no longer exists - detail belongs to library
         return new TaskDetailDto
         {
             Id = detail.Id,
-            TaskTypeId = detail.TaskTypeId ?? 0,
-            TaskTypeName = taskType?.TypeName ?? "Thư viện",
+            TaskTypeId = 0, // No longer applicable
+            TaskTypeName = "Thư viện chi tiết",
             DetailName = detail.DetailName,
             Description = detail.Description,
             OrderIndex = detail.OrderIndex,
@@ -381,25 +459,12 @@ public class TaskManagementService
     {
         try
         {
-            // Convert 0 to null (frontend may send 0 instead of null)
-            if (dto.TaskTypeId.HasValue && dto.TaskTypeId.Value == 0)
-            {
-                dto.TaskTypeId = null;
-            }
-
-            // Nếu có TaskTypeId, kiểm tra tồn tại
-            if (dto.TaskTypeId.HasValue && dto.TaskTypeId.Value > 0)
-            {
-                var taskType = await _context.TaskTypes.FindAsync(dto.TaskTypeId.Value);
-                if (taskType == null)
-                {
-                    return (false, "Không tìm thấy Task Type", null);
-                }
-            }
+            // TaskTypeId is no longer used - creating standalone detail in library
+            // Task type assignment will be done via many-to-many relationship
 
             var detail = new TaskDetail
             {
-                TaskTypeId = dto.TaskTypeId, // null = library detail (standalone)
+                // TaskTypeId removed - now using many-to-many relationship
                 DetailName = dto.DetailName,
                 Description = dto.Description,
                 OrderIndex = dto.OrderIndex,
@@ -418,8 +483,8 @@ public class TaskManagementService
             _context.TaskDetails.Add(detail);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Created TaskDetail: {Id} - {DetailName} (TaskTypeId: {TaskTypeId})", 
-                detail.Id, detail.DetailName, detail.TaskTypeId?.ToString() ?? "Library");
+            _logger.LogInformation("Created TaskDetail: {Id} - {DetailName} (Library Detail)", 
+                detail.Id, detail.DetailName);
 
             var result = await GetTaskDetailByIdAsync(detail.Id);
             return (true, "Tạo Task Detail thành công", result);
@@ -445,12 +510,7 @@ public class TaskManagementService
             }
 
             // Update only non-null properties
-            // IMPORTANT: Allow updating TaskTypeId to assign/unassign from TaskType
-            if (dto.TaskTypeId.HasValue) 
-            {
-                detail.TaskTypeId = dto.TaskTypeId.Value;
-                _logger.LogInformation("Updated TaskDetail {Id} TaskTypeId to {TaskTypeId}", id, dto.TaskTypeId.Value);
-            }
+            // TaskTypeId no longer used - task type assignment handled via many-to-many relationship
             
             if (dto.DetailName != null) detail.DetailName = dto.DetailName;
             if (dto.Description != null) detail.Description = dto.Description;
@@ -522,7 +582,7 @@ public class TaskManagementService
             foreach (var item in dto.Items)
             {
                 var detail = await _context.TaskDetails.FindAsync(item.TaskDetailId);
-                if (detail != null && detail.TaskTypeId == taskTypeId)
+                if (detail != null && detail.TaskTypes.Any(tt => tt.Id == taskTypeId))
                 {
                     detail.OrderIndex = item.OrderIndex;
                 }

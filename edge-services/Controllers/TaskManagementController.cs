@@ -12,6 +12,45 @@ namespace MaritimeEdge.Controllers;
 [Route("api/task-management")]
 public class TaskManagementController : ControllerBase
 {
+    /// <summary>
+    /// Gán nhiều chi tiết cho một loại công việc (many-to-many)
+    /// PUT /api/task-management/task-types/{taskTypeId}/details/assign
+    /// </summary>
+    [HttpPut("task-types/{taskTypeId}/details/assign")]
+    public async Task<IActionResult> AssignDetailsToTaskType(int taskTypeId, [FromBody] AssignDetailsDto dto)
+    {
+        try
+        {
+            var result = await _taskService.AssignDetailsToTaskTypeAsync(taskTypeId, dto.DetailIds);
+            if (!result.Success) return BadRequest(new { success = false, message = result.Message });
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error assigning details to task type {TaskTypeId}", taskTypeId);
+            return StatusCode(500, new { success = false, message = "Lỗi server: " + ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Lấy danh sách chi tiết đã được gán cho một loại công việc (many-to-many)
+    /// GET /api/task-management/task-types/{taskTypeId}/assigned-details
+    /// </summary>
+    [HttpGet("task-types/{taskTypeId}/assigned-details")]
+    public async Task<ActionResult<List<TaskDetailDto>>> GetTaskTypeDetails(int taskTypeId)
+    {
+        try
+        {
+            var details = await _taskService.GetTaskTypeDetailsAsync(taskTypeId);
+            return Ok(new { success = true, data = details });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting details for task type {TaskTypeId}", taskTypeId);
+            return StatusCode(500, new { success = false, message = "Lỗi server: " + ex.Message });
+        }
+    }
+
     private readonly TaskManagementService _taskService;
     private readonly ILogger<TaskManagementController> _logger;
 
