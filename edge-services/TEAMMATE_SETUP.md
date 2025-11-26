@@ -9,6 +9,22 @@
 
 ## Hướng dẫn Setup cho Teammate mới
 
+### ⚠️ Nếu gặp lỗi "missing columns" (origin_node, updated_at, action_type, record_key)
+
+Chạy script fix trước:
+```powershell
+cd edge-services
+Get-Content .\fix-missing-columns.sql | docker exec -i maritime-edge-postgres psql -U edge_user -d maritime_edge
+```
+
+Sau đó build lại:
+```bash
+dotnet build
+dotnet run
+```
+
+---
+
 ### Phương án 1: Restore từ Backup (KHUYẾN NGHỊ) ⭐
 
 Nếu bạn gặp lỗi migration hoặc database không khớp, dùng script restore:
