@@ -3,15 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft, 
   Save, 
-  X, 
-  User, 
-  FileText, 
   Calendar,
   Globe,
   Phone,
   Mail,
   MapPin,
-  Shield,
   Award,
   AlertCircle,
   CheckCircle,
@@ -159,28 +155,18 @@ export function CrewDetailPage() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-gray-50 dark:bg-gray-900 flex items-center justify-center z-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading crew details...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
   if (!crew) {
     return (
-      <div className="fixed inset-0 bg-gray-50 dark:bg-gray-900 flex items-center justify-center z-50">
-        <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Crew Member Not Found</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">The requested crew member could not be found.</p>
-          <button
-            onClick={() => navigate('/crew')}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Back to Crew List
-          </button>
+      <div className="p-8">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <p className="font-semibold">Error</p>
+          <p className="text-sm">Crew member not found</p>
         </div>
       </div>
     )
@@ -191,145 +177,113 @@ export function CrewDetailPage() {
   const passportStatus = getCertificateStatus(crew.passportExpiry)
   const visaStatus = getCertificateStatus(crew.visaExpiry)
 
-  const StatusIcon = certStatus.icon
-
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:bg-gray-900 overflow-y-auto z-50">
-      {/* Header Bar */}
-      <div className="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/crew')}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              </button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                    <span className="text-blue-600 dark:text-blue-300 font-semibold text-lg">
-                      {crew.fullName.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                    </span>
-                  </div>
-                  {crew.fullName}
-                </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  {crew.position} • {crew.rank} • Crew ID: {crew.crewId}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              {isEditing ? (
-                <>
-                  <button
-                    onClick={handleCancel}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
-                  >
-                    <X className="w-4 h-4" />
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {saving ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        Save Changes
-                      </>
-                    )}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => {
-                      setEditedCrew({ ...crew })
-                      setIsEditing(true)
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                    Edit Information
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    disabled={deleting}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {deleting ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Deleting...
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 className="w-4 h-4" />
-                        Delete Crew
-                      </>
-                    )}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Status Banner */}
-        <div className="mb-6">
-          <div className={`${certStatus.bgColor} border-l-4 ${certStatus.color.replace('text-', 'border-')} p-4 rounded-r-lg`}>
-            <div className="flex items-start gap-3">
-              <StatusIcon className={`w-6 h-6 ${certStatus.color} flex-shrink-0 mt-0.5`} />
-              <div className="flex-1">
-                <h3 className={`font-semibold ${certStatus.color}`}>
-                  Certificate Status: {certStatus.status}
-                </h3>
-                {certStatus.daysLeft !== null && (
-                  <p className={`text-sm ${certStatus.color} mt-1`}>
-                    {certStatus.daysLeft < 0 
-                      ? `Expired ${Math.abs(certStatus.daysLeft)} days ago`
-                      : `${certStatus.daysLeft} days remaining until expiry`
-                    }
-                  </p>
-                )}
-                {crew.certificateExpiry && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    Expiry Date: {format(parseISO(crew.certificateExpiry), 'dd MMMM yyyy')}
-                  </p>
-                )}
-              </div>
-              {crew.isOnboard && (
-                <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full">
-                  ON BOARD
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-3 py-4">
+        {/* Header */}
+        <button
+          onClick={() => navigate('/crew')}
+          className="flex items-center gap-1.5 text-gray-600 hover:text-gray-900 mb-3 text-sm"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Crew List
+        </button>
+        
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                <span className="text-blue-600 font-semibold text-base">
+                  {crew.fullName.split(' ').map(n => n[0]).join('').slice(0, 2)}
                 </span>
-              )}
-            </div>
+              </div>
+              {crew.fullName}
+            </h1>
+            <p className="text-gray-600 mt-1 text-sm">
+              {crew.position} • {crew.rank} • Crew ID: {crew.crewId}
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {isEditing ? (
+              <>
+                <button
+                  onClick={handleCancel}
+                  disabled={saving}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {saving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => {
+                    setEditedCrew({ ...crew })
+                    setIsEditing(true)
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Edit Information
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Delete Crew
+                    </>
+                  )}
+                </button>
+              </>
+            )}
           </div>
         </div>
+        {/* Status Banner */}
+        {crew.isOnboard && (
+          <div className="mb-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <span className="font-semibold text-green-700">Currently On Board</span>
+              </div>
+            </div>
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Left Column - Main Info */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4">
             {/* Personal Information */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <User className="w-5 h-5 text-blue-600" />
-                Personal Information
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+              <h2 className="text-base font-semibold text-gray-900 mb-3">Personal Information</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <InfoField
                   label="Full Name"
                   value={isEditing ? (editedCrew.fullName || crew.fullName) : crew.fullName}
@@ -385,12 +339,9 @@ export function CrewDetailPage() {
             </div>
 
             {/* Position & Rank */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-blue-600" />
-                Position & Rank
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+              <h2 className="text-base font-semibold text-gray-900 mb-3">Position & Rank</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <InfoField
                   label="Position"
                   value={isEditing ? (editedCrew.position || crew.position) : crew.position}
@@ -444,12 +395,9 @@ export function CrewDetailPage() {
             </div>
 
             {/* Travel Documents */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-blue-600" />
-                Travel Documents
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+              <h2 className="text-base font-semibold text-gray-900 mb-3">Travel Documents</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <InfoField
                   label="Passport Number"
                   value={isEditing ? (editedCrew.passportNumber || crew.passportNumber || '') : (crew.passportNumber || 'N/A')}
@@ -507,21 +455,21 @@ export function CrewDetailPage() {
           </div>
 
           {/* Right Column - Certificates */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* STCW Certificate */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+              <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <Award className="w-5 h-5 text-blue-600" />
                 STCW Certificate
               </h2>
-              <div className="space-y-4">
-                <div className={`${certStatus.bgColor} p-4 rounded-lg border ${certStatus.color.replace('text-', 'border-')}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <certStatus.icon className={`w-5 h-5 ${certStatus.color}`} />
-                    <span className={`font-semibold ${certStatus.color}`}>{certStatus.status}</span>
+              <div className="space-y-3">
+                <div className={`${certStatus.bgColor} p-3 rounded-lg border ${certStatus.color.replace('text-', 'border-')}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <certStatus.icon className={`w-4 h-4 ${certStatus.color}`} />
+                    <span className={`font-semibold text-sm ${certStatus.color}`}>{certStatus.status}</span>
                   </div>
                   {certStatus.daysLeft !== null && (
-                    <p className={`text-sm ${certStatus.color}`}>
+                    <p className={`text-xs ${certStatus.color}`}>
                       {certStatus.daysLeft < 0 
                         ? `Expired ${Math.abs(certStatus.daysLeft)} days ago`
                         : `${certStatus.daysLeft} days remaining`
@@ -557,19 +505,19 @@ export function CrewDetailPage() {
             </div>
 
             {/* Medical Certificate */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+              <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-blue-600" />
                 Medical Certificate
               </h2>
-              <div className="space-y-4">
-                <div className={`${medicalStatus.bgColor} p-4 rounded-lg border ${medicalStatus.color.replace('text-', 'border-')}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <medicalStatus.icon className={`w-5 h-5 ${medicalStatus.color}`} />
-                    <span className={`font-semibold ${medicalStatus.color}`}>{medicalStatus.status}</span>
+              <div className="space-y-3">
+                <div className={`${medicalStatus.bgColor} p-3 rounded-lg border ${medicalStatus.color.replace('text-', 'border-')}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <medicalStatus.icon className={`w-4 h-4 ${medicalStatus.color}`} />
+                    <span className={`font-semibold text-sm ${medicalStatus.color}`}>{medicalStatus.status}</span>
                   </div>
                   {medicalStatus.daysLeft !== null && (
-                    <p className={`text-sm ${medicalStatus.color}`}>
+                    <p className={`text-xs ${medicalStatus.color}`}>
                       {medicalStatus.daysLeft < 0 
                         ? `Expired ${Math.abs(medicalStatus.daysLeft)} days ago`
                         : `${medicalStatus.daysLeft} days remaining`
@@ -599,18 +547,18 @@ export function CrewDetailPage() {
             </div>
 
             {/* Additional Information */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Notes</h2>
+            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+              <h2 className="text-base font-semibold text-gray-900 mb-3">Notes</h2>
               {isEditing ? (
                 <textarea
                   value={editedCrew.notes || crew.notes || ''}
                   onChange={(e) => setEditedCrew({ ...editedCrew, notes: e.target.value })}
-                  rows={6}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                   placeholder="Additional notes about this crew member..."
                 />
               ) : (
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600">
                   {crew.notes || 'No additional notes'}
                 </p>
               )}
@@ -636,7 +584,7 @@ interface InfoFieldProps {
 function InfoField({ label, value, icon, type = 'text', isEditing, onChange, fullWidth }: InfoFieldProps) {
   return (
     <div className={fullWidth ? 'md:col-span-2' : ''}>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+      <label className="block text-xs font-medium text-gray-600 mb-1">
         {label}
       </label>
       {isEditing ? (
@@ -644,12 +592,12 @@ function InfoField({ label, value, icon, type = 'text', isEditing, onChange, ful
           type={type}
           value={value === 'N/A' ? '' : value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
         />
       ) : (
-        <div className="flex items-center gap-2 text-gray-900 dark:text-white">
+        <div className="flex items-center gap-2 text-gray-900">
           {icon && <span className="text-gray-400">{icon}</span>}
-          <span>{value}</span>
+          <span className="font-semibold text-sm">{value}</span>
         </div>
       )}
     </div>

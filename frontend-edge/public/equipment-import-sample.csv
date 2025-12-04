@@ -1,0 +1,11 @@
+﻿EquipmentCode,EquipmentName,Category,Quantity,Location,Manufacturer,Model,SerialNumber,SolasReference,Specification,Description,Notes
+EQ-NAV-001,GPS Navigation System,Navigation,2,Bridge,Furuno,GP-170,GPS12345,SOLAS V/19,12-channel GPS receiver,Primary navigation GPS system,Installed 2024
+EQ-COM-002,VHF Radio Transceiver,Communication,3,Bridge,Icom,IC-M605,VHF98765,SOLAS IV/7,"25W output, DSC enabled",Main VHF communication radio,Backup units available
+EQ-SAF-003,Life Jacket Adult,Safety Equipment,50,Deck Storage,Viking,Standard-150N,,SOLAS III/7,"150N buoyancy, auto-inflate",Standard adult life jacket,Check expiry dates annually
+EQ-ENG-004,Emergency Diesel Generator,Engine,1,Engine Room,Caterpillar,C18,GEN54321,SOLAS II-1/41,"500kW, 1800RPM",Emergency power generator,Monthly maintenance required
+EQ-NAV-005,Radar System,Navigation,2,Bridge,Furuno,FR-8252,RAD78901,SOLAS V/19,"X-band, 25kW",Main navigation radar,Primary and backup units
+EQ-SAF-006,Fire Extinguisher CO2,Safety Equipment,20,Various Locations,Amerex,B402,,SOLAS II-2/10,"5kg CO2, rechargeable",Portable CO2 fire extinguisher,Inspect every 6 months
+EQ-ENG-007,Air Compressor,Engine,2,Engine Room,Atlas Copco,GA-75,COMP45678,,"75kW, 30bar",Main air compressor system,Service every 2000 hours
+EQ-COM-008,Satellite Phone,Communication,4,Bridge,Iridium,9575 Extreme,SAT11223,SOLAS IV/10,"Global coverage, IP65 rated",Emergency satellite communication,Keep batteries charged
+EQ-NAV-009,ECDIS Electronic Chart System,Navigation,2,Bridge,Transas,Navi-Sailor 4000,ECDIS56789,SOLAS V/19,"Type approved, dual monitor",Primary electronic chart display,Update charts monthly
+EQ-SAF-010,Emergency Position Beacon EPIRB,Safety Equipment,2,Bridge Wing,McMurdo,Smartfind G8,EPIRB98765,SOLAS IV/8,"406MHz, GPS enabled",Satellite emergency beacon,"Test annually, battery expires 2029"

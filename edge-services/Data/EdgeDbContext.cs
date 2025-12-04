@@ -49,6 +49,14 @@ public class EdgeDbContext : DbContext
     // Inventory & Materials
     public DbSet<MaterialCategory> MaterialCategories { get; set; } = null!;
     public DbSet<MaterialItem> MaterialItems { get; set; } = null!;
+    public DbSet<MaterialReceipt> MaterialReceipts { get; set; } = null!;
+    public DbSet<MaterialReceiptItem> MaterialReceiptItems { get; set; } = null!;
+
+    // Equipment Management (Fire fighting, Safety equipment, SCBA, etc.)
+    public DbSet<EquipmentCategory> EquipmentCategories { get; set; } = null!;
+    public DbSet<EquipmentItem> EquipmentItems { get; set; } = null!;
+    public DbSet<EquipmentReceipt> EquipmentReceipts { get; set; } = null!;
+    public DbSet<EquipmentReceiptItem> EquipmentReceiptItems { get; set; } = null!;
 
     // Fuel Analytics (IMO DCS / EU MRV / CII Compliance)
     public DbSet<FuelAnalyticsSummary> FuelAnalyticsSummaries { get; set; } = null!;
@@ -780,6 +788,52 @@ public class EdgeDbContext : DbContext
             entity.HasIndex(e => e.IsSynced)
                 .HasDatabaseName("idx_fuel_alert_synced")
                 .HasFilter("is_synced = false");
+        });
+
+        // ========== EQUIPMENT CATEGORIES ==========
+        modelBuilder.Entity<EquipmentCategory>(entity =>
+        {
+            entity.ToTable("equipment_categories");
+
+            entity.HasIndex(e => e.CategoryCode)
+                .IsUnique()
+                .HasDatabaseName("idx_equipment_category_code_unique");
+
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_equipment_category_active")
+                .HasFilter("is_active = true");
+        });
+
+        // ========== EQUIPMENT ITEMS ==========
+        modelBuilder.Entity<EquipmentItem>(entity =>
+        {
+            entity.ToTable("equipment_items");
+
+            // Don't specify column type for Quantity - let EF Core use the existing database type (double precision)
+
+            entity.HasIndex(e => e.EquipmentCode)
+                .IsUnique()
+                .HasDatabaseName("idx_equipment_item_code_unique");
+
+            entity.HasIndex(e => e.CategoryId)
+                .HasDatabaseName("idx_equipment_item_category");
+
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("idx_equipment_item_status");
+
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_equipment_item_active")
+                .HasFilter("is_active = true");
+
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_equipment_item_synced")
+                .HasFilter("is_synced = false");
+
+            // Foreign key to EquipmentCategory
+            entity.HasOne(e => e.Category)
+                .WithMany()
+                .HasForeignKey(e => e.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ========== ROLES ==========

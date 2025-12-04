@@ -1,56 +1,52 @@
-﻿import { useEffect, useMemo, useState } from 'react';
-import { Boxes, Layers, Plus, Search, AlertTriangle, Tag, Edit2, Trash2, TrendingUp, FileSpreadsheet, Eye } from 'lucide-react';
-import { materialService } from '../../services/materialService';
-import { receiptService } from '../../services/receiptService';
-import type { MaterialItem, MaterialCategory } from '../../types/maritime.types';
-import type { CreateMaterialItemDto, UpdateMaterialItemDto, CreateMaterialCategoryDto, UpdateMaterialCategoryDto, StockAdjustmentDto } from '../../services/materialService';
-import type { MaterialReceiptListDto } from '../../services/receiptService';
+import { useEffect, useMemo, useState } from 'react';
+import { Wrench, Layers, Plus, Search, Tag, Edit2, Trash2, FileSpreadsheet } from 'lucide-react';
+import { equipmentService } from '../../services/equipmentService';
+import { equipmentReceiptService } from '../../services/equipmentReceiptService';
+import type { EquipmentItem, EquipmentCategory } from '../../services/equipmentService';
+import type { CreateEquipmentItemDto, UpdateEquipmentItemDto, CreateEquipmentCategoryDto, UpdateEquipmentCategoryDto } from '../../services/equipmentService';
+import type { EquipmentReceiptListDto } from '../../services/equipmentReceiptService';
 import { ItemFormModal } from './ItemFormModal';
 import { CategoryFormModal } from './CategoryFormModal';
-import { StockAdjustmentModal } from './StockAdjustmentModal';
-import { ImportReceiptModal } from './ImportReceiptModal';
-import { ReceiptDetailModal } from './ReceiptDetailModal';
+import { ImportEquipmentReceiptModal } from './ImportEquipmentReceiptModal';
+import { EquipmentReceiptDetailModal } from './EquipmentReceiptDetailModal';
 
-type TabType = 'items' | 'low' | 'categories' | 'receipts';
+type TabType = 'items' | 'categories' | 'receipts';
 
-export function MaterialPage() {
+export function EquipmentPage() {
   const [activeTab, setActiveTab] = useState<TabType>('items');
-  const [items, setItems] = useState<MaterialItem[]>([]);
-  const [lowStock, setLowStock] = useState<MaterialItem[]>([]);
-  const [categories, setCategories] = useState<MaterialCategory[]>([]);
-  const [receipts, setReceipts] = useState<MaterialReceiptListDto[]>([]);
+  const [items, setItems] = useState<EquipmentItem[]>([]);
+  const [categories, setCategories] = useState<EquipmentCategory[]>([]);
+  const [receipts, setReceipts] = useState<EquipmentReceiptListDto[]>([]);
   const [totalReceipts, setTotalReceipts] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categorySearch, setCategorySearch] = useState('');
   const [categoryId, setCategoryId] = useState<number | 'all'>('all');
-  const [filterUnit, setFilterUnit] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
 
   // Modal states
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-  const [stockAdjustmentModalOpen, setStockAdjustmentModalOpen] = useState(false);
-  const [importReceiptModalOpen, setImportReceiptModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [receiptDetailModalOpen, setReceiptDetailModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<MaterialItem | null>(null);
-  const [editingCategory, setEditingCategory] = useState<MaterialCategory | null>(null);
-  const [adjustingItem, setAdjustingItem] = useState<MaterialItem | null>(null);
+  const [editingItem, setEditingItem] = useState<EquipmentItem | null>(null);
+  const [editingCategory, setEditingCategory] = useState<EquipmentCategory | null>(null);
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // State filter/sort cho bảng
+  // Sorting state
   const [sortType, setSortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>(null);
-  const [sortMenu, setSortMenu] = useState<string | null>(null); // col name or null
+  const [sortMenu, setSortMenu] = useState<string | null>(null);
   
   // Category sorting state
   const [categorySortType, setCategorySortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>(null);
   const [categorySortMenu, setCategorySortMenu] = useState<string | null>(null);
 
   useEffect(() => {
-    setCurrentPage(1); // Reset page when tab changes
+    setCurrentPage(1);
   }, [activeTab]);
 
   useEffect(() => {
@@ -60,87 +56,75 @@ export function MaterialPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      if (activeTab === 'low') {
-        const [ls, cats] = await Promise.all([
-          materialService.getLowStockItems(),
-          materialService.getCategories(true)
-        ]);
-        setLowStock(ls);
-        setCategories(cats);
-      } else if (activeTab === 'categories') {
-        const cats = await materialService.getCategories(false);
-        setCategories(cats);
-      } else if (activeTab === 'receipts') {
-        const response = await receiptService.getReceipts({
+      if (activeTab === 'receipts') {
+        const response = await equipmentReceiptService.getReceipts({
           page: currentPage,
           pageSize: itemsPerPage
         });
         setReceipts(response.data);
         setTotalReceipts(response.totalRecords);
-      } else {
-        // Load items, categories, and lowStock for stats
-        const [its, cats, ls] = await Promise.all([
-          materialService.getItems({ onlyActive: true }),
-          materialService.getCategories(true),
-          materialService.getLowStockItems()
-        ]);
-        setItems(its);
+      } else if (activeTab === 'categories') {
+        const cats = await equipmentService.getCategories(false);
+        console.log('Loaded categories:', cats);
         setCategories(cats);
-        setLowStock(ls);
+      } else {
+        // Load items and categories
+        const cats = await equipmentService.getCategories(true);
+        const response = await equipmentService.getItemsPaginated({ isActive: true, page: 1, pageSize: 1000 });
+        console.log('API response:', response);
+        console.log('Items data:', response.data);
+        setItems(response.data || []);
+        setCategories(cats);
       }
     } catch (e) {
-      console.error('Failed to load material data:', e);
+      console.error('Failed to load equipment data:', e);
+      setItems([]);
+      setCategories([]);
     } finally {
       setLoading(false);
     }
   };
 
   // Item handlers
-  const handleCreateItem = async (data: CreateMaterialItemDto) => {
-    await materialService.createItem(data);
+  const handleCreateItem = async (data: CreateEquipmentItemDto | UpdateEquipmentItemDto) => {
+    await equipmentService.createItem(data as CreateEquipmentItemDto);
     await loadData();
   };
 
-  const handleUpdateItem = async (data: UpdateMaterialItemDto) => {
+  const handleUpdateItem = async (data: CreateEquipmentItemDto | UpdateEquipmentItemDto) => {
     if (!editingItem) return;
-    await materialService.updateItem(editingItem.id, data);
+    await equipmentService.updateItem(editingItem.id, data as UpdateEquipmentItemDto);
     setEditingItem(null);
     await loadData();
   };
 
-  const handleDeleteItem = async (item: MaterialItem) => {
+  const handleDeleteItem = async (item: EquipmentItem) => {
     if (!confirm(`Are you sure you want to delete "${item.name}"?`)) return;
     try {
-      await materialService.deleteItem(item.id);
+      await equipmentService.deleteItem(item.id);
       await loadData();
     } catch (error: any) {
       alert(error.message || 'Failed to delete item');
     }
   };
 
-  const handleStockAdjustment = async (data: StockAdjustmentDto) => {
-    await materialService.adjustStock(data);
-    setAdjustingItem(null);
-    await loadData();
-  };
-
   // Category handlers
-  const handleCreateCategory = async (data: CreateMaterialCategoryDto) => {
-    await materialService.createCategory(data);
+  const handleCreateCategory = async (data: CreateEquipmentCategoryDto | UpdateEquipmentCategoryDto) => {
+    await equipmentService.createCategory(data as CreateEquipmentCategoryDto);
     await loadData();
   };
 
-  const handleUpdateCategory = async (data: UpdateMaterialCategoryDto) => {
+  const handleUpdateCategory = async (data: CreateEquipmentCategoryDto | UpdateEquipmentCategoryDto) => {
     if (!editingCategory) return;
-    await materialService.updateCategory(editingCategory.id, data);
+    await equipmentService.updateCategory(editingCategory.id, data as UpdateEquipmentCategoryDto);
     setEditingCategory(null);
     await loadData();
   };
 
-  const handleDeleteCategory = async (category: MaterialCategory) => {
+  const handleDeleteCategory = async (category: EquipmentCategory) => {
     if (!confirm(`Are you sure you want to delete category "${category.name}"?`)) return;
     try {
-      await materialService.deleteCategory(category.id);
+      await equipmentService.deleteCategory(category.id);
       await loadData();
     } catch (error: any) {
       alert(error.message || 'Failed to delete category');
@@ -148,21 +132,22 @@ export function MaterialPage() {
   };
 
   const filteredItems = useMemo(() => {
+    if (!Array.isArray(items)) return [];
     let data = [...items];
     if (categoryId !== 'all') data = data.filter(x => x.categoryId === categoryId);
-    if (filterUnit !== 'all') data = data.filter(x => x.unit === filterUnit);
+    if (filterStatus !== 'all') data = data.filter(x => x.status === filterStatus);
     if (search) {
       const q = search.toLowerCase();
       data = data.filter(x =>
-        x.itemCode.toLowerCase().includes(q) ||
+        x.equipmentCode.toLowerCase().includes(q) ||
         x.name.toLowerCase().includes(q) ||
-        (x.partNumber && x.partNumber.toLowerCase().includes(q)) ||
-        (x.barcode && x.barcode.toLowerCase().includes(q)) ||
-        (x.manufacturer && x.manufacturer.toLowerCase().includes(q))
+        (x.serialNumber && x.serialNumber.toLowerCase().includes(q)) ||
+        (x.manufacturer && x.manufacturer.toLowerCase().includes(q)) ||
+        (x.location && x.location.toLowerCase().includes(q))
       );
     }
     return data;
-  }, [items, search, categoryId, filterUnit]);
+  }, [items, search, categoryId, filterStatus]);
 
   // Sorting for items
   const sortedItems = useMemo(() => {
@@ -178,32 +163,23 @@ export function MaterialPage() {
         break;
       case 'category':
         sorted.sort((a, b) => {
-          const aCat = categories.find(c => c.id === a.categoryId)?.name || '';
-          const bCat = categories.find(c => c.id === b.categoryId)?.name || '';
           return sortType.dir === 'asc'
-            ? aCat.localeCompare(bCat)
-            : bCat.localeCompare(aCat);
+            ? a.categoryName.localeCompare(b.categoryName)
+            : b.categoryName.localeCompare(a.categoryName);
         });
         break;
-      case 'stock':
+      case 'status':
         sorted.sort((a, b) => {
-          return sortType.dir === 'asc' 
-            ? a.onHandQuantity - b.onHandQuantity 
-            : b.onHandQuantity - a.onHandQuantity;
-        });
-        break;
-      case 'unitCost':
-        sorted.sort((a, b) => {
-          const aCost = a.unitCost || 0;
-          const bCost = b.unitCost || 0;
-          return sortType.dir === 'asc' ? aCost - bCost : bCost - aCost;
+          return sortType.dir === 'asc'
+            ? a.status.localeCompare(b.status)
+            : b.status.localeCompare(a.status);
         });
         break;
       default:
         break;
     }
     return sorted;
-  }, [filteredItems, sortType, categories]);
+  }, [filteredItems, sortType]);
 
   const filteredCategories = useMemo(() => {
     if (!categorySearch) return categories;
@@ -259,20 +235,12 @@ export function MaterialPage() {
   // Reset to page 1 when filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, categoryId, filterUnit]);
+  }, [search, categoryId, filterStatus]);
 
-  // Get unique units
-  const uniqueUnits = useMemo(() => {
-    return [...new Set(items.map(item => item.unit))].sort();
-  }, [items]);
-
-  const totalValue = useMemo(() => {
-    return items.reduce((sum, item) => {
-      if (item.unitCost) {
-        return sum + (item.unitCost * item.onHandQuantity);
-      }
-      return sum;
-    }, 0);
+  // Get unique statuses
+  const uniqueStatuses = useMemo(() => {
+    if (!Array.isArray(items)) return [];
+    return [...new Set(items.map(item => item.status))].sort();
   }, [items]);
 
   return (
@@ -281,18 +249,10 @@ export function MaterialPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Material Management</h1>
-            <p className="text-sm text-gray-600 mt-1">Inventory items, categories, and low stock alerts</p>
+            <h1 className="text-2xl font-bold text-gray-900">Equipment Management</h1>
+            <p className="text-sm text-gray-600 mt-1">Manage ship equipment, maintenance schedules, and SOLAS compliance</p>
           </div>
           <div className="flex gap-2">
-            <button 
-              onClick={() => {
-                setImportReceiptModalOpen(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              <FileSpreadsheet className="w-5 h-5" /> Import Receipt
-            </button>
             <button 
               onClick={() => {
                 setEditingItem(null);
@@ -300,7 +260,13 @@ export function MaterialPage() {
               }}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              <Plus className="w-5 h-5" /> Add Item
+              <Plus className="w-5 h-5" /> Add Equipment
+            </button>
+            <button 
+              onClick={() => setImportModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              <FileSpreadsheet className="w-5 h-5" /> Import Excel
             </button>
             <button 
               onClick={() => {
@@ -315,27 +281,21 @@ export function MaterialPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatCard 
-            icon={<Boxes className="w-6 h-6 text-blue-600" />} 
-            label="Total Items" 
-            value={items.length}
-          />
-          <StatCard 
-            icon={<AlertTriangle className="w-6 h-6 text-red-600" />} 
-            label="Low Stock Items" 
-            value={lowStock.length}
+            icon={<Wrench className="w-6 h-6 text-blue-600" />} 
+            label="Tổng thiết bị" 
+            value={items?.length || 0}
           />
           <StatCard 
             icon={<Layers className="w-6 h-6 text-green-600" />} 
-            label="Active Categories" 
-            value={categories.filter(c => c.isActive).length}
+            label="Danh mục" 
+            value={categories?.length || 0}
           />
           <StatCard 
-            icon={<Boxes className="w-6 h-6 text-purple-600" />} 
-            label="Total Inventory Value" 
-            value={`$${totalValue.toFixed(2)}`}
-            subtitle="USD"
+            icon={<Tag className="w-6 h-6 text-purple-600" />} 
+            label="Đang hoạt động" 
+            value={items?.filter(i => i.isActive).length || 0}
           />
         </div>
 
@@ -343,10 +303,9 @@ export function MaterialPage() {
         <div className="bg-white rounded-lg shadow">
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px">
-              <TabButton active={activeTab === 'items'} onClick={() => setActiveTab('items')} icon={<Boxes className="w-5 h-5" />} label="Items" />
-              <TabButton active={activeTab === 'low'} onClick={() => setActiveTab('low')} icon={<AlertTriangle className="w-5 h-5" />} label="Low Stock" />
-              <TabButton active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} icon={<Layers className="w-5 h-5" />} label="Categories" />
-              <TabButton active={activeTab === 'receipts'} onClick={() => setActiveTab('receipts')} icon={<FileSpreadsheet className="w-5 h-5" />} label="Receipts" />
+              <TabButton active={activeTab === 'items'} onClick={() => setActiveTab('items')} icon={<Wrench className="w-5 h-5" />} label="Thiết bị" />
+              <TabButton active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} icon={<Layers className="w-5 h-5" />} label="Danh mục" />
+              <TabButton active={activeTab === 'receipts'} onClick={() => setActiveTab('receipts')} icon={<FileSpreadsheet className="w-5 h-5" />} label="Phiếu nhập" />
             </nav>
           </div>
 
@@ -358,7 +317,7 @@ export function MaterialPage() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by code, name, part number, barcode..."
+                  placeholder="Search by code, name, serial number, manufacturer..."
                   className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -368,15 +327,15 @@ export function MaterialPage() {
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[180px]"
               >
                 <option value="all">All Categories</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <select
-                value={filterUnit}
-                onChange={(e) => setFilterUnit(e.target.value)}
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[150px]"
               >
-                <option value="all">All Units</option>
-                {uniqueUnits.map(unit => <option key={unit} value={unit}>{unit}</option>)}
+                <option value="all">All Statuses</option>
+                {uniqueStatuses?.map(status => <option key={status} value={status}>{status}</option>)}
               </select>
             </div>
           )}
@@ -401,23 +360,12 @@ export function MaterialPage() {
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-gray-600 mt-4">Loading materials...</p>
+                <p className="text-gray-600 mt-4">Đang tải dữ liệu...</p>
               </div>
             ) : (
               <>
                 {activeTab === 'receipts' ? (
                   <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900">Import Receipts History</h3>
-                      <button 
-                        onClick={() => setImportReceiptModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                      >
-                        <FileSpreadsheet className="w-4 h-4" />
-                        Import New Receipt
-                      </button>
-                    </div>
-                    
                     {receipts.length > 0 ? (
                       <>
                         <div className="overflow-x-auto bg-white rounded-lg border border-gray-200">
@@ -425,17 +373,17 @@ export function MaterialPage() {
                             <thead className="bg-gray-50">
                               <tr>
                                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300">STT</th>
-                                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300">Receipt Code</th>
-                                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300">Receipt Date</th>
-                                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300">Total Amount</th>
-                                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300">Items</th>
-                                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300">Mã phiếu nhập</th>
+                                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300">Ngày nhập</th>
+                                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300">Số lượng items</th>
+                                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300">Người tạo</th>
+                                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
                               </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                               {receipts.map((receipt, idx) => (
                                 <tr 
-                                  key={receipt.receiptCode} 
+                                  key={receipt.id} 
                                   className="hover:bg-gray-50 cursor-pointer"
                                   onClick={() => {
                                     setSelectedReceiptId(receipt.id);
@@ -450,14 +398,12 @@ export function MaterialPage() {
                                     {new Date(receipt.receiptDate).toLocaleDateString('vi-VN')}
                                   </td>
                                   <td className="px-4 py-3 text-center border-r border-gray-300">
-                                    <span className="font-semibold text-gray-900">
-                                      {receipt.totalAmount ? receipt.totalAmount.toLocaleString('vi-VN') : '0'} {receipt.currency}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 text-center border-r border-gray-300">
                                     <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
                                       {receipt.itemCount} items
                                     </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-center border-r border-gray-300">
+                                    {receipt.createdBy || '-'}
                                   </td>
                                   <td className="px-4 py-3 text-center">
                                     <span className={`px-2 py-1 rounded-full text-xs ${
@@ -477,7 +423,7 @@ export function MaterialPage() {
                         {/* Pagination */}
                         <div className="flex justify-between items-center mt-4">
                           <p className="text-sm text-gray-600">
-                            Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalReceipts)} of {totalReceipts} receipts
+                            Hiển thị {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalReceipts)} trong tổng số {totalReceipts} phiếu nhập
                           </p>
                           <div className="flex gap-2">
                             <button
@@ -485,7 +431,7 @@ export function MaterialPage() {
                               disabled={currentPage === 1}
                               className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              Previous
+                              ← Trước
                             </button>
                             <span className="px-3 py-1 border rounded bg-blue-50 text-blue-600 font-medium">
                               {currentPage}
@@ -495,7 +441,7 @@ export function MaterialPage() {
                               disabled={currentPage * itemsPerPage >= totalReceipts}
                               className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              Next
+                              Sau →
                             </button>
                           </div>
                         </div>
@@ -503,12 +449,12 @@ export function MaterialPage() {
                     ) : (
                       <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
                         <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-500 mb-4">No receipts found. Import your first receipt to get started.</p>
+                        <p className="text-gray-500 mb-4">Chưa có phiếu nhập nào. Import phiếu nhập đầu tiên để bắt đầu.</p>
                         <button 
-                          onClick={() => setImportReceiptModalOpen(true)}
+                          onClick={() => setImportModalOpen(true)}
                           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                         >
-                          Import New Receipt
+                          Import Excel
                         </button>
                       </div>
                     )}
@@ -526,28 +472,13 @@ export function MaterialPage() {
                     sortMenu={categorySortMenu}
                     setSortMenu={setCategorySortMenu}
                   />
-                ) : activeTab === 'low' ? (
-                  <ItemList 
-                    items={lowStock} 
-                    categories={categories} 
-                    highlightLow
-                    onEdit={(item) => {
-                      setEditingItem(item);
-                      setItemModalOpen(true);
-                    }}
-                    onDelete={handleDeleteItem}
-                    onAdjustStock={(item) => {
-                      setAdjustingItem(item);
-                      setStockAdjustmentModalOpen(true);
-                    }}
-                  />
                 ) : (
                   <div>
                     {/* Info and Pagination */}
                     <div className="flex items-center justify-between mb-4">
                       {/* Left - Display info */}
                       <div className="text-sm text-gray-600">
-                        Hiển thị {sortedItems.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedItems.length)} trong tổng số {sortedItems.length} vật tư
+                        Hiển thị {sortedItems.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedItems.length)} trong tổng số {sortedItems.length} thiết bị
                       </div>
 
                       {/* Right - Pagination */}
@@ -578,16 +509,11 @@ export function MaterialPage() {
 
                     <ItemList 
                       items={paginatedItems} 
-                      categories={categories}
                       onEdit={(item) => {
                         setEditingItem(item);
                         setItemModalOpen(true);
                       }}
                       onDelete={handleDeleteItem}
-                      onAdjustStock={(item) => {
-                        setAdjustingItem(item);
-                        setStockAdjustmentModalOpen(true);
-                      }}
                       currentPage={currentPage}
                       itemsPerPage={itemsPerPage}
                       sortType={sortType}
@@ -613,7 +539,7 @@ export function MaterialPage() {
         onSubmit={editingItem ? handleUpdateItem : handleCreateItem}
         item={editingItem}
         categories={categories}
-        title={editingItem ? 'Edit Material Item' : 'Add New Material Item'}
+        title={editingItem ? 'Edit Equipment' : 'Add New Equipment'}
       />
 
       <CategoryFormModal
@@ -624,30 +550,19 @@ export function MaterialPage() {
         }}
         onSubmit={editingCategory ? handleUpdateCategory : handleCreateCategory}
         category={editingCategory}
-        categories={categories}
         title={editingCategory ? 'Edit Category' : 'Add New Category'}
       />
 
-      <StockAdjustmentModal
-        isOpen={stockAdjustmentModalOpen}
-        onClose={() => {
-          setStockAdjustmentModalOpen(false);
-          setAdjustingItem(null);
-        }}
-        onSubmit={handleStockAdjustment}
-        item={adjustingItem}
-      />
-
-      <ImportReceiptModal
-        isOpen={importReceiptModalOpen}
-        onClose={() => setImportReceiptModalOpen(false)}
+      <ImportEquipmentReceiptModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
         onSuccess={() => {
+          setImportModalOpen(false);
           loadData();
-          alert('Import successful!');
         }}
       />
 
-      <ReceiptDetailModal
+      <EquipmentReceiptDetailModal
         isOpen={receiptDetailModalOpen}
         onClose={() => {
           setReceiptDetailModalOpen(false);
@@ -659,13 +574,10 @@ export function MaterialPage() {
   );
 }
 
-function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, onAdjustStock, currentPage, itemsPerPage, sortType, setSortType, sortMenu, setSortMenu }: { 
-  items: MaterialItem[]; 
-  highlightLow?: boolean; 
-  categories: MaterialCategory[];
-  onEdit: (item: MaterialItem) => void;
-  onDelete: (item: MaterialItem) => void;
-  onAdjustStock: (item: MaterialItem) => void;
+function ItemList({ items, onEdit, onDelete, currentPage, itemsPerPage, sortType, setSortType, sortMenu, setSortMenu }: { 
+  items: EquipmentItem[];
+  onEdit: (item: EquipmentItem) => void;
+  onDelete: (item: EquipmentItem) => void;
   currentPage?: number;
   itemsPerPage?: number;
   sortType?: { col: string; dir: 'asc'|'desc' } | null;
@@ -673,11 +585,6 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
   sortMenu?: string | null;
   setSortMenu?: (sortMenu: string | null) => void;
 }) {
-  const getCategoryName = (catId: number) => {
-    const cat = categories.find(c => c.id === catId);
-    return cat?.name || 'Unknown';
-  };
-
   // SortDropdown component
   function SortDropdown({ col, options, sortType, setSortType, sortMenu, setSortMenu }: {
     col: string;
@@ -715,129 +622,66 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
 
   return (
     <div className="overflow-x-auto border border-gray-200 rounded-lg">
-      <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
+      <table className="w-full border-collapse">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '5%'}}>STT</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '25%'}}>
-              Tên vật tư
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300">STT</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative">
+              Tên thiết bị
               {setSortType && setSortMenu && (
-                <SortDropdown col="name" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+                <SortDropdown col="name" options={[{label:'A-Z',dir:'asc'},{label:'Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
               )}
             </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '15%'}}>
-              Danh mục
-              {setSortType && setSortMenu && (
-                <SortDropdown col="category" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '6%'}}>Đơn vị</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '8%'}}>
-              Tồn kho
-              {setSortType && setSortMenu && (
-                <SortDropdown col="stock" options={[{label:'Sắp xếp tăng dần',dir:'asc'},{label:'Sắp xếp giảm dần',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '12%'}}>Min / Max</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '11%'}}>Mã linh kiện</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '10%'}}>
-              Đơn giá
-              {setSortType && setSortMenu && (
-                <SortDropdown col="unitCost" options={[{label:'Sắp xếp tăng dần',dir:'asc'},{label:'Sắp xếp giảm dần',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '11%'}}>Trạng thái</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '7%'}}>Thao tác</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300">Danh mục</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300">Vị trí</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300">Số lượng</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300">Trạng thái</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300">Serial</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
           </tr>
         </thead>
-        <tbody className="bg-white">
-          {items.map((it, index) => {
-            const low = it.minStock != null && it.onHandQuantity < (it.minStock ?? 0);
-            const over = it.maxStock != null && it.onHandQuantity > (it.maxStock ?? 0);
-            const totalValue = it.unitCost ? (it.unitCost * it.onHandQuantity) : null;
+        <tbody className="bg-white divide-y divide-gray-200">
+          {items?.map((it, index) => {
             const globalIndex = currentPage && itemsPerPage ? (currentPage - 1) * itemsPerPage + index + 1 : index + 1;
             
             return (
               <tr 
                 key={it.id} 
-                className={`cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-200 ${highlightLow && low ? 'bg-red-50' : ''}`}
+                className="hover:bg-gray-50 cursor-pointer"
                 onClick={(e) => {
-                  // Don't trigger if clicking action buttons
                   if ((e.target as HTMLElement).closest('button')) return;
                   onEdit(it);
                 }}
               >
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center border-r border-gray-300 overflow-hidden" style={{width: '5%'}}>{globalIndex}</td>
-                <td className="px-4 py-3 border-r border-gray-300 overflow-hidden" style={{width: '25%'}}>
-                  <div className="text-sm font-medium text-gray-900 truncate">{it.name}</div>
-                  {it.specification && (
-                    <div className="text-xs text-gray-500 mt-1 truncate">{it.specification}</div>
-                  )}
+                <td className="px-4 py-3 text-sm text-gray-900 text-center border-r border-gray-200">{globalIndex}</td>
+                <td className="px-4 py-3 border-r border-gray-200">
+                  <div className="text-sm font-medium text-gray-900">{it.name}</div>
+                  <div className="text-xs text-gray-500">{it.equipmentCode}</div>
+                  {it.manufacturer && <div className="text-xs text-gray-400">{it.manufacturer} {it.model}</div>}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300 overflow-hidden" style={{width: '15%'}}>
-                  <div className="flex justify-center">
-                    <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 truncate max-w-full inline-block">
-                      {getCategoryName(it.categoryId)}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300 overflow-hidden" style={{width: '6%'}}>
-                  <span className="text-xs truncate">{it.unit}</span>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300 overflow-hidden" style={{width: '8%'}}>
-                  <span className={`text-sm font-medium ${low ? 'text-red-600' : over ? 'text-orange-600' : 'text-gray-900'}`}>
-                    {it.onHandQuantity.toFixed(2)}
+                <td className="px-4 py-3 text-center border-r border-gray-200">
+                  <span className="inline-flex px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
+                    {it.categoryName}
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300 overflow-hidden" style={{width: '12%'}}>
-                  <span className="text-xs text-gray-600 truncate">
-                    {it.minStock != null ? it.minStock.toFixed(2) : '-'} / {it.maxStock != null ? it.maxStock.toFixed(2) : '-'}
+                <td className="px-4 py-3 text-sm text-gray-600 text-center border-r border-gray-200">{it.location || '-'}</td>
+                <td className="px-4 py-3 text-sm text-gray-900 text-center border-r border-gray-200">{it.quantity}</td>
+                <td className="px-4 py-3 text-center border-r border-gray-200">
+                  <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
+                    it.status.toUpperCase() === 'OPERATIONAL' ? 'bg-green-100 text-green-700' :
+                    it.status.toUpperCase() === 'MAINTENANCE' ? 'bg-yellow-100 text-yellow-700' :
+                    it.status.toUpperCase() === 'OUT_OF_SERVICE' ? 'bg-red-100 text-red-700' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>
+                    {it.status}
                   </span>
                 </td>
-                <td className="px-4 py-3 border-r border-gray-300 overflow-hidden" style={{width: '11%'}}>
-                  <div className="text-xs font-mono text-gray-700 truncate">{it.partNumber || '-'}</div>
-                  {it.barcode && <div className="text-xs text-gray-400 mt-0.5 truncate">🔖 {it.barcode}</div>}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300 overflow-hidden" style={{width: '10%'}}>
-                  <div className="flex flex-col items-center">
-                    {it.unitCost ? (
-                      <>
-                        <span className="text-xs font-medium text-gray-900 truncate">{it.unitCost.toFixed(2)} {it.currency || 'USD'}</span>
-                        {totalValue && <span className="text-xs text-gray-500 truncate">= {totalValue.toFixed(2)}</span>}
-                      </>
-                    ) : (
-                      <span className="text-xs text-gray-400">-</span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-center border-r border-gray-300 overflow-hidden" style={{width: '11%'}}>
-                  <div className="flex flex-wrap gap-1 justify-center">
-                    {low && <span className="px-1 py-0.5 text-xs rounded-full bg-red-100 text-red-700 whitespace-nowrap">LOW</span>}
-                    {over && <span className="px-1 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700 whitespace-nowrap">OVER</span>}
-                    {it.serialTracked && <span className="px-1 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 whitespace-nowrap">SN</span>}
-                    {it.batchTracked && <span className="px-1 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700 whitespace-nowrap">BATCH</span>}
-                    {it.expiryRequired && <span className="px-1 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 whitespace-nowrap">EXP</span>}
-                    {!it.isActive && <span className="px-1 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">INACTIVE</span>}
-                  </div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center" style={{width: '8%'}}>
-                  <div className="flex items-center justify-center gap-1.5">
+                <td className="px-4 py-3 text-sm font-mono text-gray-700 text-center border-r border-gray-200">{it.serialNumber || '-'}</td>
+                <td className="px-4 py-3 text-center">
+                  <div className="flex items-center justify-center gap-2">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAdjustStock(it);
-                      }}
-                      className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
-                      title="Điều chỉnh tồn kho"
-                    >
-                      <TrendingUp className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(it);
-                      }}
-                      className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      onClick={(e) => { e.stopPropagation(); onDelete(it); }}
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded"
                       title="Xóa"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -850,10 +694,10 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
         </tbody>
       </table>
 
-      {items.length === 0 && (
+      {(!items || items.length === 0) && (
         <div className="text-center py-12">
-          <Boxes className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">No items found</p>
+          <Wrench className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-500">Không có thiết bị nào</p>
         </div>
       )}
     </div>
@@ -861,9 +705,9 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
 }
 
 function CategoryList({ categories, onEdit, onDelete, sortType, setSortType, sortMenu, setSortMenu }: { 
-  categories: MaterialCategory[];
-  onEdit: (category: MaterialCategory) => void;
-  onDelete: (category: MaterialCategory) => void;
+  categories: EquipmentCategory[];
+  onEdit: (category: EquipmentCategory) => void;
+  onDelete: (category: EquipmentCategory) => void;
   sortType?: { col: string; dir: 'asc'|'desc' } | null;
   setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
   sortMenu?: string | null;
@@ -922,8 +766,8 @@ function CategoryList({ categories, onEdit, onDelete, sortType, setSortType, sor
                 <SortDropdown col="code" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
               )}
             </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '25%'}}>Mô tả</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '15%'}}>Danh mục cha</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '30%'}}>Mô tả</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '10%'}}>Số lượng</th>
             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '12%'}}>
               Trạng thái
               {setSortType && setSortMenu && (
@@ -934,8 +778,7 @@ function CategoryList({ categories, onEdit, onDelete, sortType, setSortType, sor
           </tr>
         </thead>
         <tbody className="bg-white">
-          {categories.map((cat, index) => {
-            const parentCat = cat.parentCategoryId ? categories.find(c => c.id === cat.parentCategoryId) : null;
+          {categories?.map((cat, index) => {
             return (
               <tr 
                 key={cat.id} 
@@ -956,19 +799,13 @@ function CategoryList({ categories, onEdit, onDelete, sortType, setSortType, sor
                 <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '15%'}}>
                   <span className="text-xs font-mono text-gray-700">{cat.categoryCode}</span>
                 </td>
-                <td className="px-4 py-3 border-r border-gray-300" style={{width: '25%'}}>
+                <td className="px-4 py-3 border-r border-gray-300" style={{width: '30%'}}>
                   <div className="text-xs text-gray-600 line-clamp-2">
                     {cat.description || '-'}
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '15%'}}>
-                  {parentCat ? (
-                    <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700 truncate">
-                      {parentCat.name}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-gray-400">Root</span>
-                  )}
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '10%'}}>
+                  <span className="text-sm font-medium text-gray-900">{cat.equipmentCount || 0}</span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '12%'}}>
                   <span className={`text-xs px-2 py-1 rounded-full ${cat.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
@@ -1005,7 +842,7 @@ function CategoryList({ categories, onEdit, onDelete, sortType, setSortType, sor
         </tbody>
       </table>
 
-      {categories.length === 0 && (
+      {(!categories || categories.length === 0) && (
         <div className="text-center py-12">
           <Layers className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500">No categories found</p>

@@ -15,6 +15,7 @@ import { VoyagePage } from './pages/Voyage/VoyagePage'
 import { CompliancePage } from './pages/Compliance/CompliancePage'
 import { SyncPage } from './pages/Sync/SyncPage'
 import { MaterialPage } from './pages/Material/MaterialPage'
+import { EquipmentPage } from './pages/Equipment/EquipmentPage'
 import { FuelAnalyticsPage } from './pages/FuelAnalytics'
 import { TaskManagementPage } from './pages/TaskManagement/TaskManagementPage'
 
@@ -48,6 +49,7 @@ function App() {
         <Route path="compliance" element={<CompliancePage />} />
         <Route path="sync" element={<SyncPage />} />
         <Route path="materials" element={<MaterialPage />} />
+        <Route path="equipment" element={<EquipmentPage />} />
         <Route path="fuel-analytics" element={<FuelAnalyticsPage />} />
         
         {/* Reporting Routes */}
