@@ -744,7 +744,7 @@ export function MaintenanceDetailPage() {
                 <div className="p-2 bg-blue-500 rounded-lg">
                   <span className="text-2xl">⚓</span>
                 </div>
-                <p className="text-sm text-blue-900 dark:text-blue-100 font-bold text-base">
+                <p className="text-base text-blue-900 dark:text-blue-100 font-bold">
                   ISM Code Compliance
                 </p>
               </div>

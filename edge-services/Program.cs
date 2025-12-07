@@ -43,7 +43,6 @@ namespace MaritimeEdge
             builder.Services.AddScoped<IAggregateReportService, AggregateReportService>();
             builder.Services.AddScoped<ISyncService, SyncService>();
             builder.Services.AddScoped<MaterialReceiptService>();
-            builder.Services.AddScoped<EquipmentReceiptService>();
 
             // Add Background Services
             builder.Services.AddHostedService<TelemetrySimulatorService>();
