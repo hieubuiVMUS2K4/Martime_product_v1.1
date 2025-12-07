@@ -7,7 +7,7 @@
 // TASK TYPES
 // ============================================================
 
-export type TaskStatus = 'PENDING' | 'OVERDUE' | 'IN_PROGRESS' | 'COMPLETED';
+export type TaskStatus = 'TASK' | 'PENDING' | 'PENDING_APPROVAL' | 'REJECTED' | 'OVERDUE' | 'IN_PROGRESS' | 'COMPLETED';
 export type TaskPriority = 'CRITICAL' | 'HIGH' | 'NORMAL' | 'LOW';
 
 export interface MaintenanceTask {
@@ -30,6 +30,9 @@ export interface MaintenanceTask {
   status: TaskStatus;
   
   assignedTo?: string;
+  approvedBy?: string;      // Crew ID who approved (C/E or Master)
+  approvedAt?: string;       // When task was approved
+  rejectionReason?: string;  // If status is REJECTED
   startedAt?: string;
   completedAt?: string;
   completedBy?: string;

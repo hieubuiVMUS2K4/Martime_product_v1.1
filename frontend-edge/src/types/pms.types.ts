@@ -14,6 +14,8 @@ export interface EquipmentAsset {
   equipmentGroupId?: string;
   location?: string;
   criticality: string;
+  defaultExecutorRole?: string;
+  approverRole?: string;
   technicalSpecs?: string;
   notes?: string;
   isActive: boolean;
@@ -30,6 +32,8 @@ export interface CreateEquipmentAssetDto {
   equipmentGroupId?: string;
   location?: string;
   criticality?: string;
+  defaultExecutorRole?: string;
+  approverRole?: string;
   technicalSpecs?: string;
   notes?: string;
 }
@@ -115,6 +119,9 @@ export interface EquipmentGroup {
   groupName: string;
   category?: string;
   description?: string;
+  department?: string;     // ENGINE, DECK, NAVIGATION, etc.
+  picRole?: string;        // Person In Charge rank (e.g., "2/E", "C/O")
+  picCrewId?: string;      // Specific crew member override
   isActive: boolean;
   members?: EquipmentAsset[];
 }

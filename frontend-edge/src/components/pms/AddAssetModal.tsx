@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { equipmentGroupService } from '@/services/equipment-group.service';
 import type { CreateEquipmentAssetDto, EquipmentGroup } from '@/types/pms.types';
 import { toast } from 'sonner';
+import { AddGroupModal } from './AddGroupModal';
 
 const CATEGORIES = [
   'ENGINE', 'GENERATOR', 'PUMP', 'COMPRESSOR', 'SEPARATOR', 'BOILER',
@@ -11,6 +12,11 @@ const CATEGORIES = [
 ];
 
 const CRITICALITY_LEVELS = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW'];
+
+const CREW_RANKS = [
+  'MASTER', 'C/E', 'C/O', '2/E', '3/E', '4/E', 'E/O', '2/O', '3/O',
+  'BOSUN', 'AB', 'OS', 'FITTER', 'OILER', 'COOK'
+];
 
 interface AddAssetModalProps {
   isOpen: boolean;
@@ -22,6 +28,7 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
   const [loading, setLoading] = useState(false);
   const [groups, setGroups] = useState<EquipmentGroup[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const [showAddGroupModal, setShowAddGroupModal] = useState(false);
   const [formData, setFormData] = useState<CreateEquipmentAssetDto>({
     assetCode: '',
     assetName: '',
@@ -31,7 +38,9 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
     model: '',
     serialNumber: '',
     location: '',
-    notes: ''
+    notes: '',
+    defaultExecutorRole: '',
+    approverRole: ''
   });
 
   // Load groups
@@ -101,26 +110,37 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
       model: '',
       serialNumber: '',
       location: '',
-      notes: ''
+      notes: '',
+      defaultExecutorRole: '',
+      approverRole: ''
     });
     setSelectedGroupIds([]);
     onClose();
+  };
+
+  const handleGroupCreated = async (newGroupId: string) => {
+    // Reload groups and auto-select the new one
+    await loadGroups();
+    setSelectedGroupIds(prev => [...prev, newGroupId]);
+    setShowAddGroupModal(false);
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">Add Equipment Asset</h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
+      <div className={`flex items-start justify-center gap-4 max-w-[1400px] w-full transition-all duration-300 ${showAddGroupModal ? '' : 'max-w-2xl'}`}>
+        {/* Add Equipment Asset Modal */}
+        <div className={`bg-white rounded-lg shadow-xl w-full max-h-[90vh] overflow-y-auto transition-all duration-300 ${showAddGroupModal ? 'max-w-[600px]' : 'max-w-2xl'}`}>
+          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+            <h2 className="text-xl font-semibold text-gray-900">Add Equipment Asset</h2>
+            <button
+              onClick={handleClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -242,13 +262,64 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
                 placeholder="Engine Room"
               />
             </div>
+
+            {/* Default Executor Role */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Default Executor Role
+              </label>
+              <select
+                value={formData.defaultExecutorRole}
+                onChange={(e) => setFormData({ ...formData, defaultExecutorRole: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">None (Manual Assignment)</option>
+                {CREW_RANKS.map(rank => (
+                  <option key={rank} value={rank}>{rank}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Auto-assign tasks to crew with this rank
+              </p>
+            </div>
+
+            {/* Approver Role */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Approver Role
+              </label>
+              <select
+                value={formData.approverRole}
+                onChange={(e) => setFormData({ ...formData, approverRole: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">None</option>
+                {CREW_RANKS.map(rank => (
+                  <option key={rank} value={rank}>{rank}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Who needs to approve completed tasks
+              </p>
+            </div>
           </div>
 
           {/* Equipment Groups */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Equipment Groups
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Equipment Groups
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowAddGroupModal(true)}
+                className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                title="Create new equipment group"
+              >
+                <Plus className="w-3 h-3" />
+                Add Group
+              </button>
+            </div>
             <div className="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto">
               {groups.length === 0 ? (
                 <p className="text-sm text-gray-500">No groups available</p>
@@ -307,6 +378,19 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
             </button>
           </div>
         </form>
+      </div>
+      
+      {/* Add Group Modal - Side by side */}
+      {showAddGroupModal && (
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-[600px] max-h-[90vh] overflow-hidden">
+          <AddGroupModal 
+            isOpen={showAddGroupModal}
+            onClose={() => setShowAddGroupModal(false)}
+            onSuccess={handleGroupCreated}
+            embedded={true}
+          />
+        </div>
+      )}
       </div>
     </div>
   );

@@ -226,6 +226,9 @@ public class MaintenanceSchedulerService : BackgroundService
                 var asset = member.Asset;
                 if (asset == null || !asset.IsActive) continue;
 
+                // Determine task assignee with department-aware 5-tier waterfall logic
+                var assignedTo = await DetermineTaskAssignee(context, schedule, asset, group);
+
                 // Create unique task ID with asset code
                 var taskId = $"SCHED-{schedule.ScheduleCode}-{asset.AssetCode}-{DateTime.UtcNow:yyyyMMdd}";
 
@@ -237,6 +240,33 @@ public class MaintenanceSchedulerService : BackgroundService
                 {
                     _logger.LogDebug("Task {TaskId} already exists, skipping", taskId);
                     continue;
+                }
+
+                // Determine initial status based on assignment completeness and priority
+                // New workflow logic:
+                // 1. Start with TASK status (incomplete/unassigned)
+                // 2. If fully assigned:
+                //    - LOW/MEDIUM → PENDING (ready for execution)
+                //    - HIGH/CRITICAL → PENDING_APPROVAL (requires approval)
+                string initialStatus = "TASK"; // Default: incomplete task
+                
+                if (!string.IsNullOrWhiteSpace(assignedTo))
+                {
+                    // Task has full assignment
+                    if (schedule.Priority == "HIGH" || schedule.Priority == "CRITICAL")
+                    {
+                        initialStatus = "PENDING_APPROVAL"; // Requires C/E approval
+                        _logger.LogDebug("Task assigned with HIGH/CRITICAL priority → PENDING_APPROVAL");
+                    }
+                    else
+                    {
+                        initialStatus = "PENDING"; // Ready for execution
+                        _logger.LogDebug("Task assigned with LOW/MEDIUM priority → PENDING");
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug("Task unassigned → TASK (Work Planner must assign)");
                 }
 
                 // Create maintenance task for this asset
@@ -254,7 +284,8 @@ public class MaintenanceSchedulerService : BackgroundService
                     NextDueAt = schedule.NextDueDate!.Value,
                     RunningHoursAtLastDone = schedule.LastExecutedRunningHours,
                     Priority = schedule.Priority,
-                    Status = "PENDING",
+                    Status = initialStatus, // TASK, PENDING, or PENDING_APPROVAL based on assignment and priority
+                    AssignedTo = assignedTo, // Auto-assigned based on waterfall logic (null if unassigned)
                     SparePartsUsed = sparePartsJson,
                     Notes = $"Auto-generated from schedule: {schedule.ScheduleCode} (Group: {group.GroupName})",
                     CreatedAt = DateTime.UtcNow,
@@ -346,6 +377,121 @@ public class MaintenanceSchedulerService : BackgroundService
             {
                 schedule.NextDueDate = calendarDue ?? runningHoursDue;
             }
+        }
+    }
+
+    /// <summary>
+    /// Determine task assignee using department-aware 5-tier waterfall logic:
+    /// 0. Filter crew by Equipment Group's Department (strict boundary)
+    /// 1. Group.PicCrewId (highest priority - equipment PIC override)
+    /// 2. Group.PicRole (Person In Charge rank for this equipment)
+    /// 3. Schedule.AssignedToCrewId (specific crew override)
+    /// 4. Schedule.AssignedToRole (match role to onboard crew)
+    /// 5. Asset.DefaultExecutorRole (equipment-based default)
+    /// 6. null (unassigned - Work Planner will assign manually)
+    /// </summary>
+    private async Task<string?> DetermineTaskAssignee(
+        EdgeDbContext context,
+        MaintenanceSchedule schedule,
+        EquipmentAsset asset,
+        EquipmentGroup group)
+    {
+        try
+        {
+            // Get crew filtered by department (strict organizational boundary)
+            IQueryable<CrewMember> departmentCrewQuery = context.CrewMembers
+                .Where(c => c.IsOnboard);
+
+            // Apply department filter if group has department assigned
+            if (!string.IsNullOrWhiteSpace(group.Department))
+            {
+                departmentCrewQuery = departmentCrewQuery.Where(c => c.Department == group.Department);
+                _logger.LogDebug("Filtering crew by department: {Department}", group.Department);
+            }
+
+            // Tier 1: PIC crew override from equipment group (e.g., 2/E assigned to Main Engine)
+            if (!string.IsNullOrWhiteSpace(group.PicCrewId))
+            {
+                var picCrew = await departmentCrewQuery
+                    .FirstOrDefaultAsync(c => c.CrewId == group.PicCrewId);
+                
+                if (picCrew != null)
+                {
+                    _logger.LogDebug("Task assigned to PIC crew {CrewId} ({Rank}) via Group override", 
+                        picCrew.CrewId, picCrew.Rank);
+                    return picCrew.CrewId;
+                }
+            }
+
+            // Tier 2: PIC role from equipment group (e.g., "2/E" for Main Engine)
+            if (!string.IsNullOrWhiteSpace(group.PicRole))
+            {
+                var picCrew = await departmentCrewQuery
+                    .Where(c => c.Rank == group.PicRole)
+                    .OrderBy(c => c.CrewId) // Stable ordering
+                    .FirstOrDefaultAsync();
+                
+                if (picCrew != null)
+                {
+                    _logger.LogDebug("Task assigned to PIC role {Rank} ({CrewId}) via Group PIC", 
+                        group.PicRole, picCrew.CrewId);
+                    return picCrew.CrewId;
+                }
+            }
+
+            // Tier 3: Specific crew ID override from schedule
+            if (!string.IsNullOrWhiteSpace(schedule.AssignedToCrewId))
+            {
+                var crew = await departmentCrewQuery
+                    .FirstOrDefaultAsync(c => c.CrewId == schedule.AssignedToCrewId);
+                
+                if (crew != null)
+                {
+                    _logger.LogDebug("Task assigned to crew {CrewId} via Schedule override", schedule.AssignedToCrewId);
+                    return crew.CrewId;
+                }
+            }
+
+            // Tier 4: Role-based assignment from schedule
+            if (!string.IsNullOrWhiteSpace(schedule.AssignedToRole))
+            {
+                var crew = await departmentCrewQuery
+                    .Where(c => c.Rank == schedule.AssignedToRole)
+                    .OrderBy(c => c.CrewId) // Stable ordering
+                    .FirstOrDefaultAsync();
+                
+                if (crew != null)
+                {
+                    _logger.LogDebug("Task assigned to {Rank} ({CrewId}) via Schedule role", 
+                        schedule.AssignedToRole, crew.CrewId);
+                    return crew.CrewId;
+                }
+            }
+
+            // Tier 5: Default executor role from equipment asset
+            if (!string.IsNullOrWhiteSpace(asset.DefaultExecutorRole))
+            {
+                var crew = await departmentCrewQuery
+                    .Where(c => c.Rank == asset.DefaultExecutorRole)
+                    .OrderBy(c => c.CrewId)
+                    .FirstOrDefaultAsync();
+                
+                if (crew != null)
+                {
+                    _logger.LogDebug("Task assigned to {Rank} ({CrewId}) via Asset default role", 
+                        asset.DefaultExecutorRole, crew.CrewId);
+                    return crew.CrewId;
+                }
+            }
+
+            // Tier 6: No assignment - leave for Work Planner (2/E, C/O) to assign manually
+            _logger.LogDebug("Task left unassigned for manual assignment by Work Planner");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error determining task assignee, leaving unassigned");
+            return null;
         }
     }
 

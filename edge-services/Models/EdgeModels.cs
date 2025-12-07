@@ -895,6 +895,14 @@ public class MaintenanceTask
     [MaxLength(100)]
     public string? AssignedTo { get; set; } // Crew member name
     
+    [MaxLength(50)]
+    public string? ApprovedBy { get; set; } // Crew ID who approved (C/E or Master)
+    
+    public DateTime? ApprovedAt { get; set; } // When task was approved
+    
+    [MaxLength(500)]
+    public string? RejectionReason { get; set; } // If status is REJECTED
+    
     public DateTime? StartedAt { get; set; } // When task was started
     
     public DateTime? CompletedAt { get; set; }
@@ -2403,6 +2411,21 @@ public class EquipmentAsset
     public string Criticality { get; set; } = "NORMAL";
     
     /// <summary>
+    /// Default executor role for tasks on this asset (optional)
+    /// Examples: "2/E" (Second Engineer), "3/E" (Third Engineer), "E/O" (Electrical Officer), "Bosun"
+    /// Used for auto-assignment when schedule doesn't specify AssignedToCrewId or AssignedToRole
+    /// </summary>
+    [MaxLength(50)]
+    public string? DefaultExecutorRole { get; set; }
+    
+    /// <summary>
+    /// Default approver role for tasks on this asset (optional)
+    /// Examples: "C/E" (Chief Engineer), "C/O" (Chief Officer)
+    /// </summary>
+    [MaxLength(50)]
+    public string? ApproverRole { get; set; }
+    
+    /// <summary>
     /// Technical specifications (JSON)
     /// </summary>
     public string? TechnicalSpecs { get; set; }
@@ -2517,6 +2540,20 @@ public class MaintenanceSchedule
     /// Enable auto-task generation?
     /// </summary>
     public bool AutoGenerate { get; set; } = true;
+    
+    /// <summary>
+    /// Assigned crew ID (optional override for auto-generated tasks)
+    /// If set, auto-generated tasks will use this crew ID
+    /// </summary>
+    [MaxLength(50)]
+    public string? AssignedToCrewId { get; set; }
+    
+    /// <summary>
+    /// Assigned role (optional, used when AssignedToCrewId is null)
+    /// Examples: "2/E", "3/E", "E/O", "Bosun"
+    /// </summary>
+    [MaxLength(50)]
+    public string? AssignedToRole { get; set; }
     
     /// <summary>
     /// Additional instructions
@@ -2678,6 +2715,27 @@ public class EquipmentGroup
     /// </summary>
     [MaxLength(50)]
     public string? Category { get; set; }
+    
+    /// <summary>
+    /// Department responsible for this group: ENGINE, DECK, NAVIGATION, MANAGEMENT
+    /// Used for department-based task filtering and assignment
+    /// </summary>
+    [MaxLength(50)]
+    public string? Department { get; set; }
+    
+    /// <summary>
+    /// Person In Charge role for this equipment group
+    /// Examples: "2/E" (Main Engine group), "3/E" (Generators), "C/O" (Deck), "E/O" (Electrical)
+    /// </summary>
+    [MaxLength(50)]
+    public string? PicRole { get; set; }
+    
+    /// <summary>
+    /// Specific crew ID override for PIC (optional)
+    /// If set, this specific crew member is PIC regardless of role
+    /// </summary>
+    [MaxLength(50)]
+    public string? PicCrewId { get; set; }
     
     /// <summary>
     /// Description

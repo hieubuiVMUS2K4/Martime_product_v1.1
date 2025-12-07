@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Download, LayoutGrid } from 'lucide-react'
-import { MaintenanceTask } from '../../types/maritime.types'
+import { MaintenanceTask, parseTaskScheduleInfo } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { differenceInDays, parseISO } from 'date-fns'
 import { KanbanBoard } from '../../components/maintenance/KanbanBoard'
@@ -19,6 +19,8 @@ export function MaintenancePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
   const [equipmentFilter, setEquipmentFilter] = useState<string>('all')
+  const [groupFilter, setGroupFilter] = useState<string>('all')
+  const [scheduleFilter, setScheduleFilter] = useState<string>('all')
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false)
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false)
   
@@ -113,6 +115,22 @@ export function MaintenancePage() {
       filtered = filtered.filter(task => task.equipmentId === equipmentFilter)
     }
 
+    // Group filter (by Equipment Group)
+    if (groupFilter !== 'all') {
+      filtered = filtered.filter(task => {
+        const scheduleInfo = parseTaskScheduleInfo(task)
+        return scheduleInfo.groupName === groupFilter
+      })
+    }
+
+    // Schedule filter (by Schedule Code)
+    if (scheduleFilter !== 'all') {
+      filtered = filtered.filter(task => {
+        const scheduleInfo = parseTaskScheduleInfo(task)
+        return scheduleInfo.scheduleCode === scheduleFilter
+      })
+    }
+
     console.log('📊 Tasks by status:', {
       PENDING: filtered.filter(t => t.status === 'PENDING').length,
       IN_PROGRESS: filtered.filter(t => t.status === 'IN_PROGRESS').length,
@@ -123,7 +141,7 @@ export function MaintenancePage() {
     })
 
     setFilteredTasks(filtered)
-  }, [tasks, searchQuery, priorityFilter, equipmentFilter, timeWindow, showCompleted])
+  }, [tasks, searchQuery, priorityFilter, equipmentFilter, groupFilter, scheduleFilter, timeWindow, showCompleted])
 
   // Calculate quick stats for time windows
   const getTimeWindowStats = () => {
@@ -230,6 +248,19 @@ export function MaintenancePage() {
   }
 
   const uniqueEquipment = [...new Set(tasks.map(t => t.equipmentId))]
+  
+  // Extract unique groups and schedules from tasks
+  const uniqueGroups = [...new Set(
+    tasks
+      .map(t => parseTaskScheduleInfo(t).groupName)
+      .filter(Boolean)
+  )].sort()
+  
+  const uniqueSchedules = [...new Set(
+    tasks
+      .map(t => parseTaskScheduleInfo(t).scheduleCode)
+      .filter(Boolean)
+  )].sort()
 
   return (
     <div className="h-full w-full overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
@@ -340,6 +371,30 @@ export function MaintenancePage() {
               <option value="all">All Equipment</option>
               {uniqueEquipment.map(eq => (
                 <option key={eq} value={eq}>{eq}</option>
+              ))}
+            </select>
+
+            {/* Equipment Group Filter */}
+            <select
+              value={groupFilter}
+              onChange={(e) => setGroupFilter(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+            >
+              <option value="all">All Groups</option>
+              {uniqueGroups.map(group => (
+                <option key={group} value={group}>{group}</option>
+              ))}
+            </select>
+
+            {/* Schedule Filter */}
+            <select
+              value={scheduleFilter}
+              onChange={(e) => setScheduleFilter(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+            >
+              <option value="all">All Schedules</option>
+              {uniqueSchedules.map(schedule => (
+                <option key={schedule} value={schedule}>{schedule}</option>
               ))}
             </select>
 

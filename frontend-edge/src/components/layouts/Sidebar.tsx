@@ -28,15 +28,16 @@ const navigation = [
   { name: 'Fuel Analytics', to: '/fuel-analytics', icon: Fuel },
   { name: 'Alarms', to: '/alarms', icon: AlertTriangle },
   { name: 'Crew', to: '/crew', icon: Users },
-  { name: 'Maintenance', to: '/maintenance', icon: Wrench },
   { name: 'Task Management', to: '/task-management', icon: ListChecks },
   { 
     name: 'PMS Planning', 
     icon: Calendar, 
     subItems: [
       { name: 'Equipment Assets', to: '/pms/assets', icon: Settings },
+      { name: 'Equipment Groups', to: '/pms/groups', icon: Boxes },
       { name: 'Schedule Config', to: '/pms/schedules', icon: ListChecks },
       { name: 'Master Schedule', to: '/pms/master-schedule', icon: Calendar },
+      { name: 'Maintenance', to: '/maintenance', icon: Wrench },
     ]
   },
   { name: 'Materials', to: '/materials', icon: Boxes },

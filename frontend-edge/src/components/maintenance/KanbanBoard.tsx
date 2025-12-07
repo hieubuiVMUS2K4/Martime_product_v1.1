@@ -17,7 +17,7 @@ import { CustomKanbanCard } from './CustomKanbanCard'
 import { KanbanColumn } from './KanbanColumn'
 import { AddCustomTaskModal } from './AddCustomTaskModal'
 import { ColumnMenu } from './ColumnMenu'
-import { AlertCircle, Clock, Wrench, Plus, X } from 'lucide-react'
+import { AlertCircle, Clock, Wrench, CheckCircle, ClipboardList, XCircle, ListTodo, Plus, X } from 'lucide-react'
 
 interface KanbanBoardProps {
   tasks: MaintenanceTask[]
@@ -27,8 +27,8 @@ interface KanbanBoardProps {
   onAddTask?: () => void
 }
 
-// Database có ĐÚNG 4 status: PENDING, OVERDUE, IN_PROGRESS, COMPLETED
-export type ColumnId = 'pending' | 'overdue' | 'in-progress' | 'completed' | string
+// New PMS workflow with 7 status columns
+export type ColumnId = 'task' | 'pending-approval' | 'rejected' | 'pending' | 'overdue' | 'in-progress' | 'completed' | string
 
 interface Column {
   id: string
@@ -55,6 +55,27 @@ interface CustomTask {
 
 const columns: Column[] = [
   {
+    id: 'task',
+    title: 'Task',
+    color: 'from-gray-500 to-gray-600',
+    gradient: 'bg-gradient-to-br from-gray-500 to-gray-600',
+    icon: <ListTodo className="w-4 h-4" />
+  },
+  {
+    id: 'pending-approval',
+    title: 'Approval',
+    color: 'from-amber-500 to-amber-600',
+    gradient: 'bg-gradient-to-br from-amber-500 to-orange-600',
+    icon: <ClipboardList className="w-4 h-4" />
+  },
+  {
+    id: 'rejected',
+    title: 'Rejected',
+    color: 'from-rose-500 to-rose-600',
+    gradient: 'bg-gradient-to-br from-rose-500 to-red-600',
+    icon: <XCircle className="w-4 h-4" />
+  },
+  {
     id: 'pending',
     title: 'Pending',
     color: 'from-blue-500 to-blue-600',
@@ -80,7 +101,7 @@ const columns: Column[] = [
     title: 'Completed',
     color: 'from-green-500 to-green-600',
     gradient: 'bg-gradient-to-br from-green-500 to-emerald-600',
-    icon: <Clock className="w-4 h-4" />
+    icon: <CheckCircle className="w-4 h-4" />
   }
 ]
 
@@ -97,6 +118,33 @@ export function KanbanBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskClick, on
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false)
   const [selectedColumnForTask, setSelectedColumnForTask] = useState<string>('')
   const [openMenuColumnId, setOpenMenuColumnId] = useState<string | null>(null)
+
+  // Handle crew assignment
+  const handleAssignChange = async (taskId: number, crewId: string | null) => {
+    try {
+      // Call dedicated assign endpoint
+      const response = await fetch(`/api/maintenance/tasks/${taskId}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ crewId })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to assign task')
+      }
+
+      const result = await response.json()
+      toast.success(result.message || 'Assignment updated')
+      
+      // Optionally refresh tasks list here
+      // await refetchTasks()
+    } catch (error) {
+      console.error('Failed to update assignment:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to update assignment')
+      throw error
+    }
+  }
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -317,16 +365,23 @@ export function KanbanBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskClick, on
     saveCustomColumns(updated)
   }
 
-  // Categorize tasks - Match EXACTLY với DB status
-  // DB chỉ có 4 status: PENDING, OVERDUE, IN_PROGRESS, COMPLETED
+  // Categorize tasks - Map to new 7-column workflow with smart detection
   const categorizeTask = (task: MaintenanceTask): ColumnId => {
-    // Map 1-1 với database status
+    // Special case: PENDING without assignee should be TASK (legacy data fix)
+    if (task.status === 'PENDING' && !task.assignedTo) {
+      return 'task'
+    }
+    
+    // Map database status to Kanban columns
     switch (task.status) {
+      case 'TASK': return 'task'
+      case 'PENDING_APPROVAL': return 'pending-approval'
+      case 'REJECTED': return 'rejected'
       case 'PENDING': return 'pending'
       case 'OVERDUE': return 'overdue'
       case 'IN_PROGRESS': return 'in-progress'
       case 'COMPLETED': return 'completed'
-      default: return 'pending'
+      default: return 'task' // Default to TASK for unknown status
     }
   }
 
@@ -450,8 +505,11 @@ export function KanbanBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskClick, on
       return
     }
 
-    // Map column to DB status - 1:1 mapping
+    // Map column to DB status - New 7-status workflow
     const statusMap: Record<string, string> = {
+      'task': 'TASK',
+      'pending-approval': 'PENDING_APPROVAL',
+      'rejected': 'REJECTED',
       'pending': 'PENDING',
       'overdue': 'OVERDUE',
       'in-progress': 'IN_PROGRESS',
@@ -470,113 +528,80 @@ export function KanbanBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskClick, on
     console.log(`📦 Moving task ${taskId}: ${currentStatus} → ${newStatus}`)
     
     // ========================================
-    // CLIENT-SIDE VALIDATION - Comprehensive Rules
+    // CLIENT-SIDE VALIDATION - New 7-Status Workflow Rules
     // ========================================
     
     // Rule 1: Cannot move COMPLETED tasks anywhere
     if (currentStatus === 'COMPLETED') {
-      toast.error('⚠️ Không thể di chuyển task đã hoàn thành! Task này đã được thuyền viên hoàn thành. Nếu cần làm lại, vui lòng tạo task mới.')
+      toast.error('⚠️ Task đã hoàn thành không thể di chuyển!')
       return
     }
     
-    // Rule 2: Cannot manually move to OVERDUE (system auto-sets)
-    if (newStatus === 'OVERDUE' && currentStatus !== 'OVERDUE') {
-      toast.error('⚠️ Không thể chuyển task sang OVERDUE thủ công! Hệ thống sẽ tự động đánh dấu OVERDUE khi task quá hạn.')
+    // Rule 2: Cannot manually move TO overdue (system auto-sets)
+    if (newStatus === 'OVERDUE') {
+      toast.error('⚠️ Không thể chuyển sang OVERDUE thủ công! Hệ thống tự động đánh dấu.')
       return
     }
     
-    // Rule 3: OVERDUE → PENDING blocked (only system can do this)
-    if (currentStatus === 'OVERDUE' && newStatus === 'PENDING') {
-      toast.error('⚠️ Không thể chuyển task từ OVERDUE về PENDING! Task quá hạn chỉ có thể được thuyền viên bắt đầu (→ IN PROGRESS) hoặc backend tự động chuyển khi cập nhật due date.')
+    // Rule 3: TASK → PENDING_APPROVAL allowed (Work Planner assigns HIGH/CRITICAL task)
+    // Rule 4: TASK → PENDING allowed (Work Planner assigns LOW/MEDIUM task)
+    // Rule 5: TASK → REJECTED not allowed
+    if (currentStatus === 'TASK' && newStatus === 'REJECTED') {
+      toast.error('⚠️ Task chưa phê duyệt không thể rejected!')
       return
     }
     
-    // Rule 4: OVERDUE → IN_PROGRESS requires confirmation
-    if (currentStatus === 'OVERDUE' && newStatus === 'IN_PROGRESS') {
-      toast('Giao task quá hạn cho thuyền viên?', {
-        description: 'Task này đã quá hạn. Bạn muốn giao cho thuyền viên bắt đầu ngay?',
-        action: {
-          label: 'Xác nhận',
-          onClick: async () => {
-            try {
-              await onTaskUpdate(taskId, newStatus)
-              toast.success('✅ Task đã được chuyển sang IN PROGRESS')
-            } catch (e) {
-              toast.error('❌ Không thể cập nhật task: ' + String(e))
-            }
-          }
-        }
-      })
+    // Rule 6: PENDING_APPROVAL → PENDING allowed (C/E approved)
+    // Rule 7: PENDING_APPROVAL → REJECTED allowed (C/E rejected)
+    // Rule 8: PENDING_APPROVAL → other statuses blocked
+    if (currentStatus === 'PENDING_APPROVAL' && 
+        !['PENDING', 'REJECTED'].includes(newStatus)) {
+      toast.error('⚠️ Task chờ approval chỉ có thể → Pending (approve) hoặc Rejected!')
       return
     }
     
-    // Rule 5: OVERDUE → COMPLETED blocked (must go through IN_PROGRESS)
-    if (currentStatus === 'OVERDUE' && newStatus === 'COMPLETED') {
-      toast.error('⚠️ Không thể chuyển OVERDUE sang COMPLETED! Quy trình đúng: OVERDUE → IN PROGRESS → COMPLETED.')
+    // Rule 9: REJECTED → TASK allowed (Work Planner revises)
+    // Rule 10: REJECTED → other statuses blocked
+    if (currentStatus === 'REJECTED' && newStatus !== 'TASK') {
+      toast.error('⚠️ Task bị reject phải về TASK để chỉnh sửa!')
       return
     }
     
-    // Rule 6: PENDING → IN_PROGRESS requires confirmation
-    if (currentStatus === 'PENDING' && newStatus === 'IN_PROGRESS') {
-      toast('Giao task cho thuyền viên bắt đầu?', {
-        description: 'Bạn muốn chuyển task này sang IN PROGRESS?',
-        action: {
-          label: 'Xác nhận',
-          onClick: async () => {
-            try {
-              await onTaskUpdate(taskId, newStatus)
-              toast.success('✅ Task đã được chuyển sang IN PROGRESS')
-            } catch (e) {
-              toast.error('❌ Không thể cập nhật task: ' + String(e))
-            }
-          }
-        }
-      })
-      return
-    }
-    
-    // Rule 7: PENDING → COMPLETED blocked (must go through IN_PROGRESS)
+    // Rule 11: PENDING → IN_PROGRESS allowed (crew starts on mobile)
+    // Rule 12: PENDING → TASK allowed (Work Planner unassigns)
+    // Rule 13: PENDING → COMPLETED blocked
     if (currentStatus === 'PENDING' && newStatus === 'COMPLETED') {
-      toast.error('⚠️ Không thể chuyển PENDING sang COMPLETED! Vui lòng làm theo quy trình PENDING → IN PROGRESS → COMPLETED.')
+      toast.error('⚠️ Quy trình đúng: PENDING → IN PROGRESS → COMPLETED')
       return
     }
     
-    // Rule 8: IN_PROGRESS → COMPLETED blocked (only crew can complete)
+    // Rule 14: OVERDUE → IN_PROGRESS allowed (crew starts late)
+    // Rule 15: OVERDUE → PENDING blocked
+    if (currentStatus === 'OVERDUE' && newStatus === 'PENDING') {
+      toast.error('⚠️ Task quá hạn không thể về PENDING!')
+      return
+    }
+    
+    // Rule 16: IN_PROGRESS → COMPLETED blocked (only mobile can complete)
     if (currentStatus === 'IN_PROGRESS' && newStatus === 'COMPLETED') {
-      toast.error('⚠️ Không thể hoàn thành task từ Kanban! Chỉ thuyền viên mới có thể đánh dấu COMPLETED qua mobile app.')
+      toast.error('⚠️ Chỉ thuyền viên mới có thể hoàn thành task qua mobile app!')
       return
     }
     
-    // Rule 9: IN_PROGRESS → PENDING requires confirmation
-    if (currentStatus === 'IN_PROGRESS' && newStatus === 'PENDING') {
-      toast('Chuyển task đang thực hiện về PENDING?', {
-        description: 'Task này đã được thuyền viên bắt đầu. Bạn có chắc muốn hủy giao? StartedAt sẽ được giữ.',
-        action: {
-          label: 'Xác nhận',
-          onClick: async () => {
-            try {
-              await onTaskUpdate(taskId, newStatus)
-              toast.success('✅ Task đã được chuyển về PENDING')
-            } catch (e) {
-              toast.error('❌ Không thể cập nhật task: ' + String(e))
-            }
-          }
-        }
-      })
-      return
-    }
-    
-    // Rule 10: IN_PROGRESS → OVERDUE blocked
-    if (currentStatus === 'IN_PROGRESS' && newStatus === 'OVERDUE') {
-      toast.error('⚠️ Không thể chuyển IN PROGRESS sang OVERDUE! Hệ thống sẽ tự động xử lý khi quá hạn.')
+    // Rule 17: IN_PROGRESS → PENDING allowed (cancel assignment)
+    // Rule 18: IN_PROGRESS → other statuses blocked
+    if (currentStatus === 'IN_PROGRESS' && 
+        !['PENDING'].includes(newStatus)) {
+      toast.error('⚠️ Task đang thực hiện chỉ có thể → Pending (hủy) hoặc Completed (qua mobile)!')
       return
     }
     
     try {
       await onTaskUpdate(taskId, newStatus)
+      toast.success(`✅ Task đã chuyển sang ${newStatus}`)
     } catch (error) {
       console.error('Failed to update task:', error)
-      // Error handling is done in parent component (MaintenancePage)
+      toast.error('❌ Không thể cập nhật task')
     }
   }
 
@@ -599,7 +624,7 @@ export function KanbanBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskClick, on
                   title={column.title}
                   count={columnTasks.length}
                   onAddTask={
-                    column.id === 'pending' 
+                    column.id === 'task' 
                       ? onAddTask 
                       : column.isCustom 
                       ? () => {
@@ -640,6 +665,7 @@ export function KanbanBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskClick, on
                           key={task.id}
                           task={task}
                           onClick={() => onTaskClick(task.id)}
+                          onAssignChange={handleAssignChange}
                         />
                       )
                     })}
@@ -759,7 +785,12 @@ export function KanbanBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskClick, on
           )}
           {activeTask && (
             <div className="w-[280px]">
-              <KanbanCard task={activeTask} onClick={() => {}} isDragging />
+              <KanbanCard 
+                task={activeTask} 
+                onClick={() => {}} 
+                isDragging 
+                onAssignChange={handleAssignChange}
+              />
             </div>
           )}
         </DragOverlay>

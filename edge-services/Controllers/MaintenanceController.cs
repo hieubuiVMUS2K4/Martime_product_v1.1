@@ -471,6 +471,199 @@ public class MaintenanceController : ControllerBase
     }
 
     /// <summary>
+    /// Assign task to crew member (Quick Assign from Kanban board)
+    /// POST /api/maintenance/tasks/{id}/assign
+    /// </summary>
+    [HttpPost("tasks/{id}/assign")]
+    public async Task<IActionResult> AssignTask(Guid id, [FromBody] AssignTaskRequest request)
+    {
+        try
+        {
+            var task = await _context.MaintenanceTasks.FindAsync(id);
+            if (task == null)
+            {
+                return NotFound(new { error = "Maintenance task not found", id });
+            }
+
+            // Validate crew member exists and is onboard (if crewId provided)
+            if (!string.IsNullOrWhiteSpace(request.CrewId))
+            {
+                var crew = await _context.CrewMembers
+                    .FirstOrDefaultAsync(c => c.CrewId == request.CrewId);
+                
+                if (crew == null)
+                {
+                    return BadRequest(new { error = "Crew member not found", crewId = request.CrewId });
+                }
+
+                if (!crew.IsOnboard)
+                {
+                    return BadRequest(new { 
+                        error = "Cannot assign to crew member who is not onboard", 
+                        crewId = request.CrewId,
+                        crewName = crew.FullName 
+                    });
+                }
+
+                task.AssignedTo = crew.CrewId;
+                _logger.LogInformation("Task {TaskId} assigned to {CrewId} ({CrewName})", 
+                    task.TaskId, crew.CrewId, crew.FullName);
+            }
+            else
+            {
+                // Unassign (set to null)
+                task.AssignedTo = null;
+                _logger.LogInformation("Task {TaskId} unassigned", task.TaskId);
+            }
+
+            task.UpdatedAt = DateTime.UtcNow;
+            task.IsSynced = false;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { 
+                id = task.Id,
+                taskId = task.TaskId,
+                assignedTo = task.AssignedTo,
+                message = task.AssignedTo != null 
+                    ? $"Task assigned to {task.AssignedTo}" 
+                    : "Task unassigned"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error assigning task {Id}", id);
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/maintenance/tasks/{id}/approve
+    /// Approve or reject HIGH/CRITICAL tasks (C/E or Master only)
+    /// </summary>
+    [HttpPost("tasks/{id}/approve")]
+    public async Task<IActionResult> ApproveTask(Guid id, [FromBody] ApproveTaskRequest request)
+    {
+        try
+        {
+            var task = await _context.MaintenanceTasks.FindAsync(id);
+            if (task == null)
+            {
+                return NotFound(new { error = "Maintenance task not found", id });
+            }
+
+            // Validate current status is PENDING_APPROVAL
+            if (task.Status != "PENDING_APPROVAL")
+            {
+                return BadRequest(new { 
+                    error = "Task is not in PENDING_APPROVAL status", 
+                    currentStatus = task.Status 
+                });
+            }
+
+            // Validate approver exists and has correct rank
+            var approver = await _context.CrewMembers
+                .FirstOrDefaultAsync(c => c.CrewId == request.ApprovedBy);
+            
+            if (approver == null)
+            {
+                return BadRequest(new { error = "Approver not found", crewId = request.ApprovedBy });
+            }
+
+            // Get equipment group to determine department and required approver rank
+            var equipmentCode = task.EquipmentId;
+            var asset = await _context.EquipmentAssets
+                .FirstOrDefaultAsync(a => a.AssetCode == equipmentCode);
+            
+            var groupMember = asset != null 
+                ? await _context.EquipmentGroupMembers
+                    .Include(egm => egm.Group)
+                    .FirstOrDefaultAsync(egm => egm.AssetId == asset.Id)
+                : null;
+
+            var department = groupMember?.Group?.Department;
+            
+            // Validate approver rank based on department
+            // ENGINE: C/E (Chief Engineer) or Master
+            // DECK: C/O (Chief Officer) or Master
+            // Others: Master only
+            var validApproverRanks = new List<string>();
+            
+            if (department == "ENGINE")
+            {
+                validApproverRanks = new List<string> { "C/E", "Master" };
+            }
+            else if (department == "DECK")
+            {
+                validApproverRanks = new List<string> { "C/O", "Master" };
+            }
+            else
+            {
+                validApproverRanks = new List<string> { "Master" };
+            }
+
+            if (!validApproverRanks.Contains(approver.Rank))
+            {
+                return BadRequest(new { 
+                    error = $"Approver must be one of: {string.Join(", ", validApproverRanks)}", 
+                    approverRank = approver.Rank,
+                    department = department ?? "UNKNOWN"
+                });
+            }
+
+            if (request.IsApproved)
+            {
+                // Approve: Change status to PENDING (ready for execution)
+                task.Status = "PENDING";
+                task.ApprovedBy = request.ApprovedBy;
+                task.ApprovedAt = DateTime.UtcNow;
+                task.RejectionReason = null;
+                
+                _logger.LogInformation("Task {TaskId} approved by {ApprovedBy} ({Rank})", 
+                    task.TaskId, request.ApprovedBy, approver.Rank);
+            }
+            else
+            {
+                // Reject: Change status to REJECTED
+                if (string.IsNullOrWhiteSpace(request.RejectionReason))
+                {
+                    return BadRequest(new { error = "RejectionReason is required when rejecting a task" });
+                }
+
+                task.Status = "REJECTED";
+                task.ApprovedBy = request.ApprovedBy;
+                task.ApprovedAt = DateTime.UtcNow;
+                task.RejectionReason = request.RejectionReason;
+                
+                _logger.LogInformation("Task {TaskId} rejected by {ApprovedBy} ({Rank}): {Reason}", 
+                    task.TaskId, request.ApprovedBy, approver.Rank, request.RejectionReason);
+            }
+
+            task.UpdatedAt = DateTime.UtcNow;
+            task.IsSynced = false;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { 
+                id = task.Id,
+                taskId = task.TaskId,
+                status = task.Status,
+                approvedBy = task.ApprovedBy,
+                approvedAt = task.ApprovedAt,
+                rejectionReason = task.RejectionReason,
+                message = request.IsApproved 
+                    ? $"Task approved by {approver.Rank} {approver.FullName}" 
+                    : $"Task rejected: {task.RejectionReason}"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error approving/rejecting task {Id}", id);
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Validate status transition rules to prevent conflicts between mobile and web
     /// </summary>
     private (bool IsValid, string Message) ValidateStatusTransition(string currentStatus, string newStatus, MaritimeEdge.Models.MaintenanceTask task)
@@ -857,5 +1050,17 @@ public class MaintenanceController : ControllerBase
         public string? PhotoUrl { get; set; }
         public string? SignatureUrl { get; set; }
         public string CompletedBy { get; set; } = string.Empty;
+    }
+
+    public class AssignTaskRequest
+    {
+        public string? CrewId { get; set; }
+    }
+
+    public class ApproveTaskRequest
+    {
+        public bool IsApproved { get; set; } // true = approve, false = reject
+        public string? RejectionReason { get; set; } // Required if IsApproved = false
+        public string ApprovedBy { get; set; } = string.Empty; // Crew ID of approver
     }
 }
