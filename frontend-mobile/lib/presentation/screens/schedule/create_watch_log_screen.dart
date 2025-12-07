@@ -101,7 +101,7 @@ class _CreateWatchLogScreenState extends State<CreateWatchLogScreen> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _watchPeriod,
+                      initialValue: _watchPeriod,
                       decoration: const InputDecoration(
                         labelText: 'Watch Period',
                         prefixIcon: Icon(Icons.access_time),
@@ -119,7 +119,7 @@ class _CreateWatchLogScreenState extends State<CreateWatchLogScreen> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _watchType,
+                      initialValue: _watchType,
                       decoration: const InputDecoration(
                         labelText: 'Watch Type',
                         prefixIcon: Icon(Icons.category),
@@ -210,7 +210,7 @@ class _CreateWatchLogScreenState extends State<CreateWatchLogScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: _seaState,
+                      initialValue: _seaState,
                       decoration: const InputDecoration(
                         labelText: 'Sea State',
                         prefixIcon: Icon(Icons.waves),
@@ -225,7 +225,7 @@ class _CreateWatchLogScreenState extends State<CreateWatchLogScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: _visibility,
+                      initialValue: _visibility,
                       decoration: const InputDecoration(
                         labelText: 'Visibility',
                         prefixIcon: Icon(Icons.remove_red_eye),

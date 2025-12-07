@@ -18,6 +18,11 @@ import { MaterialPage } from './pages/Material/MaterialPage'
 import { FuelAnalyticsPage } from './pages/FuelAnalytics'
 import { TaskManagementPage } from './pages/TaskManagement/TaskManagementPage'
 
+// PMS Pages
+import AssetsPage from './pages/PMS/AssetsPage'
+import ScheduleConfigPage from './pages/PMS/ScheduleConfigPage'
+import MasterSchedulePage from './pages/PMS/MasterSchedulePage'
+
 // Reporting Pages
 import { ReportingDashboard } from './pages/Reporting/ReportingDashboard'
 import { ReportsPage } from './pages/Reporting/ReportsPage'
@@ -49,6 +54,11 @@ function App() {
         <Route path="sync" element={<SyncPage />} />
         <Route path="materials" element={<MaterialPage />} />
         <Route path="fuel-analytics" element={<FuelAnalyticsPage />} />
+        
+        {/* PMS Routes */}
+        <Route path="pms/assets" element={<AssetsPage />} />
+        <Route path="pms/schedules" element={<ScheduleConfigPage />} />
+        <Route path="pms/master-schedule" element={<MasterSchedulePage />} />
         
         {/* Reporting Routes */}
         <Route path="reporting" element={<ReportingDashboard />} />

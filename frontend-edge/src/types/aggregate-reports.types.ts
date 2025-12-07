@@ -13,7 +13,7 @@
  * Aggregates 7 daily noon reports with comprehensive KPIs
  */
 export interface WeeklyReportDto {
-  id: string; // Guid
+  id: number;
   reportNumber: string;
   weekNumber: number;
   year: number;
@@ -83,7 +83,7 @@ export interface CreateWeeklyReportResponse {
  * Comprehensive monthly operations summary
  */
 export interface MonthlyReportDto {
-  id: string; // Guid
+  id: number;
   reportNumber: string;
   month: number;         // 1-12
   year: number;

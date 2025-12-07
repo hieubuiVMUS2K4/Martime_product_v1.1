@@ -74,6 +74,14 @@ public class EdgeDbContext : DbContext
     public DbSet<WeeklyPerformanceReport> WeeklyPerformanceReports { get; set; } = null!;
     public DbSet<MonthlySummaryReport> MonthlySummaryReports { get; set; } = null!;
 
+    // Maintenance Planning System (PMS)
+    public DbSet<EquipmentAsset> EquipmentAssets { get; set; } = null!;
+    public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; } = null!;
+    public DbSet<ScheduleSparePart> ScheduleSpareParts { get; set; } = null!;
+    public DbSet<MaintenanceHistory> MaintenanceHistories { get; set; } = null!;
+    public DbSet<EquipmentGroup> EquipmentGroups { get; set; } = null!;
+    public DbSet<EquipmentGroupMember> EquipmentGroupMembers { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

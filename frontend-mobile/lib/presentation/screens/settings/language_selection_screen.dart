@@ -10,7 +10,7 @@ class LanguageSelectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final localeProvider = Provider.of<LocaleProvider>(context);
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -185,7 +185,7 @@ class LanguageSelectionScreen extends StatelessWidget {
     LocaleProvider provider,
     Locale locale,
   ) async {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     
     if (provider.locale.languageCode == locale.languageCode) {
       return;

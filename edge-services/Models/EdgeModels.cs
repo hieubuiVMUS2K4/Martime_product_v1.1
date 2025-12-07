@@ -2318,4 +2318,416 @@ public class MonthlySummaryReport
     public DateTime? UpdatedAt { get; set; }
 }
 
+// ============================================================
+// MAINTENANCE PLANNING SYSTEM (PMS - Planned Maintenance System)
+// ============================================================
+
+/// <summary>
+/// Equipment Assets - Thiết bị trên tàu cần bảo dưỡng
+/// Master catalog of all equipment/machinery on vessel
+/// </summary>
+public class EquipmentAsset
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// Unique asset code (e.g., ME-01, AE-02, PUMP-01)
+    /// </summary>
+    [Required]
+    [MaxLength(50)]
+    public string AssetCode { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Asset name (e.g., "Main Engine", "Auxiliary Engine #1")
+    /// </summary>
+    [Required]
+    [MaxLength(200)]
+    public string AssetName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Category: ENGINE, GENERATOR, PUMP, COMPRESSOR, SEPARATOR, BOILER, DECK_MACHINERY, NAVIGATION, SAFETY, ELECTRICAL, HVAC
+    /// </summary>
+    [Required]
+    [MaxLength(50)]
+    public string Category { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Manufacturer
+    /// </summary>
+    [MaxLength(200)]
+    public string? Manufacturer { get; set; }
+    
+    /// <summary>
+    /// Model number
+    /// </summary>
+    [MaxLength(100)]
+    public string? Model { get; set; }
+    
+    /// <summary>
+    /// Serial number
+    /// </summary>
+    [MaxLength(100)]
+    public string? SerialNumber { get; set; }
+    
+    /// <summary>
+    /// Installation date
+    /// </summary>
+    public DateTime? InstallationDate { get; set; }
+    
+    /// <summary>
+    /// Current running hours (auto-updated from telemetry)
+    /// </summary>
+    public double? CurrentRunningHours { get; set; }
+    
+    /// <summary>
+    /// Last running hours update timestamp
+    /// </summary>
+    public DateTime? LastRunningHoursUpdate { get; set; }
+    
+    /// <summary>
+    /// Equipment group ID (for group task assignments)
+    /// </summary>
+    public Guid? EquipmentGroupId { get; set; }
+    
+    /// <summary>
+    /// Location on vessel (e.g., "Engine Room", "Deck", "Bridge")
+    /// </summary>
+    [MaxLength(100)]
+    public string? Location { get; set; }
+    
+    /// <summary>
+    /// Equipment criticality: CRITICAL, HIGH, NORMAL, LOW
+    /// </summary>
+    [MaxLength(20)]
+    public string Criticality { get; set; } = "NORMAL";
+    
+    /// <summary>
+    /// Technical specifications (JSON)
+    /// </summary>
+    public string? TechnicalSpecs { get; set; }
+    
+    /// <summary>
+    /// Additional notes
+    /// </summary>
+    public string? Notes { get; set; }
+    
+    public bool IsActive { get; set; } = true;
+    
+    public bool IsSynced { get; set; } = false;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+}
+
+/// <summary>
+/// Maintenance Schedules - Kế hoạch bảo dưỡng định kỳ
+/// Defines when and how equipment should be maintained
+/// System will auto-generate MaintenanceTasks from these schedules
+/// </summary>
+public class MaintenanceSchedule
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// Unique schedule code (e.g., ME-OIL-CHANGE, AE-FILTER-REPLACE)
+    /// </summary>
+    [Required]
+    [MaxLength(50)]
+    public string ScheduleCode { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// FK -> EquipmentGroup.Id (can be single asset group or multi-asset group)
+    /// When auto-generating tasks, will create 1 task per asset in this group
+    /// </summary>
+    [Required]
+    public Guid EquipmentGroupId { get; set; }
+    
+    /// <summary>
+    /// FK -> TaskType.Id
+    /// </summary>
+    [Required]
+    public int TaskTypeId { get; set; }
+    
+    /// <summary>
+    /// Schedule name (e.g., "Main Engine Oil Change")
+    /// </summary>
+    [Required]
+    [MaxLength(200)]
+    public string ScheduleName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Interval type: RUNNING_HOURS, CALENDAR, HYBRID
+    /// </summary>
+    [Required]
+    [MaxLength(20)]
+    public string IntervalType { get; set; } = "CALENDAR";
+    
+    /// <summary>
+    /// Running hours interval (e.g., 500 hours)
+    /// </summary>
+    public int? IntervalHours { get; set; }
+    
+    /// <summary>
+    /// Calendar interval in days (e.g., 30 days)
+    /// </summary>
+    public int? IntervalDays { get; set; }
+    
+    /// <summary>
+    /// Auto-generate task X days before due (default: 7)
+    /// </summary>
+    public int DaysBeforeDue { get; set; } = 7;
+    
+    /// <summary>
+    /// Last execution date
+    /// </summary>
+    public DateTime? LastExecutedAt { get; set; }
+    
+    /// <summary>
+    /// Running hours at last execution
+    /// </summary>
+    public double? LastExecutedRunningHours { get; set; }
+    
+    /// <summary>
+    /// Next due date
+    /// </summary>
+    public DateTime? NextDueDate { get; set; }
+    
+    /// <summary>
+    /// Running hours at next due
+    /// </summary>
+    public double? NextDueRunningHours { get; set; }
+    
+    /// <summary>
+    /// Priority: CRITICAL, HIGH, NORMAL, LOW
+    /// </summary>
+    [MaxLength(20)]
+    public string Priority { get; set; } = "NORMAL";
+    
+    /// <summary>
+    /// Estimated duration in hours
+    /// </summary>
+    public double? EstimatedDurationHours { get; set; }
+    
+    /// <summary>
+    /// Enable auto-task generation?
+    /// </summary>
+    public bool AutoGenerate { get; set; } = true;
+    
+    /// <summary>
+    /// Additional instructions
+    /// </summary>
+    public string? Instructions { get; set; }
+    
+    public bool IsActive { get; set; } = true;
+    
+    public bool IsSynced { get; set; } = false;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+}
+
+/// <summary>
+/// Schedule Spare Parts - Vật tư cần thiết cho từng lịch bảo dưỡng
+/// Links maintenance schedules to required spare parts
+/// Used for auto-deduction when task is completed
+/// </summary>
+public class ScheduleSparePart
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// FK -> MaintenanceSchedule.Id
+    /// </summary>
+    [Required]
+    public Guid ScheduleId { get; set; }
+    
+    /// <summary>
+    /// FK -> MaterialItem.Id
+    /// </summary>
+    [Required]
+    public Guid MaterialItemId { get; set; }
+    
+    /// <summary>
+    /// Quantity required per execution
+    /// </summary>
+    [Required]
+    [Range(0.001, 999999)]
+    public double QuantityRequired { get; set; }
+    
+    /// <summary>
+    /// Is this spare part mandatory or optional?
+    /// </summary>
+    public bool IsMandatory { get; set; } = true;
+    
+    /// <summary>
+    /// Notes about this spare part requirement
+    /// </summary>
+    [MaxLength(500)]
+    public string? Notes { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Maintenance History - Lịch sử thực hiện bảo dưỡng
+/// Audit trail of all maintenance executions with spare parts used
+/// </summary>
+public class MaintenanceHistory
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// FK -> MaintenanceSchedule.Id
+    /// </summary>
+    [Required]
+    public Guid ScheduleId { get; set; }
+    
+    /// <summary>
+    /// FK -> MaintenanceTask.Id
+    /// </summary>
+    [Required]
+    public Guid TaskId { get; set; }
+    
+    /// <summary>
+    /// Execution date
+    /// </summary>
+    [Required]
+    public DateTime ExecutedAt { get; set; }
+    
+    /// <summary>
+    /// Running hours at execution
+    /// </summary>
+    public double? ExecutedRunningHours { get; set; }
+    
+    /// <summary>
+    /// Who completed the task
+    /// </summary>
+    [MaxLength(100)]
+    public string? CompletedBy { get; set; }
+    
+    /// <summary>
+    /// Actual duration in hours
+    /// </summary>
+    public double? ActualDurationHours { get; set; }
+    
+    /// <summary>
+    /// Spare parts used (JSON array)
+    /// Format: [{ "materialItemId": "...", "materialCode": "...", "materialName": "...", "quantity": 2 }]
+    /// </summary>
+    public string? SparePartsUsed { get; set; }
+    
+    /// <summary>
+    /// Total spare parts cost
+    /// </summary>
+    public decimal? TotalSparePartsCost { get; set; }
+    
+    /// <summary>
+    /// Execution notes
+    /// </summary>
+    public string? Notes { get; set; }
+    
+    /// <summary>
+    /// Equipment condition after maintenance: EXCELLENT, GOOD, FAIR, POOR
+    /// </summary>
+    [MaxLength(20)]
+    public string? ConditionAfter { get; set; }
+    
+    public bool IsSynced { get; set; } = false;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+}
+
+/// <summary>
+/// Equipment Groups - Nhóm thiết bị
+/// For group task assignments (e.g., "All Fire Extinguishers", "All Safety Equipment")
+/// </summary>
+public class EquipmentGroup
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// Unique group code (e.g., FIRE-EXT, LIFE-BOAT, PUMP-ALL)
+    /// </summary>
+    [Required]
+    [MaxLength(50)]
+    public string GroupCode { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Group name (e.g., "All Fire Extinguishers", "All Life Boats")
+    /// </summary>
+    [Required]
+    [MaxLength(200)]
+    public string GroupName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Category (same as EquipmentAsset.Category)
+    /// </summary>
+    [MaxLength(50)]
+    public string? Category { get; set; }
+    
+    /// <summary>
+    /// Description
+    /// </summary>
+    public string? Description { get; set; }
+    
+    public bool IsActive { get; set; } = true;
+    
+    public bool IsSynced { get; set; } = false;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+}
+
+/// <summary>
+/// Equipment Group Members - Thành viên của nhóm thiết bị
+/// Many-to-many relationship between EquipmentGroup and EquipmentAsset
+/// </summary>
+public class EquipmentGroupMember
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// FK -> EquipmentGroup.Id
+    /// </summary>
+    [Required]
+    public Guid GroupId { get; set; }
+    
+    /// <summary>
+    /// FK -> EquipmentAsset.Id
+    /// </summary>
+    [Required]
+    public Guid AssetId { get; set; }
+    
+    /// <summary>
+    /// Sequence order in group (for checklist display)
+    /// </summary>
+    public int SequenceOrder { get; set; } = 0;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation properties
+    public virtual EquipmentAsset Asset { get; set; } = null!;
+    public virtual EquipmentGroup Group { get; set; } = null!;
+}
+
+
+
 

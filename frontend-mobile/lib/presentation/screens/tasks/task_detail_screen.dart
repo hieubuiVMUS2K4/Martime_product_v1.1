@@ -107,7 +107,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(AppLocalizations.of(context).taskDataRefreshed),
-            duration: Duration(seconds: 1),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -230,7 +230,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ),
                       
                       const SizedBox(height: 10),
-                      Divider(height: 1, color: MaritimeColors.border),
+                      const Divider(height: 1, color: MaritimeColors.border),
                       const SizedBox(height: 10),
                       
                       // Description (only show if not empty)
@@ -1361,14 +1361,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           fillColor: MaritimeColors.surface,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(6),
-                            borderSide: BorderSide(
+                            borderSide: const BorderSide(
                               color: MaritimeColors.border,
                               width: 1,
                             ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(6),
-                            borderSide: BorderSide(
+                            borderSide: const BorderSide(
                               color: MaritimeColors.border,
                               width: 1,
                             ),
@@ -1411,14 +1411,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           fillColor: MaritimeColors.surface,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(6),
-                            borderSide: BorderSide(
+                            borderSide: const BorderSide(
                               color: MaritimeColors.border,
                               width: 1,
                             ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(6),
-                            borderSide: BorderSide(
+                            borderSide: const BorderSide(
                               color: MaritimeColors.border,
                               width: 1,
                             ),
@@ -1480,7 +1480,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             onPressed: () => Navigator.pop(context),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 14),
-                              side: BorderSide(
+                              side: const BorderSide(
                                 color: MaritimeColors.border,
                                 width: 1.5,
                               ),
@@ -1729,7 +1729,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   final confirmed = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
-                      icon: Icon(
+                      icon: const Icon(
                         Icons.warning_rounded,
                         color: MaritimeColors.overdue,
                         size: 44,

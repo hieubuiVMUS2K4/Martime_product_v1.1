@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from '../components/layout';
-import { DashboardPage, CategoryManagementPage, CrewManagementPage } from '../pages';
+import { DashboardPage, CategoryManagementPage, CrewManagementPage, MasterSchedulePage } from '../pages';
 import { WorkAssignmentPage } from '../pages/WorkAssignment';
 
 /**
@@ -22,6 +22,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/categories" element={<CategoryManagementPage />} />
         <Route path="/crew" element={<CrewManagementPage />} />
         <Route path="/work-assignments" element={<WorkAssignmentPage />} />
+        <Route path="/pms/master-schedule" element={<MasterSchedulePage />} />
         
         {/* TODO: Add more routes */}
         {/* <Route path="/vessels" element={<VesselManagementPage />} /> */}

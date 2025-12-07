@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using MaritimeEdge.Constants;
+using MaritimeEdge.Services;
 using MTaskStatus = MaritimeEdge.Constants.TaskStatus; // Alias to avoid ambiguity
 
 namespace MaritimeEdge.Controllers;
@@ -12,11 +13,16 @@ namespace MaritimeEdge.Controllers;
 public class MaintenanceController : ControllerBase
 {
     private readonly EdgeDbContext _context;
+    private readonly MaintenanceCompletionService _completionService;
     private readonly ILogger<MaintenanceController> _logger;
 
-    public MaintenanceController(EdgeDbContext context, ILogger<MaintenanceController> logger)
+    public MaintenanceController(
+        EdgeDbContext context, 
+        MaintenanceCompletionService completionService,
+        ILogger<MaintenanceController> logger)
     {
         _context = context;
+        _completionService = completionService;
         _logger = logger;
     }
 
@@ -573,28 +579,38 @@ public class MaintenanceController : ControllerBase
     {
         try
         {
-            var task = await _context.MaintenanceTasks.FindAsync(id);
-            if (task == null)
+            // Use MaintenanceCompletionService for automatic spare parts deduction
+            var sparePartsUsed = request.SparePartsUsed != null
+                ? System.Text.Json.JsonSerializer.Deserialize<List<SparePartUsage>>(request.SparePartsUsed) ?? new List<SparePartUsage>()
+                : new List<SparePartUsage>();
+
+            var result = await _completionService.CompleteTaskAsync(
+                id,
+                request.CompletedBy,
+                sparePartsUsed,
+                request.Notes,
+                request.ConditionAfter
+            );
+
+            if (!result.IsSuccess)
             {
-                return NotFound(new { message = "Task not found" });
+                return BadRequest(new { error = result.ErrorMessage });
             }
 
-            task.Status = MTaskStatus.COMPLETED;
-            task.CompletedAt = DateTime.UtcNow;
-            task.CompletedBy = request.CompletedBy;
-            task.Notes = request.Notes;
-            task.SparePartsUsed = request.SparePartsUsed;
-            task.LastDoneAt = DateTime.UtcNow;
-            
-            // Calculate next due date
-            if (task.IntervalDays.HasValue)
+            var response = new
             {
-                task.NextDueAt = DateTime.UtcNow.AddDays(task.IntervalDays.Value);
+                message = "Task completed successfully",
+                deductedSpareParts = result.DeductedItems,
+                warnings = result.Warnings
+            };
+
+            if (result.Warnings != null && result.Warnings.Any())
+            {
+                _logger.LogWarning("Task {TaskId} completed with warnings: {Warnings}", 
+                    id, string.Join(", ", result.Warnings));
             }
 
-            await _context.SaveChangesAsync();
-
-            return Ok(task);
+            return Ok(response);
         }
         catch (Exception ex)
         {
@@ -818,6 +834,7 @@ public class MaintenanceController : ControllerBase
         public string CompletedBy { get; set; } = string.Empty;
         public string? Notes { get; set; }
         public string? SparePartsUsed { get; set; }
+        public string? ConditionAfter { get; set; }
     }
 
     public class CreateMaintenanceTaskRequest

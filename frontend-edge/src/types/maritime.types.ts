@@ -246,7 +246,7 @@ export interface CrewMember {
 }
 
 export interface MaintenanceTask {
-  id: string // Guid
+  id: number
   taskId: string
   equipmentId: string
   equipmentName: string
@@ -266,6 +266,9 @@ export interface MaintenanceTask {
   sparePartsUsed?: string
   isSynced: boolean
   createdAt: string
+  startedAt?: string
+  updatedAt?: string
+  originNode?: string
 }
 
 export interface CargoOperation {
