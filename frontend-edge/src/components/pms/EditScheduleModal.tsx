@@ -59,7 +59,14 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
             quantityRequired: sp.quantityRequired,
             isMandatory: sp.isMandatory ?? true
           })) || [],
-          checklistItemTemplates: [] as ChecklistItemTemplateDto[] // TODO: Load from API
+          checklistItemTemplates: schedule.checklistItemTemplates?.map(t => ({
+            sequenceOrder: t.sequenceOrder,
+            checkpointDescription: t.checkpointDescription,
+            requiresReading: t.requiresReading,
+            normalRangeMin: t.normalRangeMin,
+            normalRangeMax: t.normalRangeMax,
+            unit: t.unit
+          })) || []
         });
         // Load assets for the selected group
         if (schedule.equipmentGroupId) {
@@ -187,7 +194,8 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
         daysBeforeDue: formData.daysBeforeDue,
         priority: formData.priority,
         autoGenerate: formData.autoGenerate,
-        requiredSpareParts: formData.requiredSpareParts
+        requiredSpareParts: formData.requiredSpareParts,
+        checklistItemTemplates: formData.checklistItemTemplates
       });
 
       toast.success('Schedule updated successfully');

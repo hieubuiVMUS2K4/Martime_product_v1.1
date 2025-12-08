@@ -236,31 +236,19 @@ public class MaintenanceSchedulerService : BackgroundService
             // Determine task assignee (PIC) for entire group using department-aware 4-tier waterfall
             var assignedTo = await DetermineGroupPIC(context, schedule, group);
 
-            // Determine initial status based on assignment completeness and priority
-            // 1. Start with TASK status (incomplete/unassigned)
-            // 2. If fully assigned:
-            //    - LOW/MEDIUM → PENDING (ready for execution)
-            //    - HIGH/CRITICAL → PENDING_APPROVAL (requires approval)
-            string initialStatus = "TASK"; // Default: incomplete task
+            // Check if checklist templates exist (for validation)
+            var hasChecklistTemplates = await context.ScheduleChecklistTemplates
+                .AnyAsync(t => t.ScheduleId == schedule.Id);
+
+            // Determine initial status with validation:
+            // 1. Validate checklist existence
+            // 2. Validate PIC assignment
+            // 3. Only move to PENDING/PENDING_APPROVAL if both are satisfied
+            string initialStatus = DetermineTaskStatus(assignedTo, hasChecklistTemplates, schedule.Priority);
             
-            if (!string.IsNullOrWhiteSpace(assignedTo))
-            {
-                // Task has full assignment
-                if (schedule.Priority == "HIGH" || schedule.Priority == "CRITICAL")
-                {
-                    initialStatus = "PENDING_APPROVAL"; // Requires C/E approval
-                    _logger.LogDebug("Task assigned with HIGH/CRITICAL priority → PENDING_APPROVAL");
-                }
-                else
-                {
-                    initialStatus = "PENDING"; // Ready for execution
-                    _logger.LogDebug("Task assigned with LOW/MEDIUM priority → PENDING");
-                }
-            }
-            else
-            {
-                _logger.LogDebug("Task unassigned → TASK (Work Planner must assign)");
-            }
+            _logger.LogDebug(
+                "Task status determined: {Status} (HasPIC: {HasPIC}, HasChecklist: {HasChecklist}, Priority: {Priority})",
+                initialStatus, !string.IsNullOrWhiteSpace(assignedTo), hasChecklistTemplates, schedule.Priority);
 
             // Create maintenance task for entire group
             var task = new MaintenanceTask
@@ -478,6 +466,50 @@ public class MaintenanceSchedulerService : BackgroundService
             {
                 schedule.NextDueDate = calendarDue ?? runningHoursDue;
             }
+        }
+    }
+
+    /// <summary>
+    /// Determine task status based on validation rules:
+    /// - MISSING_BOTH: No PIC and no checklist
+    /// - MISSING_PIC: Has checklist but no PIC assigned
+    /// - MISSING_CHECKLIST: Has PIC but no checklist defined
+    /// - PENDING_APPROVAL: HIGH/CRITICAL with both PIC and checklist
+    /// - PENDING: LOW/MEDIUM with both PIC and checklist
+    /// </summary>
+    private string DetermineTaskStatus(string? assignedTo, bool hasChecklist, string priority)
+    {
+        bool hasPIC = !string.IsNullOrWhiteSpace(assignedTo);
+
+        // Validation: Check for missing requirements
+        if (!hasPIC && !hasChecklist)
+        {
+            _logger.LogWarning("Task missing both PIC and checklist → MISSING_BOTH");
+            return "MISSING_BOTH";
+        }
+        
+        if (!hasPIC)
+        {
+            _logger.LogWarning("Task missing PIC assignment → MISSING_PIC");
+            return "MISSING_PIC";
+        }
+        
+        if (!hasChecklist)
+        {
+            _logger.LogWarning("Task missing checklist templates → MISSING_CHECKLIST");
+            return "MISSING_CHECKLIST";
+        }
+
+        // Both PIC and checklist exist - determine based on priority
+        if (priority == "HIGH" || priority == "CRITICAL")
+        {
+            _logger.LogDebug("Task ready for approval: HIGH/CRITICAL priority → PENDING_APPROVAL");
+            return "PENDING_APPROVAL";
+        }
+        else
+        {
+            _logger.LogDebug("Task ready for execution: LOW/MEDIUM priority → PENDING");
+            return "PENDING";
         }
     }
 

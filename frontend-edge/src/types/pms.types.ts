@@ -62,6 +62,7 @@ export interface MaintenanceSchedule {
   instructions?: string;
   isActive: boolean;
   requiredSpareParts?: ScheduleSparePart[];
+  checklistItemTemplates?: ChecklistItemTemplateDto[];
 }
 
 export interface ScheduleSparePart {

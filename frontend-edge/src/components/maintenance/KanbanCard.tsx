@@ -71,11 +71,41 @@ export function KanbanCard({ task, onClick, isDragging = false, onAssignChange }
 
   const getStatusConfig = () => {
     switch (task.status) {
+      case 'MISSING_BOTH': return {
+        bg: 'bg-red-50',
+        text: 'text-red-700',
+        dot: 'bg-red-600',
+        label: '⚠️ Missing Checklist & PIC'
+      }
+      case 'MISSING_CHECKLIST': return {
+        bg: 'bg-red-50',
+        text: 'text-red-700',
+        dot: 'bg-red-500',
+        label: '⚠️ Missing Checklist'
+      }
+      case 'MISSING_PIC': return {
+        bg: 'bg-orange-50',
+        text: 'text-orange-700',
+        dot: 'bg-orange-500',
+        label: '⚠️ Missing PIC'
+      }
+      case 'PENDING_APPROVAL': return {
+        bg: 'bg-purple-50',
+        text: 'text-purple-700',
+        dot: 'bg-purple-500',
+        label: 'Pending Approval'
+      }
       case 'PENDING': return { 
         bg: 'bg-blue-50', 
         text: 'text-blue-700',
         dot: 'bg-blue-500',
-        label: 'Not Started' 
+        label: 'Pending' 
+      }
+      case 'REJECTED': return {
+        bg: 'bg-yellow-50',
+        text: 'text-yellow-700',
+        dot: 'bg-yellow-500',
+        label: 'Rejected'
       }
       case 'OVERDUE': return { 
         bg: 'bg-red-50', 
@@ -87,13 +117,19 @@ export function KanbanCard({ task, onClick, isDragging = false, onAssignChange }
         bg: 'bg-orange-50', 
         text: 'text-orange-700',
         dot: 'bg-orange-500',
-        label: 'In Research' 
+        label: 'In Progress' 
       }
       case 'COMPLETED': return { 
         bg: 'bg-green-50', 
         text: 'text-green-700',
         dot: 'bg-green-500',
         label: 'Complete' 
+      }
+      case 'CANCELLED': return {
+        bg: 'bg-gray-50',
+        text: 'text-gray-700',
+        dot: 'bg-gray-500',
+        label: 'Cancelled'
       }
       default: return { 
         bg: 'bg-gray-50', 

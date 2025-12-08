@@ -59,6 +59,8 @@ public class MaintenanceScheduleDto
     public bool IsActive { get; set; } = true;
     
     public List<ScheduleSparePartDto>? RequiredSpareParts { get; set; }
+    
+    public List<ChecklistItemTemplateDto>? ChecklistItemTemplates { get; set; }
 }
 
 /// <summary>

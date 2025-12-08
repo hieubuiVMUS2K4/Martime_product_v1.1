@@ -375,12 +375,18 @@ export function KanbanBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskClick, on
     // Map database status to Kanban columns
     switch (task.status) {
       case 'TASK': return 'task'
+      // Validation statuses: Tasks with missing requirements stay in TASK column
+      case 'MISSING_BOTH': return 'task'
+      case 'MISSING_CHECKLIST': return 'task'
+      case 'MISSING_PIC': return 'task'
+      // Workflow statuses
       case 'PENDING_APPROVAL': return 'pending-approval'
       case 'REJECTED': return 'rejected'
       case 'PENDING': return 'pending'
       case 'OVERDUE': return 'overdue'
       case 'IN_PROGRESS': return 'in-progress'
       case 'COMPLETED': return 'completed'
+      case 'CANCELLED': return 'completed' // Group with completed tasks
       default: return 'task' // Default to TASK for unknown status
     }
   }

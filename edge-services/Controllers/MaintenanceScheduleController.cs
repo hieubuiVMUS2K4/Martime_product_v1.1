@@ -330,6 +330,38 @@ public class MaintenanceScheduleController : ControllerBase
                 await _scheduleRepository.AddSparePartsAsync(id, spareParts);
             }
 
+            // Update checklist templates - remove all and re-add
+            var existingTemplates = await _context.ScheduleChecklistTemplates
+                .Where(t => t.ScheduleId == id)
+                .ToListAsync();
+            
+            _context.ScheduleChecklistTemplates.RemoveRange(existingTemplates);
+            await _context.SaveChangesAsync();
+
+            if (dto.ChecklistItemTemplates != null && dto.ChecklistItemTemplates.Count > 0)
+            {
+                var templates = dto.ChecklistItemTemplates.Select(t => new ScheduleChecklistTemplate
+                {
+                    ScheduleId = id,
+                    SequenceOrder = t.SequenceOrder,
+                    CheckpointDescription = t.CheckpointDescription,
+                    RequiresReading = t.RequiresReading,
+                    NormalRangeMin = t.NormalRangeMin,
+                    NormalRangeMax = t.NormalRangeMax,
+                    Unit = t.Unit,
+                    CreatedAt = DateTime.UtcNow
+                }).ToList();
+
+                _context.ScheduleChecklistTemplates.AddRange(templates);
+                await _context.SaveChangesAsync();
+                
+                _logger.LogInformation("Updated {Count} checklist templates for schedule {ScheduleCode}", 
+                    templates.Count, updated.ScheduleCode);
+            }
+
+            // AUTO-UPDATE EXISTING TASKS: Sync checklist changes to active tasks
+            await SyncChecklistToActiveTasks(id, updated.ScheduleCode);
+
             _logger.LogInformation("Updated maintenance schedule {ScheduleCode}", updated.ScheduleCode);
 
             var resultDto = await MapToDtoAsync(updated);
@@ -373,6 +405,10 @@ public class MaintenanceScheduleController : ControllerBase
         var groupMembersCount = await _context.EquipmentGroupMembers
             .CountAsync(egm => egm.GroupId == schedule.EquipmentGroupId);
         var spareParts = await _scheduleRepository.GetSparePartsByScheduleIdAsync(schedule.Id);
+        var checklistTemplates = await _context.ScheduleChecklistTemplates
+            .Where(t => t.ScheduleId == schedule.Id)
+            .OrderBy(t => t.SequenceOrder)
+            .ToListAsync();
 
         return new MaintenanceScheduleDto
         {
@@ -405,8 +441,141 @@ public class MaintenanceScheduleController : ControllerBase
                 QuantityRequired = sp.QuantityRequired,
                 IsMandatory = sp.IsMandatory,
                 Notes = sp.Notes
+            }).ToList(),
+            ChecklistItemTemplates = checklistTemplates.Select(t => new ChecklistItemTemplateDto
+            {
+                SequenceOrder = t.SequenceOrder,
+                CheckpointDescription = t.CheckpointDescription,
+                RequiresReading = t.RequiresReading,
+                NormalRangeMin = t.NormalRangeMin,
+                NormalRangeMax = t.NormalRangeMax,
+                Unit = t.Unit
             }).ToList()
         };
+    }
+
+    /// <summary>
+    /// Sync checklist template changes to active tasks (not IN_PROGRESS or COMPLETED)
+    /// </summary>
+    private async Task SyncChecklistToActiveTasks(Guid scheduleId, string scheduleCode)
+    {
+        try
+        {
+            // Find all active tasks for this schedule (TASK, MISSING_*, PENDING_APPROVAL, PENDING)
+            var activeTasks = await _context.MaintenanceTasks
+                .Where(t => t.TaskId.StartsWith($"SCHED-{scheduleCode}") &&
+                           t.Status != "IN_PROGRESS" &&
+                           t.Status != "COMPLETED" &&
+                           t.Status != "CANCELLED")
+                .ToListAsync();
+
+            if (!activeTasks.Any())
+            {
+                _logger.LogDebug("No active tasks found for schedule {ScheduleCode}", scheduleCode);
+                return;
+            }
+
+            // Get updated templates
+            var newTemplates = await _context.ScheduleChecklistTemplates
+                .Where(t => t.ScheduleId == scheduleId)
+                .OrderBy(t => t.SequenceOrder)
+                .ToListAsync();
+
+            int tasksUpdated = 0;
+            int checklistItemsAdded = 0;
+
+            foreach (var task in activeTasks)
+            {
+                // Get equipment group to find assets
+                var groupMembers = await _context.EquipmentGroupMembers
+                    .Where(egm => egm.GroupId == task.EquipmentGroupId)
+                    .Include(egm => egm.Asset)
+                    .Where(egm => egm.Asset != null && egm.Asset.IsActive)
+                    .ToListAsync();
+
+                if (!groupMembers.Any()) continue;
+
+                // Remove existing checklist items for this task
+                var existingItems = await _context.TaskChecklistItems
+                    .Where(ci => ci.TaskId == task.TaskId)
+                    .ToListAsync();
+                
+                _context.TaskChecklistItems.RemoveRange(existingItems);
+
+                // Add new checklist items based on updated templates
+                if (newTemplates.Any())
+                {
+                    foreach (var member in groupMembers)
+                    {
+                        var asset = member.Asset;
+                        if (asset == null) continue;
+
+                        foreach (var template in newTemplates)
+                        {
+                            var checklistItem = new TaskChecklistItem
+                            {
+                                TaskId = task.TaskId,
+                                AssetId = asset.Id,
+                                AssetCode = asset.AssetCode,
+                                AssetName = asset.AssetName,
+                                SequenceOrder = template.SequenceOrder,
+                                CheckpointDescription = template.CheckpointDescription,
+                                RequiresReading = template.RequiresReading,
+                                NormalRangeMin = template.NormalRangeMin,
+                                NormalRangeMax = template.NormalRangeMax,
+                                Unit = template.Unit,
+                                IsCompleted = false,
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            _context.TaskChecklistItems.Add(checklistItem);
+                            checklistItemsAdded++;
+                        }
+                    }
+                }
+
+                // UPDATE TASK STATUS based on new validation
+                var hasPIC = !string.IsNullOrWhiteSpace(task.AssignedTo);
+                var hasChecklist = newTemplates.Any();
+                var oldStatus = task.Status;
+                var newStatus = DetermineTaskStatus(task.AssignedTo, hasChecklist, task.Priority);
+
+                if (oldStatus != newStatus)
+                {
+                    task.Status = newStatus;
+                    task.UpdatedAt = DateTime.UtcNow;
+                    _logger.LogInformation(
+                        "Task {TaskId} status updated: {OldStatus} → {NewStatus} (PIC: {HasPIC}, Checklist: {HasChecklist})",
+                        task.TaskId, oldStatus, newStatus, hasPIC, hasChecklist);
+                }
+
+                tasksUpdated++;
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Synced checklist changes to {TaskCount} active tasks: {ItemCount} checklist items updated for schedule {ScheduleCode}",
+                tasksUpdated, checklistItemsAdded, scheduleCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error syncing checklist to active tasks for schedule {ScheduleCode}", scheduleCode);
+            // Don't throw - this is a background sync operation
+        }
+    }
+
+    /// <summary>
+    /// Determine task status based on validation rules (shared with scheduler)
+    /// </summary>
+    private string DetermineTaskStatus(string? assignedTo, bool hasChecklist, string priority)
+    {
+        bool hasPIC = !string.IsNullOrWhiteSpace(assignedTo);
+
+        if (!hasPIC && !hasChecklist) return "MISSING_BOTH";
+        if (!hasPIC) return "MISSING_PIC";
+        if (!hasChecklist) return "MISSING_CHECKLIST";
+
+        return (priority == "HIGH" || priority == "CRITICAL") ? "PENDING_APPROVAL" : "PENDING";
     }
 
     private void CalculateNextDueDate(MaintenanceSchedule schedule, EquipmentAsset asset)

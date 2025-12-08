@@ -7,7 +7,7 @@
 // TASK TYPES
 // ============================================================
 
-export type TaskStatus = 'TASK' | 'PENDING' | 'PENDING_APPROVAL' | 'REJECTED' | 'OVERDUE' | 'IN_PROGRESS' | 'COMPLETED';
+export type TaskStatus = 'TASK' | 'MISSING_BOTH' | 'MISSING_CHECKLIST' | 'MISSING_PIC' | 'PENDING' | 'PENDING_APPROVAL' | 'REJECTED' | 'OVERDUE' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 export type TaskPriority = 'CRITICAL' | 'HIGH' | 'NORMAL' | 'LOW';
 
 export interface MaintenanceTask {

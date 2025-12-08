@@ -265,7 +265,7 @@ export interface MaintenanceTask {
   nextDueAt: string
   runningHoursAtLastDone?: number
   priority: 'CRITICAL' | 'HIGH' | 'NORMAL' | 'LOW'
-  status: 'TASK' | 'PENDING' | 'PENDING_APPROVAL' | 'REJECTED' | 'OVERDUE' | 'IN_PROGRESS' | 'COMPLETED'
+  status: 'TASK' | 'MISSING_BOTH' | 'MISSING_CHECKLIST' | 'MISSING_PIC' | 'PENDING' | 'PENDING_APPROVAL' | 'REJECTED' | 'OVERDUE' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
   assignedTo?: string
   completedAt?: string
   completedBy?: string
