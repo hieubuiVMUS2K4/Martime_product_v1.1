@@ -99,7 +99,7 @@ export function MaintenancePage() {
     // Search filter
     if (searchQuery) {
       filtered = filtered.filter(task =>
-        task.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (task.equipmentGroupName || task.equipmentName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         task.taskDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
         task.taskId.toLowerCase().includes(searchQuery.toLowerCase())
       )

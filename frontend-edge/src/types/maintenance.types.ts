@@ -14,8 +14,15 @@ export interface MaintenanceTask {
   id: number;
   taskId: string;
   taskTypeId?: number;
-  equipmentId: string;
-  equipmentName: string;
+  
+  // LEGACY: Individual asset fields (nullable for backward compatibility)
+  equipmentId?: string;
+  equipmentName?: string;
+  
+  // NEW: Equipment group fields (for group-based tasks)
+  equipmentGroupId?: string;
+  equipmentGroupName?: string;
+  
   taskType: string; // RUNNING_HOURS, CALENDAR, CONDITION
   taskDescription: string;
   

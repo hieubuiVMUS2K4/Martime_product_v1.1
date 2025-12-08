@@ -178,7 +178,20 @@ export default function ViewAssetModal({ isOpen, asset, onClose }: ViewAssetModa
 
           {/* Equipment Groups */}
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Equipment Groups</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Equipment Groups</h3>
+              {!showAddGroups && (
+                <button
+                  onClick={() => setShowAddGroups(true)}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add to Groups
+                </button>
+              )}
+            </div>
             {loading ? (
               <p className="text-sm text-gray-500">Loading groups...</p>
             ) : groups.length > 0 ? (
@@ -202,13 +215,7 @@ export default function ViewAssetModal({ isOpen, asset, onClose }: ViewAssetModa
               </div>
             ) : (
               <div className="text-center py-6 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-500 mb-3">This asset is not assigned to any groups</p>
-                <button
-                  onClick={() => setShowAddGroups(true)}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  + Add to Groups
-                </button>
+                <p className="text-sm text-gray-500">This asset is not assigned to any groups</p>
               </div>
             )}
             

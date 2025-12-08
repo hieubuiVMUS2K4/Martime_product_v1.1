@@ -60,7 +60,7 @@ export default function ApprovalDashboardPage() {
 
     try {
       setActionLoading(true);
-      await approveTask(selectedTask.id, currentUserCrewId);
+      await approveTask(selectedTask.taskId, currentUserCrewId);
       
       toast.success('Task approved successfully');
       
@@ -86,7 +86,7 @@ export default function ApprovalDashboardPage() {
 
     try {
       setActionLoading(true);
-      await rejectTask(selectedTask.id, currentUserCrewId, rejectionReason);
+      await rejectTask(selectedTask.taskId, currentUserCrewId, rejectionReason);
       
       toast.success('Task rejected');
       

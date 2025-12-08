@@ -2,7 +2,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { MaintenanceTask, parseTaskScheduleInfo, CrewMember } from '../../types/maritime.types'
 import { format, parseISO } from 'date-fns'
-import { Calendar, Package, UserCircle } from 'lucide-react'
+import { Calendar, Package, UserCircle, ListChecks, AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { maritimeService } from '../../services/maritime.service'
@@ -160,14 +160,30 @@ export function KanbanCard({ task, onClick, isDragging = false, onAssignChange }
 
       {/* Title - Show Group Name if available, otherwise Equipment Name */}
       <h4 className="font-semibold text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
-        {scheduleInfo.groupName || task.equipmentName}
+        {task.equipmentGroupName || task.equipmentName}
       </h4>
 
-      {/* Subtitle - Show Equipment Name if Group Name exists */}
-      {scheduleInfo.groupName && (
+      {/* Checklist Badge for Group Tasks */}
+      {task.equipmentGroupId && task.checklistItems && (
+        <div className="mb-2 flex items-center gap-2">
+          <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-medium">
+            <ListChecks className="w-3 h-3" />
+            {task.checklistItems.filter(item => item.isCompleted).length}/{task.checklistItems.length} assets
+          </span>
+          {task.checklistItems.some(item => item.isAbnormal && !item.isCompleted) && (
+            <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded text-[10px] font-medium">
+              <AlertTriangle className="w-3 h-3" />
+              Abnormal
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Subtitle - Show legacy equipment name if exists (backward compat) */}
+      {task.equipmentGroupId && task.equipmentName && (
         <p className="text-xs text-gray-600 mb-2 flex items-center gap-1">
           <Package className="w-3 h-3" />
-          {task.equipmentName}
+          Legacy: {task.equipmentName}
         </p>
       )}
 

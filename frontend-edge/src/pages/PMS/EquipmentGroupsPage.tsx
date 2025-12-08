@@ -3,8 +3,8 @@
  * Manage equipment groups with Department and PIC assignments
  */
 
-import { useState, useEffect } from 'react';
-import { Package, Plus, Edit2, Trash2, X } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Package, Plus, Edit2, Trash2, X, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { equipmentGroupService } from '@/services/equipment-group.service';
 import { maritimeService } from '@/services/maritime.service';
 import type { EquipmentGroup } from '@/types/pms.types';
@@ -37,7 +37,7 @@ const PIC_ROLES = [
   { value: '2/E', label: '2/E - Máy hai', departments: ['ENGINE'] },
   { value: '3/E', label: '3/E - Máy ba', departments: ['ENGINE'] },
   { value: '4/E', label: '4/E - Máy bốn', departments: ['ENGINE'] },
-  { value: 'E/O', label: 'E/O - Sỹ quan điện', departments: ['ELECTRICAL', 'ENGINE'] },
+  { value: 'E/O', label: 'E/O - Sỹ quan điện', departments: ['ENGINE'] }, // Changed: E/O crew is in ENGINE dept
   { value: '2/O', label: '2/O - Sỹ quan hai', departments: ['DECK', 'NAVIGATION'] },
   { value: '3/O', label: '3/O - Sỹ quan ba', departments: ['DECK', 'NAVIGATION'] },
   { value: 'BOSUN', label: 'BOSUN - Thủy thủ trưởng', departments: ['DECK'] },
@@ -70,6 +70,16 @@ export default function EquipmentGroupsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingGroup, setEditingGroup] = useState<EquipmentGroup | null>(null);
+  
+  // Search & Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  
   const [formData, setFormData] = useState<GroupFormData>({
     groupCode: '',
     groupName: '',
@@ -84,6 +94,32 @@ export default function EquipmentGroupsPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Filtered and paginated groups
+  const filteredGroups = useMemo(() => {
+    return groups.filter(group => {
+      const matchesSearch = 
+        group.groupCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        group.groupName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (group.description?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+      
+      const matchesDepartment = !selectedDepartment || group.department === selectedDepartment;
+      const matchesCategory = !selectedCategory || group.category === selectedCategory;
+      
+      return matchesSearch && matchesDepartment && matchesCategory;
+    });
+  }, [groups, searchQuery, selectedDepartment, selectedCategory]);
+
+  const totalPages = Math.ceil(filteredGroups.length / itemsPerPage);
+  const paginatedGroups = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredGroups.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredGroups, currentPage, itemsPerPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedDepartment, selectedCategory]);
 
   const loadData = async () => {
     try {
@@ -190,6 +226,11 @@ export default function EquipmentGroupsPage() {
     ? PIC_ROLES.filter(role => role.departments.includes(formData.department))
     : PIC_ROLES;
 
+  // Check if selected PIC Role has actual crew in the department
+  const picRoleHasCrew = formData.picRole && formData.department
+    ? crewList.some(c => c.rank === formData.picRole && c.department === formData.department && c.isOnboard)
+    : true;
+
   if (loading) {
     return (
       <div className="p-6">
@@ -223,8 +264,63 @@ export default function EquipmentGroupsPage() {
         </button>
       </div>
 
+      {/* Search & Filters */}
+      <div className="mb-4 bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Search */}
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by code, name, or description..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Filter Options */}
+        <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+              <select
+                value={selectedDepartment}
+                onChange={(e) => setSelectedDepartment(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Departments</option>
+                {DEPARTMENTS.map(dept => (
+                  <option key={dept.value} value={dept.value}>{dept.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Categories</option>
+                {CATEGORIES.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+        {/* Results Count */}
+        <div className="mt-3 text-sm text-gray-600">
+          Showing {paginatedGroups.length} of {filteredGroups.length} groups
+          {filteredGroups.length !== groups.length && ` (filtered from ${groups.length} total)`}
+        </div>
+      </div>
+
       {/* Groups Table */}
-      {groups.length === 0 ? (
+      {filteredGroups.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -256,7 +352,7 @@ export default function EquipmentGroupsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {groups.map((group) => (
+              {paginatedGroups.map((group) => (
                 <tr key={group.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <span className="font-mono text-sm font-medium text-gray-900">{group.groupCode}</span>
@@ -325,6 +421,58 @@ export default function EquipmentGroupsPage() {
               ))}
             </tbody>
           </table>
+
+          {/* Pagination */}
+          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                Page {currentPage} of {totalPages}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </button>
+                <div className="flex items-center gap-1">
+                  {[...Array(totalPages)].map((_, i) => {
+                    const page = i + 1;
+                    if (
+                      page === 1 ||
+                      page === totalPages ||
+                      (page >= currentPage - 1 && page <= currentPage + 1)
+                    ) {
+                      return (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-3 py-1 border rounded ${
+                            currentPage === page
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      );
+                    } else if (page === currentPage - 2 || page === currentPage + 2) {
+                      return <span key={page} className="px-2">...</span>;
+                    }
+                    return null;
+                  })}
+                </div>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
         </div>
       )}
 
@@ -451,6 +599,28 @@ export default function EquipmentGroupsPage() {
                     <option key={role.value} value={role.value}>{role.label}</option>
                   ))}
                 </select>
+                {formData.department && formData.picRole && !picRoleHasCrew && (
+                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <svg className="w-5 h-5 text-amber-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-amber-800">
+                          ⚠️ No crew member found
+                        </p>
+                        <p className="text-xs text-amber-700 mt-1">
+                          There is no onboard crew with rank <strong>{formData.picRole}</strong> in department <strong>{formData.department}</strong>.
+                          Tasks will not be auto-assigned. Consider:
+                        </p>
+                        <ul className="text-xs text-amber-700 mt-1 ml-4 list-disc space-y-0.5">
+                          <li>Changing department to match crew's actual department</li>
+                          <li>Using "PIC Crew" field to assign specific person</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <p className="text-xs text-gray-500 mt-1">
                   {formData.department 
                     ? `Showing roles for ${formData.department} department`

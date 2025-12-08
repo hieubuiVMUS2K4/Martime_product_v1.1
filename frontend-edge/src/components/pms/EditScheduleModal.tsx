@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, ClipboardList } from 'lucide-react';
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
 import { equipmentGroupService } from '@/services/equipment-group.service';
 import { materialService } from '@/services/materialService';
-import type { MaintenanceSchedule, CreateScheduleSparePartDto, EquipmentGroup } from '@/types/pms.types';
+import type { MaintenanceSchedule, CreateScheduleSparePartDto, EquipmentGroup, ChecklistItemTemplateDto } from '@/types/pms.types';
 import type { MaterialItem } from '@/types/maritime.types';
 import { toast } from 'sonner';
 
@@ -33,7 +33,8 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
     daysBeforeDue: 7,
     priority: 'MEDIUM',
     autoGenerate: true,
-    requiredSpareParts: [] as CreateScheduleSparePartDto[]
+    requiredSpareParts: [] as CreateScheduleSparePartDto[],
+    checklistItemTemplates: [] as ChecklistItemTemplateDto[]
   });
 
   useEffect(() => {
@@ -57,7 +58,8 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
             materialItemId: sp.materialItemId,
             quantityRequired: sp.quantityRequired,
             isMandatory: sp.isMandatory ?? true
-          })) || []
+          })) || [],
+          checklistItemTemplates: [] as ChecklistItemTemplateDto[] // TODO: Load from API
         });
         // Load assets for the selected group
         if (schedule.equipmentGroupId) {
@@ -117,6 +119,37 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
     const updated = [...formData.requiredSpareParts];
     updated[index] = { ...updated[index], [field]: value };
     setFormData({ ...formData, requiredSpareParts: updated });
+  };
+
+  const handleAddChecklistItem = () => {
+    const newOrder = formData.checklistItemTemplates.length + 1;
+    setFormData({
+      ...formData,
+      checklistItemTemplates: [
+        ...formData.checklistItemTemplates,
+        { 
+          sequenceOrder: newOrder, 
+          checkpointDescription: '',
+          requiresReading: false
+        }
+      ]
+    });
+  };
+
+  const handleRemoveChecklistItem = (index: number) => {
+    const updated = [...formData.checklistItemTemplates];
+    updated.splice(index, 1);
+    // Reorder sequence
+    updated.forEach((item, idx) => {
+      item.sequenceOrder = idx + 1;
+    });
+    setFormData({ ...formData, checklistItemTemplates: updated });
+  };
+
+  const handleChecklistItemChange = (index: number, field: keyof ChecklistItemTemplateDto, value: any) => {
+    const updated = [...formData.checklistItemTemplates];
+    updated[index] = { ...updated[index], [field]: value };
+    setFormData({ ...formData, checklistItemTemplates: updated });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -180,7 +213,8 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
       daysBeforeDue: 7,
       priority: 'MEDIUM',
       autoGenerate: true,
-      requiredSpareParts: []
+      requiredSpareParts: [],
+      checklistItemTemplates: []
     });
     onClose();
   };
@@ -469,6 +503,128 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
               <p className="text-sm text-gray-500 text-center py-4">
                 No spare parts added. Click "Add Part" to specify required materials.
               </p>
+            )}
+          </div>
+
+          {/* Checklist Items Template */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Checklist Items</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Define checkpoint items for each asset in the equipment group
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddChecklistItem}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                <ClipboardList className="w-4 h-4" />
+                Add Checkpoint
+              </button>
+            </div>
+
+            {formData.checklistItemTemplates && formData.checklistItemTemplates.length > 0 ? (
+              <div className="space-y-3">
+                {formData.checklistItemTemplates.map((item, index) => (
+                  <div key={index} className="flex gap-3 items-start p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-sm">
+                      {item.sequenceOrder}
+                    </div>
+                    
+                    <div className="flex-1 space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Checkpoint Description <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={item.checkpointDescription}
+                          onChange={(e) => handleChecklistItemChange(index, 'checkpointDescription', e.target.value)}
+                          placeholder="E.g., Check oil level, Inspect filter condition, Measure temperature"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                          required
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={item.requiresReading || false}
+                            onChange={(e) => handleChecklistItemChange(index, 'requiresReading', e.target.checked)}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <label className="ml-2 text-sm text-gray-700">
+                            Requires Reading Value
+                          </label>
+                        </div>
+                      </div>
+
+                      {item.requiresReading && (
+                        <div className="grid grid-cols-3 gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Min Value (Normal Range)
+                            </label>
+                            <input
+                              type="number"
+                              value={item.normalRangeMin ?? ''}
+                              onChange={(e) => handleChecklistItemChange(index, 'normalRangeMin', e.target.value ? parseFloat(e.target.value) : undefined)}
+                              placeholder="0"
+                              step="0.01"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Max Value (Normal Range)
+                            </label>
+                            <input
+                              type="number"
+                              value={item.normalRangeMax ?? ''}
+                              onChange={(e) => handleChecklistItemChange(index, 'normalRangeMax', e.target.value ? parseFloat(e.target.value) : undefined)}
+                              placeholder="100"
+                              step="0.01"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Unit
+                            </label>
+                            <input
+                              type="text"
+                              value={item.unit ?? ''}
+                              onChange={(e) => handleChecklistItemChange(index, 'unit', e.target.value)}
+                              placeholder="°C, bar, rpm"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveChecklistItem(index)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg flex-shrink-0"
+                      title="Remove checkpoint"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg">
+                <ClipboardList className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-sm text-gray-500 mb-1">No checklist items defined</p>
+                <p className="text-xs text-gray-400">
+                  Add checkpoint items that technicians will verify for each asset in this maintenance task
+                </p>
+              </div>
             )}
           </div>
 

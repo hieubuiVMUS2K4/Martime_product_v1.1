@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
+using MaritimeEdge.DTOs;
 using MaritimeEdge.Constants;
 using MaritimeEdge.Services;
 using MTaskStatus = MaritimeEdge.Constants.TaskStatus; // Alias to avoid ambiguity
@@ -186,8 +187,10 @@ public class MaintenanceController : ControllerBase
             var totalCount = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
-            // Get paginated data
+            // Get paginated data with related data
             var tasks = await query
+                .Include(t => t.EquipmentGroup)
+                .Include(t => t.ChecklistItems)
                 .OrderBy(t => t.NextDueAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
@@ -339,7 +342,10 @@ public class MaintenanceController : ControllerBase
     {
         try
         {
-            var task = await _context.MaintenanceTasks.FindAsync(id);
+            var task = await _context.MaintenanceTasks
+                .Include(t => t.EquipmentGroup)
+                .Include(t => t.ChecklistItems.OrderBy(ci => ci.SequenceOrder))
+                .FirstOrDefaultAsync(t => t.Id == id);
             
             if (task == null)
             {
@@ -415,7 +421,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpPut("tasks/{id}")]
-    public async Task<IActionResult> UpdateTask(Guid id, [FromBody] MaintenanceTask task)
+    public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskDto dto)
     {
         try
         {
@@ -426,40 +432,42 @@ public class MaintenanceController : ControllerBase
             }
 
             // ⚠️ IMPORTANT: Validate status transition to prevent conflicts
-            if (task.Status != existing.Status)
+            if (dto.Status != existing.Status)
             {
-                var validationResult = ValidateStatusTransition(existing.Status, task.Status, existing);
+                var validationResult = ValidateStatusTransition(existing.Status, dto.Status, existing);
                 if (!validationResult.IsValid)
                 {
                     return BadRequest(new { 
                         error = "Invalid status transition", 
                         message = validationResult.Message,
                         currentStatus = existing.Status,
-                        attemptedStatus = task.Status
+                        attemptedStatus = dto.Status
                     });
                 }
             }
 
-            // Update all properties
-            existing.TaskId = task.TaskId;
-            existing.EquipmentId = task.EquipmentId;
-            existing.EquipmentName = task.EquipmentName;
-            existing.TaskType = task.TaskType;
-            existing.TaskDescription = task.TaskDescription;
-            existing.IntervalHours = task.IntervalHours;
-            existing.IntervalDays = task.IntervalDays;
-            existing.NextDueAt = task.NextDueAt;
-            existing.Priority = task.Priority;
-            existing.Status = task.Status;
-            existing.AssignedTo = task.AssignedTo;
-            existing.Notes = task.Notes;
-            existing.SparePartsUsed = task.SparePartsUsed;
+            // Update properties from DTO (excludes navigation properties like ChecklistItems)
+            existing.TaskId = dto.TaskId;
+            existing.EquipmentId = dto.EquipmentId;
+            existing.EquipmentName = dto.EquipmentName;
+            existing.EquipmentGroupId = dto.EquipmentGroupId;
+            existing.EquipmentGroupName = dto.EquipmentGroupName;
+            existing.TaskType = dto.TaskType;
+            existing.TaskDescription = dto.TaskDescription;
+            existing.IntervalHours = dto.IntervalHours;
+            existing.IntervalDays = dto.IntervalDays;
+            existing.NextDueAt = dto.NextDueAt;
+            existing.Priority = dto.Priority;
+            existing.Status = dto.Status;
+            existing.AssignedTo = dto.AssignedTo;
+            existing.Notes = dto.Notes;
+            existing.SparePartsUsed = dto.SparePartsUsed;
             existing.IsSynced = false;
 
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Updated maintenance task: {Id} - {TaskId}, Status: {OldStatus} → {NewStatus}", 
-                id, task.TaskId, existing.Status, task.Status);
+                id, dto.TaskId, existing.Status, dto.Status);
 
             return Ok(existing);
         }

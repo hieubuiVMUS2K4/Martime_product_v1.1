@@ -3,6 +3,7 @@ using System;
 using MaritimeEdge.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MaritimeEdge.Data.Migrations
 {
     [DbContext(typeof(EdgeDbContext))]
-    partial class EdgeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251208102312_AddScheduleChecklistTemplates")]
+    partial class AddScheduleChecklistTemplates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4049,11 +4052,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("asset_name");
 
-                    b.Property<string>("CheckpointDescription")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("checkpoint_description");
-
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("completed_at");
@@ -4075,14 +4073,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_completed");
 
-                    b.Property<double?>("NormalRangeMax")
-                        .HasColumnType("double precision")
-                        .HasColumnName("normal_range_max");
-
-                    b.Property<double?>("NormalRangeMin")
-                        .HasColumnType("double precision")
-                        .HasColumnName("normal_range_min");
-
                     b.Property<double?>("ReadingValue")
                         .HasColumnType("double precision")
                         .HasColumnName("reading_value");
@@ -4090,10 +4080,6 @@ namespace MaritimeEdge.Data.Migrations
                     b.Property<string>("Remarks")
                         .HasColumnType("text")
                         .HasColumnName("remarks");
-
-                    b.Property<bool>("RequiresReading")
-                        .HasColumnType("boolean")
-                        .HasColumnName("requires_reading");
 
                     b.Property<int>("SequenceOrder")
                         .HasColumnType("integer")
@@ -4104,11 +4090,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("task_id");
-
-                    b.Property<string>("Unit")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("unit");
 
                     b.HasKey("Id")
                         .HasName("p_k_task_checklist_items");

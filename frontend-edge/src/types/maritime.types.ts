@@ -248,8 +248,15 @@ export interface CrewMember {
 export interface MaintenanceTask {
   id: number
   taskId: string
-  equipmentId: string
-  equipmentName: string
+  
+  // LEGACY: Individual asset fields (nullable for backward compatibility)
+  equipmentId?: string
+  equipmentName?: string
+  
+  // NEW: Equipment group fields (for group-based tasks)
+  equipmentGroupId?: string
+  equipmentGroupName?: string
+  
   taskType: string
   taskDescription: string
   intervalHours?: number
@@ -269,6 +276,43 @@ export interface MaintenanceTask {
   startedAt?: string
   updatedAt?: string
   originNode?: string
+  
+  // Checklist items for group-based tasks
+  checklistItems?: TaskChecklistItem[]
+}
+
+// Task Checklist Items - Per-asset tracking within group maintenance tasks
+export interface TaskChecklistItem {
+  id: string
+  taskId: string
+  assetId: string
+  assetCode: string
+  assetName: string
+  sequenceOrder: number
+  isCompleted: boolean
+  completedAt?: string
+  completedBy?: string
+  readingValue?: number  // Pressure, temperature, voltage readings
+  remarks?: string       // Specific notes per asset
+  isAbnormal: boolean    // Flag for abnormal conditions
+  createdAt: string
+}
+
+// DTO for updating checklist item
+export interface UpdateChecklistItemDto {
+  isCompleted?: boolean
+  readingValue?: number
+  remarks?: string
+  isAbnormal?: boolean
+  completedBy?: string
+}
+
+// DTO for completing checklist item with data
+export interface CompleteChecklistItemDto {
+  readingValue?: number
+  remarks?: string
+  isAbnormal: boolean
+  completedBy: string
 }
 
 // Helper interface for parsed schedule info from task

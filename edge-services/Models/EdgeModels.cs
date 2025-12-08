@@ -860,13 +860,32 @@ public class MaintenanceTask
     
     public int? TaskTypeId { get; set; } // Foreign key to TaskType (optional for backward compatibility)
     
-    [Required]
+    /// <summary>
+    /// LEGACY: Individual equipment ID (nullable for group-based tasks)
+    /// For backward compatibility with old tasks
+    /// </summary>
     [MaxLength(100)]
-    public string EquipmentId { get; set; } = string.Empty; // MAIN_ENGINE, GEN_1, etc.
+    public string? EquipmentId { get; set; }
     
-    [Required]
+    /// <summary>
+    /// LEGACY: Individual equipment name (nullable for group-based tasks)
+    /// For backward compatibility with old tasks
+    /// </summary>
     [MaxLength(200)]
-    public string EquipmentName { get; set; } = string.Empty;
+    public string? EquipmentName { get; set; }
+    
+    /// <summary>
+    /// NEW: Equipment Group ID for group-based tasks
+    /// Preferred for new tasks (Work Order approach)
+    /// </summary>
+    public Guid? EquipmentGroupId { get; set; }
+    
+    /// <summary>
+    /// NEW: Equipment Group Name (denormalized for display)
+    /// Example: "All Generators", "Main Engine System"
+    /// </summary>
+    [MaxLength(200)]
+    public string? EquipmentGroupName { get; set; }
     
     [Required]
     [MaxLength(50)]
@@ -890,10 +909,14 @@ public class MaintenanceTask
     
     [Required]
     [MaxLength(20)]
-    public string Status { get; set; } = "PENDING"; // PENDING, OVERDUE, IN_PROGRESS, COMPLETED
+    public string Status { get; set; } = "PENDING"; // TASK, PENDING, PENDING_APPROVAL, IN_PROGRESS, COMPLETED, REJECTED, OVERDUE
     
+    /// <summary>
+    /// PIC (Person In Charge) - Crew ID assigned to this task
+    /// For group tasks: Single PIC responsible for entire group
+    /// </summary>
     [MaxLength(100)]
-    public string? AssignedTo { get; set; } // Crew member name
+    public string? AssignedTo { get; set; }
     
     [MaxLength(50)]
     public string? ApprovedBy { get; set; } // Crew ID who approved (C/E or Master)
@@ -922,6 +945,125 @@ public class MaintenanceTask
     
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+    
+    // Navigation properties
+    public virtual EquipmentGroup? EquipmentGroup { get; set; }
+    public virtual ICollection<TaskChecklistItem> ChecklistItems { get; set; } = new List<TaskChecklistItem>();
+}
+
+/// <summary>
+/// Task Checklist Items - Per-asset tracking within group-based maintenance tasks
+/// Allows tracking completion, readings, and abnormalities for each asset in a group
+/// </summary>
+public class TaskChecklistItem
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// FK -> MaintenanceTask.TaskId
+    /// </summary>
+    [Required]
+    [MaxLength(100)]
+    public string TaskId { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// FK -> EquipmentAsset.Id
+    /// </summary>
+    [Required]
+    public Guid AssetId { get; set; }
+    
+    /// <summary>
+    /// Asset code for quick reference (denormalized)
+    /// </summary>
+    [Required]
+    [MaxLength(50)]
+    public string AssetCode { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Asset name for display (denormalized)
+    /// </summary>
+    [Required]
+    [MaxLength(200)]
+    public string AssetName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Order in checklist (from EquipmentGroupMember.SequenceOrder or Template.SequenceOrder)
+    /// </summary>
+    public int SequenceOrder { get; set; } = 0;
+    
+    /// <summary>
+    /// Checkpoint description (cloned from ScheduleChecklistTemplate)
+    /// Example: "Check oil level", "Inspect filter condition"
+    /// </summary>
+    [MaxLength(500)]
+    public string? CheckpointDescription { get; set; }
+    
+    /// <summary>
+    /// Does this checkpoint require a reading value? (from template)
+    /// </summary>
+    public bool RequiresReading { get; set; } = false;
+    
+    /// <summary>
+    /// Minimum value for normal range (from template)
+    /// Example: Oil level min = 80%
+    /// </summary>
+    public double? NormalRangeMin { get; set; }
+    
+    /// <summary>
+    /// Maximum value for normal range (from template)
+    /// Example: Oil level max = 100%
+    /// </summary>
+    public double? NormalRangeMax { get; set; }
+    
+    /// <summary>
+    /// Unit of measurement (from template)
+    /// Example: "°C", "bar", "%", "rpm"
+    /// </summary>
+    [MaxLength(20)]
+    public string? Unit { get; set; }
+    
+    /// <summary>
+    /// Whether this asset's maintenance is completed
+    /// </summary>
+    public bool IsCompleted { get; set; } = false;
+    
+    /// <summary>
+    /// When this item was completed
+    /// </summary>
+    public DateTime? CompletedAt { get; set; }
+    
+    /// <summary>
+    /// Crew ID who completed this item
+    /// </summary>
+    [MaxLength(50)]
+    public string? CompletedBy { get; set; }
+    
+    /// <summary>
+    /// Reading value (e.g., pressure, temperature, voltage)
+    /// Example: Fire extinguisher pressure = 12 bar
+    /// </summary>
+    public double? ReadingValue { get; set; }
+    
+    /// <summary>
+    /// Specific remarks for this asset
+    /// Example: "Cylinder #5 has dent, recommend replacement"
+    /// </summary>
+    public string? Remarks { get; set; }
+    
+    /// <summary>
+    /// Flag for abnormal condition requiring attention
+    /// Example: Fire extinguisher pressure below minimum
+    /// </summary>
+    public bool IsAbnormal { get; set; } = false;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation properties
+    [System.Text.Json.Serialization.JsonIgnore]
+    public virtual MaintenanceTask Task { get; set; } = null!;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public virtual EquipmentAsset Asset { get; set; } = null!;
 }
 
 /// <summary>
@@ -2612,6 +2754,62 @@ public class ScheduleSparePart
     public string? Notes { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Schedule Checklist Templates - Mẫu checklist cho schedule
+/// Defines checkpoint structure that will be replicated for each asset in task
+/// </summary>
+public class ScheduleChecklistTemplate
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// FK -> MaintenanceSchedule.Id
+    /// </summary>
+    [Required]
+    public Guid ScheduleId { get; set; }
+    
+    /// <summary>
+    /// Display order (1, 2, 3...)
+    /// </summary>
+    [Required]
+    public int SequenceOrder { get; set; }
+    
+    /// <summary>
+    /// Checkpoint description (e.g., "Check oil level", "Measure temperature")
+    /// </summary>
+    [Required]
+    [MaxLength(500)]
+    public string CheckpointDescription { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Does this checkpoint require a reading value?
+    /// </summary>
+    public bool RequiresReading { get; set; } = false;
+    
+    /// <summary>
+    /// Minimum value for normal range (if applicable)
+    /// </summary>
+    public double? NormalRangeMin { get; set; }
+    
+    /// <summary>
+    /// Maximum value for normal range (if applicable)
+    /// </summary>
+    public double? NormalRangeMax { get; set; }
+    
+    /// <summary>
+    /// Unit of measurement (e.g., "°C", "bar", "rpm")
+    /// </summary>
+    [MaxLength(20)]
+    public string? Unit { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation property
+    [System.Text.Json.Serialization.JsonIgnore]
+    public virtual MaintenanceSchedule? Schedule { get; set; }
 }
 
 /// <summary>

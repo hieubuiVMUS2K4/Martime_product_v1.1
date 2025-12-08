@@ -22,7 +22,18 @@ public class EquipmentGroupDto
     
     public string? Description { get; set; }
     
+    [MaxLength(50)]
+    public string? Department { get; set; }
+    
+    [MaxLength(50)]
+    public string? PicRole { get; set; }
+    
+    [MaxLength(50)]
+    public string? PicCrewId { get; set; }
+    
     public bool IsActive { get; set; } = true;
+    
+    public int MemberCount { get; set; } // Number of assets in this group
     
     public List<EquipmentAssetDto>? Members { get; set; }
 }

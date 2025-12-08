@@ -219,109 +219,210 @@ public class MaintenanceSchedulerService : BackgroundService
                 }))
                 : null;
 
-            // Generate task for EACH asset in the group
-            int tasksCreated = 0;
-            foreach (var member in groupMembers)
+            // === NEW APPROACH: Create ONE task for the entire equipment group ===
+            // Create unique task ID with group code
+            var taskId = $"SCHED-{schedule.ScheduleCode}-{group.GroupCode}-{DateTime.UtcNow:yyyyMMdd}";
+
+            // Check if task already exists
+            var existingTask = await context.MaintenanceTasks
+                .FirstOrDefaultAsync(t => t.TaskId == taskId && t.Status != "COMPLETED");
+            
+            if (existingTask != null)
             {
-                var asset = member.Asset;
-                if (asset == null || !asset.IsActive) continue;
+                _logger.LogDebug("Task {TaskId} already exists, skipping", taskId);
+                return;
+            }
 
-                // Determine task assignee with department-aware 5-tier waterfall logic
-                var assignedTo = await DetermineTaskAssignee(context, schedule, asset, group);
+            // Determine task assignee (PIC) for entire group using department-aware 4-tier waterfall
+            var assignedTo = await DetermineGroupPIC(context, schedule, group);
 
-                // Create unique task ID with asset code
-                var taskId = $"SCHED-{schedule.ScheduleCode}-{asset.AssetCode}-{DateTime.UtcNow:yyyyMMdd}";
-
-                // Check if task already exists
-                var existingTask = await context.MaintenanceTasks
-                    .FirstOrDefaultAsync(t => t.TaskId == taskId && t.Status != "COMPLETED");
-                
-                if (existingTask != null)
+            // Determine initial status based on assignment completeness and priority
+            // 1. Start with TASK status (incomplete/unassigned)
+            // 2. If fully assigned:
+            //    - LOW/MEDIUM → PENDING (ready for execution)
+            //    - HIGH/CRITICAL → PENDING_APPROVAL (requires approval)
+            string initialStatus = "TASK"; // Default: incomplete task
+            
+            if (!string.IsNullOrWhiteSpace(assignedTo))
+            {
+                // Task has full assignment
+                if (schedule.Priority == "HIGH" || schedule.Priority == "CRITICAL")
                 {
-                    _logger.LogDebug("Task {TaskId} already exists, skipping", taskId);
-                    continue;
-                }
-
-                // Determine initial status based on assignment completeness and priority
-                // New workflow logic:
-                // 1. Start with TASK status (incomplete/unassigned)
-                // 2. If fully assigned:
-                //    - LOW/MEDIUM → PENDING (ready for execution)
-                //    - HIGH/CRITICAL → PENDING_APPROVAL (requires approval)
-                string initialStatus = "TASK"; // Default: incomplete task
-                
-                if (!string.IsNullOrWhiteSpace(assignedTo))
-                {
-                    // Task has full assignment
-                    if (schedule.Priority == "HIGH" || schedule.Priority == "CRITICAL")
-                    {
-                        initialStatus = "PENDING_APPROVAL"; // Requires C/E approval
-                        _logger.LogDebug("Task assigned with HIGH/CRITICAL priority → PENDING_APPROVAL");
-                    }
-                    else
-                    {
-                        initialStatus = "PENDING"; // Ready for execution
-                        _logger.LogDebug("Task assigned with LOW/MEDIUM priority → PENDING");
-                    }
+                    initialStatus = "PENDING_APPROVAL"; // Requires C/E approval
+                    _logger.LogDebug("Task assigned with HIGH/CRITICAL priority → PENDING_APPROVAL");
                 }
                 else
                 {
-                    _logger.LogDebug("Task unassigned → TASK (Work Planner must assign)");
+                    initialStatus = "PENDING"; // Ready for execution
+                    _logger.LogDebug("Task assigned with LOW/MEDIUM priority → PENDING");
                 }
+            }
+            else
+            {
+                _logger.LogDebug("Task unassigned → TASK (Work Planner must assign)");
+            }
 
-                // Create maintenance task for this asset
-                var task = new MaintenanceTask
+            // Create maintenance task for entire group
+            var task = new MaintenanceTask
+            {
+                TaskId = taskId,
+                TaskTypeId = schedule.TaskTypeId,
+                
+                // NEW: Group-based fields
+                EquipmentGroupId = group.Id,
+                EquipmentGroupName = group.GroupName,
+                
+                // LEGACY: Keep null for group-based tasks (backward compatibility)
+                EquipmentId = null,
+                EquipmentName = null,
+                
+                TaskType = schedule.IntervalType,
+                TaskDescription = schedule.ScheduleName + "\n\n" + (schedule.Instructions ?? ""),
+                IntervalHours = schedule.IntervalHours,
+                IntervalDays = schedule.IntervalDays,
+                LastDoneAt = schedule.LastExecutedAt,
+                NextDueAt = schedule.NextDueDate!.Value,
+                RunningHoursAtLastDone = schedule.LastExecutedRunningHours,
+                Priority = schedule.Priority,
+                Status = initialStatus, // TASK, PENDING, or PENDING_APPROVAL based on assignment and priority
+                AssignedTo = assignedTo, // Auto-assigned based on waterfall logic (null if unassigned)
+                SparePartsUsed = sparePartsJson,
+                Notes = $"Auto-generated from schedule: {schedule.ScheduleCode} (Group: {group.GroupName})",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            context.MaintenanceTasks.Add(task);
+
+            // Create task details (checklist items) from TaskType
+            var taskDetails = await context.TaskDetails
+                .Where(td => td.TaskTypes.Any(tt => tt.Id == schedule.TaskTypeId))
+                .OrderBy(td => td.OrderIndex)
+                .ToListAsync();
+
+            foreach (var detail in taskDetails)
+            {
+                var taskDetail = new MaintenanceTaskDetail
                 {
-                    TaskId = taskId,
-                    TaskTypeId = schedule.TaskTypeId,
-                    EquipmentId = asset.AssetCode,
-                    EquipmentName = asset.AssetName,
-                    TaskType = schedule.IntervalType,
-                    TaskDescription = schedule.ScheduleName + "\n\n" + (schedule.Instructions ?? ""),
-                    IntervalHours = schedule.IntervalHours,
-                    IntervalDays = schedule.IntervalDays,
-                    LastDoneAt = schedule.LastExecutedAt,
-                    NextDueAt = schedule.NextDueDate!.Value,
-                    RunningHoursAtLastDone = schedule.LastExecutedRunningHours,
-                    Priority = schedule.Priority,
-                    Status = initialStatus, // TASK, PENDING, or PENDING_APPROVAL based on assignment and priority
-                    AssignedTo = assignedTo, // Auto-assigned based on waterfall logic (null if unassigned)
-                    SparePartsUsed = sparePartsJson,
-                    Notes = $"Auto-generated from schedule: {schedule.ScheduleCode} (Group: {group.GroupName})",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    MaintenanceTaskId = task.Id,
+                    TaskDetailId = detail.Id,
+                    Status = "PENDING",
+                    IsCompleted = false,
+                    CreatedAt = DateTime.UtcNow
                 };
+                context.MaintenanceTaskDetails.Add(taskDetail);
+            }
 
-                context.MaintenanceTasks.Add(task);
-                tasksCreated++;
+            // Create checklist items for each asset in group
+            // CLONE from schedule_checklist_templates if available
+            var checklistTemplates = await context.ScheduleChecklistTemplates
+                .Where(t => t.ScheduleId == schedule.Id)
+                .OrderBy(t => t.SequenceOrder)
+                .ToListAsync();
 
-                // Create task details (checklist items) from TaskType
-                var taskDetails = await context.TaskDetails
-                    .Where(td => td.TaskTypes.Any(tt => tt.Id == schedule.TaskTypeId))
-                    .OrderBy(td => td.OrderIndex)
-                    .ToListAsync();
-
-                foreach (var detail in taskDetails)
+            if (checklistTemplates.Any())
+            {
+                // Use templates: Create checklist items for each asset based on templates
+                foreach (var member in groupMembers)
                 {
-                    var taskDetail = new MaintenanceTaskDetail
+                    var asset = member.Asset;
+                    if (asset == null || !asset.IsActive) continue;
+
+                    foreach (var template in checklistTemplates)
                     {
-                        MaintenanceTaskId = task.Id,
-                        TaskDetailId = detail.Id,
-                        Status = "PENDING",
+                        // Clone template values
+                        var checklistItem = new TaskChecklistItem
+                        {
+                            TaskId = task.TaskId,
+                            AssetId = asset.Id,
+                            AssetCode = asset.AssetCode,
+                            AssetName = asset.AssetName,
+                            SequenceOrder = template.SequenceOrder,
+                            CheckpointDescription = template.CheckpointDescription,
+                            RequiresReading = template.RequiresReading,
+                            NormalRangeMin = template.NormalRangeMin,
+                            NormalRangeMax = template.NormalRangeMax,
+                            Unit = template.Unit,
+                            IsCompleted = false,
+                            CreatedAt = DateTime.UtcNow
+                        };
+
+                        // ASSET-SPECIFIC OVERRIDE: Check if asset has custom technical specs
+                        if (!string.IsNullOrWhiteSpace(asset.TechnicalSpecs))
+                        {
+                            try
+                            {
+                                var specs = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(asset.TechnicalSpecs);
+                                if (specs != null)
+                                {
+                                    // Override ranges if asset has specific values
+                                    // Format: { "oilLevel_min": 80, "oilLevel_max": 100, "temperature_min": 70, "temperature_max": 90 }
+                                    var checkpointKey = template.CheckpointDescription
+                                        .ToLower()
+                                        .Replace(" ", "_")
+                                        .Replace("check_", "")
+                                        .Replace("measure_", "")
+                                        .Replace("inspect_", "");
+
+                                    if (specs.TryGetValue($"{checkpointKey}_min", out var minVal))
+                                    {
+                                        checklistItem.NormalRangeMin = Convert.ToDouble(minVal);
+                                    }
+                                    if (specs.TryGetValue($"{checkpointKey}_max", out var maxVal))
+                                    {
+                                        checklistItem.NormalRangeMax = Convert.ToDouble(maxVal);
+                                    }
+                                    if (specs.TryGetValue($"{checkpointKey}_unit", out var unitVal))
+                                    {
+                                        checklistItem.Unit = unitVal.ToString();
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "Failed to parse TechnicalSpecs for asset {AssetCode}", asset.AssetCode);
+                            }
+                        }
+
+                        context.TaskChecklistItems.Add(checklistItem);
+                    }
+                }
+                
+                _logger.LogInformation(
+                    "Cloned {TemplateCount} checklist templates × {AssetCount} assets = {TotalItems} checklist items for task {TaskId}",
+                    checklistTemplates.Count, 
+                    groupMembers.Count(m => m.Asset != null && m.Asset.IsActive),
+                    checklistTemplates.Count * groupMembers.Count(m => m.Asset != null && m.Asset.IsActive),
+                    taskId);
+            }
+            else
+            {
+                // No templates: Create simple checklist items (backward compatibility)
+                foreach (var member in groupMembers)
+                {
+                    var asset = member.Asset;
+                    if (asset == null || !asset.IsActive) continue;
+
+                    var checklistItem = new TaskChecklistItem
+                    {
+                        TaskId = task.TaskId,
+                        AssetId = asset.Id,
+                        AssetCode = asset.AssetCode,
+                        AssetName = asset.AssetName,
+                        SequenceOrder = member.SequenceOrder,
                         IsCompleted = false,
                         CreatedAt = DateTime.UtcNow
                     };
-                    context.MaintenanceTaskDetails.Add(taskDetail);
+                    context.TaskChecklistItems.Add(checklistItem);
                 }
             }
 
-            if (tasksCreated > 0)
-            {
-                await context.SaveChangesAsync();
-                _logger.LogInformation(
-                    "Generated {Count} task(s) for schedule {ScheduleCode} (Group: {GroupName})",
-                    tasksCreated, schedule.ScheduleCode, group.GroupName);
-            }
+            await context.SaveChangesAsync();
+            
+            var assetCount = groupMembers.Count(m => m.Asset != null && m.Asset.IsActive);
+            _logger.LogInformation(
+                "Generated group task {TaskId} for schedule {ScheduleCode} (Group: {GroupName}, {AssetCount} assets)",
+                taskId, schedule.ScheduleCode, group.GroupName, assetCount);
         }
         catch (Exception ex)
         {
@@ -381,6 +482,86 @@ public class MaintenanceSchedulerService : BackgroundService
     }
 
     /// <summary>
+    /// Determine PIC (Person In Charge) for entire equipment group using 4-tier waterfall logic:
+    /// 1. Group.PicCrewId (highest priority - specific person override)
+    /// 2. Group.PicRole (match rank to onboard crew in group's department)
+    /// 3. Schedule.DefaultAssignedTo (fallback to schedule default)
+    /// 4. null (unassigned - Work Planner will assign manually → TASK status)
+    /// </summary>
+    private async Task<string?> DetermineGroupPIC(
+        EdgeDbContext context,
+        MaintenanceSchedule schedule,
+        EquipmentGroup group)
+    {
+        try
+        {
+            // Get crew filtered by department (strict organizational boundary)
+            IQueryable<CrewMember> departmentCrewQuery = context.CrewMembers
+                .Where(c => c.IsOnboard);
+
+            // Apply department filter if group has department assigned
+            if (!string.IsNullOrWhiteSpace(group.Department))
+            {
+                departmentCrewQuery = departmentCrewQuery.Where(c => c.Department == group.Department);
+                _logger.LogDebug("Filtering crew by department: {Department}", group.Department);
+            }
+
+            // Tier 1: PIC crew override from equipment group (e.g., 2/E assigned to Main Engine Group)
+            if (!string.IsNullOrWhiteSpace(group.PicCrewId))
+            {
+                var picCrew = await departmentCrewQuery
+                    .FirstOrDefaultAsync(c => c.CrewId == group.PicCrewId);
+                
+                if (picCrew != null)
+                {
+                    _logger.LogDebug("Group task assigned to PIC crew {CrewId} ({Rank}) via Group override", 
+                        picCrew.CrewId, picCrew.Rank);
+                    return picCrew.CrewId;
+                }
+            }
+
+            // Tier 2: PIC role from equipment group (e.g., "2/E" for Engine Room equipment)
+            if (!string.IsNullOrWhiteSpace(group.PicRole))
+            {
+                var picCrew = await departmentCrewQuery
+                    .Where(c => c.Rank == group.PicRole)
+                    .OrderBy(c => c.CrewId) // Stable ordering
+                    .FirstOrDefaultAsync();
+                
+                if (picCrew != null)
+                {
+                    _logger.LogDebug("Group task assigned to PIC role {Rank} ({CrewId}) via Group PIC", 
+                        group.PicRole, picCrew.CrewId);
+                    return picCrew.CrewId;
+                }
+            }
+
+            // Tier 3: Schedule default assignee (fallback)
+            if (!string.IsNullOrWhiteSpace(schedule.AssignedToCrewId))
+            {
+                var defaultCrew = await context.CrewMembers
+                    .FirstOrDefaultAsync(c => c.IsOnboard && c.CrewId == schedule.AssignedToCrewId);
+                
+                if (defaultCrew != null)
+                {
+                    _logger.LogDebug("Group task assigned to schedule default {CrewId}", schedule.AssignedToCrewId);
+                    return defaultCrew.CrewId;
+                }
+            }
+
+            // Tier 4: No assignment found - return null (Work Planner must assign → TASK status)
+            _logger.LogDebug("No PIC found for group {GroupName} - task will be TASK status", group.GroupName);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error determining PIC for group {GroupName}", group.GroupName);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// LEGACY METHOD - Kept for backward compatibility with old per-asset tasks
     /// Determine task assignee using department-aware 5-tier waterfall logic:
     /// 0. Filter crew by Equipment Group's Department (strict boundary)
     /// 1. Group.PicCrewId (highest priority - equipment PIC override)

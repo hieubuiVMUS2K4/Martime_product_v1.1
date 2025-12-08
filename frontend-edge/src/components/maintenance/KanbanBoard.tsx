@@ -686,7 +686,7 @@ export function KanbanBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskClick, on
                   onClose={() => setOpenMenuColumnId(null)}
                   tasks={columnTasks.map(t => ({
                     id: t.id,
-                    title: t.equipmentName,
+                    title: t.equipmentGroupName || t.equipmentName || 'Untitled Task',
                     description: t.taskDescription
                   }))}
                   columnId={column.id}

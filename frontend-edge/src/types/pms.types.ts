@@ -89,6 +89,7 @@ export interface CreateMaintenanceScheduleDto {
   autoGenerate?: boolean;
   instructions?: string;
   requiredSpareParts?: CreateScheduleSparePartDto[];
+  checklistItemTemplates?: ChecklistItemTemplateDto[];
 }
 
 export interface CreateScheduleSparePartDto {
@@ -96,6 +97,15 @@ export interface CreateScheduleSparePartDto {
   quantityRequired: number;
   isMandatory?: boolean;
   notes?: string;
+}
+
+export interface ChecklistItemTemplateDto {
+  sequenceOrder: number;
+  checkpointDescription: string;
+  requiresReading?: boolean;
+  normalRangeMin?: number;
+  normalRangeMax?: number;
+  unit?: string;
 }
 
 export interface SchedulePreview {
@@ -123,6 +133,7 @@ export interface EquipmentGroup {
   picRole?: string;        // Person In Charge rank (e.g., "2/E", "C/O")
   picCrewId?: string;      // Specific crew member override
   isActive: boolean;
+  memberCount?: number;    // Number of assets in this group
   members?: EquipmentAsset[];
 }
 

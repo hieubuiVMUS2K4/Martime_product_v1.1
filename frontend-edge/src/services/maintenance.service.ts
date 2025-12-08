@@ -98,7 +98,7 @@ export const toTaskSummary = (task: MaintenanceTask): TaskSummary => {
   
   return {
     taskId: task.taskId,
-    equipmentName: task.equipmentName,
+    equipmentName: task.equipmentGroupName || task.equipmentName || 'Unknown Equipment',
     taskDescription: task.taskDescription,
     completedAt: task.completedAt || '',
     completedBy: task.completedBy || 'Unknown',
@@ -194,20 +194,18 @@ export const getTasksPendingApproval = async (): Promise<MaintenanceTask[]> => {
  * Approve a task (C/E or Master only)
  */
 export const approveTask = async (
-  taskId: number, 
+  taskId: string,
   approvedBy: string
 ): Promise<void> => {
   await api.post(`${BASE_URL}/tasks/${taskId}/approve`, {
     isApproved: true,
     approvedBy
   });
-};
-
-/**
+};/**
  * Reject a task with reason (C/E or Master only)
  */
 export const rejectTask = async (
-  taskId: number, 
+  taskId: string, 
   approvedBy: string,
   rejectionReason: string
 ): Promise<void> => {

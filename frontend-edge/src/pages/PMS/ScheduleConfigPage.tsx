@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Plus, Calendar, Clock, Wrench } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, Calendar, Clock, Wrench, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
 import { AddScheduleModal } from '@/components/pms/AddScheduleModal';
 import { EditScheduleModal } from '@/components/pms/EditScheduleModal';
@@ -20,12 +20,37 @@ export default function ScheduleConfigPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<MaintenanceSchedule | null>(null);
+  
+  // Search & Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedPriority, setSelectedPriority] = useState('');
+  const [selectedIntervalType, setSelectedIntervalType] = useState('');
+  
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10); // Show 10 items per page
 
   useEffect(() => {
     loadSchedules();
   }, []);
+
+  // Filtered schedules
+  const filteredSchedules = useMemo(() => {
+    return schedules.filter(schedule => {
+      const matchesSearch = 
+        schedule.scheduleCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        schedule.scheduleName.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesPriority = !selectedPriority || schedule.priority === selectedPriority;
+      const matchesIntervalType = !selectedIntervalType || schedule.intervalType === selectedIntervalType;
+      
+      return matchesSearch && matchesPriority && matchesIntervalType;
+    });
+  }, [schedules, searchQuery, selectedPriority, selectedIntervalType]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedPriority, selectedIntervalType]);
 
   const loadSchedules = async () => {
     try {
@@ -61,10 +86,10 @@ export default function ScheduleConfigPage() {
   };
 
   // Pagination calculations
-  const totalPages = Math.ceil(schedules.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredSchedules.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedSchedules = schedules.slice(startIndex, endIndex);
+  const paginatedSchedules = filteredSchedules.slice(startIndex, endIndex);
 
   if (loading) {
     return (
@@ -95,42 +120,82 @@ export default function ScheduleConfigPage() {
           </button>
         </div>
 
-        {/* Schedules Table */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">All Schedules</h2>
-        </div>
-
-        {/* Pagination Info and Controls */}
-        {schedules.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <div className="text-sm text-gray-600">
-              Hiển thị {startIndex + 1} - {Math.min(endIndex, schedules.length)} trong tổng số {schedules.length} chi tiết
-            </div>
-            <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                >
-                  ← Trước
-                </button>
-                <span className="px-4 py-2 text-sm text-gray-600">
-                  Trang {currentPage} / {totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                >
-                  Sau →
-                </button>
+        {/* Search & Filters */}
+        <div className="mb-4 bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by code or name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
             </div>
           </div>
-        )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+          {/* Filter Options */}
+          <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                <select
+                  value={selectedPriority}
+                  onChange={(e) => setSelectedPriority(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All Priorities</option>
+                  {PRIORITY_LEVELS.map(p => (
+                    <option key={p.value} value={p.value}>{p.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Interval Type</label>
+                <select
+                  value={selectedIntervalType}
+                  onChange={(e) => setSelectedIntervalType(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All Types</option>
+                  <option value="CALENDAR">Calendar</option>
+                  <option value="RUNNING_HOURS">Running Hours</option>
+                  <option value="HYBRID">Hybrid</option>
+                </select>
+              </div>
+            </div>
+
+          {/* Results Count */}
+          <div className="mt-3 text-sm text-gray-600">
+            Showing {paginatedSchedules.length} of {filteredSchedules.length} schedules
+            {filteredSchedules.length !== schedules.length && ` (filtered from ${schedules.length} total)`}
+          </div>
+        </div>
+
+        {/* Schedules Table */}
+        {filteredSchedules.length === 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              No Maintenance Schedules
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Create schedules to automate maintenance task generation
+            </p>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <Plus className="w-5 h-5" />
+              Add First Schedule
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <table className="min-w-full w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
@@ -141,7 +206,7 @@ export default function ScheduleConfigPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Spare Parts</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Auto</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -183,7 +248,7 @@ export default function ScheduleConfigPage() {
                       <span className="text-gray-400">- No</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-sm">
+                  <td className="px-6 py-4 text-sm text-right">
                     <button 
                       onClick={() => handleEdit(schedule)}
                       className="text-blue-600 hover:text-blue-800 font-medium"
@@ -195,8 +260,60 @@ export default function ScheduleConfigPage() {
               ))}
             </tbody>
           </table>
+
+          {/* Pagination */}
+          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                Page {currentPage} of {totalPages}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </button>
+                <div className="flex items-center gap-1">
+                  {[...Array(totalPages)].map((_, i) => {
+                    const page = i + 1;
+                    if (
+                      page === 1 ||
+                      page === totalPages ||
+                      (page >= currentPage - 1 && page <= currentPage + 1)
+                    ) {
+                      return (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-3 py-1 border rounded ${
+                            currentPage === page
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      );
+                    } else if (page === currentPage - 2 || page === currentPage + 2) {
+                      return <span key={page} className="px-2">...</span>;
+                    }
+                    return null;
+                  })}
+                </div>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
         </div>
-      </div>
+        )}
 
       {/* Modals */}
       <AddScheduleModal

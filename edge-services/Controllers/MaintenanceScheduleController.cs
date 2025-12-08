@@ -173,6 +173,27 @@ public class MaintenanceScheduleController : ControllerBase
                 await _scheduleRepository.AddSparePartsAsync(created.Id, spareParts);
             }
 
+            // Add checklist templates if provided
+            if (dto.ChecklistItemTemplates != null && dto.ChecklistItemTemplates.Count > 0)
+            {
+                var templates = dto.ChecklistItemTemplates.Select(t => new ScheduleChecklistTemplate
+                {
+                    ScheduleId = created.Id,
+                    SequenceOrder = t.SequenceOrder,
+                    CheckpointDescription = t.CheckpointDescription,
+                    RequiresReading = t.RequiresReading,
+                    NormalRangeMin = t.NormalRangeMin,
+                    NormalRangeMax = t.NormalRangeMax,
+                    Unit = t.Unit
+                }).ToList();
+
+                foreach (var template in templates)
+                {
+                    _context.ScheduleChecklistTemplates.Add(template);
+                }
+                await _context.SaveChangesAsync();
+            }
+
             _logger.LogInformation("Created maintenance schedule {ScheduleCode}", created.ScheduleCode);
 
             var resultDto = await MapToDtoAsync(created);

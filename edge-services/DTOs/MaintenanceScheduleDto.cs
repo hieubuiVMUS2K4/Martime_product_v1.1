@@ -100,6 +100,8 @@ public class CreateMaintenanceScheduleDto
     public string? Instructions { get; set; }
     
     public List<CreateScheduleSparePartDto>? RequiredSpareParts { get; set; }
+    
+    public List<ChecklistItemTemplateDto>? ChecklistItemTemplates { get; set; }
 }
 
 /// <summary>
@@ -133,6 +135,28 @@ public class CreateScheduleSparePartDto
     
     [MaxLength(500)]
     public string? Notes { get; set; }
+}
+
+/// <summary>
+/// DTO for checklist item template (defines checkpoint structure for schedule)
+/// </summary>
+public class ChecklistItemTemplateDto
+{
+    [Required]
+    public int SequenceOrder { get; set; }
+    
+    [Required]
+    [MaxLength(500)]
+    public string CheckpointDescription { get; set; } = string.Empty;
+    
+    public bool RequiresReading { get; set; } = false;
+    
+    public double? NormalRangeMin { get; set; }
+    
+    public double? NormalRangeMax { get; set; }
+    
+    [MaxLength(20)]
+    public string? Unit { get; set; }
 }
 
 /// <summary>
