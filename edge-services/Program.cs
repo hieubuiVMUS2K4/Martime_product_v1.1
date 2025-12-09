@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using MaritimeEdge.Data;
 using MaritimeEdge.Services;
 using MaritimeEdge.Services.Logbooks;
+using MaritimeEdge.Repositories;
 
 namespace MaritimeEdge
 {
@@ -51,7 +52,15 @@ namespace MaritimeEdge
             builder.Services.AddScoped<IOilRecordService, OilRecordService>();
             builder.Services.AddScoped<MaterialReceiptService>();
 
+            // Add PMS Repositories
+            builder.Services.AddScoped<IEquipmentAssetRepository, EquipmentAssetRepository>();
+            builder.Services.AddScoped<IMaintenanceScheduleRepository, MaintenanceScheduleRepository>();
+
+            // Add PMS Services
+            builder.Services.AddScoped<MaintenanceCompletionService>();
+
             // Add Background Services
+            builder.Services.AddHostedService<MaintenanceSchedulerService>();
             builder.Services.AddHostedService<TelemetrySimulatorService>();
             builder.Services.AddHostedService<SignalKDataCollectorService>();
             builder.Services.AddHostedService<DataCleanupService>();
@@ -113,9 +122,19 @@ namespace MaritimeEdge
                 
                 try
                 {
-                    logger.LogInformation("Applying database migrations...");
-                    await dbContext.Database.MigrateAsync();
-                    logger.LogInformation("Database migrations applied successfully");
+                    logger.LogInformation("Checking database migrations...");
+                    
+                    var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+                    if (pendingMigrations.Any())
+                    {
+                        logger.LogInformation($"Applying {pendingMigrations.Count()} pending migration(s)...");
+                        await dbContext.Database.MigrateAsync();
+                        logger.LogInformation("Database migrations applied successfully");
+                    }
+                    else
+                    {
+                        logger.LogInformation("Database is up-to-date, no pending migrations");
+                    }
                 }
                 catch (Exception ex)
                 {

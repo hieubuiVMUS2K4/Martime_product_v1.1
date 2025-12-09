@@ -39,6 +39,7 @@ public class EdgeDbContext : DbContext
     // Critical Operational Tables (SOLAS/ISM/MARPOL)
     public DbSet<CrewMember> CrewMembers { get; set; } = null!;
     public DbSet<MaintenanceTask> MaintenanceTasks { get; set; } = null!;
+    public DbSet<TaskChecklistItem> TaskChecklistItems { get; set; } = null!;
     public DbSet<TaskType> TaskTypes { get; set; } = null!;
     public DbSet<TaskDetail> TaskDetails { get; set; } = null!;
     public DbSet<MaintenanceTaskDetail> MaintenanceTaskDetails { get; set; } = null!;
@@ -81,6 +82,15 @@ public class EdgeDbContext : DbContext
     public DbSet<ReportAmendment> ReportAmendments { get; set; } = null!;
     public DbSet<WeeklyPerformanceReport> WeeklyPerformanceReports { get; set; } = null!;
     public DbSet<MonthlySummaryReport> MonthlySummaryReports { get; set; } = null!;
+
+    // Maintenance Planning System (PMS)
+    public DbSet<EquipmentAsset> EquipmentAssets { get; set; } = null!;
+    public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; } = null!;
+    public DbSet<ScheduleSparePart> ScheduleSpareParts { get; set; } = null!;
+    public DbSet<ScheduleChecklistTemplate> ScheduleChecklistTemplates { get; set; } = null!;
+    public DbSet<MaintenanceHistory> MaintenanceHistories { get; set; } = null!;
+    public DbSet<EquipmentGroup> EquipmentGroups { get; set; } = null!;
+    public DbSet<EquipmentGroupMember> EquipmentGroupMembers { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -570,6 +580,25 @@ public class EdgeDbContext : DbContext
             entity.HasOne<TaskDetail>()
                 .WithMany()
                 .HasForeignKey(e => e.TaskDetailId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ========== TASK CHECKLIST ITEMS ==========
+        modelBuilder.Entity<TaskChecklistItem>(entity =>
+        {
+            entity.ToTable("task_checklist_items");
+
+            // Configure TaskId relationship to MaintenanceTask.TaskId (string)
+            entity.HasOne(e => e.Task)
+                .WithMany(t => t.ChecklistItems)
+                .HasForeignKey(e => e.TaskId)
+                .HasPrincipalKey(t => t.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure AssetId relationship to EquipmentAsset
+            entity.HasOne(e => e.Asset)
+                .WithMany()
+                .HasForeignKey(e => e.AssetId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

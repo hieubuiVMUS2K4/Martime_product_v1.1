@@ -18,6 +18,15 @@ import { MaterialPage } from './pages/Material/MaterialPage'
 import { FuelAnalyticsPage } from './pages/FuelAnalytics'
 import { TaskManagementPage } from './pages/TaskManagement/TaskManagementPage'
 
+// PMS Pages
+import AssetsPage from './pages/PMS/AssetsPage'
+import ScheduleConfigPage from './pages/PMS/ScheduleConfigPage'
+import MasterSchedulePage from './pages/PMS/MasterSchedulePage'
+import UnassignedTasksPage from './pages/PMS/UnassignedTasksPage'
+import ApprovalDashboardPage from './pages/PMS/ApprovalDashboardPage'
+import WorkPlanningPage from './pages/PMS/WorkPlanningPage'
+import EquipmentGroupsPage from './pages/PMS/EquipmentGroupsPage'
+
 // Reporting Pages
 import { ReportingDashboard } from './pages/Reporting/ReportingDashboard'
 import { ReportsPage } from './pages/Reporting/ReportsPage'
@@ -66,6 +75,15 @@ function App() {
         <Route path="logbooks/ballast" element={<BallastWaterPage />} />
         <Route path="logbooks/watchkeeping" element={<WatchkeepingPage />} />
 
+        {/* PMS Routes */}
+        <Route path="pms/assets" element={<AssetsPage />} />
+        <Route path="pms/groups" element={<EquipmentGroupsPage />} />
+        <Route path="pms/schedules" element={<ScheduleConfigPage />} />
+        <Route path="pms/master-schedule" element={<MasterSchedulePage />} />
+        <Route path="pms/unassigned-tasks" element={<UnassignedTasksPage />} />
+        <Route path="pms/approval-dashboard" element={<ApprovalDashboardPage />} />
+        <Route path="pms/work-planning" element={<WorkPlanningPage />} />
+        
         {/* Reporting Routes */}
         <Route path="reporting" element={<ReportingDashboard />} />
         <Route path="reporting/reports" element={<ReportsPage />} />

@@ -52,7 +52,7 @@ export class ReportingService {
     return await apiClient.post<CreateReportResponse>(`${BASE_URL}/weekly/generate`, data);
   }
 
-  static async getWeeklyReport(reportId: string): Promise<any> {
+  static async getWeeklyReport(reportId: number): Promise<any> {
     return await apiClient.get(`${BASE_URL}/weekly/${reportId}`);
   }
 
@@ -71,11 +71,11 @@ export class ReportingService {
     return result;
   }
 
-  static async updateWeeklyReport(reportId: string, data: { remarks?: string; masterSignature?: string; status?: string }): Promise<any> {
+  static async updateWeeklyReport(reportId: number, data: { remarks?: string; masterSignature?: string; status?: string }): Promise<any> {
     return await apiClient.put(`${BASE_URL}/weekly/${reportId}`, data);
   }
 
-  static async deleteWeeklyReport(reportId: string): Promise<any> {
+  static async deleteWeeklyReport(reportId: number): Promise<any> {
     return await apiClient.delete(`${BASE_URL}/weekly/${reportId}`);
   }
 
@@ -87,7 +87,7 @@ export class ReportingService {
     return await apiClient.post<CreateReportResponse>(`${BASE_URL}/monthly/generate`, data);
   }
 
-  static async getMonthlyReport(reportId: string): Promise<any> {
+  static async getMonthlyReport(reportId: number): Promise<any> {
     return await apiClient.get(`${BASE_URL}/monthly/${reportId}`);
   }
 
@@ -105,11 +105,11 @@ export class ReportingService {
     return result;
   }
 
-  static async updateMonthlyReport(reportId: string, data: { remarks?: string; masterSignature?: string; status?: string }): Promise<any> {
+  static async updateMonthlyReport(reportId: number, data: { remarks?: string; masterSignature?: string; status?: string }): Promise<any> {
     return await apiClient.put(`${BASE_URL}/monthly/${reportId}`, data);
   }
 
-  static async deleteMonthlyReport(reportId: string): Promise<any> {
+  static async deleteMonthlyReport(reportId: number): Promise<any> {
     return await apiClient.delete(`${BASE_URL}/monthly/${reportId}`);
   }
 

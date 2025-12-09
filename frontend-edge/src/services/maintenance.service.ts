@@ -98,7 +98,7 @@ export const toTaskSummary = (task: MaintenanceTask): TaskSummary => {
   
   return {
     taskId: task.taskId,
-    equipmentName: task.equipmentName,
+    equipmentName: task.equipmentGroupName || task.equipmentName || 'Unknown Equipment',
     taskDescription: task.taskDescription,
     completedAt: task.completedAt || '',
     completedBy: task.completedBy || 'Unknown',
@@ -163,4 +163,55 @@ export const getPendingTasks = async (): Promise<MaintenanceTask[]> => {
 export const getOverdueTasks = async (): Promise<MaintenanceTask[]> => {
   const response = await api.get<MaintenanceTask[]>(`${BASE_URL}/tasks/overdue`);
   return response.data;
+};
+
+/**
+ * Get tasks pending approval (HIGH/CRITICAL tasks awaiting C/E approval)
+ */
+export const getTasksPendingApproval = async (): Promise<MaintenanceTask[]> => {
+  try {
+    const response = await api.get<TaskListResponse>(`${BASE_URL}/tasks`, {
+      params: {
+        status: 'PENDING_APPROVAL',
+        page: 1,
+        pageSize: 100
+      }
+    });
+    
+    if (!response.data || !Array.isArray(response.data.data)) {
+      console.warn('Invalid response format from maintenance API:', response.data);
+      return [];
+    }
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('Failed to fetch tasks pending approval:', error);
+    return [];
+  }
+};
+
+/**
+ * Approve a task (C/E or Master only)
+ */
+export const approveTask = async (
+  taskId: string,
+  approvedBy: string
+): Promise<void> => {
+  await api.post(`${BASE_URL}/tasks/${taskId}/approve`, {
+    isApproved: true,
+    approvedBy
+  });
+};/**
+ * Reject a task with reason (C/E or Master only)
+ */
+export const rejectTask = async (
+  taskId: string, 
+  approvedBy: string,
+  rejectionReason: string
+): Promise<void> => {
+  await api.post(`${BASE_URL}/tasks/${taskId}/approve`, {
+    isApproved: false,
+    approvedBy,
+    rejectionReason
+  });
 };

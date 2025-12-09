@@ -11,6 +11,7 @@ const menuItems: MenuItem[] = [
   { path: '/crew', label: 'QL thuyền viên' },
   { path: '/voyages', label: 'QL hải trình' },
   { path: '/work-assignments', label: 'QL phân công công việc' },
+  { path: '/pms/master-schedule', label: 'Master Schedule (PMS)' },
 ];
 
 export const MainLayout: React.FC = () => {

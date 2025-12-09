@@ -70,7 +70,7 @@ class TaskRepository {
       final cached = await _cacheManager.getData(CacheKeys.myTasks);
       if (cached != null) {
         print('📦 TaskRepository: Loaded ${(cached as List).length} tasks from cache');
-        return (cached as List)
+        return (cached)
             .map((json) => MaintenanceTask.fromJson(json))
             .toList();
       }

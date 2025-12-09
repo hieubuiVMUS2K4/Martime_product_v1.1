@@ -194,27 +194,27 @@ export class MaritimeService {
     },
     getPending: () => this.request<MaintenanceTask[]>('/maintenance/tasks/pending'),
     getOverdue: () => this.request<MaintenanceTask[]>('/maintenance/tasks/overdue'),
-    getById: (id: string) => this.request<MaintenanceTask>(`/maintenance/tasks/${id}`),
-    getChecklist: (id: string) => this.request<any[]>(`/maintenance/tasks/${id}/checklist`),
+    getById: (id: number) => this.request<MaintenanceTask>(`/maintenance/tasks/${id}`),
+    getChecklist: (id: number) => this.request<any[]>(`/maintenance/tasks/${id}/checklist`),
     create: (task: Partial<MaintenanceTask>) =>
       this.request<MaintenanceTask>('/maintenance/tasks', {
         method: 'POST',
         body: JSON.stringify(task),
       }),
-    update: (id: string, task: Partial<MaintenanceTask>) =>
+    update: (id: number, task: Partial<MaintenanceTask>) =>
       this.request<MaintenanceTask>(`/maintenance/tasks/${id}`, {
         method: 'PUT',
         body: JSON.stringify(task),
       }),
     completeTask: (
-      id: string,
+      id: number,
       data: { completedBy: string; notes?: string; sparePartsUsed?: string }
     ) =>
       this.request(`/maintenance/tasks/${id}/complete`, {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    delete: (id: string) =>
+    delete: (id: number) =>
       this.request(`/maintenance/tasks/${id}`, {
         method: 'DELETE',
       }),
@@ -342,12 +342,12 @@ export const maintenanceService = {
   getAllTasks: () => apiClient.get<MaintenanceTask[]>('/maintenance/tasks'),
   getPendingTasks: () => apiClient.get<MaintenanceTask[]>('/maintenance/tasks/pending'),
   getOverdueTasks: () => apiClient.get<MaintenanceTask[]>('/maintenance/tasks/overdue'),
-  getTaskById: (id: string) => apiClient.get<MaintenanceTask>(`/maintenance/tasks/${id}`),
+  getTaskById: (id: number) => apiClient.get<MaintenanceTask>(`/maintenance/tasks/${id}`),
   createTask: (task: Partial<MaintenanceTask>) =>
     apiClient.post<MaintenanceTask>('/maintenance/tasks', task),
-  updateTask: (id: string, task: Partial<MaintenanceTask>) =>
+  updateTask: (id: number, task: Partial<MaintenanceTask>) =>
     apiClient.put<MaintenanceTask>(`/maintenance/tasks/${id}`, task),
-  completeTask: (id: string, completedBy: string, notes?: string, sparePartsUsed?: string) =>
+  completeTask: (id: number, completedBy: string, notes?: string, sparePartsUsed?: string) =>
     apiClient.post(`/maintenance/tasks/${id}/complete`, {
       completedBy,
       notes,

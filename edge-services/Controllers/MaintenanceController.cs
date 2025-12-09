@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
+using MaritimeEdge.DTOs;
 using MaritimeEdge.Constants;
+using MaritimeEdge.Services;
 using MTaskStatus = MaritimeEdge.Constants.TaskStatus; // Alias to avoid ambiguity
 
 namespace MaritimeEdge.Controllers;
@@ -12,11 +14,16 @@ namespace MaritimeEdge.Controllers;
 public class MaintenanceController : ControllerBase
 {
     private readonly EdgeDbContext _context;
+    private readonly MaintenanceCompletionService _completionService;
     private readonly ILogger<MaintenanceController> _logger;
 
-    public MaintenanceController(EdgeDbContext context, ILogger<MaintenanceController> logger)
+    public MaintenanceController(
+        EdgeDbContext context, 
+        MaintenanceCompletionService completionService,
+        ILogger<MaintenanceController> logger)
     {
         _context = context;
+        _completionService = completionService;
         _logger = logger;
     }
 
@@ -180,8 +187,10 @@ public class MaintenanceController : ControllerBase
             var totalCount = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
-            // Get paginated data
+            // Get paginated data with related data
             var tasks = await query
+                .Include(t => t.EquipmentGroup)
+                .Include(t => t.ChecklistItems)
                 .OrderBy(t => t.NextDueAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
@@ -333,7 +342,10 @@ public class MaintenanceController : ControllerBase
     {
         try
         {
-            var task = await _context.MaintenanceTasks.FindAsync(id);
+            var task = await _context.MaintenanceTasks
+                .Include(t => t.EquipmentGroup)
+                .Include(t => t.ChecklistItems.OrderBy(ci => ci.SequenceOrder))
+                .FirstOrDefaultAsync(t => t.Id == id);
             
             if (task == null)
             {
@@ -409,7 +421,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpPut("tasks/{id}")]
-    public async Task<IActionResult> UpdateTask(Guid id, [FromBody] MaintenanceTask task)
+    public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskDto dto)
     {
         try
         {
@@ -420,46 +432,241 @@ public class MaintenanceController : ControllerBase
             }
 
             // ⚠️ IMPORTANT: Validate status transition to prevent conflicts
-            if (task.Status != existing.Status)
+            if (dto.Status != existing.Status)
             {
-                var validationResult = ValidateStatusTransition(existing.Status, task.Status, existing);
+                var validationResult = ValidateStatusTransition(existing.Status, dto.Status, existing);
                 if (!validationResult.IsValid)
                 {
                     return BadRequest(new { 
                         error = "Invalid status transition", 
                         message = validationResult.Message,
                         currentStatus = existing.Status,
-                        attemptedStatus = task.Status
+                        attemptedStatus = dto.Status
                     });
                 }
             }
 
-            // Update all properties
-            existing.TaskId = task.TaskId;
-            existing.EquipmentId = task.EquipmentId;
-            existing.EquipmentName = task.EquipmentName;
-            existing.TaskType = task.TaskType;
-            existing.TaskDescription = task.TaskDescription;
-            existing.IntervalHours = task.IntervalHours;
-            existing.IntervalDays = task.IntervalDays;
-            existing.NextDueAt = task.NextDueAt;
-            existing.Priority = task.Priority;
-            existing.Status = task.Status;
-            existing.AssignedTo = task.AssignedTo;
-            existing.Notes = task.Notes;
-            existing.SparePartsUsed = task.SparePartsUsed;
+            // Update properties from DTO (excludes navigation properties like ChecklistItems)
+            existing.TaskId = dto.TaskId;
+            existing.EquipmentId = dto.EquipmentId;
+            existing.EquipmentName = dto.EquipmentName;
+            existing.EquipmentGroupId = dto.EquipmentGroupId;
+            existing.EquipmentGroupName = dto.EquipmentGroupName;
+            existing.TaskType = dto.TaskType;
+            existing.TaskDescription = dto.TaskDescription;
+            existing.IntervalHours = dto.IntervalHours;
+            existing.IntervalDays = dto.IntervalDays;
+            existing.NextDueAt = dto.NextDueAt;
+            existing.Priority = dto.Priority;
+            existing.Status = dto.Status;
+            existing.AssignedTo = dto.AssignedTo;
+            existing.Notes = dto.Notes;
+            existing.SparePartsUsed = dto.SparePartsUsed;
             existing.IsSynced = false;
 
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Updated maintenance task: {Id} - {TaskId}, Status: {OldStatus} → {NewStatus}", 
-                id, task.TaskId, existing.Status, task.Status);
+                id, dto.TaskId, existing.Status, dto.Status);
 
             return Ok(existing);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating task {Id}", id);
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Assign task to crew member (Quick Assign from Kanban board)
+    /// POST /api/maintenance/tasks/{id}/assign
+    /// </summary>
+    [HttpPost("tasks/{id}/assign")]
+    public async Task<IActionResult> AssignTask(Guid id, [FromBody] AssignTaskRequest request)
+    {
+        try
+        {
+            var task = await _context.MaintenanceTasks.FindAsync(id);
+            if (task == null)
+            {
+                return NotFound(new { error = "Maintenance task not found", id });
+            }
+
+            // Validate crew member exists and is onboard (if crewId provided)
+            if (!string.IsNullOrWhiteSpace(request.CrewId))
+            {
+                var crew = await _context.CrewMembers
+                    .FirstOrDefaultAsync(c => c.CrewId == request.CrewId);
+                
+                if (crew == null)
+                {
+                    return BadRequest(new { error = "Crew member not found", crewId = request.CrewId });
+                }
+
+                if (!crew.IsOnboard)
+                {
+                    return BadRequest(new { 
+                        error = "Cannot assign to crew member who is not onboard", 
+                        crewId = request.CrewId,
+                        crewName = crew.FullName 
+                    });
+                }
+
+                task.AssignedTo = crew.CrewId;
+                _logger.LogInformation("Task {TaskId} assigned to {CrewId} ({CrewName})", 
+                    task.TaskId, crew.CrewId, crew.FullName);
+            }
+            else
+            {
+                // Unassign (set to null)
+                task.AssignedTo = null;
+                _logger.LogInformation("Task {TaskId} unassigned", task.TaskId);
+            }
+
+            task.UpdatedAt = DateTime.UtcNow;
+            task.IsSynced = false;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { 
+                id = task.Id,
+                taskId = task.TaskId,
+                assignedTo = task.AssignedTo,
+                message = task.AssignedTo != null 
+                    ? $"Task assigned to {task.AssignedTo}" 
+                    : "Task unassigned"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error assigning task {Id}", id);
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/maintenance/tasks/{id}/approve
+    /// Approve or reject HIGH/CRITICAL tasks (C/E or Master only)
+    /// </summary>
+    [HttpPost("tasks/{id}/approve")]
+    public async Task<IActionResult> ApproveTask(Guid id, [FromBody] ApproveTaskRequest request)
+    {
+        try
+        {
+            var task = await _context.MaintenanceTasks.FindAsync(id);
+            if (task == null)
+            {
+                return NotFound(new { error = "Maintenance task not found", id });
+            }
+
+            // Validate current status is PENDING_APPROVAL
+            if (task.Status != "PENDING_APPROVAL")
+            {
+                return BadRequest(new { 
+                    error = "Task is not in PENDING_APPROVAL status", 
+                    currentStatus = task.Status 
+                });
+            }
+
+            // Validate approver exists and has correct rank
+            var approver = await _context.CrewMembers
+                .FirstOrDefaultAsync(c => c.CrewId == request.ApprovedBy);
+            
+            if (approver == null)
+            {
+                return BadRequest(new { error = "Approver not found", crewId = request.ApprovedBy });
+            }
+
+            // Get equipment group to determine department and required approver rank
+            var equipmentCode = task.EquipmentId;
+            var asset = await _context.EquipmentAssets
+                .FirstOrDefaultAsync(a => a.AssetCode == equipmentCode);
+            
+            var groupMember = asset != null 
+                ? await _context.EquipmentGroupMembers
+                    .Include(egm => egm.Group)
+                    .FirstOrDefaultAsync(egm => egm.AssetId == asset.Id)
+                : null;
+
+            var department = groupMember?.Group?.Department;
+            
+            // Validate approver rank based on department
+            // ENGINE: C/E (Chief Engineer) or Master
+            // DECK: C/O (Chief Officer) or Master
+            // Others: Master only
+            var validApproverRanks = new List<string>();
+            
+            if (department == "ENGINE")
+            {
+                validApproverRanks = new List<string> { "C/E", "Master" };
+            }
+            else if (department == "DECK")
+            {
+                validApproverRanks = new List<string> { "C/O", "Master" };
+            }
+            else
+            {
+                validApproverRanks = new List<string> { "Master" };
+            }
+
+            if (!validApproverRanks.Contains(approver.Rank))
+            {
+                return BadRequest(new { 
+                    error = $"Approver must be one of: {string.Join(", ", validApproverRanks)}", 
+                    approverRank = approver.Rank,
+                    department = department ?? "UNKNOWN"
+                });
+            }
+
+            if (request.IsApproved)
+            {
+                // Approve: Change status to PENDING (ready for execution)
+                task.Status = "PENDING";
+                task.ApprovedBy = request.ApprovedBy;
+                task.ApprovedAt = DateTime.UtcNow;
+                task.RejectionReason = null;
+                
+                _logger.LogInformation("Task {TaskId} approved by {ApprovedBy} ({Rank})", 
+                    task.TaskId, request.ApprovedBy, approver.Rank);
+            }
+            else
+            {
+                // Reject: Change status to REJECTED
+                if (string.IsNullOrWhiteSpace(request.RejectionReason))
+                {
+                    return BadRequest(new { error = "RejectionReason is required when rejecting a task" });
+                }
+
+                task.Status = "REJECTED";
+                task.ApprovedBy = request.ApprovedBy;
+                task.ApprovedAt = DateTime.UtcNow;
+                task.RejectionReason = request.RejectionReason;
+                
+                _logger.LogInformation("Task {TaskId} rejected by {ApprovedBy} ({Rank}): {Reason}", 
+                    task.TaskId, request.ApprovedBy, approver.Rank, request.RejectionReason);
+            }
+
+            task.UpdatedAt = DateTime.UtcNow;
+            task.IsSynced = false;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { 
+                id = task.Id,
+                taskId = task.TaskId,
+                status = task.Status,
+                approvedBy = task.ApprovedBy,
+                approvedAt = task.ApprovedAt,
+                rejectionReason = task.RejectionReason,
+                message = request.IsApproved 
+                    ? $"Task approved by {approver.Rank} {approver.FullName}" 
+                    : $"Task rejected: {task.RejectionReason}"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error approving/rejecting task {Id}", id);
             return StatusCode(500, new { error = "Internal server error", details = ex.Message });
         }
     }
@@ -573,28 +780,38 @@ public class MaintenanceController : ControllerBase
     {
         try
         {
-            var task = await _context.MaintenanceTasks.FindAsync(id);
-            if (task == null)
+            // Use MaintenanceCompletionService for automatic spare parts deduction
+            var sparePartsUsed = request.SparePartsUsed != null
+                ? System.Text.Json.JsonSerializer.Deserialize<List<SparePartUsage>>(request.SparePartsUsed) ?? new List<SparePartUsage>()
+                : new List<SparePartUsage>();
+
+            var result = await _completionService.CompleteTaskAsync(
+                id,
+                request.CompletedBy,
+                sparePartsUsed,
+                request.Notes,
+                request.ConditionAfter
+            );
+
+            if (!result.IsSuccess)
             {
-                return NotFound(new { message = "Task not found" });
+                return BadRequest(new { error = result.ErrorMessage });
             }
 
-            task.Status = MTaskStatus.COMPLETED;
-            task.CompletedAt = DateTime.UtcNow;
-            task.CompletedBy = request.CompletedBy;
-            task.Notes = request.Notes;
-            task.SparePartsUsed = request.SparePartsUsed;
-            task.LastDoneAt = DateTime.UtcNow;
-            
-            // Calculate next due date
-            if (task.IntervalDays.HasValue)
+            var response = new
             {
-                task.NextDueAt = DateTime.UtcNow.AddDays(task.IntervalDays.Value);
+                message = "Task completed successfully",
+                deductedSpareParts = result.DeductedItems,
+                warnings = result.Warnings
+            };
+
+            if (result.Warnings != null && result.Warnings.Any())
+            {
+                _logger.LogWarning("Task {TaskId} completed with warnings: {Warnings}", 
+                    id, string.Join(", ", result.Warnings));
             }
 
-            await _context.SaveChangesAsync();
-
-            return Ok(task);
+            return Ok(response);
         }
         catch (Exception ex)
         {
@@ -818,6 +1035,7 @@ public class MaintenanceController : ControllerBase
         public string CompletedBy { get; set; } = string.Empty;
         public string? Notes { get; set; }
         public string? SparePartsUsed { get; set; }
+        public string? ConditionAfter { get; set; }
     }
 
     public class CreateMaintenanceTaskRequest
@@ -840,5 +1058,17 @@ public class MaintenanceController : ControllerBase
         public string? PhotoUrl { get; set; }
         public string? SignatureUrl { get; set; }
         public string CompletedBy { get; set; } = string.Empty;
+    }
+
+    public class AssignTaskRequest
+    {
+        public string? CrewId { get; set; }
+    }
+
+    public class ApproveTaskRequest
+    {
+        public bool IsApproved { get; set; } // true = approve, false = reject
+        public string? RejectionReason { get; set; } // Required if IsApproved = false
+        public string ApprovedBy { get; set; } = string.Empty; // Crew ID of approver
     }
 }

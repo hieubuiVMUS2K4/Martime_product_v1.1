@@ -47,14 +47,21 @@ export function MaintenanceDetailPage() {
   const loadTaskDetails = async () => {
     if (!id) return
     
+    const taskId = parseInt(id, 10)
+    if (isNaN(taskId)) {
+      alert('Invalid task ID')
+      navigate('/maintenance')
+      return
+    }
+
     try {
       setLoading(true)
-      const data = await maritimeService.maintenance.getById(id)
+      const data = await maritimeService.maintenance.getById(taskId)
       setTask(data)
       
       // Load checklist if task is IN_PROGRESS or COMPLETED
       if (data.status === 'IN_PROGRESS' || data.status === 'COMPLETED') {
-        await loadChecklist(data.id.toString())
+        await loadChecklist(taskId)
       }
     } catch (error) {
       console.error('Failed to load task details:', error)

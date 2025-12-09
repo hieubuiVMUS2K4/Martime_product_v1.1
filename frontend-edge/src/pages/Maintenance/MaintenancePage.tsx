@@ -1,24 +1,26 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Calendar, Download, LayoutGrid } from 'lucide-react'
-import { MaintenanceTask } from '../../types/maritime.types'
+import { Download, LayoutGrid } from 'lucide-react'
+import { MaintenanceTask, parseTaskScheduleInfo } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
-import { format, parseISO, differenceInDays } from 'date-fns'
+import { differenceInDays, parseISO } from 'date-fns'
 import { KanbanBoard } from '../../components/maintenance/KanbanBoard'
 import { AddTaskModal } from '../../components/maintenance/AddTaskModal'
 import { toast } from 'sonner'
 
-type TabType = 'kanban' | 'schedule'
+type TabType = 'tasks'
 
 export function MaintenancePage() {
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<TabType>('kanban')
+  const [activeTab, setActiveTab] = useState<TabType>('tasks')
   const [tasks, setTasks] = useState<MaintenanceTask[]>([])
   const [filteredTasks, setFilteredTasks] = useState<MaintenanceTask[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
   const [equipmentFilter, setEquipmentFilter] = useState<string>('all')
+  const [groupFilter, setGroupFilter] = useState<string>('all')
+  const [scheduleFilter, setScheduleFilter] = useState<string>('all')
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false)
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false)
   
@@ -97,7 +99,7 @@ export function MaintenancePage() {
     // Search filter
     if (searchQuery) {
       filtered = filtered.filter(task =>
-        task.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (task.equipmentGroupName || task.equipmentName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         task.taskDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
         task.taskId.toLowerCase().includes(searchQuery.toLowerCase())
       )
@@ -113,6 +115,22 @@ export function MaintenancePage() {
       filtered = filtered.filter(task => task.equipmentId === equipmentFilter)
     }
 
+    // Group filter (by Equipment Group)
+    if (groupFilter !== 'all') {
+      filtered = filtered.filter(task => {
+        const scheduleInfo = parseTaskScheduleInfo(task)
+        return scheduleInfo.groupName === groupFilter
+      })
+    }
+
+    // Schedule filter (by Schedule Code)
+    if (scheduleFilter !== 'all') {
+      filtered = filtered.filter(task => {
+        const scheduleInfo = parseTaskScheduleInfo(task)
+        return scheduleInfo.scheduleCode === scheduleFilter
+      })
+    }
+
     console.log('📊 Tasks by status:', {
       PENDING: filtered.filter(t => t.status === 'PENDING').length,
       IN_PROGRESS: filtered.filter(t => t.status === 'IN_PROGRESS').length,
@@ -123,7 +141,7 @@ export function MaintenancePage() {
     })
 
     setFilteredTasks(filtered)
-  }, [tasks, searchQuery, priorityFilter, equipmentFilter, timeWindow, showCompleted])
+  }, [tasks, searchQuery, priorityFilter, equipmentFilter, groupFilter, scheduleFilter, timeWindow, showCompleted])
 
   // Calculate quick stats for time windows
   const getTimeWindowStats = () => {
@@ -230,6 +248,19 @@ export function MaintenancePage() {
   }
 
   const uniqueEquipment = [...new Set(tasks.map(t => t.equipmentId))]
+  
+  // Extract unique groups and schedules from tasks
+  const uniqueGroups = [...new Set(
+    tasks
+      .map(t => parseTaskScheduleInfo(t).groupName)
+      .filter(Boolean)
+  )].sort()
+  
+  const uniqueSchedules = [...new Set(
+    tasks
+      .map(t => parseTaskScheduleInfo(t).scheduleCode)
+      .filter(Boolean)
+  )].sort()
 
   return (
     <div className="h-full w-full overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
@@ -271,18 +302,12 @@ export function MaintenancePage() {
       {/* Tabs */}
       <div className="bg-white rounded-lg shadow">
         <div className="border-b border-gray-200">
-          <nav className="flex -mb-px">
+          <nav className="flex -mb-px overflow-x-auto">
             <TabButton
-              active={activeTab === 'kanban'}
-              onClick={() => setActiveTab('kanban')}
+              active={activeTab === 'tasks'}
+              onClick={() => setActiveTab('tasks')}
               icon={<LayoutGrid className="w-5 h-5" />}
-              label="Kanban Board"
-            />
-            <TabButton
-              active={activeTab === 'schedule'}
-              onClick={() => setActiveTab('schedule')}
-              icon={<Calendar className="w-5 h-5" />}
-              label="Schedule View"
+              label="Tasks"
             />
           </nav>
         </div>
@@ -349,6 +374,30 @@ export function MaintenancePage() {
               ))}
             </select>
 
+            {/* Equipment Group Filter */}
+            <select
+              value={groupFilter}
+              onChange={(e) => setGroupFilter(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+            >
+              <option value="all">All Groups</option>
+              {uniqueGroups.map(group => (
+                <option key={group} value={group}>{group}</option>
+              ))}
+            </select>
+
+            {/* Schedule Filter */}
+            <select
+              value={scheduleFilter}
+              onChange={(e) => setScheduleFilter(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+            >
+              <option value="all">All Schedules</option>
+              {uniqueSchedules.map(schedule => (
+                <option key={schedule} value={schedule}>{schedule}</option>
+              ))}
+            </select>
+
             {/* Search - Takes remaining space */}
             <input
               type="text"
@@ -361,14 +410,14 @@ export function MaintenancePage() {
         </div>
 
         {/* Content */}
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="text-gray-600 mt-4">Loading maintenance tasks...</p>
-          </div>
-        ) : (
+        {activeTab === 'tasks' && (
           <>
-            {activeTab === 'kanban' && (
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-600 mt-4">Loading maintenance tasks...</p>
+              </div>
+            ) : (
               <KanbanBoard 
                 tasks={filteredTasks} 
                 onTaskUpdate={handleTaskUpdate}
@@ -376,12 +425,6 @@ export function MaintenancePage() {
                 onTaskClick={(id) => navigate(`/maintenance/${id}`)}
                 onAddTask={() => setIsAddTaskModalOpen(true)}
               />
-            )}
-            
-            {activeTab === 'schedule' && (
-              <div className="p-6">
-                <CalendarView tasks={filteredTasks} navigate={navigate} />
-              </div>
             )}
           </>
         )}
@@ -397,80 +440,6 @@ export function MaintenancePage() {
           setIsAddTaskModalOpen(false)
         }}
       />
-    </div>
-  )
-}
-
-// Calendar View Component
-function CalendarView({ tasks, navigate }: { tasks: MaintenanceTask[]; navigate: (path: string) => void }) {
-  const today = new Date()
-  const next30Days = tasks.filter(task => {
-    const daysUntil = differenceInDays(parseISO(task.nextDueAt), today)
-    return daysUntil >= 0 && daysUntil <= 30
-  }).sort((a, b) => parseISO(a.nextDueAt).getTime() - parseISO(b.nextDueAt).getTime())
-
-  const groupedByWeek = next30Days.reduce((acc, task) => {
-    const weekNum = Math.floor(differenceInDays(parseISO(task.nextDueAt), today) / 7)
-    const weekLabel = weekNum === 0 ? 'This Week' : 
-                      weekNum === 1 ? 'Next Week' : 
-                      weekNum === 2 ? 'Week 3' : 
-                      'Week 4+'
-    
-    if (!acc[weekLabel]) acc[weekLabel] = []
-    acc[weekLabel].push(task)
-    return acc
-  }, {} as Record<string, MaintenanceTask[]>)
-
-  return (
-    <div className="space-y-6">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-900">Next 30 Days Schedule</h3>
-        <p className="text-sm text-blue-800 mt-1">
-          {next30Days.length} maintenance task(s) scheduled in the next 30 days
-        </p>
-      </div>
-
-      {Object.entries(groupedByWeek).map(([week, weekTasks]) => (
-        <div key={week} className="border border-gray-200 rounded-lg p-5">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">{week}</h3>
-          <div className="space-y-3">
-            {weekTasks.map(task => (
-              <div 
-                key={task.id} 
-                onClick={() => navigate(`/maintenance/${task.id}`)}
-                className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 hover:shadow-md hover:border-blue-200 border border-transparent transition-all cursor-pointer"
-              >
-                <div className="text-center min-w-[60px]">
-                  <p className="text-xs text-gray-600">
-                    {format(parseISO(task.nextDueAt), 'MMM')}
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {format(parseISO(task.nextDueAt), 'dd')}
-                  </p>
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{task.equipmentName}</p>
-                  <p className="text-sm text-gray-600">{task.taskDescription}</p>
-                </div>
-                <span className={`px-3 py-1 text-xs font-semibold rounded ${
-                  task.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
-                  task.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' :
-                  'bg-blue-100 text-blue-700'
-                }`}>
-                  {task.priority}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-
-      {next30Days.length === 0 && (
-        <div className="text-center py-12">
-          <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">No tasks scheduled in the next 30 days</p>
-        </div>
-      )}
     </div>
   )
 }
