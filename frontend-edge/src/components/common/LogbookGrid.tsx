@@ -8,10 +8,10 @@ interface LogbookGridProps {
 
 export const LogbookGrid: React.FC<LogbookGridProps> = ({ children, title, actions }) => {
   return (
-    <div className="bg-industrial-bg min-h-screen p-4">
-      <div className="flex justify-between items-center mb-6 border-b border-industrial-border pb-4">
+    <div className="bg-white min-h-screen p-6">
+      <div className="flex justify-between items-center mb-6 border-b border-gray-200 pb-4">
         {title && (
-          <h1 className="text-2xl font-mono text-industrial-text-amber uppercase tracking-widest">
+          <h1 className="text-2xl font-bold text-gray-900">
             {title}
           </h1>
         )}

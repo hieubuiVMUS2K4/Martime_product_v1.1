@@ -85,8 +85,8 @@ export const DeckLogPage: React.FC = () => {
     <LogbookGrid title="Deck Logbook - SOLAS Chapter V">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Input Form */}
-        <div className="lg:col-span-1 bg-industrial-surface p-6 border border-industrial-border">
-          <h2 className="text-industrial-text-amber font-mono text-xl mb-4 uppercase">New Entry</h2>
+        <div className="lg:col-span-1 bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">New Entry</h2>
           <div className="flex flex-col gap-4">
             <MaritimeInput 
               label="Date & Time (UTC)" 
@@ -156,7 +156,7 @@ export const DeckLogPage: React.FC = () => {
             />
             <button 
               onClick={handleSubmit}
-              className="bg-industrial-text-amber text-black font-bold py-3 mt-4 font-mono hover:bg-yellow-500 uppercase tracking-wider"
+              className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
             >
               Add Entry
             </button>
@@ -165,32 +165,32 @@ export const DeckLogPage: React.FC = () => {
 
         {/* Log Entries Timeline */}
         <div className="lg:col-span-2 flex flex-col gap-4">
-          {loading && <div className="text-industrial-text-green font-mono text-center">Loading entries...</div>}
+          {loading && <div className="text-gray-600 text-center">Loading entries...</div>}
           {!loading && entries.length === 0 && (
-            <div className="text-gray-500 font-mono text-center py-10">No entries yet. Start logging above.</div>
+            <div className="text-gray-500 text-center py-10">No entries yet. Start logging above.</div>
           )}
           {entries.map(entry => (
-            <div key={entry.id} className="bg-industrial-surface border border-industrial-border p-4 flex flex-col gap-2 relative">
+            <div key={entry.id} className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col gap-2 relative shadow-sm">
               <div className="flex justify-between items-start">
-                <span className="text-industrial-text-green font-mono text-lg">{new Date(entry.logDateTime).toLocaleString()}</span>
+                <span className="text-blue-600 font-semibold text-lg">{new Date(entry.logDateTime).toLocaleString()}</span>
                 {entry.masterSignature ? (
-                  <span className="bg-industrial-text-green text-black text-xs px-2 py-1 font-mono font-bold">SIGNED</span>
+                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-semibold">SIGNED</span>
                 ) : (
-                  <span className="bg-yellow-600 text-black text-xs px-2 py-1 font-mono font-bold">DRAFT</span>
+                  <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-semibold">DRAFT</span>
                 )}
               </div>
-              <div className="grid grid-cols-3 gap-4 text-sm font-mono text-gray-400 mt-2">
-                <div>POS: <span className="text-white">{entry.latitude?.toFixed(4)}, {entry.longitude?.toFixed(4)}</span></div>
-                <div>COG: <span className="text-white">{entry.courseOverGround}°</span></div>
-                <div>SOG: <span className="text-white">{entry.speedOverGround} kts</span></div>
+              <div className="grid grid-cols-3 gap-4 text-sm text-gray-600 mt-2">
+                <div>POS: <span className="text-gray-900 font-medium">{entry.latitude?.toFixed(4)}, {entry.longitude?.toFixed(4)}</span></div>
+                <div>COG: <span className="text-gray-900 font-medium">{entry.courseOverGround}°</span></div>
+                <div>SOG: <span className="text-gray-900 font-medium">{entry.speedOverGround} kts</span></div>
               </div>
-              <div className="text-sm font-mono text-gray-400">
-                OOW: <span className="text-white">{entry.officerOnWatch}</span> | Watch: <span className="text-white">{entry.watchPeriod}</span>
+              <div className="text-sm text-gray-600">
+                OOW: <span className="text-gray-900 font-medium">{entry.officerOnWatch}</span> | Watch: <span className="text-gray-900 font-medium">{entry.watchPeriod}</span>
               </div>
-              <p className="text-white font-mono mt-2 border-t border-gray-700 pt-2">{entry.description}</p>
+              <p className="text-gray-900 mt-2 border-t border-gray-200 pt-2">{entry.description}</p>
               
               {!entry.masterSignature && (
-                <div className="mt-4 border-t border-gray-700 pt-4">
+                <div className="mt-4 border-t border-gray-200 pt-4">
                   <SignaturePad onSign={(sig) => handleSign(entry.id, sig)} label="Sign this Entry" />
                 </div>
               )}

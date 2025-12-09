@@ -85,7 +85,7 @@ export const OilRecordPage: React.FC = () => {
       actions={
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-industrial-text-amber text-black font-bold py-2 px-6 font-mono hover:bg-yellow-500 uppercase tracking-wider"
+          className="bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:bg-blue-700 "
         >
           {showForm ? 'Cancel' : '+ New Entry'}
         </button>
@@ -98,13 +98,13 @@ export const OilRecordPage: React.FC = () => {
           {[1, 2, 3].map(s => (
             <div key={s} className={`flex items-center ${s < 3 ? 'flex-1' : ''}`}>
               <div className={`
-                w-10 h-10 rounded-full flex items-center justify-center font-mono font-bold border-2
-                ${step >= s ? 'bg-industrial-text-amber text-black border-industrial-text-amber' : 'bg-transparent text-gray-500 border-gray-500'}
+                w-10 h-10 rounded-full flex items-center justify-center font-sans font-bold border-2
+                ${step >= s ? 'bg-blue-600 text-white border-blue-500' : 'bg-transparent text-gray-500 border-gray-500'}
               `}>
                 {s}
               </div>
               {s < 3 && (
-                <div className={`h-1 flex-1 mx-2 ${step > s ? 'bg-industrial-text-amber' : 'bg-gray-700'}`} />
+                <div className={`h-1 flex-1 mx-2 ${step > s ? 'bg-blue-600' : 'bg-gray-700'}`} />
               )}
             </div>
           ))}
@@ -112,8 +112,8 @@ export const OilRecordPage: React.FC = () => {
 
         {/* Step 1: Select Operation */}
         {step === 1 && (
-          <div className="bg-industrial-surface p-6 border border-industrial-border">
-            <h2 className="text-industrial-text-amber font-mono text-xl mb-4 uppercase">Step 1: Select Operation</h2>
+          <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+            <h2 className="text-blue-600 font-sans text-xl font-bold mb-4">Step 1: Select Operation</h2>
             <div className="flex flex-col gap-2">
               {OPERATIONS.map(op => (
                 <button
@@ -122,10 +122,10 @@ export const OilRecordPage: React.FC = () => {
                     setFormData({ ...formData, operationCode: op.code });
                     handleNext();
                   }}
-                  className="text-left p-4 border border-industrial-border hover:bg-white/5 hover:border-industrial-text-amber transition-colors"
+                  className="text-left p-4 border border-gray-200 hover:bg-gray-50 hover:border-blue-500 transition-colors"
                 >
-                  <span className="text-industrial-text-amber font-bold font-mono mr-4">Code {op.code}</span>
-                  <span className="text-white font-mono">{op.desc}</span>
+                  <span className="text-blue-600 font-bold font-sans mr-4">Code {op.code}</span>
+                  <span className="text-gray-900 font-sans">{op.desc}</span>
                 </button>
               ))}
             </div>
@@ -134,8 +134,8 @@ export const OilRecordPage: React.FC = () => {
 
         {/* Step 2: Enter Details */}
         {step === 2 && (
-          <div className="bg-industrial-surface p-6 border border-industrial-border">
-            <h2 className="text-industrial-text-amber font-mono text-xl mb-4 uppercase">Step 2: Enter Details (Code {formData.operationCode})</h2>
+          <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+            <h2 className="text-blue-600 font-sans text-xl font-bold mb-4">Step 2: Enter Details (Code {formData.operationCode})</h2>
             <div className="flex flex-col gap-4">
               <MaritimeInput 
                 label="Item No." 
@@ -162,10 +162,10 @@ export const OilRecordPage: React.FC = () => {
                 onChange={e => setFormData({ ...formData, officerInCharge: e.target.value })}
               />
               <div className="flex justify-between mt-4">
-                <button onClick={handleBack} className="text-white font-mono underline">Back</button>
+                <button onClick={handleBack} className="text-gray-900 font-sans underline">Back</button>
                 <button 
                   onClick={handleNext}
-                  className="bg-industrial-text-amber text-black font-bold py-2 px-6 font-mono hover:bg-yellow-500"
+                  className="bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:bg-blue-700"
                 >
                   Next
                 </button>
@@ -176,32 +176,32 @@ export const OilRecordPage: React.FC = () => {
 
         {/* Step 3: Review & Sign */}
         {step === 3 && (
-          <div className="bg-industrial-surface p-6 border border-industrial-border">
-            <h2 className="text-industrial-text-amber font-mono text-xl mb-4 uppercase">Step 3: Review & Confirm</h2>
-            <div className="bg-black/30 p-4 mb-6 border border-gray-700 font-mono text-sm">
+          <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+            <h2 className="text-blue-600 font-sans text-xl font-bold mb-4">Step 3: Review & Confirm</h2>
+            <div className="bg-gray-50/30 p-4 mb-6 border border-gray-200 font-sans text-sm">
               <div className="grid grid-cols-2 gap-2">
                 <span className="text-gray-400">Operation Code:</span>
-                <span className="text-white">{formData.operationCode}</span>
+                <span className="text-gray-900">{formData.operationCode}</span>
                 
                 <span className="text-gray-400">Item No:</span>
-                <span className="text-white">{formData.itemNo}</span>
+                <span className="text-gray-900">{formData.itemNo}</span>
                 
                 <span className="text-gray-400">Quantity:</span>
-                <span className="text-white">{formData.quantity} m3</span>
+                <span className="text-gray-900">{formData.quantity} m3</span>
                 
                 <span className="text-gray-400">Tank:</span>
-                <span className="text-white">{formData.tank}</span>
+                <span className="text-gray-900">{formData.tank}</span>
 
                 <span className="text-gray-400">Officer:</span>
-                <span className="text-white">{formData.officerInCharge}</span>
+                <span className="text-gray-900">{formData.officerInCharge}</span>
               </div>
             </div>
             
             <div className="flex justify-between mt-4">
-              <button onClick={handleBack} className="text-white font-mono underline">Back</button>
+              <button onClick={handleBack} className="text-gray-900 font-sans underline">Back</button>
               <button 
                 onClick={handleSave}
-                className="bg-industrial-text-green text-black font-bold py-2 px-6 font-mono hover:bg-green-500"
+                className="bg-green-600 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:bg-green-700"
               >
                 CONFIRM & SAVE
               </button>
@@ -212,49 +212,49 @@ export const OilRecordPage: React.FC = () => {
       )}
 
       {/* Entries Table */}
-      <div className="bg-industrial-surface border border-industrial-border overflow-x-auto mt-6">
+      <div className="bg-white border border-gray-200 overflow-x-auto mt-6">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-black text-industrial-text-amber font-mono text-sm uppercase">
-              <th className="p-4 border-b border-industrial-border">Date</th>
-              <th className="p-4 border-b border-industrial-border">Code</th>
-              <th className="p-4 border-b border-industrial-border">Operation</th>
-              <th className="p-4 border-b border-industrial-border">Quantity</th>
-              <th className="p-4 border-b border-industrial-border">Tank</th>
-              <th className="p-4 border-b border-industrial-border">Officer</th>
-              <th className="p-4 border-b border-industrial-border">Status</th>
+            <tr className="bg-gray-50 text-blue-600 font-sans text-sm font-semibold">
+              <th className="p-4 border-b border-gray-200">Date</th>
+              <th className="p-4 border-b border-gray-200">Code</th>
+              <th className="p-4 border-b border-gray-200">Operation</th>
+              <th className="p-4 border-b border-gray-200">Quantity</th>
+              <th className="p-4 border-b border-gray-200">Tank</th>
+              <th className="p-4 border-b border-gray-200">Officer</th>
+              <th className="p-4 border-b border-gray-200">Status</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7} className="p-4 text-center text-industrial-text-green font-mono">
+                <td colSpan={7} className="p-4 text-center text-green-600 font-sans">
                   Loading...
                 </td>
               </tr>
             )}
             {!loading && entries.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-4 text-center text-gray-500 font-mono">
+                <td colSpan={7} className="p-4 text-center text-gray-500 font-sans">
                   No oil record entries. Click "+ New Entry" to start logging.
                 </td>
               </tr>
             )}
             {entries.map(entry => (
-              <tr key={entry.id} className="border-b border-industrial-border hover:bg-white/5">
-                <td className="p-4 font-mono text-white">{new Date(entry.entryDate).toLocaleDateString()}</td>
-                <td className="p-4 font-mono text-industrial-text-amber font-bold">{entry.operationCode}</td>
-                <td className="p-4 font-mono text-white text-sm">{entry.operationDescription}</td>
-                <td className="p-4 font-mono text-white">{entry.quantity} {entry.quantityUnit}</td>
-                <td className="p-4 font-mono text-white text-sm">{entry.tankFrom || '-'}</td>
-                <td className="p-4 font-mono text-white text-sm">{entry.officerInCharge}</td>
+              <tr key={entry.id} className="border-b border-gray-200 hover:bg-gray-50">
+                <td className="p-4 font-sans text-gray-900">{new Date(entry.entryDate).toLocaleDateString()}</td>
+                <td className="p-4 font-sans text-blue-600 font-bold">{entry.operationCode}</td>
+                <td className="p-4 font-sans text-gray-900 text-sm">{entry.operationDescription}</td>
+                <td className="p-4 font-sans text-gray-900">{entry.quantity} {entry.quantityUnit}</td>
+                <td className="p-4 font-sans text-gray-900 text-sm">{entry.tankFrom || '-'}</td>
+                <td className="p-4 font-sans text-gray-900 text-sm">{entry.officerInCharge}</td>
                 <td className="p-4">
                   {entry.masterSignature ? (
-                    <span className="bg-industrial-text-green text-black text-xs px-2 py-1 font-mono font-bold">
+                    <span className="bg-green-600 text-white text-xs px-2 py-1 font-sans font-bold">
                       SIGNED
                     </span>
                   ) : (
-                    <span className="bg-yellow-600 text-black text-xs px-2 py-1 font-mono font-bold">
+                    <span className="bg-yellow-600 text-black text-xs px-2 py-1 font-sans font-bold">
                       DRAFT
                     </span>
                   )}
@@ -267,3 +267,8 @@ export const OilRecordPage: React.FC = () => {
     </LogbookGrid>
   );
 };
+
+
+
+
+

@@ -181,7 +181,7 @@ export const BallastWaterPage: React.FC = () => {
       actions={
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-industrial-text-amber text-black font-bold py-2 px-6 font-mono hover:bg-yellow-500 uppercase tracking-wider"
+          className="bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:bg-blue-700 "
         >
           {showForm ? 'Cancel' : '+ New Entry'}
         </button>
@@ -194,13 +194,13 @@ export const BallastWaterPage: React.FC = () => {
           {[1, 2].map(s => (
             <div key={s} className={`flex items-center ${s < 2 ? 'flex-1' : ''}`}>
               <div className={`
-                w-12 h-12 rounded-full flex items-center justify-center font-mono font-bold border-2
-                ${step >= s ? 'bg-industrial-text-amber text-black border-industrial-text-amber' : 'bg-transparent text-gray-500 border-gray-500'}
+                w-12 h-12 rounded-full flex items-center justify-center font-sans font-bold border-2
+                ${step >= s ? 'bg-blue-600 text-white border-blue-500' : 'bg-transparent text-gray-500 border-gray-500'}
               `}>
                 {s}
               </div>
               {s < 2 && (
-                <div className={`h-1 flex-1 mx-2 ${step > s ? 'bg-industrial-text-amber' : 'bg-gray-700'}`} />
+                <div className={`h-1 flex-1 mx-2 ${step > s ? 'bg-blue-600' : 'bg-gray-700'}`} />
               )}
             </div>
           ))}
@@ -208,8 +208,8 @@ export const BallastWaterPage: React.FC = () => {
 
         {/* Step 1: Select Operation */}
         {step === 1 && (
-          <div className="bg-industrial-surface p-6 border border-industrial-border">
-            <h2 className="text-industrial-text-amber font-mono text-xl mb-6 uppercase">
+          <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+            <h2 className="text-blue-600 font-sans text-xl font-bold mb-6">
               Step 1: Select BWM Operation
             </h2>
             <div className="flex flex-col gap-3">
@@ -217,17 +217,17 @@ export const BallastWaterPage: React.FC = () => {
                 <button
                   key={op.code}
                   onClick={() => handleOperationSelect(op)}
-                  className="text-left p-4 border border-industrial-border hover:bg-white/5 hover:border-industrial-text-amber transition-colors"
+                  className="text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-500 transition-colors"
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <span className="text-industrial-text-amber font-bold font-mono mr-4">
+                      <span className="text-blue-600 font-bold font-sans mr-4">
                         Code {op.code}
                       </span>
-                      <span className="text-white font-mono">{op.name}</span>
+                      <span className="text-gray-900 font-sans">{op.name}</span>
                     </div>
                     {op.requiresTreatment && (
-                      <span className="bg-blue-600 text-white text-xs px-2 py-1 font-mono rounded">
+                      <span className="bg-blue-600 text-white text-xs px-2 py-1 font-sans rounded">
                         D-2 REQUIRED
                       </span>
                     )}
@@ -240,14 +240,14 @@ export const BallastWaterPage: React.FC = () => {
 
         {/* Step 2: Enter Details */}
         {step === 2 && selectedOperation && (
-          <div className="bg-industrial-surface p-6 border border-industrial-border">
-            <h2 className="text-industrial-text-amber font-mono text-xl mb-4 uppercase">
+          <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+            <h2 className="text-blue-600 font-sans text-xl font-bold mb-4">
               Step 2: Ballast Operation Details
             </h2>
             
-            <div className="bg-black/30 p-4 mb-6 border border-gray-700">
-              <span className="text-gray-400 font-mono text-sm">Operation: </span>
-              <span className="text-white font-mono font-bold">
+            <div className="bg-gray-50/30 p-4 mb-6 border border-gray-200">
+              <span className="text-gray-400 font-sans text-sm">Operation: </span>
+              <span className="text-gray-900 font-sans font-bold">
                 Code {selectedOperation.code} - {selectedOperation.name}
               </span>
             </div>
@@ -273,7 +273,7 @@ export const BallastWaterPage: React.FC = () => {
 
               {/* Position at Start */}
               <div className="border border-blue-600 bg-blue-900/10 p-4">
-                <div className="text-blue-400 font-mono text-sm mb-4 uppercase">Start Position</div>
+                <div className="text-blue-600 font-sans text-sm font-semibold mb-4">Start Position</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <CoordinatePicker
                     label="Start Latitude"
@@ -293,16 +293,16 @@ export const BallastWaterPage: React.FC = () => {
               {/* Exchange-specific fields (codes 2, 3, 4) */}
               {['2', '3', '4'].includes(selectedOperation.code) && (
                 <div className="border border-green-600 bg-green-900/10 p-4">
-                  <div className="text-green-400 font-mono text-sm mb-4 uppercase">D-1 Exchange Parameters</div>
+                  <div className="text-green-600 font-sans text-sm font-semibold mb-4">D-1 Exchange Parameters</div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-industrial-text-amber font-mono text-sm uppercase tracking-wider block mb-2">
+                      <label className="text-blue-600 font-sans text-sm  block mb-2">
                         Exchange Method
                       </label>
                       <select
                         value={formData.exchangeMethod}
                         onChange={e => setFormData({ ...formData, exchangeMethod: e.target.value })}
-                        className="w-full bg-industrial-surface border-2 border-industrial-border text-white font-mono text-lg p-4 focus:border-industrial-text-amber focus:outline-none"
+                        className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans text-lg p-4 rounded-lg focus:border-blue-500 focus:outline-none"
                       >
                         <option value="">Select Method</option>
                         {EXCHANGE_METHODS.map(m => (
@@ -370,7 +370,7 @@ export const BallastWaterPage: React.FC = () => {
               {/* D-2 Treatment System (codes 5, 8) */}
               {(selectedOperation.code === '5' || selectedOperation.code === '8') && (
                 <div className="border border-purple-600 bg-purple-900/10 p-4">
-                  <div className="text-purple-400 font-mono text-sm mb-4 uppercase flex items-center gap-2">
+                  <div className="text-purple-600 font-sans text-sm mb-4 flex items-center gap-2">
                     D-2 Treatment System (MANDATORY)
                     <span className="bg-red-600 text-white text-xs px-2 py-1 rounded">REQUIRED</span>
                   </div>
@@ -382,19 +382,19 @@ export const BallastWaterPage: React.FC = () => {
                         onChange={e => setFormData({ ...formData, treatmentSystemUsed: e.target.checked })}
                         className="w-6 h-6"
                       />
-                      <span className="text-white font-mono">Treatment System Used</span>
+                      <span className="text-gray-900 font-sans">Treatment System Used</span>
                     </label>
                   </div>
                   {formData.treatmentSystemUsed && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-industrial-text-amber font-mono text-sm uppercase tracking-wider block mb-2">
+                        <label className="text-blue-600 font-sans text-sm  block mb-2">
                           Treatment System Type
                         </label>
                         <select
                           value={formData.treatmentSystemType}
                           onChange={e => setFormData({ ...formData, treatmentSystemType: e.target.value })}
-                          className="w-full bg-industrial-surface border-2 border-industrial-border text-white font-mono text-lg p-4 focus:border-industrial-text-amber focus:outline-none"
+                          className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans text-lg p-4 rounded-lg focus:border-blue-500 focus:outline-none"
                         >
                           <option value="">Select System</option>
                           {TREATMENT_SYSTEMS.map(t => (
@@ -403,13 +403,13 @@ export const BallastWaterPage: React.FC = () => {
                         </select>
                       </div>
                       <div>
-                        <label className="text-industrial-text-amber font-mono text-sm uppercase tracking-wider block mb-2">
+                        <label className="text-blue-600 font-sans text-sm  block mb-2">
                           Treatment Result
                         </label>
                         <select
                           value={formData.treatmentSuccessful ? 'SUCCESS' : 'FAILURE'}
                           onChange={e => setFormData({ ...formData, treatmentSuccessful: e.target.value === 'SUCCESS' })}
-                          className="w-full bg-industrial-surface border-2 border-industrial-border text-white font-mono text-lg p-4 focus:border-industrial-text-amber focus:outline-none"
+                          className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans text-lg p-4 rounded-lg focus:border-blue-500 focus:outline-none"
                         >
                           <option value="SUCCESS">Successful</option>
                           <option value="FAILURE">Failed / Partial</option>
@@ -447,13 +447,13 @@ export const BallastWaterPage: React.FC = () => {
               />
               
               <div>
-                <label className="text-industrial-text-amber font-mono text-sm uppercase tracking-wider block mb-2">
+                <label className="text-blue-600 font-sans text-sm  block mb-2">
                   Remarks
                 </label>
                 <textarea
                   value={formData.remarks}
                   onChange={e => setFormData({ ...formData, remarks: e.target.value })}
-                  className="w-full bg-industrial-surface border-2 border-industrial-border text-white font-mono p-4 focus:border-industrial-text-amber focus:outline-none h-24 resize-none"
+                  className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans p-4 rounded-lg focus:border-blue-500 focus:outline-none h-24 resize-none"
                   placeholder="Additional notes..."
                 />
               </div>
@@ -462,13 +462,13 @@ export const BallastWaterPage: React.FC = () => {
               <div className="flex justify-between mt-6">
                 <button 
                   onClick={() => setStep(1)}
-                  className="text-white font-mono underline hover:text-industrial-text-amber"
+                  className="text-gray-900 font-sans underline hover:text-blue-600"
                 >
                   ← Back
                 </button>
                 <button
                   onClick={handleSave}
-                  className="bg-industrial-text-green text-black font-bold py-3 px-8 font-mono hover:bg-green-500 uppercase tracking-wider"
+                  className="bg-green-600 text-white font-semibold py-2.5 px-8 rounded-lg shadow-md hover:bg-green-700 "
                 >
                   Save Entry
                 </button>
@@ -480,31 +480,31 @@ export const BallastWaterPage: React.FC = () => {
       )}
 
       {/* Entries Table */}
-      <div className="bg-industrial-surface border border-industrial-border overflow-x-auto mt-6">
+      <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto mt-6 shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-black text-industrial-text-amber font-mono text-sm uppercase">
-              <th className="p-4 border-b border-industrial-border">Date</th>
-              <th className="p-4 border-b border-industrial-border">Operation</th>
-              <th className="p-4 border-b border-industrial-border">Tank</th>
-              <th className="p-4 border-b border-industrial-border">Volume (m³)</th>
-              <th className="p-4 border-b border-industrial-border">Position</th>
-              <th className="p-4 border-b border-industrial-border">Treatment</th>
-              <th className="p-4 border-b border-industrial-border">Officer</th>
-              <th className="p-4 border-b border-industrial-border">Status</th>
+            <tr className="bg-gray-50 text-blue-600 font-sans text-sm font-semibold">
+              <th className="p-4 border-b border-gray-200">Date</th>
+              <th className="p-4 border-b border-gray-200">Operation</th>
+              <th className="p-4 border-b border-gray-200">Tank</th>
+              <th className="p-4 border-b border-gray-200">Volume (m³)</th>
+              <th className="p-4 border-b border-gray-200">Position</th>
+              <th className="p-4 border-b border-gray-200">Treatment</th>
+              <th className="p-4 border-b border-gray-200">Officer</th>
+              <th className="p-4 border-b border-gray-200">Status</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={8} className="p-4 text-center text-industrial-text-green font-mono">
+                <td colSpan={8} className="p-4 text-center text-green-600 font-sans">
                   Loading...
                 </td>
               </tr>
             )}
             {!loading && entries.length === 0 && (
               <tr>
-                <td colSpan={8} className="p-4 text-center text-gray-500 font-mono">
+                <td colSpan={8} className="p-4 text-center text-gray-500 font-sans">
                   No ballast water records. Click "+ New Entry" to start logging.
                 </td>
               </tr>
@@ -512,36 +512,36 @@ export const BallastWaterPage: React.FC = () => {
             {entries.map(entry => {
               const operation = BWM_OPERATIONS.find(op => op.code === entry.operationCode);
               return (
-                <tr key={entry.id} className="border-b border-industrial-border hover:bg-white/5">
-                  <td className="p-4 font-mono text-white">{new Date(entry.operationDateTime).toLocaleDateString()}</td>
-                  <td className="p-4 font-mono text-white text-sm">
-                    <span className="bg-blue-600 px-2 py-1 text-xs">
+                <tr key={entry.id} className="border-b border-gray-200 hover:bg-gray-50">
+                  <td className="p-4 font-sans text-gray-900">{new Date(entry.operationDateTime).toLocaleDateString()}</td>
+                  <td className="p-4 font-sans text-gray-900 text-sm">
+                    <span className="bg-blue-600 text-white px-2 py-1 text-xs">
                       {entry.operationCode}
                     </span>
                     <div className="text-xs text-gray-400 mt-1">{operation?.name}</div>
                   </td>
-                  <td className="p-4 font-mono text-white">{entry.ballastTank}</td>
-                  <td className="p-4 font-mono text-white">{entry.volume.toFixed(2)}</td>
-                  <td className="p-4 font-mono text-white text-xs">
+                  <td className="p-4 font-sans text-gray-900">{entry.ballastTank}</td>
+                  <td className="p-4 font-sans text-gray-900">{entry.volume.toFixed(2)}</td>
+                  <td className="p-4 font-sans text-gray-900 text-xs">
                     {entry.portName || `${entry.startLatitude.toFixed(2)}°, ${entry.startLongitude.toFixed(2)}°`}
                   </td>
-                  <td className="p-4 font-mono text-white text-xs">
+                  <td className="p-4 font-sans text-gray-900 text-xs">
                     {entry.treatmentSystemUsed ? (
-                      <span className="bg-green-600 px-2 py-1 text-xs">
+                      <span className="bg-green-600 text-white px-2 py-1 text-xs">
                         {entry.treatmentSystemType}
                       </span>
                     ) : (
                       <span className="text-gray-500">No treatment</span>
                     )}
                   </td>
-                  <td className="p-4 font-mono text-white text-sm">{entry.officerInCharge}</td>
+                  <td className="p-4 font-sans text-gray-900 text-sm">{entry.officerInCharge}</td>
                   <td className="p-4">
                     {entry.masterSignature ? (
-                      <span className="bg-industrial-text-green text-black text-xs px-2 py-1 font-mono font-bold">
+                      <span className="bg-green-600 text-white text-xs px-2 py-1 font-sans font-bold">
                         SIGNED
                       </span>
                     ) : (
-                      <span className="bg-yellow-600 text-black text-xs px-2 py-1 font-mono font-bold">
+                      <span className="bg-yellow-600 text-white text-xs px-2 py-1 font-sans font-bold">
                         DRAFT
                       </span>
                     )}
@@ -555,3 +555,9 @@ export const BallastWaterPage: React.FC = () => {
     </LogbookGrid>
   );
 };
+
+
+
+
+
+

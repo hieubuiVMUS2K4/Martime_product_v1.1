@@ -75,43 +75,43 @@ export const EngineLogPage: React.FC = () => {
 
   return (
     <LogbookGrid title="Engine Logbook - Main Engine Parameters">
-      <div className="overflow-x-auto bg-industrial-surface border border-industrial-border">
+      <div className="overflow-x-auto bg-white border border-gray-200">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-black text-industrial-text-amber font-mono text-sm uppercase">
-              <th className="p-4 border-b border-industrial-border">Time</th>
-              <th className="p-4 border-b border-industrial-border">RPM</th>
-              <th className="p-4 border-b border-industrial-border">Load (%)</th>
-              <th className="p-4 border-b border-industrial-border">Exh. Temp (°C)</th>
-              <th className="p-4 border-b border-industrial-border">Lube Press (Bar)</th>
-              <th className="p-4 border-b border-industrial-border">Fuel Cons (L/h)</th>
-              <th className="p-4 border-b border-industrial-border">Action</th>
+            <tr className="bg-gray-50 text-blue-600 font-sans text-sm font-semibold">
+              <th className="p-4 border-b border-gray-200">Time</th>
+              <th className="p-4 border-b border-gray-200">RPM</th>
+              <th className="p-4 border-b border-gray-200">Load (%)</th>
+              <th className="p-4 border-b border-gray-200">Exh. Temp (°C)</th>
+              <th className="p-4 border-b border-gray-200">Lube Press (Bar)</th>
+              <th className="p-4 border-b border-gray-200">Fuel Cons (L/h)</th>
+              <th className="p-4 border-b border-gray-200">Action</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7} className="p-4 text-center text-industrial-text-green font-mono">Loading...</td>
+                <td colSpan={7} className="p-4 text-center text-green-600 font-sans">Loading...</td>
               </tr>
             )}
             {!loading && entries.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-4 text-center text-gray-500 font-mono">No entries found.</td>
+                <td colSpan={7} className="p-4 text-center text-gray-500 font-sans">No entries found.</td>
               </tr>
             )}
             {entries.map(entry => (
-              <tr key={entry.id} className="border-b border-industrial-border hover:bg-white/5">
-                <td className="p-4 font-mono text-white">{new Date(entry.logDateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
-                <td className="p-4 font-mono text-white">{entry.mainEngineRPM}</td>
-                <td className="p-4 font-mono text-white">{entry.mainEngineLoad}</td>
-                <td className="p-4 font-mono text-white">{entry.mainEngineExhaustTemp}</td>
-                <td className="p-4 font-mono text-white">{entry.mainEngineLubeOilPressure}</td>
-                <td className="p-4 font-mono text-white">{entry.fuelOilConsumedME}</td>
+              <tr key={entry.id} className="border-b border-gray-200 hover:bg-gray-50">
+                <td className="p-4 font-sans text-gray-900">{new Date(entry.logDateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                <td className="p-4 font-sans text-gray-900">{entry.mainEngineRPM}</td>
+                <td className="p-4 font-sans text-gray-900">{entry.mainEngineLoad}</td>
+                <td className="p-4 font-sans text-gray-900">{entry.mainEngineExhaustTemp}</td>
+                <td className="p-4 font-sans text-gray-900">{entry.mainEngineLubeOilPressure}</td>
+                <td className="p-4 font-sans text-gray-900">{entry.fuelOilConsumedME}</td>
                 <td className="p-4">
                   {entry.chiefEngineerSignature ? (
-                    <span className="text-industrial-text-green font-mono text-xs">SIGNED</span>
+                    <span className="text-green-600 font-sans text-xs">SIGNED</span>
                   ) : (
-                    <button className="text-industrial-text-amber hover:underline font-mono text-sm">SIGN</button>
+                    <button className="text-blue-600 hover:underline font-sans text-sm">SIGN</button>
                   )}
                 </td>
               </tr>
@@ -180,7 +180,7 @@ export const EngineLogPage: React.FC = () => {
               <td className="p-2">
                 <button 
                   onClick={handleAdd}
-                  className="bg-industrial-text-amber text-black px-4 py-2 font-bold font-mono text-sm uppercase hover:bg-yellow-500"
+                  className="bg-blue-600 text-white px-4 py-2.5 font-semibold rounded-lg hover:bg-blue-700"
                 >
                   Add
                 </button>
@@ -192,3 +192,7 @@ export const EngineLogPage: React.FC = () => {
     </LogbookGrid>
   );
 };
+
+
+
+

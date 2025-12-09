@@ -150,7 +150,7 @@ export const GarbageRecordPage: React.FC = () => {
       actions={
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-industrial-text-amber text-black font-bold py-2 px-6 font-mono hover:bg-yellow-500 uppercase tracking-wider"
+          className="bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:bg-blue-700 "
         >
           {showForm ? 'Cancel' : '+ New Entry'}
         </button>
@@ -163,13 +163,13 @@ export const GarbageRecordPage: React.FC = () => {
           {[1, 2, 3].map(s => (
             <div key={s} className={`flex items-center ${s < 3 ? 'flex-1' : ''}`}>
               <div className={`
-                w-12 h-12 rounded-full flex items-center justify-center font-mono font-bold border-2
-                ${step >= s ? 'bg-industrial-text-amber text-black border-industrial-text-amber' : 'bg-transparent text-gray-500 border-gray-500'}
+                w-12 h-12 rounded-full flex items-center justify-center font-sans font-bold border-2
+                ${step >= s ? 'bg-blue-600 text-white border-blue-500' : 'bg-transparent text-gray-500 border-gray-500'}
               `}>
                 {s}
               </div>
               {s < 3 && (
-                <div className={`h-1 flex-1 mx-2 ${step > s ? 'bg-industrial-text-amber' : 'bg-gray-700'}`} />
+                <div className={`h-1 flex-1 mx-2 ${step > s ? 'bg-blue-600' : 'bg-gray-700'}`} />
               )}
             </div>
           ))}
@@ -177,8 +177,8 @@ export const GarbageRecordPage: React.FC = () => {
 
         {/* Step 1: Select Garbage Category */}
         {step === 1 && (
-          <div className="bg-industrial-surface p-6 border border-industrial-border">
-            <h2 className="text-industrial-text-amber font-mono text-xl mb-6 uppercase">
+          <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+            <h2 className="text-blue-600 font-sans text-xl font-bold mb-6">
               Step 1: Select Garbage Category
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -186,17 +186,17 @@ export const GarbageRecordPage: React.FC = () => {
                 <button
                   key={cat.code}
                   onClick={() => handleCategorySelect(cat)}
-                  className="p-4 border-2 border-industrial-border hover:border-industrial-text-amber transition-colors text-left relative group"
+                  className="p-4 border-2 border-gray-200 hover:border-blue-500 transition-colors text-left relative group"
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="text-industrial-text-amber font-bold font-mono text-2xl mb-1">
+                      <div className="text-blue-600 font-bold font-sans text-2xl mb-1">
                         {cat.code}
                       </div>
-                      <div className="text-white font-mono text-sm">{cat.name}</div>
+                      <div className="text-gray-900 font-sans text-sm">{cat.name}</div>
                     </div>
                     {!cat.dischargeAllowed && (
-                      <div className="text-red-500 text-xs font-mono border border-red-500 px-1 py-0.5">
+                      <div className="text-red-500 text-xs font-sans border border-red-500 px-1 py-0.5">
                         NO SEA
                       </div>
                     )}
@@ -209,13 +209,13 @@ export const GarbageRecordPage: React.FC = () => {
 
         {/* Step 2: Select Operation Type */}
         {step === 2 && selectedCategory && (
-          <div className="bg-industrial-surface p-6 border border-industrial-border">
-            <h2 className="text-industrial-text-amber font-mono text-xl mb-4 uppercase">
+          <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+            <h2 className="text-blue-600 font-sans text-xl font-bold mb-4">
               Step 2: Select Operation Type
             </h2>
-            <div className="bg-black/30 p-4 mb-6 border border-gray-700">
-              <span className="text-gray-400 font-mono text-sm">Selected Category: </span>
-              <span className="text-industrial-text-amber font-mono font-bold text-lg">
+            <div className="bg-gray-50/30 p-4 mb-6 border border-gray-200">
+              <span className="text-gray-400 font-sans text-sm">Selected Category: </span>
+              <span className="text-blue-600 font-sans font-bold text-lg">
                 {selectedCategory.code} - {selectedCategory.name}
               </span>
             </div>
@@ -228,19 +228,19 @@ export const GarbageRecordPage: React.FC = () => {
                     onClick={() => handleOperationSelect(op.code)}
                     disabled={isDisabled}
                     className={`
-                      text-left p-4 border border-industrial-border transition-colors
+                      text-left p-4 border border-gray-200 transition-colors
                       ${isDisabled 
                         ? 'opacity-30 cursor-not-allowed' 
-                        : 'hover:bg-white/5 hover:border-industrial-text-amber'
+                        : 'hover:bg-gray-50 hover:border-blue-500'
                       }
                     `}
                   >
-                    <span className="text-industrial-text-amber font-bold font-mono mr-4">
+                    <span className="text-blue-600 font-bold font-sans mr-4">
                       Code {op.code}
                     </span>
-                    <span className="text-white font-mono">{op.name}</span>
+                    <span className="text-gray-900 font-sans">{op.name}</span>
                     {isDisabled && (
-                      <span className="ml-4 text-red-500 text-xs font-mono">(PROHIBITED BY MARPOL)</span>
+                      <span className="ml-4 text-red-500 text-xs font-sans">(PROHIBITED BY MARPOL)</span>
                     )}
                   </button>
                 );
@@ -248,7 +248,7 @@ export const GarbageRecordPage: React.FC = () => {
             </div>
             <button 
               onClick={() => setStep(1)} 
-              className="mt-6 text-white font-mono underline hover:text-industrial-text-amber"
+              className="mt-6 text-gray-900 font-sans underline hover:text-blue-600"
             >
               ← Back to Categories
             </button>
@@ -257,19 +257,19 @@ export const GarbageRecordPage: React.FC = () => {
 
         {/* Step 3: Enter Details & Save */}
         {step === 3 && selectedCategory && (
-          <div className="bg-industrial-surface p-6 border border-industrial-border">
-            <h2 className="text-industrial-text-amber font-mono text-xl mb-6 uppercase">
+          <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+            <h2 className="text-blue-600 font-sans text-xl font-bold mb-6">
               Step 3: Enter Details
             </h2>
             
-            <div className="bg-black/30 p-4 mb-6 border border-gray-700 flex justify-between">
+            <div className="bg-gray-50/30 p-4 mb-6 border border-gray-200 flex justify-between">
               <div>
-                <span className="text-gray-400 font-mono text-sm">Category: </span>
-                <span className="text-white font-mono font-bold">{selectedCategory.code} - {selectedCategory.name}</span>
+                <span className="text-gray-400 font-sans text-sm">Category: </span>
+                <span className="text-gray-900 font-sans font-bold">{selectedCategory.code} - {selectedCategory.name}</span>
               </div>
               <div>
-                <span className="text-gray-400 font-mono text-sm">Operation: </span>
-                <span className="text-white font-mono font-bold">
+                <span className="text-gray-400 font-sans text-sm">Operation: </span>
+                <span className="text-gray-900 font-sans font-bold">
                   {OPERATION_TYPES.find(o => o.code === formData.operationType)?.name}
                 </span>
               </div>
@@ -289,13 +289,13 @@ export const GarbageRecordPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-industrial-text-amber font-mono text-sm uppercase tracking-wider block mb-2">
+                  <label className="text-blue-600 font-sans text-sm  block mb-2">
                     Unit
                   </label>
                   <select
                     value={formData.unit}
                     onChange={e => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full bg-industrial-surface border-2 border-industrial-border text-white font-mono text-lg p-4 focus:border-industrial-text-amber focus:outline-none"
+                    className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans text-lg p-4 focus:border-blue-500 focus:outline-none"
                   >
                     <option value="m³">m³</option>
                     <option value="kg">kg</option>
@@ -307,7 +307,7 @@ export const GarbageRecordPage: React.FC = () => {
               {/* Position (for discharge to sea) */}
               {formData.operationType === '1' && (
                 <div className="border border-yellow-600 bg-yellow-900/10 p-4">
-                  <div className="text-yellow-500 font-mono text-sm mb-4 uppercase">
+                  <div className="text-yellow-500 font-sans text-sm font-semibold mb-4">
                     ⚠ Position Required for Discharge to Sea
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -354,13 +354,13 @@ export const GarbageRecordPage: React.FC = () => {
               />
               
               <div>
-                <label className="text-industrial-text-amber font-mono text-sm uppercase tracking-wider block mb-2">
+                <label className="text-blue-600 font-sans text-sm  block mb-2">
                   Remarks (Optional)
                 </label>
                 <textarea
                   value={formData.remarks}
                   onChange={e => setFormData({ ...formData, remarks: e.target.value })}
-                  className="w-full bg-industrial-surface border-2 border-industrial-border text-white font-mono p-4 focus:border-industrial-text-amber focus:outline-none h-24 resize-none"
+                  className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans p-4 focus:border-blue-500 focus:outline-none h-24 resize-none"
                   placeholder="Additional notes..."
                 />
               </div>
@@ -369,13 +369,13 @@ export const GarbageRecordPage: React.FC = () => {
               <div className="flex justify-between mt-6">
                 <button 
                   onClick={() => setStep(2)}
-                  className="text-white font-mono underline hover:text-industrial-text-amber"
+                  className="text-gray-900 font-sans underline hover:text-blue-600"
                 >
                   ← Back
                 </button>
                 <button
                   onClick={handleSave}
-                  className="bg-industrial-text-green text-black font-bold py-3 px-8 font-mono hover:bg-green-500 uppercase tracking-wider"
+                  className="bg-green-600 text-white font-semibold py-2.5 px-8 rounded-lg shadow-md hover:bg-green-700 "
                 >
                   Save Entry
                 </button>
@@ -387,30 +387,30 @@ export const GarbageRecordPage: React.FC = () => {
       )}
 
       {/* Entries Table */}
-      <div className="bg-industrial-surface border border-industrial-border overflow-x-auto mt-6">
+      <div className="bg-white border border-gray-200 overflow-x-auto mt-6">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-black text-industrial-text-amber font-mono text-sm uppercase">
-              <th className="p-4 border-b border-industrial-border">Date</th>
-              <th className="p-4 border-b border-industrial-border">Operation</th>
-              <th className="p-4 border-b border-industrial-border">Category</th>
-              <th className="p-4 border-b border-industrial-border">Quantity</th>
-              <th className="p-4 border-b border-industrial-border">Location</th>
-              <th className="p-4 border-b border-industrial-border">Officer</th>
-              <th className="p-4 border-b border-industrial-border">Status</th>
+            <tr className="bg-gray-50 text-blue-600 font-sans text-sm font-semibold">
+              <th className="p-4 border-b border-gray-200">Date</th>
+              <th className="p-4 border-b border-gray-200">Operation</th>
+              <th className="p-4 border-b border-gray-200">Category</th>
+              <th className="p-4 border-b border-gray-200">Quantity</th>
+              <th className="p-4 border-b border-gray-200">Location</th>
+              <th className="p-4 border-b border-gray-200">Officer</th>
+              <th className="p-4 border-b border-gray-200">Status</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7} className="p-4 text-center text-industrial-text-green font-mono">
+                <td colSpan={7} className="p-4 text-center text-green-600 font-sans">
                   Loading...
                 </td>
               </tr>
             )}
             {!loading && entries.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-4 text-center text-gray-500 font-mono">
+                <td colSpan={7} className="p-4 text-center text-gray-500 font-sans">
                   No garbage records. Click "+ New Entry" to start logging.
                 </td>
               </tr>
@@ -419,26 +419,26 @@ export const GarbageRecordPage: React.FC = () => {
               const operation = OPERATION_TYPES.find(op => op.code === entry.operationCode);
               const category = GARBAGE_CATEGORIES.find(cat => cat.code === entry.garbageCategory);
               return (
-                <tr key={entry.id} className="border-b border-industrial-border hover:bg-white/5">
-                  <td className="p-4 font-mono text-white">{new Date(entry.operationDateTime).toLocaleDateString()}</td>
-                  <td className="p-4 font-mono text-white text-sm">{operation?.name || entry.operationCode}</td>
-                  <td className="p-4 font-mono text-white">
+                <tr key={entry.id} className="border-b border-gray-200 hover:bg-gray-50">
+                  <td className="p-4 font-sans text-gray-900">{new Date(entry.operationDateTime).toLocaleDateString()}</td>
+                  <td className="p-4 font-sans text-gray-900 text-sm">{operation?.name || entry.operationCode}</td>
+                  <td className="p-4 font-sans text-gray-900">
                     <span className={`px-2 py-1 text-xs bg-${category?.color}-600`}>
                       {entry.garbageCategory}: {entry.description}
                     </span>
                   </td>
-                  <td className="p-4 font-mono text-white">{entry.quantity} {entry.quantityUnit}</td>
-                  <td className="p-4 font-mono text-white text-xs">
+                  <td className="p-4 font-sans text-gray-900">{entry.quantity} {entry.quantityUnit}</td>
+                  <td className="p-4 font-sans text-gray-900 text-xs">
                     {entry.portName || `${entry.latitude?.toFixed(2)}°, ${entry.longitude?.toFixed(2)}°`}
                   </td>
-                  <td className="p-4 font-mono text-white text-sm">{entry.officerInCharge}</td>
+                  <td className="p-4 font-sans text-gray-900 text-sm">{entry.officerInCharge}</td>
                   <td className="p-4">
                     {entry.masterSignature ? (
-                      <span className="bg-industrial-text-green text-black text-xs px-2 py-1 font-mono font-bold">
+                      <span className="bg-green-600 text-white text-xs px-2 py-1 font-sans font-bold">
                         SIGNED
                       </span>
                     ) : (
-                      <span className="bg-yellow-600 text-black text-xs px-2 py-1 font-mono font-bold">
+                      <span className="bg-yellow-600 text-black text-xs px-2 py-1 font-sans font-bold">
                         DRAFT
                       </span>
                     )}
@@ -452,3 +452,9 @@ export const GarbageRecordPage: React.FC = () => {
     </LogbookGrid>
   );
 };
+
+
+
+
+
+
