@@ -153,7 +153,7 @@ export function TaskTypeFormModal({
 
   // Sửa: Cho phép một chi tiết được chọn cho nhiều loại công việc
   // availableDetails: tất cả chi tiết đang hoạt động, trừ những chi tiết đã được chọn trong modal này
-  const availableDetails = allDetails.filter(d => d.isActive)
+  const availableDetails = allDetails.filter(d => d.isActive && !selectedDetailIds.includes(d.id))
   const selectedDetails = allDetails.filter(d => selectedDetailIds.includes(d.id))
 
   // Filter by search

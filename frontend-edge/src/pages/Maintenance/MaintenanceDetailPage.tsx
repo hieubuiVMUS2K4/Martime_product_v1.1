@@ -16,7 +16,7 @@ import {
   Trash2,
   CheckSquare
 } from 'lucide-react'
-import { MaintenanceTask } from '../../types/maritime.types'
+import { MaintenanceTask, CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { format, parseISO, differenceInDays } from 'date-fns'
 
@@ -35,8 +35,13 @@ export function MaintenanceDetailPage() {
   const [checklist, setChecklist] = useState<any[]>([])
   const [loadingChecklist, setLoadingChecklist] = useState(false)
 
+  // Crew members state
+  const [crewMembers, setCrewMembers] = useState<CrewMember[]>([])
+  const [loadingCrew, setLoadingCrew] = useState(false)
+
   useEffect(() => {
     loadTaskDetails()
+    loadCrewMembers()
   }, [id])
 
   const loadTaskDetails = async () => {
@@ -49,7 +54,7 @@ export function MaintenanceDetailPage() {
       
       // Load checklist if task is IN_PROGRESS or COMPLETED
       if (data.status === 'IN_PROGRESS' || data.status === 'COMPLETED') {
-        await loadChecklist(id)
+        await loadChecklist(data.id.toString())
       }
     } catch (error) {
       console.error('Failed to load task details:', error)
@@ -59,7 +64,7 @@ export function MaintenanceDetailPage() {
     }
   }
 
-  const loadChecklist = async (taskId: number) => {
+  const loadChecklist = async (taskId: string) => {
     try {
       setLoadingChecklist(true)
       const data = await maritimeService.maintenance.getChecklist(taskId)
@@ -70,6 +75,22 @@ export function MaintenanceDetailPage() {
       // Don't alert on checklist failure - not all tasks have checklists
     } finally {
       setLoadingChecklist(false)
+    }
+  }
+
+  const loadCrewMembers = async () => {
+    try {
+      setLoadingCrew(true)
+      const response = await maritimeService.crew.getAll({ isOnboard: true })
+      // Handle paginated response - get data array
+      const allCrew = response.data || []
+      setCrewMembers(allCrew)
+      console.log('✅ Loaded crew members:', allCrew.length)
+    } catch (error) {
+      console.error('Failed to load crew members:', error)
+      // Don't alert - not critical
+    } finally {
+      setLoadingCrew(false)
     }
   }
 
@@ -437,14 +458,42 @@ export function MaintenanceDetailPage() {
                 Assignment & Notes
               </h2>
               <div className="space-y-4">
-                <InfoField
-                  label="Assigned To"
-                  value={isEditing 
-                    ? (editedTask.assignedTo || task.assignedTo || '') 
-                    : (task.assignedTo || 'Unassigned')}
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedTask({ ...editedTask, assignedTo: value })}
-                />
+                <div className="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                    Assigned To
+                  </label>
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <select
+                        value={editedTask.assignedTo || task.assignedTo || ''}
+                        onChange={(e) => setEditedTask({ ...editedTask, assignedTo: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all"
+                        disabled={loadingCrew}
+                      >
+                        <option value="">-- Select Crew Member --</option>
+                        {crewMembers.map((crew) => (
+                          <option key={crew.id} value={crew.fullName}>
+                            {crew.fullName} - {crew.position} ({crew.rank})
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        value={editedTask.assignedTo || task.assignedTo || ''}
+                        onChange={(e) => setEditedTask({ ...editedTask, assignedTo: e.target.value })}
+                        placeholder="Or type name manually..."
+                        className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all"
+                      />
+                      {loadingCrew && (
+                        <p className="text-xs text-gray-500">Loading crew members...</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
+                      {task.assignedTo || <span className="text-gray-400 italic">Unassigned</span>}
+                    </p>
+                  )}
+                </div>
                 
                 <div className="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4">
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
@@ -695,7 +744,7 @@ export function MaintenanceDetailPage() {
                 <div className="p-2 bg-blue-500 rounded-lg">
                   <span className="text-2xl">⚓</span>
                 </div>
-                <p className="text-sm text-blue-900 dark:text-blue-100 font-bold text-base">
+                <p className="text-base text-blue-900 dark:text-blue-100 font-bold">
                   ISM Code Compliance
                 </p>
               </div>

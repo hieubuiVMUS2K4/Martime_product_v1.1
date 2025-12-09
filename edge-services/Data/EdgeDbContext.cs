@@ -55,6 +55,8 @@ public class EdgeDbContext : DbContext
     // Inventory & Materials
     public DbSet<MaterialCategory> MaterialCategories { get; set; } = null!;
     public DbSet<MaterialItem> MaterialItems { get; set; } = null!;
+    public DbSet<MaterialReceipt> MaterialReceipts { get; set; } = null!;
+    public DbSet<MaterialReceiptItem> MaterialReceiptItems { get; set; } = null!;
 
     // Fuel Analytics (IMO DCS / EU MRV / CII Compliance)
     public DbSet<FuelAnalyticsSummary> FuelAnalyticsSummaries { get; set; } = null!;

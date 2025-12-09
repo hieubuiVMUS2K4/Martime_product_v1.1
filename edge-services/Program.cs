@@ -16,8 +16,8 @@ namespace MaritimeEdge
             var builder = WebApplication.CreateBuilder(args);
 
             // Configure port - Listen on all network interfaces for mobile access
-            // Can be overridden by command line: dotnet run --urls "http://0.0.0.0:5001"
-            builder.WebHost.UseUrls("http://0.0.0.0:5001");
+            // Can be overridden by command line: dotnet run --urls "http://0.0.0.0:5005"
+            builder.WebHost.UseUrls("http://0.0.0.0:5005");
 
             // Add services to the container
             var connectionString = builder.Configuration.GetValue<string>("Database:ConnectionString");
@@ -49,6 +49,7 @@ namespace MaritimeEdge
             builder.Services.AddScoped<IGarbageRecordService, GarbageRecordService>();
             builder.Services.AddScoped<IBallastWaterService, BallastWaterService>();
             builder.Services.AddScoped<IOilRecordService, OilRecordService>();
+            builder.Services.AddScoped<MaterialReceiptService>();
 
             // Add Background Services
             builder.Services.AddHostedService<TelemetrySimulatorService>();
@@ -102,6 +103,9 @@ namespace MaritimeEdge
             var app = builder.Build();
 
             // Initialize database with migrations
+            // TEMPORARILY DISABLED due to migration conflicts
+            // Tables are created via SQL script: create-equipment-tables.sql
+            /*
             using (var scope = app.Services.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<EdgeDbContext>();
@@ -119,6 +123,7 @@ namespace MaritimeEdge
                     throw;
                 }
             }
+            */
 
             // Configure the HTTP request pipeline
             app.UseSwagger();

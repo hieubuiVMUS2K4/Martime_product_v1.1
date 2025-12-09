@@ -1,19 +1,25 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
-import { Boxes, Layers, Plus, Search, AlertTriangle, Tag, Edit2, Trash2, TrendingUp } from 'lucide-react';
+import { Boxes, Layers, Search, AlertTriangle, Tag, Edit2, Trash2, TrendingUp, FileSpreadsheet } from 'lucide-react';
 import { materialService } from '../../services/materialService';
+import { receiptService } from '../../services/receiptService';
 import type { MaterialItem, MaterialCategory } from '../../types/maritime.types';
 import type { CreateMaterialItemDto, UpdateMaterialItemDto, CreateMaterialCategoryDto, UpdateMaterialCategoryDto, StockAdjustmentDto } from '../../services/materialService';
+import type { MaterialReceiptListDto } from '../../services/receiptService';
 import { ItemFormModal } from './ItemFormModal';
 import { CategoryFormModal } from './CategoryFormModal';
 import { StockAdjustmentModal } from './StockAdjustmentModal';
+import { ImportReceiptModal } from './ImportReceiptModal';
+import { ReceiptDetailModal } from './ReceiptDetailModal';
 
-type TabType = 'items' | 'low' | 'categories';
+type TabType = 'items' | 'low' | 'categories' | 'receipts';
 
 export function MaterialPage() {
   const [activeTab, setActiveTab] = useState<TabType>('items');
   const [items, setItems] = useState<MaterialItem[]>([]);
   const [lowStock, setLowStock] = useState<MaterialItem[]>([]);
   const [categories, setCategories] = useState<MaterialCategory[]>([]);
+  const [receipts, setReceipts] = useState<MaterialReceiptListDto[]>([]);
+  const [totalReceipts, setTotalReceipts] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categorySearch, setCategorySearch] = useState('');
@@ -24,9 +30,12 @@ export function MaterialPage() {
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [stockAdjustmentModalOpen, setStockAdjustmentModalOpen] = useState(false);
+  const [importReceiptModalOpen, setImportReceiptModalOpen] = useState(false);
+  const [receiptDetailModalOpen, setReceiptDetailModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MaterialItem | null>(null);
   const [editingCategory, setEditingCategory] = useState<MaterialCategory | null>(null);
   const [adjustingItem, setAdjustingItem] = useState<MaterialItem | null>(null);
+  const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -40,9 +49,17 @@ export function MaterialPage() {
   const [categorySortType, setCategorySortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>(null);
   const [categorySortMenu, setCategorySortMenu] = useState<string | null>(null);
 
+  // Receipt sorting state - default: muộn nhất trước (latest first)
+  const [receiptSortType, setReceiptSortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>({ col: 'date', dir: 'desc' });
+  const [receiptSortMenu, setReceiptSortMenu] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCurrentPage(1); // Reset page when tab changes
+  }, [activeTab]);
+
   useEffect(() => {
     loadData();
-  }, [activeTab]);
+  }, [activeTab, currentPage]);
 
   const loadData = async () => {
     try {
@@ -57,6 +74,13 @@ export function MaterialPage() {
       } else if (activeTab === 'categories') {
         const cats = await materialService.getCategories(false);
         setCategories(cats);
+      } else if (activeTab === 'receipts') {
+        const response = await receiptService.getReceipts({
+          page: currentPage,
+          pageSize: itemsPerPage
+        });
+        setReceipts(response.data);
+        setTotalReceipts(response.totalRecords);
       } else {
         // Load items, categories, and lowStock for stats
         const [its, cats, ls] = await Promise.all([
@@ -227,6 +251,36 @@ export function MaterialPage() {
     return sorted;
   }, [filteredCategories, categorySortType]);
 
+  // Sorting for receipts
+  const sortedReceipts = useMemo(() => {
+    if (!receiptSortType) return receipts;
+    const sorted = [...receipts];
+    switch (receiptSortType.col) {
+      case 'date':
+        sorted.sort((a, b) => {
+          const dateA = new Date(a.receiptDate).getTime();
+          const dateB = new Date(b.receiptDate).getTime();
+          return receiptSortType.dir === 'asc' ? dateA - dateB : dateB - dateA;
+        });
+        break;
+      case 'amount':
+        sorted.sort((a, b) => {
+          const amountA = a.totalAmount || 0;
+          const amountB = b.totalAmount || 0;
+          return receiptSortType.dir === 'asc' ? amountA - amountB : amountB - amountA;
+        });
+        break;
+      case 'items':
+        sorted.sort((a, b) => {
+          return receiptSortType.dir === 'asc' ? a.itemCount - b.itemCount : b.itemCount - a.itemCount;
+        });
+        break;
+      default:
+        break;
+    }
+    return sorted;
+  }, [receipts, receiptSortType]);
+
   // Pagination for items
   const paginatedItems = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -246,15 +300,6 @@ export function MaterialPage() {
     return [...new Set(items.map(item => item.unit))].sort();
   }, [items]);
 
-  const totalValue = useMemo(() => {
-    return items.reduce((sum, item) => {
-      if (item.unitCost) {
-        return sum + (item.unitCost * item.onHandQuantity);
-      }
-      return sum;
-    }, 0);
-  }, [items]);
-
   return (
     <div className="h-full w-full overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       <div className="p-6 space-y-6">
@@ -267,12 +312,11 @@ export function MaterialPage() {
           <div className="flex gap-2">
             <button 
               onClick={() => {
-                setEditingItem(null);
-                setItemModalOpen(true);
+                setImportReceiptModalOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
             >
-              <Plus className="w-5 h-5" /> Add Item
+              <FileSpreadsheet className="w-5 h-5" /> Import Receipt
             </button>
             <button 
               onClick={() => {
@@ -286,31 +330,6 @@ export function MaterialPage() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <StatCard 
-            icon={<Boxes className="w-6 h-6 text-blue-600" />} 
-            label="Total Items" 
-            value={items.length}
-          />
-          <StatCard 
-            icon={<AlertTriangle className="w-6 h-6 text-red-600" />} 
-            label="Low Stock Items" 
-            value={lowStock.length}
-          />
-          <StatCard 
-            icon={<Layers className="w-6 h-6 text-green-600" />} 
-            label="Active Categories" 
-            value={categories.filter(c => c.isActive).length}
-          />
-          <StatCard 
-            icon={<Boxes className="w-6 h-6 text-purple-600" />} 
-            label="Total Inventory Value" 
-            value={`$${totalValue.toFixed(2)}`}
-            subtitle="USD"
-          />
-        </div>
-
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow">
           <div className="border-b border-gray-200">
@@ -318,6 +337,7 @@ export function MaterialPage() {
               <TabButton active={activeTab === 'items'} onClick={() => setActiveTab('items')} icon={<Boxes className="w-5 h-5" />} label="Items" />
               <TabButton active={activeTab === 'low'} onClick={() => setActiveTab('low')} icon={<AlertTriangle className="w-5 h-5" />} label="Low Stock" />
               <TabButton active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} icon={<Layers className="w-5 h-5" />} label="Categories" />
+              <TabButton active={activeTab === 'receipts'} onClick={() => setActiveTab('receipts')} icon={<FileSpreadsheet className="w-5 h-5" />} label="Receipts" />
             </nav>
           </div>
 
@@ -388,6 +408,23 @@ export function MaterialPage() {
                     setSortType={setCategorySortType}
                     sortMenu={categorySortMenu}
                     setSortMenu={setCategorySortMenu}
+                  />
+                ) : activeTab === 'receipts' ? (
+                  <ReceiptList 
+                    receipts={sortedReceipts}
+                    currentPage={currentPage}
+                    itemsPerPage={itemsPerPage}
+                    totalReceipts={totalReceipts}
+                    setCurrentPage={setCurrentPage}
+                    onReceiptClick={(receiptId) => {
+                      setSelectedReceiptId(receiptId);
+                      setReceiptDetailModalOpen(true);
+                    }}
+                    onImportClick={() => setImportReceiptModalOpen(true)}
+                    sortType={receiptSortType}
+                    setSortType={setReceiptSortType}
+                    sortMenu={receiptSortMenu}
+                    setSortMenu={setReceiptSortMenu}
                   />
                 ) : activeTab === 'low' ? (
                   <ItemList 
@@ -500,6 +537,24 @@ export function MaterialPage() {
         onSubmit={handleStockAdjustment}
         item={adjustingItem}
       />
+
+      <ImportReceiptModal
+        isOpen={importReceiptModalOpen}
+        onClose={() => setImportReceiptModalOpen(false)}
+        onSuccess={() => {
+          loadData();
+          alert('Import successful!');
+        }}
+      />
+
+      <ReceiptDetailModal
+        isOpen={receiptDetailModalOpen}
+        onClose={() => {
+          setReceiptDetailModalOpen(false);
+          setSelectedReceiptId(null);
+        }}
+        receiptId={selectedReceiptId || 0}
+      />
     </div>
   );
 }
@@ -564,13 +619,13 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
         <thead className="bg-gray-50">
           <tr>
             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '5%'}}>STT</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '26%'}}>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '22%'}}>
               Tên vật tư
               {setSortType && setSortMenu && (
                 <SortDropdown col="name" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
               )}
             </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '12%'}}>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '18%'}}>
               Danh mục
               {setSortType && setSortMenu && (
                 <SortDropdown col="category" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
@@ -584,15 +639,15 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
               )}
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '12%'}}>Min / Max</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '12%'}}>Mã linh kiện</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '11%'}}>Mã linh kiện</th>
             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '10%'}}>
               Đơn giá
               {setSortType && setSortMenu && (
                 <SortDropdown col="unitCost" options={[{label:'Sắp xếp tăng dần',dir:'asc'},{label:'Sắp xếp giảm dần',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
               )}
             </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '12%'}}>Trạng thái</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8%'}}>Thao tác</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '11%'}}>Trạng thái</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '7%'}}>Thao tác</th>
           </tr>
         </thead>
         <tbody className="bg-white">
@@ -613,54 +668,56 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
                 }}
               >
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center border-r border-gray-300" style={{width: '5%'}}>{globalIndex}</td>
-                <td className="px-4 py-3 border-r border-gray-300" style={{width: '26%'}}>
+                <td className="px-4 py-3 border-r border-gray-300 overflow-hidden" style={{width: '22%'}}>
                   <div className="text-sm font-medium text-gray-900 truncate">{it.name}</div>
                   {it.specification && (
                     <div className="text-xs text-gray-500 mt-1 truncate">{it.specification}</div>
                   )}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '12%'}}>
-                  <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 truncate">
-                    {getCategoryName(it.categoryId)}
-                  </span>
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300 overflow-hidden" style={{width: '18%'}}>
+                  <div className="flex justify-center">
+                    <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 truncate max-w-full inline-block">
+                      {getCategoryName(it.categoryId)}
+                    </span>
+                  </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '6%'}}>
-                  <span className="text-xs">{it.unit}</span>
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300 overflow-hidden" style={{width: '6%'}}>
+                  <span className="text-xs truncate">{it.unit}</span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '8%'}}>
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300 overflow-hidden" style={{width: '8%'}}>
                   <span className={`text-sm font-medium ${low ? 'text-red-600' : over ? 'text-orange-600' : 'text-gray-900'}`}>
                     {it.onHandQuantity.toFixed(2)}
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '12%'}}>
-                  <span className="text-xs text-gray-600">
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300 overflow-hidden" style={{width: '12%'}}>
+                  <span className="text-xs text-gray-600 truncate">
                     {it.minStock != null ? it.minStock.toFixed(2) : '-'} / {it.maxStock != null ? it.maxStock.toFixed(2) : '-'}
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '12%'}}>
-                  <span className="text-xs font-mono text-gray-700 truncate">{it.partNumber || '-'}</span>
+                <td className="px-4 py-3 border-r border-gray-300 overflow-hidden" style={{width: '11%'}}>
+                  <div className="text-xs font-mono text-gray-700 truncate">{it.partNumber || '-'}</div>
                   {it.barcode && <div className="text-xs text-gray-400 mt-0.5 truncate">🔖 {it.barcode}</div>}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '10%'}}>
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300 overflow-hidden" style={{width: '10%'}}>
                   <div className="flex flex-col items-center">
                     {it.unitCost ? (
                       <>
-                        <span className="text-xs font-medium text-gray-900">{it.unitCost.toFixed(2)} {it.currency || 'USD'}</span>
-                        {totalValue && <span className="text-xs text-gray-500">= {totalValue.toFixed(2)}</span>}
+                        <span className="text-xs font-medium text-gray-900 truncate">{it.unitCost.toFixed(2)} {it.currency || 'USD'}</span>
+                        {totalValue && <span className="text-xs text-gray-500 truncate">= {totalValue.toFixed(2)}</span>}
                       </>
                     ) : (
                       <span className="text-xs text-gray-400">-</span>
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '12%'}}>
+                <td className="px-4 py-3 text-center border-r border-gray-300 overflow-hidden" style={{width: '11%'}}>
                   <div className="flex flex-wrap gap-1 justify-center">
-                    {low && <span className="px-1 py-0.5 text-xs rounded-full bg-red-100 text-red-700">LOW</span>}
-                    {over && <span className="px-1 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700">OVER</span>}
-                    {it.serialTracked && <span className="px-1 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700">SN</span>}
-                    {it.batchTracked && <span className="px-1 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700">BATCH</span>}
-                    {it.expiryRequired && <span className="px-1 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">EXP</span>}
-                    {!it.isActive && <span className="px-1 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">INACTIVE</span>}
+                    {low && <span className="px-1 py-0.5 text-xs rounded-full bg-red-100 text-red-700 whitespace-nowrap">LOW</span>}
+                    {over && <span className="px-1 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700 whitespace-nowrap">OVER</span>}
+                    {it.serialTracked && <span className="px-1 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 whitespace-nowrap">SN</span>}
+                    {it.batchTracked && <span className="px-1 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700 whitespace-nowrap">BATCH</span>}
+                    {it.expiryRequired && <span className="px-1 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 whitespace-nowrap">EXP</span>}
+                    {!it.isActive && <span className="px-1 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">INACTIVE</span>}
                   </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-center" style={{width: '8%'}}>
@@ -697,6 +754,177 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
         <div className="text-center py-12">
           <Boxes className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500">No items found</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReceiptList({ receipts, currentPage, itemsPerPage, totalReceipts, setCurrentPage, onReceiptClick, onImportClick, sortType, setSortType, sortMenu, setSortMenu }: {
+  receipts: MaterialReceiptListDto[];
+  currentPage: number;
+  itemsPerPage: number;
+  totalReceipts: number;
+  setCurrentPage: (page: number) => void;
+  onReceiptClick: (receiptId: number) => void;
+  onImportClick: () => void;
+  sortType?: { col: string; dir: 'asc'|'desc' } | null;
+  setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
+  sortMenu?: string | null;
+  setSortMenu?: (sortMenu: string | null) => void;
+}) {
+  // SortDropdown component
+  function SortDropdown({ col, options, sortType, setSortType, sortMenu, setSortMenu }: {
+    col: string;
+    options: Array<{ label: string; dir: 'asc'|'desc' }>;
+    sortType: any;
+    setSortType: any;
+    sortMenu: any;
+    setSortMenu: any;
+  }) {
+    return (
+      <div className="absolute top-1/2 right-2 -translate-y-1/2" style={{zIndex:10}}>
+        <button
+          className="text-gray-400 hover:text-blue-600 text-base p-1"
+          onClick={e => { e.stopPropagation(); setSortMenu(sortMenu === col ? null : col) }}
+          style={{lineHeight:0}}
+        >
+          ▼
+        </button>
+        {sortMenu === col && (
+          <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded shadow-lg" style={{zIndex:50}}>
+            {options.map(opt => (
+              <button
+                key={opt.label}
+                className={`block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${sortType?.col === col && sortType?.dir === opt.dir ? 'text-blue-600 font-bold' : 'text-gray-700'}`}
+                onClick={e => { e.stopPropagation(); setSortType({col,dir:opt.dir}); setSortMenu(null) }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold text-gray-900">Import Receipts History</h3>
+        <button 
+          onClick={onImportClick}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+        >
+          <FileSpreadsheet className="w-4 h-4" />
+          Import New Receipt
+        </button>
+      </div>
+      
+      {receipts.length > 0 ? (
+        <>
+          <div className="overflow-x-auto bg-white rounded-lg border border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300" style={{width: '8%'}}>STT</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300" style={{width: '18%'}}>Receipt Code</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300 relative" style={{position:'relative', width: '18%'}}>
+                    Receipt Date
+                    {setSortType && setSortMenu && (
+                      <SortDropdown col="date" options={[{label:'Sớm nhất trước',dir:'asc'},{label:'Muộn nhất trước',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+                    )}
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300 relative" style={{position:'relative', width: '20%'}}>
+                    Total Amount
+                    {setSortType && setSortMenu && (
+                      <SortDropdown col="amount" options={[{label:'Từ nhỏ đến lớn',dir:'asc'},{label:'Từ lớn đến nhỏ',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+                    )}
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300 relative" style={{position:'relative', width: '18%'}}>
+                    Items
+                    {setSortType && setSortMenu && (
+                      <SortDropdown col="items" options={[{label:'Từ ít đến nhiều',dir:'asc'},{label:'Từ nhiều đến ít',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+                    )}
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase" style={{width: '18%'}}>Status</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {receipts.map((receipt: MaterialReceiptListDto, idx: number) => (
+                  <tr 
+                    key={receipt.receiptCode} 
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => onReceiptClick(receipt.id)}
+                  >
+                    <td className="px-4 py-3 text-center border-r border-gray-300">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
+                    <td className="px-4 py-3 text-center border-r border-gray-300">
+                      <span className="font-medium text-blue-600">{receipt.receiptCode}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center border-r border-gray-300">
+                      {new Date(receipt.receiptDate).toLocaleDateString('vi-VN')}
+                    </td>
+                    <td className="px-4 py-3 text-center border-r border-gray-300">
+                      <span className="font-semibold text-gray-900">
+                        {receipt.totalAmount ? receipt.totalAmount.toLocaleString('vi-VN') : '0'} {receipt.currency}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center border-r border-gray-300">
+                      <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                        {receipt.itemCount} items
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        receipt.status === 'Completed' ? 'bg-green-100 text-green-700' : 
+                        receipt.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {receipt.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Pagination */}
+          <div className="flex justify-between items-center mt-4">
+            <p className="text-sm text-gray-600">
+              Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalReceipts)} of {totalReceipts} receipts
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="px-3 py-1 border rounded bg-blue-50 text-blue-600 font-medium">
+                {currentPage}
+              </span>
+              <button
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage * itemsPerPage >= totalReceipts}
+                className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+          <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-500 mb-4">No receipts found. Import your first receipt to get started.</p>
+          <button 
+            onClick={onImportClick}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            Import New Receipt
+          </button>
         </div>
       )}
     </div>
@@ -854,21 +1082,6 @@ function CategoryList({ categories, onEdit, onDelete, sortType, setSortType, sor
           <p className="text-gray-500">No categories found</p>
         </div>
       )}
-    </div>
-  );
-}
-
-function StatCard({ icon, label, value, subtitle }: { icon: React.ReactNode; label: string; value: string | number; subtitle?: string }) {
-  return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-600">{label}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-          {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
-        </div>
-        {icon}
-      </div>
     </div>
   );
 }
