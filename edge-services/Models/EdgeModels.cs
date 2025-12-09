@@ -1039,6 +1039,12 @@ public class WatchkeepingLog
     
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+
+    // Soft Delete Support
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; }
 }
 
 /// <summary>
@@ -1089,6 +1095,490 @@ public class OilRecordBook
     
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+
+    // Soft Delete Support
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; }
+}
+
+/// <summary>
+/// Deck Log Book / Official Log Book (SOLAS Chapter V, Regulation 28)
+/// Records all significant events occurring on board
+/// </summary>
+public class DeckLogBook
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    public DateTime LogDateTime { get; set; }
+    
+    /// <summary>
+    /// Watch period: 00-04, 04-08, 08-12, 12-16, 16-20, 20-24
+    /// </summary>
+    [Required]
+    [MaxLength(10)]
+    public string WatchPeriod { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Officer Of the Watch (OOW)
+    /// </summary>
+    [Required]
+    [MaxLength(100)]
+    public string OfficerOnWatch { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Entry type: ROUTINE, NAVIGATION, WEATHER, SAFETY, DRILL, INCIDENT, PORT_OPS, CREW_CHANGE
+    /// </summary>
+    [Required]
+    [MaxLength(30)]
+    public string EntryType { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Detailed description of the event/observation
+    /// </summary>
+    [Required]
+    public string Description { get; set; } = string.Empty;
+    
+    // Position at time of entry
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    
+    // Navigation details
+    public double? CourseOverGround { get; set; }
+    public double? SpeedOverGround { get; set; }
+    public double? Heading { get; set; }
+    
+    // Weather conditions
+    [MaxLength(20)]
+    public string? WindDirection { get; set; }
+    
+    public double? WindSpeed { get; set; } // Knots
+    
+    [MaxLength(20)]
+    public string? SeaState { get; set; } // Calm, Moderate, Rough, Very Rough
+    
+    [MaxLength(30)]
+    public string? Visibility { get; set; } // Good, Moderate, Poor, Fog
+    
+    public double? BarometricPressure { get; set; }
+    public double? AirTemperature { get; set; }
+    public double? SeaTemperature { get; set; }
+    
+    // Safety drills
+    [MaxLength(50)]
+    public string? DrillType { get; set; } // Fire, Abandon Ship, Man Overboard, etc.
+    
+    public bool? DrillSuccessful { get; set; }
+    
+    // Crew information
+    public int? CrewOnBoard { get; set; }
+    
+    [MaxLength(200)]
+    public string? CrewChanges { get; set; } // Sign on/off details
+    
+    // Port operations
+    [MaxLength(100)]
+    public string? PortName { get; set; }
+    
+    public DateTime? PortArrivalTime { get; set; }
+    public DateTime? PortDepartureTime { get; set; }
+    
+    [MaxLength(100)]
+    public string? PilotName { get; set; }
+    
+    public DateTime? PilotOnBoard { get; set; }
+    public DateTime? PilotOffBoard { get; set; }
+    
+    // Master's signature for important entries
+    [MaxLength(100)]
+    public string? MasterSignature { get; set; }
+    
+    public DateTime? SignedAt { get; set; }
+    
+    // Remarks
+    public string? Remarks { get; set; }
+    
+    // Sync metadata
+    public bool IsSynced { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    // Soft Delete Support
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; }
+}
+
+/// <summary>
+/// Engine Log Book (ISM Code requirement)
+/// Records engine room operations, fuel consumption, and maintenance
+/// </summary>
+public class EngineLogBook
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    public DateTime LogDateTime { get; set; }
+    
+    /// <summary>
+    /// Watch period: 00-04, 04-08, 08-12, 12-16, 16-20, 20-24
+    /// </summary>
+    [Required]
+    [MaxLength(10)]
+    public string WatchPeriod { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Engineer on watch
+    /// </summary>
+    [Required]
+    [MaxLength(100)]
+    public string EngineerOnWatch { get; set; } = string.Empty;
+    
+    // Main Engine parameters
+    [MaxLength(50)]
+    public string? MainEngineStatus { get; set; } // Running, Stopped, Standby
+    
+    public double? MainEngineRPM { get; set; }
+    public double? MainEngineLoad { get; set; } // Percentage
+    public double? MainEngineCoolantTemp { get; set; }
+    public double? MainEngineExhaustTemp { get; set; }
+    public double? MainEngineLubeOilPressure { get; set; }
+    public double? MainEngineLubeOilTemp { get; set; }
+    public double? MainEngineRunningHours { get; set; }
+    
+    // Fuel consumption
+    public double? FuelOilConsumedME { get; set; } // Main Engine (MT or liters)
+    public double? FuelOilConsumedAE { get; set; } // Auxiliary Engines
+    public double? FuelOilConsumedBoiler { get; set; }
+    public double? LubeOilConsumed { get; set; }
+    public double? FreshWaterConsumed { get; set; }
+    
+    [MaxLength(10)]
+    public string? FuelUnit { get; set; } = "MT"; // MT or liters
+    
+    // Auxiliary Engines (up to 3 generators)
+    public bool? AuxEngine1Running { get; set; }
+    public double? AuxEngine1RunningHours { get; set; }
+    public double? AuxEngine1Load { get; set; }
+    
+    public bool? AuxEngine2Running { get; set; }
+    public double? AuxEngine2RunningHours { get; set; }
+    public double? AuxEngine2Load { get; set; }
+    
+    public bool? AuxEngine3Running { get; set; }
+    public double? AuxEngine3RunningHours { get; set; }
+    public double? AuxEngine3Load { get; set; }
+    
+    // Boiler
+    public bool? BoilerInOperation { get; set; }
+    public double? BoilerPressure { get; set; }
+    public double? BoilerWaterLevel { get; set; }
+    
+    // Fuel Oil Tanks
+    public double? FuelOilROB { get; set; } // Remaining On Board (MT)
+    public double? LubOilROB { get; set; }
+    public double? FreshWaterROB { get; set; }
+    public double? SludgeROB { get; set; }
+    public double? BilgeWaterROB { get; set; }
+    
+    [MaxLength(200)]
+    public string? FuelOilTransfers { get; set; } // Tank to tank transfers
+    
+    // Alarms and abnormalities
+    public bool HasAlarms { get; set; } = false;
+    
+    [MaxLength(500)]
+    public string? AlarmsDescription { get; set; }
+    
+    // Maintenance activities during watch
+    [MaxLength(500)]
+    public string? MaintenanceActivities { get; set; }
+    
+    // Chief Engineer's remarks
+    public string? ChiefEngineerRemarks { get; set; }
+    
+    [MaxLength(100)]
+    public string? ChiefEngineerSignature { get; set; }
+    
+    public DateTime? SignedAt { get; set; }
+    
+    // General remarks
+    public string? Remarks { get; set; }
+    
+    // Sync metadata
+    public bool IsSynced { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    // Soft Delete Support
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; }
+}
+
+/// <summary>
+/// Garbage Record Book (MARPOL Annex V)
+/// Mandatory for ships ≥400 GT and all ships certified to carry ≥15 persons
+/// </summary>
+public class GarbageRecordBook
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    public DateTime OperationDateTime { get; set; }
+    
+    /// <summary>
+    /// Operation type (operation_type in DB):
+    /// 1 - Discharge into the sea
+    /// 2 - Discharge to reception facilities
+    /// 3 - Incineration
+    /// 4 - Accidental or other exceptional discharge
+    /// </summary>
+    [Required]
+    [MaxLength(20)]
+    public string OperationCode { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Garbage category (Annex V):
+    /// A - Plastics, B - Food wastes, C - Domestic wastes, D - Cooking oil, E - Incinerator ashes
+    /// F - Operational wastes, G - Cargo residues (non-HME), H - Cargo residues (HME)
+    /// I - Animal carcasses, J - Fishing gear, K - E-waste
+    /// </summary>
+    [Required]
+    [MaxLength(5)]
+    public string GarbageCategory { get; set; } = string.Empty;
+    
+    [Required]
+    public string Description { get; set; } = string.Empty;
+    
+    public double Quantity { get; set; }
+    
+    [MaxLength(10)]
+    public string QuantityUnit { get; set; } = "m³";
+    
+    // Discharge to sea fields
+    public bool DischargeToSea { get; set; } = false;
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public double? DistanceFromNearestLand { get; set; }
+    
+    // Discharge to reception facility fields
+    public bool DischargeToReceptionFacility { get; set; } = false;
+    
+    [MaxLength(100)]
+    public string? PortName { get; set; }
+    
+    [MaxLength(200)]
+    public string? ReceptionFacility { get; set; }
+    
+    [MaxLength(100)]
+    public string? ReceiptNumber { get; set; }
+    
+    public DateTime? ReceiptDate { get; set; }
+    
+    // Incineration fields
+    public bool Incineration { get; set; } = false;
+    
+    [MaxLength(50)]
+    public string? IncineratorType { get; set; }
+    
+    // Note: IncinerationStartTime, IncinerationEndTime, IncineratorDetails removed - not in DB schema
+    public DateTime? IncinerationStartTime { get; set; }
+    public DateTime? IncinerationEndTime { get; set; }
+    
+    [MaxLength(200)]
+    public string? IncineratorDetails { get; set; }
+    
+    // Other processing
+    public bool ComminutedOrGround { get; set; } = false;
+    public bool RetainedOnBoard { get; set; } = false;
+    
+    [MaxLength(100)]
+    public string? StorageLocation { get; set; }
+    
+    // Cargo residues
+    [MaxLength(50)]
+    public string? CargoResiduesCategory { get; set; }
+    
+    [MaxLength(20)]
+    public string? CargoUnNumber { get; set; }
+    
+    public string? DischargeMethod { get; set; }
+    
+    public string? ExceptionalDischargeCircumstances { get; set; }
+    
+    // For accidental discharge
+    [MaxLength(500)]
+    public string? AccidentalDischargeReason { get; set; }
+    
+    [MaxLength(500)]
+    public string? AccidentalDischargeMeasures { get; set; }
+    
+    // Officer in charge
+    [Required]
+    [MaxLength(100)]
+    public string OfficerInCharge { get; set; } = string.Empty;
+    
+    // Master's signature
+    [MaxLength(100)]
+    public string? MasterSignature { get; set; }
+    
+    public DateTime? SignedAt { get; set; }
+    
+    // Remarks
+    public string? Remarks { get; set; }
+    
+    // Sync metadata
+    public bool IsSynced { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    // Soft Delete Support
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; }
+}
+
+/// <summary>
+/// Ballast Water Record Book (BWM Convention)
+/// Mandatory for all ships ≥400 GT
+/// </summary>
+public class BallastWaterRecordBook
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    public DateTime OperationDateTime { get; set; }
+    
+    /// <summary>
+    /// Operation code (BWM Convention):
+    /// 1 - Ballast water uptake
+    /// 2 - Ballast water circulation/exchange at sea
+    /// 3 - Ballast water exchange - sequential method
+    /// 4 - Ballast water exchange - flow-through method
+    /// 5 - Ballast water discharge at sea
+    /// 6 - Ballast water discharge to reception facility
+    /// 7 - Accidental/exceptional uptake or discharge
+    /// 8 - Ballast water management (treatment)
+    /// 9 - Discharge of sediment
+    /// </summary>
+    [Required]
+    [MaxLength(5)]
+    public string OperationCode { get; set; } = string.Empty;
+    
+    [Required]
+    public string OperationDescription { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Ship's ballast tank identifier
+    /// </summary>
+    [Required]
+    [MaxLength(100)]
+    public string BallastTank { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Volume of ballast water (m³)
+    /// </summary>
+    public double Volume { get; set; }
+    
+    // Location at start of operation
+    [Required]
+    public double StartLatitude { get; set; }
+    
+    [Required]
+    public double StartLongitude { get; set; }
+    
+    public DateTime StartDateTime { get; set; }
+    
+    // Location at end of operation
+    public double? EndLatitude { get; set; }
+    public double? EndLongitude { get; set; }
+    public DateTime? EndDateTime { get; set; }
+    
+    // Water depth and distance from nearest land
+    public double? WaterDepth { get; set; } // Meters
+    public double? DistanceFromLand { get; set; } // Nautical miles
+    
+    // For exchange operations
+    public double? ExchangeVolumePercentage { get; set; } // % of tank volume exchanged
+    
+    [MaxLength(30)]
+    public string? ExchangeMethod { get; set; } // Sequential, Flow-through
+    
+    // For treatment system operations
+    public bool? TreatmentSystemUsed { get; set; }
+    
+    [MaxLength(200)]
+    public string? TreatmentSystemType { get; set; } // UV, Electrolysis, Filtration, etc.
+    
+    public bool? TreatmentSuccessful { get; set; }
+    
+    [MaxLength(500)]
+    public string? TreatmentDetails { get; set; }
+    
+    // For accidental/exceptional operations
+    [MaxLength(500)]
+    public string? ExceptionalCircumstances { get; set; }
+    
+    // Salinity measurements (for exchange verification)
+    public double? SalinityBeforeExchange { get; set; } // PPT (parts per thousand)
+    public double? SalinityAfterExchange { get; set; }
+    
+    // Port facility details (if applicable)
+    [MaxLength(100)]
+    public string? PortName { get; set; }
+    
+    [MaxLength(200)]
+    public string? ReceptionFacility { get; set; }
+    
+    [MaxLength(100)]
+    public string? ReceiptNumber { get; set; }
+    
+    // Officer in charge
+    [Required]
+    [MaxLength(100)]
+    public string OfficerInCharge { get; set; } = string.Empty;
+    
+    // Master's signature
+    [MaxLength(100)]
+    public string? MasterSignature { get; set; }
+    
+    public DateTime? SignedAt { get; set; }
+    
+    // Remarks
+    public string? Remarks { get; set; }
+    
+    // Sync metadata
+    public bool IsSynced { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    // Soft Delete Support
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; }
 }
 
 /// <summary>

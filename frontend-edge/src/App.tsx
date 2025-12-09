@@ -28,6 +28,14 @@ import { ArrivalReportForm } from './pages/Reporting/ArrivalReportForm'
 import { BunkerReportForm } from './pages/Reporting/BunkerReportForm'
 import { PositionReportForm } from './pages/Reporting/PositionReportForm'
 
+// Logbook Pages
+import { DeckLogPage } from './pages/logbooks/DeckLogPage'
+import { EngineLogPage } from './pages/logbooks/EngineLogPage'
+import { OilRecordPage } from './pages/logbooks/OilRecordPage'
+import { GarbageRecordPage } from './pages/logbooks/GarbageRecordPage'
+import { BallastWaterPage } from './pages/logbooks/BallastWaterPage'
+import { WatchkeepingPage } from './pages/logbooks/WatchkeepingPage'
+
 function App() {
   return (
     <>
@@ -50,6 +58,14 @@ function App() {
         <Route path="materials" element={<MaterialPage />} />
         <Route path="fuel-analytics" element={<FuelAnalyticsPage />} />
         
+        {/* Logbook Routes */}
+        <Route path="logbooks/deck" element={<DeckLogPage />} />
+        <Route path="logbooks/engine" element={<EngineLogPage />} />
+        <Route path="logbooks/oil" element={<OilRecordPage />} />
+        <Route path="logbooks/garbage" element={<GarbageRecordPage />} />
+        <Route path="logbooks/ballast" element={<BallastWaterPage />} />
+        <Route path="logbooks/watchkeeping" element={<WatchkeepingPage />} />
+
         {/* Reporting Routes */}
         <Route path="reporting" element={<ReportingDashboard />} />
         <Route path="reporting/reports" element={<ReportsPage />} />

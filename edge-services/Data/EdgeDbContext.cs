@@ -45,6 +45,12 @@ public class EdgeDbContext : DbContext
     public DbSet<CargoOperation> CargoOperations { get; set; } = null!;
     public DbSet<WatchkeepingLog> WatchkeepingLogs { get; set; } = null!;
     public DbSet<OilRecordBook> OilRecordBooks { get; set; } = null!;
+    
+    // Additional Logbooks (SOLAS/MARPOL/BWM Convention)
+    public DbSet<DeckLogBook> DeckLogBooks { get; set; } = null!;
+    public DbSet<EngineLogBook> EngineLogBooks { get; set; } = null!;
+    public DbSet<GarbageRecordBook> GarbageRecordBooks { get; set; } = null!;
+    public DbSet<BallastWaterRecordBook> BallastWaterRecordBooks { get; set; } = null!;
 
     // Inventory & Materials
     public DbSet<MaterialCategory> MaterialCategories { get; set; } = null!;
@@ -643,6 +649,103 @@ public class EdgeDbContext : DbContext
             
             entity.HasIndex(e => e.IsSynced)
                 .HasDatabaseName("idx_orb_synced")
+                .HasFilter("is_synced = false");
+        });
+
+        // ========== GARBAGE RECORD BOOK ==========
+        modelBuilder.Entity<GarbageRecordBook>(entity =>
+        {
+            entity.ToTable("garbage_record_books");
+            
+            // Map OperationCode property to operation_type column in database
+            entity.Property(e => e.OperationCode).HasColumnName("operation_type");
+            entity.Property(e => e.Description).HasColumnName("garbage_description");
+            entity.Property(e => e.Quantity).HasColumnName("estimated_amount");
+            entity.Property(e => e.QuantityUnit).HasColumnName("unit_of_measurement");
+            entity.Property(e => e.Latitude).HasColumnName("discharge_latitude");
+            entity.Property(e => e.Longitude).HasColumnName("discharge_longitude");
+            entity.Property(e => e.ReceptionFacility).HasColumnName("reception_facility_name");
+            
+            // Ignore properties that don't exist in database
+            entity.Ignore(e => e.IncinerationStartTime);
+            entity.Ignore(e => e.IncinerationEndTime);
+            entity.Ignore(e => e.IncineratorDetails);
+            entity.Ignore(e => e.AccidentalDischargeReason);
+            entity.Ignore(e => e.AccidentalDischargeMeasures);
+            
+            entity.Property(e => e.Latitude).HasColumnType("decimal(10,7)");
+            entity.Property(e => e.Longitude).HasColumnType("decimal(10,7)");
+            
+            entity.HasIndex(e => e.OperationDateTime)
+                .HasDatabaseName("idx_garbage_operation_date")
+                .IsDescending();
+            
+            entity.HasIndex(e => e.GarbageCategory)
+                .HasDatabaseName("idx_garbage_category");
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_garbage_synced")
+                .HasFilter("is_synced = false");
+        });
+
+        // ========== BALLAST WATER RECORD BOOK ==========
+        modelBuilder.Entity<BallastWaterRecordBook>(entity =>
+        {
+            entity.ToTable("ballast_water_record_books");
+            
+            entity.Property(e => e.ExchangeVolumePercentage).HasColumnName("exchange_volume_percentage");
+            entity.Property(e => e.SalinityBeforeExchange).HasColumnName("salinity_before_exchange");
+            entity.Property(e => e.SalinityAfterExchange).HasColumnName("salinity_after_exchange");
+            
+            entity.Property(e => e.StartLatitude).HasColumnType("decimal(10,7)");
+            entity.Property(e => e.StartLongitude).HasColumnType("decimal(10,7)");
+            entity.Property(e => e.EndLatitude).HasColumnType("decimal(10,7)");
+            entity.Property(e => e.EndLongitude).HasColumnType("decimal(10,7)");
+            
+            entity.HasIndex(e => e.OperationDateTime)
+                .HasDatabaseName("idx_ballast_operation_date")
+                .IsDescending();
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_ballast_synced")
+                .HasFilter("is_synced = false");
+        });
+
+        // ========== ENGINE LOG BOOK ==========
+        modelBuilder.Entity<EngineLogBook>(entity =>
+        {
+            entity.ToTable("engine_log_books");
+            
+            // Fix naming convention for acronyms
+            entity.Property(e => e.MainEngineRPM).HasColumnName("main_engine_rpm");
+            entity.Property(e => e.FuelOilConsumedME).HasColumnName("fuel_oil_consumed_me");
+            entity.Property(e => e.FuelOilConsumedAE).HasColumnName("fuel_oil_consumed_ae");
+            entity.Property(e => e.FuelOilROB).HasColumnName("fuel_oil_rob");
+            entity.Property(e => e.LubOilROB).HasColumnName("lub_oil_rob");
+            entity.Property(e => e.FreshWaterROB).HasColumnName("fresh_water_rob");
+            entity.Property(e => e.SludgeROB).HasColumnName("sludge_rob");
+            entity.Property(e => e.BilgeWaterROB).HasColumnName("bilge_water_rob");
+
+            // Decimal precision
+            entity.Property(e => e.MainEngineRPM).HasColumnType("decimal(6,2)");
+            entity.Property(e => e.MainEngineLoad).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.FuelOilConsumedME).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.FuelOilConsumedAE).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.FuelOilConsumedBoiler).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.LubeOilConsumed).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.FreshWaterConsumed).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.FuelOilROB).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.LubOilROB).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.FreshWaterROB).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.SludgeROB).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.BilgeWaterROB).HasColumnType("decimal(10,3)");
+            
+            entity.HasIndex(e => e.LogDateTime)
+                .HasDatabaseName("idx_engine_log_date")
+                .IsDescending();
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_engine_log_synced")
                 .HasFilter("is_synced = false");
         });
 

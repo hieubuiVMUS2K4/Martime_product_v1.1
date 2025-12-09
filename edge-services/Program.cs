@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MaritimeEdge.Data;
 using MaritimeEdge.Services;
+using MaritimeEdge.Services.Logbooks;
 
 namespace MaritimeEdge
 {
@@ -42,6 +43,12 @@ namespace MaritimeEdge
             builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<IAggregateReportService, AggregateReportService>();
             builder.Services.AddScoped<ISyncService, SyncService>();
+            builder.Services.AddScoped<IWatchkeepingService, WatchkeepingService>();
+            builder.Services.AddScoped<IDeckLogbookService, DeckLogbookService>();
+            builder.Services.AddScoped<IEngineLogbookService, EngineLogbookService>();
+            builder.Services.AddScoped<IGarbageRecordService, GarbageRecordService>();
+            builder.Services.AddScoped<IBallastWaterService, BallastWaterService>();
+            builder.Services.AddScoped<IOilRecordService, OilRecordService>();
 
             // Add Background Services
             builder.Services.AddHostedService<TelemetrySimulatorService>();

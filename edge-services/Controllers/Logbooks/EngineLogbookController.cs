@@ -1,0 +1,159 @@
+using Microsoft.AspNetCore.Mvc;
+using MaritimeEdge.Services.Logbooks;
+using MaritimeEdge.DTOs.Logbooks;
+using Microsoft.AspNetCore.Authorization;
+
+namespace MaritimeEdge.Controllers.Logbooks
+{
+    /// <summary>
+    /// Engine Logbook API Controller
+    /// MARPOL Annex VI & NOX Technical Code Compliant
+    /// </summary>
+    [ApiController]
+    [Route("api/logbooks/engine")]
+    public class EngineLogbookController : ControllerBase
+    {
+        private readonly IEngineLogbookService _service;
+        private readonly ILogger<EngineLogbookController> _logger;
+
+        public EngineLogbookController(IEngineLogbookService service, ILogger<EngineLogbookController> logger)
+        {
+            _service = service;
+            _logger = logger;
+        }
+
+        /// <summary>
+        /// Create a new Engine Log Entry
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> CreateEntry([FromBody] CreateEngineLogEntryDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var username = User.Identity?.Name;
+            var result = await _service.CreateEntryAsync(dto, username);
+
+            if (!result.Success)
+            {
+                return BadRequest(new { error = result.Error });
+            }
+
+            return CreatedAtAction(
+                nameof(GetEntry),
+                new { id = result.Id },
+                new
+                {
+                    id = result.Id,
+                    message = "Engine log entry created successfully"
+                });
+        }
+
+        /// <summary>
+        /// Get Engine Log Entry by ID
+        /// </summary>
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetEntry(Guid id)
+        {
+            var entry = await _service.GetEntryAsync(id);
+
+            if (entry == null)
+            {
+                return NotFound(new { error = "Engine log entry not found" });
+            }
+
+            return Ok(entry);
+        }
+
+        /// <summary>
+        /// Get all Engine Log Entries with pagination
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> GetEntries(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] string? searchTerm = null)
+        {
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100;
+
+            var pagination = new LogbookPaginationDto
+            {
+                Page = page,
+                PageSize = pageSize,
+                FromDate = fromDate,
+                ToDate = toDate,
+                SearchTerm = searchTerm
+            };
+
+            var result = await _service.GetEntriesAsync(pagination);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Update Engine Log Entry
+        /// </summary>
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateEntry(Guid id, [FromBody] UpdateEngineLogEntryDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var username = User.Identity?.Name;
+            var result = await _service.UpdateEntryAsync(id, dto, username);
+
+            if (!result.Success)
+            {
+                return BadRequest(new { error = result.Error });
+            }
+
+            return Ok(new { message = "Engine log entry updated successfully" });
+        }
+
+        /// <summary>
+        /// Delete Engine Log Entry (Soft Delete)
+        /// </summary>
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteEntry(Guid id)
+        {
+            var username = User.Identity?.Name;
+            var result = await _service.DeleteEntryAsync(id, username);
+
+            if (!result.Success)
+            {
+                return BadRequest(new { error = result.Error });
+            }
+
+            return Ok(new { message = "Engine log entry deleted successfully" });
+        }
+
+        /// <summary>
+        /// Sign Engine Log Entry (Chief Engineer Signature)
+        /// </summary>
+        [HttpPost("{id}/sign")]
+        public async Task<IActionResult> SignEntry(Guid id, [FromBody] SignEngineLogDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var username = User.Identity?.Name;
+            var result = await _service.SignEntryAsync(id, dto, username);
+
+            if (!result.Success)
+            {
+                return BadRequest(new { error = result.Error });
+            }
+
+            return Ok(new { message = "Engine log entry signed successfully" });
+        }
+    }
+}
