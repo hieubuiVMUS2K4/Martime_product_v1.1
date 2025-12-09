@@ -31,7 +31,7 @@ export class MaritimeService {
 
   constructor(baseUrl: string = '') {
     // Default to empty string to use Vite proxy
-    // Vite will proxy /api/* to http://localhost:5001/api/*
+    // Vite will proxy /api/* to http://localhost:5005/api/*
     this.baseUrl = baseUrl
   }
 
@@ -81,7 +81,7 @@ export class MaritimeService {
     } catch (error: any) {
       // Network errors or fetch failures
       if (error.message === 'Failed to fetch') {
-        console.error('❌ Network Error: Cannot connect to backend. Is the server running on http://localhost:5000?')
+        console.error('❌ Network Error: Cannot connect to backend. Is the server running on http://localhost:5005?')
         throw new Error('Cannot connect to server. Please check if backend is running.')
       }
       throw error
