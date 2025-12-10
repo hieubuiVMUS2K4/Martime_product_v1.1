@@ -1043,28 +1043,47 @@ See: [MOBILE_PMS_WORKFLOW_TODO.md](./MOBILE_PMS_WORKFLOW_TODO.md)
 | Database Migration - MaintenanceTask fields | `AddPmsWorkflowV2` | ✅ Done |
 | Database Migration - TaskDeferralRequests table | `AddPmsWorkflowV2` | ✅ Done |
 | Database Migration - TaskStatusHistory table | `AddPmsWorkflowV2` | ✅ Done |
-| `POST /task-workflow/:id/verify` - Approve/Reject | `TaskWorkflowController.cs` | ✅ Done |
-| `GET /task-workflow/pending-approval` | `TaskWorkflowController.cs` | ✅ Done |
-| `GET /task-workflow/rectify` | `TaskWorkflowController.cs` | ✅ Done |
-| `GET /task-workflow/dashboard` | `TaskWorkflowController.cs` | ✅ Done |
+| `POST /tasks/:id/start` - Start task | `TaskWorkflowController.cs` | ✅ Done |
+| `POST /tasks/:id/submit` - Submit task | `TaskWorkflowController.cs` | ✅ Done |
+| `POST /tasks/:id/verify` - Approve/Reject | `TaskWorkflowController.cs` | ✅ Done |
+| `POST /tasks/bulk-verify` - Bulk Approve/Reject | `TaskWorkflowController.cs` | ✅ Done |
+| `GET /tasks/pending-approval` | `TaskWorkflowController.cs` | ✅ Done |
+| `GET /tasks/rectify` | `TaskWorkflowController.cs` | ✅ Done |
+| `GET /tasks/approval-summary` | `TaskWorkflowController.cs` | ✅ Done |
 | `POST /deferral-requests` - Create deferral | `DeferralRequestController.cs` | ✅ Done |
 | `POST /deferral-requests/:id/review` - Approve/Reject | `DeferralRequestController.cs` | ✅ Done |
 | `GET /deferral-requests` - List deferrals | `DeferralRequestController.cs` | ✅ Done |
 | DTOs for workflow | `DeferralDTOs.cs` | ✅ Done |
+| Auto-correct task statuses (Background Job) | `MaintenanceSchedulerService.cs` | ✅ Done |
+| Task auto-generation from schedules | `MaintenanceSchedulerService.cs` | ✅ Done |
+| 4-tier PIC assignment logic | `MaintenanceSchedulerService.cs` | ✅ Done |
 
 #### Frontend Web
 | Item | File/Location | Status |
 |------|---------------|--------|
-| Kanban - 7 columns (SCHEDULED→COMPLETED) | `KanbanBoard.tsx` | ✅ Done |
+| Kanban - 8 columns (SCHEDULED→COMPLETED + DEFERRALS) | `KanbanBoard.tsx` | ✅ Done |
 | Kanban - RECTIFY column | `KanbanBoard.tsx` | ✅ Done |
-| Kanban - Status colors | `KanbanBoard.tsx`, `ViewTaskModal.tsx` | ✅ Done |
-| Approval Screen - ApprovalDashboardPage | `ApprovalDashboardPage.tsx` | ✅ Done |
+| Kanban - DEFERRALS column (virtual) | `KanbanBoard.tsx` | ✅ Done |
+| Kanban - Drag validation rules (PMS v2.0) | `KanbanBoard.tsx` | ✅ Done |
+| Kanban - Status colors | `KanbanBoard.tsx`, `KanbanCard.tsx` | ✅ Done |
+| Task Card Indicators - hasPendingDeferral badge | `KanbanCard.tsx` | ✅ Done |
+| Approval Dashboard Page | `ApprovalDashboardPage.tsx` | ✅ Done |
+| Approval Dashboard - Clickable Pending Deferrals card | `ApprovalDashboardPage.tsx` | ✅ Done |
+| ViewTaskModal - Full task details | `ViewTaskModal.tsx` | ✅ Done |
 | ViewTaskModal - Approve button + notes | `ViewTaskModal.tsx` | ✅ Done |
 | ViewTaskModal - Reject button + reason modal | `ViewTaskModal.tsx` | ✅ Done |
+| ViewTaskModal - Deferral Information section | `ViewTaskModal.tsx` | ✅ Done |
+| ViewTaskModal - Rectification Information section | `ViewTaskModal.tsx` | ✅ Done |
+| ViewTaskModal - Link to Deferral Management | `ViewTaskModal.tsx` | ✅ Done |
 | ColumnMenu - "Open Approval Queue" button | `ColumnMenu.tsx` | ✅ Done |
+| ColumnMenu - "Manage Deferrals" button | `ColumnMenu.tsx` | ✅ Done |
+| Deferral Management Page | `DeferralManagementPage.tsx` | ✅ Done |
+| Create Deferral Modal | `CreateDeferralModal.tsx` | ✅ Done |
 | Types - MaintenanceTask updated (string id) | `maritime.types.ts` | ✅ Done |
 | Types - New workflow types | `maritime.types.ts` | ✅ Done |
-| Service - API methods updated | `maritime.service.ts` | ✅ Done |
+| Service - Workflow API methods | `maintenance.service.ts` | ✅ Done |
+| Route - `/pms/deferrals` | `App.tsx` | ✅ Done |
+| Route - `/pms/approval-dashboard` | `App.tsx` | ✅ Done |
 
 ---
 
@@ -1074,15 +1093,12 @@ See: [MOBILE_PMS_WORKFLOW_TODO.md](./MOBILE_PMS_WORKFLOW_TODO.md)
 
 | Priority | Item | Description |
 |----------|------|-------------|
-| 🔴 High | Task Card Indicators | Badges: hasPendingDeferral ⏳, isCms 🔷, highRejectionCount ⚠️ |
-| 🔴 High | Deferral Management Page | `/pms/deferrals` - List, approve/reject deferrals |
-| 🟡 Medium | Task Detail - Rejection History | Show list of previous rejections with reasons |
-| 🟡 Medium | Task Detail - Deferral History | Show list of previous deferrals |
-| 🟡 Medium | Task Detail - Photos Progress | Show {uploaded}/{required} 📷 |
-| 🟡 Medium | Task Detail - CMS Badge | Show 🔷 Class Survey Item badge |
+| 🟡 Medium | Task Card - isCms badge | Show 🔷 Class Survey Item badge |
+| 🟡 Medium | Task Card - highRejectionCount badge | Show ⚠️ when rejectionCount >= 3 |
 | 🟡 Medium | CMS Deferral Warning | Alert when CMS item deferred > 90 days |
 | 🟢 Low | Class Permission Letter Upload | File upload for CMS deferrals > 90 days |
 | 🟢 Low | Web Notifications | Browser notifications for new submissions |
+| 🟢 Low | Sidebar - Add PMS menu items | Add Approval Dashboard, Deferrals to sidebar |
 
 #### 📱 MOBILE (Flutter App)
 
@@ -1098,18 +1114,6 @@ See: [MOBILE_PMS_WORKFLOW_TODO.md](./MOBILE_PMS_WORKFLOW_TODO.md)
 | 🟡 Medium | Offline Support | Queue submissions when offline |
 | 🟡 Medium | Push Notifications | Task assigned, approved, rectify, deferral result |
 | 🟢 Low | Morning Briefing | Daily summary at 07:00 |
-
-#### 🔧 BACKEND (API)
-
-| Priority | Item | Description |
-|----------|------|-------------|
-| 🔴 High | `POST /tasks/:id/start` | Start task → IN_PROGRESS |
-| 🔴 High | `POST /tasks/:id/submit` | Submit report → PENDING_APPROVAL |
-| 🟡 Medium | Status Transition Validation | Full matrix validation |
-| 🟡 Medium | Photo Requirement Validation | Block submit if photos insufficient |
-| 🟡 Medium | CMS Deferral Rules | Require Class Permission Letter > 90 days |
-| 🟡 Medium | Rejection Count Tracking | Increment + notify at thresholds |
-| 🟢 Low | Auto DUE→OVERDUE Job | Scheduled job to update overdue tasks |
 
 #### 🔔 NOTIFICATIONS
 
@@ -1136,16 +1140,97 @@ See: [MOBILE_PMS_WORKFLOW_TODO.md](./MOBILE_PMS_WORKFLOW_TODO.md)
 
 | Category | Completed | Total | Progress |
 |----------|-----------|-------|----------|
-| Backend API | 8 | 14 | **57%** |
-| Frontend Web | 10 | 19 | **53%** |
+| Backend API | 17 | 17 | **100%** ✅ |
+| Frontend Web | 24 | 30 | **80%** |
 | Mobile App | 0 | 10 | **0%** |
 | Notifications | 0 | 6 | **0%** |
 | Testing | 0 | 3 | **0%** |
-| **OVERALL** | **18** | **52** | **~35%** |
+| **OVERALL** | **41** | **66** | **~62%** |
 
 ---
 
-**Document Version:** 2.0  
-**Last Updated:** 10/12/2025  
+### 11.4. PMS WORKFLOW v2.0 - STATUS FLOW
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PMS WORKFLOW v2.0                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   SCHEDULED ──(auto: due date)──► DUE ──(auto: past due)──► OVERDUE
+│       │                            │                          │
+│       └────────────────────────────┴──────────────────────────┘
+│                                    │
+│                         POST /tasks/{id}/start (Mobile)
+│                                    ▼
+│                              IN_PROGRESS
+│                                    │
+│                         POST /tasks/{id}/submit (Mobile)
+│                                    ▼
+│                           PENDING_APPROVAL
+│                                    │
+│                    POST /tasks/{id}/verify (Web - C/E)
+│                         ┌──────────┴──────────┐
+│                         ▼                     ▼
+│                    COMPLETED              RECTIFY
+│                    (Approved)             (Rejected)
+│                                               │
+│                                  POST /tasks/{id}/start (Mobile)
+│                                               ▼
+│                                          IN_PROGRESS
+│                                          (Loop back)
+│                                                                  │
+├─────────────────────────────────────────────────────────────────┤
+│  DEFERRAL FLOW (Parallel):                                       │
+│  Any status → POST /tasks/{id}/defer → hasPendingDeferral=true  │
+│  C/E reviews → Approve: extend due date / Reject: keep date     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 11.5. KANBAN BOARD COLUMNS (8 Columns)
+
+| # | Column | Color | Description |
+|---|--------|-------|-------------|
+| 1 | SCHEDULED | Slate | Tasks not yet due |
+| 2 | DUE | Blue | Tasks due today or ready |
+| 3 | OVERDUE | Red | Tasks past due date |
+| 4 | DEFERRALS | Yellow | Tasks with pending deferral (virtual) |
+| 5 | IN_PROGRESS | Purple | Crew currently working |
+| 6 | PENDING_APPROVAL | Amber | Waiting C/E verification |
+| 7 | RECTIFY | Orange | Returned for correction |
+| 8 | COMPLETED | Green | Approved and done |
+
+---
+
+### 11.6. KEY FILES REFERENCE
+
+#### Backend (edge-services)
+| File | Purpose |
+|------|---------|
+| `Controllers/TaskWorkflowController.cs` | Start, Submit, Verify, Bulk-verify APIs |
+| `Controllers/DeferralRequestController.cs` | Deferral CRUD and Review APIs |
+| `Controllers/MaintenanceController.cs` | Task CRUD, AutoCorrect statuses |
+| `Services/MaintenanceSchedulerService.cs` | Background job: auto-generate tasks, auto-correct statuses |
+| `DTOs/DeferralDTOs.cs` | All workflow-related DTOs |
+| `Models/EdgeModels.cs` | MaintenanceTask, TaskDeferralRequest, TaskStatusHistory |
+
+#### Frontend (frontend-edge)
+| File | Purpose |
+|------|---------|
+| `components/maintenance/KanbanBoard.tsx` | 8-column Kanban with drag rules |
+| `components/maintenance/KanbanCard.tsx` | Task card with status colors, badges |
+| `components/maintenance/ViewTaskModal.tsx` | Task details + Approve/Reject |
+| `components/maintenance/ColumnMenu.tsx` | Column actions (Approval Queue, Manage Deferrals) |
+| `components/maintenance/CreateDeferralModal.tsx` | Create deferral request form |
+| `pages/PMS/ApprovalDashboardPage.tsx` | C/E approval dashboard |
+| `pages/PMS/DeferralManagementPage.tsx` | Deferral review page |
+| `services/maintenance.service.ts` | API client for workflow endpoints |
+| `types/maritime.types.ts` | TypeScript interfaces |
+
+---
+
+**Document Version:** 2.1  
+**Last Updated:** 10/12/2025 (Evening)  
 **Approved By:** Technical Team Lead  
 **Next Review:** 17/12/2025
