@@ -33,6 +33,11 @@ export const equipmentGroupService = {
     return response.data;
   },
 
+  async getGroupMembers(id: string): Promise<any[]> {
+    const response = await axios.get(`${API_BASE_URL}/equipment-groups/${id}/members`);
+    return response.data;
+  },
+
   async addAsset(groupId: string, assetId: string): Promise<void> {
     await axios.post(`${API_BASE_URL}/equipment-groups/${groupId}/assets/${assetId}`);
   },

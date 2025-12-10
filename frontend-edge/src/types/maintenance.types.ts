@@ -7,11 +7,11 @@
 // TASK TYPES
 // ============================================================
 
-export type TaskStatus = 'TASK' | 'MISSING_BOTH' | 'MISSING_CHECKLIST' | 'MISSING_PIC' | 'PENDING' | 'PENDING_APPROVAL' | 'REJECTED' | 'OVERDUE' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type TaskStatus = 'TASK' | 'SCHEDULED' | 'DUE' | 'MISSING_BOTH' | 'MISSING_CHECKLIST' | 'MISSING_PIC' | 'PENDING' | 'PENDING_APPROVAL' | 'RECTIFY' | 'REJECTED' | 'OVERDUE' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 export type TaskPriority = 'CRITICAL' | 'HIGH' | 'NORMAL' | 'LOW';
 
 export interface MaintenanceTask {
-  id: number;
+  id: string;
   taskId: string;
   taskTypeId?: number;
   
@@ -37,15 +37,22 @@ export interface MaintenanceTask {
   status: TaskStatus;
   
   assignedTo?: string;
+  assignedDepartment?: 'ENGINE' | 'DECK' | 'ELECTRICAL';
   approvedBy?: string;      // Crew ID who approved (C/E or Master)
   approvedAt?: string;       // When task was approved
-  rejectionReason?: string;  // If status is REJECTED
+  rejectionReason?: string;  // If status is REJECTED/RECTIFY
+  rejectionCount?: number;   // Number of times rejected
   startedAt?: string;
   completedAt?: string;
   completedBy?: string;
   
   notes?: string;
   sparePartsUsed?: string;
+  
+  // PMS Workflow v2.0 fields
+  isCms?: boolean;           // Class Maintenance Survey item
+  hasPendingDeferral?: boolean;
+  deferralCount?: number;
   
   isSynced: boolean;
   createdAt: string;

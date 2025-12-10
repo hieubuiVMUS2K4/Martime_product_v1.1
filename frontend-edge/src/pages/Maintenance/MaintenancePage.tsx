@@ -5,7 +5,7 @@ import { MaintenanceTask, parseTaskScheduleInfo } from '../../types/maritime.typ
 import { maritimeService } from '../../services/maritime.service'
 import { differenceInDays, parseISO } from 'date-fns'
 import { KanbanBoard } from '../../components/maintenance/KanbanBoard'
-import { AddTaskModal } from '../../components/maintenance/AddTaskModal'
+import { AddScheduleModal } from '@/components/pms/AddScheduleModal'
 import { toast } from 'sonner'
 
 type TabType = 'tasks'
@@ -21,8 +21,9 @@ export function MaintenancePage() {
   const [equipmentFilter, setEquipmentFilter] = useState<string>('all')
   const [groupFilter, setGroupFilter] = useState<string>('all')
   const [scheduleFilter, setScheduleFilter] = useState<string>('all')
-  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false)
+  const [isAddScheduleModalOpen, setIsAddScheduleModalOpen] = useState(false)
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false)
+  const [crewList, setCrewList] = useState<Array<{ crewId: string; fullName: string; rank?: string }>>([])
   
   // Time window filter (Maritime PMS pattern) - Default to Week view for better overview
   const [timeWindow, setTimeWindow] = useState<'today' | 'week' | '2weeks' | 'month' | 'all'>('week')
@@ -37,8 +38,12 @@ export function MaintenancePage() {
         setIsBackgroundRefreshing(true)
       }
       // Fetch all tasks with high pageSize to get all records
-      const response = await maritimeService.maintenance.getAll({ pageSize: 1000 })
-      setTasks(response.data)
+      const [tasksResponse, crewResponse] = await Promise.all([
+        maritimeService.maintenance.getAll({ pageSize: 1000 }),
+        maritimeService.crew.getAll({ pageSize: 100, isOnboard: true })
+      ])
+      setTasks(tasksResponse.data)
+      setCrewList(crewResponse.data)
     } catch (error) {
       console.error('Failed to load maintenance data:', error)
     } finally {
@@ -159,7 +164,7 @@ export function MaintenancePage() {
 
   const timeWindowStats = getTimeWindowStats()
 
-  const handleTaskDelete = async (taskId: number) => {
+  const handleTaskDelete = async (taskId: string) => {
     try {
       console.log(`🗑️ Deleting task ${taskId}`)
       
@@ -188,7 +193,7 @@ export function MaintenancePage() {
     }
   }
 
-  const handleTaskUpdate = async (taskId: number, newStatus: string) => {
+  const handleTaskUpdate = async (taskId: string, newStatus: string) => {
     try {
       const validStatus = newStatus as 'PENDING' | 'OVERDUE' | 'IN_PROGRESS' | 'COMPLETED'
       console.log(`🔄 Updating task ${taskId}: ${validStatus}`)
@@ -423,7 +428,8 @@ export function MaintenancePage() {
                 onTaskUpdate={handleTaskUpdate}
                 onTaskDelete={handleTaskDelete}
                 onTaskClick={(id) => navigate(`/maintenance/${id}`)}
-                onAddTask={() => setIsAddTaskModalOpen(true)}
+                onAddTask={() => setIsAddScheduleModalOpen(true)}
+                crewList={crewList}
               />
             )}
           </>
@@ -431,13 +437,13 @@ export function MaintenancePage() {
       </div>
       </div>
 
-      {/* Add Task Modal */}
-      <AddTaskModal
-        isOpen={isAddTaskModalOpen}
-        onClose={() => setIsAddTaskModalOpen(false)}
-        onTaskAdded={() => {
+      {/* Add Schedule Modal */}
+      <AddScheduleModal
+        isOpen={isAddScheduleModalOpen}
+        onClose={() => setIsAddScheduleModalOpen(false)}
+        onSuccess={() => {
           loadMaintenanceData()
-          setIsAddTaskModalOpen(false)
+          setIsAddScheduleModalOpen(false)
         }}
       />
     </div>

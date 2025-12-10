@@ -2,7 +2,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { MaintenanceTask, parseTaskScheduleInfo, CrewMember } from '../../types/maritime.types'
 import { format, parseISO } from 'date-fns'
-import { Calendar, Package, UserCircle, ListChecks, AlertTriangle } from 'lucide-react'
+import { Calendar, Package, UserCircle, ListChecks, AlertTriangle, Clock, Shield, RotateCcw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { maritimeService } from '../../services/maritime.service'
@@ -11,7 +11,7 @@ interface KanbanCardProps {
   task: MaintenanceTask
   onClick: () => void
   isDragging?: boolean
-  onAssignChange?: (taskId: number, crewId: string | null) => Promise<void>
+  onAssignChange?: (taskId: string, crewId: string | null) => Promise<void>
 }
 
 export function KanbanCard({ task, onClick, isDragging = false, onAssignChange }: KanbanCardProps) {
@@ -71,6 +71,18 @@ export function KanbanCard({ task, onClick, isDragging = false, onAssignChange }
 
   const getStatusConfig = () => {
     switch (task.status) {
+      case 'SCHEDULED': return {
+        bg: 'bg-slate-50',
+        text: 'text-slate-700',
+        dot: 'bg-slate-500',
+        label: 'Scheduled'
+      }
+      case 'DUE': return { 
+        bg: 'bg-blue-50', 
+        text: 'text-blue-700',
+        dot: 'bg-blue-500',
+        label: 'Due' 
+      }
       case 'MISSING_BOTH': return {
         bg: 'bg-red-50',
         text: 'text-red-700',
@@ -90,9 +102,9 @@ export function KanbanCard({ task, onClick, isDragging = false, onAssignChange }
         label: '⚠️ Missing PIC'
       }
       case 'PENDING_APPROVAL': return {
-        bg: 'bg-purple-50',
-        text: 'text-purple-700',
-        dot: 'bg-purple-500',
+        bg: 'bg-amber-50',
+        text: 'text-amber-700',
+        dot: 'bg-amber-500',
         label: 'Pending Approval'
       }
       case 'PENDING': return { 
@@ -107,6 +119,12 @@ export function KanbanCard({ task, onClick, isDragging = false, onAssignChange }
         dot: 'bg-yellow-500',
         label: 'Rejected'
       }
+      case 'RECTIFY': return {
+        bg: 'bg-pink-50',
+        text: 'text-pink-700',
+        dot: 'bg-pink-500',
+        label: 'Rectify'
+      }
       case 'OVERDUE': return { 
         bg: 'bg-red-50', 
         text: 'text-red-700',
@@ -114,9 +132,9 @@ export function KanbanCard({ task, onClick, isDragging = false, onAssignChange }
         label: 'Overdue' 
       }
       case 'IN_PROGRESS': return { 
-        bg: 'bg-orange-50', 
-        text: 'text-orange-700',
-        dot: 'bg-orange-500',
+        bg: 'bg-purple-50', 
+        text: 'text-purple-700',
+        dot: 'bg-purple-500',
         label: 'In Progress' 
       }
       case 'COMPLETED': return { 
@@ -171,11 +189,33 @@ export function KanbanCard({ task, onClick, isDragging = false, onAssignChange }
       `}
     >
       {/* Status Badge */}
-      <div className="mb-2">
+      <div className="mb-2 flex flex-wrap gap-1">
         <span className={`inline-flex items-center gap-1 ${status.bg} ${status.text} px-2 py-0.5 rounded text-[10px] font-medium`}>
           <div className={`w-1 h-1 rounded-full ${status.dot}`} />
           {status.label}
         </span>
+        
+        {/* PMS Workflow v2.0 Indicators */}
+        {task.hasPendingDeferral && (
+          <span className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-[10px] font-medium">
+            <Clock className="w-2.5 h-2.5" />
+            Deferral
+          </span>
+        )}
+        
+        {task.isCms && (
+          <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-[10px] font-medium">
+            <Shield className="w-2.5 h-2.5" />
+            CMS
+          </span>
+        )}
+        
+        {task.rejectionCount > 0 && (
+          <span className="inline-flex items-center gap-1 bg-pink-100 text-pink-800 px-2 py-0.5 rounded text-[10px] font-medium">
+            <RotateCcw className="w-2.5 h-2.5" />
+            ×{task.rejectionCount}
+          </span>
+        )}
       </div>
 
       {/* Schedule Info (if auto-generated) */}

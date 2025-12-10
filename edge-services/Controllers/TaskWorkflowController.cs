@@ -1,0 +1,864 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using MaritimeEdge.Data;
+using MaritimeEdge.Models;
+using MaritimeEdge.DTOs;
+using System.Text.Json;
+using MTaskStatus = MaritimeEdge.Constants.TaskStatus;
+
+namespace MaritimeEdge.Controllers;
+
+[ApiController]
+[Route("api/tasks")]
+public class TaskWorkflowController : ControllerBase
+{
+    private readonly EdgeDbContext _context;
+    private readonly ILogger<TaskWorkflowController> _logger;
+
+    public TaskWorkflowController(EdgeDbContext context, ILogger<TaskWorkflowController> logger)
+    {
+        _context = context;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Start working on a task (Crew starts execution)
+    /// DUE/OVERDUE → IN_PROGRESS
+    /// </summary>
+    [HttpPost("{id:guid}/start")]
+    public async Task<IActionResult> StartTask(Guid id, [FromBody] StartTaskDto dto)
+    {
+        try
+        {
+            var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
+            var deviceType = Request.Headers["X-Device-Type"].FirstOrDefault() ?? "MOBILE";
+
+            var task = await _context.MaintenanceTasks.FirstOrDefaultAsync(t => t.Id == id);
+            
+            if (task == null)
+            {
+                return NotFound(new { error = "Task not found" });
+            }
+
+            // Validate status - can only start DUE or OVERDUE tasks
+            var allowedStatuses = new[] { "DUE", "OVERDUE", "RECTIFY" };
+            if (!allowedStatuses.Contains(task.Status))
+            {
+                return BadRequest(new { 
+                    error = "Can only start tasks in DUE, OVERDUE or RECTIFY status",
+                    currentStatus = task.Status,
+                    allowedStatuses = allowedStatuses
+                });
+            }
+
+            // Check if task has pending deferral
+            if (task.HasPendingDeferral)
+            {
+                return BadRequest(new { 
+                    error = "Cannot start task with pending deferral request"
+                });
+            }
+
+            var previousStatus = task.Status;
+
+            // Update task
+            task.Status = "IN_PROGRESS";
+            task.StartedAt = DateTime.UtcNow;
+            task.StartedBy = userId;
+            task.ActualRunningHours = dto.CurrentRunningHours;
+            task.UpdatedAt = DateTime.UtcNow;
+
+            if (!string.IsNullOrEmpty(dto.Notes))
+            {
+                task.Notes = dto.Notes;
+            }
+
+            // Add status history
+            var statusHistory = new TaskStatusHistory
+            {
+                Id = Guid.NewGuid(),
+                TaskId = task.Id,
+                FromStatus = previousStatus,
+                ToStatus = "IN_PROGRESS",
+                ChangedBy = userId,
+                ChangedAt = DateTime.UtcNow,
+                Reason = previousStatus == "RECTIFY" ? "Re-started after rectification" : "Task started by crew",
+                DeviceType = deviceType
+            };
+            _context.TaskStatusHistories.Add(statusHistory);
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Task {TaskId} started by {UserId} from status {PreviousStatus}", 
+                task.TaskId, userId, previousStatus);
+
+            return Ok(new { 
+                message = "Task started successfully",
+                taskId = task.TaskId,
+                status = task.Status,
+                startedAt = task.StartedAt
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error starting task {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Submit task for approval (Crew completes work)
+    /// IN_PROGRESS → PENDING_APPROVAL
+    /// </summary>
+    [HttpPost("{id:guid}/submit")]
+    public async Task<IActionResult> SubmitTask(Guid id, [FromBody] SubmitTaskDto dto)
+    {
+        try
+        {
+            var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
+            var deviceType = Request.Headers["X-Device-Type"].FirstOrDefault() ?? "MOBILE";
+
+            var task = await _context.MaintenanceTasks
+                .Include(t => t.ChecklistItems)
+                .FirstOrDefaultAsync(t => t.Id == id);
+            
+            if (task == null)
+            {
+                return NotFound(new { error = "Task not found" });
+            }
+
+            // Validate status
+            if (task.Status != "IN_PROGRESS")
+            {
+                return BadRequest(new { 
+                    error = "Can only submit tasks in IN_PROGRESS status",
+                    currentStatus = task.Status
+                });
+            }
+
+            // Check if checklist is completed (if has checklist items)
+            if (task.ChecklistItems.Any())
+            {
+                var completedItems = task.ChecklistItems.Count(c => c.IsCompleted);
+                var totalItems = task.ChecklistItems.Count;
+                
+                if (completedItems < totalItems)
+                {
+                    return BadRequest(new { 
+                        error = "All checklist items must be completed before submission",
+                        completedItems = completedItems,
+                        totalItems = totalItems
+                    });
+                }
+                task.ChecklistCompleted = true;
+            }
+
+            // Check required photos
+            if (task.RequiredPhotos > 0 && task.PhotosUploaded < task.RequiredPhotos)
+            {
+                return BadRequest(new { 
+                    error = "Required photos not uploaded",
+                    required = task.RequiredPhotos,
+                    uploaded = task.PhotosUploaded
+                });
+            }
+
+            // Calculate actual duration
+            if (task.StartedAt.HasValue)
+            {
+                task.ActualDuration = (int)(DateTime.UtcNow - task.StartedAt.Value).TotalMinutes;
+            }
+
+            // Update task
+            task.Status = "PENDING_APPROVAL";
+            task.SubmittedAt = DateTime.UtcNow;
+            task.SubmittedBy = userId;
+            task.UpdatedAt = DateTime.UtcNow;
+
+            if (!string.IsNullOrEmpty(dto.Notes))
+            {
+                task.Notes = dto.Notes;
+            }
+
+            if (!string.IsNullOrEmpty(dto.SparePartsUsed))
+            {
+                task.SparePartsUsed = dto.SparePartsUsed;
+            }
+
+            if (dto.PhotoUrls != null && dto.PhotoUrls.Any())
+            {
+                task.PhotosUploaded = dto.PhotoUrls.Count;
+            }
+
+            if (dto.CompletedRunningHours.HasValue)
+            {
+                task.RunningHoursAtLastDone = dto.CompletedRunningHours;
+            }
+
+            // Add status history
+            var statusHistory = new TaskStatusHistory
+            {
+                Id = Guid.NewGuid(),
+                TaskId = task.Id,
+                FromStatus = "IN_PROGRESS",
+                ToStatus = "PENDING_APPROVAL",
+                ChangedBy = userId,
+                ChangedAt = DateTime.UtcNow,
+                Reason = "Task submitted for approval",
+                DeviceType = deviceType
+            };
+            _context.TaskStatusHistories.Add(statusHistory);
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Task {TaskId} submitted for approval by {UserId}", task.TaskId, userId);
+
+            return Ok(new { 
+                message = "Task submitted for approval",
+                taskId = task.TaskId,
+                status = task.Status,
+                submittedAt = task.SubmittedAt,
+                actualDuration = task.ActualDuration
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error submitting task {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Verify task (C/E or Master approves/rejects)
+    /// PENDING_APPROVAL → COMPLETED or RECTIFY
+    /// </summary>
+    [HttpPost("{id:guid}/verify")]
+    public async Task<IActionResult> VerifyTask(Guid id, [FromBody] VerifyTaskDto dto)
+    {
+        try
+        {
+            var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
+            var deviceType = Request.Headers["X-Device-Type"].FirstOrDefault() ?? "WEB";
+
+            var task = await _context.MaintenanceTasks.FirstOrDefaultAsync(t => t.Id == id);
+            
+            if (task == null)
+            {
+                return NotFound(new { error = "Task not found" });
+            }
+
+            // Validate status
+            if (task.Status != "PENDING_APPROVAL")
+            {
+                return BadRequest(new { 
+                    error = "Can only verify tasks in PENDING_APPROVAL status",
+                    currentStatus = task.Status
+                });
+            }
+
+            var action = dto.Action.ToUpper();
+            if (action != "APPROVE" && action != "REJECT")
+            {
+                return BadRequest(new { error = "Action must be APPROVE or REJECT" });
+            }
+
+            if (action == "APPROVE")
+            {
+                // Approve task
+                task.Status = "COMPLETED";
+                task.VerifiedAt = DateTime.UtcNow;
+                task.VerifiedBy = userId;
+                task.VerificationResult = "APPROVED";
+                task.VerificationNotes = dto.Notes;
+                task.CompletedAt = DateTime.UtcNow;
+                task.CompletedBy = userId;
+                task.LastDoneAt = DateTime.UtcNow;
+                
+                // Also update legacy fields for backward compatibility
+                task.ApprovedBy = userId;
+                task.ApprovedAt = DateTime.UtcNow;
+
+                // Calculate next due date based on interval
+                if (task.IntervalDays.HasValue)
+                {
+                    task.NextDueAt = DateTime.UtcNow.AddDays(task.IntervalDays.Value);
+                }
+
+                task.UpdatedAt = DateTime.UtcNow;
+
+                // Add status history
+                var statusHistory = new TaskStatusHistory
+                {
+                    Id = Guid.NewGuid(),
+                    TaskId = task.Id,
+                    FromStatus = "PENDING_APPROVAL",
+                    ToStatus = "COMPLETED",
+                    ChangedBy = userId,
+                    ChangedAt = DateTime.UtcNow,
+                    Reason = "Task approved and completed",
+                    Notes = dto.Notes,
+                    DeviceType = deviceType
+                };
+                _context.TaskStatusHistories.Add(statusHistory);
+
+                _logger.LogInformation("Task {TaskId} approved by {UserId}", task.TaskId, userId);
+            }
+            else // REJECT
+            {
+                // Validate rejection reason
+                if (string.IsNullOrEmpty(dto.RejectionReason))
+                {
+                    return BadRequest(new { error = "Rejection reason is required" });
+                }
+
+                // Reject task → RECTIFY
+                task.Status = "RECTIFY";
+                task.VerifiedAt = DateTime.UtcNow;
+                task.VerifiedBy = userId;
+                task.VerificationResult = "REJECTED";
+                task.VerificationNotes = dto.Notes;
+                task.RejectionReason = dto.RejectionReason;
+                task.RejectionCount += 1;
+                task.LastRejectedAt = DateTime.UtcNow;
+                task.LastRejectedBy = userId;
+                task.UpdatedAt = DateTime.UtcNow;
+
+                // Update rejection history (JSON array)
+                var rejectionEntry = new
+                {
+                    reason = dto.RejectionReason,
+                    by = userId,
+                    at = DateTime.UtcNow
+                };
+
+                List<object> rejectionHistory;
+                if (!string.IsNullOrEmpty(task.RejectionHistory))
+                {
+                    rejectionHistory = JsonSerializer.Deserialize<List<object>>(task.RejectionHistory) ?? new List<object>();
+                }
+                else
+                {
+                    rejectionHistory = new List<object>();
+                }
+                rejectionHistory.Add(rejectionEntry);
+                task.RejectionHistory = JsonSerializer.Serialize(rejectionHistory);
+
+                // Add status history
+                var statusHistory = new TaskStatusHistory
+                {
+                    Id = Guid.NewGuid(),
+                    TaskId = task.Id,
+                    FromStatus = "PENDING_APPROVAL",
+                    ToStatus = "RECTIFY",
+                    ChangedBy = userId,
+                    ChangedAt = DateTime.UtcNow,
+                    Reason = dto.RejectionReason,
+                    Notes = dto.Notes,
+                    DeviceType = deviceType
+                };
+                _context.TaskStatusHistories.Add(statusHistory);
+
+                _logger.LogInformation("Task {TaskId} rejected by {UserId}, reason: {Reason}", 
+                    task.TaskId, userId, dto.RejectionReason);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { 
+                message = action == "APPROVE" ? "Task approved and completed" : "Task returned for rectification",
+                taskId = task.TaskId,
+                status = task.Status,
+                verifiedAt = task.VerifiedAt,
+                rejectionCount = task.RejectionCount
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error verifying task {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Get task details with full workflow info
+    /// </summary>
+    [HttpGet("{id:guid}/details")]
+    public async Task<IActionResult> GetTaskDetails(Guid id)
+    {
+        try
+        {
+            var task = await _context.MaintenanceTasks
+                .AsNoTracking()
+                .Include(t => t.DeferralRequests.Where(d => d.Status == "PENDING"))
+                .Include(t => t.StatusHistory.OrderByDescending(h => h.ChangedAt).Take(20))
+                .FirstOrDefaultAsync(t => t.Id == id);
+
+            if (task == null)
+            {
+                return NotFound(new { error = "Task not found" });
+            }
+
+            // Get crew names
+            var crewIds = new List<string?> 
+            { 
+                task.AssignedTo, task.StartedBy, task.SubmittedBy, 
+                task.VerifiedBy, task.LastDeferredBy, task.LastRejectedBy 
+            }
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct()
+            .ToList();
+
+            // Add crew IDs from status history
+            crewIds.AddRange(task.StatusHistory.Select(h => h.ChangedBy).Where(id => !string.IsNullOrEmpty(id)));
+            crewIds = crewIds.Distinct().ToList();
+
+            var crewNames = await _context.CrewMembers
+                .Where(c => crewIds.Contains(c.CrewId))
+                .ToDictionaryAsync(c => c.CrewId, c => c.FullName);
+
+            // Get pending deferral if any
+            DeferralRequestDto? pendingDeferral = null;
+            var pendingDeferralEntity = task.DeferralRequests.FirstOrDefault(d => d.Status == "PENDING");
+            if (pendingDeferralEntity != null)
+            {
+                pendingDeferral = new DeferralRequestDto
+                {
+                    Id = pendingDeferralEntity.Id,
+                    TaskId = pendingDeferralEntity.TaskId,
+                    TaskCode = task.TaskId,
+                    RequestedBy = pendingDeferralEntity.RequestedBy,
+                    RequestedByName = crewNames.GetValueOrDefault(pendingDeferralEntity.RequestedBy),
+                    RequestedAt = pendingDeferralEntity.RequestedAt,
+                    Reason = pendingDeferralEntity.Reason,
+                    CurrentDueDate = pendingDeferralEntity.CurrentDueDate,
+                    ProposedDueDate = pendingDeferralEntity.ProposedDueDate,
+                    DeferralDays = pendingDeferralEntity.DeferralDays,
+                    Status = pendingDeferralEntity.Status,
+                    Priority = pendingDeferralEntity.Priority,
+                    IsCmsItem = pendingDeferralEntity.IsCmsItem
+                };
+            }
+
+            var dto = new MaintenanceTaskDetailDto
+            {
+                Id = task.Id,
+                TaskId = task.TaskId,
+                TaskDescription = task.TaskDescription,
+                EquipmentId = task.EquipmentId,
+                EquipmentName = task.EquipmentName,
+                EquipmentGroupId = task.EquipmentGroupId,
+                EquipmentGroupName = task.EquipmentGroupName,
+                TaskType = task.TaskType,
+                Priority = task.Priority,
+                Status = task.Status,
+                AssignedTo = task.AssignedTo,
+                AssignedToName = task.AssignedTo != null ? crewNames.GetValueOrDefault(task.AssignedTo) : null,
+                AssignedDepartment = task.AssignedDepartment,
+                NextDueAt = task.NextDueAt,
+                LastDoneAt = task.LastDoneAt,
+                HasPendingDeferral = task.HasPendingDeferral,
+                DeferralCount = task.DeferralCount,
+                PendingDeferral = pendingDeferral,
+                StartedAt = task.StartedAt,
+                StartedBy = task.StartedBy,
+                EstimatedDuration = task.EstimatedDuration,
+                ActualDuration = task.ActualDuration,
+                ChecklistCompleted = task.ChecklistCompleted,
+                PhotosUploaded = task.PhotosUploaded,
+                RequiredPhotos = task.RequiredPhotos,
+                Notes = task.Notes,
+                SparePartsUsed = task.SparePartsUsed,
+                SubmittedAt = task.SubmittedAt,
+                SubmittedBy = task.SubmittedBy,
+                VerifiedAt = task.VerifiedAt,
+                VerifiedBy = task.VerifiedBy,
+                VerificationResult = task.VerificationResult,
+                VerificationNotes = task.VerificationNotes,
+                RejectionReason = task.RejectionReason,
+                RejectionCount = task.RejectionCount,
+                IsCms = task.IsCms,
+                StatusHistory = task.StatusHistory.Select(h => new TaskStatusHistoryDto
+                {
+                    Id = h.Id,
+                    FromStatus = h.FromStatus,
+                    ToStatus = h.ToStatus,
+                    ChangedBy = h.ChangedBy,
+                    ChangedByName = crewNames.GetValueOrDefault(h.ChangedBy),
+                    ChangedAt = h.ChangedAt,
+                    Reason = h.Reason,
+                    Notes = h.Notes,
+                    DeviceType = h.DeviceType
+                }).ToList(),
+                CompletedAt = task.CompletedAt,
+                CreatedAt = task.CreatedAt,
+                UpdatedAt = task.UpdatedAt
+            };
+
+            return Ok(dto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting task details {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Get tasks pending approval (for C/E dashboard)
+    /// </summary>
+    [HttpGet("pending-approval")]
+    public async Task<IActionResult> GetPendingApprovalTasks([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        try
+        {
+            var query = _context.MaintenanceTasks
+                .AsNoTracking()
+                .Where(t => t.Status == "PENDING_APPROVAL")
+                .OrderBy(t => t.SubmittedAt);
+
+            var totalCount = await query.CountAsync();
+
+            var tasks = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            // Get crew names
+            var crewIds = tasks
+                .SelectMany(t => new[] { t.AssignedTo, t.SubmittedBy })
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Distinct()
+                .ToList();
+
+            var crewNames = await _context.CrewMembers
+                .Where(c => crewIds.Contains(c.CrewId))
+                .ToDictionaryAsync(c => c.CrewId, c => c.FullName);
+
+            var dtos = tasks.Select(t => new TaskSummaryDto
+            {
+                Id = t.Id,
+                TaskId = t.TaskId,
+                TaskDescription = t.TaskDescription,
+                EquipmentName = t.EquipmentName ?? t.EquipmentGroupName,
+                Priority = t.Priority,
+                Status = t.Status,
+                NextDueAt = t.NextDueAt,
+                AssignedTo = t.AssignedTo,
+                AssignedDepartment = t.AssignedDepartment
+            }).ToList();
+
+            return Ok(new
+            {
+                items = dtos,
+                totalCount,
+                page,
+                pageSize,
+                totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting pending approval tasks");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Get rectify tasks (for crew to fix)
+    /// </summary>
+    [HttpGet("rectify")]
+    public async Task<IActionResult> GetRectifyTasks([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        try
+        {
+            var query = _context.MaintenanceTasks
+                .AsNoTracking()
+                .Where(t => t.Status == "RECTIFY")
+                .OrderByDescending(t => t.LastRejectedAt);
+
+            var totalCount = await query.CountAsync();
+
+            var tasks = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var dtos = tasks.Select(t => new
+            {
+                t.Id,
+                t.TaskId,
+                t.TaskDescription,
+                EquipmentName = t.EquipmentName ?? t.EquipmentGroupName,
+                t.Priority,
+                t.Status,
+                t.NextDueAt,
+                t.AssignedTo,
+                t.AssignedDepartment,
+                t.RejectionReason,
+                t.RejectionCount,
+                t.LastRejectedAt
+            }).ToList();
+
+            return Ok(new
+            {
+                items = dtos,
+                totalCount,
+                page,
+                pageSize,
+                totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting rectify tasks");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Get approval dashboard summary
+    /// </summary>
+    [HttpGet("dashboard/summary")]
+    public async Task<IActionResult> GetApprovalDashboardSummary()
+    {
+        try
+        {
+            var now = DateTime.UtcNow;
+            var today = now.Date;
+            var endOfWeek = today.AddDays(7);
+
+            var summary = new ApprovalDashboardSummaryDto
+            {
+                PendingApprovalCount = await _context.MaintenanceTasks
+                    .CountAsync(t => t.Status == "PENDING_APPROVAL"),
+                
+                PendingDeferralCount = await _context.TaskDeferralRequests
+                    .CountAsync(d => d.Status == "PENDING"),
+                
+                RectifyTaskCount = await _context.MaintenanceTasks
+                    .CountAsync(t => t.Status == "RECTIFY"),
+                
+                OverdueTaskCount = await _context.MaintenanceTasks
+                    .CountAsync(t => t.Status == "OVERDUE"),
+                
+                TodayDueCount = await _context.MaintenanceTasks
+                    .CountAsync(t => (t.Status == "DUE" || t.Status == "SCHEDULED") 
+                        && t.NextDueAt.Date == today),
+                
+                ThisWeekDueCount = await _context.MaintenanceTasks
+                    .CountAsync(t => (t.Status == "DUE" || t.Status == "SCHEDULED") 
+                        && t.NextDueAt >= today && t.NextDueAt <= endOfWeek)
+            };
+
+            return Ok(summary);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting approval dashboard summary");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Get morning briefing data
+    /// </summary>
+    [HttpGet("morning-briefing")]
+    public async Task<IActionResult> GetMorningBriefing()
+    {
+        try
+        {
+            var now = DateTime.UtcNow;
+            var today = now.Date;
+            var yesterday = today.AddDays(-1);
+
+            var briefing = new MorningBriefingDto
+            {
+                Date = today,
+                
+                OverdueTasksEngine = await _context.MaintenanceTasks
+                    .CountAsync(t => t.Status == "OVERDUE" && t.AssignedDepartment == "ENGINE"),
+                
+                OverdueTasksDeck = await _context.MaintenanceTasks
+                    .CountAsync(t => t.Status == "OVERDUE" && t.AssignedDepartment == "DECK"),
+                
+                DueToday = await _context.MaintenanceTasks
+                    .CountAsync(t => (t.Status == "DUE" || t.Status == "SCHEDULED") 
+                        && t.NextDueAt.Date == today),
+                
+                PendingApproval = await _context.MaintenanceTasks
+                    .CountAsync(t => t.Status == "PENDING_APPROVAL"),
+                
+                PendingDeferral = await _context.TaskDeferralRequests
+                    .CountAsync(d => d.Status == "PENDING"),
+                
+                TasksInProgress = await _context.MaintenanceTasks
+                    .CountAsync(t => t.Status == "IN_PROGRESS"),
+                
+                CompletedYesterday = await _context.MaintenanceTasks
+                    .CountAsync(t => t.Status == "COMPLETED" 
+                        && t.CompletedAt.HasValue 
+                        && t.CompletedAt.Value.Date == yesterday),
+                
+                TopPriorityTasks = await _context.MaintenanceTasks
+                    .Where(t => t.Status == "OVERDUE" || 
+                               (t.Status == "DUE" && t.Priority == "CRITICAL"))
+                    .OrderBy(t => t.NextDueAt)
+                    .Take(5)
+                    .Select(t => new TaskSummaryDto
+                    {
+                        Id = t.Id,
+                        TaskId = t.TaskId,
+                        TaskDescription = t.TaskDescription,
+                        EquipmentName = t.EquipmentName ?? t.EquipmentGroupName,
+                        Priority = t.Priority,
+                        Status = t.Status,
+                        NextDueAt = t.NextDueAt,
+                        AssignedDepartment = t.AssignedDepartment,
+                        DaysOverdue = t.Status == "OVERDUE" 
+                            ? (int)(now - t.NextDueAt).TotalDays 
+                            : null
+                    })
+                    .ToListAsync()
+            };
+
+            return Ok(briefing);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting morning briefing");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Bulk verify tasks (approve/reject multiple tasks at once)
+    /// PENDING_APPROVAL → COMPLETED or RECTIFY
+    /// </summary>
+    [HttpPost("bulk-verify")]
+    public async Task<IActionResult> BulkVerifyTasks([FromBody] BulkVerifyTaskDto dto)
+    {
+        try
+        {
+            var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
+            var deviceType = Request.Headers["X-Device-Type"].FirstOrDefault() ?? "WEB";
+
+            if (dto.TaskIds == null || !dto.TaskIds.Any())
+            {
+                return BadRequest(new { error = "TaskIds is required" });
+            }
+
+            var action = dto.Action.ToUpper();
+            if (action != "APPROVE" && action != "REJECT")
+            {
+                return BadRequest(new { error = "Action must be APPROVE or REJECT" });
+            }
+
+            if (action == "REJECT" && string.IsNullOrEmpty(dto.RejectionReason))
+            {
+                return BadRequest(new { error = "Rejection reason is required for REJECT action" });
+            }
+
+            var tasks = await _context.MaintenanceTasks
+                .Where(t => dto.TaskIds.Contains(t.Id) && t.Status == "PENDING_APPROVAL")
+                .ToListAsync();
+
+            if (!tasks.Any())
+            {
+                return NotFound(new { error = "No valid tasks found in PENDING_APPROVAL status" });
+            }
+
+            var results = new List<object>();
+            var successCount = 0;
+            var failCount = 0;
+
+            foreach (var task in tasks)
+            {
+                try
+                {
+                    if (action == "APPROVE")
+                    {
+                        task.Status = "COMPLETED";
+                        task.VerifiedAt = DateTime.UtcNow;
+                        task.VerifiedBy = userId;
+                        task.VerificationResult = "APPROVED";
+                        task.VerificationNotes = dto.Notes;
+                        task.CompletedAt = DateTime.UtcNow;
+                        task.CompletedBy = userId;
+                        task.LastDoneAt = DateTime.UtcNow;
+                        task.ApprovedBy = userId;
+                        task.ApprovedAt = DateTime.UtcNow;
+
+                        if (task.IntervalDays.HasValue)
+                        {
+                            task.NextDueAt = DateTime.UtcNow.AddDays(task.IntervalDays.Value);
+                        }
+                    }
+                    else // REJECT
+                    {
+                        task.Status = "RECTIFY";
+                        task.VerifiedAt = DateTime.UtcNow;
+                        task.VerifiedBy = userId;
+                        task.VerificationResult = "REJECTED";
+                        task.VerificationNotes = dto.Notes;
+                        task.RejectionReason = dto.RejectionReason;
+                        task.RejectionCount += 1;
+                        task.LastRejectedAt = DateTime.UtcNow;
+                        task.LastRejectedBy = userId;
+                    }
+
+                    task.UpdatedAt = DateTime.UtcNow;
+
+                    // Add status history
+                    var statusHistory = new TaskStatusHistory
+                    {
+                        Id = Guid.NewGuid(),
+                        TaskId = task.Id,
+                        FromStatus = "PENDING_APPROVAL",
+                        ToStatus = task.Status,
+                        ChangedBy = userId,
+                        ChangedAt = DateTime.UtcNow,
+                        Reason = action == "APPROVE" ? "Bulk approved" : dto.RejectionReason,
+                        Notes = dto.Notes,
+                        DeviceType = deviceType
+                    };
+                    _context.TaskStatusHistories.Add(statusHistory);
+
+                    results.Add(new { 
+                        taskId = task.TaskId, 
+                        success = true, 
+                        status = task.Status 
+                    });
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing task {TaskId} in bulk verify", task.TaskId);
+                    results.Add(new { 
+                        taskId = task.TaskId, 
+                        success = false, 
+                        error = ex.Message 
+                    });
+                    failCount++;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Bulk verify completed: {Success} success, {Failed} failed by {UserId}", 
+                successCount, failCount, userId);
+
+            return Ok(new
+            {
+                message = $"Bulk {action.ToLower()} completed",
+                successCount,
+                failCount,
+                results
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in bulk verify");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+}

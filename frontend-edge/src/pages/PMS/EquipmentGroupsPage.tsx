@@ -4,9 +4,11 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { Package, Plus, Edit2, Trash2, X, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Package, Plus, Edit2, Trash2, X, Search, ChevronLeft, ChevronRight, MoveRight } from 'lucide-react';
 import { equipmentGroupService } from '@/services/equipment-group.service';
+import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { maritimeService } from '@/services/maritime.service';
+import { ViewGroupModal } from '@/components/pms/ViewGroupModal';
 import type { EquipmentGroup } from '@/types/pms.types';
 import { toast } from 'sonner';
 
@@ -69,7 +71,20 @@ export default function EquipmentGroupsPage() {
   const [crewList, setCrewList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [editingGroup, setEditingGroup] = useState<EquipmentGroup | null>(null);
+  const [viewingGroup, setViewingGroup] = useState<EquipmentGroup | null>(null);
+  
+  // Assets management states
+  const [allAssets, setAllAssets] = useState<any[]>([]);
+  const [groupAssets, setGroupAssets] = useState<any[]>([]);
+  const [availableAssets, setAvailableAssets] = useState<any[]>([]);
+  const [selectedAvailable, setSelectedAvailable] = useState<string[]>([]);
+  const [selectedAssigned, setSelectedAssigned] = useState<string[]>([]);
+  const [assetSearchAvailable, setAssetSearchAvailable] = useState('');
+  const [assetSearchAssigned, setAssetSearchAssigned] = useState('');
+  const [assetCategoryFilterAvailable, setAssetCategoryFilterAvailable] = useState('');
+  const [assetCategoryFilterAssigned, setAssetCategoryFilterAssigned] = useState('');
   
   // Search & Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -121,15 +136,27 @@ export default function EquipmentGroupsPage() {
     setCurrentPage(1);
   }, [searchQuery, selectedDepartment, selectedCategory]);
 
+  const fetchGroups = async () => {
+    try {
+      const groupsData = await equipmentGroupService.getAll();
+      setGroups(groupsData);
+    } catch (err) {
+      console.error('Error fetching groups:', err);
+    }
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
-      const [groupsData, crewData] = await Promise.all([
+      const [groupsData, crewData, assetsData] = await Promise.all([
         equipmentGroupService.getAll(),
-        maritimeService.crew.getAll({ pageSize: 100, isOnboard: true })
+        maritimeService.crew.getAll({ pageSize: 100, isOnboard: true }),
+        equipmentAssetService.getAll()
       ]);
       setGroups(groupsData);
       setCrewList(crewData.data || []);
+      setAllAssets(assetsData);
+      setAvailableAssets(assetsData);
     } catch (err) {
       console.error('Error loading data:', err);
       toast.error('Failed to load data');
@@ -151,6 +178,7 @@ export default function EquipmentGroupsPage() {
         description: group.description || '',
         isActive: group.isActive,
       });
+      loadGroupAssets(group.id);
     } else {
       setEditingGroup(null);
       setFormData({
@@ -163,8 +191,85 @@ export default function EquipmentGroupsPage() {
         description: '',
         isActive: true,
       });
+      setGroupAssets([]);
+      setAvailableAssets(allAssets);
     }
+    setSelectedAvailable([]);
+    setSelectedAssigned([]);
+    setAssetSearchAvailable('');
+    setAssetSearchAssigned('');
+    setAssetCategoryFilterAvailable('');
+    setAssetCategoryFilterAssigned('');
     setShowModal(true);
+  };
+
+  const loadGroupAssets = async (groupId: string) => {
+    try {
+      // Use equipment-group service to get members (same as View modal)
+      const assets = await equipmentGroupService.getGroupMembers(groupId);
+      setGroupAssets(assets);
+      
+      // Filter available assets (exclude already assigned)
+      const assignedIds = assets.map((a: any) => a.id);
+      setAvailableAssets(allAssets.filter((a: any) => !assignedIds.includes(a.id)));
+    } catch (error) {
+      console.error('Error loading group assets:', error);
+      toast.error('Failed to load group assets');
+    }
+  };
+
+  // View group functionality - can be enabled via edit modal or dedicated view
+  
+  const handleAddAssets = async () => {
+    if (!editingGroup || selectedAvailable.length === 0) return;
+    
+    try {
+      await Promise.all(
+        selectedAvailable.map(assetId =>
+          equipmentGroupService.addAsset(editingGroup.id, assetId)
+        )
+      );
+      
+      // Move selected assets from available to assigned
+      const assetsToMove = allAssets.filter((a: any) => selectedAvailable.includes(a.id));
+      setGroupAssets([...groupAssets, ...assetsToMove]);
+      setAvailableAssets(availableAssets.filter((a: any) => !selectedAvailable.includes(a.id)));
+      setSelectedAvailable([]);
+      
+      // Refresh groups to update memberCount
+      await fetchGroups();
+      
+      toast.success(`Added ${selectedAvailable.length} asset(s) to group`);
+    } catch (error) {
+      console.error('Error adding assets:', error);
+      toast.error('Failed to add assets');
+    }
+  };
+
+  const handleRemoveAssets = async () => {
+    if (!editingGroup || selectedAssigned.length === 0) return;
+    
+    try {
+      await Promise.all(
+        selectedAssigned.map(assetId =>
+          equipmentGroupService.removeAsset(editingGroup.id, assetId)
+        )
+      );
+      
+      // Move selected assets from assigned to available
+      const assetsToMove = allAssets.filter((a: any) => selectedAssigned.includes(a.id));
+      setAvailableAssets([...availableAssets, ...assetsToMove]);
+      setGroupAssets(groupAssets.filter((a: any) => !selectedAssigned.includes(a.id)));
+      setSelectedAssigned([]);
+      
+      // Refresh groups to update memberCount
+      await fetchGroups();
+      
+      toast.success(`Removed ${selectedAssigned.length} asset(s) from group`);
+    } catch (error) {
+      console.error('Error removing assets:', error);
+      toast.error('Failed to remove assets');
+    }
   };
 
   const handleCloseModal = () => {
@@ -347,6 +452,7 @@ export default function EquipmentGroupsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-40">Category</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-40">Department</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">PIC</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-24">Assets</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">Status</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase w-24">Actions</th>
               </tr>
@@ -391,6 +497,11 @@ export default function EquipmentGroupsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
+                    <span className="text-sm text-gray-900">
+                      {group.memberCount || 0}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
                       group.isActive 
                         ? 'bg-green-100 text-green-800' 
@@ -400,10 +511,10 @@ export default function EquipmentGroupsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => handleOpenModal(group)}
-                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                        className="p-1 text-green-600 hover:bg-green-50 rounded"
                         title="Edit"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -476,36 +587,10 @@ export default function EquipmentGroupsPage() {
         </div>
       )}
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-600 mb-1">Total Groups</p>
-          <p className="text-2xl font-bold text-gray-900">{groups.length}</p>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-600 mb-1">ENGINE Dept</p>
-          <p className="text-2xl font-bold text-red-600">
-            {groups.filter(g => g.department === 'ENGINE').length}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-600 mb-1">DECK Dept</p>
-          <p className="text-2xl font-bold text-blue-600">
-            {groups.filter(g => g.department === 'DECK').length}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-600 mb-1">With PIC</p>
-          <p className="text-2xl font-bold text-green-600">
-            {groups.filter(g => g.picRole || g.picCrewId).length}
-          </p>
-        </div>
-      </div>
-
       {/* Add/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">
                 {editingGroup ? 'Edit Equipment Group' : 'Add Equipment Group'}
@@ -681,6 +766,201 @@ export default function EquipmentGroupsPage() {
                 </label>
               </div>
 
+              {/* Equipment Assets Management (Only for Edit mode) */}
+              {editingGroup && (
+                <div className="pt-4 border-t border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Equipment Assets</h3>
+                  
+                  <div className="flex gap-6">
+                    {/* Available Assets */}
+                    <div className="flex-1 border border-gray-300 rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 px-4 py-3 border-b border-gray-300">
+                        <h4 className="text-sm font-semibold text-gray-900">
+                          Available ({availableAssets.filter((a: any) => {
+                            const matchesSearch = a.assetCode.toLowerCase().includes(assetSearchAvailable.toLowerCase()) ||
+                              a.assetName.toLowerCase().includes(assetSearchAvailable.toLowerCase());
+                            const matchesCategory = !assetCategoryFilterAvailable || a.category === assetCategoryFilterAvailable;
+                            return matchesSearch && matchesCategory;
+                          }).length})
+                        </h4>
+                        <div className="mt-2 flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Search..."
+                            value={assetSearchAvailable}
+                            onChange={(e) => setAssetSearchAvailable(e.target.value)}
+                            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                          />
+                          <select
+                            value={assetCategoryFilterAvailable}
+                            onChange={(e) => setAssetCategoryFilterAvailable(e.target.value)}
+                            className="px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 bg-white"
+                          >
+                            <option value="">All Categories</option>
+                            {CATEGORIES.map(cat => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="h-64 overflow-y-auto p-2 space-y-1">
+                        {availableAssets
+                          .filter((a: any) => {
+                            const matchesSearch = a.assetCode.toLowerCase().includes(assetSearchAvailable.toLowerCase()) ||
+                              a.assetName.toLowerCase().includes(assetSearchAvailable.toLowerCase());
+                            const matchesCategory = !assetCategoryFilterAvailable || a.category === assetCategoryFilterAvailable;
+                            return matchesSearch && matchesCategory;
+                          })
+                          .map((asset: any) => (
+                            <label
+                              key={asset.id}
+                              className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-blue-50 ${
+                                selectedAvailable.includes(asset.id) ? 'bg-blue-50' : ''
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedAvailable.includes(asset.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedAvailable([...selectedAvailable, asset.id]);
+                                  } else {
+                                    setSelectedAvailable(selectedAvailable.filter(id => id !== asset.id));
+                                  }
+                                }}
+                                className="rounded text-blue-600"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">{asset.assetName}</p>
+                                <p className="text-xs text-gray-500">{asset.assetCode}</p>
+                                {asset.category && (
+                                  <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded">
+                                    {asset.category}
+                                  </span>
+                                )}
+                              </div>
+                            </label>
+                          ))}
+                        {availableAssets.filter((a: any) => {
+                          const matchesSearch = a.assetCode.toLowerCase().includes(assetSearchAvailable.toLowerCase()) ||
+                            a.assetName.toLowerCase().includes(assetSearchAvailable.toLowerCase());
+                          const matchesCategory = !assetCategoryFilterAvailable || a.category === assetCategoryFilterAvailable;
+                          return matchesSearch && matchesCategory;
+                        }).length === 0 && (
+                          <div className="text-center py-8 text-sm text-gray-500">
+                            No assets available
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Control Buttons */}
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleAddAssets}
+                        disabled={selectedAvailable.length === 0}
+                        className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                        title="Add to group"
+                      >
+                        <MoveRight className="w-5 h-5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemoveAssets}
+                        disabled={selectedAssigned.length === 0}
+                        className="p-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors rotate-180 shadow-sm"
+                        title="Remove from group"
+                      >
+                        <MoveRight className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Assigned Assets */}
+                    <div className="flex-1 border border-green-300 rounded-lg overflow-hidden">
+                      <div className="bg-green-50 px-4 py-3 border-b border-green-300">
+                        <h4 className="text-sm font-semibold text-gray-900">
+                          Selected ({groupAssets.filter((a: any) => {
+                            const matchesSearch = a.assetCode.toLowerCase().includes(assetSearchAssigned.toLowerCase()) ||
+                              a.assetName.toLowerCase().includes(assetSearchAssigned.toLowerCase());
+                            const matchesCategory = !assetCategoryFilterAssigned || a.category === assetCategoryFilterAssigned;
+                            return matchesSearch && matchesCategory;
+                          }).length})
+                        </h4>
+                        <div className="mt-2 flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Search..."
+                            value={assetSearchAssigned}
+                            onChange={(e) => setAssetSearchAssigned(e.target.value)}
+                            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500"
+                          />
+                          <select
+                            value={assetCategoryFilterAssigned}
+                            onChange={(e) => setAssetCategoryFilterAssigned(e.target.value)}
+                            className="px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500 bg-white"
+                          >
+                            <option value="">All Categories</option>
+                            {CATEGORIES.map(cat => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="h-64 overflow-y-auto p-2 space-y-1">
+                        {groupAssets
+                          .filter((a: any) => {
+                            const matchesSearch = a.assetCode.toLowerCase().includes(assetSearchAssigned.toLowerCase()) ||
+                              a.assetName.toLowerCase().includes(assetSearchAssigned.toLowerCase());
+                            const matchesCategory = !assetCategoryFilterAssigned || a.category === assetCategoryFilterAssigned;
+                            return matchesSearch && matchesCategory;
+                          })
+                          .map((asset: any) => (
+                            <label
+                              key={asset.id}
+                              className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-green-100 ${
+                                selectedAssigned.includes(asset.id) ? 'bg-green-100' : ''
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedAssigned.includes(asset.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedAssigned([...selectedAssigned, asset.id]);
+                                  } else {
+                                    setSelectedAssigned(selectedAssigned.filter(id => id !== asset.id));
+                                  }
+                                }}
+                                className="rounded text-green-600"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">{asset.assetName}</p>
+                                <p className="text-xs text-gray-500">{asset.assetCode}</p>
+                                {asset.category && (
+                                  <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded">
+                                    {asset.category}
+                                  </span>
+                                )}
+                              </div>
+                            </label>
+                          ))}
+                        {groupAssets.filter((a: any) => {
+                          const matchesSearch = a.assetCode.toLowerCase().includes(assetSearchAssigned.toLowerCase()) ||
+                            a.assetName.toLowerCase().includes(assetSearchAssigned.toLowerCase());
+                          const matchesCategory = !assetCategoryFilterAssigned || a.category === assetCategoryFilterAssigned;
+                          return matchesSearch && matchesCategory;
+                        }).length === 0 && (
+                          <div className="text-center py-8 text-sm text-gray-500">
+                            No assets in group
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
                 <button
@@ -701,6 +981,16 @@ export default function EquipmentGroupsPage() {
           </div>
         </div>
       )}
+
+      {/* View Group Modal */}
+      <ViewGroupModal
+        isOpen={showViewModal}
+        group={viewingGroup}
+        onClose={() => {
+          setShowViewModal(false);
+          setViewingGroup(null);
+        }}
+      />
     </div>
   );
 }

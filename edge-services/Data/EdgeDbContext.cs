@@ -83,6 +83,10 @@ public class EdgeDbContext : DbContext
     public DbSet<MaintenanceHistory> MaintenanceHistories { get; set; } = null!;
     public DbSet<EquipmentGroup> EquipmentGroups { get; set; } = null!;
     public DbSet<EquipmentGroupMember> EquipmentGroupMembers { get; set; } = null!;
+    
+    // PMS Workflow v2.0 - Deferral & Status History
+    public DbSet<TaskDeferralRequest> TaskDeferralRequests { get; set; } = null!;
+    public DbSet<TaskStatusHistory> TaskStatusHistories { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -457,6 +461,7 @@ public class EdgeDbContext : DbContext
             
             entity.Property(e => e.IntervalHours).HasColumnType("decimal(10,2)");
             entity.Property(e => e.RunningHoursAtLastDone).HasColumnType("decimal(10,2)");
+            entity.Property(e => e.ActualRunningHours).HasColumnType("decimal(10,2)");
             
             entity.HasIndex(e => e.TaskId)
                 .IsUnique()
@@ -473,7 +478,7 @@ public class EdgeDbContext : DbContext
             
             entity.HasIndex(e => new { e.Status, e.Priority })
                 .HasDatabaseName("idx_maintenance_status_priority")
-                .HasFilter("status IN ('PENDING', 'OVERDUE', 'IN_PROGRESS')");
+                .HasFilter("status IN ('SCHEDULED', 'DUE', 'OVERDUE', 'IN_PROGRESS', 'PENDING_APPROVAL', 'RECTIFY')");
             
             entity.HasIndex(e => e.IsSynced)
                 .HasDatabaseName("idx_maintenance_synced")
@@ -481,12 +486,72 @@ public class EdgeDbContext : DbContext
 
             entity.HasIndex(e => e.TaskTypeId)
                 .HasDatabaseName("idx_maintenance_task_type_id");
+            
+            entity.HasIndex(e => e.AssignedTo)
+                .HasDatabaseName("idx_maintenance_assigned_to");
+            
+            entity.HasIndex(e => e.AssignedDepartment)
+                .HasDatabaseName("idx_maintenance_department");
+            
+            entity.HasIndex(e => e.HasPendingDeferral)
+                .HasDatabaseName("idx_maintenance_pending_deferral")
+                .HasFilter("has_pending_deferral = true");
 
             // Foreign key to TaskType (optional)
             entity.HasOne<TaskType>()
                 .WithMany()
                 .HasForeignKey(e => e.TaskTypeId)
                 .OnDelete(DeleteBehavior.SetNull);
+            
+            // Relationship with DeferralRequests
+            entity.HasMany(e => e.DeferralRequests)
+                .WithOne(e => e.Task)
+                .HasForeignKey(e => e.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            // Relationship with StatusHistory
+            entity.HasMany(e => e.StatusHistory)
+                .WithOne(e => e.Task)
+                .HasForeignKey(e => e.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========== TASK DEFERRAL REQUESTS ==========
+        modelBuilder.Entity<TaskDeferralRequest>(entity =>
+        {
+            entity.ToTable("task_deferral_requests");
+            
+            entity.HasIndex(e => e.TaskId)
+                .HasDatabaseName("idx_deferral_task_id");
+            
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("idx_deferral_status");
+            
+            entity.HasIndex(e => e.RequestedBy)
+                .HasDatabaseName("idx_deferral_requested_by");
+            
+            entity.HasIndex(e => new { e.Status, e.RequestedAt })
+                .HasDatabaseName("idx_deferral_pending")
+                .HasFilter("status = 'PENDING'");
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_deferral_synced")
+                .HasFilter("is_synced = false");
+        });
+
+        // ========== TASK STATUS HISTORY ==========
+        modelBuilder.Entity<TaskStatusHistory>(entity =>
+        {
+            entity.ToTable("task_status_history");
+            
+            entity.HasIndex(e => e.TaskId)
+                .HasDatabaseName("idx_status_history_task_id");
+            
+            entity.HasIndex(e => e.ChangedAt)
+                .HasDatabaseName("idx_status_history_changed_at");
+            
+            entity.HasIndex(e => new { e.TaskId, e.ChangedAt })
+                .HasDatabaseName("idx_status_history_task_time");
         });
 
         // ========== TASK TYPES ==========

@@ -42,8 +42,8 @@ export function MaintenanceDetailPage() {
   const loadTaskDetails = async () => {
     if (!id) return
     
-    const taskId = parseInt(id, 10)
-    if (isNaN(taskId)) {
+    const taskId = id
+    if (!taskId) {
       alert('Invalid task ID')
       navigate('/maintenance')
       return
@@ -66,7 +66,7 @@ export function MaintenanceDetailPage() {
     }
   }
 
-  const loadChecklist = async (taskId: number) => {
+  const loadChecklist = async (taskId: string) => {
     try {
       setLoadingChecklist(true)
       const data = await maritimeService.maintenance.getChecklist(taskId)

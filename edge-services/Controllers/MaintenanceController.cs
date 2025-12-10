@@ -116,41 +116,74 @@ public class MaintenanceController : ControllerBase
     }
 
     /// <summary>
-    /// Auto-correct task status based on due date
-    /// PENDING tasks past due → OVERDUE
-    /// OVERDUE tasks not yet due → PENDING
-    /// Does not touch IN_PROGRESS or COMPLETED
+    /// Auto-correct task status based on due date (PMS Workflow v2.0)
+    /// SCHEDULED tasks past due → DUE (if due today or in grace period) or OVERDUE (if past due)
+    /// DUE tasks past grace period → OVERDUE
+    /// Does not touch IN_PROGRESS, PENDING_APPROVAL, RECTIFY, or COMPLETED
     /// </summary>
     private async Task<int> AutoCorrectTaskStatuses(List<MaintenanceTask> tasks)
     {
         var now = DateTime.UtcNow;
+        var today = now.Date;
         var tasksToUpdate = new List<MaintenanceTask>();
 
         foreach (var task in tasks)
         {
-            // Only update PENDING and OVERDUE statuses (don't touch IN_PROGRESS or COMPLETED)
-            if (task.Status == MTaskStatus.PENDING || task.Status == MTaskStatus.OVERDUE)
+            // PMS Workflow v2.0: Handle SCHEDULED, DUE, and legacy PENDING/OVERDUE
+            var statusesToProcess = new[] { "SCHEDULED", "DUE", "PENDING", "OVERDUE" };
+            
+            if (!statusesToProcess.Contains(task.Status))
             {
-                var shouldBeOverdue = task.NextDueAt < now;
-                
-                if (shouldBeOverdue && task.Status != MTaskStatus.OVERDUE)
+                continue; // Don't touch IN_PROGRESS, PENDING_APPROVAL, RECTIFY, COMPLETED
+            }
+
+            var dueDate = task.NextDueAt.Date;
+            var isOverdue = dueDate < today;
+            var isDue = dueDate <= today; // Due if today or past
+
+            if (task.Status == "SCHEDULED")
+            {
+                if (isOverdue)
                 {
-                    task.Status = MTaskStatus.OVERDUE;
+                    task.Status = "OVERDUE";
                     tasksToUpdate.Add(task);
                 }
-                else if (!shouldBeOverdue && task.Status == MTaskStatus.OVERDUE)
+                else if (isDue)
                 {
-                    // Fix incorrectly marked OVERDUE tasks
-                    task.Status = MTaskStatus.PENDING;
+                    task.Status = "DUE";
                     tasksToUpdate.Add(task);
                 }
+            }
+            else if (task.Status == "DUE" && isOverdue)
+            {
+                task.Status = "OVERDUE";
+                tasksToUpdate.Add(task);
+            }
+            else if (task.Status == "PENDING") // Legacy: Treat as DUE
+            {
+                if (isOverdue)
+                {
+                    task.Status = "OVERDUE";
+                    tasksToUpdate.Add(task);
+                }
+                else
+                {
+                    task.Status = "DUE"; // Migrate PENDING → DUE
+                    tasksToUpdate.Add(task);
+                }
+            }
+            else if (task.Status == "OVERDUE" && !isOverdue)
+            {
+                // Fix incorrectly marked OVERDUE tasks
+                task.Status = isDue ? "DUE" : "SCHEDULED";
+                tasksToUpdate.Add(task);
             }
         }
 
         if (tasksToUpdate.Any())
         {
             await _context.SaveChangesAsync();
-            _logger.LogInformation($"Auto-corrected {tasksToUpdate.Count} task statuses based on due dates");
+            _logger.LogInformation("Auto-corrected {Count} task statuses based on due dates (PMS Workflow v2.0)", tasksToUpdate.Count);
         }
 
         return tasksToUpdate.Count;

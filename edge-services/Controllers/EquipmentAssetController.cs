@@ -111,6 +111,7 @@ public class EquipmentAssetController : ControllerBase
                 EquipmentGroupId = dto.EquipmentGroupId,
                 Location = dto.Location,
                 Criticality = dto.Criticality,
+                Status = dto.Status,
                 TechnicalSpecs = dto.TechnicalSpecs,
                 Notes = dto.Notes,
                 IsActive = true
@@ -148,9 +149,17 @@ public class EquipmentAssetController : ControllerBase
             asset.EquipmentGroupId = dto.EquipmentGroupId;
             asset.Location = dto.Location;
             asset.Criticality = dto.Criticality;
+            asset.Status = dto.Status;
             asset.TechnicalSpecs = dto.TechnicalSpecs;
             asset.Notes = dto.Notes;
             asset.IsActive = dto.IsActive;
+            
+            // Update running hours if provided
+            if (dto.CurrentRunningHours.HasValue)
+            {
+                asset.CurrentRunningHours = dto.CurrentRunningHours.Value;
+                asset.LastRunningHoursUpdate = DateTime.UtcNow;
+            }
 
             var updated = await _assetRepository.UpdateAsync(asset);
             _logger.LogInformation("Updated equipment asset {AssetCode}", updated.AssetCode);
@@ -233,6 +242,7 @@ public class EquipmentAssetController : ControllerBase
                     SerialNumber = dto.SerialNumber,
                     Location = dto.Location,
                     Criticality = dto.Criticality,
+                    Status = "ACTIVE",
                     IsActive = true
                 };
 
@@ -308,6 +318,7 @@ public class EquipmentAssetController : ControllerBase
             EquipmentGroupId = asset.EquipmentGroupId,
             Location = asset.Location,
             Criticality = asset.Criticality,
+            Status = asset.Status,
             TechnicalSpecs = asset.TechnicalSpecs,
             Notes = asset.Notes,
             IsActive = asset.IsActive

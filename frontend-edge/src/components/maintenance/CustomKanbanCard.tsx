@@ -3,7 +3,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { format, parseISO } from 'date-fns'
 
 interface CustomTask {
-  id: number
+  id: string
   title: string
   description: string
   tag: string
