@@ -73,7 +73,7 @@ public class SyncController : ControllerBase
     }
 
     [HttpPost("trigger")]
-    public async Task<IActionResult> TriggerSync()
+    public IActionResult TriggerSync()
     {
         try
         {

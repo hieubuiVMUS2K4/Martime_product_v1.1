@@ -26,8 +26,6 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react'
-import { useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
 
 // Logbooks submenu
 const logbooksMenu = [

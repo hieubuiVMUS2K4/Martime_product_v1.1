@@ -71,6 +71,7 @@ namespace MaritimeEdge
                 .AddJsonOptions(options =>
                 {
                     options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+                    options.JsonSerializerOptions.PropertyNameCaseInsensitive = true; // Accept both camelCase and PascalCase input
                 });
             
             // Add CORS for frontend-edge (support both port 3001 and 3002)
@@ -112,9 +113,6 @@ namespace MaritimeEdge
             var app = builder.Build();
 
             // Initialize database with migrations
-            // TEMPORARILY DISABLED due to migration conflicts
-            // Tables are created via SQL script: create-equipment-tables.sql
-            /*
             using (var scope = app.Services.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<EdgeDbContext>();
@@ -142,7 +140,6 @@ namespace MaritimeEdge
                     throw;
                 }
             }
-            */
 
             // Configure the HTTP request pipeline
             app.UseSwagger();

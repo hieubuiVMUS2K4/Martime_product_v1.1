@@ -61,8 +61,8 @@ public class MaintenanceSchedulerService : BackgroundService
         {
             try
             {
-                await GenerateTasksFromSchedules();
-                await Task.Delay(_checkInterval, stoppingToken);
+                await GenerateTasksFromSchedules().ConfigureAwait(false);
+                await Task.Delay(_checkInterval, stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -72,7 +72,7 @@ public class MaintenanceSchedulerService : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in Maintenance Scheduler Service");
-                await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken); // Wait 5 min on error
+                await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken).ConfigureAwait(false); // Wait 5 min on error
             }
         }
     }
@@ -121,15 +121,16 @@ public class MaintenanceSchedulerService : BackgroundService
                 // Check if task should be generated (X days before due)
                 var daysUntilDue = (schedule.NextDueDate.Value.Date - now.Date).Days;
                 
-                // SAFETY CHECK: Validate lead time is sufficient
+                // SAFETY CHECK: Validate and ENFORCE minimum lead time (ISM Code compliance)
                 var minimumLeadTime = GetMinimumLeadTime(schedule.Priority);
                 var effectiveLeadTime = Math.Max(schedule.DaysBeforeDue, minimumLeadTime);
                 
+                // AUTO-CORRECTION: Update schedule if configured lead time is insufficient
                 if (effectiveLeadTime > schedule.DaysBeforeDue)
                 {
                     _logger.LogWarning(
                         "Schedule {ScheduleCode} has insufficient lead time ({Configured} days). " +
-                        "Using minimum {Minimum} days for {Priority} priority. " +
+                        "AUTO-CORRECTING to minimum {Minimum} days for {Priority} priority. " +
                         "Recommended: {Recommended} days for {Hours}h task.",
                         schedule.ScheduleCode, 
                         schedule.DaysBeforeDue,
@@ -137,6 +138,13 @@ public class MaintenanceSchedulerService : BackgroundService
                         schedule.Priority,
                         CalculateRecommendedLeadTime(schedule),
                         schedule.EstimatedDurationHours ?? 0);
+                    
+                    // Auto-correct the schedule's DaysBeforeDue to meet minimum requirements
+                    schedule.DaysBeforeDue = effectiveLeadTime;
+                    await scheduleRepo.UpdateAsync(schedule);
+                    _logger.LogInformation(
+                        "Schedule {ScheduleCode} DaysBeforeDue updated from {Old} to {New} (ISM Code compliance)",
+                        schedule.ScheduleCode, schedule.DaysBeforeDue, effectiveLeadTime);
                 }
                 
                 if (daysUntilDue <= effectiveLeadTime)

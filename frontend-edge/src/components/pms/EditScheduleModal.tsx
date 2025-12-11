@@ -87,7 +87,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
 
   const loadGroupAssets = async (groupId: string) => {
     try {
-      const response = await fetch(`http://localhost:5001/api/equipment-groups/${groupId}/members`);
+      const response = await fetch(`/api/equipment-groups/${groupId}/members`);
       const data = await response.json();
       setGroupAssets(data);
     } catch (error) {

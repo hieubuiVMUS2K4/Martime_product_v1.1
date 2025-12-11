@@ -29,21 +29,143 @@ public class MaintenanceScheduleController : ControllerBase
     }
 
     /// <summary>
-    /// Get all maintenance schedules
+    /// Get minimum lead time based on priority (ISM Code & IACS guidelines)
+    /// CRITICAL: 30 days, HIGH: 14 days, MEDIUM: 10 days, LOW: 7 days
+    /// </summary>
+    private static int GetMinimumLeadTime(string priority)
+    {
+        return priority?.ToUpper() switch
+        {
+            "CRITICAL" => 30,
+            "HIGH" => 14,
+            "MEDIUM" => 10,
+            "LOW" => 7,
+            _ => 7
+        };
+    }
+
+    /// <summary>
+    /// Validate and auto-correct DaysBeforeDue based on ISM Code requirements
+    /// </summary>
+    private int ValidateAndCorrectLeadTime(int daysBeforeDue, string priority, double? estimatedHours)
+    {
+        var minimumLeadTime = GetMinimumLeadTime(priority);
+        
+        // Also consider work duration (3x safety buffer)
+        var workDays = (int)Math.Ceiling((estimatedHours ?? 4) / 8.0);
+        var workBasedMinimum = workDays * 3;
+        
+        var effectiveMinimum = Math.Max(minimumLeadTime, workBasedMinimum);
+        
+        if (daysBeforeDue < effectiveMinimum)
+        {
+            _logger.LogWarning(
+                "DaysBeforeDue {Configured} is less than minimum {Minimum} for {Priority} priority. Auto-correcting.",
+                daysBeforeDue, effectiveMinimum, priority);
+            return effectiveMinimum;
+        }
+        
+        return daysBeforeDue;
+    }
+    /// <summary>
+    /// Get all maintenance schedules (OPTIMIZED - single query with includes)
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<List<MaintenanceScheduleDto>>> GetAll()
     {
         try
         {
-            var schedules = await _scheduleRepository.GetAllAsync();
-            var dtos = new List<MaintenanceScheduleDto>();
-
-            foreach (var schedule in schedules)
-            {
-                var dto = await MapToDtoAsync(schedule);
-                dtos.Add(dto);
-            }
+            // Load all data in batch queries to avoid N+1
+            var schedules = await _context.MaintenanceSchedules
+                .AsNoTracking()
+                .Where(s => s.IsActive)
+                .OrderBy(s => s.NextDueDate)
+                .ToListAsync();
+            
+            if (!schedules.Any())
+                return Ok(new List<MaintenanceScheduleDto>());
+            
+            // Batch load all related data
+            var groupIds = schedules.Select(s => s.EquipmentGroupId).Distinct().ToList();
+            var scheduleIds = schedules.Select(s => s.Id).ToList();
+            
+            var groups = await _context.EquipmentGroups
+                .AsNoTracking()
+                .Where(g => groupIds.Contains(g.Id))
+                .ToDictionaryAsync(g => g.Id);
+            
+            var memberCounts = await _context.EquipmentGroupMembers
+                .AsNoTracking()
+                .Where(egm => groupIds.Contains(egm.GroupId))
+                .GroupBy(egm => egm.GroupId)
+                .Select(g => new { GroupId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.GroupId, x => x.Count);
+            
+            var allSpareParts = await _context.ScheduleSpareParts
+                .AsNoTracking()
+                .Where(sp => scheduleIds.Contains(sp.ScheduleId))
+                .ToListAsync();
+            var sparePartsBySchedule = allSpareParts.GroupBy(sp => sp.ScheduleId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+            
+            var allChecklistTemplates = await _context.ScheduleChecklistTemplates
+                .AsNoTracking()
+                .Where(t => scheduleIds.Contains(t.ScheduleId))
+                .OrderBy(t => t.SequenceOrder)
+                .ToListAsync();
+            var checklistsBySchedule = allChecklistTemplates.GroupBy(t => t.ScheduleId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+            
+            // Map to DTOs without additional queries
+            var dtos = schedules.Select(schedule => {
+                groups.TryGetValue(schedule.EquipmentGroupId, out var group);
+                memberCounts.TryGetValue(schedule.EquipmentGroupId, out var memberCount);
+                sparePartsBySchedule.TryGetValue(schedule.Id, out var spareParts);
+                checklistsBySchedule.TryGetValue(schedule.Id, out var checklists);
+                
+                return new MaintenanceScheduleDto
+                {
+                    Id = schedule.Id,
+                    ScheduleCode = schedule.ScheduleCode,
+                    EquipmentGroupId = schedule.EquipmentGroupId,
+                    GroupCode = group?.GroupCode,
+                    GroupName = group?.GroupName,
+                    AssetCount = memberCount,
+                    TaskTypeId = schedule.TaskTypeId,
+                    ScheduleName = schedule.ScheduleName,
+                    IntervalType = schedule.IntervalType,
+                    IntervalHours = schedule.IntervalHours,
+                    IntervalDays = schedule.IntervalDays,
+                    DaysBeforeDue = schedule.DaysBeforeDue,
+                    LastExecutedAt = schedule.LastExecutedAt,
+                    LastExecutedRunningHours = schedule.LastExecutedRunningHours,
+                    NextDueDate = schedule.NextDueDate,
+                    NextDueRunningHours = schedule.NextDueRunningHours,
+                    Priority = schedule.Priority,
+                    EstimatedDurationHours = schedule.EstimatedDurationHours,
+                    AutoGenerate = schedule.AutoGenerate,
+                    Instructions = schedule.Instructions,
+                    IsActive = schedule.IsActive,
+                    RequiredSpareParts = spareParts?.Select(sp => new ScheduleSparePartDto
+                    {
+                        Id = sp.Id,
+                        ScheduleId = sp.ScheduleId,
+                        MaterialItemId = sp.MaterialItemId,
+                        QuantityRequired = sp.QuantityRequired,
+                        IsMandatory = sp.IsMandatory,
+                        Notes = sp.Notes
+                    }).ToList() ?? new List<ScheduleSparePartDto>(),
+                    ChecklistItemTemplates = checklists?.Select(t => new ChecklistItemTemplateDto
+                    {
+                        SequenceOrder = t.SequenceOrder,
+                        CheckpointDescription = t.CheckpointDescription,
+                        RequiresReading = t.RequiresReading,
+                        NormalRangeMin = t.NormalRangeMin,
+                        NormalRangeMax = t.NormalRangeMax,
+                        Unit = t.Unit
+                    }).ToList() ?? new List<ChecklistItemTemplateDto>()
+                };
+            }).ToList();
 
             return Ok(dtos);
         }
@@ -85,13 +207,82 @@ public class MaintenanceScheduleController : ControllerBase
         try
         {
             var schedules = await _scheduleRepository.GetByGroupIdAsync(groupId);
-            var dtos = new List<MaintenanceScheduleDto>();
-
-            foreach (var schedule in schedules)
-            {
-                var dto = await MapToDtoAsync(schedule);
-                dtos.Add(dto);
-            }
+            
+            if (!schedules.Any())
+                return Ok(new List<MaintenanceScheduleDto>());
+            
+            // Batch load related data (same optimization as GetAll)
+            var scheduleIds = schedules.Select(s => s.Id).ToList();
+            
+            var group = await _context.EquipmentGroups.AsNoTracking()
+                .FirstOrDefaultAsync(g => g.Id == groupId);
+            
+            var memberCount = await _context.EquipmentGroupMembers
+                .AsNoTracking()
+                .CountAsync(egm => egm.GroupId == groupId);
+            
+            var allSpareParts = await _context.ScheduleSpareParts
+                .AsNoTracking()
+                .Where(sp => scheduleIds.Contains(sp.ScheduleId))
+                .ToListAsync();
+            var sparePartsBySchedule = allSpareParts.GroupBy(sp => sp.ScheduleId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+            
+            var allChecklistTemplates = await _context.ScheduleChecklistTemplates
+                .AsNoTracking()
+                .Where(t => scheduleIds.Contains(t.ScheduleId))
+                .OrderBy(t => t.SequenceOrder)
+                .ToListAsync();
+            var checklistsBySchedule = allChecklistTemplates.GroupBy(t => t.ScheduleId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+            
+            var dtos = schedules.Select(schedule => {
+                sparePartsBySchedule.TryGetValue(schedule.Id, out var spareParts);
+                checklistsBySchedule.TryGetValue(schedule.Id, out var checklists);
+                
+                return new MaintenanceScheduleDto
+                {
+                    Id = schedule.Id,
+                    ScheduleCode = schedule.ScheduleCode,
+                    EquipmentGroupId = schedule.EquipmentGroupId,
+                    GroupCode = group?.GroupCode,
+                    GroupName = group?.GroupName,
+                    AssetCount = memberCount,
+                    TaskTypeId = schedule.TaskTypeId,
+                    ScheduleName = schedule.ScheduleName,
+                    IntervalType = schedule.IntervalType,
+                    IntervalHours = schedule.IntervalHours,
+                    IntervalDays = schedule.IntervalDays,
+                    DaysBeforeDue = schedule.DaysBeforeDue,
+                    LastExecutedAt = schedule.LastExecutedAt,
+                    LastExecutedRunningHours = schedule.LastExecutedRunningHours,
+                    NextDueDate = schedule.NextDueDate,
+                    NextDueRunningHours = schedule.NextDueRunningHours,
+                    Priority = schedule.Priority,
+                    EstimatedDurationHours = schedule.EstimatedDurationHours,
+                    AutoGenerate = schedule.AutoGenerate,
+                    Instructions = schedule.Instructions,
+                    IsActive = schedule.IsActive,
+                    RequiredSpareParts = spareParts?.Select(sp => new ScheduleSparePartDto
+                    {
+                        Id = sp.Id,
+                        ScheduleId = sp.ScheduleId,
+                        MaterialItemId = sp.MaterialItemId,
+                        QuantityRequired = sp.QuantityRequired,
+                        IsMandatory = sp.IsMandatory,
+                        Notes = sp.Notes
+                    }).ToList() ?? new List<ScheduleSparePartDto>(),
+                    ChecklistItemTemplates = checklists?.Select(t => new ChecklistItemTemplateDto
+                    {
+                        SequenceOrder = t.SequenceOrder,
+                        CheckpointDescription = t.CheckpointDescription,
+                        RequiresReading = t.RequiresReading,
+                        NormalRangeMin = t.NormalRangeMin,
+                        NormalRangeMax = t.NormalRangeMax,
+                        Unit = t.Unit
+                    }).ToList() ?? new List<ChecklistItemTemplateDto>()
+                };
+            }).ToList();
 
             return Ok(dtos);
         }
@@ -136,6 +327,12 @@ public class MaintenanceScheduleController : ControllerBase
             if (firstAsset == null)
                 return BadRequest(new { error = "Equipment group has no members" });
 
+            // ISM Code Compliance: Validate and auto-correct lead time based on priority
+            var validatedDaysBeforeDue = ValidateAndCorrectLeadTime(
+                dto.DaysBeforeDue, 
+                dto.Priority, 
+                dto.EstimatedDurationHours);
+
             var schedule = new MaintenanceSchedule
             {
                 ScheduleCode = dto.ScheduleCode,
@@ -145,7 +342,7 @@ public class MaintenanceScheduleController : ControllerBase
                 IntervalType = dto.IntervalType,
                 IntervalHours = dto.IntervalHours,
                 IntervalDays = dto.IntervalDays,
-                DaysBeforeDue = dto.DaysBeforeDue,
+                DaysBeforeDue = validatedDaysBeforeDue, // Use validated value
                 Priority = dto.Priority,
                 EstimatedDurationHours = dto.EstimatedDurationHours,
                 AutoGenerate = dto.AutoGenerate,
@@ -293,6 +490,12 @@ public class MaintenanceScheduleController : ControllerBase
             if (firstAsset == null)
                 return BadRequest(new { error = "Equipment group has no members" });
 
+            // ISM Code Compliance: Validate and auto-correct lead time based on priority
+            var validatedDaysBeforeDue = ValidateAndCorrectLeadTime(
+                dto.DaysBeforeDue, 
+                dto.Priority, 
+                dto.EstimatedDurationHours);
+
             // Update schedule fields
             schedule.ScheduleCode = dto.ScheduleCode;
             schedule.EquipmentGroupId = dto.EquipmentGroupId;
@@ -301,7 +504,7 @@ public class MaintenanceScheduleController : ControllerBase
             schedule.IntervalType = dto.IntervalType;
             schedule.IntervalHours = dto.IntervalHours;
             schedule.IntervalDays = dto.IntervalDays;
-            schedule.DaysBeforeDue = dto.DaysBeforeDue;
+            schedule.DaysBeforeDue = validatedDaysBeforeDue; // Use validated value
             schedule.Priority = dto.Priority;
             schedule.EstimatedDurationHours = dto.EstimatedDurationHours;
             schedule.AutoGenerate = dto.AutoGenerate;

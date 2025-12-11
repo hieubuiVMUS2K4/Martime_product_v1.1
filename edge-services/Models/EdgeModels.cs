@@ -858,6 +858,7 @@ public class MaintenanceTask
     [MaxLength(50)]
     public string TaskId { get; set; } = string.Empty; // Unique task identifier
     
+    // NOTE: Database schema has this as UUID, not int
     public int? TaskTypeId { get; set; } // Foreign key to TaskType (optional for backward compatibility)
     
     /// <summary>

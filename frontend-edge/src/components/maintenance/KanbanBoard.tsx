@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
   DndContext,
@@ -11,13 +11,14 @@ import {
   closestCorners,
 } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { MaintenanceTask } from '../../types/maritime.types'
+import { MaintenanceTask, CrewMember } from '../../types/maritime.types'
 import { KanbanCard } from './KanbanCard'
 import { CustomKanbanCard } from './CustomKanbanCard'
 import { KanbanColumn } from './KanbanColumn'
 import { AddCustomTaskModal } from './AddCustomTaskModal'
 import { ColumnMenu } from './ColumnMenu'
 import { AlertCircle, Clock, Wrench, CheckCircle, ClipboardList, XCircle, ListTodo, Plus, X } from 'lucide-react'
+import { maritimeService } from '../../services/maritime.service'
 
 interface KanbanBoardProps {
   tasks: MaintenanceTask[]
@@ -118,6 +119,28 @@ export function KanbanBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskClick, on
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false)
   const [selectedColumnForTask, setSelectedColumnForTask] = useState<string>('')
   const [openMenuColumnId, setOpenMenuColumnId] = useState<string | null>(null)
+
+  // Load crew list ONCE for all cards (performance optimization - avoid N+1 API calls)
+  const [crewList, setCrewList] = useState<CrewMember[]>([])
+  const [isLoadingCrew, setIsLoadingCrew] = useState(false)
+
+  useEffect(() => {
+    const loadCrew = async () => {
+      setIsLoadingCrew(true)
+      try {
+        const response = await maritimeService.crew.getAll({ 
+          pageSize: 100, 
+          isOnboard: true 
+        })
+        setCrewList(response.data || [])
+      } catch (error) {
+        console.error('Failed to load crew:', error)
+      } finally {
+        setIsLoadingCrew(false)
+      }
+    }
+    loadCrew()
+  }, []) // Only load once on mount
 
   // Handle crew assignment
   const handleAssignChange = async (taskId: number, crewId: string | null) => {
@@ -573,32 +596,21 @@ export function KanbanBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskClick, on
       return
     }
     
-    // Rule 11: PENDING → IN_PROGRESS allowed (crew starts on mobile)
+    // Rule 11: PENDING → IN_PROGRESS allowed (crew starts on mobile or Captain assigns)
     // Rule 12: PENDING → TASK allowed (Work Planner unassigns)
-    // Rule 13: PENDING → COMPLETED blocked
-    if (currentStatus === 'PENDING' && newStatus === 'COMPLETED') {
-      toast.error('⚠️ Quy trình đúng: PENDING → IN PROGRESS → COMPLETED')
-      return
-    }
+    // Rule 13: PENDING → COMPLETED allowed (Captain can directly complete simple tasks)
+    // No blocking rule for PENDING → COMPLETED anymore
     
     // Rule 14: OVERDUE → IN_PROGRESS allowed (crew starts late)
-    // Rule 15: OVERDUE → PENDING blocked
-    if (currentStatus === 'OVERDUE' && newStatus === 'PENDING') {
-      toast.error('⚠️ Task quá hạn không thể về PENDING!')
-      return
-    }
+    // Rule 15: OVERDUE → PENDING allowed (Captain reschedules)
+    // Rule 16: OVERDUE → COMPLETED allowed (Captain can directly complete)
+    // No blocking rules for OVERDUE transitions anymore
     
-    // Rule 16: IN_PROGRESS → COMPLETED blocked (only mobile can complete)
-    if (currentStatus === 'IN_PROGRESS' && newStatus === 'COMPLETED') {
-      toast.error('⚠️ Chỉ thuyền viên mới có thể hoàn thành task qua mobile app!')
-      return
-    }
-    
-    // Rule 17: IN_PROGRESS → PENDING allowed (cancel assignment)
-    // Rule 18: IN_PROGRESS → other statuses blocked
+    // Rule 17: IN_PROGRESS → COMPLETED allowed (Captain or crew can complete)
+    // Rule 18: IN_PROGRESS → PENDING allowed (cancel assignment)
     if (currentStatus === 'IN_PROGRESS' && 
-        !['PENDING'].includes(newStatus)) {
-      toast.error('⚠️ Task đang thực hiện chỉ có thể → Pending (hủy) hoặc Completed (qua mobile)!')
+        !['PENDING', 'COMPLETED'].includes(newStatus)) {
+      toast.error('⚠️ Task đang thực hiện chỉ có thể → Pending (hủy) hoặc Completed!')
       return
     }
     
@@ -672,6 +684,8 @@ export function KanbanBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskClick, on
                           task={task}
                           onClick={() => onTaskClick(task.id)}
                           onAssignChange={handleAssignChange}
+                          crewList={crewList}
+                          isLoadingCrew={isLoadingCrew}
                         />
                       )
                     })}
@@ -796,6 +810,8 @@ export function KanbanBoard({ tasks, onTaskUpdate, onTaskDelete, onTaskClick, on
                 onClick={() => {}} 
                 isDragging 
                 onAssignChange={handleAssignChange}
+                crewList={crewList}
+                isLoadingCrew={isLoadingCrew}
               />
             </div>
           )}

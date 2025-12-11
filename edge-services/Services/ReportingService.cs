@@ -592,6 +592,24 @@ public class ReportingService : IReportingService
                 return (false, string.Empty, null, "Report type BUNKER not found");
             }
 
+            // BUSINESS RULE: Check for duplicate BDN Number (each BDN is unique per bunkering operation)
+            if (!string.IsNullOrWhiteSpace(dto.BDNNumber))
+            {
+                var existingBunker = await (
+                    from mr in _context.MaritimeReports
+                    join br in _context.BunkerReports on mr.Id equals br.MaritimeReportId
+                    where br.BDNNumber == dto.BDNNumber 
+                        && mr.DeletedAt == null
+                    select mr
+                ).AnyAsync();
+
+                if (existingBunker)
+                {
+                    return (false, string.Empty, null, 
+                        $"Bunker report with BDN Number '{dto.BDNNumber}' already exists. Each BDN must be unique.");
+                }
+            }
+
             var reportNumber = await GenerateReportNumberAsync("BNK");
 
             var maritimeReport = new MaritimeReport

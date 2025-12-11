@@ -1,46 +1,35 @@
+import { memo, useCallback } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { MaintenanceTask, parseTaskScheduleInfo, CrewMember } from '../../types/maritime.types'
 import { format, parseISO } from 'date-fns'
 import { Calendar, Package, UserCircle, ListChecks, AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
-import { maritimeService } from '../../services/maritime.service'
+import { useState } from 'react'
 
 interface KanbanCardProps {
   task: MaintenanceTask
   onClick: () => void
   isDragging?: boolean
-  onAssignChange?: (taskId: number, crewId: string | null) => Promise<void>
+  onAssignChange?: (taskId: string | number, crewId: string | null) => Promise<void>
+  crewList?: CrewMember[]  // Receive from parent to avoid N+1 API calls
+  isLoadingCrew?: boolean
 }
 
-export function KanbanCard({ task, onClick, isDragging = false, onAssignChange }: KanbanCardProps) {
+// Memoized component to prevent unnecessary re-renders
+export const KanbanCard = memo(function KanbanCard({ 
+  task, 
+  onClick, 
+  isDragging = false, 
+  onAssignChange,
+  crewList = [],
+  isLoadingCrew = false
+}: KanbanCardProps) {
   const navigate = useNavigate()
   const scheduleInfo = parseTaskScheduleInfo(task)
-  const [crewList, setCrewList] = useState<CrewMember[]>([])
-  const [isLoadingCrew, setIsLoadingCrew] = useState(false)
   const [isAssigning, setIsAssigning] = useState(false)
 
-  // Fetch onboard crew when component mounts
-  useEffect(() => {
-    const loadCrew = async () => {
-      setIsLoadingCrew(true)
-      try {
-        const response = await maritimeService.crew.getAll({ 
-          pageSize: 100, 
-          isOnboard: true 
-        })
-        setCrewList(response.data || [])
-      } catch (error) {
-        console.error('Failed to load crew:', error)
-      } finally {
-        setIsLoadingCrew(false)
-      }
-    }
-    loadCrew()
-  }, [])
-
-  const handleAssignChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleAssignChange = useCallback(async (e: React.ChangeEvent<HTMLSelectElement>) => {
     e.stopPropagation() // Prevent card click
     const crewId = e.target.value || null
     if (onAssignChange) {
@@ -51,7 +40,7 @@ export function KanbanCard({ task, onClick, isDragging = false, onAssignChange }
         setIsAssigning(false)
       }
     }
-  }
+  }, [onAssignChange, task.id])
   
   const {
     attributes,
@@ -269,4 +258,15 @@ export function KanbanCard({ task, onClick, isDragging = false, onAssignChange }
       </div>
     </div>
   )
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison for memo - only re-render if these change
+  return (
+    prevProps.task.id === nextProps.task.id &&
+    prevProps.task.status === nextProps.task.status &&
+    prevProps.task.assignedTo === nextProps.task.assignedTo &&
+    prevProps.task.priority === nextProps.task.priority &&
+    prevProps.isDragging === nextProps.isDragging &&
+    prevProps.isLoadingCrew === nextProps.isLoadingCrew &&
+    (prevProps.crewList?.length || 0) === (nextProps.crewList?.length || 0)
+  )
+})

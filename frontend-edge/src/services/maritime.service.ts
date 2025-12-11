@@ -194,27 +194,33 @@ export class MaritimeService {
     },
     getPending: () => this.request<MaintenanceTask[]>('/maintenance/tasks/pending'),
     getOverdue: () => this.request<MaintenanceTask[]>('/maintenance/tasks/overdue'),
-    getById: (id: number) => this.request<MaintenanceTask>(`/maintenance/tasks/${id}`),
-    getChecklist: (id: number) => this.request<any[]>(`/maintenance/tasks/${id}/checklist`),
+    getById: (id: string | number) => this.request<MaintenanceTask>(`/maintenance/tasks/${id}`),
+    getChecklist: (id: string | number) => this.request<any[]>(`/maintenance/tasks/${id}/checklist`),
     create: (task: Partial<MaintenanceTask>) =>
       this.request<MaintenanceTask>('/maintenance/tasks', {
         method: 'POST',
         body: JSON.stringify(task),
       }),
-    update: (id: number, task: Partial<MaintenanceTask>) =>
+    update: (id: string | number, task: Partial<MaintenanceTask>) =>
       this.request<MaintenanceTask>(`/maintenance/tasks/${id}`, {
         method: 'PUT',
         body: JSON.stringify(task),
       }),
+    // Quick status update for Kanban drag-and-drop
+    updateStatus: (id: string | number, status: string) =>
+      this.request(`/maintenance/tasks/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      }),
     completeTask: (
-      id: number,
+      id: string | number,
       data: { completedBy: string; notes?: string; sparePartsUsed?: string }
     ) =>
       this.request(`/maintenance/tasks/${id}/complete`, {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    delete: (id: number) =>
+    delete: (id: string | number) =>
       this.request(`/maintenance/tasks/${id}`, {
         method: 'DELETE',
       }),

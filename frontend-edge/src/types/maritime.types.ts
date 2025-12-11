@@ -246,7 +246,7 @@ export interface CrewMember {
 }
 
 export interface MaintenanceTask {
-  id: number
+  id: string | number  // GUID from backend, but can be number for legacy support
   taskId: string
   
   // LEGACY: Individual asset fields (nullable for backward compatibility)

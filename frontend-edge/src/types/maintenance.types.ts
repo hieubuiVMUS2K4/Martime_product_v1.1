@@ -11,7 +11,7 @@ export type TaskStatus = 'TASK' | 'MISSING_BOTH' | 'MISSING_CHECKLIST' | 'MISSIN
 export type TaskPriority = 'CRITICAL' | 'HIGH' | 'NORMAL' | 'LOW';
 
 export interface MaintenanceTask {
-  id: number;
+  id: string | number;  // GUID from backend
   taskId: string;
   taskTypeId?: number;
   

@@ -63,8 +63,9 @@ public class MaintenanceScheduleRepository : IMaintenanceScheduleRepository
 
     public async Task<List<MaintenanceSchedule>> GetAutoGenerateSchedulesAsync()
     {
+        // Note: AutoGenerate property is not in database, so we just return all active schedules
         return await _context.MaintenanceSchedules
-            .Where(s => s.IsActive && s.AutoGenerate)
+            .Where(s => s.IsActive)
             .ToListAsync();
     }
 

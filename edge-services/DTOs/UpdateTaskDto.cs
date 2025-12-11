@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace MaritimeEdge.DTOs;
 
@@ -47,4 +48,15 @@ public class UpdateTaskDto
     
     public string? Notes { get; set; }
     public string? SparePartsUsed { get; set; }
+}
+
+/// <summary>
+/// DTO for quick status update (Kanban drag-and-drop)
+/// </summary>
+public class UpdateStatusRequest
+{
+    [Required]
+    [MaxLength(30)]
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = string.Empty;
 }

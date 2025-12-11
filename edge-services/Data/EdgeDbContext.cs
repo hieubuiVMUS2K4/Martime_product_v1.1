@@ -490,6 +490,14 @@ public class EdgeDbContext : DbContext
             entity.HasIndex(e => e.TaskTypeId)
                 .HasDatabaseName("idx_maintenance_task_type_id");
 
+            // Index for AssignedTo - frequently used in MyTasks queries
+            entity.HasIndex(e => e.AssignedTo)
+                .HasDatabaseName("idx_maintenance_assigned_to");
+
+            // Composite index for common query pattern
+            entity.HasIndex(e => new { e.AssignedTo, e.Status })
+                .HasDatabaseName("idx_maintenance_assigned_status");
+
             // Foreign key to TaskType (optional)
             entity.HasOne<TaskType>()
                 .WithMany()
@@ -600,6 +608,77 @@ public class EdgeDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.AssetId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ========== EQUIPMENT GROUPS ==========
+        modelBuilder.Entity<EquipmentGroup>(entity =>
+        {
+            entity.ToTable("equipment_groups");
+            
+            // Map C# property GroupName to database column name
+            entity.Property(e => e.GroupName)
+                .HasColumnName("name");
+
+            entity.Property(e => e.IsActive)
+                .HasColumnName("is_active");
+            
+            entity.HasIndex(e => e.GroupCode)
+                .IsUnique()
+                .HasDatabaseName("uk_equipment_groups_group_code");
+        });
+
+        // ========== EQUIPMENT ASSETS ==========
+        modelBuilder.Entity<EquipmentAsset>(entity =>
+        {
+            entity.ToTable("equipment_assets");
+            
+            // Map C# property AssetName to database column name
+            entity.Property(e => e.AssetName)
+                .HasColumnName("name");
+            
+            entity.HasIndex(e => e.AssetCode)
+                .IsUnique()
+                .HasDatabaseName("uk_equipment_assets_asset_code");
+        });
+
+        // ========== EQUIPMENT GROUP MEMBERS ==========
+        modelBuilder.Entity<EquipmentGroupMember>(entity =>
+        {
+            entity.ToTable("equipment_group_members");
+            
+            entity.HasOne(e => e.Group)
+                .WithMany()
+                .HasForeignKey(e => e.GroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.Asset)
+                .WithMany()
+                .HasForeignKey(e => e.AssetId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========== MAINTENANCE SCHEDULES ==========
+        modelBuilder.Entity<MaintenanceSchedule>(entity =>
+        {
+            entity.ToTable("maintenance_schedules");
+            
+            entity.Property(e => e.Instructions)
+                .HasColumnName("notes");
+            
+            entity.Property(e => e.LastExecutedAt)
+                .HasColumnName("last_maintenance_date");
+            
+            entity.Property(e => e.LastExecutedRunningHours)
+                .HasColumnName("last_running_hours");
+
+            entity.Property(e => e.AutoGenerate)
+                .HasColumnName("auto_generate");
+            
+            // Foreign key to equipment_groups
+            entity.HasOne<EquipmentGroup>()
+                .WithMany()
+                .HasForeignKey(e => e.EquipmentGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ========== CARGO OPERATIONS ==========

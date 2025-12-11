@@ -160,7 +160,7 @@ public class MaterialReceiptsController : ControllerBase
     /// <returns>Statistics về phiếu nhập</returns>
     [HttpGet("stats")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult> GetReceiptStats()
+    public ActionResult GetReceiptStats()
     {
         try
         {

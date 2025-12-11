@@ -201,12 +201,9 @@ public class MaterialReceiptService
                     var materialItem = await _context.MaterialItems
                         .FirstOrDefaultAsync(m => m.ItemCode == itemDto.ItemCode);
 
-                    bool isNewItem = false;
-
                     if (materialItem == null)
                     {
                         // TẠO MỚI MaterialItem
-                        isNewItem = true;
 
                         // Tìm category
                         long? categoryId = itemDto.CategoryId;

@@ -47,12 +47,8 @@ export function MaintenanceDetailPage() {
   const loadTaskDetails = async () => {
     if (!id) return
     
-    const taskId = parseInt(id, 10)
-    if (isNaN(taskId)) {
-      alert('Invalid task ID')
-      navigate('/maintenance')
-      return
-    }
+    // ID is a GUID string, not a number
+    const taskId = id
 
     try {
       setLoading(true)

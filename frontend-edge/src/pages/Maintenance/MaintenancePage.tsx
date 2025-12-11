@@ -188,12 +188,11 @@ export function MaintenancePage() {
     }
   }
 
-  const handleTaskUpdate = async (taskId: number, newStatus: string) => {
+  const handleTaskUpdate = async (taskId: number | string, newStatus: string) => {
     try {
-      const validStatus = newStatus as 'PENDING' | 'OVERDUE' | 'IN_PROGRESS' | 'COMPLETED'
-      console.log(`🔄 Updating task ${taskId}: ${validStatus}`)
+      console.log(`🔄 Updating task ${taskId}: ${newStatus}`)
       
-      // Find the task to get all required fields
+      // Find the task to verify it exists
       const task = tasks.find(t => t.id === taskId)
       if (!task) {
         throw new Error('Task not found in local state')
@@ -202,15 +201,12 @@ export function MaintenancePage() {
       // Optimistic update - update UI immediately
       setTasks(prevTasks => 
         prevTasks.map(t => 
-          t.id === taskId ? { ...t, status: validStatus } : t
+          t.id === taskId ? { ...t, status: newStatus as any } : t
         )
       )
       
-      // Send full task object with updated status (backend requires all fields)
-      await maritimeService.maintenance.update(taskId, {
-        ...task,
-        status: validStatus
-      })
+      // Use the new PATCH endpoint for quick status update
+      await maritimeService.maintenance.updateStatus(taskId, newStatus)
       
       console.log(`✅ Task ${taskId} updated successfully`)
       // Refresh from server to ensure consistency

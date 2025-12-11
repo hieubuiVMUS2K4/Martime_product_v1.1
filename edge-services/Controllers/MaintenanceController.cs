@@ -479,6 +479,71 @@ public class MaintenanceController : ControllerBase
     }
 
     /// <summary>
+    /// PATCH /api/maintenance/tasks/{id}/status
+    /// Quick status update for Kanban board drag-and-drop
+    /// </summary>
+    [HttpPatch("tasks/{id}/status")]
+    public async Task<IActionResult> UpdateTaskStatus(Guid id, [FromBody] UpdateStatusRequest request)
+    {
+        try
+        {
+            var existing = await _context.MaintenanceTasks.FindAsync(id);
+            if (existing == null)
+            {
+                return NotFound(new { error = "Maintenance task not found", id });
+            }
+
+            // Validate status transition
+            if (request.Status != existing.Status)
+            {
+                var validationResult = ValidateStatusTransition(existing.Status, request.Status, existing);
+                if (!validationResult.IsValid)
+                {
+                    return BadRequest(new { 
+                        error = "Invalid status transition", 
+                        message = validationResult.Message,
+                        currentStatus = existing.Status,
+                        attemptedStatus = request.Status
+                    });
+                }
+            }
+
+            var oldStatus = existing.Status;
+            existing.Status = request.Status;
+            existing.UpdatedAt = DateTime.UtcNow;
+            existing.IsSynced = false;
+
+            // Auto-set timestamps based on status change
+            if (request.Status == MTaskStatus.IN_PROGRESS && oldStatus != MTaskStatus.IN_PROGRESS)
+            {
+                existing.StartedAt ??= DateTime.UtcNow;
+            }
+            else if (request.Status == MTaskStatus.COMPLETED && oldStatus != MTaskStatus.COMPLETED)
+            {
+                existing.CompletedAt ??= DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Task {Id} status changed: {OldStatus} → {NewStatus}", 
+                id, oldStatus, request.Status);
+
+            return Ok(new { 
+                id = existing.Id,
+                taskId = existing.TaskId,
+                status = existing.Status,
+                previousStatus = oldStatus,
+                message = $"Status updated from {oldStatus} to {request.Status}"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating task status {Id}", id);
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Assign task to crew member (Quick Assign from Kanban board)
     /// POST /api/maintenance/tasks/{id}/assign
     /// </summary>
@@ -610,11 +675,11 @@ public class MaintenanceController : ControllerBase
                 validApproverRanks = new List<string> { "Master" };
             }
 
-            if (!validApproverRanks.Contains(approver.Rank))
+            if (string.IsNullOrEmpty(approver.Rank) || !validApproverRanks.Contains(approver.Rank))
             {
                 return BadRequest(new { 
                     error = $"Approver must be one of: {string.Join(", ", validApproverRanks)}", 
-                    approverRank = approver.Rank,
+                    approverRank = approver.Rank ?? "N/A",
                     department = department ?? "UNKNOWN"
                 });
             }
@@ -672,37 +737,83 @@ public class MaintenanceController : ControllerBase
     }
 
     /// <summary>
-    /// Validate status transition rules to prevent conflicts between mobile and web
+    /// Validate status transition rules for Kanban board workflow
+    /// Supports extended workflow: TASK → PENDING_APPROVAL → PENDING → IN_PROGRESS → COMPLETED
     /// </summary>
     private (bool IsValid, string Message) ValidateStatusTransition(string currentStatus, string newStatus, MaritimeEdge.Models.MaintenanceTask task)
     {
-        // Rule 1: COMPLETED tasks cannot be moved back (protect crew work)
-        if (currentStatus == MTaskStatus.COMPLETED)
+        // Rule 0: Same status = no transition needed
+        if (currentStatus == newStatus)
         {
-            return (false, "Cannot change status of completed tasks. Task was completed by crew member. Create a new task if rework is needed.");
+            return (true, "No change");
         }
 
-        // Rule 2: IN_PROGRESS can move to PENDING (Captain unassigns) or COMPLETED (Crew finishes)
-        // Allow IN_PROGRESS → PENDING: Captain can unassign a task that crew started (StartedAt timestamp is kept)
-        // Allow IN_PROGRESS → COMPLETED: Crew finishes the task via mobile
-        if (currentStatus == MTaskStatus.IN_PROGRESS && newStatus != MTaskStatus.PENDING && newStatus != MTaskStatus.COMPLETED)
+        // Rule 1: COMPLETED and CANCELLED tasks cannot be moved (final states)
+        if (currentStatus == MTaskStatus.COMPLETED || currentStatus == MTaskStatus.CANCELLED)
         {
-            return (false, $"In-progress tasks can only move to PENDING (unassign) or COMPLETED, not {newStatus}");
+            return (false, $"Cannot change status of {currentStatus.ToLower()} tasks. Create a new task if needed.");
         }
 
-        // Rule 3: PENDING can move to IN_PROGRESS (assign) or OVERDUE (auto by system)
-        if (currentStatus == MTaskStatus.PENDING && newStatus != MTaskStatus.IN_PROGRESS && newStatus != MTaskStatus.OVERDUE)
+        // Define valid transitions for extended workflow
+        var validTransitions = new Dictionary<string, HashSet<string>>
         {
-            return (false, $"Pending tasks can only move to IN_PROGRESS or OVERDUE, not {newStatus}");
+            // TASK (new, unassigned) can go to: PENDING_APPROVAL (HIGH/CRITICAL), PENDING (LOW/NORMAL), REJECTED (direct reject)
+            [MTaskStatus.TASK] = new HashSet<string> { 
+                MTaskStatus.PENDING_APPROVAL, 
+                MTaskStatus.PENDING, 
+                MTaskStatus.REJECTED,
+                MTaskStatus.CANCELLED 
+            },
+            
+            // PENDING_APPROVAL can go to: PENDING (approved), REJECTED (rejected by C/E)
+            [MTaskStatus.PENDING_APPROVAL] = new HashSet<string> { 
+                MTaskStatus.PENDING, 
+                MTaskStatus.REJECTED,
+                MTaskStatus.TASK // Return for revision
+            },
+            
+            // REJECTED can go to: TASK (revise and resubmit)
+            [MTaskStatus.REJECTED] = new HashSet<string> { 
+                MTaskStatus.TASK,
+                MTaskStatus.CANCELLED
+            },
+            
+            // PENDING can go to: IN_PROGRESS (start), OVERDUE (auto), COMPLETED (direct), TASK (unassign)
+            [MTaskStatus.PENDING] = new HashSet<string> { 
+                MTaskStatus.IN_PROGRESS, 
+                MTaskStatus.OVERDUE, 
+                MTaskStatus.COMPLETED,
+                MTaskStatus.TASK,
+                MTaskStatus.CANCELLED
+            },
+            
+            // OVERDUE can go to: IN_PROGRESS (start late), PENDING (reschedule), COMPLETED (direct)
+            [MTaskStatus.OVERDUE] = new HashSet<string> { 
+                MTaskStatus.IN_PROGRESS, 
+                MTaskStatus.PENDING, 
+                MTaskStatus.COMPLETED,
+                MTaskStatus.CANCELLED
+            },
+            
+            // IN_PROGRESS can go to: PENDING (unassign), COMPLETED (finish)
+            [MTaskStatus.IN_PROGRESS] = new HashSet<string> { 
+                MTaskStatus.PENDING, 
+                MTaskStatus.COMPLETED 
+            }
+        };
+
+        // Check if transition is valid
+        if (validTransitions.TryGetValue(currentStatus, out var allowedStatuses))
+        {
+            if (allowedStatuses.Contains(newStatus))
+            {
+                return (true, "Valid transition");
+            }
+            return (false, $"Cannot transition from {currentStatus} to {newStatus}. Allowed: {string.Join(", ", allowedStatuses)}");
         }
 
-        // Rule 4: OVERDUE can only go to IN_PROGRESS (crew starts late task)
-        if (currentStatus == MTaskStatus.OVERDUE && newStatus != MTaskStatus.IN_PROGRESS)
-        {
-            return (false, "Overdue tasks must be started (IN_PROGRESS) before completion");
-        }
-
-        return (true, "Valid transition");
+        // Unknown current status - allow transition (backward compatibility)
+        return (true, "Valid transition (unknown source status)");
     }
 
     [HttpDelete("tasks/{id}")]
