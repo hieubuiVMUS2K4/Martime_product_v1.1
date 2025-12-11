@@ -848,6 +848,7 @@ public class MaintenanceTaskDetail
 
 /// <summary>
 /// Maintenance Tasks (ISM Code - Planned Maintenance System)
+/// Updated v2.0: Added workflow fields for Deferral & Rectify system
 /// </summary>
 public class MaintenanceTask
 {
@@ -908,9 +909,20 @@ public class MaintenanceTask
     [MaxLength(20)]
     public string Priority { get; set; } = "NORMAL"; // CRITICAL, HIGH, NORMAL, LOW
     
+    /// <summary>
+    /// Task Status - Updated v2.0
+    /// SCHEDULED: Auto-generated, not yet due
+    /// DUE: Ready for execution
+    /// OVERDUE: Past due date
+    /// IN_PROGRESS: Crew working on it
+    /// PENDING_APPROVAL: Waiting for C/E/Master verification
+    /// RECTIFY: Returned for correction (replaces REJECTED)
+    /// COMPLETED: Approved and done
+    /// CANCELLED: Task cancelled
+    /// </summary>
     [Required]
     [MaxLength(20)]
-    public string Status { get; set; } = "PENDING"; // TASK, PENDING, PENDING_APPROVAL, IN_PROGRESS, COMPLETED, REJECTED, OVERDUE
+    public string Status { get; set; } = "SCHEDULED"; // SCHEDULED, DUE, OVERDUE, IN_PROGRESS, PENDING_APPROVAL, RECTIFY, COMPLETED, CANCELLED
     
     /// <summary>
     /// PIC (Person In Charge) - Crew ID assigned to this task
@@ -919,27 +931,157 @@ public class MaintenanceTask
     [MaxLength(100)]
     public string? AssignedTo { get; set; }
     
+    /// <summary>
+    /// Department: ENGINE or DECK
+    /// </summary>
+    [MaxLength(20)]
+    public string? AssignedDepartment { get; set; }
+    
+    // ============ DEFERRAL TRACKING ============
+    
+    /// <summary>
+    /// True if there's a pending deferral request for this task
+    /// </summary>
+    public bool HasPendingDeferral { get; set; } = false;
+    
+    /// <summary>
+    /// Number of times this task has been deferred
+    /// </summary>
+    public int DeferralCount { get; set; } = 0;
+    
+    public DateTime? LastDeferredAt { get; set; }
+    
     [MaxLength(50)]
-    public string? ApprovedBy { get; set; } // Crew ID who approved (C/E or Master)
+    public string? LastDeferredBy { get; set; }
     
-    public DateTime? ApprovedAt { get; set; } // When task was approved
+    // ============ EXECUTION TRACKING ============
     
-    [MaxLength(500)]
-    public string? RejectionReason { get; set; } // If status is REJECTED
+    public DateTime? StartedAt { get; set; } // When crew pressed "Start"
     
-    public DateTime? StartedAt { get; set; } // When task was started
+    [MaxLength(50)]
+    public string? StartedBy { get; set; } // Crew ID who started
     
-    public DateTime? CompletedAt { get; set; }
+    /// <summary>
+    /// Running hours at task start (for RH-based tasks)
+    /// </summary>
+    public double? ActualRunningHours { get; set; }
     
-    [MaxLength(100)]
-    public string? CompletedBy { get; set; }
+    /// <summary>
+    /// Estimated duration in minutes (from template)
+    /// </summary>
+    public int? EstimatedDuration { get; set; }
+    
+    /// <summary>
+    /// Actual duration in minutes
+    /// </summary>
+    public int? ActualDuration { get; set; }
+    
+    // ============ REPORT DATA ============
+    
+    /// <summary>
+    /// Whether checklist is fully completed
+    /// </summary>
+    public bool ChecklistCompleted { get; set; } = false;
+    
+    /// <summary>
+    /// Number of photos uploaded
+    /// </summary>
+    public int PhotosUploaded { get; set; } = 0;
+    
+    /// <summary>
+    /// Required number of photos (from template)
+    /// </summary>
+    public int RequiredPhotos { get; set; } = 0;
     
     public string? Notes { get; set; }
     
     [MaxLength(500)]
     public string? SparePartsUsed { get; set; }
     
+    // ============ SUBMISSION ============
+    
+    public DateTime? SubmittedAt { get; set; } // When crew pressed "Submit"
+    
+    [MaxLength(50)]
+    public string? SubmittedBy { get; set; }
+    
+    // ============ VERIFICATION (C/E/Master) ============
+    
+    public DateTime? VerifiedAt { get; set; }
+    
+    [MaxLength(50)]
+    public string? VerifiedBy { get; set; } // C/E or Master crew ID
+    
+    /// <summary>
+    /// APPROVED or REJECTED
+    /// </summary>
+    [MaxLength(20)]
+    public string? VerificationResult { get; set; }
+    
+    /// <summary>
+    /// Notes from verifier when approving
+    /// </summary>
+    public string? VerificationNotes { get; set; }
+    
+    // ============ RECTIFY (REJECTION) TRACKING ============
+    
+    /// <summary>
+    /// Latest rejection reason
+    /// </summary>
+    public string? RejectionReason { get; set; }
+    
+    /// <summary>
+    /// Number of times this task has been rejected
+    /// </summary>
+    public int RejectionCount { get; set; } = 0;
+    
+    public DateTime? LastRejectedAt { get; set; }
+    
+    [MaxLength(50)]
+    public string? LastRejectedBy { get; set; }
+    
+    /// <summary>
+    /// JSON array of rejection history: [{reason, by, at}]
+    /// </summary>
+    [Column(TypeName = "jsonb")]
+    public string? RejectionHistory { get; set; }
+    
+    // ============ COMPLETION ============
+    
+    public DateTime? CompletedAt { get; set; }
+    
+    [MaxLength(100)]
+    public string? CompletedBy { get; set; }
+    
+    // ============ CANCELLATION ============
+    
+    public DateTime? CancelledAt { get; set; }
+    
+    [MaxLength(50)]
+    public string? CancelledBy { get; set; }
+    
+    public string? CancellationReason { get; set; }
+    
+    // ============ CMS (Class Survey) ============
+    
+    /// <summary>
+    /// Is this a Class Maintenance Survey item?
+    /// CMS items have special deferral rules
+    /// </summary>
+    public bool IsCms { get; set; } = false;
+    
+    // ============ LEGACY FIELDS (kept for backward compatibility) ============
+    
+    [MaxLength(50)]
+    public string? ApprovedBy { get; set; } // Legacy - use VerifiedBy instead
+    
+    public DateTime? ApprovedAt { get; set; } // Legacy - use VerifiedAt instead
+    
+    // ============ AUDIT ============
+    
     public bool IsSynced { get; set; } = false;
+    
+    public DateTime? SyncedAt { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -947,9 +1089,151 @@ public class MaintenanceTask
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
     
-    // Navigation properties
+    // ============ NAVIGATION PROPERTIES ============
+    
     public virtual EquipmentGroup? EquipmentGroup { get; set; }
     public virtual ICollection<TaskChecklistItem> ChecklistItems { get; set; } = new List<TaskChecklistItem>();
+    public virtual ICollection<TaskDeferralRequest> DeferralRequests { get; set; } = new List<TaskDeferralRequest>();
+    public virtual ICollection<TaskStatusHistory> StatusHistory { get; set; } = new List<TaskStatusHistory>();
+}
+
+/// <summary>
+/// Task Deferral Request - Request to postpone a maintenance task
+/// </summary>
+public class TaskDeferralRequest
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// FK -> MaintenanceTask.Id
+    /// </summary>
+    [Required]
+    public Guid TaskId { get; set; }
+    
+    // ============ REQUEST INFO ============
+    
+    [Required]
+    [MaxLength(50)]
+    public string RequestedBy { get; set; } = string.Empty; // Crew ID
+    
+    public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
+    
+    /// <summary>
+    /// Reason for deferral (min 20 chars)
+    /// </summary>
+    [Required]
+    public string Reason { get; set; } = string.Empty;
+    
+    // ============ DATE INFO ============
+    
+    public DateTime CurrentDueDate { get; set; }
+    
+    public DateTime ProposedDueDate { get; set; }
+    
+    /// <summary>
+    /// Number of days to defer
+    /// </summary>
+    public int DeferralDays { get; set; }
+    
+    // ============ APPROVAL INFO ============
+    
+    /// <summary>
+    /// PENDING, APPROVED, REJECTED
+    /// </summary>
+    [Required]
+    [MaxLength(20)]
+    public string Status { get; set; } = "PENDING";
+    
+    [MaxLength(50)]
+    public string? ReviewedBy { get; set; } // Master or C/E
+    
+    public DateTime? ReviewedAt { get; set; }
+    
+    public string? ReviewNotes { get; set; }
+    
+    // ============ METADATA ============
+    
+    /// <summary>
+    /// LOW, NORMAL, HIGH
+    /// </summary>
+    [MaxLength(20)]
+    public string Priority { get; set; } = "NORMAL";
+    
+    /// <summary>
+    /// JSON array of attachment URLs
+    /// </summary>
+    [Column(TypeName = "jsonb")]
+    public string? Attachments { get; set; }
+    
+    // ============ CMS SPECIFIC ============
+    
+    /// <summary>
+    /// Is this for a CMS item?
+    /// </summary>
+    public bool IsCmsItem { get; set; } = false;
+    
+    /// <summary>
+    /// Class Permission Letter URL (required if CMS && deferralDays > 90)
+    /// </summary>
+    [MaxLength(255)]
+    public string? ClassPermissionLetter { get; set; }
+    
+    // ============ AUDIT ============
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+    
+    public bool IsSynced { get; set; } = false;
+    
+    // Navigation
+    public virtual MaintenanceTask Task { get; set; } = null!;
+}
+
+/// <summary>
+/// Task Status History - Audit trail for all status changes
+/// </summary>
+public class TaskStatusHistory
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    public Guid TaskId { get; set; }
+    
+    [MaxLength(20)]
+    public string? FromStatus { get; set; }
+    
+    [Required]
+    [MaxLength(20)]
+    public string ToStatus { get; set; } = string.Empty;
+    
+    [Required]
+    [MaxLength(50)]
+    public string ChangedBy { get; set; } = string.Empty;
+    
+    public DateTime ChangedAt { get; set; } = DateTime.UtcNow;
+    
+    public string? Reason { get; set; }
+    
+    public string? Notes { get; set; }
+    
+    /// <summary>
+    /// WEB or MOBILE
+    /// </summary>
+    [MaxLength(20)]
+    public string? DeviceType { get; set; }
+    
+    [MaxLength(45)]
+    public string? IpAddress { get; set; }
+    
+    public string? UserAgent { get; set; }
+    
+    // Navigation
+    public virtual MaintenanceTask Task { get; set; } = null!;
 }
 
 /// <summary>
@@ -3042,6 +3326,12 @@ public class EquipmentAsset
     /// </summary>
     [MaxLength(20)]
     public string Criticality { get; set; } = "NORMAL";
+    
+    /// <summary>
+    /// Equipment status: ACTIVE (in operation), STANDBY (spare/backup), UNDER_MAINTENANCE (being serviced), DECOMMISSIONED (retired), IN_STORAGE (stored)
+    /// </summary>
+    [MaxLength(50)]
+    public string Status { get; set; } = "ACTIVE";
     
     /// <summary>
     /// Default executor role for tasks on this asset (optional)

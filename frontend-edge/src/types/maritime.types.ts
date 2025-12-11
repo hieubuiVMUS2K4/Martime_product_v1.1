@@ -245,9 +245,23 @@ export interface CrewMember {
   createdAt: string
 }
 
+// Task Status - Updated v2.0 (PMS Workflow)
+export type MaintenanceTaskStatus = 
+  | 'SCHEDULED'      // Auto-generated, not yet due
+  | 'DUE'           // Ready for execution
+  | 'OVERDUE'       // Past due date
+  | 'IN_PROGRESS'   // Crew working on it
+  | 'PENDING_APPROVAL' // Waiting for C/E/Master verification
+  | 'RECTIFY'       // Returned for correction (replaces REJECTED)
+  | 'COMPLETED'     // Approved and done
+  | 'CANCELLED'     // Task cancelled
+  // Legacy statuses for backward compatibility
+  | 'TASK' | 'MISSING_BOTH' | 'MISSING_CHECKLIST' | 'MISSING_PIC' | 'PENDING' | 'REJECTED'
+
 export interface MaintenanceTask {
-  id: string | number  // GUID from backend, but can be number for legacy support
+  id: string  // GUID from backend
   taskId: string
+  taskTypeId?: number
   
   // LEGACY: Individual asset fields (nullable for backward compatibility)
   equipmentId?: string
@@ -265,20 +279,221 @@ export interface MaintenanceTask {
   nextDueAt: string
   runningHoursAtLastDone?: number
   priority: 'CRITICAL' | 'HIGH' | 'NORMAL' | 'LOW'
-  status: 'TASK' | 'MISSING_BOTH' | 'MISSING_CHECKLIST' | 'MISSING_PIC' | 'PENDING' | 'PENDING_APPROVAL' | 'REJECTED' | 'OVERDUE' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+  status: MaintenanceTaskStatus
   assignedTo?: string
-  completedAt?: string
-  completedBy?: string
+  assignedDepartment?: 'ENGINE' | 'DECK'
+  
+  // ============ DEFERRAL TRACKING ============
+  hasPendingDeferral: boolean
+  deferralCount: number
+  lastDeferredAt?: string
+  lastDeferredBy?: string
+  
+  // ============ EXECUTION TRACKING ============
+  startedAt?: string
+  startedBy?: string
+  actualRunningHours?: number
+  estimatedDuration?: number // minutes
+  actualDuration?: number // minutes
+  
+  // ============ REPORT DATA ============
+  checklistCompleted: boolean
+  photosUploaded: number
+  requiredPhotos: number
   notes?: string
   sparePartsUsed?: string
+  
+  // ============ SUBMISSION ============
+  submittedAt?: string
+  submittedBy?: string
+  
+  // ============ VERIFICATION ============
+  verifiedAt?: string
+  verifiedBy?: string
+  verificationResult?: 'APPROVED' | 'REJECTED'
+  verificationNotes?: string
+  
+  // ============ RECTIFY TRACKING ============
+  rejectionReason?: string
+  rejectionCount: number
+  lastRejectedAt?: string
+  lastRejectedBy?: string
+  rejectionHistory?: Array<{
+    reason: string
+    by: string
+    at: string
+  }>
+  
+  // ============ COMPLETION ============
+  completedAt?: string
+  completedBy?: string
+  
+  // ============ CANCELLATION ============
+  cancelledAt?: string
+  cancelledBy?: string
+  cancellationReason?: string
+  
+  // ============ CMS ============
+  isCms: boolean
+  
+  // ============ LEGACY ============
+  approvedBy?: string
+  approvedAt?: string
+  
+  // ============ AUDIT ============
   isSynced: boolean
   createdAt: string
-  startedAt?: string
   updatedAt?: string
   originNode?: string
   
-  // Checklist items for group-based tasks
+  // ============ RELATED DATA ============
   checklistItems?: TaskChecklistItem[]
+  
+  requiredSpareParts?: Array<{
+    id?: string
+    materialItemId: string
+    materialCode?: string
+    materialName?: string
+    quantityRequired: number
+    isMandatory: boolean
+    notes?: string
+  }>
+  
+  // Status history (loaded on demand)
+  statusHistory?: TaskStatusHistory[]
+  
+  // Pending deferral (loaded on demand)
+  pendingDeferral?: DeferralRequest
+}
+
+// ============================================================
+// DEFERRAL REQUEST TYPES
+// ============================================================
+
+export interface DeferralRequest {
+  id: string // Guid
+  taskId: string
+  taskCode?: string
+  taskDescription?: string
+  equipmentName?: string
+  
+  requestedBy: string
+  requestedByName?: string
+  requestedAt: string
+  reason: string
+  
+  currentDueDate: string
+  proposedDueDate: string
+  deferralDays: number
+  
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  priority: 'LOW' | 'NORMAL' | 'HIGH'
+  
+  isCmsItem: boolean
+  classPermissionLetter?: string
+  
+  reviewedBy?: string
+  reviewedByName?: string
+  reviewedAt?: string
+  reviewNotes?: string
+  
+  attachments?: string[]
+  createdAt: string
+}
+
+export interface CreateDeferralRequestDto {
+  taskId: string
+  reason: string // min 20 chars
+  proposedDueDate: string
+  priority?: 'LOW' | 'NORMAL' | 'HIGH'
+  attachments?: string[]
+  classPermissionLetter?: string // required if CMS && deferral > 90 days
+}
+
+export interface ReviewDeferralRequestDto {
+  action: 'APPROVE' | 'REJECT'
+  notes?: string
+  adjustedDueDate?: string // reviewer can modify proposed date
+}
+
+// ============================================================
+// TASK STATUS HISTORY
+// ============================================================
+
+export interface TaskStatusHistory {
+  id: string
+  taskId: string
+  fromStatus?: string
+  toStatus: string
+  changedBy: string
+  changedByName?: string
+  changedAt: string
+  reason?: string
+  notes?: string
+  deviceType?: 'WEB' | 'MOBILE'
+}
+
+// ============================================================
+// TASK WORKFLOW DTOs
+// ============================================================
+
+export interface StartTaskDto {
+  taskId: string
+  currentRunningHours?: number
+  notes?: string
+}
+
+export interface SubmitTaskDto {
+  taskId: string
+  completedRunningHours?: number
+  notes?: string
+  sparePartsUsed?: string
+  photoUrls?: string[]
+}
+
+export interface VerifyTaskDto {
+  taskId: string
+  action: 'APPROVE' | 'REJECT'
+  notes?: string
+  rejectionReason?: string // required if action = REJECT
+}
+
+// ============================================================
+// APPROVAL DASHBOARD
+// ============================================================
+
+export interface ApprovalDashboardSummary {
+  pendingApprovalCount: number
+  pendingDeferralCount: number
+  rectifyTaskCount: number
+  overdueTaskCount: number
+  todayDueCount: number
+  thisWeekDueCount: number
+}
+
+export interface MorningBriefing {
+  date: string
+  overdueTasksEngine: number
+  overdueTasksDeck: number
+  dueToday: number
+  pendingApproval: number
+  pendingDeferral: number
+  tasksInProgress: number
+  completedYesterday: number
+  topPriorityTasks?: TaskSummary[]
+}
+
+export interface TaskSummary {
+  id: string
+  taskId: string
+  taskDescription: string
+  equipmentName?: string
+  priority: string
+  status: string
+  nextDueAt: string
+  assignedTo?: string
+  assignedDepartment?: string
+  daysOverdue?: number
 }
 
 // Task Checklist Items - Per-asset tracking within group maintenance tasks

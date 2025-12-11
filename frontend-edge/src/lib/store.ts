@@ -30,8 +30,8 @@ interface AppStore {
 
   // Actions - Maintenance
   fetchMaintenance: (forceRefresh?: boolean) => Promise<void>;
-  updateMaintenanceTask: (id: number, task: MaintenanceTask) => void;
-  deleteMaintenanceTask: (id: number) => void;
+  updateMaintenanceTask: (id: string, task: MaintenanceTask) => void;
+  deleteMaintenanceTask: (id: string) => void;
 
   // Actions - Dashboard
   fetchDashboard: (forceRefresh?: boolean) => Promise<void>;

@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Plus, Calendar, Clock, Wrench, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                import { useState, useEffect, useMemo } from 'react';
+import { Plus, Calendar, Clock, Wrench, Search, ChevronLeft, ChevronRight, Edit2, Trash2 } from 'lucide-react';
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
 import { AddScheduleModal } from '@/components/pms/AddScheduleModal';
 import { EditScheduleModal } from '@/components/pms/EditScheduleModal';
+import { ViewScheduleModal } from '@/components/pms/ViewScheduleModal';
 import type { MaintenanceSchedule } from '@/types/pms.types';
 
 
@@ -19,6 +20,7 @@ export default function ScheduleConfigPage() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<MaintenanceSchedule | null>(null);
   
   // Search & Filter states
@@ -83,6 +85,20 @@ export default function ScheduleConfigPage() {
   const handleEdit = (schedule: MaintenanceSchedule) => {
     setSelectedSchedule(schedule);
     setShowEditModal(true);
+  };
+
+  // View functionality available via handleEdit - users can edit or just view
+  
+  const handleDelete = async (schedule: MaintenanceSchedule) => {
+    if (!confirm(`Are you sure you want to delete schedule "${schedule.scheduleName}"?\n\nThis will permanently remove the schedule configuration.`)) {
+      return;
+    }
+    try {
+      await maintenanceScheduleService.delete(schedule.id);
+      await loadSchedules();
+    } catch (error) {
+      console.error('Error deleting schedule:', error);
+    }
   };
 
   // Pagination calculations
@@ -195,7 +211,7 @@ export default function ScheduleConfigPage() {
           </div>
         ) : (
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="min-w-full w-full">
+          <table className="min-w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
@@ -206,7 +222,7 @@ export default function ScheduleConfigPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Spare Parts</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Auto</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="pl-6 pr-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -248,13 +264,23 @@ export default function ScheduleConfigPage() {
                       <span className="text-gray-400">- No</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-sm text-right">
-                    <button 
-                      onClick={() => handleEdit(schedule)}
-                      className="text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                      Edit
-                    </button>
+                  <td className="pl-6 pr-2 py-4 text-sm text-left">
+                    <div className="flex items-center justify-start gap-1">
+                      <button
+                        onClick={() => handleEdit(schedule)}
+                        className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+                        title="Edit Schedule"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(schedule)}
+                        className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Delete Schedule"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -333,6 +359,15 @@ export default function ScheduleConfigPage() {
         }}
         onSuccess={() => {
           loadSchedules();
+        }}
+      />
+
+      <ViewScheduleModal
+        isOpen={showViewModal}
+        schedule={selectedSchedule}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedSchedule(null);
         }}
       />
       </div>

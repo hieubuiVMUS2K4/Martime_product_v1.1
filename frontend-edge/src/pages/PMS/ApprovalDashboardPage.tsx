@@ -1,44 +1,63 @@
 /**
  * C/E Approval Dashboard
- * For Chief Engineer to approve HIGH/CRITICAL maintenance tasks
+ * For Chief Engineer to approve/reject maintenance tasks
+ * PMS Workflow v2.0
  */
 
 import { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, AlertTriangle, Clock } from 'lucide-react';
-import { getTasksPendingApproval, approveTask, rejectTask } from '@/services/maintenance.service';
+import { useNavigate } from 'react-router-dom';
+import { CheckCircle, XCircle, AlertTriangle, Clock, FileText, RefreshCw, ArrowLeft, Filter } from 'lucide-react';
+import { 
+  getPendingApprovalTasks, 
+  getApprovalDashboardSummary,
+  verifyTask,
+  type ApprovalDashboardSummary,
+  type VerifyTaskDto
+} from '@/services/maintenance.service';
 import type { MaintenanceTask } from '@/types/maintenance.types';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 
 export default function ApprovalDashboardPage() {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
+  const [summary, setSummary] = useState<ApprovalDashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  
+  // Filter state
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   
   // Approval/Reject modal state
   const [selectedTask, setSelectedTask] = useState<MaintenanceTask | null>(null);
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [approvalNotes, setApprovalNotes] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
   // TODO: Get current user from authentication context
-  // For now, pass crewId as parameter or get from global state
-  const [currentUserCrewId, setCurrentUserCrewId] = useState('');
+  const [currentUserCrewId] = useState('CREW002'); // Default to C/E for testing
 
   useEffect(() => {
-    // TODO: Set from authentication context when implemented
-    setCurrentUserCrewId('CREW002'); // Default to C/E for testing
-    loadTasks();
-  }, []);
+    loadData();
+  }, [page]);
 
-  const loadTasks = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const data = await getTasksPendingApproval();
-      setTasks(data);
+      const [tasksData, summaryData] = await Promise.all([
+        getPendingApprovalTasks(page, 20),
+        getApprovalDashboardSummary()
+      ]);
+      setTasks(tasksData.items);
+      setTotalPages(tasksData.totalPages);
+      setSummary(summaryData);
     } catch (err) {
-      console.error('Error loading tasks:', err);
-      toast.error('Failed to load tasks pending approval');
+      console.error('Error loading data:', err);
+      toast.error('Failed to load approval dashboard');
     } finally {
       setLoading(false);
     }
@@ -46,6 +65,7 @@ export default function ApprovalDashboardPage() {
 
   const handleApproveClick = (task: MaintenanceTask) => {
     setSelectedTask(task);
+    setApprovalNotes('');
     setShowApproveModal(true);
   };
 
@@ -60,16 +80,27 @@ export default function ApprovalDashboardPage() {
 
     try {
       setActionLoading(true);
-      await approveTask(selectedTask.taskId, currentUserCrewId);
+      const dto: VerifyTaskDto = {
+        action: 'APPROVE',
+        notes: approvalNotes || undefined
+      };
+      await verifyTask(selectedTask.id, dto);
       
-      toast.success('Task approved successfully');
+      toast.success('Task approved and completed');
       
       // Remove task from list
       setTasks(prev => prev.filter(t => t.id !== selectedTask.id));
+      if (summary) {
+        setSummary({
+          ...summary,
+          pendingApprovalCount: summary.pendingApprovalCount - 1
+        });
+      }
       
       // Close modal
       setShowApproveModal(false);
       setSelectedTask(null);
+      setApprovalNotes('');
     } catch (err) {
       console.error('Error approving task:', err);
       toast.error('Failed to approve task');
@@ -86,12 +117,23 @@ export default function ApprovalDashboardPage() {
 
     try {
       setActionLoading(true);
-      await rejectTask(selectedTask.taskId, currentUserCrewId, rejectionReason);
+      const dto: VerifyTaskDto = {
+        action: 'REJECT',
+        rejectionReason: rejectionReason
+      };
+      await verifyTask(selectedTask.id, dto);
       
-      toast.success('Task rejected');
+      toast.success('Task returned for rectification');
       
       // Remove task from list
       setTasks(prev => prev.filter(t => t.id !== selectedTask.id));
+      if (summary) {
+        setSummary({
+          ...summary,
+          pendingApprovalCount: summary.pendingApprovalCount - 1,
+          rectifyTaskCount: summary.rectifyTaskCount + 1
+        });
+      }
       
       // Close modal
       setShowRejectModal(false);
@@ -104,6 +146,13 @@ export default function ApprovalDashboardPage() {
       setActionLoading(false);
     }
   };
+
+  // Filter tasks
+  const filteredTasks = tasks.filter(task => {
+    if (priorityFilter !== 'all' && task.priority !== priorityFilter) return false;
+    if (departmentFilter !== 'all' && task.assignedDepartment !== departmentFilter) return false;
+    return true;
+  });
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -131,37 +180,63 @@ export default function ApprovalDashboardPage() {
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
+          <button 
+            onClick={() => navigate('/pms')}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </button>
           <AlertTriangle className="w-8 h-8 text-orange-500" />
           <h1 className="text-2xl font-bold text-gray-900">Task Approval Dashboard</h1>
         </div>
-        <p className="text-gray-600">
-          Review and approve HIGH/CRITICAL maintenance tasks (C/E Authorization Required)
+        <p className="text-gray-600 ml-14">
+          Review and verify submitted maintenance tasks (C/E Authorization Required)
         </p>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-              <Clock className="w-5 h-5 text-orange-600" />
+            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+              <Clock className="w-5 h-5 text-amber-600" />
             </div>
             <div>
               <p className="text-sm text-gray-600">Pending Approval</p>
-              <p className="text-2xl font-bold text-gray-900">{tasks.length}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {summary?.pendingApprovalCount ?? tasks.length}
+              </p>
             </div>
           </div>
         </div>
         
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
+            <div className="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center">
+              <RefreshCw className="w-5 h-5 text-pink-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Critical Priority</p>
+              <p className="text-sm text-gray-600">Rectify Tasks</p>
               <p className="text-2xl font-bold text-gray-900">
-                {tasks.filter(t => t.priority === 'CRITICAL').length}
+                {summary?.rectifyTaskCount ?? 0}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div 
+          className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:bg-yellow-50 hover:border-yellow-300 transition-colors"
+          onClick={() => navigate('/pms/deferrals')}
+          title="Click to manage deferral requests"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
+              <FileText className="w-5 h-5 text-yellow-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Pending Deferrals</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {summary?.pendingDeferralCount ?? 0}
               </p>
             </div>
           </div>
@@ -169,28 +244,69 @@ export default function ApprovalDashboardPage() {
 
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-orange-600" />
+            <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">High Priority</p>
+              <p className="text-sm text-gray-600">Overdue Tasks</p>
               <p className="text-2xl font-bold text-gray-900">
-                {tasks.filter(t => t.priority === 'HIGH').length}
+                {summary?.overdueTaskCount ?? 0}
               </p>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">Filters:</span>
+          </div>
+          
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+          >
+            <option value="all">All Priorities</option>
+            <option value="CRITICAL">Critical</option>
+            <option value="HIGH">High</option>
+            <option value="NORMAL">Normal</option>
+            <option value="LOW">Low</option>
+          </select>
+          
+          <select
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+          >
+            <option value="all">All Departments</option>
+            <option value="ENGINE">Engine</option>
+            <option value="DECK">Deck</option>
+            <option value="ELECTRICAL">Electrical</option>
+          </select>
+          
+          <button
+            onClick={loadData}
+            className="ml-auto px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200 flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+        </div>
+      </div>
+
       {/* Tasks List */}
-      {tasks.length === 0 ? (
+      {filteredTasks.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
             No Tasks Pending Approval
           </h3>
           <p className="text-gray-600">
-            All HIGH/CRITICAL tasks have been reviewed
+            All submitted tasks have been reviewed
           </p>
         </div>
       ) : (
@@ -208,7 +324,7 @@ export default function ApprovalDashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {tasks.map((task) => (
+              {filteredTasks.map((task) => (
                 <tr key={task.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <span className="font-medium text-gray-900">{task.taskId}</span>
@@ -261,6 +377,31 @@ export default function ApprovalDashboardPage() {
               ))}
             </tbody>
           </table>
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Page {page} of {totalPages}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 border border-gray-300 rounded-md text-sm disabled:opacity-50 hover:bg-gray-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-1.5 border border-gray-300 rounded-md text-sm disabled:opacity-50 hover:bg-gray-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -295,8 +436,21 @@ export default function ApprovalDashboardPage() {
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <p className="text-sm text-blue-800">
-                  Task will be moved to PENDING status and ready for execution
+                  Task will be marked as COMPLETED and verification recorded
                 </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Approval Notes (Optional)
+                </label>
+                <textarea
+                  value={approvalNotes}
+                  onChange={(e) => setApprovalNotes(e.target.value)}
+                  placeholder="Add any notes about this approval..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
               </div>
 
               <div className="flex gap-3">
@@ -368,7 +522,7 @@ export default function ApprovalDashboardPage() {
 
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
                 <p className="text-sm text-orange-800">
-                  Task will be moved to REJECTED status and require revision
+                  Task will be moved to RECTIFY status for crew to fix issues
                 </p>
               </div>
 

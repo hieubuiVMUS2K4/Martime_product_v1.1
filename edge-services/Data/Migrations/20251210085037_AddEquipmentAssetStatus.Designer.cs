@@ -3,6 +3,7 @@ using System;
 using MaritimeEdge.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MaritimeEdge.Data.Migrations
 {
     [DbContext(typeof(EdgeDbContext))]
-    partial class EdgeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251210085037_AddEquipmentAssetStatus")]
+    partial class AddEquipmentAssetStatus
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1869,14 +1872,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<int?>("ActualDuration")
-                        .HasColumnType("integer")
-                        .HasColumnName("actual_duration");
-
-                    b.Property<double?>("ActualRunningHours")
-                        .HasColumnType("decimal(10,2)")
-                        .HasColumnName("actual_running_hours");
-
                     b.Property<DateTime?>("ApprovedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("approved_at");
@@ -1886,32 +1881,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("approved_by");
 
-                    b.Property<string>("AssignedDepartment")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("assigned_department");
-
                     b.Property<string>("AssignedTo")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("assigned_to");
-
-                    b.Property<string>("CancellationReason")
-                        .HasColumnType("text")
-                        .HasColumnName("cancellation_reason");
-
-                    b.Property<DateTime?>("CancelledAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("cancelled_at");
-
-                    b.Property<string>("CancelledBy")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("cancelled_by");
-
-                    b.Property<bool>("ChecklistCompleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("checklist_completed");
 
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1925,10 +1898,6 @@ namespace MaritimeEdge.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<int>("DeferralCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("deferral_count");
 
                     b.Property<Guid?>("EquipmentGroupId")
                         .HasColumnType("uuid")
@@ -1949,14 +1918,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("equipment_name");
 
-                    b.Property<int?>("EstimatedDuration")
-                        .HasColumnType("integer")
-                        .HasColumnName("estimated_duration");
-
-                    b.Property<bool>("HasPendingDeferral")
-                        .HasColumnType("boolean")
-                        .HasColumnName("has_pending_deferral");
-
                     b.Property<int?>("IntervalDays")
                         .HasColumnType("integer")
                         .HasColumnName("interval_days");
@@ -1965,35 +1926,13 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("decimal(10,2)")
                         .HasColumnName("interval_hours");
 
-                    b.Property<bool>("IsCms")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_cms");
-
                     b.Property<bool>("IsSynced")
                         .HasColumnType("boolean")
                         .HasColumnName("is_synced");
 
-                    b.Property<DateTime?>("LastDeferredAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_deferred_at");
-
-                    b.Property<string>("LastDeferredBy")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("last_deferred_by");
-
                     b.Property<DateTime?>("LastDoneAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_done_at");
-
-                    b.Property<DateTime?>("LastRejectedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_rejected_at");
-
-                    b.Property<string>("LastRejectedBy")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("last_rejected_by");
 
                     b.Property<DateTime>("NextDueAt")
                         .HasColumnType("timestamp with time zone")
@@ -2009,31 +1948,16 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("origin_node");
 
-                    b.Property<int>("PhotosUploaded")
-                        .HasColumnType("integer")
-                        .HasColumnName("photos_uploaded");
-
                     b.Property<string>("Priority")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("priority");
 
-                    b.Property<int>("RejectionCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("rejection_count");
-
-                    b.Property<string>("RejectionHistory")
-                        .HasColumnType("jsonb")
-                        .HasColumnName("rejection_history");
-
                     b.Property<string>("RejectionReason")
-                        .HasColumnType("text")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("rejection_reason");
-
-                    b.Property<int>("RequiredPhotos")
-                        .HasColumnType("integer")
-                        .HasColumnName("required_photos");
 
                     b.Property<double?>("RunningHoursAtLastDone")
                         .HasColumnType("decimal(10,2)")
@@ -2048,29 +1972,11 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("started_at");
 
-                    b.Property<string>("StartedBy")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("started_by");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("status");
-
-                    b.Property<DateTime?>("SubmittedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("submitted_at");
-
-                    b.Property<string>("SubmittedBy")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("submitted_by");
-
-                    b.Property<DateTime?>("SyncedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("synced_at");
 
                     b.Property<string>("TaskDescription")
                         .IsRequired()
@@ -2097,41 +2003,13 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<string>("VerificationNotes")
-                        .HasColumnType("text")
-                        .HasColumnName("verification_notes");
-
-                    b.Property<string>("VerificationResult")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("verification_result");
-
-                    b.Property<DateTime?>("VerifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("verified_at");
-
-                    b.Property<string>("VerifiedBy")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("verified_by");
-
                     b.HasKey("Id")
                         .HasName("p_k_maintenance_tasks");
-
-                    b.HasIndex("AssignedDepartment")
-                        .HasDatabaseName("idx_maintenance_department");
-
-                    b.HasIndex("AssignedTo")
-                        .HasDatabaseName("idx_maintenance_assigned_to");
 
                     b.HasIndex("EquipmentGroupId");
 
                     b.HasIndex("EquipmentId")
                         .HasDatabaseName("idx_maintenance_equipment");
-
-                    b.HasIndex("HasPendingDeferral")
-                        .HasDatabaseName("idx_maintenance_pending_deferral")
-                        .HasFilter("has_pending_deferral = true");
 
                     b.HasIndex("IsSynced")
                         .HasDatabaseName("idx_maintenance_synced")
@@ -2152,7 +2030,7 @@ namespace MaritimeEdge.Data.Migrations
 
                     b.HasIndex("Status", "Priority")
                         .HasDatabaseName("idx_maintenance_status_priority")
-                        .HasFilter("status IN ('SCHEDULED', 'DUE', 'OVERDUE', 'IN_PROGRESS', 'PENDING_APPROVAL', 'RECTIFY')");
+                        .HasFilter("status IN ('PENDING', 'OVERDUE', 'IN_PROGRESS')");
 
                     b.ToTable("maintenance_tasks", "public");
                 });
@@ -4251,123 +4129,6 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("task_checklist_items", "public");
                 });
 
-            modelBuilder.Entity("MaritimeEdge.Models.TaskDeferralRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Attachments")
-                        .HasColumnType("jsonb")
-                        .HasColumnName("attachments");
-
-                    b.Property<string>("ClassPermissionLetter")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("class_permission_letter");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime>("CurrentDueDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("current_due_date");
-
-                    b.Property<int>("DeferralDays")
-                        .HasColumnType("integer")
-                        .HasColumnName("deferral_days");
-
-                    b.Property<bool>("IsCmsItem")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_cms_item");
-
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_synced");
-
-                    b.Property<string>("OriginNode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("origin_node");
-
-                    b.Property<string>("Priority")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("priority");
-
-                    b.Property<DateTime>("ProposedDueDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("proposed_due_date");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("reason");
-
-                    b.Property<DateTime>("RequestedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("requested_at");
-
-                    b.Property<string>("RequestedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("requested_by");
-
-                    b.Property<string>("ReviewNotes")
-                        .HasColumnType("text")
-                        .HasColumnName("review_notes");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("reviewed_at");
-
-                    b.Property<string>("ReviewedBy")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("reviewed_by");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("status");
-
-                    b.Property<Guid>("TaskId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("task_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("p_k_task_deferral_requests");
-
-                    b.HasIndex("IsSynced")
-                        .HasDatabaseName("idx_deferral_synced")
-                        .HasFilter("is_synced = false");
-
-                    b.HasIndex("RequestedBy")
-                        .HasDatabaseName("idx_deferral_requested_by");
-
-                    b.HasIndex("Status")
-                        .HasDatabaseName("idx_deferral_status");
-
-                    b.HasIndex("TaskId")
-                        .HasDatabaseName("idx_deferral_task_id");
-
-                    b.HasIndex("Status", "RequestedAt")
-                        .HasDatabaseName("idx_deferral_pending")
-                        .HasFilter("status = 'PENDING'");
-
-                    b.ToTable("task_deferral_requests", "public");
-                });
-
             modelBuilder.Entity("MaritimeEdge.Models.TaskDetail", b =>
                 {
                     b.Property<long>("Id")
@@ -4442,75 +4203,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasFilter("is_active = true");
 
                     b.ToTable("task_details", "public");
-                });
-
-            modelBuilder.Entity("MaritimeEdge.Models.TaskStatusHistory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("ChangedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("changed_at");
-
-                    b.Property<string>("ChangedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("changed_by");
-
-                    b.Property<string>("DeviceType")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("device_type");
-
-                    b.Property<string>("FromStatus")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("from_status");
-
-                    b.Property<string>("IpAddress")
-                        .HasMaxLength(45)
-                        .HasColumnType("character varying(45)")
-                        .HasColumnName("ip_address");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text")
-                        .HasColumnName("notes");
-
-                    b.Property<string>("Reason")
-                        .HasColumnType("text")
-                        .HasColumnName("reason");
-
-                    b.Property<Guid>("TaskId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("task_id");
-
-                    b.Property<string>("ToStatus")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("to_status");
-
-                    b.Property<string>("UserAgent")
-                        .HasColumnType("text")
-                        .HasColumnName("user_agent");
-
-                    b.HasKey("Id")
-                        .HasName("p_k_task_status_histories");
-
-                    b.HasIndex("ChangedAt")
-                        .HasDatabaseName("idx_status_history_changed_at");
-
-                    b.HasIndex("TaskId")
-                        .HasDatabaseName("idx_status_history_task_id");
-
-                    b.HasIndex("TaskId", "ChangedAt")
-                        .HasDatabaseName("idx_status_history_task_time");
-
-                    b.ToTable("task_status_history", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.TaskType", b =>
@@ -5246,30 +4938,6 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("Task");
                 });
 
-            modelBuilder.Entity("MaritimeEdge.Models.TaskDeferralRequest", b =>
-                {
-                    b.HasOne("MaritimeEdge.Models.MaintenanceTask", "Task")
-                        .WithMany("DeferralRequests")
-                        .HasForeignKey("TaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("f_k_task_deferral_requests_maintenance_tasks_task_id");
-
-                    b.Navigation("Task");
-                });
-
-            modelBuilder.Entity("MaritimeEdge.Models.TaskStatusHistory", b =>
-                {
-                    b.HasOne("MaritimeEdge.Models.MaintenanceTask", "Task")
-                        .WithMany("StatusHistory")
-                        .HasForeignKey("TaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("f_k_task_status_histories_maintenance_tasks_task_id");
-
-                    b.Navigation("Task");
-                });
-
             modelBuilder.Entity("MaritimeEdge.Models.User", b =>
                 {
                     b.HasOne("MaritimeEdge.Models.CrewMember", null)
@@ -5303,10 +4971,6 @@ namespace MaritimeEdge.Data.Migrations
             modelBuilder.Entity("MaritimeEdge.Models.MaintenanceTask", b =>
                 {
                     b.Navigation("ChecklistItems");
-
-                    b.Navigation("DeferralRequests");
-
-                    b.Navigation("StatusHistory");
                 });
 #pragma warning restore 612, 618
         }

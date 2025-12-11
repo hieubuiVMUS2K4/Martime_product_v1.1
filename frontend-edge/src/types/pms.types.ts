@@ -14,6 +14,7 @@ export interface EquipmentAsset {
   equipmentGroupId?: string;
   location?: string;
   criticality: string;
+  status: string;
   defaultExecutorRole?: string;
   approverRole?: string;
   technicalSpecs?: string;
@@ -32,6 +33,7 @@ export interface CreateEquipmentAssetDto {
   equipmentGroupId?: string;
   location?: string;
   criticality?: string;
+  status?: string;
   defaultExecutorRole?: string;
   approverRole?: string;
   technicalSpecs?: string;

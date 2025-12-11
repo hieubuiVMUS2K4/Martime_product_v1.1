@@ -9,7 +9,7 @@
 import { useState, useEffect } from 'react';
 import { Wrench, AlertTriangle } from 'lucide-react';
 import { maritimeService } from '@/services/maritime.service';
-import type { MaintenanceTask } from '@/types/maintenance.types';
+import type { MaintenanceTask } from '@/types/maritime.types';
 import { toast } from 'sonner';
 
 export default function WorkPlanningPage() {

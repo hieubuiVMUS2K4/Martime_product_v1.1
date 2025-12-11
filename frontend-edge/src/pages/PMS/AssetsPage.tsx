@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Upload, Download, Search, Wrench, Package } from 'lucide-react';
+import { Plus, Upload, Download, Search, Wrench, Package, Edit2, Eye } from 'lucide-react';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { AddAssetModal } from '@/components/pms/AddAssetModal';
 import { ImportAssetsModal } from '@/components/pms/ImportAssetsModal';
+import { EditAssetModal } from '@/components/pms/EditAssetModal';
 import ViewAssetModal from '@/components/pms/ViewAssetModal';
 import type { EquipmentAsset } from '@/types/pms.types';
 
@@ -20,6 +21,15 @@ const CATEGORIES = [
   'HVAC'
 ];
 
+const STATUS_OPTIONS = [
+  { value: '', label: 'All Status' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'STANDBY', label: 'Standby' },
+  { value: 'UNDER_MAINTENANCE', label: 'Under Maintenance' },
+  { value: 'DECOMMISSIONED', label: 'Decommissioned' },
+  { value: 'IN_STORAGE', label: 'In Storage' }
+];
+
 
 
 export default function AssetsPage() {
@@ -28,11 +38,13 @@ export default function AssetsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10); // 10 rows per page
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<EquipmentAsset | null>(null);
 
   useEffect(() => {
@@ -41,7 +53,7 @@ export default function AssetsPage() {
 
   useEffect(() => {
     filterAssets();
-  }, [assets, searchTerm, selectedCategory]);
+  }, [assets, searchTerm, selectedCategory, selectedStatus]);
 
   const loadAssets = async () => {
     try {
@@ -68,6 +80,10 @@ export default function AssetsPage() {
 
     if (selectedCategory) {
       filtered = filtered.filter(asset => asset.category === selectedCategory);
+    }
+
+    if (selectedStatus) {
+      filtered = filtered.filter(asset => asset.status === selectedStatus);
     }
 
     setFilteredAssets(filtered);
@@ -103,6 +119,28 @@ export default function AssetsPage() {
       case 'NORMAL': return 'bg-blue-100 text-blue-800';
       case 'LOW': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusBadgeColor = (status: string) => {
+    switch (status) {
+      case 'ACTIVE': return 'bg-green-100 text-green-800';
+      case 'STANDBY': return 'bg-blue-100 text-blue-800';
+      case 'UNDER_MAINTENANCE': return 'bg-yellow-100 text-yellow-800';
+      case 'DECOMMISSIONED': return 'bg-gray-100 text-gray-800';
+      case 'IN_STORAGE': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'ACTIVE': return 'Active';
+      case 'STANDBY': return 'Standby';
+      case 'UNDER_MAINTENANCE': return 'Maintenance';
+      case 'DECOMMISSIONED': return 'Decommissioned';
+      case 'IN_STORAGE': return 'Storage';
+      default: return status;
     }
   };
 
@@ -183,7 +221,7 @@ export default function AssetsPage() {
         </div>
 
         {/* Filter Options */}
-        <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-1 gap-4">
+        <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
             <select
@@ -194,6 +232,19 @@ export default function AssetsPage() {
               <option value="">All Categories</option>
               {CATEGORIES.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              {STATUS_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
           </div>
@@ -233,12 +284,13 @@ export default function AssetsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">Code</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase min-w-[200px]">Asset Name</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-40">Category</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-36">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-40">Manufacturer</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">Model</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-40">Location</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">Running Hours</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">Criticality</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-40">Actions</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase w-32">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -260,6 +312,11 @@ export default function AssetsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-sm text-gray-600">{asset.category}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusBadgeColor(asset.status)}`}>
+                      {getStatusLabel(asset.status)}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-sm text-gray-600">{asset.manufacturer || '-'}</span>
@@ -284,16 +341,29 @@ export default function AssetsPage() {
                       {asset.criticality}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">
-                    <button 
-                      onClick={() => {
-                        setSelectedAsset(asset);
-                        setShowViewModal(true);
-                      }}
-                      className="text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                      View
-                    </button>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center justify-end gap-2">
+                      <button 
+                        onClick={() => {
+                          setSelectedAsset(asset);
+                          setShowEditModal(true);
+                        }}
+                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                        title="Edit"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setSelectedAsset(asset);
+                          setShowViewModal(true);
+                        }}
+                        className="p-1 text-green-600 hover:bg-green-50 rounded"
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -362,6 +432,15 @@ export default function AssetsPage() {
       <ImportAssetsModal
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
+        onSuccess={loadAssets}
+      />
+      <EditAssetModal
+        isOpen={showEditModal}
+        asset={selectedAsset}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedAsset(null);
+        }}
         onSuccess={loadAssets}
       />
       <ViewAssetModal

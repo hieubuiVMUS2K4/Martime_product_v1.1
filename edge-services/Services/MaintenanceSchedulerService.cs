@@ -61,7 +61,12 @@ public class MaintenanceSchedulerService : BackgroundService
         {
             try
             {
-                await GenerateTasksFromSchedules().ConfigureAwait(false);
+                // 1. Auto-correct task statuses based on due dates
+                await AutoCorrectTaskStatuses();
+                
+                // 2. Generate new tasks from schedules
+                await GenerateTasksFromSchedules();
+                
                 await Task.Delay(_checkInterval, stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -74,6 +79,90 @@ public class MaintenanceSchedulerService : BackgroundService
                 _logger.LogError(ex, "Error in Maintenance Scheduler Service");
                 await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken).ConfigureAwait(false); // Wait 5 min on error
             }
+        }
+    }
+
+    /// <summary>
+    /// Auto-correct task statuses based on due dates (PMS Workflow v2.0):
+    /// - SCHEDULED → DUE (when due date is today)
+    /// - SCHEDULED → OVERDUE (when past due date)
+    /// - DUE → OVERDUE (when past due date)
+    /// - OVERDUE → DUE/SCHEDULED (if due date was extended via deferral)
+    /// Does NOT touch: IN_PROGRESS, PENDING_APPROVAL, RECTIFY, COMPLETED
+    /// </summary>
+    private async Task AutoCorrectTaskStatuses()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<EdgeDbContext>();
+
+        try
+        {
+            var now = DateTime.UtcNow;
+            var today = now.Date;
+
+            // Get all tasks that need status correction
+            var statusesToProcess = new[] { "SCHEDULED", "DUE", "PENDING", "OVERDUE" };
+            var tasks = await context.MaintenanceTasks
+                .Where(t => statusesToProcess.Contains(t.Status))
+                .ToListAsync();
+
+            int correctedCount = 0;
+
+            foreach (var task in tasks)
+            {
+                var dueDate = task.NextDueAt.Date;
+                var isOverdue = dueDate < today;
+                var isDue = dueDate <= today;
+                string? newStatus = null;
+
+                if (task.Status == "SCHEDULED")
+                {
+                    if (isOverdue)
+                    {
+                        newStatus = "OVERDUE";
+                    }
+                    else if (isDue)
+                    {
+                        newStatus = "DUE";
+                    }
+                }
+                else if (task.Status == "DUE" && isOverdue)
+                {
+                    newStatus = "OVERDUE";
+                }
+                else if (task.Status == "PENDING") // Legacy: Migrate to new workflow
+                {
+                    newStatus = isOverdue ? "OVERDUE" : "DUE";
+                }
+                else if (task.Status == "OVERDUE" && !isOverdue)
+                {
+                    // Due date was extended (e.g., via approved deferral)
+                    newStatus = isDue ? "DUE" : "SCHEDULED";
+                }
+
+                if (newStatus != null && newStatus != task.Status)
+                {
+                    _logger.LogDebug("Auto-correcting task {TaskId}: {OldStatus} → {NewStatus}", 
+                        task.TaskId, task.Status, newStatus);
+                    task.Status = newStatus;
+                    task.UpdatedAt = DateTime.UtcNow;
+                    correctedCount++;
+                }
+            }
+
+            if (correctedCount > 0)
+            {
+                await context.SaveChangesAsync();
+                _logger.LogInformation("Auto-corrected {Count} task statuses based on due dates", correctedCount);
+            }
+            else
+            {
+                _logger.LogDebug("No task statuses needed correction");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error auto-correcting task statuses");
         }
     }
 
@@ -251,7 +340,7 @@ public class MaintenanceSchedulerService : BackgroundService
             // Determine initial status with validation:
             // 1. Validate checklist existence
             // 2. Validate PIC assignment
-            // 3. Only move to PENDING/PENDING_APPROVAL if both are satisfied
+            // 3. Set SCHEDULED for valid tasks (PMS Workflow v2.0)
             string initialStatus = DetermineTaskStatus(assignedTo, hasChecklistTemplates, schedule.Priority);
             
             _logger.LogDebug(
@@ -280,7 +369,7 @@ public class MaintenanceSchedulerService : BackgroundService
                 NextDueAt = schedule.NextDueDate!.Value,
                 RunningHoursAtLastDone = schedule.LastExecutedRunningHours,
                 Priority = schedule.Priority,
-                Status = initialStatus, // TASK, PENDING, or PENDING_APPROVAL based on assignment and priority
+                Status = initialStatus, // SCHEDULED, MISSING_*, based on validation (PMS Workflow v2.0)
                 AssignedTo = assignedTo, // Auto-assigned based on waterfall logic (null if unassigned)
                 SparePartsUsed = sparePartsJson,
                 Notes = $"Auto-generated from schedule: {schedule.ScheduleCode} (Group: {group.GroupName})",
@@ -478,12 +567,15 @@ public class MaintenanceSchedulerService : BackgroundService
     }
 
     /// <summary>
-    /// Determine task status based on validation rules:
-    /// - MISSING_BOTH: No PIC and no checklist
-    /// - MISSING_PIC: Has checklist but no PIC assigned
-    /// - MISSING_CHECKLIST: Has PIC but no checklist defined
-    /// - PENDING_APPROVAL: HIGH/CRITICAL with both PIC and checklist
-    /// - PENDING: LOW/MEDIUM with both PIC and checklist
+    /// Determine task status based on validation rules (PMS Workflow v2.0):
+    /// - MISSING_BOTH: No PIC and no checklist → Cannot proceed
+    /// - MISSING_PIC: Has checklist but no PIC assigned → Needs Work Planner
+    /// - MISSING_CHECKLIST: Has PIC but no checklist defined → Needs Schedule Config
+    /// - SCHEDULED: Task ready but not yet due (default for valid tasks)
+    /// - DUE: Task is due (determined by scheduler based on date)
+    /// 
+    /// Note: PENDING_APPROVAL status is ONLY set when crew SUBMITS a task after completion.
+    /// New tasks always start as SCHEDULED, then move to DUE when due date arrives.
     /// </summary>
     private string DetermineTaskStatus(string? assignedTo, bool hasChecklist, string priority)
     {
@@ -508,17 +600,10 @@ public class MaintenanceSchedulerService : BackgroundService
             return "MISSING_CHECKLIST";
         }
 
-        // Both PIC and checklist exist - determine based on priority
-        if (priority == "HIGH" || priority == "CRITICAL")
-        {
-            _logger.LogDebug("Task ready for approval: HIGH/CRITICAL priority → PENDING_APPROVAL");
-            return "PENDING_APPROVAL";
-        }
-        else
-        {
-            _logger.LogDebug("Task ready for execution: LOW/MEDIUM priority → PENDING");
-            return "PENDING";
-        }
+        // PMS Workflow v2.0: All valid tasks start as SCHEDULED
+        // They will automatically move to DUE when due date arrives (via status update job)
+        _logger.LogDebug("Task valid with PIC and checklist → SCHEDULED (will become DUE when due date arrives)");
+        return "SCHEDULED";
     }
 
     /// <summary>

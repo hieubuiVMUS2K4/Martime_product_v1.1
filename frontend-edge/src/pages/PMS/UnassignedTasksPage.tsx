@@ -9,7 +9,7 @@ export default function UnassignedTasksPage() {
   const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
   const [crew, setCrew] = useState<CrewMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [assigning, setAssigning] = useState<number | null>(null);
+  const [assigning, setAssigning] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -44,7 +44,7 @@ export default function UnassignedTasksPage() {
     }
   };
 
-  const handleAssign = async (taskId: number, crewId: string) => {
+  const handleAssign = async (taskId: string, crewId: string) => {
     try {
       setAssigning(taskId);
       

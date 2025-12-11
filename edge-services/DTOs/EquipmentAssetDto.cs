@@ -44,6 +44,9 @@ public class EquipmentAssetDto
     [MaxLength(20)]
     public string Criticality { get; set; } = "NORMAL";
     
+    [MaxLength(50)]
+    public string Status { get; set; } = "ACTIVE";
+    
     public string? TechnicalSpecs { get; set; }
     
     public string? Notes { get; set; }
@@ -87,6 +90,9 @@ public class CreateEquipmentAssetDto
     [MaxLength(20)]
     public string Criticality { get; set; } = "NORMAL";
     
+    [MaxLength(50)]
+    public string Status { get; set; } = "ACTIVE";
+    
     public string? TechnicalSpecs { get; set; }
     
     public string? Notes { get; set; }
@@ -117,6 +123,11 @@ public class UpdateEquipmentAssetDto
     
     [MaxLength(20)]
     public string Criticality { get; set; } = "NORMAL";
+    
+    [MaxLength(50)]
+    public string Status { get; set; } = "ACTIVE";
+    
+    public double? CurrentRunningHours { get; set; }
     
     public string? TechnicalSpecs { get; set; }
     
