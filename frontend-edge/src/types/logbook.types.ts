@@ -134,32 +134,80 @@ export interface SignLogbookDto {
   remarks?: string;
 }
 
-// Watchkeeping Log
+// Watchkeeping Log (SOLAS Chapter V/28, STCW Convention, MLC 2006)
 export interface CreateWatchkeepingLogDto {
   watchDate: string;
-  watchPeriod: string;
-  watchType: string;
+  watchPeriod: string; // 00-04, 04-08, 08-12, 12-16, 16-20, 20-24
+  watchType: string; // NAVIGATION, ENGINE
   officerOnWatch: string;
+  reliefOfficer?: string; // Officer taking over watch
   lookout?: string;
+  
+  // STCW Rest Hours Compliance (Mandatory)
+  workHours?: number; // Hours worked this watch (default 4h)
+  restHoursLast24h?: number; // Minimum 10 hours in any 24-hour period
+  restHoursLast7Days?: number; // Minimum 77 hours in any 7-day period
+  restHoursCompliant?: boolean; // Auto-calculated compliance
+  restHoursException?: string; // If non-compliant, reason must be recorded
+  
+  // Weather & Navigation
   weatherConditions?: string;
-  seaState?: string;
-  visibility?: string;
+  seaState?: string; // Douglas Sea Scale: Calm, Smooth, Slight, Moderate, Rough, Very Rough, High, Very High, Phenomenal
+  visibility?: string; // Good (>5nm), Moderate (2-5nm), Poor (0.5-2nm), Fog (<0.5nm)
   courseLogged?: number;
   speedLogged?: number;
   positionLat?: number;
   positionLon?: number;
   distanceRun?: number;
+  
+  // Bridge Equipment Status
   engineStatus?: string;
+  radarOperational?: boolean;
+  ecdisOperational?: boolean;
+  aisOperational?: boolean;
+  gyroOperational?: boolean;
+  autopilotEngaged?: boolean;
+  equipmentDefects?: string; // Any navigation equipment failures
+  
+  // GMDSS Watch (SOLAS Chapter IV)
+  gmdssWatchMaintained?: boolean;
+  navigationWarningsReceived?: string; // NAVTEX, SafetyNET messages
+  
+  // Watch Events & Handover
   notableEvents?: string;
+  handoverNotes?: string; // Notes for relieving officer (mandatory)
+  handoverChecklistCompleted?: boolean;
+  watchStartTime?: string;
+  watchEndTime?: string;
+  
+  // Bridge Manning (STCW)
+  bridgeManningLevel?: number; // Number of persons on bridge
+  lookoutPosted?: boolean; // Mandatory during hours of darkness
+  
+  // Fatigue Management (MLC 2006)
+  fatigueRiskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+  fatigueAssessmentDone?: boolean;
 }
 
 export interface WatchkeepingLogResponseDto extends CreateWatchkeepingLogDto {
   id: string;
   masterSignature?: string;
+  signedAt?: string;
   isSynced: boolean;
   createdAt: string;
   updatedAt: string;
   originNode: string;
+}
+
+// Rest Hours Compliance Check DTO
+export interface RestHoursComplianceDto {
+  officerName: string;
+  restHoursLast24h: number;
+  restHoursLast7Days: number;
+  isCompliant24h: boolean; // >= 10 hours
+  isCompliant7Days: boolean; // >= 77 hours
+  isOverallCompliant: boolean;
+  complianceMessage?: string;
 }
 
 // Garbage Record

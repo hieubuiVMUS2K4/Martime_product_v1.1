@@ -580,21 +580,59 @@ export interface CargoOperation {
 export interface WatchkeepingLog {
   id: number
   watchDate: string
-  watchPeriod: string
+  watchPeriod: string // 00-04, 04-08, 08-12, 12-16, 16-20, 20-24
   watchType: 'NAVIGATION' | 'ENGINE'
   officerOnWatch: string
+  reliefOfficer?: string // Officer taking over watch
   lookout?: string
+  
+  // STCW Rest Hours Compliance
+  workHours: number
+  restHoursLast24h: number
+  restHoursLast7Days: number
+  restHoursCompliant: boolean
+  restHoursException?: string
+  
+  // Weather & Navigation
   weatherConditions?: string
-  seaState?: string
+  seaState?: string // Douglas Sea Scale
   visibility?: string
   courseLogged?: number
   speedLogged?: number
   positionLat?: number
   positionLon?: number
   distanceRun?: number
+  
+  // Bridge Equipment Status
   engineStatus?: string
+  radarOperational: boolean
+  ecdisOperational: boolean
+  aisOperational: boolean
+  gyroOperational: boolean
+  autopilotEngaged: boolean
+  equipmentDefects?: string
+  
+  // GMDSS Watch
+  gmdssWatchMaintained: boolean
+  navigationWarningsReceived?: string
+  
+  // Watch Events & Handover
   notableEvents?: string
+  handoverNotes?: string
+  handoverChecklistCompleted: boolean
+  watchStartTime?: string
+  watchEndTime?: string
+  
+  // Bridge Manning
+  bridgeManningLevel: number
+  lookoutPosted: boolean
+  
+  // Fatigue Management (MLC 2006)
+  fatigueRiskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'
+  fatigueAssessmentDone: boolean
+  
   masterSignature?: string
+  signedAt?: string
   isSynced: boolean
   createdAt: string
 }

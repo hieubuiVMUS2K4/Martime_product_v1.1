@@ -1417,7 +1417,7 @@ public class CargoOperation
 }
 
 /// <summary>
-/// Watchkeeping Logs (SOLAS Chapter V/28 - Bridge Watchkeeping)
+/// Watchkeeping Logs (SOLAS Chapter V/28, STCW Convention, MLC 2006)
 /// </summary>
 public class WatchkeepingLog
 {
@@ -1439,15 +1439,31 @@ public class WatchkeepingLog
     public string OfficerOnWatch { get; set; } = string.Empty;
     
     [MaxLength(100)]
+    public string? ReliefOfficer { get; set; } // Officer taking over watch
+    
+    [MaxLength(100)]
     public string? Lookout { get; set; }
     
+    // STCW Rest Hours Compliance (Mandatory)
+    public double WorkHours { get; set; } = 4.0; // Hours worked this watch (default 4h watch)
+    
+    public double RestHoursLast24h { get; set; } // Minimum 10 hours in any 24-hour period
+    
+    public double RestHoursLast7Days { get; set; } // Minimum 77 hours in any 7-day period
+    
+    public bool RestHoursCompliant { get; set; } = true; // Auto-calculated compliance
+    
+    [MaxLength(500)]
+    public string? RestHoursException { get; set; } // If non-compliant, reason must be recorded
+    
+    // Weather & Navigation Conditions
     public string? WeatherConditions { get; set; }
     
     [MaxLength(50)]
-    public string? SeaState { get; set; } // Calm, Moderate, Rough, Very Rough
+    public string? SeaState { get; set; } // 0-9 Douglas Sea Scale (Calm, Smooth, Slight, Moderate, Rough, Very Rough, High, Very High, Phenomenal)
     
     [MaxLength(50)]
-    public string? Visibility { get; set; } // Good, Moderate, Poor, Fog
+    public string? Visibility { get; set; } // Good (>5nm), Moderate (2-5nm), Poor (0.5-2nm), Fog (<0.5nm)
     
     public double? CourseLogged { get; set; } // Degrees true
     
@@ -1459,13 +1475,56 @@ public class WatchkeepingLog
     
     public double? DistanceRun { get; set; } // Nautical miles during watch
     
+    // Bridge Equipment Status
     [MaxLength(200)]
     public string? EngineStatus { get; set; }
     
+    public bool RadarOperational { get; set; } = true;
+    
+    public bool ECDISOperational { get; set; } = true;
+    
+    public bool AISOperational { get; set; } = true;
+    
+    public bool GyroOperational { get; set; } = true;
+    
+    public bool AutopilotEngaged { get; set; } = false;
+    
+    [MaxLength(500)]
+    public string? EquipmentDefects { get; set; } // Any navigation equipment failures
+    
+    // GMDSS Watch (SOLAS Chapter IV)
+    public bool GMDSSWatchMaintained { get; set; } = true;
+    
+    [MaxLength(200)]
+    public string? NavigationWarningsReceived { get; set; } // NAVTEX, SafetyNET messages
+    
+    // Watch Events & Handover
     public string? NotableEvents { get; set; } // Ships sighted, course alterations, weather changes
+    
+    [MaxLength(1000)]
+    public string? HandoverNotes { get; set; } // Notes for relieving officer (mandatory at watch change)
+    
+    public bool HandoverChecklistCompleted { get; set; } = false;
+    
+    public DateTime? WatchStartTime { get; set; }
+    
+    public DateTime? WatchEndTime { get; set; }
+    
+    // Bridge Manning (STCW)
+    public int BridgeManningLevel { get; set; } = 2; // Number of persons on bridge
+    
+    public bool LookoutPosted { get; set; } = true; // Mandatory during hours of darkness/restricted visibility
+    
+    // Fatigue Management (MLC 2006)
+    [MaxLength(20)]
+    public string? FatigueRiskLevel { get; set; } // LOW, MEDIUM, HIGH
+    
+    public bool FatigueAssessmentDone { get; set; } = false;
     
     [MaxLength(200)]
     public string? MasterSignature { get; set; }
+    
+    public DateTime? SignedAt { get; set; }
     
     public bool IsSynced { get; set; } = false;
     

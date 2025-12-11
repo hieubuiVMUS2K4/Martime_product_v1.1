@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, Download, Clock } from 'lucide-react';
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
+import type { SchedulePreview } from '@/types/pms.types';
 
 type ViewMode = 'week' | 'month' | 'quarter';
 
@@ -38,17 +39,68 @@ export default function MasterSchedulePage() {
     loadScheduleData();
   }, []);
 
+  // Calculate next due date based on interval type if not set
+  const calculateNextDueDate = (preview: SchedulePreview): Date => {
+    if (preview.nextDueDate) {
+      return new Date(preview.nextDueDate);
+    }
+    
+    // If no nextDueDate, calculate based on interval type from today
+    const today = new Date();
+    const intervalDays = getIntervalDays(preview.intervalType, preview.intervalValue);
+    
+    const dueDate = new Date(today);
+    dueDate.setDate(dueDate.getDate() + intervalDays);
+    return dueDate;
+  };
+  
+  // Convert interval type to days
+  const getIntervalDays = (intervalType: string | undefined, intervalValue: number | undefined): number => {
+    switch (intervalType?.toUpperCase()) {
+      case 'DAILY':
+        return 1;
+      case 'WEEKLY':
+        return 7;
+      case 'BI_WEEKLY':
+      case 'BIWEEKLY':
+        return 14;
+      case 'MONTHLY':
+        return 30;
+      case 'QUARTERLY':
+        return 90;
+      case 'SEMI_ANNUALLY':
+      case 'SEMIANNUALLY':
+        return 180;
+      case 'ANNUALLY':
+        return 365;
+      case 'CALENDAR':
+        return intervalValue || 30;
+      case 'RUNNING_HOURS':
+        // For running hours, assume average 12 hours/day operation
+        return intervalValue ? Math.ceil(intervalValue / 12) : 30;
+      default:
+        return 30; // Default to monthly
+    }
+  };
+
   const loadScheduleData = async () => {
     try {
       setLoading(true);
       const previews = await maintenanceScheduleService.getPreview();
       
       // Convert previews to Gantt tasks with CORRECT work period calculation
+      // Include ALL schedules, not just those with nextDueDate
       const ganttTasks: GanttTask[] = previews
-        .filter(p => p.nextDueDate)
         .map(preview => {
-          const dueDate = new Date(preview.nextDueDate!);
-          const daysUntil = preview.daysUntilDue;
+          // Calculate or use existing due date
+          const dueDate = calculateNextDueDate(preview);
+          
+          // Recalculate days until due
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const dueDateTime = new Date(dueDate);
+          dueDateTime.setHours(0, 0, 0, 0);
+          const daysUntil = Math.ceil((dueDateTime.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
           
           // Calculate actual work duration (man-hours to calendar days)
           const estimatedHours = preview.estimatedDurationHours || 4;
@@ -63,7 +115,8 @@ export default function MasterSchedulePage() {
           
           // Calculate REAL progress (for tasks already generated)
           let progress = 0;
-          if (preview.isOverdue) {
+          const isOverdue = daysUntil < 0;
+          if (isOverdue) {
             progress = 100; // Should be completed
           } else if (daysUntil <= leadTimeDays) {
             // Task is in active window, show preparation progress
@@ -80,7 +133,7 @@ export default function MasterSchedulePage() {
             workDurationDays,
             leadTimeDays,
             priority: preview.priority,
-            isOverdue: preview.isOverdue,
+            isOverdue,
             daysUntilDue: daysUntil,
             intervalType: preview.intervalType,
             intervalValue: preview.intervalValue,

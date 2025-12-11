@@ -11,8 +11,64 @@
 - **Delta Sync**: 45 bytes/update × 10,000 updates/ngày = 0.45 MB/ngày = 13.5 MB/tháng
 - **Tiết kiệm**: 61.5 MB/tháng × $10/MB (VSAT) = **$615 USD/tháng**
 - **Với Iridium ($15/KB)**: Tiết kiệm lên đến **$922.5 USD/tháng**
-
+-  Chỉ bổ sung Temporal Tables nếu có yêu cầu audit trail từ khách hàng hoặc IMO compliance.
 ---
+Cơ chế hoạt động (đơn giản hóa):
+Bước 1: Phát hiện thay đổi
+User thay đổi data → SaveChanges() → EdgeDbContext phát hiện
+Bước 2: Đưa vào bảng Sync Queue
+-- Tất cả thay đổi được ghi vào bảng sync_queue
+INSERT INTO sync_queue (
+    table_name,      -- Bảng nào bị thay đổi
+    record_key,      -- ID của record
+    action_type,     -- CREATE/UPDATE/DELETE
+    payload,         -- Chỉ chứa trường thay đổi (Delta)
+    priority,        -- Critical/Operational/Low
+    created_at
+) VALUES (
+    'safety_alarms',
+    'f47ac10b-...',
+    'UPDATE',
+    '{"IsAcknowledged":true}', -- CHỈ 1 trường thay đổi
+    1,
+    NOW()
+);
+Bước 3: Background Service lấy ra và gửi
+SyncService (chạy background) → 
+Lấy từ sync_queue → 
+Gửi lên Shore API → 
+Đánh dấu synced_at
+
+Lợi ích của cách này:
+Tách biệt: Việc lưu data và việc đồng bộ độc lập nhau
+
+Tàu mất mạng? Vẫn lưu vào sync_queue
+Có mạng lại? Tự động gửi tiếp
+Retry tự động: Record trong sync_queue có thể thử lại nhiều lần
+
+Priority-based: Gửi alarm trước, log sau
+
+Delta Sync: Chỉ ghi các trường thay đổi vào payload → tiết kiệm băng thông
+
+Ví dụ thực tế:
+
+// Ship: User acknowledge alarm
+alarm.IsAcknowledged = true;
+await context.SaveChangesAsync();
+// ↓
+// Tự động insert vào sync_queue:
+// payload = '{"IsAcknowledged":true}'  ← CHỈ 45 bytes
+// (thay vì 250 bytes nếu gửi toàn bộ alarm object)
+
+// Background service:
+while (true) {
+    var items = GetPendingFromSyncQueue();
+    if (hasInternet) {
+        SendToShore(items);
+        MarkAsSynced(items);
+    }
+    await Task.Delay(60000); // Check mỗi 1 phút
+}
 
 ## 🏗️ Kiến trúc Implementation
 

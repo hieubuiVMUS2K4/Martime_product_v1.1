@@ -404,6 +404,31 @@ public class MaintenanceScheduleController : ControllerBase
     }
 
     /// <summary>
+    /// Calculate next due date based on interval type if not set
+    /// </summary>
+    private DateTime CalculateNextDueDateFromInterval(MaintenanceSchedule schedule)
+    {
+        var today = DateTime.UtcNow.Date;
+        var lastExecuted = schedule.LastExecutedAt?.Date ?? today;
+        
+        var intervalDays = schedule.IntervalType?.ToUpper() switch
+        {
+            "DAILY" => 1,
+            "WEEKLY" => 7,
+            "BI_WEEKLY" or "BIWEEKLY" => 14,
+            "MONTHLY" => 30,
+            "QUARTERLY" => 90,
+            "SEMI_ANNUALLY" or "SEMIANNUALLY" => 180,
+            "ANNUALLY" => 365,
+            "CALENDAR" => schedule.IntervalDays ?? 30,
+            "RUNNING_HOURS" => schedule.IntervalHours.HasValue ? (int)Math.Ceiling(schedule.IntervalHours.Value / 12.0) : 30,
+            _ => 30
+        };
+        
+        return lastExecuted.AddDays(intervalDays);
+    }
+
+    /// <summary>
     /// Preview next due dates for all schedules
     /// </summary>
     [HttpGet("preview")]
@@ -419,16 +444,17 @@ public class MaintenanceScheduleController : ControllerBase
                 var group = await _context.EquipmentGroups.FindAsync(schedule.EquipmentGroupId);
                 if (group == null) continue;
 
-                var daysUntilDue = schedule.NextDueDate.HasValue
-                    ? (schedule.NextDueDate.Value.Date - DateTime.UtcNow.Date).Days
-                    : 999;
+                // Calculate next due date if not set
+                var nextDueDate = schedule.NextDueDate ?? CalculateNextDueDateFromInterval(schedule);
+                
+                var daysUntilDue = (nextDueDate.Date - DateTime.UtcNow.Date).Days;
 
                 previews.Add(new SchedulePreviewDto
                 {
                     ScheduleId = schedule.Id,
                     ScheduleName = schedule.ScheduleName,
                     AssetName = group.GroupName,
-                    NextDueDate = schedule.NextDueDate,
+                    NextDueDate = nextDueDate,
                     NextDueRunningHours = schedule.NextDueRunningHours,
                     DaysUntilDue = daysUntilDue,
                     IsOverdue = daysUntilDue < 0,

@@ -22,12 +22,6 @@ import { ColumnMenu } from './ColumnMenu'
 import { AlertCircle, Clock, Wrench, CheckCircle, ClipboardList, RefreshCw, Plus, X, Calendar, FileText } from 'lucide-react'
 import { maritimeService } from '../../services/maritime.service'
 
-interface CrewMember {
-  crewId: string;
-  fullName: string;
-  rank?: string;
-}
-
 interface KanbanBoardProps {
   tasks: MaintenanceTask[]
   onTaskUpdate: (taskId: string, status: string) => Promise<void>
@@ -126,7 +120,7 @@ const columns: Column[] = [
 const STORAGE_KEY = 'kanban_custom_columns'
 const CUSTOM_TASKS_KEY = 'kanban_custom_tasks'
 
-export function KanbanBoard({ tasks, onTaskUpdate: _onTaskUpdate, onTaskDelete, onTaskClick, onAddTask: _onAddTask, crewList }: KanbanBoardProps) {
+export function KanbanBoard({ tasks, onTaskUpdate: _onTaskUpdate, onTaskDelete, onTaskClick, onAddTask: _onAddTask }: KanbanBoardProps) {
   const navigate = useNavigate()
   const [activeTask, setActiveTask] = useState<MaintenanceTask | null>(null)
   const [activeCustomTask, setActiveCustomTask] = useState<CustomTask | null>(null)
@@ -714,23 +708,6 @@ export function KanbanBoard({ tasks, onTaskUpdate: _onTaskUpdate, onTaskDelete, 
       return
     }
     
-<<<<<<< HEAD
-    // Rule 11: PENDING → IN_PROGRESS allowed (crew starts on mobile or Captain assigns)
-    // Rule 12: PENDING → TASK allowed (Work Planner unassigns)
-    // Rule 13: PENDING → COMPLETED allowed (Captain can directly complete simple tasks)
-    // No blocking rule for PENDING → COMPLETED anymore
-    
-    // Rule 14: OVERDUE → IN_PROGRESS allowed (crew starts late)
-    // Rule 15: OVERDUE → PENDING allowed (Captain reschedules)
-    // Rule 16: OVERDUE → COMPLETED allowed (Captain can directly complete)
-    // No blocking rules for OVERDUE transitions anymore
-    
-    // Rule 17: IN_PROGRESS → COMPLETED allowed (Captain or crew can complete)
-    // Rule 18: IN_PROGRESS → PENDING allowed (cancel assignment)
-    if (currentStatus === 'IN_PROGRESS' && 
-        !['PENDING', 'COMPLETED'].includes(newStatus)) {
-      toast.error('⚠️ Task đang thực hiện chỉ có thể → Pending (hủy) hoặc Completed!')
-=======
     // Rule 6: Cannot move TO COMPLETED via drag (must use Approve via verify API)
     if (newStatus === 'COMPLETED') {
       toast.error('⚠️ C/E phải Approve task trong Approval Dashboard!')
@@ -752,11 +729,14 @@ export function KanbanBoard({ tasks, onTaskUpdate: _onTaskUpdate, onTaskDelete, 
     // Rule 9: IN_PROGRESS cannot be dragged (must complete via mobile)
     if (currentStatus === 'IN_PROGRESS') {
       toast.error('⚠️ Task đang thực hiện - Crew phải Submit hoặc hoàn thành qua mobile!')
->>>>>>> origin/feature/hieu
       return
     }
     
     // Rule 10: PENDING_APPROVAL cannot be dragged (must be approved/rejected via API)
+    if (currentStatus === 'PENDING_APPROVAL') {
+      toast.error('⚠️ Task chờ duyệt - Hãy vào Approval Dashboard để Approve/Reject!')
+      return
+    }
     if (currentStatus === 'PENDING_APPROVAL') {
       toast.error('⚠️ Task chờ duyệt - Hãy vào Approval Dashboard để Approve/Reject!')
       return

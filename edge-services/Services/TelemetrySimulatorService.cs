@@ -136,16 +136,12 @@ namespace MaritimeEdge.Services
 
             await dbContext.PositionData.AddAsync(newPosition);
 
-            // Keep only last 1000 position records
-            var oldPositions = await dbContext.PositionData
-                .OrderByDescending(p => p.Timestamp)
-                .Skip(1000)
-                .ToListAsync();
-            
-            if (oldPositions.Any())
-            {
-                dbContext.PositionData.RemoveRange(oldPositions);
-            }
+            // Efficient cleanup: Delete old records directly in DB (no memory load)
+            // Keep data based on retention config (default 7 days for position)
+            var positionCutoff = DateTime.UtcNow.AddDays(-7);
+            await dbContext.PositionData
+                .Where(p => p.Timestamp < positionCutoff)
+                .ExecuteDeleteAsync();
         }
 
         private async Task SimulateNavigationData(EdgeDbContext dbContext)
@@ -168,16 +164,11 @@ namespace MaritimeEdge.Services
 
             await dbContext.NavigationData.AddAsync(navigation);
 
-            // Keep only last 1000 records
-            var oldRecords = await dbContext.NavigationData
-                .OrderByDescending(n => n.Timestamp)
-                .Skip(1000)
-                .ToListAsync();
-            
-            if (oldRecords.Any())
-            {
-                dbContext.NavigationData.RemoveRange(oldRecords);
-            }
+            // Efficient cleanup: Delete old records directly in DB
+            var navCutoff = DateTime.UtcNow.AddDays(-7);
+            await dbContext.NavigationData
+                .Where(n => n.Timestamp < navCutoff)
+                .ExecuteDeleteAsync();
         }
 
         private async Task SimulateEngineData(EdgeDbContext dbContext)
@@ -226,16 +217,11 @@ namespace MaritimeEdge.Services
 
             await dbContext.EngineData.AddAsync(auxEngine);
 
-            // Cleanup old records
-            var oldRecords = await dbContext.EngineData
-                .OrderByDescending(e => e.Timestamp)
-                .Skip(2000)
-                .ToListAsync();
-            
-            if (oldRecords.Any())
-            {
-                dbContext.EngineData.RemoveRange(oldRecords);
-            }
+            // Efficient cleanup: Delete old records directly in DB (30 days retention for engine)
+            var engineCutoff = DateTime.UtcNow.AddDays(-30);
+            await dbContext.EngineData
+                .Where(e => e.Timestamp < engineCutoff)
+                .ExecuteDeleteAsync();
         }
 
         private async Task SimulateGeneratorData(EdgeDbContext dbContext)
@@ -297,16 +283,11 @@ namespace MaritimeEdge.Services
 
             await dbContext.GeneratorData.AddAsync(emerGen);
 
-            // Cleanup
-            var oldRecords = await dbContext.GeneratorData
-                .OrderByDescending(g => g.Timestamp)
-                .Skip(3000)
-                .ToListAsync();
-            
-            if (oldRecords.Any())
-            {
-                dbContext.GeneratorData.RemoveRange(oldRecords);
-            }
+            // Efficient cleanup: Delete old records directly in DB (30 days retention)
+            var genCutoff = DateTime.UtcNow.AddDays(-30);
+            await dbContext.GeneratorData
+                .Where(g => g.Timestamp < genCutoff)
+                .ExecuteDeleteAsync();
         }
 
         private async Task SimulateEnvironmentalData(EdgeDbContext dbContext)
@@ -328,16 +309,11 @@ namespace MaritimeEdge.Services
 
             await dbContext.EnvironmentalData.AddAsync(env);
 
-            // Cleanup
-            var oldRecords = await dbContext.EnvironmentalData
-                .OrderByDescending(e => e.Timestamp)
-                .Skip(1000)
-                .ToListAsync();
-            
-            if (oldRecords.Any())
-            {
-                dbContext.EnvironmentalData.RemoveRange(oldRecords);
-            }
+            // Efficient cleanup: Delete old records directly in DB (7 days retention)
+            var envCutoff = DateTime.UtcNow.AddDays(-7);
+            await dbContext.EnvironmentalData
+                .Where(e => e.Timestamp < envCutoff)
+                .ExecuteDeleteAsync();
         }
     }
 }

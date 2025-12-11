@@ -193,7 +193,6 @@ export function MaintenancePage() {
     }
   }
 
-<<<<<<< HEAD
   const handleTaskUpdate = async (taskId: string, newStatus: string) => {
     try {
       console.log(`🔄 Updating task ${taskId}: ${newStatus}`)
