@@ -293,13 +293,8 @@ public class MaintenanceSchedulerService : BackgroundService
                 return;
             }
 
-            // Get task type
-            var taskType = await context.TaskTypes.FindAsync(schedule.TaskTypeId);
-            if (taskType == null)
-            {
-                _logger.LogWarning("TaskType not found for schedule {ScheduleCode}", schedule.ScheduleCode);
-                return;
-            }
+            // Note: TaskType is optional in PMS Planning v2.0
+            // Tasks are generated from Equipment Groups → Schedules directly
 
             // Get spare parts requirements
             var spareParts = await context.ScheduleSpareParts
@@ -351,7 +346,7 @@ public class MaintenanceSchedulerService : BackgroundService
             var task = new MaintenanceTask
             {
                 TaskId = taskId,
-                TaskTypeId = schedule.TaskTypeId,
+                TaskTypeId = null, // PMS Planning v2.0: Not using old TaskType system
                 
                 // NEW: Group-based fields
                 EquipmentGroupId = group.Id,
@@ -379,27 +374,8 @@ public class MaintenanceSchedulerService : BackgroundService
 
             context.MaintenanceTasks.Add(task);
 
-            // Create task details (checklist items) from TaskType
-            var taskDetails = await context.TaskDetails
-                .Where(td => td.TaskTypes.Any(tt => tt.Id == schedule.TaskTypeId))
-                .OrderBy(td => td.OrderIndex)
-                .ToListAsync();
-
-            foreach (var detail in taskDetails)
-            {
-                var taskDetail = new MaintenanceTaskDetail
-                {
-                    MaintenanceTaskId = task.Id,
-                    TaskDetailId = detail.Id,
-                    Status = "PENDING",
-                    IsCompleted = false,
-                    CreatedAt = DateTime.UtcNow
-                };
-                context.MaintenanceTaskDetails.Add(taskDetail);
-            }
-
             // Create checklist items for each asset in group
-            // CLONE from schedule_checklist_templates if available
+            // CLONE from schedule_checklist_templates (PMS Planning v2.0)
             var checklistTemplates = await context.ScheduleChecklistTemplates
                 .Where(t => t.ScheduleId == schedule.Id)
                 .OrderBy(t => t.SequenceOrder)

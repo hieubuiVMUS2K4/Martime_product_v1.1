@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Package, Calendar, DollarSign, FileText, User, Clock } from 'lucide-react';
+import { X, Package, Calendar, DollarSign, FileText, Clock } from 'lucide-react';
 import { receiptService } from '../../services/receiptService';
 import type { MaterialReceiptResponseDto } from '../../services/receiptService';
 

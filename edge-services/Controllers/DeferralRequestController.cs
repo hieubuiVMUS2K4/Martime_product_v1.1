@@ -53,6 +53,48 @@ public class DeferralRequestController : ControllerBase
                 });
             }
 
+            // OVERDUE tasks require stricter validation
+            var isOverdueDeferral = task.Status == "OVERDUE";
+            if (isOverdueDeferral)
+            {
+                // Require longer, more detailed reason
+                if (dto.Reason.Length < 50)
+                {
+                    return BadRequest(new {
+                        error = "OVERDUE tasks require detailed explanation (minimum 50 characters)",
+                        provided = dto.Reason.Length,
+                        required = 50
+                    });
+                }
+
+                // Require attachments (proof of issue)
+                if (dto.Attachments == null || dto.Attachments.Count == 0)
+                {
+                    return BadRequest(new {
+                        error = "OVERDUE task deferrals require photo/document attachments as proof",
+                        hint = "Please provide evidence of the issue (e.g., spare parts order, weather report, Class email)"
+                    });
+                }
+
+                // Require root cause and preventive measures in reason
+                var reasonLower = dto.Reason.ToLower();
+                if (string.IsNullOrWhiteSpace(dto.RootCause) || dto.RootCause.Length < 20)
+                {
+                    return BadRequest(new {
+                        error = "OVERDUE deferrals require root cause analysis (minimum 20 characters)",
+                        hint = "Explain why the task became overdue"
+                    });
+                }
+
+                if (string.IsNullOrWhiteSpace(dto.PreventiveMeasures) || dto.PreventiveMeasures.Length < 20)
+                {
+                    return BadRequest(new {
+                        error = "OVERDUE deferrals require preventive measures (minimum 20 characters)",
+                        hint = "Explain how you will prevent this from happening again"
+                    });
+                }
+            }
+
             // Check for existing pending deferral
             if (task.HasPendingDeferral)
             {
@@ -103,10 +145,14 @@ public class DeferralRequestController : ControllerBase
                 ProposedDueDate = dto.ProposedDueDate,
                 DeferralDays = deferralDays,
                 Status = "PENDING",
-                Priority = dto.Priority,
+                Priority = isOverdueDeferral ? "HIGH" : dto.Priority, // Escalate OVERDUE to HIGH
                 IsCmsItem = task.IsCms,
                 ClassPermissionLetter = dto.ClassPermissionLetter,
                 Attachments = dto.Attachments != null ? JsonSerializer.Serialize(dto.Attachments) : null,
+                IsOverdueDeferral = isOverdueDeferral,
+                RootCause = dto.RootCause,
+                PreventiveMeasures = dto.PreventiveMeasures,
+                TaskStatusAtRequest = task.Status,
                 OriginNode = task.OriginNode,
                 IsSynced = false
             };
@@ -369,6 +415,7 @@ public class DeferralRequestController : ControllerBase
             {
                 // Apply deferral
                 var newDueDate = dto.AdjustedDueDate ?? deferral.ProposedDueDate;
+                var wasOverdue = task.Status == "OVERDUE";
                 
                 task.NextDueAt = newDueDate;
                 task.HasPendingDeferral = false;
@@ -376,8 +423,8 @@ public class DeferralRequestController : ControllerBase
                 task.LastDeferredAt = DateTime.UtcNow;
                 task.LastDeferredBy = userId;
                 
-                // Reset status if needed
-                if (task.Status == "OVERDUE")
+                // Reset status if OVERDUE (giving fresh start)
+                if (wasOverdue)
                 {
                     task.Status = "DUE";
                 }
@@ -395,18 +442,23 @@ public class DeferralRequestController : ControllerBase
                 {
                     Id = Guid.NewGuid(),
                     TaskId = task.Id,
-                    FromStatus = null,
-                    ToStatus = "DEFERRAL_APPROVED",
+                    FromStatus = wasOverdue ? "OVERDUE" : task.Status,
+                    ToStatus = wasOverdue ? "DUE" : task.Status,
                     ChangedBy = userId,
                     ChangedAt = DateTime.UtcNow,
-                    Reason = $"Deferral approved. New due date: {newDueDate:yyyy-MM-dd}",
+                    Reason = wasOverdue 
+                        ? $"OVERDUE deferral approved. Status reset to DUE. New due date: {newDueDate:yyyy-MM-dd}" 
+                        : $"Deferral approved. New due date: {newDueDate:yyyy-MM-dd}",
                     Notes = dto.Notes,
                     DeviceType = deviceType
                 };
                 _context.TaskStatusHistories.Add(statusHistory);
 
-                _logger.LogInformation("Deferral request {Id} approved for task {TaskId} by {UserId}", 
-                    id, task.TaskId, userId);
+                _logger.LogInformation(
+                    "Deferral request {Id} approved for task {TaskId} by {UserId}. {StatusChange}", 
+                    id, task.TaskId, userId, 
+                    wasOverdue ? "Status reset from OVERDUE to DUE" : "Status unchanged"
+                );
             }
             else // REJECT
             {

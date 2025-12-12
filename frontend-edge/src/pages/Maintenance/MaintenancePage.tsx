@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Download, LayoutGrid } from 'lucide-react'
-import { MaintenanceTask, parseTaskScheduleInfo } from '../../types/maritime.types'
+import { MaintenanceTask, parseTaskScheduleInfo, CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { differenceInDays, parseISO } from 'date-fns'
 import { KanbanBoard } from '../../components/maintenance/KanbanBoard'
@@ -18,12 +18,11 @@ export function MaintenancePage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
-  const [equipmentFilter, setEquipmentFilter] = useState<string>('all')
   const [groupFilter, setGroupFilter] = useState<string>('all')
   const [scheduleFilter, setScheduleFilter] = useState<string>('all')
   const [isAddScheduleModalOpen, setIsAddScheduleModalOpen] = useState(false)
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false)
-  const [crewList, setCrewList] = useState<Array<{ crewId: string; fullName: string; rank?: string }>>([])
+  const [crewList, setCrewList] = useState<CrewMember[]>([])
   
   // Time window filter (Maritime PMS pattern) - Default to Week view for better overview
   const [timeWindow, setTimeWindow] = useState<'today' | 'week' | '2weeks' | 'month' | 'all'>('week')
@@ -115,11 +114,6 @@ export function MaintenancePage() {
       filtered = filtered.filter(task => task.priority === priorityFilter)
     }
 
-    // Equipment filter
-    if (equipmentFilter !== 'all') {
-      filtered = filtered.filter(task => task.equipmentId === equipmentFilter)
-    }
-
     // Group filter (by Equipment Group)
     if (groupFilter !== 'all') {
       filtered = filtered.filter(task => {
@@ -146,7 +140,7 @@ export function MaintenancePage() {
     })
 
     setFilteredTasks(filtered)
-  }, [tasks, searchQuery, priorityFilter, equipmentFilter, groupFilter, scheduleFilter, timeWindow, showCompleted])
+  }, [tasks, searchQuery, priorityFilter, groupFilter, scheduleFilter, timeWindow, showCompleted])
 
   // Calculate quick stats for time windows
   const getTimeWindowStats = () => {
@@ -248,8 +242,6 @@ export function MaintenancePage() {
     }
   }
 
-  const uniqueEquipment = [...new Set(tasks.map(t => t.equipmentId))]
-  
   // Extract unique groups and schedules from tasks
   const uniqueGroups = [...new Set(
     tasks
@@ -361,18 +353,6 @@ export function MaintenancePage() {
               <option value="HIGH">High</option>
               <option value="NORMAL">Normal</option>
               <option value="LOW">Low</option>
-            </select>
-
-            {/* Equipment Filter */}
-            <select
-              value={equipmentFilter}
-              onChange={(e) => setEquipmentFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-            >
-              <option value="all">All Equipment</option>
-              {uniqueEquipment.map(eq => (
-                <option key={eq} value={eq}>{eq}</option>
-              ))}
             </select>
 
             {/* Equipment Group Filter */}

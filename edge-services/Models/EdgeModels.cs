@@ -1179,6 +1179,29 @@ public class TaskDeferralRequest
     [MaxLength(255)]
     public string? ClassPermissionLetter { get; set; }
     
+    // ============ OVERDUE SPECIFIC ============
+    
+    /// <summary>
+    /// Flag if this deferral is for an OVERDUE task (requires stricter validation)
+    /// </summary>
+    public bool IsOverdueDeferral { get; set; } = false;
+    
+    /// <summary>
+    /// Root cause analysis (REQUIRED for OVERDUE deferrals)
+    /// </summary>
+    public string? RootCause { get; set; }
+    
+    /// <summary>
+    /// Preventive measures (REQUIRED for OVERDUE deferrals)
+    /// </summary>
+    public string? PreventiveMeasures { get; set; }
+    
+    /// <summary>
+    /// Task status at the time of deferral request (for audit)
+    /// </summary>
+    [MaxLength(20)]
+    public string? TaskStatusAtRequest { get; set; }
+    
     // ============ AUDIT ============
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

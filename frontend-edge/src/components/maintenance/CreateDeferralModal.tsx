@@ -22,7 +22,14 @@ export function CreateDeferralModal({ task, isOpen, onClose, onSuccess }: Create
   const [reason, setReason] = useState('');
   const [proposedDate, setProposedDate] = useState('');
   const [classPermissionLetter, setClassPermissionLetter] = useState('');
+  const [rootCause, setRootCause] = useState('');
+  const [preventiveMeasures, setPreventiveMeasures] = useState('');
+  const [attachments, setAttachments] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Check if task is OVERDUE (requires stricter validation)
+  const isOverdue = task.status === 'OVERDUE';
+  const minReasonLength = isOverdue ? 50 : 20;
 
   // Calculate deferral days
   const currentDueDate = parseISO(task.nextDueAt);
@@ -38,6 +45,26 @@ export function CreateDeferralModal({ task, isOpen, onClose, onSuccess }: Create
     
     if (!reason.trim()) {
       toast.error('Please provide a reason for deferral');
+      return;
+    }
+    
+    if (reason.trim().length < minReasonLength) {
+      toast.error(`Reason must be at least ${minReasonLength} characters${isOverdue ? ' for OVERDUE tasks' : ''}`);
+      return;
+    }
+    
+    if (isOverdue && (!rootCause.trim() || rootCause.trim().length < 20)) {
+      toast.error('OVERDUE tasks require root cause analysis (min 20 characters)');
+      return;
+    }
+    
+    if (isOverdue && (!preventiveMeasures.trim() || preventiveMeasures.trim().length < 20)) {
+      toast.error('OVERDUE tasks require preventive measures (min 20 characters)');
+      return;
+    }
+    
+    if (isOverdue && attachments.length === 0) {
+      toast.error('OVERDUE task deferrals require photo/document attachments as proof');
       return;
     }
     
@@ -62,6 +89,9 @@ export function CreateDeferralModal({ task, isOpen, onClose, onSuccess }: Create
         taskId: task.id,
         reason: reason.trim(),
         proposedDueDate: proposedDate,
+        rootCause: isOverdue ? rootCause.trim() : undefined,
+        preventiveMeasures: isOverdue ? preventiveMeasures.trim() : undefined,
+        attachments: attachments.length > 0 ? attachments : undefined,
         classPermissionLetter: requiresClassPermission ? classPermissionLetter.trim() : undefined
       };
       
@@ -81,6 +111,9 @@ export function CreateDeferralModal({ task, isOpen, onClose, onSuccess }: Create
     setReason('');
     setProposedDate('');
     setClassPermissionLetter('');
+    setRootCause('');
+    setPreventiveMeasures('');
+    setAttachments([]);
     onClose();
   };
 
@@ -122,9 +155,16 @@ export function CreateDeferralModal({ task, isOpen, onClose, onSuccess }: Create
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-medium">Current Due Date:</span> 
-                <span className="text-amber-600 font-medium">
+                <span className={`font-medium ${
+                  isOverdue ? 'text-red-600' : 'text-amber-600'
+                }`}>
                   {format(currentDueDate, 'dd MMM yyyy')}
                 </span>
+                {isOverdue && (
+                  <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded">
+                    OVERDUE
+                  </span>
+                )}
               </div>
               {task.isCms && (
                 <div className="flex items-center gap-1 text-blue-700 mt-2 pt-2 border-t border-gray-200">
@@ -136,21 +176,134 @@ export function CreateDeferralModal({ task, isOpen, onClose, onSuccess }: Create
             </div>
           </div>
 
+          {/* OVERDUE Warning */}
+          {isOverdue && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-red-800 mb-1">
+                    OVERDUE Task - Stricter Requirements
+                  </p>
+                  <p className="text-sm text-red-700">
+                    • Minimum 50 characters explanation required<br />
+                    • Root cause analysis mandatory<br />
+                    • Preventive measures required<br />
+                    • Photo/document attachments required as proof
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit}>
             {/* Reason */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Reason for Deferral *
+                Reason for Deferral * 
+                <span className={`ml-2 text-xs ${
+                  reason.length < minReasonLength ? 'text-gray-500' : 'text-green-600'
+                }`}>
+                  ({reason.length}/{minReasonLength} chars)
+                </span>
               </label>
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="e.g., Awaiting spare parts delivery, vessel in port operations, bad weather conditions..."
-                rows={3}
+                rows={isOverdue ? 4 : 3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
                 required
               />
             </div>
+
+            {/* OVERDUE-specific fields */}
+            {isOverdue && (
+              <>
+                {/* Root Cause Analysis */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Root Cause Analysis *
+                    <span className={`ml-2 text-xs ${
+                      rootCause.length < 20 ? 'text-gray-500' : 'text-green-600'
+                    }`}>
+                      ({rootCause.length}/20 chars)
+                    </span>
+                  </label>
+                  <textarea
+                    value={rootCause}
+                    onChange={(e) => setRootCause(e.target.value)}
+                    placeholder="Explain why this task became overdue (e.g., spare parts delivery delayed by 2 weeks, supplier issue, customs delay...)"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                {/* Preventive Measures */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Preventive Measures *
+                    <span className={`ml-2 text-xs ${
+                      preventiveMeasures.length < 20 ? 'text-gray-500' : 'text-green-600'
+                    }`}>
+                      ({preventiveMeasures.length}/20 chars)
+                    </span>
+                  </label>
+                  <textarea
+                    value={preventiveMeasures}
+                    onChange={(e) => setPreventiveMeasures(e.target.value)}
+                    placeholder="How will you prevent this from happening again? (e.g., order spare parts 1 month in advance, add buffer time for critical items...)"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                {/* Attachments */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Attachments (Photos/Documents) *
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                    <input
+                      type="text"
+                      placeholder="Enter photo/document URL (e.g., https://...) and press Enter"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md mb-2"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const input = e.currentTarget;
+                          if (input.value.trim()) {
+                            setAttachments([...attachments, input.value.trim()]);
+                            input.value = '';
+                          }
+                        }
+                      }}
+                    />
+                    {attachments.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {attachments.map((url, idx) => (
+                          <div key={idx} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded text-sm">
+                            <span className="truncate flex-1">{url}</span>
+                            <button
+                              type="button"
+                              onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))}
+                              className="ml-2 text-red-600 hover:text-red-800"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500 mt-2">
+                      Required: Purchase orders, email screenshots, weather reports, etc.
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Proposed Date */}
             <div className="mb-4">

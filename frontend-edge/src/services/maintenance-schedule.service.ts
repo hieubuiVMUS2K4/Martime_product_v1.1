@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { MaintenanceSchedule, CreateMaintenanceScheduleDto } from '@/types/pms.types';
+import type { MaintenanceSchedule, CreateMaintenanceScheduleDto, SchedulePreview } from '@/types/pms.types';
 
 const API_BASE_URL = '/api';
 

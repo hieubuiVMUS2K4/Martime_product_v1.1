@@ -481,10 +481,17 @@ export interface DeferralRequest {
   reviewNotes?: string;
 }
 
+// ============================================================
+// DEFERRAL REQUEST DTOs
+// ============================================================
+
 export interface CreateDeferralDto {
   taskId: string;
   reason: string;
   proposedDueDate: string;
+  rootCause?: string;              // Required for OVERDUE deferrals
+  preventiveMeasures?: string;     // Required for OVERDUE deferrals
+  attachments?: string[];          // Required for OVERDUE deferrals
   classPermissionLetter?: string;
 }
 

@@ -293,6 +293,67 @@ Schedule Config → Task Auto-Generated → SCHEDULED
          (with new date)                                    (original date)
 ```
 
+### 3.4. OVERDUE Deferral Path (Critical Scenario)
+
+```
+                                       OVERDUE
+                              (Task đã quá hạn chưa làm)
+                                            ↓
+                         📱 Crew nhận ra không thể làm:
+                            - Thiếu spare parts đã đặt chậm
+                            - Thời tiết xấu kéo dài
+                            - CMS item cần Class approval
+                            - Equipment đang critical operation
+                                            ↓
+                         📱 Crew: "Request Deferral"
+                         📱 Fills form:
+                            - Reason (REQUIRED, min 50 chars for OVERDUE)
+                            - Proposed new date
+                            - Root cause analysis
+                            - Preventive measures
+                            - Attachments (REQUIRED for OVERDUE)
+                                            ↓
+                         DeferralRequest created
+                         Task.hasPendingDeferral = true
+                         Task remains [OVERDUE] (not changed yet)
+                                            ↓
+                         🔔 HIGH PRIORITY notification to Master/C/E
+                         ⚠️ "OVERDUE task deferral request requires attention"
+                                            ↓
+                 ┌──────────────────────────┴──────────────────────────┐
+                 ↓                                                      ↓
+         💻 Master/C/E: "Approve"                       💻 Master/C/E: "Reject"
+         (After reviewing justification)                (Insufficient reason)
+                 ↓                                                      ↓
+         Task.dueDate = proposedDate                    Task.dueDate unchanged
+         Task.status = DUE (reset from OVERDUE)         Task remains [OVERDUE]
+         Task.deferralCount++                           hasPendingDeferral = false
+         hasPendingDeferral = false                                     ↓
+         Add audit log                                  🔔 Push to Crew:
+                 ↓                                      "Deferral rejected.
+         🔔 Push to Crew:                                Please complete immediately
+         "OVERDUE deferral approved"                     or provide better justification"
+         "New due date: {date}"                                        ↓
+                 ↓                                      Crew must either:
+         Task now [DUE]                                 - Start task immediately
+         (Extended deadline)                            - Request new deferral with
+                                                          stronger justification
+```
+
+**Key Differences for OVERDUE Deferrals:**
+
+| Aspect | DUE Deferral | OVERDUE Deferral |
+|--------|--------------|------------------|
+| **Reason Length** | Min 20 chars | Min 50 chars (more detail required) |
+| **Attachments** | Optional | **REQUIRED** (proof of issue) |
+| **Root Cause** | Optional | **REQUIRED** |
+| **Preventive Measures** | Optional | **REQUIRED** (how to prevent recurrence) |
+| **Approval Priority** | Normal | **HIGH** (flagged for immediate attention) |
+| **Notification Level** | C/E or C/O | **Master + C/E** (escalated) |
+| **Status After Approval** | Remains DUE | **Reset to DUE** (fresh start) |
+| **Audit Trail** | Standard log | **Detailed log** with root cause analysis |
+| **KPI Impact** | Minor | **Major** (affects overdue metrics) |
+
 ---
 
 ## 4. DEFERRAL SYSTEM
@@ -339,6 +400,18 @@ const DEFERRAL_RULES = {
   maxDeferralDays: 30,
   maxDeferralCount: 3,            // Per task
   
+  // OVERDUE-specific rules
+  overdue: {
+    minReasonLength: 50,          // Longer explanation required
+    requiresAttachments: true,    // Photo/document proof mandatory
+    requiresRootCause: true,      // Why did it become overdue?
+    requiresPreventiveMeasures: true,  // How to prevent next time?
+    approvalLevel: 'MASTER',      // Always escalate to Master
+    notificationPriority: 'HIGH', // Urgent notification
+    resetStatusOnApproval: true,  // OVERDUE → DUE after approval
+    auditLevel: 'DETAILED'        // Full audit trail
+  },
+  
   // CMS (Class) items - special rules
   cms: {
     maxDaysWithoutPermission: 90, // 3 months
@@ -350,6 +423,7 @@ const DEFERRAL_RULES = {
   approvers: {
     normal: ['CHIEF_ENGINEER', 'CHIEF_OFFICER'],
     critical: ['MASTER'],
+    overdue: ['MASTER'],          // OVERDUE always needs Master
     cms: ['MASTER'],
     safety: ['MASTER']
   }
@@ -659,11 +733,17 @@ const STATUS_TRANSITIONS = {
   },
   
   OVERDUE: {
-    allowed: ['IN_PROGRESS', 'CANCELLED'],
+    allowed: ['IN_PROGRESS', 'CANCELLED', 'DEFERRAL_REQUEST'],
     permissions: {
       IN_PROGRESS: ['CREW', 'OFFICER'],
-      CANCELLED: ['CHIEF_ENGINEER', 'MASTER']
-    }
+      CANCELLED: ['CHIEF_ENGINEER', 'MASTER'],
+      DEFERRAL_REQUEST: ['CREW', 'OFFICER']  // Allow deferral from OVERDUE
+    },
+    notes: [
+      'OVERDUE tasks CAN request deferral with valid reason',
+      'Deferral approval for OVERDUE requires stronger justification',
+      'Task remains OVERDUE until deferral is approved'
+    ]
   },
   
   IN_PROGRESS: {
@@ -1042,6 +1122,7 @@ See: [MOBILE_PMS_WORKFLOW_TODO.md](./MOBILE_PMS_WORKFLOW_TODO.md)
 |------|---------------|--------|
 | Database Migration - MaintenanceTask fields | `AddPmsWorkflowV2` | ✅ Done |
 | Database Migration - TaskDeferralRequests table | `AddPmsWorkflowV2` | ✅ Done |
+| Database Migration - TaskDeferralRequests OVERDUE fields | `AddOverdueDeferralFields` | ✅ Done |
 | Database Migration - TaskStatusHistory table | `AddPmsWorkflowV2` | ✅ Done |
 | `POST /tasks/:id/start` - Start task | `TaskWorkflowController.cs` | ✅ Done |
 | `POST /tasks/:id/submit` - Submit task | `TaskWorkflowController.cs` | ✅ Done |
@@ -1051,9 +1132,12 @@ See: [MOBILE_PMS_WORKFLOW_TODO.md](./MOBILE_PMS_WORKFLOW_TODO.md)
 | `GET /tasks/rectify` | `TaskWorkflowController.cs` | ✅ Done |
 | `GET /tasks/approval-summary` | `TaskWorkflowController.cs` | ✅ Done |
 | `POST /deferral-requests` - Create deferral | `DeferralRequestController.cs` | ✅ Done |
+| `POST /deferral-requests` - OVERDUE validation | `DeferralRequestController.cs` | ✅ Done |
 | `POST /deferral-requests/:id/review` - Approve/Reject | `DeferralRequestController.cs` | ✅ Done |
+| `POST /deferral-requests/:id/review` - OVERDUE status reset | `DeferralRequestController.cs` | ✅ Done |
 | `GET /deferral-requests` - List deferrals | `DeferralRequestController.cs` | ✅ Done |
 | DTOs for workflow | `DeferralDTOs.cs` | ✅ Done |
+| DTOs for OVERDUE deferrals | `DeferralDTOs.cs` | ✅ Done |
 | Auto-correct task statuses (Background Job) | `MaintenanceSchedulerService.cs` | ✅ Done |
 | Task auto-generation from schedules | `MaintenanceSchedulerService.cs` | ✅ Done |
 | 4-tier PIC assignment logic | `MaintenanceSchedulerService.cs` | ✅ Done |
@@ -1079,9 +1163,14 @@ See: [MOBILE_PMS_WORKFLOW_TODO.md](./MOBILE_PMS_WORKFLOW_TODO.md)
 | ColumnMenu - "Manage Deferrals" button | `ColumnMenu.tsx` | ✅ Done |
 | Deferral Management Page | `DeferralManagementPage.tsx` | ✅ Done |
 | Create Deferral Modal | `CreateDeferralModal.tsx` | ✅ Done |
+| Create Deferral Modal - OVERDUE validation | `CreateDeferralModal.tsx` | ✅ Done |
+| Create Deferral Modal - Root Cause field | `CreateDeferralModal.tsx` | ✅ Done |
+| Create Deferral Modal - Preventive Measures field | `CreateDeferralModal.tsx` | ✅ Done |
+| Create Deferral Modal - Attachments field | `CreateDeferralModal.tsx` | ✅ Done |
 | Types - MaintenanceTask updated (string id) | `maritime.types.ts` | ✅ Done |
 | Types - New workflow types | `maritime.types.ts` | ✅ Done |
 | Service - Workflow API methods | `maintenance.service.ts` | ✅ Done |
+| Service - OVERDUE deferral DTOs | `maintenance.service.ts` | ✅ Done |
 | Route - `/pms/deferrals` | `App.tsx` | ✅ Done |
 | Route - `/pms/approval-dashboard` | `App.tsx` | ✅ Done |
 
@@ -1140,12 +1229,12 @@ See: [MOBILE_PMS_WORKFLOW_TODO.md](./MOBILE_PMS_WORKFLOW_TODO.md)
 
 | Category | Completed | Total | Progress |
 |----------|-----------|-------|----------|
-| Backend API | 17 | 17 | **100%** ✅ |
-| Frontend Web | 24 | 30 | **80%** |
+| Backend API | 21 | 21 | **100%** ✅ |
+| Frontend Web | 28 | 34 | **82%** |
 | Mobile App | 0 | 10 | **0%** |
 | Notifications | 0 | 6 | **0%** |
 | Testing | 0 | 3 | **0%** |
-| **OVERALL** | **41** | **66** | **~62%** |
+| **OVERALL** | **49** | **74** | **~66%** |
 
 ---
 

@@ -737,10 +737,6 @@ export function KanbanBoard({ tasks, onTaskUpdate: _onTaskUpdate, onTaskDelete, 
       toast.error('⚠️ Task chờ duyệt - Hãy vào Approval Dashboard để Approve/Reject!')
       return
     }
-    if (currentStatus === 'PENDING_APPROVAL') {
-      toast.error('⚠️ Task chờ duyệt - Hãy vào Approval Dashboard để Approve/Reject!')
-      return
-    }
     
     // ========================================
     // ALLOWED TRANSITIONS (Planning adjustments only)

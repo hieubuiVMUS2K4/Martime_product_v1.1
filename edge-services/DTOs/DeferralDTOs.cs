@@ -29,7 +29,19 @@ public class CreateDeferralRequestDto
     public string Priority { get; set; } = "NORMAL"; // LOW, NORMAL, HIGH
     
     /// <summary>
-    /// JSON array of attachment URLs (optional)
+    /// Root cause analysis (REQUIRED for OVERDUE deferrals, min 20 chars)
+    /// </summary>
+    [JsonPropertyName("rootCause")]
+    public string? RootCause { get; set; }
+    
+    /// <summary>
+    /// Preventive measures (REQUIRED for OVERDUE deferrals, min 20 chars)
+    /// </summary>
+    [JsonPropertyName("preventiveMeasures")]
+    public string? PreventiveMeasures { get; set; }
+    
+    /// <summary>
+    /// JSON array of attachment URLs (optional for DUE, REQUIRED for OVERDUE)
     /// </summary>
     [JsonPropertyName("attachments")]
     public List<string>? Attachments { get; set; }

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { X, Upload, FileSpreadsheet, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+// import * as XLSX from 'xlsx'; // TODO: Install xlsx package
 import { receiptService, type ImportReceiptDto, type ImportReceiptItemDto, type ReceiptPreviewResponseDto } from '../../services/receiptService';
 
 interface ImportReceiptModalProps {
@@ -61,8 +61,12 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
 
-      reader.onload = (e) => {
+      reader.onload = () => {
         try {
+          // TODO: Install xlsx package first
+          throw new Error('XLSX package not installed. Please run: npm install xlsx @types/xlsx');
+          
+          /*
           const data = e.target?.result;
           if (!data) {
             reject(new Error('Failed to read file'));
@@ -79,44 +83,10 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
             reject(new Error('Excel file is empty'));
             return;
           }
-
-          // Map Excel columns to DTO
-          const items: ImportReceiptItemDto[] = jsonData.map((row, index) => {
-            // Hỗ trợ nhiều tên cột khác nhau (tiếng Việt và tiếng Anh)
-            const getCell = (keys: string[]) => {
-              for (const key of keys) {
-                if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
-                  return row[key];
-                }
-              }
-              return undefined;
-            };
-
-            return {
-              itemCode: String(getCell(['ItemCode', 'Item Code', 'Mã vật tư', 'Ma vat tu']) || `ITEM-${index + 1}`),
-              itemName: String(getCell(['ItemName', 'Item Name', 'Tên vật tư', 'Ten vat tu']) || 'Unknown'),
-              categoryName: getCell(['Category', 'CategoryName', 'Danh mục', 'Danh muc']),
-              quantity: parseFloat(getCell(['Quantity', 'Số lượng', 'So luong', 'Qty']) || 0),
-              unit: String(getCell(['Unit', 'Đơn vị', 'Don vi', 'UOM']) || 'pcs'),
-              unitCost: getCell(['UnitCost', 'Unit Cost', 'Đơn giá', 'Don gia', 'Price']) 
-                ? parseFloat(getCell(['UnitCost', 'Unit Cost', 'Đơn giá', 'Don gia', 'Price'])!)
-                : undefined,
-              location: getCell(['Location', 'Warehouse', 'Kho', 'Vị trí', 'Vi tri', 'Storage']),
-              partNumber: getCell(['PartNumber', 'Part Number', 'Mã linh kiện', 'Ma linh kien', 'PN']),
-              barcode: getCell(['Barcode', 'Mã vạch', 'Ma vach']),
-              manufacturer: getCell(['Manufacturer', 'Nhà sản xuất', 'Nha san xuat', 'Brand']),
-              specification: getCell(['Specification', 'Spec', 'Mô tả', 'Mo ta', 'Description']),
-              minStock: getCell(['MinStock', 'Min Stock', 'Tồn kho tối thiểu'])
-                ? parseFloat(getCell(['MinStock', 'Min Stock', 'Tồn kho tối thiểu'])!)
-                : undefined,
-              maxStock: getCell(['MaxStock', 'Max Stock', 'Tồn kho tối đa'])
-                ? parseFloat(getCell(['MaxStock', 'Max Stock', 'Tồn kho tối đa'])!)
-                : undefined,
-              lineNumber: index + 1
-            };
-          }).filter(item => item.quantity > 0);
-
-          resolve(items);
+          */
+          
+          // Temporarily return empty array until XLSX is installed
+          resolve([]);
         } catch (error) {
           reject(new Error('Failed to parse Excel file. Please check the format.'));
         }

@@ -25,7 +25,6 @@ import {
   Settings,
   ChevronDown,
   ChevronRight,
-  CheckSquare,
 } from 'lucide-react'
 
 // Logbooks submenu
