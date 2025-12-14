@@ -46,16 +46,55 @@ public class MaintenanceScheduleController : ControllerBase
 
     /// <summary>
     /// Validate and auto-correct DaysBeforeDue based on ISM Code requirements
+    /// For short intervals (≤ 7 days), use proportional lead time and ignore work duration
     /// </summary>
-    private int ValidateAndCorrectLeadTime(int daysBeforeDue, string priority, double? estimatedHours)
+    private int ValidateAndCorrectLeadTime(int daysBeforeDue, string priority, double? estimatedHours, int? intervalDays = null)
     {
         var minimumLeadTime = GetMinimumLeadTime(priority);
         
-        // Also consider work duration (3x safety buffer)
+        // For very short intervals (daily, hourly), use proportional lead time
+        // This overrides both ISM Code minimums AND work duration calculations
+        if (intervalDays.HasValue && intervalDays.Value <= 7)
+        {
+            // For short intervals: lead time = interval * 0.5 (minimum 1 day)
+            var proportionalLeadTime = Math.Max(1, intervalDays.Value / 2);
+            
+            // For daily/weekly tasks, proportional lead time takes absolute priority
+            // ALWAYS enforce proportional lead time - don't allow larger values
+            if (daysBeforeDue != proportionalLeadTime)
+            {
+                _logger.LogWarning(
+                    "DaysBeforeDue {Configured} adjusted to proportional {Minimum} for {Interval}-day interval. Short intervals require tight lead times.",
+                    daysBeforeDue, proportionalLeadTime, intervalDays.Value);
+            }
+            return proportionalLeadTime;
+        }
+        
+        // For longer intervals (> 7 days), use traditional ISM Code logic
+        // Consider work duration (3x safety buffer)
         var workDays = (int)Math.Ceiling((estimatedHours ?? 4) / 8.0);
         var workBasedMinimum = workDays * 3;
         
         var effectiveMinimum = Math.Max(minimumLeadTime, workBasedMinimum);
+        
+        // 🚨 CEILING RULE: Lead time MUST NOT exceed interval to prevent task overlap
+        // If interval exists, cap lead time at 70% of interval (best practice)
+        // Example: 14-day interval -> max lead time = 9 days (not 30!)
+        if (intervalDays.HasValue)
+        {
+            // Maximum lead time = 70% of interval (allows task to complete before next one appears)
+            var maxAllowedLeadTime = (int)Math.Floor(intervalDays.Value * 0.7);
+            
+            // If effective minimum exceeds interval ceiling, use the ceiling
+            if (effectiveMinimum > maxAllowedLeadTime)
+            {
+                _logger.LogWarning(
+                    "ISM Code minimum {ISMMinimum} days for {Priority} priority exceeds interval ceiling {Ceiling} days (70% of {Interval}-day interval). " +
+                    "Using ceiling to prevent task overlap.",
+                    effectiveMinimum, priority, maxAllowedLeadTime, intervalDays.Value);
+                effectiveMinimum = Math.Max(1, maxAllowedLeadTime); // Minimum 1 day
+            }
+        }
         
         if (daysBeforeDue < effectiveMinimum)
         {
@@ -331,7 +370,8 @@ public class MaintenanceScheduleController : ControllerBase
             var validatedDaysBeforeDue = ValidateAndCorrectLeadTime(
                 dto.DaysBeforeDue, 
                 dto.Priority, 
-                dto.EstimatedDurationHours);
+                dto.EstimatedDurationHours,
+                dto.IntervalDays);
 
             var schedule = new MaintenanceSchedule
             {
@@ -520,7 +560,8 @@ public class MaintenanceScheduleController : ControllerBase
             var validatedDaysBeforeDue = ValidateAndCorrectLeadTime(
                 dto.DaysBeforeDue, 
                 dto.Priority, 
-                dto.EstimatedDurationHours);
+                dto.EstimatedDurationHours,
+                dto.IntervalDays);
 
             // Update schedule fields
             schedule.ScheduleCode = dto.ScheduleCode;
@@ -604,7 +645,7 @@ public class MaintenanceScheduleController : ControllerBase
     }
 
     /// <summary>
-    /// Delete maintenance schedule
+    /// Delete maintenance schedule and all its generated tasks
     /// </summary>
     [HttpDelete("{id}")]
     public async Task<ActionResult> Delete(Guid id)
@@ -615,9 +656,30 @@ public class MaintenanceScheduleController : ControllerBase
             if (schedule == null)
                 return NotFound(new { error = "Maintenance schedule not found" });
 
+            // ⚠️ IMPORTANT: Delete all tasks generated from this schedule FIRST
+            // (to avoid orphaned tasks showing up in Kanban after schedule deletion)
+            var tasksToDelete = await _context.MaintenanceTasks
+                .Where(t => t.ScheduleId == schedule.Id)
+                .ToListAsync();
+            
+            if (tasksToDelete.Any())
+            {
+                _logger.LogWarning(
+                    "Deleting {Count} tasks generated from schedule {ScheduleCode}", 
+                    tasksToDelete.Count, 
+                    schedule.ScheduleCode);
+                
+                _context.MaintenanceTasks.RemoveRange(tasksToDelete);
+                await _context.SaveChangesAsync();
+            }
+
+            // Then delete the schedule
             await _scheduleRepository.DeleteAsync(id);
 
-            _logger.LogInformation("Deleted maintenance schedule {ScheduleCode}", schedule.ScheduleCode);
+            _logger.LogInformation(
+                "Deleted maintenance schedule {ScheduleCode} and {TaskCount} associated tasks", 
+                schedule.ScheduleCode, 
+                tasksToDelete.Count);
 
             return NoContent();
         }

@@ -1319,7 +1319,155 @@ See: [MOBILE_PMS_WORKFLOW_TODO.md](./MOBILE_PMS_WORKFLOW_TODO.md)
 
 ---
 
-**Document Version:** 2.1  
-**Last Updated:** 10/12/2025 (Evening)  
+## 12. SCHEDULE AUTO-GENERATION LOGIC (Updated: 14/12/2025)
+
+### 12.1. Lead Time Validation with Ceiling Rule
+
+```csharp
+private int ValidateAndCorrectLeadTime(int daysBeforeDue, string priority, 
+    double? estimatedHours, int? intervalDays = null)
+{
+    var minimumLeadTime = GetMinimumLeadTime(priority);
+    
+    // SHORT INTERVALS (≤ 7 days): Proportional lead time
+    if (intervalDays.HasValue && intervalDays.Value <= 7)
+    {
+        var proportionalLeadTime = Math.Max(1, intervalDays.Value / 2);
+        
+        if (daysBeforeDue != proportionalLeadTime)
+        {
+            _logger.LogWarning(
+                "DaysBeforeDue {Configured} adjusted to proportional {Minimum} " +
+                "for {Interval}-day interval. Short intervals require tight lead times.",
+                daysBeforeDue, proportionalLeadTime, intervalDays.Value);
+        }
+        return proportionalLeadTime;
+    }
+    
+    // LONG INTERVALS (> 7 days): ISM Code + Work-based + CEILING RULE
+    var workDays = (int)Math.Ceiling((estimatedHours ?? 4) / 8.0);
+    var workBasedMinimum = workDays * 3;
+    var effectiveMinimum = Math.Max(minimumLeadTime, workBasedMinimum);
+    
+    // 🚨 CEILING RULE: Lead time MUST NOT exceed interval
+    // Prevents task overlap (e.g., 14-day interval with 30-day lead time)
+    if (intervalDays.HasValue)
+    {
+        var maxAllowedLeadTime = (int)Math.Floor(intervalDays.Value * 0.7);
+        
+        if (effectiveMinimum > maxAllowedLeadTime)
+        {
+            _logger.LogWarning(
+                "ISM Code minimum {ISMMinimum} days for {Priority} priority " +
+                "exceeds interval ceiling {Ceiling} days (70% of {Interval}-day interval). " +
+                "Using ceiling to prevent task overlap.",
+                effectiveMinimum, priority, maxAllowedLeadTime, intervalDays.Value);
+            effectiveMinimum = Math.Max(1, maxAllowedLeadTime);
+        }
+    }
+    
+    if (daysBeforeDue < effectiveMinimum)
+    {
+        _logger.LogWarning(
+            "DaysBeforeDue {Configured} is less than minimum {Minimum} " +
+            "for {Priority} priority. Auto-correcting.",
+            daysBeforeDue, effectiveMinimum, priority);
+        return effectiveMinimum;
+    }
+    
+    return daysBeforeDue;
+}
+```
+
+### 12.2. ISM Code Priority Minimums
+
+```csharp
+private int GetMinimumLeadTime(string priority)
+{
+    return priority switch
+    {
+        "CRITICAL" => 30,  // 30 days
+        "HIGH" => 14,      // 14 days
+        "MEDIUM" => 10,    // 10 days
+        "LOW" => 7,        // 7 days
+        _ => 7
+    };
+}
+```
+
+### 12.3. Lead Time Calculation Examples
+
+| Scenario | Interval | Priority | Est. Hours | Result | Logic Applied |
+|----------|----------|----------|------------|--------|---------------|
+| Daily inspection | 1 day | MEDIUM | 0.5h | **1 day** | Proportional (1 ÷ 2 = 1) |
+| Weekly check | 7 days | LOW | 2h | **3 days** | Proportional (7 ÷ 2 = 3) |
+| Bi-weekly maintenance | 14 days | CRITICAL | 4h | **9 days** | Ceiling (70% of 14) |
+| Monthly service | 30 days | HIGH | 8h | **14 days** | ISM Code (HIGH min) |
+| Quarterly overhaul | 90 days | CRITICAL | 16h | **30 days** | ISM Code (CRITICAL min) |
+
+**Key Rules:**
+- ✅ Short intervals (≤7 days): Lead time = 50% of interval
+- ✅ Long intervals (>7 days): ISM Code minimum OR work-based, capped at 70% of interval
+- ✅ Ceiling prevents task overlap (next task won't appear before previous completes)
+
+---
+
+## 13. MASTER SCHEDULE (GANTT CHART) - Updated: 14/12/2025
+
+### 13.1. View Modes
+
+| Mode | Days Shown | Start Date | Use Case |
+|------|------------|------------|----------|
+| **Day** | 7 days | Current date | Detailed daily planning |
+| **Week** | 14 days | Current date | 2-week overview |
+| **Month** | 60 days | Start of month | Monthly planning |
+| **Quarter** | 90 days | Start of month | Quarterly overview |
+
+### 13.2. Date Marker Positioning
+
+```typescript
+// Start Marker (Green) - Beginning of day
+getDatePosition(startDate, days, 'start')  // Left edge of column
+
+// Due Marker (Blue) - End of day (deadline)
+getDatePosition(dueDate, days, 'end')      // Right edge of column
+
+// Today Line (Blue vertical) - Center of day
+getDatePosition(today, days, 'center')     // Middle of column
+```
+
+### 13.3. Work Bar Calculation
+
+```typescript
+// Bar spans from start of Start Day to end of Due Day
+const width = (endIdx - startIdx + 1) * columnWidth;
+
+// Visual padding to prevent overflow
+return {
+  start: startIdx * columnWidth,
+  width: Math.max(columnWidth * 0.8, width)
+};
+```
+
+**Example:** 
+- Start: Dec 14, Due: Dec 15
+- Bar starts at left edge of Dec 14 column
+- Bar ends at right edge of Dec 15 column
+- Full 2-column span representing 1-day lead time + 1-day work period
+
+### 13.4. Date Range Display
+
+```typescript
+// Day view: "Dec 14 - Dec 20, 2025"
+// Week view: "Dec 14 - Dec 27, 2025"  
+// Month view: "Dec 1 - Jan 29, 2026"
+// Quarter view: "Dec 1 - Feb 28, 2026"
+```
+
+---
+
+**Document Version:** 2.2  
+**Last Updated:** 14/12/2025 (Evening)  
 **Approved By:** Technical Team Lead  
-**Next Review:** 17/12/2025
+**Changes:** Added Ceiling Rule, Master Schedule enhancements, Day view mode  
+**Next Review:** 21/12/2025
