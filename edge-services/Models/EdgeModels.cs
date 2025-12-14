@@ -889,6 +889,12 @@ public class MaintenanceTask
     [MaxLength(200)]
     public string? EquipmentGroupName { get; set; }
     
+    /// <summary>
+    /// NEW: Schedule ID - Links to the maintenance schedule that generated this task
+    /// Null for manually created tasks, populated for auto-generated tasks
+    /// </summary>
+    public Guid? ScheduleId { get; set; }
+    
     [Required]
     [MaxLength(50)]
     public string TaskType { get; set; } = string.Empty; // RUNNING_HOURS, CALENDAR, CONDITION (legacy field)
