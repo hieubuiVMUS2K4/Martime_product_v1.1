@@ -77,6 +77,18 @@ class SyncQueue {
         print('📤 Syncing checklist completion: ${item.data}');
         // Expected data: taskId, detailId, measuredValue, checkResult, etc.
         break;
+      case SyncItemType.taskSubmit:
+        // TODO: Call submit task API with item.data
+        print('📤 Syncing task submit: ${item.data}');
+        break;
+      case SyncItemType.deferralCreate:
+        // TODO: Call create deferral API with item.data
+        print('📤 Syncing deferral create: ${item.data}');
+        break;
+      case SyncItemType.deferralCancel:
+        // TODO: Call cancel deferral API with item.data
+        print('📤 Syncing deferral cancel: ${item.data}');
+        break;
     }
     
     // Simulate network delay

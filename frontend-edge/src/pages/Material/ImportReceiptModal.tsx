@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { X, Upload, FileSpreadsheet, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
-// import * as XLSX from 'xlsx'; // TODO: Install xlsx package
+import * as XLSX from 'xlsx';
 import { receiptService, type ImportReceiptDto, type ImportReceiptItemDto, type ReceiptPreviewResponseDto } from '../../services/receiptService';
 
 interface ImportReceiptModalProps {
@@ -61,12 +61,8 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
 
-      reader.onload = () => {
+      reader.onload = (e) => {
         try {
-          // TODO: Install xlsx package first
-          throw new Error('XLSX package not installed. Please run: npm install xlsx @types/xlsx');
-          
-          /*
           const data = e.target?.result;
           if (!data) {
             reject(new Error('Failed to read file'));
@@ -83,11 +79,112 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
             reject(new Error('Excel file is empty'));
             return;
           }
-          */
-          
-          // Temporarily return empty array until XLSX is installed
-          resolve([]);
-        } catch (error) {
+
+          // Column name mapping (support both English and Vietnamese)
+          const columnMappings: Record<string, string> = {
+            // English names
+            'ItemCode': 'itemCode',
+            'itemcode': 'itemCode',
+            'Item Code': 'itemCode',
+            'ItemName': 'itemName',
+            'itemname': 'itemName',
+            'Item Name': 'itemName',
+            'Category': 'categoryName',
+            'category': 'categoryName',
+            'Quantity': 'quantity',
+            'quantity': 'quantity',
+            'Qty': 'quantity',
+            'Unit': 'unit',
+            'unit': 'unit',
+            'UnitCost': 'unitCost',
+            'unitcost': 'unitCost',
+            'Unit Cost': 'unitCost',
+            'Cost': 'unitCost',
+            'Price': 'unitCost',
+            'PartNumber': 'partNumber',
+            'partnumber': 'partNumber',
+            'Part Number': 'partNumber',
+            'Barcode': 'barcode',
+            'barcode': 'barcode',
+            'Manufacturer': 'manufacturer',
+            'manufacturer': 'manufacturer',
+            'Specification': 'specification',
+            'specification': 'specification',
+            'Spec': 'specification',
+            'Location': 'location',
+            'location': 'location',
+            'Supplier': 'supplier',
+            'supplier': 'supplier',
+            'MinStock': 'minStock',
+            'minstock': 'minStock',
+            'Min Stock': 'minStock',
+            'MaxStock': 'maxStock',
+            'maxstock': 'maxStock',
+            'Max Stock': 'maxStock',
+            // Vietnamese names
+            'Mã vật tư': 'itemCode',
+            'Tên vật tư': 'itemName',
+            'Danh mục': 'categoryName',
+            'Số lượng': 'quantity',
+            'Đơn vị': 'unit',
+            'Đơn giá': 'unitCost',
+            'Mã linh kiện': 'partNumber',
+            'Mã vạch': 'barcode',
+            'Nhà sản xuất': 'manufacturer',
+            'Thông số': 'specification',
+            'Vị trí': 'location',
+            'Nhà cung cấp': 'supplier',
+          };
+
+          // Map Excel data to ImportReceiptItemDto
+          const items: ImportReceiptItemDto[] = jsonData.map((row, index) => {
+            // Normalize row keys
+            const normalizedRow: Record<string, any> = {};
+            for (const key of Object.keys(row)) {
+              const mappedKey = columnMappings[key] || columnMappings[key.trim()] || key.toLowerCase();
+              normalizedRow[mappedKey] = row[key];
+            }
+
+            // Validate required fields
+            const itemCode = normalizedRow.itemCode || normalizedRow.itemcode;
+            const itemName = normalizedRow.itemName || normalizedRow.itemname;
+            const quantity = Number(normalizedRow.quantity) || 0;
+            const unit = normalizedRow.unit || 'pcs';
+
+            if (!itemCode || !itemName) {
+              console.warn(`Row ${index + 2}: Missing itemCode or itemName, skipping`);
+              return null;
+            }
+
+            if (quantity <= 0) {
+              console.warn(`Row ${index + 2}: Invalid quantity, skipping`);
+              return null;
+            }
+
+            return {
+              itemCode: String(itemCode).trim(),
+              itemName: String(itemName).trim(),
+              categoryName: normalizedRow.categoryName || normalizedRow.category || 'General',
+              quantity,
+              unit: String(unit).trim(),
+              unitCost: Number(normalizedRow.unitCost) || 0,
+              partNumber: normalizedRow.partNumber || undefined,
+              barcode: normalizedRow.barcode || undefined,
+              manufacturer: normalizedRow.manufacturer || undefined,
+              specification: normalizedRow.specification || undefined,
+              minStock: Number(normalizedRow.minStock) || undefined,
+              maxStock: Number(normalizedRow.maxStock) || undefined,
+            };
+          }).filter((item): item is ImportReceiptItemDto => item !== null);
+
+          if (items.length === 0) {
+            reject(new Error('No valid items found. Please check required columns: ItemCode, ItemName, Quantity, Unit'));
+            return;
+          }
+
+          resolve(items);
+        } catch (error: any) {
+          console.error('Excel parse error:', error);
           reject(new Error('Failed to parse Excel file. Please check the format.'));
         }
       };

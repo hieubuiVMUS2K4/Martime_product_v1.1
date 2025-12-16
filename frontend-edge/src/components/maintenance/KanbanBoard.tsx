@@ -137,13 +137,13 @@ export function KanbanBoard({ tasks, onTaskUpdate: _onTaskUpdate, onTaskDelete, 
   // Approval handlers for ViewTaskModal
   const handleApproveTask = async (taskId: string, notes?: string) => {
     try {
-      const response = await fetch(`/api/task-workflow/${taskId}/verify`, {
+      const response = await fetch(`/api/tasks/${taskId}/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          approved: true, 
-          verifierNotes: notes,
-          verifierId: 'CREW002' // TODO: Get from auth context
+          taskId: taskId,
+          action: 'APPROVE',
+          notes: notes
         })
       })
       
@@ -164,13 +164,13 @@ export function KanbanBoard({ tasks, onTaskUpdate: _onTaskUpdate, onTaskDelete, 
 
   const handleRejectTask = async (taskId: string, reason: string) => {
     try {
-      const response = await fetch(`/api/task-workflow/${taskId}/verify`, {
+      const response = await fetch(`/api/tasks/${taskId}/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          approved: false, 
-          rejectionReason: reason,
-          verifierId: 'CREW002' // TODO: Get from auth context
+          taskId: taskId,
+          action: 'REJECT',
+          rejectionReason: reason
         })
       })
       

@@ -46,7 +46,7 @@ class TaskCard extends StatelessWidget {
                   Expanded(
                     flex: 3,
                     child: Text(
-                      task.equipmentName,
+                      task.displayName,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             fontSize: isSmallScreen ? 15 : 16,

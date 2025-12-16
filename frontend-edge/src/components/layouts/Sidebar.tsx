@@ -25,10 +25,12 @@ import {
   Settings,
   ChevronDown,
   ChevronRight,
+  MapPin,
 } from 'lucide-react'
 
 // Logbooks submenu
 const logbooksMenu = [
+  { name: 'Voyage Log', to: '/logbooks/voyage', icon: MapPin },
   { name: 'Deck Log', to: '/logbooks/deck', icon: Compass },
   { name: 'Engine Log', to: '/logbooks/engine', icon: BookOpen },
   { name: 'Oil Record', to: '/logbooks/oil', icon: Droplets },

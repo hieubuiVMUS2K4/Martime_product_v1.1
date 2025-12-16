@@ -50,6 +50,7 @@ namespace MaritimeEdge
             builder.Services.AddScoped<IGarbageRecordService, GarbageRecordService>();
             builder.Services.AddScoped<IBallastWaterService, BallastWaterService>();
             builder.Services.AddScoped<IOilRecordService, OilRecordService>();
+            builder.Services.AddScoped<IVoyageLogService, VoyageLogService>();
             builder.Services.AddScoped<MaterialReceiptService>();
 
             // Add PMS Repositories

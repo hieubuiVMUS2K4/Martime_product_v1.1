@@ -1,22 +1,29 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
+import 'task_checklist_item.dart';
 
 class MaintenanceTask extends Equatable {
-  final int id;
+  /// Workflow key (edge-services uses Guid/UUID)
+  final String id;
+
+  /// Human/task code key used by checklist endpoints (e.g. SCHED-..., MT-...)
   final String taskId;
-  final String equipmentId;
-  final String equipmentName;
+  final String? equipmentId;
+  final String? equipmentName;
+  final String? equipmentGroupId;
+  final String? equipmentGroupName;
   final String taskType;
   final String taskDescription;
   final double? intervalHours;
   final int? intervalDays;
   final String? lastDoneAt;
-  final String nextDueAt;
+  final String? nextDueAt;
   final double? runningHoursAtLastDone;
   final String priority;
   final String status;
   final String? assignedTo;
   final String? assignedToCrewId;
+  final String? assignedDepartment;
   final String? completedAt;
   final String? completedBy;
   final String? completedByCrewId;
@@ -31,23 +38,59 @@ class MaintenanceTask extends Equatable {
   // New fields for TaskType integration
   final int? taskTypeId;
   final String? taskTypeName;
+
+  // Checklist items from API
+  final List<TaskChecklistItem> checklistItems;
+
+  // === PMS WORKFLOW v2.0 (Phase 1 fields) ===
+
+  // Rejection tracking
+  final String? rejectionReason;
+  final int rejectionCount;
+  final String? lastRejectedAt;
+  final String? lastRejectedBy;
+
+  // Deferral tracking
+  final bool hasPendingDeferral;
+  final int deferralCount;
+  final String? lastDeferredAt;
+  final String? lastDeferredBy;
+
+  // Photo requirements
+  final int requiredPhotos;
+  final int photosUploaded;
+
+  // CMS flag
+  final bool isCms;
+
+  // Submission tracking
+  final String? submittedAt;
+  final String? submittedBy;
+
+  // Verification tracking
+  final String? verifiedAt;
+  final String? verifiedBy;
+  final String? verificationResult;
   
   const MaintenanceTask({
     required this.id,
     required this.taskId,
-    required this.equipmentId,
-    required this.equipmentName,
+    this.equipmentId,
+    this.equipmentName,
+    this.equipmentGroupId,
+    this.equipmentGroupName,
     required this.taskType,
     required this.taskDescription,
     this.intervalHours,
     this.intervalDays,
     this.lastDoneAt,
-    required this.nextDueAt,
+    this.nextDueAt,
     this.runningHoursAtLastDone,
     required this.priority,
     required this.status,
     this.assignedTo,
     this.assignedToCrewId,
+    this.assignedDepartment,
     this.completedAt,
     this.completedBy,
     this.completedByCrewId,
@@ -60,37 +103,84 @@ class MaintenanceTask extends Equatable {
     this.updatedAt,
     this.taskTypeId,
     this.taskTypeName,
+    this.checklistItems = const [],
+
+    // PMS workflow
+    this.rejectionReason,
+    this.rejectionCount = 0,
+    this.lastRejectedAt,
+    this.lastRejectedBy,
+    this.hasPendingDeferral = false,
+    this.deferralCount = 0,
+    this.lastDeferredAt,
+    this.lastDeferredBy,
+    this.requiredPhotos = 0,
+    this.photosUploaded = 0,
+    this.isCms = false,
+    this.submittedAt,
+    this.submittedBy,
+    this.verifiedAt,
+    this.verifiedBy,
+    this.verificationResult,
   });
   
   factory MaintenanceTask.fromJson(Map<String, dynamic> json) {
     return MaintenanceTask(
-      id: json['id'],
-      taskId: json['taskId'],
-      equipmentId: json['equipmentId'],
-      equipmentName: json['equipmentName'],
-      taskType: json['taskType'],
-      taskDescription: json['taskDescription'],
+      id: json['id']?.toString() ?? '',
+      taskId: json['taskId']?.toString() ?? '',
+      equipmentId: json['equipmentId']?.toString(),
+      equipmentName: json['equipmentName']?.toString(),
+      equipmentGroupId: json['equipmentGroupId']?.toString(),
+      equipmentGroupName: json['equipmentGroupName']?.toString(),
+      taskType: json['taskType']?.toString() ?? 'UNKNOWN',
+      taskDescription: json['taskDescription']?.toString() ?? '',
       intervalHours: json['intervalHours']?.toDouble(),
       intervalDays: json['intervalDays'],
-      lastDoneAt: json['lastDoneAt'],
-      nextDueAt: json['nextDueAt'],
+      lastDoneAt: json['lastDoneAt']?.toString(),
+      nextDueAt: json['nextDueAt']?.toString(),
       runningHoursAtLastDone: json['runningHoursAtLastDone']?.toDouble(),
-      priority: json['priority'],
-      status: json['status'],
-      assignedTo: json['assignedTo'],
-      assignedToCrewId: json['assignedToCrewId'],
-      completedAt: json['completedAt'],
-      completedBy: json['completedBy'],
-      completedByCrewId: json['completedByCrewId'],
-      notes: json['notes'],
-      sparePartsUsed: json['sparePartsUsed'],
+      priority: json['priority']?.toString() ?? 'MEDIUM',
+      status: json['status']?.toString() ?? 'PENDING',
+      assignedTo: json['assignedTo']?.toString(),
+      assignedToCrewId: json['assignedToCrewId']?.toString(),
+      assignedDepartment: json['assignedDepartment']?.toString(),
+      completedAt: json['completedAt']?.toString(),
+      completedBy: json['completedBy']?.toString(),
+      completedByCrewId: json['completedByCrewId']?.toString(),
+      notes: json['notes']?.toString(),
+      sparePartsUsed: json['sparePartsUsed']?.toString(),
       runningHoursAtCompletion: json['runningHoursAtCompletion']?.toDouble(),
-      photoUrls: json['photoUrls'],
+      photoUrls: json['photoUrls']?.toString(),
       isSynced: json['isSynced'] ?? false,
-      createdAt: json['createdAt'],
-      updatedAt: json['updatedAt'],
+      createdAt: json['createdAt']?.toString() ?? DateTime.now().toIso8601String(),
+      updatedAt: json['updatedAt']?.toString(),
       taskTypeId: json['taskTypeId'],
-      taskTypeName: json['taskTypeName'],
+      taskTypeName: json['taskTypeName']?.toString(),
+      
+      // Parse checklistItems array
+      checklistItems: json['checklistItems'] != null
+          ? (json['checklistItems'] as List)
+              .map((item) => TaskChecklistItem.fromJson(item as Map<String, dynamic>))
+              .toList()
+          : [],
+
+      // PMS workflow
+      rejectionReason: json['rejectionReason'],
+      rejectionCount: json['rejectionCount'] ?? 0,
+      lastRejectedAt: json['lastRejectedAt'],
+      lastRejectedBy: json['lastRejectedBy'],
+      hasPendingDeferral: json['hasPendingDeferral'] ?? false,
+      deferralCount: json['deferralCount'] ?? 0,
+      lastDeferredAt: json['lastDeferredAt'],
+      lastDeferredBy: json['lastDeferredBy'],
+      requiredPhotos: json['requiredPhotos'] ?? 0,
+      photosUploaded: json['photosUploaded'] ?? 0,
+      isCms: json['isCms'] ?? false,
+      submittedAt: json['submittedAt'],
+      submittedBy: json['submittedBy'],
+      verifiedAt: json['verifiedAt'],
+      verifiedBy: json['verifiedBy'],
+      verificationResult: json['verificationResult'],
     );
   }
   
@@ -100,6 +190,8 @@ class MaintenanceTask extends Equatable {
       'taskId': taskId,
       'equipmentId': equipmentId,
       'equipmentName': equipmentName,
+      'equipmentGroupId': equipmentGroupId,
+      'equipmentGroupName': equipmentGroupName,
       'taskType': taskType,
       'taskDescription': taskDescription,
       'intervalHours': intervalHours,
@@ -111,6 +203,7 @@ class MaintenanceTask extends Equatable {
       'status': status,
       'assignedTo': assignedTo,
       'assignedToCrewId': assignedToCrewId,
+      'assignedDepartment': assignedDepartment,
       'completedAt': completedAt,
       'completedBy': completedBy,
       'completedByCrewId': completedByCrewId,
@@ -123,24 +216,64 @@ class MaintenanceTask extends Equatable {
       'updatedAt': updatedAt,
       'taskTypeId': taskTypeId,
       'taskTypeName': taskTypeName,
+      'checklistItems': checklistItems.map((item) => item.toJson()).toList(),
+
+      // PMS workflow
+      'rejectionReason': rejectionReason,
+      'rejectionCount': rejectionCount,
+      'lastRejectedAt': lastRejectedAt,
+      'lastRejectedBy': lastRejectedBy,
+      'hasPendingDeferral': hasPendingDeferral,
+      'deferralCount': deferralCount,
+      'lastDeferredAt': lastDeferredAt,
+      'lastDeferredBy': lastDeferredBy,
+      'requiredPhotos': requiredPhotos,
+      'photosUploaded': photosUploaded,
+      'isCms': isCms,
+      'submittedAt': submittedAt,
+      'submittedBy': submittedBy,
+      'verifiedAt': verifiedAt,
+      'verifiedBy': verifiedBy,
+      'verificationResult': verificationResult,
     };
   }
   
-  // Computed properties
+  // Computed properties - handle nullable nextDueAt
   int get daysUntilDue {
-    final due = DateTime.parse(nextDueAt);
-    return due.difference(DateTime.now()).inDays;
+    if (nextDueAt == null) return 0;
+    try {
+      final due = DateTime.parse(nextDueAt!);
+      return due.difference(DateTime.now()).inDays;
+    } catch (e) {
+      return 0;
+    }
   }
   
   bool get isOverdue => daysUntilDue < 0;
   bool get isDueSoon => daysUntilDue >= 0 && daysUntilDue <= 7;
-  bool get isPending => status == 'PENDING';
+  // Workflow helpers
+  bool get isRectify => status == 'RECTIFY';
+  bool get isPendingApproval => status == 'PENDING_APPROVAL';
+  bool get canRequestDeferral => status == 'DUE' || status == 'OVERDUE' || status == 'SCHEDULED';
+  bool get canFixAndContinue => isRectify;
+  bool get hasEnoughPhotos => photosUploaded >= requiredPhotos;
+
+  bool get isScheduled => status == 'SCHEDULED';
+  bool get isDue => status == 'DUE';
+  bool get isOverdueStatus => status == 'OVERDUE';
   bool get isInProgress => status == 'IN_PROGRESS';
   bool get isCompleted => status == 'COMPLETED';
-  bool get isOverdueStatus => status == 'OVERDUE'; // For tasks with OVERDUE status
+  bool get isCancelled => status == 'CANCELLED';
   
-  // Helper: Can start task (PENDING or OVERDUE status)
-  bool get canStart => isPending || isOverdueStatus;
+  // Missing status checks (tasks that need attention before they can proceed normally)
+  bool get isMissingPic => status == 'MISSING_PIC';
+  bool get isMissingChecklist => status == 'MISSING_CHECKLIST';
+  bool get isMissingBoth => status == 'MISSING_BOTH';
+  bool get hasMissingStatus => isMissingPic || isMissingChecklist || isMissingBoth;
+
+  /// Start is allowed by backend for DUE/OVERDUE/RECTIFY/MISSING_*, but blocked if hasPendingDeferral
+  /// Tasks with MISSING_* status can be started at any time (crew can self-assign)
+  bool get canStart => (isDue || isOverdueStatus || isRectify || hasMissingStatus) && !hasPendingDeferral;
   
   /// Check if this task uses the new TaskType system
   bool get hasTaskType => taskTypeId != null;
@@ -161,18 +294,38 @@ class MaintenanceTask extends Equatable {
   }
   
   Color get statusColor {
-    if (isOverdue) return Colors.red.shade700;
-    if (isDueSoon) return Colors.orange.shade700;
-    if (isCompleted) return Colors.green.shade700;
+    if (isRectify) return Colors.orange.shade700;
+    if (isPendingApproval) return Colors.amber.shade700;
+    if (isOverdueStatus || (isOverdue && !isCompleted)) return Colors.red.shade700;
     if (isInProgress) return Colors.blue.shade700;
+    if (isCompleted) return Colors.green.shade700;
+    if (isDue || isScheduled) return Colors.grey.shade700;
     return Colors.grey.shade600;
   }
   
   String get statusText {
-    if (isOverdue && !isCompleted) return 'OVERDUE';
     return status;
   }
+
+  /// Get display name - prefers equipment name, falls back to group name
+  String get displayName {
+    if (equipmentName != null && equipmentName!.isNotEmpty) {
+      return equipmentName!;
+    }
+    if (equipmentGroupName != null && equipmentGroupName!.isNotEmpty) {
+      return equipmentGroupName!;
+    }
+    return taskDescription;
+  }
+
+  /// Check if this task is for equipment group (not single equipment)
+  bool get isGroupTask => equipmentGroupId != null && equipmentId == null;
   
   @override
-  List<Object?> get props => [id, taskId, status, updatedAt];
+  List<Object?> get props => [
+    id, taskId, status, updatedAt,
+    equipmentId, equipmentName,
+    equipmentGroupId, equipmentGroupName,
+    assignedTo, assignedDepartment,
+  ];
 }

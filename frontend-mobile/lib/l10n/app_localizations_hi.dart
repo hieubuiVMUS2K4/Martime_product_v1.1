@@ -192,6 +192,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get confirm => 'पुष्टि करें';
 
   @override
+  String get close => 'Close';
+
+  @override
   String get logoutTitle => 'लॉगआउट';
 
   @override
@@ -1023,4 +1026,37 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get tryDifferentSearchTerm => 'Try a different search term';
+
+  @override
+  String get statusHistory => 'Status History';
+
+  @override
+  String get pendingApproval => 'Pending Approval';
+
+  @override
+  String get rectify => 'Rectify Required';
+
+  @override
+  String get waitingForApproval => 'Waiting for C/E approval';
+
+  @override
+  String get taskRejected => 'Task Rejected';
+
+  @override
+  String get rejectedBy => 'Rejected by';
+
+  @override
+  String get rejectionCount => 'Rejection count';
+
+  @override
+  String get fixAndContinue => 'Fix & Continue';
+
+  @override
+  String get deferralPending => 'Deferral Pending';
+
+  @override
+  String get deferralRequest => 'Request Deferral';
+
+  @override
+  String get cancelDeferral => 'Cancel Deferral';
 }

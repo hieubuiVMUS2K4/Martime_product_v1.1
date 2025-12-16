@@ -192,6 +192,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get confirm => 'Xác nhận';
 
   @override
+  String get close => 'Đóng';
+
+  @override
   String get logoutTitle => 'Đăng xuất';
 
   @override
@@ -1026,4 +1029,37 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get tryDifferentSearchTerm => 'Thử từ khóa tìm kiếm khác';
+
+  @override
+  String get statusHistory => 'Lịch sử trạng thái';
+
+  @override
+  String get pendingApproval => 'Chờ nghiệm thu';
+
+  @override
+  String get rectify => 'Cần khắc phục';
+
+  @override
+  String get waitingForApproval => 'Đang chờ C/E nghiệm thu';
+
+  @override
+  String get taskRejected => 'Công việc bị trả lại';
+
+  @override
+  String get rejectedBy => 'Từ chối bởi';
+
+  @override
+  String get rejectionCount => 'Số lần từ chối';
+
+  @override
+  String get fixAndContinue => 'Sửa và tiếp tục';
+
+  @override
+  String get deferralPending => 'Đang chờ duyệt hoãn';
+
+  @override
+  String get deferralRequest => 'Yêu cầu hoãn';
+
+  @override
+  String get cancelDeferral => 'Huỷ yêu cầu hoãn';
 }

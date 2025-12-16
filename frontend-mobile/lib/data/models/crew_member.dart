@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 class CrewMember extends Equatable {
-  final int id;
+  final String id;  // Changed from int to String (Guid)
   final String crewId;
   final String fullName;
   final String position;
@@ -35,7 +35,7 @@ class CrewMember extends Equatable {
   
   final String? notes;
   final bool isSynced;
-  final String createdAt;
+  final String? createdAt;  // Made nullable
   
   const CrewMember({
     required this.id,
@@ -67,21 +67,21 @@ class CrewMember extends Equatable {
     this.seamanBookNumber,
     this.notes,
     required this.isSynced,
-    required this.createdAt,
+    this.createdAt,
   });
   
   factory CrewMember.fromJson(Map<String, dynamic> json) {
     return CrewMember(
-      id: json['id'],
-      crewId: json['crewId'],
-      fullName: json['fullName'],
-      position: json['position'],
+      id: json['id']?.toString() ?? '',  // Handle Guid as String
+      crewId: json['crewId'] ?? '',
+      fullName: json['fullName'] ?? '',
+      position: json['position'] ?? '',
       rank: json['rank'],
       department: json['department'],
       nationality: json['nationality'],
       dateOfBirth: json['dateOfBirth'],
       phoneNumber: json['phoneNumber'],
-      email: json['email'],
+      email: json['emailAddress'] ?? json['email'],  // Backend uses emailAddress
       address: json['address'],
       emergencyContact: json['emergencyContact'],
       joinDate: json['joinDate'],

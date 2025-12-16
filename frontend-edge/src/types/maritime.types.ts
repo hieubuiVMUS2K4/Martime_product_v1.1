@@ -300,6 +300,7 @@ export interface MaintenanceTask {
   checklistCompleted: boolean
   photosUploaded: number
   requiredPhotos: number
+  completionPhotos?: string // JSON array of photo URLs
   notes?: string
   sparePartsUsed?: string
   

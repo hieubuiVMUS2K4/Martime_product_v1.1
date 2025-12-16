@@ -993,9 +993,15 @@ public class MaintenanceTask
     /// </summary>
     public int RequiredPhotos { get; set; } = 0;
     
+    /// <summary>
+    /// JSON array of completion photo URLs (base64 or file paths)
+    /// </summary>
+    [MaxLength(100000)]
+    public string? CompletionPhotos { get; set; }
+    
     public string? Notes { get; set; }
     
-    [MaxLength(500)]
+    [MaxLength(4000)]
     public string? SparePartsUsed { get; set; }
     
     // ============ SUBMISSION ============
@@ -3847,6 +3853,161 @@ public class EquipmentGroupMember
     public virtual EquipmentGroup Group { get; set; } = null!;
 }
 
-
+/// <summary>
+/// Voyage Log Entry - Nhật ký Hành trình (SOLAS Chapter V, Reg 28)
+/// Ghi nhận các sự kiện hành trình: xuất/nhập cảng, vị trí, hoa tiêu, etc.
+/// </summary>
+public class VoyageLogEntry
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// Link to VoyageRecord (optional - for grouping entries by voyage)
+    /// </summary>
+    public Guid? VoyageId { get; set; }
+    
+    // === Event Info ===
+    
+    /// <summary>
+    /// Event Type: DEP, ARR, NOON, COSP, EOSP, PILOT_ON, PILOT_OFF, ANCHOR_DROP, ANCHOR_UP, DRIFT, DEVIATION
+    /// </summary>
+    [Required]
+    [MaxLength(20)]
+    public string EventType { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Event DateTime in UTC
+    /// </summary>
+    [Required]
+    public DateTime EventDateTime { get; set; } = DateTime.UtcNow;
+    
+    /// <summary>
+    /// Event DateTime in Local Time
+    /// </summary>
+    public DateTime? EventDateTimeLocal { get; set; }
+    
+    /// <summary>
+    /// Time Zone offset, e.g., "UTC+7", "UTC-5"
+    /// </summary>
+    [MaxLength(10)]
+    public string? TimeZone { get; set; }
+    
+    // === Position ===
+    
+    /// <summary>
+    /// Latitude in decimal degrees (-90 to 90)
+    /// </summary>
+    public double Latitude { get; set; }
+    
+    /// <summary>
+    /// Longitude in decimal degrees (-180 to 180)
+    /// </summary>
+    public double Longitude { get; set; }
+    
+    // === Port Info (for DEP/ARR events) ===
+    
+    /// <summary>
+    /// Port Name, e.g., "Ho Chi Minh City", "Singapore"
+    /// </summary>
+    [MaxLength(100)]
+    public string? PortName { get; set; }
+    
+    /// <summary>
+    /// UN/LOCODE (5 chars), e.g., "VNSGN" (Saigon), "SGSIN" (Singapore)
+    /// </summary>
+    [MaxLength(10)]
+    public string? PortLocode { get; set; }
+    
+    /// <summary>
+    /// Country name
+    /// </summary>
+    [MaxLength(50)]
+    public string? PortCountry { get; set; }
+    
+    /// <summary>
+    /// Berth/Terminal number, e.g., "Berth 5", "Terminal A"
+    /// </summary>
+    [MaxLength(50)]
+    public string? BerthNumber { get; set; }
+    
+    // === Distance & Navigation ===
+    
+    /// <summary>
+    /// Distance to next port/destination (Nautical Miles)
+    /// </summary>
+    public double? DistanceToGo { get; set; }
+    
+    /// <summary>
+    /// Distance from last logged position (Nautical Miles)
+    /// </summary>
+    public double? DistanceFromLast { get; set; }
+    
+    /// <summary>
+    /// Total voyage distance so far (Nautical Miles)
+    /// </summary>
+    public double? TotalVoyageDistance { get; set; }
+    
+    /// <summary>
+    /// Course Over Ground (degrees, 0-360)
+    /// </summary>
+    public double? CourseOverGround { get; set; }
+    
+    /// <summary>
+    /// Speed Over Ground (Knots)
+    /// </summary>
+    public double? SpeedOverGround { get; set; }
+    
+    // === Pilot Info (for PILOT_ON/PILOT_OFF events) ===
+    
+    /// <summary>
+    /// Pilot's name
+    /// </summary>
+    [MaxLength(100)]
+    public string? PilotName { get; set; }
+    
+    /// <summary>
+    /// Pilot station name, e.g., "Vung Tau Pilot Station"
+    /// </summary>
+    [MaxLength(100)]
+    public string? PilotStation { get; set; }
+    
+    // === Officer & Signature ===
+    
+    /// <summary>
+    /// Officer on Watch who made this entry
+    /// </summary>
+    [Required]
+    [MaxLength(100)]
+    public string OfficerOnWatch { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Master's signature (base64 or confirmation string)
+    /// </summary>
+    public string? MasterSignature { get; set; }
+    
+    /// <summary>
+    /// When the Master signed this entry
+    /// </summary>
+    public DateTime? SignedAt { get; set; }
+    
+    // === Remarks ===
+    
+    /// <summary>
+    /// Additional notes/remarks
+    /// </summary>
+    [MaxLength(1000)]
+    public string? Remarks { get; set; }
+    
+    // === System Fields ===
+    
+    public bool IsSynced { get; set; } = false;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+}
 
 

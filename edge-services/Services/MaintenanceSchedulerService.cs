@@ -296,16 +296,24 @@ public class MaintenanceSchedulerService : BackgroundService
             // Note: TaskType is optional in PMS Planning v2.0
             // Tasks are generated from Equipment Groups → Schedules directly
 
-            // Get spare parts requirements
+            // Get spare parts requirements with material details
             var spareParts = await context.ScheduleSpareParts
                 .Where(sp => sp.ScheduleId == schedule.Id)
                 .ToListAsync();
 
-            // Build spare parts JSON
+            // Get material details for spare parts
+            var materialIds = spareParts.Select(sp => sp.MaterialItemId).ToList();
+            var materials = await context.MaterialItems
+                .Where(m => materialIds.Contains(m.Id))
+                .ToDictionaryAsync(m => m.Id, m => new { m.ItemCode, m.Name });
+
+            // Build spare parts JSON with full material info
             var sparePartsJson = spareParts.Any()
                 ? System.Text.Json.JsonSerializer.Serialize(spareParts.Select(sp => new
                 {
                     materialItemId = sp.MaterialItemId,
+                    materialCode = materials.ContainsKey(sp.MaterialItemId) ? materials[sp.MaterialItemId].ItemCode : "",
+                    materialName = materials.ContainsKey(sp.MaterialItemId) ? materials[sp.MaterialItemId].Name : "Unknown Material",
                     quantityRequired = sp.QuantityRequired,
                     isMandatory = sp.IsMandatory
                 }))

@@ -462,6 +462,12 @@ abstract class AppLocalizations {
   /// **'Confirm'**
   String get confirm;
 
+  /// No description provided for @close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
+
   /// No description provided for @logoutTitle.
   ///
   /// In en, this message translates to:
@@ -1991,6 +1997,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try a different search term'**
   String get tryDifferentSearchTerm;
+
+  /// No description provided for @statusHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Status History'**
+  String get statusHistory;
+
+  /// No description provided for @pendingApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Approval'**
+  String get pendingApproval;
+
+  /// No description provided for @rectify.
+  ///
+  /// In en, this message translates to:
+  /// **'Rectify Required'**
+  String get rectify;
+
+  /// No description provided for @waitingForApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for C/E approval'**
+  String get waitingForApproval;
+
+  /// No description provided for @taskRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Task Rejected'**
+  String get taskRejected;
+
+  /// No description provided for @rejectedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected by'**
+  String get rejectedBy;
+
+  /// No description provided for @rejectionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejection count'**
+  String get rejectionCount;
+
+  /// No description provided for @fixAndContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Fix & Continue'**
+  String get fixAndContinue;
+
+  /// No description provided for @deferralPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Deferral Pending'**
+  String get deferralPending;
+
+  /// No description provided for @deferralRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Request Deferral'**
+  String get deferralRequest;
+
+  /// No description provided for @cancelDeferral.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel Deferral'**
+  String get cancelDeferral;
 }
 
 class _AppLocalizationsDelegate

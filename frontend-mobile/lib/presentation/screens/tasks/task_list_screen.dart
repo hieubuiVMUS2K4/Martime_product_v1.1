@@ -29,7 +29,7 @@ class _TaskListScreenState extends State<TaskListScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     WidgetsBinding.instance.addObserver(this);
     
     // Fetch tasks on init
@@ -142,9 +142,9 @@ class _TaskListScreenState extends State<TaskListScreen>
             ),
             tabs: [
               _buildTab(
-                label: l10n.statusPending,
-                count: taskProvider.pendingTasks.length,
-                icon: Icons.pending_actions,
+                label: 'Đến hạn',
+                count: taskProvider.dueTasks.length,
+                icon: Icons.event_available,
                 isSmallScreen: isSmallScreen,
               ),
               _buildTab(
@@ -157,6 +157,18 @@ class _TaskListScreenState extends State<TaskListScreen>
                 label: l10n.statusOverdue,
                 count: taskProvider.overdueTasks.length,
                 icon: Icons.warning,
+                isSmallScreen: isSmallScreen,
+              ),
+              _buildTab(
+                label: 'Cần sửa',
+                count: taskProvider.rectifyTasks.length,
+                icon: Icons.build_circle,
+                isSmallScreen: isSmallScreen,
+              ),
+              _buildTab(
+                label: 'Chờ duyệt',
+                count: taskProvider.pendingApprovalTasks.length,
+                icon: Icons.pending_actions,
                 isSmallScreen: isSmallScreen,
               ),
               _buildTab(
@@ -215,9 +227,11 @@ class _TaskListScreenState extends State<TaskListScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildTaskList(taskProvider.pendingTasks, taskProvider, 'pending'),
+                _buildTaskList(taskProvider.dueTasks, taskProvider, 'due'),
                 _buildTaskList(taskProvider.inProgressTasks, taskProvider, 'in_progress'),
                 _buildTaskList(taskProvider.overdueTasks, taskProvider, 'overdue'),
+                _buildTaskList(taskProvider.rectifyTasks, taskProvider, 'rectify'),
+                _buildTaskList(taskProvider.pendingApprovalTasks, taskProvider, 'pending_approval'),
                 _buildTaskList(taskProvider.completedTasks, taskProvider, 'completed'),
               ],
             ),
@@ -243,12 +257,14 @@ class _TaskListScreenState extends State<TaskListScreen>
 
     // Filter by search query
     final filteredTasks = tasks.where((task) {
-      return task.equipmentName
+      final searchLower = _searchQuery.toLowerCase();
+      final nameMatch = (task.equipmentName ?? task.equipmentGroupName ?? '')
               .toLowerCase()
-              .contains(_searchQuery.toLowerCase()) ||
-          task.taskDescription
+              .contains(searchLower);
+      final descMatch = task.taskDescription
               .toLowerCase()
-              .contains(_searchQuery.toLowerCase());
+              .contains(searchLower);
+      return nameMatch || descMatch;
     }).toList();
 
     if (filteredTasks.isEmpty) {

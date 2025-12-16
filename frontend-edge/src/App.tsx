@@ -45,6 +45,8 @@ import { OilRecordPage } from './pages/logbooks/OilRecordPage'
 import { GarbageRecordPage } from './pages/logbooks/GarbageRecordPage'
 import { BallastWaterPage } from './pages/logbooks/BallastWaterPage'
 import { WatchkeepingPage } from './pages/logbooks/WatchkeepingPage'
+import { VoyageLogPage } from './pages/logbooks/VoyageLogPage'
+import { VoyageLogDetailPage } from './pages/logbooks/VoyageLogDetailPage'
 
 function App() {
   return (
@@ -75,6 +77,8 @@ function App() {
         <Route path="logbooks/garbage" element={<GarbageRecordPage />} />
         <Route path="logbooks/ballast" element={<BallastWaterPage />} />
         <Route path="logbooks/watchkeeping" element={<WatchkeepingPage />} />
+        <Route path="logbooks/voyage" element={<VoyageLogPage />} />
+        <Route path="logbooks/voyage/:id" element={<VoyageLogDetailPage />} />
 
         {/* PMS Routes */}
         <Route path="pms/assets" element={<AssetsPage />} />

@@ -85,6 +85,7 @@
   "cacheClearedSuccess": "Cache cleared successfully",
   "cancel": "Cancel",
   "confirm": "Confirm",
+  "close": "Close",
   
   "logoutTitle": "Logout",
   "logoutMessage": "Are you sure you want to logout?",
@@ -566,5 +567,18 @@
   "noCompletedTasks": "No completed tasks",
   "completedTasksAppearHere": "Complete tasks will appear here",
   "noTasksMatchSearch": "No tasks match your search",
-  "tryDifferentSearchTerm": "Try a different search term"
+  "tryDifferentSearchTerm": "Try a different search term",
+  
+  "close": "Close",
+  "statusHistory": "Status History",
+  "pendingApproval": "Pending Approval",
+  "rectify": "Rectify Required",
+  "waitingForApproval": "Waiting for C/E approval",
+  "taskRejected": "Task Rejected",
+  "rejectedBy": "Rejected by",
+  "rejectionCount": "Rejection count",
+  "fixAndContinue": "Fix & Continue",
+  "deferralPending": "Deferral Pending",
+  "deferralRequest": "Request Deferral",
+  "cancelDeferral": "Cancel Deferral"
 }
