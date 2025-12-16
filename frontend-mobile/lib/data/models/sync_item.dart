@@ -43,4 +43,14 @@ enum SyncItemType {
   
   @HiveField(3)
   checklistComplete,
+
+  // PMS Workflow v2.0
+  @HiveField(4)
+  taskSubmit,
+
+  @HiveField(5)
+  deferralCreate,
+
+  @HiveField(6)
+  deferralCancel,
 }

@@ -352,6 +352,8 @@ public class MaintenanceController : ControllerBase
             // If includeCompleted = true, return all statuses (for Dashboard)
 
             var tasks = await query
+                .Include(t => t.ChecklistItems.OrderBy(ci => ci.SequenceOrder))
+                .Include(t => t.EquipmentGroup)
                 .OrderBy(t => t.NextDueAt)
                 .ToListAsync();
 
@@ -982,10 +984,11 @@ public class MaintenanceController : ControllerBase
 
     /// <summary>
     /// Lấy danh sách task details (checklist) của một maintenance task
-    /// GET /api/maintenance/tasks/{taskId}/checklist
+    /// GET /api/maintenance/tasks/{taskId}/checklist-legacy
+    /// NOTE: Use /api/maintenance/tasks/{taskId}/checklist endpoint from TaskChecklistItemsController instead
     /// </summary>
-    [HttpGet("tasks/{taskId}/checklist")]
-    public async Task<IActionResult> GetTaskChecklist(Guid taskId)
+    [HttpGet("tasks/{taskId}/checklist-legacy")]
+    public async Task<IActionResult> GetTaskChecklistLegacy(Guid taskId)
     {
         try
         {
@@ -1065,10 +1068,11 @@ public class MaintenanceController : ControllerBase
 
     /// <summary>
     /// Complete một task detail item trong checklist
-    /// POST /api/maintenance/tasks/{taskId}/checklist/{detailId}/complete
+    /// POST /api/maintenance/tasks/{taskId}/details/{detailId}/complete
+    /// NOTE: Use /api/maintenance/tasks/{taskId}/checklist/{itemId}/complete from TaskChecklistItemsController instead
     /// </summary>
-    [HttpPost("tasks/{taskId}/checklist/{detailId}/complete")]
-    public async Task<IActionResult> CompleteChecklistItem(Guid taskId, long detailId, [FromBody] CompleteChecklistItemRequest request)
+    [HttpPost("tasks/{taskId}/details/{detailId}/complete")]
+    public async Task<IActionResult> CompleteChecklistItemLegacy(Guid taskId, long detailId, [FromBody] CompleteChecklistItemRequest request)
     {
         try
         {

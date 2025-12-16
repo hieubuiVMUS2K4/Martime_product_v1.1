@@ -68,6 +68,7 @@
   "cacheClearedSuccess": "Đã xóa bộ nhớ đệm thành công",
   "cancel": "Hủy",
   "confirm": "Xác nhận",
+  "close": "Đóng",
   
   "logoutTitle": "Đăng xuất",
   "logoutMessage": "Bạn có chắc chắn muốn đăng xuất?",
@@ -348,5 +349,18 @@
   "noCompletedTasks": "Không có công việc đã hoàn thành",
   "completedTasksAppearHere": "Công việc đã hoàn thành sẽ hiển thị ở đây",
   "noTasksMatchSearch": "Không có công việc nào khớp với tìm kiếm",
-  "tryDifferentSearchTerm": "Thử từ khóa tìm kiếm khác"
+  "tryDifferentSearchTerm": "Thử từ khóa tìm kiếm khác",
+  
+  "close": "Đóng",
+  "statusHistory": "Lịch sử trạng thái",
+  "pendingApproval": "Chờ nghiệm thu",
+  "rectify": "Cần khắc phục",
+  "waitingForApproval": "Đang chờ C/E nghiệm thu",
+  "taskRejected": "Công việc bị trả lại",
+  "rejectedBy": "Từ chối bởi",
+  "rejectionCount": "Số lần từ chối",
+  "fixAndContinue": "Sửa và tiếp tục",
+  "deferralPending": "Đang chờ duyệt hoãn",
+  "deferralRequest": "Yêu cầu hoãn",
+  "cancelDeferral": "Huỷ yêu cầu hoãn"
 }

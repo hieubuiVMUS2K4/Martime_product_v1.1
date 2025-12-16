@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using MaritimeEdge.DTOs;
+using MaritimeEdge.Services;
 using System.Text.Json;
 using MTaskStatus = MaritimeEdge.Constants.TaskStatus;
 
@@ -14,11 +15,16 @@ public class TaskWorkflowController : ControllerBase
 {
     private readonly EdgeDbContext _context;
     private readonly ILogger<TaskWorkflowController> _logger;
+    private readonly MaintenanceCompletionService _completionService;
 
-    public TaskWorkflowController(EdgeDbContext context, ILogger<TaskWorkflowController> logger)
+    public TaskWorkflowController(
+        EdgeDbContext context, 
+        ILogger<TaskWorkflowController> logger,
+        MaintenanceCompletionService completionService)
     {
         _context = context;
         _logger = logger;
+        _completionService = completionService;
     }
 
     /// <summary>
@@ -40,12 +46,13 @@ public class TaskWorkflowController : ControllerBase
                 return NotFound(new { error = "Task not found" });
             }
 
-            // Validate status - can only start DUE or OVERDUE tasks
-            var allowedStatuses = new[] { "DUE", "OVERDUE", "RECTIFY" };
+            // Validate status - can only start DUE, OVERDUE, RECTIFY or MISSING_* tasks
+            // Tasks with MISSING_* status can be started if they are past due date
+            var allowedStatuses = new[] { "DUE", "OVERDUE", "RECTIFY", "MISSING_PIC", "MISSING_CHECKLIST", "MISSING_BOTH" };
             if (!allowedStatuses.Contains(task.Status))
             {
                 return BadRequest(new { 
-                    error = "Can only start tasks in DUE, OVERDUE or RECTIFY status",
+                    error = "Can only start tasks in DUE, OVERDUE, RECTIFY or MISSING_* status",
                     currentStatus = task.Status,
                     allowedStatuses = allowedStatuses
                 });
@@ -188,6 +195,8 @@ public class TaskWorkflowController : ControllerBase
             if (dto.PhotoUrls != null && dto.PhotoUrls.Any())
             {
                 task.PhotosUploaded = dto.PhotoUrls.Count;
+                // Store the actual photo URLs as JSON array
+                task.CompletionPhotos = System.Text.Json.JsonSerializer.Serialize(dto.PhotoUrls);
             }
 
             if (dto.CompletedRunningHours.HasValue)
@@ -264,6 +273,74 @@ public class TaskWorkflowController : ControllerBase
 
             if (action == "APPROVE")
             {
+                // === DEDUCT SPARE PARTS FROM INVENTORY ===
+                if (!string.IsNullOrEmpty(task.SparePartsUsed))
+                {
+                    try
+                    {
+                        var sparePartsData = JsonSerializer.Deserialize<List<SparePartUsageDto>>(
+                            task.SparePartsUsed, 
+                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                        );
+                        
+                        if (sparePartsData != null && sparePartsData.Any())
+                        {
+                            var deductedItems = new List<object>();
+                            
+                            foreach (var usage in sparePartsData)
+                            {
+                                var quantityToDeduct = usage.QuantityUsed > 0 ? usage.QuantityUsed : usage.QuantityRequired;
+                                if (quantityToDeduct <= 0) continue;
+                                
+                                var materialItem = await _context.MaterialItems
+                                    .FirstOrDefaultAsync(m => m.Id == usage.MaterialItemId);
+                                
+                                if (materialItem != null)
+                                {
+                                    var previousStock = materialItem.OnHandQuantity;
+                                    materialItem.OnHandQuantity -= quantityToDeduct;
+                                    materialItem.UpdatedAt = DateTime.UtcNow;
+                                    
+                                    _logger.LogInformation(
+                                        "Deducted {Qty} of {ItemCode} for task {TaskId}. Stock: {Prev} → {New}",
+                                        quantityToDeduct, materialItem.ItemCode, task.TaskId,
+                                        previousStock, materialItem.OnHandQuantity);
+                                    
+                                    deductedItems.Add(new {
+                                        materialItemId = materialItem.Id,
+                                        materialCode = materialItem.ItemCode,
+                                        materialName = materialItem.Name,
+                                        quantityUsed = quantityToDeduct,
+                                        previousStock = previousStock,
+                                        newStock = materialItem.OnHandQuantity
+                                    });
+                                    
+                                    // Check low stock alert
+                                    if (materialItem.MinStock.HasValue && 
+                                        materialItem.OnHandQuantity < materialItem.MinStock.Value)
+                                    {
+                                        _logger.LogWarning(
+                                            "LOW STOCK: {ItemCode} {Name} - Current: {Current}, Min: {Min}",
+                                            materialItem.ItemCode, materialItem.Name,
+                                            materialItem.OnHandQuantity, materialItem.MinStock.Value);
+                                    }
+                                }
+                            }
+                            
+                            // Update task with actual deduction records
+                            if (deductedItems.Any())
+                            {
+                                task.SparePartsUsed = JsonSerializer.Serialize(deductedItems);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error deducting spare parts for task {TaskId}", task.TaskId);
+                        // Continue with approval even if spare parts deduction fails
+                    }
+                }
+
                 // Approve task
                 task.Status = "COMPLETED";
                 task.VerifiedAt = DateTime.UtcNow;
@@ -466,6 +543,7 @@ public class TaskWorkflowController : ControllerBase
                 ChecklistCompleted = task.ChecklistCompleted,
                 PhotosUploaded = task.PhotosUploaded,
                 RequiredPhotos = task.RequiredPhotos,
+                CompletionPhotos = task.CompletionPhotos,
                 Notes = task.Notes,
                 SparePartsUsed = task.SparePartsUsed,
                 SubmittedAt = task.SubmittedAt,
@@ -861,4 +939,16 @@ public class TaskWorkflowController : ControllerBase
             return StatusCode(500, new { error = "Internal server error" });
         }
     }
+}
+
+/// <summary>
+/// DTO for spare parts usage from mobile app
+/// Supports both new format (quantityUsed) and old format (quantityRequired)
+/// </summary>
+public class SparePartUsageDto
+{
+    public Guid MaterialItemId { get; set; }
+    public double QuantityUsed { get; set; }
+    public double QuantityRequired { get; set; }
+    public bool IsMandatory { get; set; }
 }

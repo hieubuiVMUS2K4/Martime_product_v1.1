@@ -14,7 +14,13 @@ import {
   GarbageRecordResponseDto,
   CreateBallastWaterRecordDto,
   BallastWaterRecordResponseDto,
-  SignLogbookDto
+  SignLogbookDto,
+  CreateVoyageLogEntryDto,
+  VoyageLogEntryResponseDto,
+  VoyageLogQueryDto,
+  VoyageLogTimelineItem,
+  VoyageLogEventInfo,
+  SignVoyageLogEntryDto
 } from '../types/logbook.types';
 
 class LogbookService {
@@ -129,6 +135,49 @@ class LogbookService {
       masterSignature: data.signature,
       signedAt: data.signedAt
     });
+  }
+
+  // ==================== VOYAGE LOG ====================
+  
+  async getVoyageLogEntries(params: VoyageLogQueryDto) {
+    const queryString = this.buildQueryString(params);
+    return await apiClient.get<PaginatedLogbookResponse<VoyageLogEntryResponseDto>>(`/voyage-log?${queryString}`);
+  }
+
+  async getVoyageLogEntry(id: string) {
+    return await apiClient.get<VoyageLogEntryResponseDto>(`/voyage-log/${id}`);
+  }
+
+  async createVoyageLogEntry(data: CreateVoyageLogEntryDto) {
+    return await apiClient.post<VoyageLogEntryResponseDto>('/voyage-log', data);
+  }
+
+  async updateVoyageLogEntry(id: string, data: Partial<CreateVoyageLogEntryDto>) {
+    return await apiClient.put<VoyageLogEntryResponseDto>(`/voyage-log/${id}`, data);
+  }
+
+  async deleteVoyageLogEntry(id: string) {
+    return await apiClient.delete(`/voyage-log/${id}`);
+  }
+
+  async signVoyageLogEntry(id: string, data: SignVoyageLogEntryDto) {
+    return await apiClient.post<VoyageLogEntryResponseDto>(`/voyage-log/${id}/sign`, data);
+  }
+
+  async getVoyageLogTimeline(voyageId?: string, limit: number = 50) {
+    const params: Record<string, string> = { limit: limit.toString() };
+    if (voyageId) params.voyageId = voyageId;
+    const queryString = this.buildQueryString(params);
+    return await apiClient.get<VoyageLogTimelineItem[]>(`/voyage-log/timeline?${queryString}`);
+  }
+
+  async getLastVoyageLogEntry(voyageId?: string) {
+    const params = voyageId ? `?voyageId=${voyageId}` : '';
+    return await apiClient.get<VoyageLogEntryResponseDto>(`/voyage-log/last${params}`);
+  }
+
+  async getVoyageLogEventTypes() {
+    return await apiClient.get<VoyageLogEventInfo[]>('/voyage-log/event-types');
   }
 }
 

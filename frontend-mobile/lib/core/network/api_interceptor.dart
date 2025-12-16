@@ -6,6 +6,13 @@ class ApiInterceptor extends Interceptor {
   
   @override
   Future<void> onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+    // Required edge-services headers
+    final crewId = await _tokenStorage.getCrewId();
+    if (crewId != null && crewId.isNotEmpty) {
+      options.headers['X-User-Id'] = crewId;
+    }
+    options.headers['X-Device-Type'] = 'MOBILE';
+
     // Add JWT token to header if exists
     final token = await _tokenStorage.getAccessToken();
     if (token != null) {

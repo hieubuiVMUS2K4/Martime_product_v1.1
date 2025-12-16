@@ -32,9 +32,10 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
   }
 
   void _loadProfile() {
-    _profileFuture = _crewRepository.getMyProfile()
+    _profileFuture = _crewRepository.getMyProfile(forceRefresh: true)
         .then((value) => value as CrewMember?)
         .catchError((e) {
+      print('Certificates error: $e');
       return null;
     });
   }

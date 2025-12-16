@@ -40,7 +40,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
     final now = DateTime.now();
     
     return allTasks.where((task) {
-      final nextDue = DateTime.parse(task.nextDueAt);
+      if (task.nextDueAt == null) return false;
+      final nextDue = DateTime.parse(task.nextDueAt!);
       
       switch (_filter) {
         case 'upcoming':
@@ -61,7 +62,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
           return true;
       }
     }).toList()
-      ..sort((a, b) => DateTime.parse(a.nextDueAt).compareTo(DateTime.parse(b.nextDueAt)));
+      ..sort((a, b) {
+        final aDate = a.nextDueAt != null ? DateTime.parse(a.nextDueAt!) : DateTime.now();
+        final bDate = b.nextDueAt != null ? DateTime.parse(b.nextDueAt!) : DateTime.now();
+        return aDate.compareTo(bDate);
+      });
   }
 
   Map<String, List<MaintenanceTask>> _groupTasksByDate(List<MaintenanceTask> tasks) {
@@ -69,7 +74,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
     final dateFormat = DateFormat('EEEE, MMM d, yyyy');
     
     for (var task in tasks) {
-      final date = dateFormat.format(DateTime.parse(task.nextDueAt));
+      if (task.nextDueAt == null) continue;
+      final date = dateFormat.format(DateTime.parse(task.nextDueAt!));
       if (!grouped.containsKey(date)) {
         grouped[date] = [];
       }

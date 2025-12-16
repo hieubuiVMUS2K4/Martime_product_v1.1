@@ -120,6 +120,9 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
   const [rejectionReason, setRejectionReason] = useState('');
   const [approvalNotes, setApprovalNotes] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  
+  // Photo lightbox state
+  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
 
   // Fetch all materials when modal opens
   useEffect(() => {
@@ -564,6 +567,53 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
             </div>
           )}
 
+          {/* 4. Completion Photos */}
+          {task.completionPhotos && (() => {
+            try {
+              const photos = JSON.parse(task.completionPhotos);
+              if (Array.isArray(photos) && photos.length > 0) {
+                return (
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Package className="w-5 h-5 text-indigo-600" />
+                      Completion Photos ({photos.length})
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {photos.map((photoUrl: string, index: number) => (
+                        <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                          {photoUrl.startsWith('data:image') ? (
+                            <img 
+                              src={photoUrl} 
+                              alt={`Completion photo ${index + 1}`}
+                              className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => setLightboxPhoto(photoUrl)}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <div className="text-center p-4">
+                                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                                <p className="text-xs text-gray-500 break-all">{photoUrl.substring(0, 50)}...</p>
+                              </div>
+                            </div>
+                          )}
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent p-2">
+                            <span className="text-white text-xs font-medium">Photo {index + 1}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Photos uploaded: {task.photosUploaded} / Required: {task.requiredPhotos || 'N/A'}
+                    </p>
+                  </div>
+                );
+              }
+              return null;
+            } catch {
+              return null;
+            }
+          })()}
+
           {/* Deferral Information */}
           {(task.hasPendingDeferral || task.deferralCount > 0) && (
             <div>
@@ -943,6 +993,37 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
           </div>
         </div>
       </div>
+      
+      {/* Photo Lightbox Modal */}
+      {lightboxPhoto && (
+        <div 
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60]"
+          onClick={() => setLightboxPhoto(null)}
+        >
+          <button
+            onClick={() => setLightboxPhoto(null)}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors"
+          >
+            <X className="w-8 h-8" />
+          </button>
+          <img 
+            src={lightboxPhoto} 
+            alt="Full size photo"
+            className="max-w-[90vw] max-h-[90vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          {/* Download button */}
+          <a
+            href={lightboxPhoto}
+            download={`completion-photo-${Date.now()}.jpg`}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute bottom-4 right-4 px-4 py-2 bg-white text-gray-800 rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-2"
+          >
+            <FileText className="w-4 h-4" />
+            Download
+          </a>
+        </div>
+      )}
     </div>
   );
 }

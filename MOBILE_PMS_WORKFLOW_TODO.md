@@ -17,6 +17,9 @@
 5. [Notification Handling](#5-notification-handling)
 6. [Offline Support](#6-offline-support)
 7. [Testing Checklist](#7-testing-checklist)
+8. [Model & DTO Updates](#8-model--dto-updates)
+9. [API Migration Plan](#9-api-migration-plan)
+10. [Implementation Priority](#10-implementation-priority)
 
 ---
 

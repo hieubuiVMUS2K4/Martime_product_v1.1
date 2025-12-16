@@ -391,6 +391,9 @@ public class MaintenanceTaskDetailDto
     [JsonPropertyName("requiredPhotos")]
     public int RequiredPhotos { get; set; }
     
+    [JsonPropertyName("completionPhotos")]
+    public string? CompletionPhotos { get; set; }
+    
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
     

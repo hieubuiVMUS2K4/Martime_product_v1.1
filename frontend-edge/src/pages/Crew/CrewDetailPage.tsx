@@ -13,7 +13,8 @@ import {
   CheckCircle,
   Clock,
   Edit2,
-  Trash2
+  Trash2,
+  KeyRound
 } from 'lucide-react'
 import { CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
@@ -29,6 +30,7 @@ export function CrewDetailPage() {
   const [editedCrew, setEditedCrew] = useState<Partial<CrewMember>>({})
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [resettingPassword, setResettingPassword] = useState(false)
 
   useEffect(() => {
     loadCrewDetails()
@@ -110,6 +112,47 @@ export function CrewDetailPage() {
   const handleCancel = () => {
     setEditedCrew(crew || {})
     setIsEditing(false)
+  }
+
+  const handleResetPassword = async () => {
+    if (!crew) return
+    
+    if (!crew.dateOfBirth) {
+      alert('⚠️ Cannot reset password: Date of birth is not set for this crew member.\n\nPlease update the date of birth first.')
+      return
+    }
+    
+    const confirmed = window.confirm(
+      `🔐 Reset password for ${crew.fullName}?\n\n` +
+      `Crew ID: ${crew.crewId}\n` +
+      `New password will be: ${format(parseISO(crew.dateOfBirth), 'ddMMyyyy')}\n\n` +
+      `(Format: DDMMYYYY based on date of birth)`
+    )
+    
+    if (!confirmed) return
+    
+    try {
+      setResettingPassword(true)
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: crew.crewId })
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        alert(`✅ Password reset successfully!\n\nNew password: ${result.defaultPassword}\n\n(Based on date of birth: DDMMYYYY)`)
+      } else {
+        alert(`❌ Failed to reset password:\n${result.message}`)
+      }
+    } catch (error: any) {
+      console.error('❌ Failed to reset password:', error)
+      alert(`Error: ${error.message || 'Failed to reset password'}`)
+    } finally {
+      setResettingPassword(false)
+    }
   }
 
   const getCertificateStatus = (expiryDate?: string) => {
@@ -243,6 +286,24 @@ export function CrewDetailPage() {
                 >
                   <Edit2 className="w-4 h-4" />
                   Edit Information
+                </button>
+                <button
+                  onClick={handleResetPassword}
+                  disabled={resettingPassword}
+                  className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white text-sm rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Reset password to date of birth (DDMMYYYY)"
+                >
+                  {resettingPassword ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Resetting...
+                    </>
+                  ) : (
+                    <>
+                      <KeyRound className="w-4 h-4" />
+                      Reset Password
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={handleDelete}

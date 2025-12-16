@@ -33,9 +33,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _loadProfile() {
-    _profileFuture = _crewRepository.getMyProfile()
+    _profileFuture = _crewRepository.getMyProfile(forceRefresh: true)
         .then((value) => value as CrewMember?)
         .catchError((e) {
+      print('Profile error: $e');
       return null;
     });
   }

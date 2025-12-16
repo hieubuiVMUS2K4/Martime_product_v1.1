@@ -32,7 +32,7 @@ flutter pub get
 Bước 5: Chạy Edge System (Khuyến nghị khởi động trước)
 Terminal 1 - Backend API:
 cd edge-services
-dotnet run --urls "http://0.0.0.0:5001"
+dotnet run --urls "http://0.0.0.0:5005"
 
 Terminal 2 - Frontend Dashboard:
 cd frontend-edge

@@ -9,8 +9,8 @@ abstract class CrewApi {
   factory CrewApi(Dio dio, {String baseUrl}) = _CrewApi;
 
   @GET('/api/crew/me')
-  Future<CrewMember> getMyProfile();
+  Future<CrewMember> getMyProfile(@Query('crewId') String crewId);
 
   @GET('/api/crew/me/certificates')
-  Future<HttpResponse<dynamic>> getMyCertificates();
+  Future<HttpResponse<dynamic>> getMyCertificates(@Query('crewId') String crewId);
 }

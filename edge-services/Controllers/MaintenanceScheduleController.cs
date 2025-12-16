@@ -340,10 +340,25 @@ public class MaintenanceScheduleController : ControllerBase
     {
         try
         {
+            // Log incoming request
+            _logger.LogInformation("Creating schedule: Code={Code}, GroupId={GroupId}, Name={Name}, IntervalType={IntervalType}", 
+                dto.ScheduleCode, dto.EquipmentGroupId, dto.ScheduleName, dto.IntervalType);
+
+            // Validate model state
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                _logger.LogWarning("Model validation failed: {Errors}", string.Join(", ", errors));
+                return BadRequest(new { error = "Validation failed", details = errors });
+            }
+
             // Validate equipment group exists
             var group = await _context.EquipmentGroups.FindAsync(dto.EquipmentGroupId);
             if (group == null)
+            {
+                _logger.LogWarning("Equipment group not found: {GroupId}", dto.EquipmentGroupId);
                 return BadRequest(new { error = "Equipment group not found" });
+            }
 
             // Check if schedule code already exists
             if (await _scheduleRepository.ScheduleCodeExistsAsync(dto.ScheduleCode))

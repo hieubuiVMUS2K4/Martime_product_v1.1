@@ -96,12 +96,43 @@ public class EdgeDbContext : DbContext
     public DbSet<TaskDeferralRequest> TaskDeferralRequests { get; set; } = null!;
     public DbSet<TaskStatusHistory> TaskStatusHistories { get; set; } = null!;
 
+    // Voyage Log - Nhật ký Hành trình (SOLAS Chapter V)
+    public DbSet<VoyageLogEntry> VoyageLogEntries { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
         // PostgreSQL specific configurations
         modelBuilder.HasDefaultSchema("public");
+
+        // ========== DATETIME UTC CONVERSION ==========
+        // Apply UTC conversion for all DateTime and DateTime? properties
+        // This fixes: "Cannot write DateTime with Kind=Unspecified to PostgreSQL type 'timestamp with time zone'"
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (property.ClrType == typeof(DateTime))
+                {
+                    property.SetValueConverter(
+                        new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
+                            v => v.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(v, DateTimeKind.Utc) : v.ToUniversalTime(),
+                            v => DateTime.SpecifyKind(v, DateTimeKind.Utc)));
+                }
+                else if (property.ClrType == typeof(DateTime?))
+                {
+                    property.SetValueConverter(
+                        new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime?, DateTime?>(
+                            v => v.HasValue 
+                                ? (v.Value.Kind == DateTimeKind.Unspecified 
+                                    ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) 
+                                    : v.Value.ToUniversalTime()) 
+                                : v,
+                            v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v));
+                }
+            }
+        }
 
         // Configure naming convention to snake_case
         foreach (var entity in modelBuilder.Model.GetEntityTypes())
@@ -720,6 +751,97 @@ public class EdgeDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.AssetId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========== VOYAGE LOG ENTRIES ==========
+        modelBuilder.Entity<VoyageLogEntry>(entity =>
+        {
+            entity.ToTable("voyage_log_entries");
+            
+            entity.Property(e => e.EventType)
+                .HasColumnName("event_type");
+            
+            entity.Property(e => e.EventDateTime)
+                .HasColumnName("event_date_time");
+            
+            entity.Property(e => e.EventDateTimeLocal)
+                .HasColumnName("event_date_time_local");
+            
+            entity.Property(e => e.TimeZone)
+                .HasColumnName("time_zone");
+            
+            entity.Property(e => e.PortName)
+                .HasColumnName("port_name");
+            
+            entity.Property(e => e.PortLocode)
+                .HasColumnName("port_locode");
+            
+            entity.Property(e => e.PortCountry)
+                .HasColumnName("port_country");
+            
+            entity.Property(e => e.BerthNumber)
+                .HasColumnName("berth_number");
+            
+            entity.Property(e => e.DistanceToGo)
+                .HasColumnName("distance_to_go");
+            
+            entity.Property(e => e.DistanceFromLast)
+                .HasColumnName("distance_from_last");
+            
+            entity.Property(e => e.TotalVoyageDistance)
+                .HasColumnName("total_voyage_distance");
+            
+            entity.Property(e => e.CourseOverGround)
+                .HasColumnName("course_over_ground");
+            
+            entity.Property(e => e.SpeedOverGround)
+                .HasColumnName("speed_over_ground");
+            
+            entity.Property(e => e.PilotName)
+                .HasColumnName("pilot_name");
+            
+            entity.Property(e => e.PilotStation)
+                .HasColumnName("pilot_station");
+            
+            entity.Property(e => e.OfficerOnWatch)
+                .HasColumnName("officer_on_watch");
+            
+            entity.Property(e => e.MasterSignature)
+                .HasColumnName("master_signature");
+            
+            entity.Property(e => e.SignedAt)
+                .HasColumnName("signed_at");
+            
+            entity.Property(e => e.VoyageId)
+                .HasColumnName("voyage_id");
+            
+            entity.Property(e => e.IsSynced)
+                .HasColumnName("is_synced");
+            
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at");
+            
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at");
+            
+            entity.Property(e => e.OriginNode)
+                .HasColumnName("origin_node");
+            
+            // Indexes
+            entity.HasIndex(e => e.EventType)
+                .HasDatabaseName("idx_voyage_log_event_type");
+            
+            entity.HasIndex(e => e.EventDateTime)
+                .HasDatabaseName("idx_voyage_log_event_datetime");
+            
+            entity.HasIndex(e => e.VoyageId)
+                .HasDatabaseName("idx_voyage_log_voyage_id");
+            
+            entity.HasIndex(e => e.PortLocode)
+                .HasDatabaseName("idx_voyage_log_port_locode");
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_voyage_log_synced");
         });
 
         // ========== MAINTENANCE SCHEDULES ==========
@@ -1455,14 +1577,52 @@ public class EdgeDbContext : DbContext
 
     public override int SaveChanges()
     {
+        NormalizeDateTimesToUtc();
         ProcessSyncQueue();
         return base.SaveChanges();
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        NormalizeDateTimesToUtc();
         ProcessSyncQueue();
         return await base.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Normalize all DateTime properties to UTC to avoid PostgreSQL timestamp with time zone errors.
+    /// PostgreSQL with Npgsql 6+ requires DateTime.Kind to be UTC for 'timestamp with time zone' columns.
+    /// </summary>
+    private void NormalizeDateTimesToUtc()
+    {
+        var entries = ChangeTracker.Entries()
+            .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
+            .ToList();
+
+        foreach (var entry in entries)
+        {
+            foreach (var property in entry.Properties)
+            {
+                // Handle DateTime properties
+                if (property.Metadata.ClrType == typeof(DateTime))
+                {
+                    if (property.CurrentValue is DateTime dateTime && dateTime.Kind == DateTimeKind.Unspecified)
+                    {
+                        // Assume Unspecified DateTime is UTC
+                        property.CurrentValue = DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
+                    }
+                }
+                // Handle nullable DateTime properties
+                else if (property.Metadata.ClrType == typeof(DateTime?))
+                {
+                    if (property.CurrentValue is DateTime dateTime && dateTime.Kind == DateTimeKind.Unspecified)
+                    {
+                        // Assume Unspecified DateTime is UTC
+                        property.CurrentValue = DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
+                    }
+                }
+            }
+        }
     }
 
     private void ProcessSyncQueue()

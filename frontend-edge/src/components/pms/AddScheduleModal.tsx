@@ -131,15 +131,24 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
       return;
     }
 
+    // Check if selected group has assets
+    const selectedGroup = groups.find(g => g.id === formData.equipmentGroupId);
+    if (selectedGroup && (selectedGroup.memberCount === 0 || !selectedGroup.memberCount)) {
+      toast.error('Selected equipment group has no assets. Please add assets to the group first.');
+      return;
+    }
+
     try {
       setLoading(true);
+      console.log('Creating schedule with data:', formData);
       await maintenanceScheduleService.create(formData);
       toast.success('Maintenance schedule created successfully');
       onSuccess();
       handleClose();
     } catch (error: any) {
       console.error('Error creating schedule:', error);
-      toast.error(error.response?.data?.message || 'Failed to create schedule');
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to create schedule';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
