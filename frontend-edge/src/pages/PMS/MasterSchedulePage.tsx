@@ -3,7 +3,7 @@ import { Calendar, ChevronLeft, ChevronRight, Download, Clock } from 'lucide-rea
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
 import type { SchedulePreview } from '@/types/pms.types';
 
-type ViewMode = 'week' | 'month' | 'quarter';
+type ViewMode = 'day' | 'week' | 'month' | 'quarter';
 
 interface GanttTask {
   id: string;
@@ -154,10 +154,15 @@ export default function MasterSchedulePage() {
   const getDaysInView = (): Date[] => {
     const days: Date[] = [];
     const start = new Date(currentDate);
-    start.setDate(1);
+    
+    // For day and week views, start from current date
+    // For month and quarter views, start from beginning of month
+    if (viewMode === 'month' || viewMode === 'quarter') {
+      start.setDate(1);
+    }
     start.setHours(0, 0, 0, 0);
     
-    const daysToShow = viewMode === 'week' ? 14 : viewMode === 'month' ? 60 : 90;
+    const daysToShow = viewMode === 'day' ? 7 : viewMode === 'week' ? 14 : viewMode === 'month' ? 60 : 90;
     
     for (let i = 0; i < daysToShow; i++) {
       const day = new Date(start);
@@ -168,7 +173,7 @@ export default function MasterSchedulePage() {
     return days;
   };
 
-  const getDatePosition = (date: Date, days: Date[]): number | null => {
+  const getDatePosition = (date: Date, days: Date[], align: 'start' | 'center' | 'end' = 'center'): number | null => {
     const firstDay = days[0];
     const lastDay = days[days.length - 1];
     
@@ -176,6 +181,30 @@ export default function MasterSchedulePage() {
       return null;
     }
     
+    // Find which day index this date corresponds to
+    const targetDate = new Date(date);
+    targetDate.setHours(0, 0, 0, 0);
+    
+    for (let i = 0; i < days.length; i++) {
+      const dayDate = new Date(days[i]);
+      dayDate.setHours(0, 0, 0, 0);
+      
+      if (targetDate.getTime() === dayDate.getTime()) {
+        const columnWidth = 100 / days.length;
+        const basePosition = i * columnWidth;
+        
+        // Return position based on alignment
+        if (align === 'start') {
+          return basePosition;
+        } else if (align === 'end') {
+          return basePosition + columnWidth;
+        } else {
+          return basePosition + (columnWidth / 2);
+        }
+      }
+    }
+    
+    // Fallback to continuous calculation if exact day not found
     const viewStart = firstDay.getTime();
     const viewEnd = lastDay.getTime();
     const viewDuration = viewEnd - viewStart;
@@ -185,16 +214,52 @@ export default function MasterSchedulePage() {
   };
 
   const getWorkPeriod = (task: GanttTask, days: Date[]): { start: number; width: number } | null => {
-    const startPos = getDatePosition(task.startDate, days);
-    const duePos = getDatePosition(task.dueDate, days);
+    // Find start and end day indices
+    const startDate = new Date(task.startDate);
+    startDate.setHours(0, 0, 0, 0);
+    const dueDate = new Date(task.dueDate);
+    dueDate.setHours(0, 0, 0, 0);
     
-    if (startPos === null || duePos === null) {
+    let startIdx = -1;
+    let endIdx = -1;
+    
+    for (let i = 0; i < days.length; i++) {
+      const dayDate = new Date(days[i]);
+      dayDate.setHours(0, 0, 0, 0);
+      
+      if (startIdx === -1 && dayDate.getTime() >= startDate.getTime()) {
+        startIdx = i;
+      }
+      if (dayDate.getTime() === dueDate.getTime()) {
+        endIdx = i;
+        break;
+      }
+    }
+    
+    // If due date not found but we have start, extend to last visible day
+    if (startIdx !== -1 && endIdx === -1) {
+      // Check if due date is after visible range
+      const lastDay = new Date(days[days.length - 1]);
+      lastDay.setHours(0, 0, 0, 0);
+      if (dueDate.getTime() > lastDay.getTime()) {
+        endIdx = days.length - 1;
+      }
+    }
+    
+    // If dates are outside visible range
+    if (startIdx === -1 || endIdx === -1) {
       return null;
     }
     
+    const columnWidth = 100 / days.length;
+    
+    // Bar spans from start of startIdx column to END of endIdx column
+    // (where the due date marker sits at end of day)
+    const width = (endIdx - startIdx + 1) * columnWidth;
+    
     return {
-      start: Math.max(0, startPos),
-      width: Math.max(1, duePos - startPos)
+      start: startIdx * columnWidth,
+      width: Math.max(columnWidth * 0.8, width)
     };
   };
 
@@ -209,7 +274,9 @@ export default function MasterSchedulePage() {
 
   const navigateDate = (direction: 'prev' | 'next') => {
     const newDate = new Date(currentDate);
-    if (viewMode === 'week') {
+    if (viewMode === 'day') {
+      newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
+    } else if (viewMode === 'week') {
       newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
     } else if (viewMode === 'month') {
       newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
@@ -262,6 +329,16 @@ export default function MasterSchedulePage() {
             {/* View Mode */}
             <div className="flex items-center gap-2">
               <button
+                onClick={() => setViewMode('day')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                  viewMode === 'day'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Day
+              </button>
+              <button
                 onClick={() => setViewMode('week')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium ${
                   viewMode === 'week'
@@ -303,7 +380,30 @@ export default function MasterSchedulePage() {
               </button>
               <div className="text-center min-w-[200px]">
                 <p className="font-semibold text-gray-900">
-                  {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  {viewMode === 'day' 
+                    ? (() => {
+                        const endDate = new Date(currentDate);
+                        endDate.setDate(endDate.getDate() + 6);
+                        return `${currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                      })()
+                    : viewMode === 'week'
+                    ? (() => {
+                        const endDate = new Date(currentDate);
+                        endDate.setDate(endDate.getDate() + 13); // 14 days
+                        return `${currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                      })()
+                    : viewMode === 'month'
+                    ? (() => {
+                        const endDate = new Date(currentDate);
+                        endDate.setDate(endDate.getDate() + 59); // 60 days
+                        return `${currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                      })()
+                    : (() => {
+                        const endDate = new Date(currentDate);
+                        endDate.setDate(endDate.getDate() + 89); // 90 days
+                        return `${currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                      })()
+                  }
                 </p>
               </div>
               <button
@@ -353,7 +453,11 @@ export default function MasterSchedulePage() {
               </div>
               <div className="flex-1 min-w-[800px]">
                 <div className="flex items-center h-full">
-                  {days.filter((_, idx) => idx % 7 === 0 || idx === 0).map((day, idx) => {
+                  {/* For day view, show all days; for other views, show weekly markers */}
+                  {(viewMode === 'day' 
+                    ? days 
+                    : days.filter((_, idx) => idx % 7 === 0 || idx === 0)
+                  ).map((day, idx) => {
                     const isToday = day.toDateString() === today.toDateString();
                     
                     return (
@@ -364,10 +468,16 @@ export default function MasterSchedulePage() {
                         }`}
                       >
                         <div className="text-xs font-semibold text-gray-900">
-                          {day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {viewMode === 'day' 
+                            ? day.toLocaleDateString('en-US', { weekday: 'short' })
+                            : day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                          }
                         </div>
                         <div className="text-xs text-gray-500">
-                          {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                          {viewMode === 'day'
+                            ? day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                            : day.toLocaleDateString('en-US', { weekday: 'short' })
+                          }
                         </div>
                       </div>
                     );
@@ -386,7 +496,7 @@ export default function MasterSchedulePage() {
               ) : (
                 tasks.map((task, idx) => {
                   const workPeriod = getWorkPeriod(task, days);
-                  const duePos = getDatePosition(task.dueDate, days);
+                  const duePos = getDatePosition(task.dueDate, days, 'end');
                   const priorityColors = PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS] || PRIORITY_COLORS.LOW;
                   
                   return (
@@ -422,7 +532,6 @@ export default function MasterSchedulePage() {
                               )}
                             </div>
                             <div className="text-xs text-gray-500 mt-2 space-y-0.5">
-                              <div>Work: {task.workDurationDays}d ({task.estimatedHours}h)</div>
                               <div>Lead time: {task.leadTimeDays}d</div>
                               {formatInterval(task) && <div>{formatInterval(task)}</div>}
                             </div>
@@ -461,55 +570,39 @@ export default function MasterSchedulePage() {
                         {/* Work Period Bar */}
                         {workPeriod && (
                           <div 
-                            className="absolute top-1/2 transform -translate-y-1/2"
+                            className="absolute top-1/2 transform -translate-y-1/2 rounded"
                             style={{ 
                               left: `${workPeriod.start}%`,
                               width: `${workPeriod.width}%`,
-                              height: '28px',
-                              minWidth: '4px'
+                              height: '20px',
+                              backgroundColor: priorityColors.bar,
+                              opacity: 0.7,
+                              border: `2px solid ${priorityColors.bar}`
                             }}
-                          >
-                            {/* Lead Time Area (lighter, dashed) */}
-                            <div 
-                              className="h-full rounded flex items-center"
-                              style={{ 
-                                background: `linear-gradient(to right, ${priorityColors.bar}20, ${priorityColors.bar}30)`,
-                                border: `1px dashed ${priorityColors.bar}80`
-                              }}
-                            >
-                              {/* Work Duration (darker, shows actual work period) */}
-                              <div 
-                                className="h-full rounded transition-all duration-300"
-                                style={{ 
-                                  width: `${Math.min(100, (task.workDurationDays / task.leadTimeDays) * 100)}%`,
-                                  minWidth: '20%',
-                                  background: `linear-gradient(to right, ${priorityColors.bar}60, ${priorityColors.bar}80)`,
-                                  border: `2px solid ${priorityColors.bar}`,
-                                  position: 'relative'
-                                }}
-                              >
-                                {/* Actual Progress */}
+                          />
+                        )}
+
+                        {/* Start Date Marker */}
+                        {(() => {
+                          const startPos = getDatePosition(task.startDate, days, 'start');
+                          return startPos !== null ? (
+                            <div className="absolute top-1/2 transform -translate-y-1/2 z-10" style={{ left: `${startPos}%` }}>
+                              <div className="relative">
                                 <div 
-                                  className="h-full rounded"
-                                  style={{ 
-                                    width: `${task.progress}%`,
-                                    backgroundColor: priorityColors.bar,
-                                    opacity: 0.9
-                                  }}
-                                ></div>
-                                
-                                {/* Work label */}
-                                {workPeriod.width > 8 && (
-                                  <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="text-[10px] font-bold text-white drop-shadow">
-                                      {task.workDurationDays}d work
-                                    </span>
+                                  className="w-6 h-6 rounded-full shadow-lg flex items-center justify-center ring-2 ring-white"
+                                  style={{ backgroundColor: '#10B981' }}
+                                >
+                                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                                </div>
+                                <div className="absolute bottom-full mb-1 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                  <div className="text-xs font-medium text-gray-900 bg-white px-2 py-1 rounded shadow border border-gray-200">
+                                    Start: {task.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                   </div>
-                                )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
+                          ) : null;
+                        })()}
 
                         {/* Due Date Milestone */}
                         {duePos !== null && (
@@ -523,7 +616,7 @@ export default function MasterSchedulePage() {
                               </div>
                               <div className="absolute top-full mt-1 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
                                 <div className="text-xs font-medium text-gray-900 bg-white px-2 py-1 rounded shadow border border-gray-200">
-                                  {task.dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  Due: {task.dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                 </div>
                               </div>
                             </div>

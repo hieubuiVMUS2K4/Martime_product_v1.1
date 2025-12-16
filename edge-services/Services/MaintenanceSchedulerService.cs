@@ -236,13 +236,15 @@ public class MaintenanceSchedulerService : BackgroundService
                         schedule.ScheduleCode, schedule.DaysBeforeDue, effectiveLeadTime);
                 }
                 
-                if (daysUntilDue <= effectiveLeadTime)
+                // Generate task if within lead time window OR already overdue
+                // This ensures tasks are created even for schedules that are past due
+                if (daysUntilDue <= effectiveLeadTime || daysUntilDue < 0)
                 {
                     // Check if task already exists for this schedule and due date
                     var existingTask = await context.MaintenanceTasks
-                        .Where(t => t.TaskId.StartsWith($"SCHED-{schedule.ScheduleCode}") &&
+                        .Where(t => t.ScheduleId == schedule.Id &&
                                    t.Status != "COMPLETED" &&
-                                   t.NextDueAt.Date == schedule.NextDueDate.Value.Date)
+                                   t.Status != "CANCELLED")
                         .FirstOrDefaultAsync();
 
                     if (existingTask == null)
@@ -355,6 +357,9 @@ public class MaintenanceSchedulerService : BackgroundService
             {
                 TaskId = taskId,
                 TaskTypeId = null, // PMS Planning v2.0: Not using old TaskType system
+                
+                // CRITICAL: Link to schedule for cascade delete
+                ScheduleId = schedule.Id,
                 
                 // NEW: Group-based fields
                 EquipmentGroupId = group.Id,

@@ -3,6 +3,7 @@ using System;
 using MaritimeEdge.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MaritimeEdge.Data.Migrations
 {
     [DbContext(typeof(EdgeDbContext))]
-    partial class EdgeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251214131547_AddScheduleIdToMaintenanceTasks")]
+    partial class AddScheduleIdToMaintenanceTasks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2708,11 +2711,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("completed_by");
 
-                    b.Property<string>("CompletionPhotos")
-                        .HasMaxLength(100000)
-                        .HasColumnType("character varying(100000)")
-                        .HasColumnName("completion_photos");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -2835,8 +2833,8 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnName("schedule_id");
 
                     b.Property<string>("SparePartsUsed")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("spare_parts_used");
 
                     b.Property<DateTime?>("StartedAt")
@@ -5630,152 +5628,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasDatabaseName("idx_user_username_unique");
 
                     b.ToTable("users", "public");
-                });
-
-            modelBuilder.Entity("MaritimeEdge.Models.VoyageLogEntry", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("BerthNumber")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("berth_number");
-
-                    b.Property<double?>("CourseOverGround")
-                        .HasColumnType("double precision")
-                        .HasColumnName("course_over_ground");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<double?>("DistanceFromLast")
-                        .HasColumnType("double precision")
-                        .HasColumnName("distance_from_last");
-
-                    b.Property<double?>("DistanceToGo")
-                        .HasColumnType("double precision")
-                        .HasColumnName("distance_to_go");
-
-                    b.Property<DateTime>("EventDateTime")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("event_date_time");
-
-                    b.Property<DateTime?>("EventDateTimeLocal")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("event_date_time_local");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("event_type");
-
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_synced");
-
-                    b.Property<double>("Latitude")
-                        .HasColumnType("double precision")
-                        .HasColumnName("latitude");
-
-                    b.Property<double>("Longitude")
-                        .HasColumnType("double precision")
-                        .HasColumnName("longitude");
-
-                    b.Property<string>("MasterSignature")
-                        .HasColumnType("text")
-                        .HasColumnName("master_signature");
-
-                    b.Property<string>("OfficerOnWatch")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("officer_on_watch");
-
-                    b.Property<string>("OriginNode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("origin_node");
-
-                    b.Property<string>("PilotName")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("pilot_name");
-
-                    b.Property<string>("PilotStation")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("pilot_station");
-
-                    b.Property<string>("PortCountry")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("port_country");
-
-                    b.Property<string>("PortLocode")
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasColumnName("port_locode");
-
-                    b.Property<string>("PortName")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("port_name");
-
-                    b.Property<string>("Remarks")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("remarks");
-
-                    b.Property<DateTime?>("SignedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("signed_at");
-
-                    b.Property<double?>("SpeedOverGround")
-                        .HasColumnType("double precision")
-                        .HasColumnName("speed_over_ground");
-
-                    b.Property<string>("TimeZone")
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasColumnName("time_zone");
-
-                    b.Property<double?>("TotalVoyageDistance")
-                        .HasColumnType("double precision")
-                        .HasColumnName("total_voyage_distance");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("VoyageId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("voyage_id");
-
-                    b.HasKey("Id")
-                        .HasName("p_k_voyage_log_entries");
-
-                    b.HasIndex("EventDateTime")
-                        .HasDatabaseName("idx_voyage_log_event_datetime");
-
-                    b.HasIndex("EventType")
-                        .HasDatabaseName("idx_voyage_log_event_type");
-
-                    b.HasIndex("IsSynced")
-                        .HasDatabaseName("idx_voyage_log_synced");
-
-                    b.HasIndex("PortLocode")
-                        .HasDatabaseName("idx_voyage_log_port_locode");
-
-                    b.HasIndex("VoyageId")
-                        .HasDatabaseName("idx_voyage_log_voyage_id");
-
-                    b.ToTable("voyage_log_entries", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.VoyageRecord", b =>
