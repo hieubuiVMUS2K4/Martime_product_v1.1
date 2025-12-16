@@ -59,7 +59,7 @@ export const VoyageLogPage: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [viewMode, setViewMode] = useState<'timeline' | 'table'>('timeline');
   const [step, setStep] = useState(1);
-  const [selectedEventType, setSelectedEventType] = useState<typeof VOYAGE_LOG_EVENT_TYPES.DEP | null>(null);
+  const [selectedEventType, setSelectedEventType] = useState<typeof VOYAGE_LOG_EVENT_TYPES[keyof typeof VOYAGE_LOG_EVENT_TYPES] | null>(null);
   
   const [formData, setFormData] = useState<Partial<CreateVoyageLogEntryDto>>({
     eventDateTime: new Date().toISOString().slice(0, 16),
@@ -99,7 +99,7 @@ export const VoyageLogPage: React.FC = () => {
     fetchData();
   }, []);
 
-  const handleEventSelect = (event: typeof VOYAGE_LOG_EVENT_TYPES.DEP) => {
+  const handleEventSelect = (event: typeof VOYAGE_LOG_EVENT_TYPES[keyof typeof VOYAGE_LOG_EVENT_TYPES]) => {
     setSelectedEventType(event);
     setStep(2);
   };

@@ -36,8 +36,13 @@ class TaskProvider with ChangeNotifier {
   List<TaskChecklistItem> get currentChecklist => _currentChecklist;
   TaskProgress? get currentProgress => _currentProgress;
   
-    List<MaintenanceTask> get dueTasks =>
-      _tasks.where((t) => t.isDue || t.isScheduled).toList();
+  // Tab "Đến hạn" - chỉ hiện tasks có status DUE
+  List<MaintenanceTask> get dueTasks =>
+      _tasks.where((t) => t.isDue).toList();
+  
+  // Scheduled tasks only
+  List<MaintenanceTask> get scheduledTasks =>
+      _tasks.where((t) => t.isScheduled).toList();
   
   // Alias for backward compatibility with home_screen.dart
   List<MaintenanceTask> get pendingTasks =>

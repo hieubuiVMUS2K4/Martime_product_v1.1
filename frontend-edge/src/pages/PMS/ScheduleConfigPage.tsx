@@ -231,14 +231,7 @@ export default function ScheduleConfigPage() {
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">{schedule.scheduleCode}</td>
                   <td className="px-6 py-4 text-sm text-gray-900">{schedule.scheduleName}</td>
                   <td className="px-6 py-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-900">{schedule.groupName || schedule.groupCode}</span>
-                      {schedule.assetCount !== undefined && schedule.assetCount > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                          {schedule.assetCount} {schedule.assetCount === 1 ? 'asset' : 'assets'}
-                        </span>
-                      )}
-                    </div>
+                    <span className="text-gray-900">{schedule.groupName || schedule.groupCode}</span>
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">

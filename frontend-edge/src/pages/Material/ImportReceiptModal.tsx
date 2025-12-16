@@ -137,7 +137,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
           };
 
           // Map Excel data to ImportReceiptItemDto
-          const items: ImportReceiptItemDto[] = jsonData.map((row, index) => {
+          const items: ImportReceiptItemDto[] = jsonData.map((row, index): ImportReceiptItemDto | null => {
             // Normalize row keys
             const normalizedRow: Record<string, any> = {};
             for (const key of Object.keys(row)) {
@@ -174,7 +174,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
               specification: normalizedRow.specification || undefined,
               minStock: Number(normalizedRow.minStock) || undefined,
               maxStock: Number(normalizedRow.maxStock) || undefined,
-            };
+            } as ImportReceiptItemDto;
           }).filter((item): item is ImportReceiptItemDto => item !== null);
 
           if (items.length === 0) {

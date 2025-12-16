@@ -390,7 +390,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: cardHeight,
               child: _buildStatCard(
                 l10n.statusPending,
-                taskProvider.pendingTasks.length.toString(),
+                taskProvider.dueTasks.length.toString(),
                 Colors.blue,
                 Icons.pending_actions,
               ),
