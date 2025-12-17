@@ -715,91 +715,6 @@ public class CrewMember
 }
 
 /// <summary>
-/// Task Types - Loại công việc/Template cho maintenance tasks
-/// Ví dụ: Engine Overhaul, Safety Inspection, Hull Cleaning, etc.
-/// </summary>
-public class TaskType
-{
-    [Key]
-    public int Id { get; set; }
-    
-    [Required]
-    [MaxLength(100)]
-    public string TypeCode { get; set; } = string.Empty; // ENGINE_OVERHAUL, SAFETY_CHECK, etc.
-    
-    [Required]
-    [MaxLength(200)]
-    public string TypeName { get; set; } = string.Empty; // "Engine Overhaul", "Safety Inspection"
-    
-    public string? Description { get; set; }
-    
-    [MaxLength(50)]
-    public string Category { get; set; } = "GENERAL"; // ENGINE, DECK, SAFETY, ELECTRICAL, etc.
-    
-    [MaxLength(20)]
-    public string DefaultPriority { get; set; } = "NORMAL"; // CRITICAL, HIGH, NORMAL, LOW
-    
-    public int? EstimatedDurationHours { get; set; } // Thời gian ước tính để hoàn thành
-    
-    [MaxLength(200)]
-    public string? RequiredCertification { get; set; } // Chứng chỉ cần thiết để thực hiện
-    
-    public bool RequiresApproval { get; set; } = false; // Cần phê duyệt trước khi bắt đầu
-    
-    public bool IsActive { get; set; } = true;
-    
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    
-    public DateTime? UpdatedAt { get; set; }
-
-        // Navigation property for many-to-many TaskType <-> TaskDetail
-        public ICollection<TaskDetail> TaskDetails { get; set; } = new List<TaskDetail>();
-}
-
-/// <summary>
-/// Task Details - Chi tiết/Checklist cho từng loại công việc
-/// Mỗi TaskType có nhiều TaskDetails (các bước cần thực hiện)
-/// </summary>
-public class TaskDetail
-{
-    [Key]
-    public long Id { get; set; }
-    
-    // TaskTypeId removed - now using many-to-many relationship via TaskTypes navigation property
-    
-    [Required]
-    [MaxLength(200)]
-    public string DetailName { get; set; } = string.Empty; // "Check oil level", "Inspect seals"
-    
-    public string? Description { get; set; }
-    
-    public int OrderIndex { get; set; } = 0; // Thứ tự thực hiện (1, 2, 3...)
-    
-    [MaxLength(20)]
-    public string DetailType { get; set; } = "CHECKLIST"; // CHECKLIST, MEASUREMENT, INSPECTION, etc.
-    
-    public bool IsMandatory { get; set; } = true; // Bắt buộc hay tùy chọn
-    
-    [MaxLength(50)]
-    public string? Unit { get; set; } // Đơn vị đo (nếu là measurement): bar, °C, mm, etc.
-    
-    public double? MinValue { get; set; } // Giá trị tối thiểu (nếu là measurement)
-    public double? MaxValue { get; set; } // Giá trị tối đa (nếu là measurement)
-    
-    public bool RequiresPhoto { get; set; } = false; // Yêu cầu chụp ảnh
-    public bool RequiresSignature { get; set; } = false; // Yêu cầu ký tên
-    
-    public string? Instructions { get; set; } // Hướng dẫn chi tiết
-    
-    public bool IsActive { get; set; } = true;
-    
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-        // Navigation property for many-to-many TaskDetail <-> TaskType
-        public ICollection<TaskType> TaskTypes { get; set; } = new List<TaskType>();
-}
-
-/// <summary>
 /// Maintenance Task Details - Bảng trung gian (N-N) giữa MaintenanceTask và TaskDetail
 /// Lưu kết quả thực hiện từng chi tiết của task
 /// </summary>
@@ -837,13 +752,6 @@ public class MaintenanceTaskDetail
     public DateTime? CompletedAt { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-        // Foreign key for TaskType (for join table)
-        public int? TaskTypeId { get; set; }
-
-        // Navigation property
-        public TaskType? TaskType { get; set; }
-        public TaskDetail? TaskDetail { get; set; }
 }
 
 /// <summary>
@@ -1088,6 +996,21 @@ public class MaintenanceTask
     public string? ApprovedBy { get; set; } // Legacy - use VerifiedBy instead
     
     public DateTime? ApprovedAt { get; set; } // Legacy - use VerifiedAt instead
+    
+    // ============ SOFT DELETE ============
+    
+    /// <summary>
+    /// Soft delete flag - True if task is logically deleted
+    /// Deleted tasks are hidden from UI but retained for audit trail
+    /// </summary>
+    public bool IsDeleted { get; set; } = false;
+    
+    public DateTime? DeletedAt { get; set; }
+    
+    [MaxLength(50)]
+    public string? DeletedBy { get; set; }
+    
+    public string? DeletionReason { get; set; }
     
     // ============ AUDIT ============
     
@@ -3486,12 +3409,6 @@ public class MaintenanceSchedule
     /// </summary>
     [Required]
     public Guid EquipmentGroupId { get; set; }
-    
-    /// <summary>
-    /// FK -> TaskType.Id
-    /// </summary>
-    [Required]
-    public int TaskTypeId { get; set; }
     
     /// <summary>
     /// Schedule name (e.g., "Main Engine Oil Change")

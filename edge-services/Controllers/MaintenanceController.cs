@@ -27,98 +27,11 @@ public class MaintenanceController : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet("task-types")]
-    public async Task<IActionResult> GetTaskTypes()
-    {
-        try
-        {
-            var taskTypes = await _context.TaskTypes
-                .AsNoTracking()
-                .Where(t => t.IsActive)
-                .OrderBy(t => t.Category)
-                .ThenBy(t => t.TypeName)
-                .Select(t => new {
-                    t.Id,
-                    t.TypeCode,
-                    t.TypeName,
-                    t.Category,
-                    t.DefaultPriority,
-                    t.Description
-                })
-                .ToListAsync();
-
-            return Ok(taskTypes);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting task types");
-            return StatusCode(500, new { error = "Internal server error" });
-        }
-    }
-
-    [HttpPost("task-types/seed")]
-    public async Task<IActionResult> SeedTaskTypes()
-    {
-        try
-        {
-            // Check if already seeded
-            var existingCount = await _context.TaskTypes.CountAsync();
-            if (existingCount > 0)
-            {
-                return BadRequest(new { error = "TaskTypes already exist", count = existingCount });
-            }
-
-            var sampleTaskTypes = new List<TaskType>
-            {
-                // ENGINE
-                new TaskType { TypeCode = "ENGINE_OIL_CHANGE", TypeName = "Engine Oil Change", Category = "ENGINE", DefaultPriority = "NORMAL", EstimatedDurationHours = 2, Description = "Change engine oil and oil filter", IsActive = true },
-                new TaskType { TypeCode = "ENGINE_COOLING_CHECK", TypeName = "Cooling System Check", Category = "ENGINE", DefaultPriority = "NORMAL", EstimatedDurationHours = 1, Description = "Inspect cooling system", IsActive = true },
-                new TaskType { TypeCode = "ENGINE_FUEL_FILTER", TypeName = "Fuel Filter Replacement", Category = "ENGINE", DefaultPriority = "HIGH", EstimatedDurationHours = 2, Description = "Replace fuel filters", IsActive = true },
-                
-                // DECK
-                new TaskType { TypeCode = "DECK_WASH", TypeName = "Deck Washing", Category = "DECK", DefaultPriority = "NORMAL", EstimatedDurationHours = 2, Description = "Wash and clean deck area", IsActive = true },
-                new TaskType { TypeCode = "HULL_INSPECTION", TypeName = "Hull Inspection", Category = "DECK", DefaultPriority = "HIGH", EstimatedDurationHours = 3, Description = "Inspect hull for damage", IsActive = true },
-                new TaskType { TypeCode = "MOORING_CHECK", TypeName = "Mooring Equipment Check", Category = "DECK", DefaultPriority = "NORMAL", EstimatedDurationHours = 2, Description = "Inspect mooring lines", IsActive = true },
-                
-                // SAFETY
-                new TaskType { TypeCode = "LIFEBOAT_DRILL", TypeName = "Lifeboat Drill", Category = "SAFETY", DefaultPriority = "CRITICAL", EstimatedDurationHours = 2, RequiredCertification = "Safety Officer", RequiresApproval = true, Description = "Conduct lifeboat drill", IsActive = true },
-                new TaskType { TypeCode = "FIRE_EXTINGUISHER_CHECK", TypeName = "Fire Extinguisher Inspection", Category = "SAFETY", DefaultPriority = "CRITICAL", EstimatedDurationHours = 1, Description = "Inspect fire extinguishers", IsActive = true },
-                new TaskType { TypeCode = "EMERGENCY_LIGHT_TEST", TypeName = "Emergency Lighting Test", Category = "SAFETY", DefaultPriority = "HIGH", EstimatedDurationHours = 1, Description = "Test emergency lights", IsActive = true },
-                
-                // ELECTRICAL
-                new TaskType { TypeCode = "GENERATOR_MAINTENANCE", TypeName = "Generator Maintenance", Category = "ELECTRICAL", DefaultPriority = "HIGH", EstimatedDurationHours = 4, RequiredCertification = "Electrical Officer", Description = "Service generator", IsActive = true },
-                new TaskType { TypeCode = "BATTERY_CHECK", TypeName = "Battery Inspection", Category = "ELECTRICAL", DefaultPriority = "NORMAL", EstimatedDurationHours = 1, Description = "Check battery condition", IsActive = true },
-                new TaskType { TypeCode = "LIGHTING_INSPECTION", TypeName = "Navigation Light Inspection", Category = "ELECTRICAL", DefaultPriority = "CRITICAL", EstimatedDurationHours = 1, Description = "Test navigation lights", IsActive = true },
-                
-                // NAVIGATION
-                new TaskType { TypeCode = "RADAR_CALIBRATION", TypeName = "Radar Calibration", Category = "NAVIGATION", DefaultPriority = "HIGH", EstimatedDurationHours = 2, RequiredCertification = "Navigation Officer", Description = "Calibrate radar", IsActive = true },
-                new TaskType { TypeCode = "GPS_CHECK", TypeName = "GPS System Check", Category = "NAVIGATION", DefaultPriority = "HIGH", EstimatedDurationHours = 1, Description = "Verify GPS accuracy", IsActive = true },
-                new TaskType { TypeCode = "COMPASS_ADJUSTMENT", TypeName = "Compass Adjustment", Category = "NAVIGATION", DefaultPriority = "NORMAL", EstimatedDurationHours = 2, Description = "Adjust compass", IsActive = true },
-                
-                // GENERAL
-                new TaskType { TypeCode = "GENERAL_INSPECTION", TypeName = "General Inspection", Category = "GENERAL", DefaultPriority = "NORMAL", EstimatedDurationHours = 2, Description = "General walkthrough", IsActive = true },
-                new TaskType { TypeCode = "CLEANING", TypeName = "General Cleaning", Category = "GENERAL", DefaultPriority = "NORMAL", EstimatedDurationHours = 2, Description = "Clean assigned areas", IsActive = true },
-                new TaskType { TypeCode = "LUBRICATION", TypeName = "Equipment Lubrication", Category = "GENERAL", DefaultPriority = "NORMAL", EstimatedDurationHours = 1, Description = "Lubricate equipment", IsActive = true }
-            };
-
-            _context.TaskTypes.AddRange(sampleTaskTypes);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Seeded {Count} TaskTypes", sampleTaskTypes.Count);
-
-            return Ok(new { message = "TaskTypes seeded successfully", count = sampleTaskTypes.Count });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error seeding task types");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
-        }
-    }
-
     /// <summary>
-    /// Auto-correct task status based on due date (PMS Workflow v2.0)
+    /// Auto-correct task status based on due date AND running hours (PMS Workflow v2.0)
     /// SCHEDULED tasks past due → DUE (if due today or in grace period) or OVERDUE (if past due)
     /// DUE tasks past grace period → OVERDUE
+    /// For RUNNING_HOURS/HYBRID tasks: Also check if equipment reached NextDueRunningHours
     /// Does not touch IN_PROGRESS, PENDING_APPROVAL, RECTIFY, or COMPLETED
     /// </summary>
     private async Task<int> AutoCorrectTaskStatuses(List<MaintenanceTask> tasks)
@@ -137,9 +50,20 @@ public class MaintenanceController : ControllerBase
                 continue; // Don't touch IN_PROGRESS, PENDING_APPROVAL, RECTIFY, COMPLETED
             }
 
+            // Check calendar-based due date
             var dueDate = task.NextDueAt.Date;
             var isOverdue = dueDate < today;
             var isDue = dueDate <= today; // Due if today or past
+
+            // Check running hours-based due (for RUNNING_HOURS/HYBRID tasks)
+            var isRunningHoursDue = await IsRunningHoursDue(task);
+            
+            // Task is DUE if EITHER calendar OR running hours condition is met
+            if (isRunningHoursDue)
+            {
+                isDue = true;
+                isOverdue = true; // If running hours exceeded, treat as overdue
+            }
 
             if (task.Status == "SCHEDULED")
             {
@@ -183,10 +107,95 @@ public class MaintenanceController : ControllerBase
         if (tasksToUpdate.Any())
         {
             await _context.SaveChangesAsync();
-            _logger.LogInformation("Auto-corrected {Count} task statuses based on due dates (PMS Workflow v2.0)", tasksToUpdate.Count);
+            _logger.LogInformation("Auto-corrected {Count} task statuses (calendar + running hours check)", tasksToUpdate.Count);
         }
 
         return tasksToUpdate.Count;
+    }
+
+    /// <summary>
+    /// Check if task is due based on running hours (for RUNNING_HOURS/HYBRID schedules)
+    /// Returns true if equipment has reached or exceeded NextDueRunningHours
+    /// </summary>
+    private async Task<bool> IsRunningHoursDue(MaintenanceTask task)
+    {
+        // Only check tasks linked to a schedule
+        if (!task.ScheduleId.HasValue)
+        {
+            return false;
+        }
+
+        // Load schedule to check interval type
+        var schedule = await _context.MaintenanceSchedules
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == task.ScheduleId.Value);
+
+        if (schedule == null)
+        {
+            return false;
+        }
+
+        // Only relevant for RUNNING_HOURS and HYBRID schedules
+        if (schedule.IntervalType != "RUNNING_HOURS" && schedule.IntervalType != "HYBRID")
+        {
+            return false;
+        }
+
+        // Need NextDueRunningHours to compare
+        if (!schedule.NextDueRunningHours.HasValue)
+        {
+            return false;
+        }
+
+        // Find the primary equipment asset for this task
+        // Priority: 1) Legacy EquipmentId, 2) First asset in EquipmentGroupId
+        Guid? assetId = null;
+
+        if (!string.IsNullOrEmpty(task.EquipmentId) && Guid.TryParse(task.EquipmentId, out var legacyAssetId))
+        {
+            assetId = legacyAssetId;
+        }
+        else if (task.EquipmentGroupId.HasValue)
+        {
+            // Get first asset in group
+            var groupMember = await _context.EquipmentGroupMembers
+                .AsNoTracking()
+                .Where(m => m.GroupId == task.EquipmentGroupId.Value)
+                .OrderBy(m => m.SequenceOrder)
+                .FirstOrDefaultAsync();
+            
+            assetId = groupMember?.AssetId;
+        }
+
+        if (!assetId.HasValue)
+        {
+            return false;
+        }
+
+        // Load asset to get CurrentRunningHours
+        var asset = await _context.EquipmentAssets
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == assetId.Value);
+
+        if (asset == null || !asset.CurrentRunningHours.HasValue)
+        {
+            return false;
+        }
+
+        // Check if equipment has reached the running hours threshold
+        var isDueByRunningHours = asset.CurrentRunningHours.Value >= schedule.NextDueRunningHours.Value;
+
+        if (isDueByRunningHours)
+        {
+            _logger.LogInformation(
+                "Task {TaskId} is DUE by running hours: Current={Current}h, NextDue={NextDue}h",
+                task.TaskId,
+                asset.CurrentRunningHours.Value,
+                schedule.NextDueRunningHours.Value
+            );
+        }
+
+        return isDueByRunningHours;
     }
 
     [HttpGet("tasks")]
@@ -203,7 +212,10 @@ public class MaintenanceController : ControllerBase
             if (pageSize < 1) pageSize = 50;
             if (pageSize > 100) pageSize = 100;
 
-            var query = _context.MaintenanceTasks.AsNoTracking().AsQueryable();
+            var query = _context.MaintenanceTasks
+                .AsNoTracking()
+                .Where(t => !t.IsDeleted) // Exclude soft-deleted tasks
+                .AsQueryable();
 
             // Apply filters
             if (!string.IsNullOrWhiteSpace(status))
@@ -224,14 +236,18 @@ public class MaintenanceController : ControllerBase
             var tasks = await query
                 .Include(t => t.EquipmentGroup)
                 .Include(t => t.ChecklistItems)
+                .Include(t => t.DeferralRequests.Where(d => d.Status == "PENDING"))
                 .OrderBy(t => t.NextDueAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
+            // Map tasks with pending deferral
+            var mappedTasks = tasks.Select(MapTaskWithPendingDeferral).ToList();
+
             return Ok(new
             {
-                data = tasks,
+                data = mappedTasks,
                 pagination = new
                 {
                     currentPage = page,
@@ -256,7 +272,7 @@ public class MaintenanceController : ControllerBase
         try
         {
             var tasks = await _context.MaintenanceTasks
-                .Where(t => t.Status == MTaskStatus.PENDING || t.Status == MTaskStatus.IN_PROGRESS)
+                .Where(t => !t.IsDeleted && (t.Status == MTaskStatus.PENDING || t.Status == MTaskStatus.IN_PROGRESS))
                 .OrderBy(t => t.NextDueAt)
                 .ToListAsync();
 
@@ -380,14 +396,17 @@ public class MaintenanceController : ControllerBase
             var task = await _context.MaintenanceTasks
                 .Include(t => t.EquipmentGroup)
                 .Include(t => t.ChecklistItems.OrderBy(ci => ci.SequenceOrder))
-                .FirstOrDefaultAsync(t => t.Id == id);
+                .Include(t => t.DeferralRequests.Where(d => d.Status == "PENDING"))
+                .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
             
             if (task == null)
             {
                 return NotFound(new { error = "Maintenance task not found", id });
             }
 
-            return Ok(task);
+            // Map to DTO with pendingDeferral
+            var response = MapTaskWithPendingDeferral(task);
+            return Ok(response);
         }
         catch (Exception ex)
         {
@@ -396,63 +415,122 @@ public class MaintenanceController : ControllerBase
         }
     }
 
+    // Helper method to map task with pending deferral
+    private object MapTaskWithPendingDeferral(MaintenanceTask task)
+    {
+        var pendingDeferral = task.DeferralRequests?.FirstOrDefault(d => d.Status == "PENDING");
+        
+        // Map pendingDeferral to DTO to break circular reference
+        object? pendingDeferralDto = null;
+        if (pendingDeferral != null)
+        {
+            pendingDeferralDto = new
+            {
+                pendingDeferral.Id,
+                TaskId = pendingDeferral.TaskId,
+                TaskCode = task.TaskId, // From parent task
+                pendingDeferral.RequestedBy,
+                pendingDeferral.RequestedAt,
+                pendingDeferral.Reason,
+                pendingDeferral.CurrentDueDate,
+                pendingDeferral.ProposedDueDate,
+                pendingDeferral.DeferralDays,
+                pendingDeferral.Status,
+                pendingDeferral.Priority,
+                pendingDeferral.IsCmsItem,
+                pendingDeferral.ClassPermissionLetter,
+                pendingDeferral.IsOverdueDeferral,
+                pendingDeferral.RootCause,
+                pendingDeferral.PreventiveMeasures,
+                pendingDeferral.Attachments,
+                pendingDeferral.TaskStatusAtRequest
+                // NOTE: Task navigation property is NOT included to avoid circular reference
+            };
+        }
+        
+        return new
+        {
+            task.Id,
+            task.TaskId,
+            task.TaskType,
+            task.TaskDescription,
+            task.EquipmentGroupId,
+            EquipmentGroupName = task.EquipmentGroup?.GroupName,
+            task.IntervalHours,
+            task.IntervalDays,
+            task.LastDoneAt,
+            task.NextDueAt,
+            task.RunningHoursAtLastDone,
+            task.Priority,
+            task.Status,
+            task.AssignedTo,
+            task.AssignedDepartment,
+            
+            // Deferral tracking
+            task.HasPendingDeferral,
+            task.DeferralCount,
+            task.LastDeferredAt,
+            task.LastDeferredBy,
+            PendingDeferral = pendingDeferralDto, // Use DTO instead of entity
+            
+            // Execution tracking
+            task.StartedAt,
+            task.StartedBy,
+            task.ActualRunningHours,
+            task.EstimatedDuration,
+            task.ActualDuration,
+            
+            // Report data
+            task.ChecklistCompleted,
+            task.PhotosUploaded,
+            task.RequiredPhotos,
+            task.CompletionPhotos,
+            task.Notes,
+            task.SparePartsUsed,
+            
+            // Submission
+            task.SubmittedAt,
+            task.SubmittedBy,
+            
+            // Verification
+            task.VerifiedAt,
+            task.VerifiedBy,
+            task.VerificationResult,
+            task.VerificationNotes,
+            
+            // Rectify
+            task.RejectionReason,
+            task.RejectionCount,
+            task.LastRejectedAt,
+            task.LastRejectedBy,
+            
+            // Completion
+            task.CompletedAt,
+            task.CompletedBy,
+            
+            // Cancellation
+            task.CancelledAt,
+            task.CancelledBy,
+            task.CancellationReason,
+            
+            // CMS
+            task.IsCms,
+            
+            // Audit
+            task.IsSynced,
+            task.CreatedAt,
+            task.UpdatedAt,
+            task.OriginNode,
+            
+            // Related data
+            ChecklistItems = task.ChecklistItems
+        };
+    }
+
     [HttpPost("tasks")]
     public async Task<IActionResult> CreateTask([FromBody] CreateMaintenanceTaskRequest request)
     {
-        try
-        {
-            // Validate request
-            if (!request.TaskTypeId.HasValue || request.TaskTypeId.Value <= 0)
-            {
-                return BadRequest(new { error = "Task type is required" });
-            }
-
-            // Verify TaskType exists
-            var taskType = await _context.TaskTypes.FindAsync(request.TaskTypeId.Value);
-            if (taskType == null)
-            {
-                return BadRequest(new { error = "Invalid task type" });
-            }
-
-            // Generate unique TaskId
-            var taskIdPrefix = $"MT-{DateTime.UtcNow:yyyyMMdd}";
-            var existingTasks = await _context.MaintenanceTasks
-                .Where(t => t.TaskId.StartsWith(taskIdPrefix))
-                .CountAsync();
-            var taskId = $"{taskIdPrefix}-{(existingTasks + 1):D4}";
-
-            // Create new task
-            var newTask = new MaintenanceTask
-            {
-                TaskId = taskId,
-                TaskTypeId = request.TaskTypeId,
-                EquipmentId = request.EquipmentId ?? "GENERAL",
-                EquipmentName = taskType.TypeName, // Use TaskType name as equipment name
-                TaskType = taskType.TypeCode,
-                TaskDescription = request.TaskDescription ?? taskType.Description ?? string.Empty,
-                IntervalDays = request.IntervalDays,
-                NextDueAt = request.NextDueAt ?? DateTime.UtcNow.AddDays(7), // Default 7 days if not specified
-                Priority = request.Priority ?? taskType.DefaultPriority ?? TaskPriority.NORMAL,
-                Status = MTaskStatus.PENDING, // Always start as PENDING
-                AssignedTo = request.AssignedTo,
-                Notes = request.Notes,
-                IsSynced = false,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _context.MaintenanceTasks.Add(newTask);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Created new maintenance task: {TaskId} - {TaskType} - Assigned to: {AssignedTo}", 
-                newTask.TaskId, taskType.TypeName, newTask.AssignedTo ?? "Unassigned");
-
-            return CreatedAtAction(nameof(GetTaskById), new { id = newTask.Id }, newTask);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating maintenance task");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
-        }
+        return BadRequest(new { error = "TaskType feature removed. Please use PMS Planning v2.0 instead." });
     }
 
     [HttpPut("tasks/{id}")]
@@ -867,6 +945,10 @@ public class MaintenanceController : ControllerBase
         return (true, "Valid transition (unknown source status)");
     }
 
+    /// <summary>
+    /// Soft delete a maintenance task (set IsDeleted = true)
+    /// Retains audit trail and historical data
+    /// </summary>
     [HttpDelete("tasks/{id}")]
     public async Task<IActionResult> DeleteTask(Guid id)
     {
@@ -878,16 +960,29 @@ public class MaintenanceController : ControllerBase
                 return NotFound(new { error = "Maintenance task not found", id });
             }
 
-            _context.MaintenanceTasks.Remove(task);
+            // Check if already deleted
+            if (task.IsDeleted)
+            {
+                return BadRequest(new { error = "Task is already deleted", id });
+            }
+
+            // Soft delete - set flags instead of removing
+            task.IsDeleted = true;
+            task.DeletedAt = DateTime.UtcNow;
+            task.DeletedBy = "current_user"; // TODO: Get from auth context
+            task.DeletionReason = "Deleted via Kanban board";
+            task.UpdatedAt = DateTime.UtcNow;
+
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Deleted maintenance task: {Id} - {TaskId} - {EquipmentName}", id, task.TaskId, task.EquipmentName);
+            _logger.LogInformation("Soft deleted maintenance task: {Id} - {TaskId} - {EquipmentName}", id, task.TaskId, task.EquipmentName);
 
             return Ok(new { 
                 message = "Maintenance task deleted successfully", 
                 id,
                 taskId = task.TaskId,
-                equipmentName = task.EquipmentName
+                equipmentName = task.EquipmentName,
+                isDeleted = true
             });
         }
         catch (Exception ex)
@@ -990,80 +1085,7 @@ public class MaintenanceController : ControllerBase
     [HttpGet("tasks/{taskId}/checklist-legacy")]
     public async Task<IActionResult> GetTaskChecklistLegacy(Guid taskId)
     {
-        try
-        {
-            var task = await _context.MaintenanceTasks.FindAsync(taskId);
-            if (task == null)
-            {
-                return NotFound(new { error = "Task not found" });
-            }
-
-            // Nếu task không có TaskTypeId, trả về empty list (backward compatibility)
-            if (!task.TaskTypeId.HasValue)
-            {
-                return Ok(new List<object>());
-            }
-
-            // Lấy task details từ TaskType
-            // FIXME: TaskDetail.TaskTypeId has been removed - need to redesign relationship
-            var taskDetails = new List<TaskDetail>(); // await _context.TaskDetails
-                // .AsNoTracking()
-                // .Where(td => td.TaskTypeId == task.TaskTypeId && td.IsActive)
-                // .OrderBy(td => td.OrderIndex)
-                // .ToListAsync();
-
-            // Lấy execution status (nếu có)
-            var executionDetails = await _context.MaintenanceTaskDetails
-                .AsNoTracking()
-                .Where(mtd => mtd.MaintenanceTaskId == taskId)
-                .ToListAsync();
-
-            // Combine data - Match Flutter's expected nested format
-            var checklist = taskDetails.Select(td =>
-            {
-                var execution = executionDetails.FirstOrDefault(ed => ed.TaskDetailId == td.Id);
-                return new
-                {
-                    taskDetail = new
-                    {
-                        id = td.Id,
-                        // taskTypeId = td.TaskTypeId, // FIXME: TaskDetail.TaskTypeId removed
-                        detailName = td.DetailName,
-                        description = td.Description,
-                        orderIndex = td.OrderIndex,
-                        detailType = td.DetailType,
-                        isMandatory = td.IsMandatory,
-                        unit = td.Unit,
-                        minValue = td.MinValue,
-                        maxValue = td.MaxValue,
-                        requiresPhoto = td.RequiresPhoto,
-                        createdAt = td.CreatedAt
-                    },
-                    executionDetail = execution != null ? new
-                    {
-                        id = execution.Id,
-                        maintenanceTaskId = execution.MaintenanceTaskId,
-                        taskDetailId = execution.TaskDetailId,
-                        status = execution.Status,
-                        isCompleted = execution.IsCompleted,
-                        measuredValue = execution.MeasuredValue,
-                        checkResult = execution.CheckResult,
-                        inspectionNotes = execution.Notes,
-                        photoUrl = execution.PhotoUrl,
-                        signatureUrl = execution.SignatureUrl,
-                        completedBy = execution.CompletedBy,
-                        completedAt = execution.CompletedAt
-                    } : null
-                };
-            }).ToList();
-
-            return Ok(checklist);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting task checklist for task {TaskId}", taskId);
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
-        }
+        return Ok(new List<object>()); // Legacy endpoint - TaskType feature removed
     }
 
     /// <summary>
@@ -1074,69 +1096,7 @@ public class MaintenanceController : ControllerBase
     [HttpPost("tasks/{taskId}/details/{detailId}/complete")]
     public async Task<IActionResult> CompleteChecklistItemLegacy(Guid taskId, long detailId, [FromBody] CompleteChecklistItemRequest request)
     {
-        try
-        {
-            var task = await _context.MaintenanceTasks.FindAsync(taskId);
-            if (task == null)
-            {
-                return NotFound(new { error = "Task not found" });
-            }
-
-            var taskDetail = await _context.TaskDetails.FindAsync(detailId);
-            if (taskDetail == null)
-            {
-                return NotFound(new { error = "Task detail not found" });
-            }
-
-            // Check if execution record already exists
-            var execution = await _context.MaintenanceTaskDetails
-                .FirstOrDefaultAsync(mtd => mtd.MaintenanceTaskId == taskId && mtd.TaskDetailId == detailId);
-
-            if (execution == null)
-            {
-                // Create new execution record
-                execution = new MaritimeEdge.Models.MaintenanceTaskDetail
-                {
-                    MaintenanceTaskId = taskId,
-                    TaskDetailId = detailId,
-                    Status = MTaskStatus.COMPLETED,
-                    IsCompleted = true,
-                    MeasuredValue = request.MeasuredValue,
-                    CheckResult = request.CheckResult,
-                    Notes = request.Notes,
-                    PhotoUrl = request.PhotoUrl,
-                    SignatureUrl = request.SignatureUrl,
-                    CompletedBy = request.CompletedBy,
-                    CompletedAt = DateTime.UtcNow,
-                    CreatedAt = DateTime.UtcNow
-                };
-                _context.MaintenanceTaskDetails.Add(execution);
-            }
-            else
-            {
-                // Update existing execution record
-                execution.Status = MTaskStatus.COMPLETED;
-                execution.IsCompleted = true;
-                execution.MeasuredValue = request.MeasuredValue;
-                execution.CheckResult = request.CheckResult;
-                execution.Notes = request.Notes;
-                execution.PhotoUrl = request.PhotoUrl;
-                execution.SignatureUrl = request.SignatureUrl;
-                execution.CompletedBy = request.CompletedBy;
-                execution.CompletedAt = DateTime.UtcNow;
-            }
-
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Completed checklist item: Task {TaskId}, Detail {DetailId}", taskId, detailId);
-
-            return Ok(execution);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error completing checklist item");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
-        }
+        return BadRequest(new { error = "Legacy endpoint - Use /api/maintenance/tasks/{taskId}/checklist/{itemId}/complete instead" });
     }
 
     /// <summary>
@@ -1146,52 +1106,7 @@ public class MaintenanceController : ControllerBase
     [HttpGet("tasks/{taskId}/progress")]
     public async Task<IActionResult> GetTaskProgress(Guid taskId)
     {
-        try
-        {
-            var task = await _context.MaintenanceTasks.FindAsync(taskId);
-            if (task == null)
-            {
-                return NotFound(new { error = "Task not found" });
-            }
-
-            if (!task.TaskTypeId.HasValue)
-            {
-                return Ok(new { total = 0, completed = 0, percentage = 100 });
-            }
-
-            // Count total mandatory task details
-            // FIXME: TaskDetail.TaskTypeId has been removed
-            var totalMandatory = 0; // await _context.TaskDetails
-                // .AsNoTracking()
-                // .Where(td => td.TaskTypeId == task.TaskTypeId && td.IsActive && td.IsMandatory)
-                // .CountAsync();
-
-            // Count completed mandatory items
-            var completedMandatory = await _context.MaintenanceTaskDetails
-                .AsNoTracking()
-                .Where(mtd => mtd.MaintenanceTaskId == taskId && mtd.IsCompleted)
-                .Join(_context.TaskDetails,
-                    mtd => mtd.TaskDetailId,
-                    td => td.Id,
-                    (mtd, td) => new { mtd, td })
-                .Where(x => x.td.IsMandatory && x.td.IsActive)
-                .CountAsync();
-
-            var percentage = totalMandatory > 0 ? (int)((double)completedMandatory / totalMandatory * 100) : 0;
-
-            return Ok(new
-            {
-                total = totalMandatory,
-                completed = completedMandatory,
-                percentage,
-                canComplete = completedMandatory >= totalMandatory
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting task progress");
-            return StatusCode(500, new { error = "Internal server error" });
-        }
+        return Ok(new { total = 0, completed = 0, percentage = 100 }); // Legacy endpoint - Use PMS Planning v2.0
     }
 
     public class CompleteTaskRequest

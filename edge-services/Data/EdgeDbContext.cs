@@ -40,8 +40,6 @@ public class EdgeDbContext : DbContext
     public DbSet<CrewMember> CrewMembers { get; set; } = null!;
     public DbSet<MaintenanceTask> MaintenanceTasks { get; set; } = null!;
     public DbSet<TaskChecklistItem> TaskChecklistItems { get; set; } = null!;
-    public DbSet<TaskType> TaskTypes { get; set; } = null!;
-    public DbSet<TaskDetail> TaskDetails { get; set; } = null!;
     public DbSet<MaintenanceTaskDetail> MaintenanceTaskDetails { get; set; } = null!;
     public DbSet<CargoOperation> CargoOperations { get; set; } = null!;
     public DbSet<WatchkeepingLog> WatchkeepingLogs { get; set; } = null!;
@@ -522,9 +520,6 @@ public class EdgeDbContext : DbContext
             entity.HasIndex(e => e.IsSynced)
                 .HasDatabaseName("idx_maintenance_synced")
                 .HasFilter("is_synced = false");
-
-            entity.HasIndex(e => e.TaskTypeId)
-                .HasDatabaseName("idx_maintenance_task_type_id");
             
             entity.HasIndex(e => e.AssignedTo)
                 .HasDatabaseName("idx_maintenance_assigned_to");
@@ -543,12 +538,6 @@ public class EdgeDbContext : DbContext
             // Composite index for common query pattern
             entity.HasIndex(e => new { e.AssignedTo, e.Status })
                 .HasDatabaseName("idx_maintenance_assigned_status");
-
-            // Foreign key to TaskType (optional)
-            entity.HasOne<TaskType>()
-                .WithMany()
-                .HasForeignKey(e => e.TaskTypeId)
-                .OnDelete(DeleteBehavior.SetNull);
             
             // Relationship with DeferralRequests
             entity.HasMany(e => e.DeferralRequests)
@@ -601,55 +590,6 @@ public class EdgeDbContext : DbContext
                 .HasDatabaseName("idx_status_history_task_time");
         });
 
-        // ========== TASK TYPES ==========
-        modelBuilder.Entity<TaskType>(entity =>
-        {
-            entity.ToTable("task_types");
-
-            entity.HasIndex(e => e.TypeCode)
-                .IsUnique()
-                .HasDatabaseName("idx_task_type_code_unique");
-
-            entity.HasIndex(e => e.Category)
-                .HasDatabaseName("idx_task_type_category");
-
-            entity.HasIndex(e => e.IsActive)
-                .HasDatabaseName("idx_task_type_active")
-                .HasFilter("is_active = true");
-
-            // Many-to-many relationship with TaskDetail
-            entity.HasMany(e => e.TaskDetails)
-                .WithMany(e => e.TaskTypes)
-                .UsingEntity<Dictionary<string, object>>(
-                    "TaskTypeTaskDetail",
-                    j => j.HasOne<TaskDetail>().WithMany().HasForeignKey("TaskDetailId"),
-                    j => j.HasOne<TaskType>().WithMany().HasForeignKey("TaskTypeId"),
-                    j =>
-                    {
-                        j.ToTable("task_type_task_details");
-                        j.HasKey("TaskTypeId", "TaskDetailId");
-                        j.HasIndex("TaskTypeId").HasDatabaseName("idx_tttd_task_type_id");
-                        j.HasIndex("TaskDetailId").HasDatabaseName("idx_tttd_task_detail_id");
-                    });
-        });
-
-        // ========== TASK DETAILS ==========
-        modelBuilder.Entity<TaskDetail>(entity =>
-        {
-            entity.ToTable("task_details");
-
-            entity.Property(e => e.MinValue).HasColumnType("decimal(10,3)");
-            entity.Property(e => e.MaxValue).HasColumnType("decimal(10,3)");
-
-            // Indexes for TaskTypeId removed - now using many-to-many relationship
-
-            entity.HasIndex(e => e.IsActive)
-                .HasDatabaseName("idx_task_detail_active")
-                .HasFilter("is_active = true");
-
-            // TaskTypeId removed - now using many-to-many relationship
-        });
-
         // ========== MAINTENANCE TASK DETAILS (N-N junction table) ==========
         modelBuilder.Entity<MaintenanceTaskDetail>(entity =>
         {
@@ -659,9 +599,6 @@ public class EdgeDbContext : DbContext
 
             entity.HasIndex(e => e.MaintenanceTaskId)
                 .HasDatabaseName("idx_mtd_maintenance_task_id");
-
-            entity.HasIndex(e => e.TaskDetailId)
-                .HasDatabaseName("idx_mtd_task_detail_id");
 
             entity.HasIndex(e => new { e.MaintenanceTaskId, e.TaskDetailId })
                 .IsUnique()
@@ -679,12 +616,6 @@ public class EdgeDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.MaintenanceTaskId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            // Foreign key to TaskDetail
-            entity.HasOne<TaskDetail>()
-                .WithMany()
-                .HasForeignKey(e => e.TaskDetailId)
-                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ========== TASK CHECKLIST ITEMS ==========

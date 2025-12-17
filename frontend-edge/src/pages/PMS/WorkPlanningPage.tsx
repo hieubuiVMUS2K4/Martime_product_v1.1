@@ -18,6 +18,13 @@ export default function WorkPlanningPage() {
 
   useEffect(() => {
     loadTasks();
+    
+    // 🔄 Auto-refresh every 30 seconds to detect deleted schedules and updated tasks
+    const intervalId = setInterval(() => {
+      loadTasks();
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(intervalId);
   }, []);
 
   const loadTasks = async () => {

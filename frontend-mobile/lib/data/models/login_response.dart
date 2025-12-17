@@ -24,6 +24,12 @@ class LoginResponse {
   });
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
+    // Check for error response with success: false
+    if (json['success'] == false) {
+      final errorMsg = json['message'] as String? ?? 'Login failed';
+      throw Exception(errorMsg);
+    }
+    
     // Handle nested user object from new API response
     final user = json['user'] as Map<String, dynamic>?;
     

@@ -16,7 +16,6 @@ import { CompliancePage } from './pages/Compliance/CompliancePage'
 import { SyncPage } from './pages/Sync/SyncPage'
 import { MaterialPage } from './pages/Material/MaterialPage'
 import { FuelAnalyticsPage } from './pages/FuelAnalytics'
-import { TaskManagementPage } from './pages/TaskManagement/TaskManagementPage'
 
 // PMS Pages
 import AssetsPage from './pages/PMS/AssetsPage'
@@ -63,7 +62,6 @@ function App() {
         <Route path="alarms" element={<AlarmsPage />} />
         <Route path="crew" element={<CrewPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
-        <Route path="task-management" element={<TaskManagementPage />} />
         <Route path="voyage" element={<VoyagePage />} />
         <Route path="compliance" element={<CompliancePage />} />
         <Route path="sync" element={<SyncPage />} />

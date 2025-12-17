@@ -16,9 +16,12 @@ namespace MaritimeEdge
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Configure port - Listen on all network interfaces for mobile access
-            // Can be overridden by command line: dotnet run --urls "http://0.0.0.0:5005"
-            builder.WebHost.UseUrls("http://0.0.0.0:5005");
+            // Configure default port - Listen on all network interfaces for mobile access
+            // Can be overridden by command line: dotnet run --urls "http://0.0.0.0:5001"
+            if (!args.Any(arg => arg.StartsWith("--urls")))
+            {
+                builder.WebHost.UseUrls("http://0.0.0.0:5001");
+            }
 
             // Add services to the container
             var connectionString = builder.Configuration.GetValue<string>("Database:ConnectionString");
@@ -40,7 +43,6 @@ namespace MaritimeEdge
             // Add Business Services
             builder.Services.AddScoped<FuelAnalyticsService>();
             builder.Services.AddScoped<ISignalKHttpClient, SignalKHttpClient>();
-            builder.Services.AddScoped<TaskManagementService>();
             builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<IAggregateReportService, AggregateReportService>();
             builder.Services.AddScoped<ISyncService, SyncService>();

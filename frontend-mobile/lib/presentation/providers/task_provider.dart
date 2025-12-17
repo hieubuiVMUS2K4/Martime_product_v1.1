@@ -76,6 +76,18 @@ class TaskProvider with ChangeNotifier {
       _tasks = await _taskRepository.getMyTasks(forceRefresh: forceRefresh);
       print('✅ TaskProvider: API returned ${_tasks.length} tasks');
       
+      // DEBUG: Print task statuses
+      final statusCounts = <String, int>{};
+      for (var task in _tasks) {
+        statusCounts[task.status] = (statusCounts[task.status] ?? 0) + 1;
+      }
+      print('📊 Task Status Breakdown:');
+      statusCounts.forEach((status, count) {
+        print('   - $status: $count tasks');
+      });
+      print('📋 DUE tasks: ${dueTasks.length}');
+      print('⏰ OVERDUE tasks: ${overdueTasks.length}');
+      
       _isLoading = false;
       notifyListeners();
       print('✅ TaskProvider: fetchMyTasks() completed with ${_tasks.length} tasks');

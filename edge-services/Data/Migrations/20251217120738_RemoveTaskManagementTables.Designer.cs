@@ -3,6 +3,7 @@ using System;
 using MaritimeEdge.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MaritimeEdge.Data.Migrations
 {
     [DbContext(typeof(EdgeDbContext))]
-    partial class EdgeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251217120738_RemoveTaskManagementTables")]
+    partial class RemoveTaskManagementTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2717,19 +2720,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("deferral_count");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<string>("DeletedBy")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("deleted_by");
-
-                    b.Property<string>("DeletionReason")
-                        .HasColumnType("text")
-                        .HasColumnName("deletion_reason");
-
                     b.Property<Guid?>("EquipmentGroupId")
                         .HasColumnType("uuid")
                         .HasColumnName("equipment_group_id");
@@ -2768,10 +2758,6 @@ namespace MaritimeEdge.Data.Migrations
                     b.Property<bool>("IsCms")
                         .HasColumnType("boolean")
                         .HasColumnName("is_cms");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
 
                     b.Property<bool>("IsSynced")
                         .HasColumnType("boolean")

@@ -1113,7 +1113,7 @@ See: [MOBILE_PMS_WORKFLOW_TODO.md](./MOBILE_PMS_WORKFLOW_TODO.md)
 
 ---
 
-## 11. IMPLEMENTATION STATUS (Updated: 10/12/2025)
+## 11. IMPLEMENTATION STATUS (Updated: 17/12/2025)
 
 ### 11.1. ✅ ĐÃ TRIỂN KHAI
 
@@ -1174,6 +1174,36 @@ See: [MOBILE_PMS_WORKFLOW_TODO.md](./MOBILE_PMS_WORKFLOW_TODO.md)
 | Route - `/pms/deferrals` | `App.tsx` | ✅ Done |
 | Route - `/pms/approval-dashboard` | `App.tsx` | ✅ Done |
 
+#### Mobile App (Flutter)
+| Item | File/Location | Status |
+|------|---------------|--------|
+| Task List Screen with Tabs | `task_list_screen.dart` | ✅ Done |
+| Task Card Component | `task_card.dart` | ✅ Done |
+| Status Badge Component | `status_badge.dart` | ✅ Done |
+| Priority Badge Component | `priority_badge.dart` | ✅ Done |
+| Task Detail Screen | `task_detail_screen.dart` | ✅ Done |
+| Start Task Button (DUE/OVERDUE/RECTIFY) | `task_detail_screen.dart` | ✅ Done |
+| Fix & Continue Button (RECTIFY) | `task_detail_screen.dart` | ✅ Done |
+| Complete Task Screen | `complete_task_screen.dart` | ✅ Done |
+| Checklist Completion | `complete_task_screen.dart` | ✅ Done |
+| Photo Upload (multi-photo) | `complete_task_screen.dart` | ✅ Done |
+| Photo Validation (required photos) | `complete_task_screen.dart` | ✅ Done |
+| Spare Parts Selection | `complete_task_screen.dart` | ✅ Done |
+| Running Hours Input | `complete_task_screen.dart` | ✅ Done |
+| Submit Task Flow | `complete_task_screen.dart` | ✅ Done |
+| Create Deferral Screen | `create_deferral_screen.dart` | ✅ Done |
+| Deferral Form - OVERDUE Validation | `create_deferral_screen.dart` | ✅ Done |
+| Deferral - Root Cause field | `create_deferral_screen.dart` | ✅ Done |
+| Deferral - Preventive Measures field | `create_deferral_screen.dart` | ✅ Done |
+| Deferral - Attachments | `create_deferral_screen.dart` | ✅ Done |
+| Task Provider (State Management) | `task_provider.dart` | ✅ Done |
+| Task Repository (API + Cache) | `task_repository.dart` | ✅ Done |
+| Offline Support - Sync Queue | `sync_queue.dart` | ✅ Done |
+| Offline Support - Cache Manager | `cache_manager.dart` | ✅ Done |
+| MaintenanceTask Model | `maintenance_task.dart` | ✅ Done |
+| Task Status Helpers (isRectify, canStart, etc.) | `maintenance_task.dart` | ✅ Done |
+| Auto-refresh tasks (5s interval) | `task_list_screen.dart` | ✅ Done |
+
 ---
 
 ### 11.2. ❌ CHƯA TRIỂN KHAI
@@ -1191,29 +1221,27 @@ See: [MOBILE_PMS_WORKFLOW_TODO.md](./MOBILE_PMS_WORKFLOW_TODO.md)
 
 #### 📱 MOBILE (Flutter App)
 
-| Priority | Item | Description |
-|----------|------|-------------|
-| 🔴 High | Task List Screen | Show DUE, OVERDUE, IN_PROGRESS, RECTIFY tasks |
-| 🔴 High | Start Task Flow | Button "Start Task" → IN_PROGRESS |
-| 🔴 High | Task Execution Screen | Checklist, photos, readings, spare parts |
-| 🔴 High | Submit Report Flow | Validate checklist + photos → PENDING_APPROVAL |
-| 🔴 High | Rectify Flow | View rejection reason → "Fix & Continue" → IN_PROGRESS |
-| 🔴 High | Deferral Request | Form: reason, proposed date, attachments |
-| 🟡 Medium | Photo Validation | Block submit if photos < required |
-| 🟡 Medium | Offline Support | Queue submissions when offline |
-| 🟡 Medium | Push Notifications | Task assigned, approved, rectify, deferral result |
-| 🟢 Low | Morning Briefing | Daily summary at 07:00 |
+| Priority | Item | Description | Status |
+|----------|------|-------------|--------|
+| 🔴 High | Task List Screen | Show DUE, OVERDUE, IN_PROGRESS, RECTIFY tasks | ✅ Done |
+| 🔴 High | Start Task Flow | Button "Start Task" → IN_PROGRESS | ✅ Done |
+| 🔴 High | Task Execution Screen | Checklist, photos, readings, spare parts | ✅ Done |
+| 🔴 High | Submit Report Flow | Validate checklist + photos → PENDING_APPROVAL | ✅ Done |
+| 🔴 High | Rectify Flow | View rejection reason → "Fix & Continue" → IN_PROGRESS | ✅ Done |
+| 🔴 High | Deferral Request | Form: reason, proposed date, attachments | ✅ Done |
+| 🟡 Medium | Photo Validation | Block submit if photos < required | ✅ Done |
+| 🟡 Medium | Offline Support | Queue submissions when offline | ✅ Done |
+| 🟡 Medium | Push Notifications | Task assigned, approved, rectify, deferral result | ❌ Not Done |
+| 🟢 Low | Morning Briefing | Daily summary at 07:00 | ❌ Not Done |
 
 #### 🔔 NOTIFICATIONS
 
-| Priority | Item | Description |
-|----------|------|-------------|
-| 🔴 High | Push Service Setup | Firebase/OneSignal integration |
-| 🔴 High | Mobile Push - Task Rectify | Notify crew when task rejected |
-| 🔴 High | Mobile Push - Deferral Result | Notify crew when deferral approved/rejected |
-| 🟡 Medium | Web Push - New Submission | Notify C/E when crew submits |
-| 🟡 Medium | Web Push - Deferral Request | Notify C/E when crew requests deferral |
-| 🟢 Low | Morning Briefing Scheduler | Daily summary at 07:00 |
+| Priority | Item | Description | Status |
+|----------|------|-------------|--------|
+| 🟡 Medium | Push Service Setup | Firebase/OneSignal integration | ❌ Not Done |
+| 🟢 Low | Morning Briefing Scheduler | Daily summary at 07:00 | ❌ Not Done |
+
+**Note:** Web Push notifications moved to Future Enhancements. Mobile Push chưa implement vì cần Firebase setup.
 
 #### 🧪 TESTING
 
@@ -1231,10 +1259,10 @@ See: [MOBILE_PMS_WORKFLOW_TODO.md](./MOBILE_PMS_WORKFLOW_TODO.md)
 |----------|-----------|-------|----------|
 | Backend API | 21 | 21 | **100%** ✅ |
 | Frontend Web | 28 | 34 | **82%** |
-| Mobile App | 0 | 10 | **0%** |
-| Notifications | 0 | 6 | **0%** |
+| Mobile App | 8 | 10 | **80%** ✅ |
+| Notifications | 0 | 2 | **0%** |
 | Testing | 0 | 3 | **0%** |
-| **OVERALL** | **49** | **74** | **~66%** |
+| **OVERALL** | **57** | **70** | **~81%** |
 
 ---
 
@@ -1324,8 +1352,14 @@ See: [MOBILE_PMS_WORKFLOW_TODO.md](./MOBILE_PMS_WORKFLOW_TODO.md)
 ### 12.1. Lead Time Validation with Ceiling Rule
 
 ```csharp
+/// <summary>
+/// Validate and correct lead time with CEILING RULE (PMS Workflow v2.2 - Updated 16/12/2025)
+/// SHORT INTERVALS (≤7 days): Lead time = 50% of interval
+/// LONG INTERVALS (>7 days): ISM Code minimum OR work-based, CAPPED at 70% of interval
+/// CEILING RULE prevents task overlap (next task won't appear before previous completes)
+/// </summary>
 private int ValidateAndCorrectLeadTime(int daysBeforeDue, string priority, 
-    double? estimatedHours, int? intervalDays = null)
+    double? estimatedHours, int? intervalDays)
 {
     var minimumLeadTime = GetMinimumLeadTime(priority);
     
@@ -1337,7 +1371,7 @@ private int ValidateAndCorrectLeadTime(int daysBeforeDue, string priority,
         if (daysBeforeDue != proportionalLeadTime)
         {
             _logger.LogWarning(
-                "DaysBeforeDue {Configured} adjusted to proportional {Minimum} " +
+                "DaysBeforeDue {Configured} adjusted to proportional {Proportional} " +
                 "for {Interval}-day interval. Short intervals require tight lead times.",
                 daysBeforeDue, proportionalLeadTime, intervalDays.Value);
         }
@@ -1349,7 +1383,7 @@ private int ValidateAndCorrectLeadTime(int daysBeforeDue, string priority,
     var workBasedMinimum = workDays * 3;
     var effectiveMinimum = Math.Max(minimumLeadTime, workBasedMinimum);
     
-    // 🚨 CEILING RULE: Lead time MUST NOT exceed interval
+    // 🚨 CEILING RULE: Lead time MUST NOT exceed 70% of interval
     // Prevents task overlap (e.g., 14-day interval with 30-day lead time)
     if (intervalDays.HasValue)
     {
@@ -1399,16 +1433,18 @@ private int GetMinimumLeadTime(string priority)
 
 | Scenario | Interval | Priority | Est. Hours | Result | Logic Applied |
 |----------|----------|----------|------------|--------|---------------|
-| Daily inspection | 1 day | MEDIUM | 0.5h | **1 day** | Proportional (1 ÷ 2 = 1) |
+| Daily inspection | 1 day | MEDIUM | 0.5h | **1 day** | Proportional (1 ÷ 2 = 1, min 1) |
 | Weekly check | 7 days | LOW | 2h | **3 days** | Proportional (7 ÷ 2 = 3) |
-| Bi-weekly maintenance | 14 days | CRITICAL | 4h | **9 days** | Ceiling (70% of 14) |
-| Monthly service | 30 days | HIGH | 8h | **14 days** | ISM Code (HIGH min) |
-| Quarterly overhaul | 90 days | CRITICAL | 16h | **30 days** | ISM Code (CRITICAL min) |
+| Bi-weekly maintenance | 14 days | CRITICAL | 4h | **9 days** | Ceiling (70% of 14 = 9.8 → 9) |
+| Bi-weekly maintenance | 15 days | CRITICAL | 4h | **10 days** | Ceiling (70% of 15 = 10.5 → 10) |
+| Monthly service | 30 days | HIGH | 8h | **14 days** | ISM Code (HIGH min = 14) |
+| Quarterly overhaul | 90 days | CRITICAL | 16h | **30 days** | ISM Code (CRITICAL min = 30) |
 
 **Key Rules:**
-- ✅ Short intervals (≤7 days): Lead time = 50% of interval
+- ✅ Short intervals (≤7 days): Lead time = 50% of interval, minimum 1 day
 - ✅ Long intervals (>7 days): ISM Code minimum OR work-based, capped at 70% of interval
 - ✅ Ceiling prevents task overlap (next task won't appear before previous completes)
+- ✅ Example: 15-day interval, CRITICAL → Lead time = 10 days (not 30 days)
 
 ---
 
@@ -1466,8 +1502,8 @@ return {
 
 ---
 
-**Document Version:** 2.2  
-**Last Updated:** 14/12/2025 (Evening)  
+**Document Version:** 2.3  
+**Last Updated:** 16/12/2025 (Evening)  
 **Approved By:** Technical Team Lead  
-**Changes:** Added Ceiling Rule, Master Schedule enhancements, Day view mode  
+**Changes:** Fixed Ceiling Rule implementation in MaintenanceSchedulerService.cs, auto-correction now works correctly  
 **Next Review:** 21/12/2025

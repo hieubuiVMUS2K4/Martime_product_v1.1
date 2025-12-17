@@ -13,7 +13,6 @@ import '../models/sync_item.dart';
 import '../models/start_task_dto.dart';
 import '../models/submit_task_dto.dart';
 import '../models/complete_task_checklist_item_request.dart';
-import '../models/update_task_checklist_item_request.dart';
 import '../models/create_deferral_request_dto.dart';
 
 class TaskRepository {
@@ -223,34 +222,6 @@ class TaskRepository {
     }
   }
 
-  /// Update single task in cache
-  Future<void> _updateTaskInCache(MaintenanceTask task) async {
-    try {
-      final cached = await _cacheManager.getData(CacheKeys.myTasks);
-      if (cached != null) {
-        final tasks = (cached as List)
-            .map((json) => MaintenanceTask.fromJson(json))
-            .toList();
-
-        // Replace or add task
-        final index = tasks.indexWhere((t) => t.id == task.id);
-        if (index != -1) {
-          tasks[index] = task;
-        } else {
-          tasks.add(task);
-        }
-
-        // Save back to cache
-        await _cacheManager.saveData(
-          CacheKeys.myTasks,
-          tasks.map((t) => t.toJson()).toList(),
-        );
-      }
-    } catch (e) {
-      // Ignore cache update errors
-    }
-  }
-
   // ========== NEW: TaskType Checklist System ==========
 
   /// Get task checklist with execution status
@@ -421,10 +392,16 @@ class TaskRepository {
   
   Future<void> createDeferralRequest(CreateDeferralRequestDto dto) async {
     try {
+      print('📡 TaskRepository: Starting deferral request...');
+      print('   TaskId: ${dto.taskId}');
+      print('   Attachments: ${dto.attachments?.length ?? 0} photos');
+      
       if (await _networkInfo.isConnected) {
-        await _taskApi.createDeferralRequest(dto);
-        print('✅ TaskRepository: Created deferral request for task ${dto.taskId}');
+        final response = await _taskApi.createDeferralRequest(dto);
+        print('✅ TaskRepository: Deferral created - Response: ${response.response.statusCode}');
+        print('   Response body: ${response.data}');
       } else {
+        print('❌ TaskRepository: No network, queueing for offline sync');
         // Offline: Add to sync queue
         await _syncQueue.addToQueue(
           SyncItem(
@@ -435,7 +412,11 @@ class TaskRepository {
         print('💾 TaskRepository: Queued deferral request for offline sync');
       }
     } on DioException catch (e) {
-      print('❌ TaskRepository: Failed to create deferral request: ${e.message}');
+      print('❌ TaskRepository: DioException creating deferral');
+      print('   Status: ${e.response?.statusCode}');
+      print('   Message: ${e.message}');
+      print('   Response: ${e.response?.data}');
+      
       // On error, add to sync queue
       await _syncQueue.addToQueue(
         SyncItem(
@@ -443,7 +424,19 @@ class TaskRepository {
           data: dto.toJson(),
         ),
       );
-      throw Exception('Deferral request saved offline. Will sync when online');
+      
+      // Re-throw with better message
+      if (e.response?.statusCode == 400) {
+        final errorMsg = e.response?.data?['error'] ?? 'Validation failed';
+        throw Exception('Backend validation: $errorMsg');
+      } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
+        throw Exception('Request timeout - ảnh có thể quá lớn');
+      } else {
+        throw Exception('Network error: ${e.message}');
+      }
+    } catch (e) {
+      print('❌ TaskRepository: Unexpected error: $e');
+      rethrow;
     }
   }
 

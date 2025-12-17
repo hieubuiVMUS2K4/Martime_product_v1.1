@@ -94,6 +94,16 @@ public class MaintenanceScheduleController : ControllerBase
                     effectiveMinimum, priority, maxAllowedLeadTime, intervalDays.Value);
                 effectiveMinimum = Math.Max(1, maxAllowedLeadTime); // Minimum 1 day
             }
+            
+            // ENFORCE CEILING: If configured lead time exceeds ceiling, reduce it
+            if (daysBeforeDue > maxAllowedLeadTime)
+            {
+                _logger.LogWarning(
+                    "DaysBeforeDue {Configured} exceeds interval ceiling {Ceiling} days (70% of {Interval}-day interval). " +
+                    "Reducing to prevent task overlap.",
+                    daysBeforeDue, maxAllowedLeadTime, intervalDays.Value);
+                return Math.Max(1, maxAllowedLeadTime);
+            }
         }
         
         if (daysBeforeDue < effectiveMinimum)
@@ -170,7 +180,6 @@ public class MaintenanceScheduleController : ControllerBase
                     GroupCode = group?.GroupCode,
                     GroupName = group?.GroupName,
                     AssetCount = memberCount,
-                    TaskTypeId = schedule.TaskTypeId,
                     ScheduleName = schedule.ScheduleName,
                     IntervalType = schedule.IntervalType,
                     IntervalHours = schedule.IntervalHours,
@@ -287,7 +296,6 @@ public class MaintenanceScheduleController : ControllerBase
                     GroupCode = group?.GroupCode,
                     GroupName = group?.GroupName,
                     AssetCount = memberCount,
-                    TaskTypeId = schedule.TaskTypeId,
                     ScheduleName = schedule.ScheduleName,
                     IntervalType = schedule.IntervalType,
                     IntervalHours = schedule.IntervalHours,
@@ -382,17 +390,21 @@ public class MaintenanceScheduleController : ControllerBase
                 return BadRequest(new { error = "Equipment group has no members" });
 
             // ISM Code Compliance: Validate and auto-correct lead time based on priority
+            // For RUNNING_HOURS: Convert hours to estimated days (÷ 10 hrs/day) for lead time validation
+            var effectiveIntervalDays = dto.IntervalType == "RUNNING_HOURS" && dto.IntervalHours.HasValue
+                ? (int)Math.Ceiling(dto.IntervalHours.Value / 10.0)
+                : dto.IntervalDays;
+
             var validatedDaysBeforeDue = ValidateAndCorrectLeadTime(
                 dto.DaysBeforeDue, 
                 dto.Priority, 
                 dto.EstimatedDurationHours,
-                dto.IntervalDays);
+                effectiveIntervalDays);
 
             var schedule = new MaintenanceSchedule
             {
                 ScheduleCode = dto.ScheduleCode,
                 EquipmentGroupId = dto.EquipmentGroupId,
-                TaskTypeId = dto.TaskTypeId,
                 ScheduleName = dto.ScheduleName,
                 IntervalType = dto.IntervalType,
                 IntervalHours = dto.IntervalHours,
@@ -401,7 +413,6 @@ public class MaintenanceScheduleController : ControllerBase
                 Priority = dto.Priority,
                 EstimatedDurationHours = dto.EstimatedDurationHours,
                 AutoGenerate = dto.AutoGenerate,
-                Instructions = dto.Instructions,
                 IsActive = true
             };
 
@@ -572,16 +583,20 @@ public class MaintenanceScheduleController : ControllerBase
                 return BadRequest(new { error = "Equipment group has no members" });
 
             // ISM Code Compliance: Validate and auto-correct lead time based on priority
+            // For RUNNING_HOURS: Convert hours to estimated days (÷ 10 hrs/day) for lead time validation
+            var effectiveIntervalDays = dto.IntervalType == "RUNNING_HOURS" && dto.IntervalHours.HasValue
+                ? (int)Math.Ceiling(dto.IntervalHours.Value / 10.0)
+                : dto.IntervalDays;
+
             var validatedDaysBeforeDue = ValidateAndCorrectLeadTime(
                 dto.DaysBeforeDue, 
                 dto.Priority, 
                 dto.EstimatedDurationHours,
-                dto.IntervalDays);
+                effectiveIntervalDays);
 
             // Update schedule fields
             schedule.ScheduleCode = dto.ScheduleCode;
             schedule.EquipmentGroupId = dto.EquipmentGroupId;
-            schedule.TaskTypeId = dto.TaskTypeId;
             schedule.ScheduleName = dto.ScheduleName;
             schedule.IntervalType = dto.IntervalType;
             schedule.IntervalHours = dto.IntervalHours;
@@ -590,7 +605,6 @@ public class MaintenanceScheduleController : ControllerBase
             schedule.Priority = dto.Priority;
             schedule.EstimatedDurationHours = dto.EstimatedDurationHours;
             schedule.AutoGenerate = dto.AutoGenerate;
-            schedule.Instructions = dto.Instructions;
             schedule.UpdatedAt = DateTime.UtcNow;
 
             // Recalculate next due date
@@ -724,7 +738,6 @@ public class MaintenanceScheduleController : ControllerBase
             GroupCode = group?.GroupCode,
             GroupName = group?.GroupName,
             AssetCount = groupMembersCount,
-            TaskTypeId = schedule.TaskTypeId,
             ScheduleName = schedule.ScheduleName,
             IntervalType = schedule.IntervalType,
             IntervalHours = schedule.IntervalHours,
@@ -895,21 +908,44 @@ public class MaintenanceScheduleController : ControllerBase
         {
             var baseHours = schedule.LastExecutedRunningHours ?? asset.CurrentRunningHours ?? 0;
             schedule.NextDueRunningHours = baseHours + schedule.IntervalHours.Value;
+            
+            // Estimate calendar date based on average 10 hours per day
+            var hoursRemaining = schedule.NextDueRunningHours.Value - (asset.CurrentRunningHours ?? 0);
+            var daysRemaining = (int)(hoursRemaining / 10.0);
+            schedule.NextDueDate = DateTime.UtcNow.AddDays(daysRemaining);
         }
         else if (schedule.IntervalType == "HYBRID")
         {
-            // Calculate both calendar and running hours
+            // Use the earlier of the two due dates
+            DateTime? calendarDue = null;
+            DateTime? runningHoursDue = null;
+
             if (schedule.IntervalDays.HasValue)
             {
                 var baseDate = schedule.LastExecutedAt ?? DateTime.UtcNow;
-                schedule.NextDueDate = baseDate.AddDays(schedule.IntervalDays.Value);
+                calendarDue = baseDate.AddDays(schedule.IntervalDays.Value);
             }
-            
+
             if (schedule.IntervalHours.HasValue)
             {
                 var baseHours = schedule.LastExecutedRunningHours ?? asset.CurrentRunningHours ?? 0;
                 schedule.NextDueRunningHours = baseHours + schedule.IntervalHours.Value;
+                
+                var hoursRemaining = schedule.NextDueRunningHours.Value - (asset.CurrentRunningHours ?? 0);
+                var daysRemaining = (int)(hoursRemaining / 10.0);
+                runningHoursDue = DateTime.UtcNow.AddDays(daysRemaining);
+            }
+
+            // Choose earlier date
+            if (calendarDue.HasValue && runningHoursDue.HasValue)
+            {
+                schedule.NextDueDate = calendarDue < runningHoursDue ? calendarDue : runningHoursDue;
+            }
+            else
+            {
+                schedule.NextDueDate = calendarDue ?? runningHoursDue;
             }
         }
     }
 }
+

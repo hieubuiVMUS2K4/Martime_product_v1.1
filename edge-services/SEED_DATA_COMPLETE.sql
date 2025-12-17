@@ -1,4 +1,4 @@
--- =====================================================
+a-- =====================================================
 -- COMPLETE SEED DATA FOR MARITIME VESSEL
 -- Crew Members, Equipment Assets, Equipment Groups
 -- Run this to populate database with realistic sample data
@@ -415,3 +415,323 @@ UNION ALL
 SELECT 'Equipment Groups', COUNT(*) FROM equipment_groups
 UNION ALL
 SELECT 'Group Memberships', COUNT(*) FROM equipment_group_members;
+
+
+-- =====================================================
+-- 5. MAINTENANCE SCHEDULES - Sample schedules for testing
+-- =====================================================
+
+-- Xóa dữ liệu cũ
+DELETE FROM maintenance_schedules;
+
+INSERT INTO maintenance_schedules (
+    id, schedule_code, equipment_group_id, schedule_name,
+    interval_type, interval_hours, interval_days, days_before_due,
+    priority, estimated_duration_hours, auto_generate,
+    assigned_to_crew_id, assigned_to_role,
+    is_active, created_at, updated_at
+) VALUES
+
+-- === DAILY SCHEDULES (10 schedules với interval 1 day) ===
+
+-- 1. Daily Generator Check - CRITICAL
+('44444444-4444-4444-4444-000000000001', 'SCH-GEN-DAILY', 
+ '22222222-2222-2222-2222-000000000001', 
+ 'Daily Generator Inspection',
+ 'CALENDAR', NULL, 1, 1,
+ 'CRITICAL', 1.0, true,
+ NULL, 'C/E',
+ true, NOW(), NOW()),
+
+-- 2. Daily Engine Room Rounds - CRITICAL
+('44444444-4444-4444-4444-000000000002', 'SCH-ER-ROUNDS',
+ '22222222-2222-2222-2222-000000000002',
+ 'Daily Engine Room Rounds',
+ 'CALENDAR', NULL, 1, 1,
+ 'CRITICAL', 2.0, true,
+ NULL, '2/E',
+ true, NOW(), NOW()),
+
+-- 3. Daily Deck Inspection - HIGH
+('44444444-4444-4444-4444-000000000003', 'SCH-DECK-DAILY',
+ '22222222-2222-2222-2222-000000000011',
+ 'Daily Deck Equipment Check',
+ 'CALENDAR', NULL, 1, 1,
+
+ 'HIGH', 1.5, true,
+ NULL, 'Bosun',
+ true, NOW(), NOW()),
+
+-- 4. Daily Safety Equipment Check - CRITICAL
+('44444444-4444-4444-4444-000000000004', 'SCH-SAFETY-DAILY',
+ '22222222-2222-2222-2222-000000000011',
+ 'Daily Safety Equipment Inspection',
+ 'CALENDAR', NULL, 1, 1,
+
+ 'CRITICAL', 1.0, true,
+ NULL, 'C/O',
+ true, NOW(), NOW()),
+
+-- 5. Daily Navigation Light Check - CRITICAL
+('44444444-4444-4444-4444-000000000005', 'SCH-NAV-LIGHT',
+ '22222222-2222-2222-2222-000000000012',
+ 'Daily Navigation Light Test',
+ 'CALENDAR', NULL, 1, 1,
+
+ 'CRITICAL', 0.5, true,
+ NULL, '2/O',
+ true, NOW(), NOW()),
+
+-- 6. Daily Battery Check - HIGH
+('44444444-4444-4444-4444-000000000006', 'SCH-BATT-DAILY',
+ '22222222-2222-2222-2222-000000000001',
+ 'Daily Battery Inspection',
+ 'CALENDAR', NULL, 1, 1,
+
+ 'HIGH', 0.5, true,
+ NULL, 'E/O',
+ true, NOW(), NOW()),
+
+-- 7. Daily Fuel System Check - HIGH
+('44444444-4444-4444-4444-000000000007', 'SCH-FUEL-DAILY',
+ '22222222-2222-2222-2222-000000000002',
+ 'Daily Fuel System Inspection',
+ 'CALENDAR', NULL, 1, 1,
+
+ 'HIGH', 1.0, true,
+ NULL, '3/E',
+ true, NOW(), NOW()),
+
+-- 8. Daily Compressor Check - NORMAL
+('44444444-4444-4444-4444-000000000008', 'SCH-COMP-DAILY',
+ '22222222-2222-2222-2222-000000000004',
+ 'Daily Air Compressor Check',
+ 'CALENDAR', NULL, 1, 1,
+
+ 'NORMAL', 0.5, true,
+ NULL, '3/E',
+ true, NOW(), NOW()),
+
+-- 9. Daily Bilge Check - HIGH
+('44444444-4444-4444-4444-000000000009', 'SCH-BILGE-DAILY',
+ '22222222-2222-2222-2222-000000000002',
+ 'Daily Bilge Inspection',
+ 'CALENDAR', NULL, 1, 1,
+
+ 'HIGH', 1.0, true,
+ NULL, 'E/O',
+ true, NOW(), NOW()),
+
+-- 10. Daily Deck Wash - LOW
+('44444444-4444-4444-4444-000000000010', 'SCH-DECK-WASH',
+ '22222222-2222-2222-2222-000000000011',
+ 'Daily Deck Washing',
+ 'CALENDAR', NULL, 1, 1,
+
+ 'LOW', 2.0, true,
+ NULL, 'AB',
+ true, NOW(), NOW()),
+
+
+-- === MIXED SCHEDULES (10 schedules với tất cả priority levels) ===
+
+-- 11. Weekly Lifeboat Inspection - CRITICAL
+('44444444-4444-4444-4444-000000000011', 'SCH-LB-WEEKLY',
+ '22222222-2222-2222-2222-000000000011',
+ 'Weekly Lifeboat Drill and Inspection',
+ 'CALENDAR', NULL, 7, 3,
+
+ 'CRITICAL', 2.0, true,
+ NULL, 'C/O',
+ true, NOW(), NOW()),
+
+-- 12. Weekly Generator Maintenance - HIGH
+('44444444-4444-4444-4444-000000000012', 'SCH-GEN-WEEKLY',
+ '22222222-2222-2222-2222-000000000001',
+ 'Weekly Generator Service',
+ 'CALENDAR', NULL, 7, 2,
+
+ 'HIGH', 4.0, true,
+ NULL, 'C/E',
+ true, NOW(), NOW()),
+
+-- 13. Bi-Weekly Separator Cleaning - HIGH
+('44444444-4444-4444-4444-000000000013', 'SCH-SEP-2WEEK',
+ '22222222-2222-2222-2222-000000000003',
+ 'Bi-Weekly Oil Separator Cleaning',
+ 'CALENDAR', NULL, 14, 3,
+ NOW() - INTERVAL '14 days', NOW() + INTERVAL '1 day',
+ 'HIGH', 3.0, true,
+ NULL, '2/E',
+ true, NOW(), NOW()),
+
+-- 14. Monthly Fire Equipment Inspection - CRITICAL
+('44444444-4444-4444-4444-000000000014', 'SCH-FIRE-MONTHLY',
+ '22222222-2222-2222-2222-000000000011',
+ 'Monthly Fire Fighting Equipment Check',
+ 'CALENDAR', NULL, 30, 5,
+ NOW() - INTERVAL '30 days', NOW() + INTERVAL '2 days',
+ 'CRITICAL', 3.0, true,
+ NULL, 'C/O',
+ true, NOW(), NOW()),
+
+-- 15. Monthly Turbocharger Inspection - HIGH
+('44444444-4444-4444-4444-000000000015', 'SCH-TURBO-MONTHLY',
+ '22222222-2222-2222-2222-000000000001',
+ 'Monthly Turbocharger Service',
+ 'CALENDAR', NULL, 30, 7,
+ NOW() - INTERVAL '30 days', NOW() + INTERVAL '3 days',
+ 'HIGH', 4.0, true,
+ NULL, 'C/E',
+ true, NOW(), NOW()),
+
+-- 16. Quarterly Hull Inspection - NORMAL
+('44444444-4444-4444-4444-000000000016', 'SCH-HULL-QTRLY',
+ '22222222-2222-2222-2222-000000000011',
+ 'Quarterly Hull Underwater Inspection',
+ 'CALENDAR', NULL, 90, 14,
+ NOW() - INTERVAL '90 days', NOW() + INTERVAL '5 days',
+ 'NORMAL', 6.0, true,
+ 'CREW005', NULL,
+ true, NOW(), NOW()),
+
+-- 17. Quarterly Anchor System Service - NORMAL
+('44444444-4444-4444-4444-000000000017', 'SCH-ANCHOR-QTRLY',
+ '22222222-2222-2222-2222-000000000011',
+ 'Quarterly Anchor Windlass Maintenance',
+ 'CALENDAR', NULL, 90, 14,
+ NOW() - INTERVAL '90 days', NOW() + INTERVAL '6 days',
+ 'NORMAL', 3.0, true,
+ NULL, 'Bosun',
+ true, NOW(), NOW()),
+
+-- 18. Semi-Annual Navigation Equipment Check - HIGH
+('44444444-4444-4444-4444-000000000018', 'SCH-NAV-6M',
+ '22222222-2222-2222-2222-000000000012',
+ 'Semi-Annual Navigation Equipment Service',
+ 'CALENDAR', NULL, 180, 21,
+ NOW() - INTERVAL '180 days', NOW() + INTERVAL '10 days',
+ 'HIGH', 8.0, true,
+ NULL, 'Master',
+ true, NOW(), NOW()),
+
+-- 19. Annual Paint Maintenance - LOW
+('44444444-4444-4444-4444-000000000019', 'SCH-PAINT-ANNUAL',
+ '22222222-2222-2222-2222-000000000011',
+ 'Annual Deck Painting',
+ 'CALENDAR', NULL, 365, 30,
+ NOW() - INTERVAL '365 days', NOW() + INTERVAL '15 days',
+ 'LOW', 40.0, true,
+ NULL, 'Bosun',
+ true, NOW(), NOW()),
+
+-- 20. Running Hours Based - Generator Overhaul - CRITICAL
+('44444444-4444-4444-4444-000000000020', 'SCH-GEN-OVERHAUL',
+ '22222222-2222-2222-2222-000000000001',
+ 'Generator Major Overhaul',
+ 'RUNNING_HOURS', 8000, NULL, 500,
+ NULL, NULL,
+ 'CRITICAL', 48.0, true,
+ NULL, 'C/E',
+ true, NOW(), NOW());
+
+
+-- =====================================================
+-- UPDATE SCHEDULES - Set due dates for testing
+-- Make some schedules overdue/due today for mobile testing
+-- =====================================================
+
+-- Update daily schedules to be overdue (10 schedules)
+UPDATE maintenance_schedules
+SET 
+    last_executed_at = NOW() - INTERVAL '2 days',
+    next_due_date = NOW() - INTERVAL '1 day',
+    updated_at = NOW()
+WHERE schedule_code IN (
+    'SCH-GEN-DAILY', 'SCH-ER-ROUNDS', 'SCH-DECK-DAILY', 
+    'SCH-SAFETY-DAILY', 'SCH-NAV-LIGHT'
+);
+
+-- Update daily schedules to be due today (5 schedules)
+UPDATE maintenance_schedules
+SET 
+    last_executed_at = NOW() - INTERVAL '1 day',
+    next_due_date = NOW(),
+    updated_at = NOW()
+WHERE schedule_code IN (
+    'SCH-BATT-DAILY', 'SCH-FUEL-DAILY', 'SCH-COMP-DAILY', 
+    'SCH-BILGE-DAILY', 'SCH-DECK-WASH'
+);
+
+-- Update weekly schedules to be due soon (2 schedules)
+UPDATE maintenance_schedules
+SET 
+    last_executed_at = NOW() - INTERVAL '6 days',
+    next_due_date = NOW() + INTERVAL '1 day',
+    updated_at = NOW()
+WHERE schedule_code IN ('SCH-LB-WEEKLY', 'SCH-GEN-WEEKLY');
+
+-- Update monthly schedules to be overdue (2 schedules)
+UPDATE maintenance_schedules
+SET 
+    last_executed_at = NOW() - INTERVAL '32 days',
+    next_due_date = NOW() - INTERVAL '2 days',
+    updated_at = NOW()
+WHERE schedule_code IN ('SCH-FIRE-MONTHLY', 'SCH-TURBO-MONTHLY');
+
+-- Update bi-weekly schedule to be due today
+UPDATE maintenance_schedules
+SET 
+    last_executed_at = NOW() - INTERVAL '14 days',
+    next_due_date = NOW(),
+    updated_at = NOW()
+WHERE schedule_code = 'SCH-SEP-2WEEK';
+
+
+-- =====================================================
+-- VERIFICATION QUERIES FOR SCHEDULES
+-- =====================================================
+
+-- Summary by priority
+SELECT 
+    priority,
+    COUNT(*) as schedule_count,
+    AVG(interval_days) as avg_interval_days
+FROM maintenance_schedules
+WHERE interval_type = 'CALENDAR'
+GROUP BY priority
+ORDER BY 
+    CASE priority
+        WHEN 'CRITICAL' THEN 1
+        WHEN 'HIGH' THEN 2
+        WHEN 'NORMAL' THEN 3
+        WHEN 'LOW' THEN 4
+    END;
+
+-- Summary by interval type
+SELECT 
+    interval_type,
+    COUNT(*) as schedule_count
+FROM maintenance_schedules
+GROUP BY interval_type;
+
+-- List all schedules
+SELECT 
+    schedule_code,
+    schedule_name,
+    interval_type,
+    COALESCE(interval_days::text, interval_hours::text || ' hrs') as interval,
+    priority,
+    auto_generate
+FROM maintenance_schedules
+ORDER BY 
+    CASE priority
+        WHEN 'CRITICAL' THEN 1
+        WHEN 'HIGH' THEN 2
+        WHEN 'NORMAL' THEN 3
+        WHEN 'LOW' THEN 4
+    END,
+    COALESCE(interval_days, 0);
+
+
+

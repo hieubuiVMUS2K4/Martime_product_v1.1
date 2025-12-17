@@ -254,7 +254,7 @@ class MaintenanceTask extends Equatable {
   // Workflow helpers
   bool get isRectify => status == 'RECTIFY';
   bool get isPendingApproval => status == 'PENDING_APPROVAL';
-  bool get canRequestDeferral => status == 'DUE' || status == 'OVERDUE' || status == 'SCHEDULED';
+  bool get canRequestDeferral => status == 'DUE' || status == 'OVERDUE' || status == 'SCHEDULED' || hasMissingStatus;
   bool get canFixAndContinue => isRectify;
   bool get hasEnoughPhotos => photosUploaded >= requiredPhotos;
 

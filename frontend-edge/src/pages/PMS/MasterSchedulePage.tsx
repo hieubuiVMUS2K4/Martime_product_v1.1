@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Download, Clock } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Download, Clock, RefreshCw } from 'lucide-react';
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
 import type { SchedulePreview } from '@/types/pms.types';
 
@@ -34,9 +34,22 @@ export default function MasterSchedulePage() {
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
+  // Initial load
   useEffect(() => {
     loadScheduleData();
+  }, []);
+
+  // Auto-refresh every 2 minutes to sync with completed tasks
+  useEffect(() => {
+    const AUTO_REFRESH_INTERVAL = 2 * 60 * 1000; // 2 minutes
+    
+    const interval = setInterval(() => {
+      loadScheduleData();
+    }, AUTO_REFRESH_INTERVAL);
+
+    return () => clearInterval(interval);
   }, []);
 
   // Calculate next due date based on interval type if not set
@@ -95,6 +108,18 @@ export default function MasterSchedulePage() {
           // Calculate or use existing due date
           const dueDate = calculateNextDueDate(preview);
           
+          // DEBUG: Log schedule details
+          if (preview.scheduleName.includes('Generator')) {
+            console.log('🔍 Generator schedule preview:', {
+              name: preview.scheduleName,
+              nextDueDate: preview.nextDueDate,
+              calculatedDueDate: dueDate,
+              intervalType: preview.intervalType,
+              intervalValue: preview.intervalValue,
+              daysBeforeDue: preview.daysBeforeDue
+            });
+          }
+          
           // Recalculate days until due
           const today = new Date();
           today.setHours(0, 0, 0, 0);
@@ -143,7 +168,11 @@ export default function MasterSchedulePage() {
         })
         .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
 
+      console.log('📊 Total Gantt tasks:', ganttTasks.length);
+      console.log('📊 Generator tasks:', ganttTasks.filter(t => t.name.includes('Generator')));
+
       setTasks(ganttTasks);
+      setLastRefresh(new Date());
     } catch (error) {
       console.error('Error loading schedule data:', error);
     } finally {
@@ -312,15 +341,31 @@ export default function MasterSchedulePage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Master Schedule</h1>
-            <p className="text-gray-600 mt-1">Gantt chart overview of all maintenance activities</p>
+            <p className="text-gray-600 mt-1">
+              Gantt chart overview of all maintenance activities
+              <span className="ml-3 text-xs text-gray-500">
+                <RefreshCw className="w-3 h-3 inline mr-1" />
+                Auto-refreshes every 2 min · Last: {lastRefresh.toLocaleTimeString()}
+              </span>
+            </p>
           </div>
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={loadScheduleData}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              title="Refresh now"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+          </div>
         </div>
 
         {/* Controls */}

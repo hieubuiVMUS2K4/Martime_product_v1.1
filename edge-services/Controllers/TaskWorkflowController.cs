@@ -96,6 +96,9 @@ public class TaskWorkflowController : ControllerBase
 
             await _context.SaveChangesAsync();
 
+            // Update equipment status to UNDER_MAINTENANCE
+            await UpdateEquipmentStatusForTaskAsync(task, "IN_PROGRESS", previousStatus);
+
             _logger.LogInformation("Task {TaskId} started by {UserId} from status {PreviousStatus}", 
                 task.TaskId, userId, previousStatus);
 
@@ -440,6 +443,12 @@ public class TaskWorkflowController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
+
+            // Update equipment status (COMPLETED → ACTIVE if no other maintenance)
+            if (action == "APPROVE")
+            {
+                await UpdateEquipmentStatusForTaskAsync(task, "COMPLETED", "PENDING_APPROVAL");
+            }
 
             return Ok(new { 
                 message = action == "APPROVE" ? "Task approved and completed" : "Task returned for rectification",
@@ -937,6 +946,120 @@ public class TaskWorkflowController : ControllerBase
         {
             _logger.LogError(ex, "Error in bulk verify");
             return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    // ==================== EQUIPMENT STATUS MANAGEMENT ====================
+    
+    /// <summary>
+    /// Update equipment status when task status changes
+    /// - IN_PROGRESS: Equipment → UNDER_MAINTENANCE
+    /// - COMPLETED/CANCELLED: Equipment → ACTIVE (if no other maintenance)
+    /// </summary>
+    private async Task UpdateEquipmentStatusForTaskAsync(MaintenanceTask task, string newStatus, string oldStatus)
+    {
+        try
+        {
+            // Only update when transitioning to/from IN_PROGRESS or COMPLETED
+            if (newStatus == oldStatus)
+                return;
+
+            var shouldSetMaintenance = newStatus == MTaskStatus.IN_PROGRESS && oldStatus != MTaskStatus.IN_PROGRESS;
+            var shouldRestoreActive = (newStatus == MTaskStatus.COMPLETED || newStatus == MTaskStatus.CANCELLED) &&
+                                      (oldStatus == MTaskStatus.IN_PROGRESS || oldStatus == "PENDING_APPROVAL");
+
+            if (!shouldSetMaintenance && !shouldRestoreActive)
+                return;
+
+            // Get equipment list (either from EquipmentGroupId or legacy EquipmentId)
+            List<EquipmentAsset> equipmentList = new List<EquipmentAsset>();
+
+            if (task.EquipmentGroupId.HasValue)
+            {
+                // Get all equipment in the group
+                var members = await _context.EquipmentGroupMembers
+                    .Where(m => m.GroupId == task.EquipmentGroupId.Value)
+                    .ToListAsync();
+
+                var assetIds = members.Select(m => m.AssetId).ToList();
+                equipmentList = await _context.EquipmentAssets
+                    .Where(a => assetIds.Contains(a.Id) && a.IsActive)
+                    .ToListAsync();
+            }
+            else if (!string.IsNullOrEmpty(task.EquipmentId))
+            {
+                // LEGACY: Find equipment by AssetCode
+                var equipment = await _context.EquipmentAssets
+                    .FirstOrDefaultAsync(a => a.AssetCode == task.EquipmentId && a.IsActive);
+                
+                if (equipment != null)
+                    equipmentList.Add(equipment);
+            }
+
+            if (!equipmentList.Any())
+            {
+                _logger.LogWarning("No equipment found for task {TaskId}", task.TaskId);
+                return;
+            }
+
+            foreach (var equipment in equipmentList)
+            {
+                if (shouldSetMaintenance)
+                {
+                    // Set to UNDER_MAINTENANCE
+                    _logger.LogInformation("Setting equipment {AssetCode} to UNDER_MAINTENANCE for task {TaskId}",
+                        equipment.AssetCode, task.TaskId);
+                    
+                    equipment.Status = "UNDER_MAINTENANCE";
+                    equipment.UpdatedAt = DateTime.UtcNow;
+                    equipment.IsSynced = false;
+                }
+                else if (shouldRestoreActive)
+                {
+                    // Check if there are other IN_PROGRESS tasks for this equipment
+                    bool hasOtherActiveMaintenance = false;
+
+                    if (task.EquipmentGroupId.HasValue)
+                    {
+                        // Check if equipment group has other active tasks
+                        hasOtherActiveMaintenance = await _context.MaintenanceTasks
+                            .AnyAsync(t => t.EquipmentGroupId == task.EquipmentGroupId.Value &&
+                                          t.Id != task.Id &&
+                                          t.Status == MTaskStatus.IN_PROGRESS);
+                    }
+                    else if (!string.IsNullOrEmpty(task.EquipmentId))
+                    {
+                        // LEGACY: Check if this specific equipment has other active tasks
+                        hasOtherActiveMaintenance = await _context.MaintenanceTasks
+                            .AnyAsync(t => t.EquipmentId == task.EquipmentId &&
+                                          t.Id != task.Id &&
+                                          t.Status == MTaskStatus.IN_PROGRESS);
+                    }
+
+                    if (!hasOtherActiveMaintenance)
+                    {
+                        // Safe to restore to ACTIVE
+                        _logger.LogInformation("Restoring equipment {AssetCode} to ACTIVE after task {TaskId} completion",
+                            equipment.AssetCode, task.TaskId);
+                        
+                        equipment.Status = "ACTIVE";
+                        equipment.UpdatedAt = DateTime.UtcNow;
+                        equipment.IsSynced = false;
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Equipment {AssetCode} remains UNDER_MAINTENANCE - other active tasks exist",
+                            equipment.AssetCode);
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating equipment status for task {TaskId}", task.TaskId);
+            // Don't throw - this is a secondary operation, shouldn't block task status update
         }
     }
 }
