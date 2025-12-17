@@ -98,7 +98,7 @@ export const toTaskSummary = (task: MaintenanceTask): TaskSummary => {
   
   return {
     taskId: task.taskId,
-    equipmentName: task.equipmentName,
+    equipmentName: task.equipmentGroupName || task.equipmentName || 'Unknown Equipment',
     taskDescription: task.taskDescription,
     completedAt: task.completedAt || '',
     completedBy: task.completedBy || 'Unknown',
@@ -162,5 +162,395 @@ export const getPendingTasks = async (): Promise<MaintenanceTask[]> => {
  */
 export const getOverdueTasks = async (): Promise<MaintenanceTask[]> => {
   const response = await api.get<MaintenanceTask[]>(`${BASE_URL}/tasks/overdue`);
+  return response.data;
+};
+
+/**
+ * Get tasks pending approval (HIGH/CRITICAL tasks awaiting C/E approval)
+ */
+export const getTasksPendingApproval = async (): Promise<MaintenanceTask[]> => {
+  try {
+    const response = await api.get<TaskListResponse>(`${BASE_URL}/tasks`, {
+      params: {
+        status: 'PENDING_APPROVAL',
+        page: 1,
+        pageSize: 100
+      }
+    });
+    
+    if (!response.data || !Array.isArray(response.data.data)) {
+      console.warn('Invalid response format from maintenance API:', response.data);
+      return [];
+    }
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('Failed to fetch tasks pending approval:', error);
+    return [];
+  }
+};
+
+/**
+ * Approve a task (C/E or Master only)
+ */
+export const approveTask = async (
+  taskId: string,
+  approvedBy: string
+): Promise<void> => {
+  await api.post(`${BASE_URL}/tasks/${taskId}/approve`, {
+    isApproved: true,
+    approvedBy
+  });
+};/**
+ * Reject a task with reason (C/E or Master only)
+ */
+export const rejectTask = async (
+  taskId: string, 
+  approvedBy: string,
+  rejectionReason: string
+): Promise<void> => {
+  await api.post(`${BASE_URL}/tasks/${taskId}/approve`, {
+    isApproved: false,
+    approvedBy,
+    rejectionReason
+  });
+};
+
+// ============================================================
+// PMS WORKFLOW v2.0 API FUNCTIONS
+// ============================================================
+
+const WORKFLOW_BASE = '/tasks';
+
+/**
+ * Start working on a task (Crew starts execution)
+ * DUE/OVERDUE/RECTIFY → IN_PROGRESS
+ */
+export interface StartTaskDto {
+  currentRunningHours?: number;
+  notes?: string;
+}
+
+export const startTask = async (taskId: string, dto: StartTaskDto = {}): Promise<{
+  message: string;
+  taskId: string;
+  status: string;
+  startedAt: string;
+}> => {
+  const response = await api.post(`${WORKFLOW_BASE}/${taskId}/start`, dto);
+  return response.data;
+};
+
+/**
+ * Submit task for approval (Crew completes work)
+ * IN_PROGRESS → PENDING_APPROVAL
+ */
+export interface SubmitTaskDto {
+  notes?: string;
+  sparePartsUsed?: string;
+  photoUrls?: string[];
+  completedRunningHours?: number;
+}
+
+export const submitTask = async (taskId: string, dto: SubmitTaskDto = {}): Promise<{
+  message: string;
+  taskId: string;
+  status: string;
+  submittedAt: string;
+  actualDuration: number;
+}> => {
+  const response = await api.post(`${WORKFLOW_BASE}/${taskId}/submit`, dto);
+  return response.data;
+};
+
+/**
+ * Verify task (C/E or Master approves/rejects)
+ * PENDING_APPROVAL → COMPLETED or RECTIFY
+ */
+export interface VerifyTaskDto {
+  action: 'APPROVE' | 'REJECT';
+  notes?: string;
+  rejectionReason?: string;
+}
+
+export const verifyTask = async (taskId: string, dto: VerifyTaskDto): Promise<{
+  message: string;
+  taskId: string;
+  status: string;
+  verifiedAt: string;
+  rejectionCount?: number;
+}> => {
+  const response = await api.post(`${WORKFLOW_BASE}/${taskId}/verify`, dto);
+  return response.data;
+};
+
+/**
+ * Get task details with full workflow info
+ */
+export interface TaskStatusHistoryDto {
+  id: string;
+  fromStatus: string;
+  toStatus: string;
+  changedBy: string;
+  changedByName?: string;
+  changedAt: string;
+  reason?: string;
+  notes?: string;
+  deviceType?: string;
+}
+
+export interface MaintenanceTaskDetailDto extends MaintenanceTask {
+  startedBy?: string;
+  estimatedDuration?: number;
+  actualDuration?: number;
+  checklistCompleted: boolean;
+  photosUploaded: number;
+  requiredPhotos: number;
+  submittedAt?: string;
+  submittedBy?: string;
+  verifiedAt?: string;
+  verifiedBy?: string;
+  verificationResult?: string;
+  verificationNotes?: string;
+  rejectionReason?: string;
+  rejectionCount: number;
+  isCms: boolean;
+  statusHistory: TaskStatusHistoryDto[];
+}
+
+export const getTaskDetails = async (taskId: string): Promise<MaintenanceTaskDetailDto> => {
+  const response = await api.get(`${WORKFLOW_BASE}/${taskId}/details`);
+  return response.data;
+};
+
+/**
+ * Get tasks pending approval with pagination
+ */
+export interface PendingApprovalResponse {
+  items: MaintenanceTask[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export const getPendingApprovalTasks = async (
+  page: number = 1, 
+  pageSize: number = 20
+): Promise<PendingApprovalResponse> => {
+  const response = await api.get(`${WORKFLOW_BASE}/pending-approval`, {
+    params: { page, pageSize }
+  });
+  return response.data;
+};
+
+/**
+ * Get rectify tasks with pagination
+ */
+export interface RectifyTaskDto {
+  id: string;
+  taskId: string;
+  taskDescription: string;
+  equipmentName?: string;
+  priority: string;
+  status: string;
+  nextDueAt: string;
+  assignedTo?: string;
+  assignedDepartment?: string;
+  rejectionReason?: string;
+  rejectionCount: number;
+  lastRejectedAt?: string;
+}
+
+export interface RectifyTasksResponse {
+  items: RectifyTaskDto[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export const getRectifyTasks = async (
+  page: number = 1, 
+  pageSize: number = 20
+): Promise<RectifyTasksResponse> => {
+  const response = await api.get(`${WORKFLOW_BASE}/rectify`, {
+    params: { page, pageSize }
+  });
+  return response.data;
+};
+
+/**
+ * Get approval dashboard summary
+ */
+export interface ApprovalDashboardSummary {
+  pendingApprovalCount: number;
+  pendingDeferralCount: number;
+  rectifyTaskCount: number;
+  overdueTaskCount: number;
+  todayDueCount: number;
+  thisWeekDueCount: number;
+}
+
+export const getApprovalDashboardSummary = async (): Promise<ApprovalDashboardSummary> => {
+  const response = await api.get(`${WORKFLOW_BASE}/dashboard/summary`);
+  return response.data;
+};
+
+/**
+ * Get morning briefing data
+ */
+export interface MorningBriefingDto {
+  date: string;
+  overdueTasksEngine: number;
+  overdueTasksDeck: number;
+  dueToday: number;
+  pendingApproval: number;
+  pendingDeferral: number;
+  tasksInProgress: number;
+  completedYesterday: number;
+  topPriorityTasks: Array<{
+    id: string;
+    taskId: string;
+    taskDescription: string;
+    equipmentName?: string;
+    priority: string;
+    status: string;
+    nextDueAt: string;
+    assignedDepartment?: string;
+    daysOverdue?: number;
+  }>;
+}
+
+export const getMorningBriefing = async (): Promise<MorningBriefingDto> => {
+  const response = await api.get(`${WORKFLOW_BASE}/morning-briefing`);
+  return response.data;
+};
+
+/**
+ * Bulk verify tasks (approve/reject multiple tasks at once)
+ * PENDING_APPROVAL → COMPLETED or RECTIFY
+ */
+export interface BulkVerifyTaskDto {
+  taskIds: string[];
+  action: 'APPROVE' | 'REJECT';
+  notes?: string;
+  rejectionReason?: string;
+}
+
+export interface BulkVerifyResult {
+  message: string;
+  successCount: number;
+  failCount: number;
+  results: Array<{
+    taskId: string;
+    success: boolean;
+    status?: string;
+    error?: string;
+  }>;
+}
+
+export const bulkVerifyTasks = async (dto: BulkVerifyTaskDto): Promise<BulkVerifyResult> => {
+  const response = await api.post(`${WORKFLOW_BASE}/bulk-verify`, dto);
+  return response.data;
+};
+
+// ============================================================
+// DEFERRAL REQUEST API FUNCTIONS
+// ============================================================
+
+const DEFERRAL_BASE = '/deferrals';
+
+export interface DeferralRequest {
+  id: string;
+  taskId: string;
+  taskCode: string;
+  requestedBy: string;
+  requestedByName?: string;
+  requestedAt: string;
+  reason: string;
+  currentDueDate: string;
+  proposedDueDate: string;
+  deferralDays: number;
+  status: string;
+  priority: string;
+  isCmsItem: boolean;
+  reviewedBy?: string;
+  reviewedByName?: string;
+  reviewedAt?: string;
+  reviewNotes?: string;
+}
+
+// ============================================================
+// DEFERRAL REQUEST DTOs
+// ============================================================
+
+export interface CreateDeferralDto {
+  taskId: string;
+  reason: string;
+  proposedDueDate: string;
+  rootCause?: string;              // Required for OVERDUE deferrals
+  preventiveMeasures?: string;     // Required for OVERDUE deferrals
+  attachments?: string[];          // Required for OVERDUE deferrals
+  classPermissionLetter?: string;
+}
+
+export interface ReviewDeferralDto {
+  action: 'APPROVE' | 'REJECT';
+  notes?: string;
+}
+
+/**
+ * Get all deferral requests with optional filters
+ */
+export interface DeferralListResponse {
+  items: DeferralRequest[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export const getDeferralRequests = async (params?: {
+  status?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<DeferralListResponse> => {
+  const response = await api.get(DEFERRAL_BASE, { params });
+  return response.data;
+};
+
+/**
+ * Get pending deferral requests
+ */
+export const getPendingDeferrals = async (): Promise<DeferralRequest[]> => {
+  const response = await api.get(`${DEFERRAL_BASE}/pending`);
+  return response.data;
+};
+
+/**
+ * Create a new deferral request
+ */
+export const createDeferralRequest = async (dto: CreateDeferralDto): Promise<DeferralRequest> => {
+  const response = await api.post(DEFERRAL_BASE, dto);
+  return response.data;
+};
+
+/**
+ * Review a deferral request (approve/reject)
+ */
+export const reviewDeferralRequest = async (
+  deferralId: string, 
+  dto: ReviewDeferralDto
+): Promise<{ message: string; status: string }> => {
+  const response = await api.post(`${DEFERRAL_BASE}/${deferralId}/review`, dto);
+  return response.data;
+};
+
+/**
+ * Get deferral request by ID
+ */
+export const getDeferralById = async (deferralId: string): Promise<DeferralRequest> => {
+  const response = await api.get(`${DEFERRAL_BASE}/${deferralId}`);
   return response.data;
 };

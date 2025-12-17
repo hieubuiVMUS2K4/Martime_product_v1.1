@@ -5,6 +5,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MaritimeEdge.Data;
 using MaritimeEdge.Services;
+using MaritimeEdge.Services.Logbooks;
+using MaritimeEdge.Repositories;
 
 namespace MaritimeEdge
 {
@@ -42,9 +44,24 @@ namespace MaritimeEdge
             builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<IAggregateReportService, AggregateReportService>();
             builder.Services.AddScoped<ISyncService, SyncService>();
+            builder.Services.AddScoped<IWatchkeepingService, WatchkeepingService>();
+            builder.Services.AddScoped<IDeckLogbookService, DeckLogbookService>();
+            builder.Services.AddScoped<IEngineLogbookService, EngineLogbookService>();
+            builder.Services.AddScoped<IGarbageRecordService, GarbageRecordService>();
+            builder.Services.AddScoped<IBallastWaterService, BallastWaterService>();
+            builder.Services.AddScoped<IOilRecordService, OilRecordService>();
+            builder.Services.AddScoped<IVoyageLogService, VoyageLogService>();
             builder.Services.AddScoped<MaterialReceiptService>();
 
+            // Add PMS Repositories
+            builder.Services.AddScoped<IEquipmentAssetRepository, EquipmentAssetRepository>();
+            builder.Services.AddScoped<IMaintenanceScheduleRepository, MaintenanceScheduleRepository>();
+
+            // Add PMS Services
+            builder.Services.AddScoped<MaintenanceCompletionService>();
+
             // Add Background Services
+            builder.Services.AddHostedService<MaintenanceSchedulerService>();
             builder.Services.AddHostedService<TelemetrySimulatorService>();
             builder.Services.AddHostedService<SignalKDataCollectorService>();
             builder.Services.AddHostedService<DataCleanupService>();
@@ -55,6 +72,7 @@ namespace MaritimeEdge
                 .AddJsonOptions(options =>
                 {
                     options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+                    options.JsonSerializerOptions.PropertyNameCaseInsensitive = true; // Accept both camelCase and PascalCase input
                 });
             
             // Add CORS for frontend-edge (support both port 3001 and 3002)
@@ -96,9 +114,6 @@ namespace MaritimeEdge
             var app = builder.Build();
 
             // Initialize database with migrations
-            // TEMPORARILY DISABLED due to migration conflicts
-            // Tables are created via SQL script: create-equipment-tables.sql
-            /*
             using (var scope = app.Services.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<EdgeDbContext>();
@@ -106,9 +121,19 @@ namespace MaritimeEdge
                 
                 try
                 {
-                    logger.LogInformation("Applying database migrations...");
-                    await dbContext.Database.MigrateAsync();
-                    logger.LogInformation("Database migrations applied successfully");
+                    logger.LogInformation("Checking database migrations...");
+                    
+                    var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+                    if (pendingMigrations.Any())
+                    {
+                        logger.LogInformation($"Applying {pendingMigrations.Count()} pending migration(s)...");
+                        await dbContext.Database.MigrateAsync();
+                        logger.LogInformation("Database migrations applied successfully");
+                    }
+                    else
+                    {
+                        logger.LogInformation("Database is up-to-date, no pending migrations");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -116,7 +141,6 @@ namespace MaritimeEdge
                     throw;
                 }
             }
-            */
 
             // Configure the HTTP request pipeline
             app.UseSwagger();

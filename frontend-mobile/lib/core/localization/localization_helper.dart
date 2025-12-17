@@ -9,7 +9,7 @@ import '../../l10n/app_localizations.dart';
 /// Text(context.l10n.statusPending)
 /// ```
 extension LocalizationExtension on BuildContext {
-  AppLocalizations get l10n => AppLocalizations.of(this)!;
+  AppLocalizations get l10n => AppLocalizations.of(this);
 }
 
 /// Helper functions cho status translation

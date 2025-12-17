@@ -17,7 +17,7 @@ class SettingsScreen extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context);
     final syncProvider = Provider.of<SyncProvider>(context);
     final localeProvider = Provider.of<LocaleProvider>(context);
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -201,7 +201,7 @@ class SettingsScreen extends StatelessWidget {
   }
 
   String _formatDateTime(DateTime dateTime, BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final now = DateTime.now();
     final difference = now.difference(dateTime);
     
@@ -245,7 +245,7 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _showClearCacheDialog(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -279,7 +279,7 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

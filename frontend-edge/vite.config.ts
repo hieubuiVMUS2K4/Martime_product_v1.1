@@ -14,7 +14,7 @@ export default defineConfig({
     host: '0.0.0.0', // Allow access from other devices on LAN
     proxy: {
       '/api': {
-        target: 'http://localhost:5001', // Edge Backend API
+        target: 'http://localhost:5005', // Edge Backend API
         changeOrigin: true,
         secure: false,
         ws: true,

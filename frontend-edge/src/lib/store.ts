@@ -25,13 +25,13 @@ interface AppStore {
   // Actions - Crew
   fetchCrew: (forceRefresh?: boolean) => Promise<void>;
   addCrew: (crew: CrewMember) => void;
-  updateCrew: (id: number, crew: CrewMember) => void;
-  deleteCrew: (id: number) => void;
+  updateCrew: (id: string, crew: CrewMember) => void;
+  deleteCrew: (id: string) => void;
 
   // Actions - Maintenance
   fetchMaintenance: (forceRefresh?: boolean) => Promise<void>;
-  updateMaintenanceTask: (id: number, task: MaintenanceTask) => void;
-  deleteMaintenanceTask: (id: number) => void;
+  updateMaintenanceTask: (id: string, task: MaintenanceTask) => void;
+  deleteMaintenanceTask: (id: string) => void;
 
   // Actions - Dashboard
   fetchDashboard: (forceRefresh?: boolean) => Promise<void>;

@@ -39,12 +39,19 @@ public class EdgeDbContext : DbContext
     // Critical Operational Tables (SOLAS/ISM/MARPOL)
     public DbSet<CrewMember> CrewMembers { get; set; } = null!;
     public DbSet<MaintenanceTask> MaintenanceTasks { get; set; } = null!;
+    public DbSet<TaskChecklistItem> TaskChecklistItems { get; set; } = null!;
     public DbSet<TaskType> TaskTypes { get; set; } = null!;
     public DbSet<TaskDetail> TaskDetails { get; set; } = null!;
     public DbSet<MaintenanceTaskDetail> MaintenanceTaskDetails { get; set; } = null!;
     public DbSet<CargoOperation> CargoOperations { get; set; } = null!;
     public DbSet<WatchkeepingLog> WatchkeepingLogs { get; set; } = null!;
     public DbSet<OilRecordBook> OilRecordBooks { get; set; } = null!;
+    
+    // Additional Logbooks (SOLAS/MARPOL/BWM Convention)
+    public DbSet<DeckLogBook> DeckLogBooks { get; set; } = null!;
+    public DbSet<EngineLogBook> EngineLogBooks { get; set; } = null!;
+    public DbSet<GarbageRecordBook> GarbageRecordBooks { get; set; } = null!;
+    public DbSet<BallastWaterRecordBook> BallastWaterRecordBooks { get; set; } = null!;
 
     // Inventory & Materials
     public DbSet<MaterialCategory> MaterialCategories { get; set; } = null!;
@@ -76,12 +83,56 @@ public class EdgeDbContext : DbContext
     public DbSet<WeeklyPerformanceReport> WeeklyPerformanceReports { get; set; } = null!;
     public DbSet<MonthlySummaryReport> MonthlySummaryReports { get; set; } = null!;
 
+    // Maintenance Planning System (PMS)
+    public DbSet<EquipmentAsset> EquipmentAssets { get; set; } = null!;
+    public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; } = null!;
+    public DbSet<ScheduleSparePart> ScheduleSpareParts { get; set; } = null!;
+    public DbSet<ScheduleChecklistTemplate> ScheduleChecklistTemplates { get; set; } = null!;
+    public DbSet<MaintenanceHistory> MaintenanceHistories { get; set; } = null!;
+    public DbSet<EquipmentGroup> EquipmentGroups { get; set; } = null!;
+    public DbSet<EquipmentGroupMember> EquipmentGroupMembers { get; set; } = null!;
+    
+    // PMS Workflow v2.0 - Deferral & Status History
+    public DbSet<TaskDeferralRequest> TaskDeferralRequests { get; set; } = null!;
+    public DbSet<TaskStatusHistory> TaskStatusHistories { get; set; } = null!;
+
+    // Voyage Log - Nhật ký Hành trình (SOLAS Chapter V)
+    public DbSet<VoyageLogEntry> VoyageLogEntries { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
         // PostgreSQL specific configurations
         modelBuilder.HasDefaultSchema("public");
+
+        // ========== DATETIME UTC CONVERSION ==========
+        // Apply UTC conversion for all DateTime and DateTime? properties
+        // This fixes: "Cannot write DateTime with Kind=Unspecified to PostgreSQL type 'timestamp with time zone'"
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (property.ClrType == typeof(DateTime))
+                {
+                    property.SetValueConverter(
+                        new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
+                            v => v.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(v, DateTimeKind.Utc) : v.ToUniversalTime(),
+                            v => DateTime.SpecifyKind(v, DateTimeKind.Utc)));
+                }
+                else if (property.ClrType == typeof(DateTime?))
+                {
+                    property.SetValueConverter(
+                        new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime?, DateTime?>(
+                            v => v.HasValue 
+                                ? (v.Value.Kind == DateTimeKind.Unspecified 
+                                    ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) 
+                                    : v.Value.ToUniversalTime()) 
+                                : v,
+                            v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v));
+                }
+            }
+        }
 
         // Configure naming convention to snake_case
         foreach (var entity in modelBuilder.Model.GetEntityTypes())
@@ -449,6 +500,7 @@ public class EdgeDbContext : DbContext
             
             entity.Property(e => e.IntervalHours).HasColumnType("decimal(10,2)");
             entity.Property(e => e.RunningHoursAtLastDone).HasColumnType("decimal(10,2)");
+            entity.Property(e => e.ActualRunningHours).HasColumnType("decimal(10,2)");
             
             entity.HasIndex(e => e.TaskId)
                 .IsUnique()
@@ -465,7 +517,7 @@ public class EdgeDbContext : DbContext
             
             entity.HasIndex(e => new { e.Status, e.Priority })
                 .HasDatabaseName("idx_maintenance_status_priority")
-                .HasFilter("status IN ('PENDING', 'OVERDUE', 'IN_PROGRESS')");
+                .HasFilter("status IN ('SCHEDULED', 'DUE', 'OVERDUE', 'IN_PROGRESS', 'PENDING_APPROVAL', 'RECTIFY')");
             
             entity.HasIndex(e => e.IsSynced)
                 .HasDatabaseName("idx_maintenance_synced")
@@ -473,12 +525,80 @@ public class EdgeDbContext : DbContext
 
             entity.HasIndex(e => e.TaskTypeId)
                 .HasDatabaseName("idx_maintenance_task_type_id");
+            
+            entity.HasIndex(e => e.AssignedTo)
+                .HasDatabaseName("idx_maintenance_assigned_to");
+            
+            entity.HasIndex(e => e.AssignedDepartment)
+                .HasDatabaseName("idx_maintenance_department");
+            
+            entity.HasIndex(e => e.HasPendingDeferral)
+                .HasDatabaseName("idx_maintenance_pending_deferral")
+                .HasFilter("has_pending_deferral = true");
+
+            // Index for AssignedTo - frequently used in MyTasks queries
+            entity.HasIndex(e => e.AssignedTo)
+                .HasDatabaseName("idx_maintenance_assigned_to");
+
+            // Composite index for common query pattern
+            entity.HasIndex(e => new { e.AssignedTo, e.Status })
+                .HasDatabaseName("idx_maintenance_assigned_status");
 
             // Foreign key to TaskType (optional)
             entity.HasOne<TaskType>()
                 .WithMany()
                 .HasForeignKey(e => e.TaskTypeId)
                 .OnDelete(DeleteBehavior.SetNull);
+            
+            // Relationship with DeferralRequests
+            entity.HasMany(e => e.DeferralRequests)
+                .WithOne(e => e.Task)
+                .HasForeignKey(e => e.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            // Relationship with StatusHistory
+            entity.HasMany(e => e.StatusHistory)
+                .WithOne(e => e.Task)
+                .HasForeignKey(e => e.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========== TASK DEFERRAL REQUESTS ==========
+        modelBuilder.Entity<TaskDeferralRequest>(entity =>
+        {
+            entity.ToTable("task_deferral_requests");
+            
+            entity.HasIndex(e => e.TaskId)
+                .HasDatabaseName("idx_deferral_task_id");
+            
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("idx_deferral_status");
+            
+            entity.HasIndex(e => e.RequestedBy)
+                .HasDatabaseName("idx_deferral_requested_by");
+            
+            entity.HasIndex(e => new { e.Status, e.RequestedAt })
+                .HasDatabaseName("idx_deferral_pending")
+                .HasFilter("status = 'PENDING'");
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_deferral_synced")
+                .HasFilter("is_synced = false");
+        });
+
+        // ========== TASK STATUS HISTORY ==========
+        modelBuilder.Entity<TaskStatusHistory>(entity =>
+        {
+            entity.ToTable("task_status_history");
+            
+            entity.HasIndex(e => e.TaskId)
+                .HasDatabaseName("idx_status_history_task_id");
+            
+            entity.HasIndex(e => e.ChangedAt)
+                .HasDatabaseName("idx_status_history_changed_at");
+            
+            entity.HasIndex(e => new { e.TaskId, e.ChangedAt })
+                .HasDatabaseName("idx_status_history_task_time");
         });
 
         // ========== TASK TYPES ==========
@@ -567,6 +687,187 @@ public class EdgeDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // ========== TASK CHECKLIST ITEMS ==========
+        modelBuilder.Entity<TaskChecklistItem>(entity =>
+        {
+            entity.ToTable("task_checklist_items");
+
+            // Configure TaskId relationship to MaintenanceTask.TaskId (string)
+            entity.HasOne(e => e.Task)
+                .WithMany(t => t.ChecklistItems)
+                .HasForeignKey(e => e.TaskId)
+                .HasPrincipalKey(t => t.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure AssetId relationship to EquipmentAsset
+            entity.HasOne(e => e.Asset)
+                .WithMany()
+                .HasForeignKey(e => e.AssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ========== EQUIPMENT GROUPS ==========
+        modelBuilder.Entity<EquipmentGroup>(entity =>
+        {
+            entity.ToTable("equipment_groups");
+            
+            // Map C# property GroupName to database column name
+            entity.Property(e => e.GroupName)
+                .HasColumnName("name");
+
+            entity.Property(e => e.IsActive)
+                .HasColumnName("is_active");
+            
+            entity.HasIndex(e => e.GroupCode)
+                .IsUnique()
+                .HasDatabaseName("uk_equipment_groups_group_code");
+        });
+
+        // ========== EQUIPMENT ASSETS ==========
+        modelBuilder.Entity<EquipmentAsset>(entity =>
+        {
+            entity.ToTable("equipment_assets");
+            
+            // Map C# property AssetName to database column name
+            entity.Property(e => e.AssetName)
+                .HasColumnName("name");
+            
+            entity.HasIndex(e => e.AssetCode)
+                .IsUnique()
+                .HasDatabaseName("uk_equipment_assets_asset_code");
+        });
+
+        // ========== EQUIPMENT GROUP MEMBERS ==========
+        modelBuilder.Entity<EquipmentGroupMember>(entity =>
+        {
+            entity.ToTable("equipment_group_members");
+            
+            entity.HasOne(e => e.Group)
+                .WithMany()
+                .HasForeignKey(e => e.GroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.Asset)
+                .WithMany()
+                .HasForeignKey(e => e.AssetId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========== VOYAGE LOG ENTRIES ==========
+        modelBuilder.Entity<VoyageLogEntry>(entity =>
+        {
+            entity.ToTable("voyage_log_entries");
+            
+            entity.Property(e => e.EventType)
+                .HasColumnName("event_type");
+            
+            entity.Property(e => e.EventDateTime)
+                .HasColumnName("event_date_time");
+            
+            entity.Property(e => e.EventDateTimeLocal)
+                .HasColumnName("event_date_time_local");
+            
+            entity.Property(e => e.TimeZone)
+                .HasColumnName("time_zone");
+            
+            entity.Property(e => e.PortName)
+                .HasColumnName("port_name");
+            
+            entity.Property(e => e.PortLocode)
+                .HasColumnName("port_locode");
+            
+            entity.Property(e => e.PortCountry)
+                .HasColumnName("port_country");
+            
+            entity.Property(e => e.BerthNumber)
+                .HasColumnName("berth_number");
+            
+            entity.Property(e => e.DistanceToGo)
+                .HasColumnName("distance_to_go");
+            
+            entity.Property(e => e.DistanceFromLast)
+                .HasColumnName("distance_from_last");
+            
+            entity.Property(e => e.TotalVoyageDistance)
+                .HasColumnName("total_voyage_distance");
+            
+            entity.Property(e => e.CourseOverGround)
+                .HasColumnName("course_over_ground");
+            
+            entity.Property(e => e.SpeedOverGround)
+                .HasColumnName("speed_over_ground");
+            
+            entity.Property(e => e.PilotName)
+                .HasColumnName("pilot_name");
+            
+            entity.Property(e => e.PilotStation)
+                .HasColumnName("pilot_station");
+            
+            entity.Property(e => e.OfficerOnWatch)
+                .HasColumnName("officer_on_watch");
+            
+            entity.Property(e => e.MasterSignature)
+                .HasColumnName("master_signature");
+            
+            entity.Property(e => e.SignedAt)
+                .HasColumnName("signed_at");
+            
+            entity.Property(e => e.VoyageId)
+                .HasColumnName("voyage_id");
+            
+            entity.Property(e => e.IsSynced)
+                .HasColumnName("is_synced");
+            
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at");
+            
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at");
+            
+            entity.Property(e => e.OriginNode)
+                .HasColumnName("origin_node");
+            
+            // Indexes
+            entity.HasIndex(e => e.EventType)
+                .HasDatabaseName("idx_voyage_log_event_type");
+            
+            entity.HasIndex(e => e.EventDateTime)
+                .HasDatabaseName("idx_voyage_log_event_datetime");
+            
+            entity.HasIndex(e => e.VoyageId)
+                .HasDatabaseName("idx_voyage_log_voyage_id");
+            
+            entity.HasIndex(e => e.PortLocode)
+                .HasDatabaseName("idx_voyage_log_port_locode");
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_voyage_log_synced");
+        });
+
+        // ========== MAINTENANCE SCHEDULES ==========
+        modelBuilder.Entity<MaintenanceSchedule>(entity =>
+        {
+            entity.ToTable("maintenance_schedules");
+            
+            entity.Property(e => e.Instructions)
+                .HasColumnName("notes");
+            
+            entity.Property(e => e.LastExecutedAt)
+                .HasColumnName("last_maintenance_date");
+            
+            entity.Property(e => e.LastExecutedRunningHours)
+                .HasColumnName("last_running_hours");
+
+            entity.Property(e => e.AutoGenerate)
+                .HasColumnName("auto_generate");
+            
+            // Foreign key to equipment_groups
+            entity.HasOne<EquipmentGroup>()
+                .WithMany()
+                .HasForeignKey(e => e.EquipmentGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // ========== CARGO OPERATIONS ==========
         modelBuilder.Entity<CargoOperation>(entity =>
         {
@@ -648,6 +949,103 @@ public class EdgeDbContext : DbContext
                 .HasFilter("is_synced = false");
         });
 
+        // ========== GARBAGE RECORD BOOK ==========
+        modelBuilder.Entity<GarbageRecordBook>(entity =>
+        {
+            entity.ToTable("garbage_record_books");
+            
+            // Map OperationCode property to operation_type column in database
+            entity.Property(e => e.OperationCode).HasColumnName("operation_type");
+            entity.Property(e => e.Description).HasColumnName("garbage_description");
+            entity.Property(e => e.Quantity).HasColumnName("estimated_amount");
+            entity.Property(e => e.QuantityUnit).HasColumnName("unit_of_measurement");
+            entity.Property(e => e.Latitude).HasColumnName("discharge_latitude");
+            entity.Property(e => e.Longitude).HasColumnName("discharge_longitude");
+            entity.Property(e => e.ReceptionFacility).HasColumnName("reception_facility_name");
+            
+            // Ignore properties that don't exist in database
+            entity.Ignore(e => e.IncinerationStartTime);
+            entity.Ignore(e => e.IncinerationEndTime);
+            entity.Ignore(e => e.IncineratorDetails);
+            entity.Ignore(e => e.AccidentalDischargeReason);
+            entity.Ignore(e => e.AccidentalDischargeMeasures);
+            
+            entity.Property(e => e.Latitude).HasColumnType("decimal(10,7)");
+            entity.Property(e => e.Longitude).HasColumnType("decimal(10,7)");
+            
+            entity.HasIndex(e => e.OperationDateTime)
+                .HasDatabaseName("idx_garbage_operation_date")
+                .IsDescending();
+            
+            entity.HasIndex(e => e.GarbageCategory)
+                .HasDatabaseName("idx_garbage_category");
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_garbage_synced")
+                .HasFilter("is_synced = false");
+        });
+
+        // ========== BALLAST WATER RECORD BOOK ==========
+        modelBuilder.Entity<BallastWaterRecordBook>(entity =>
+        {
+            entity.ToTable("ballast_water_record_books");
+            
+            entity.Property(e => e.ExchangeVolumePercentage).HasColumnName("exchange_volume_percentage");
+            entity.Property(e => e.SalinityBeforeExchange).HasColumnName("salinity_before_exchange");
+            entity.Property(e => e.SalinityAfterExchange).HasColumnName("salinity_after_exchange");
+            
+            entity.Property(e => e.StartLatitude).HasColumnType("decimal(10,7)");
+            entity.Property(e => e.StartLongitude).HasColumnType("decimal(10,7)");
+            entity.Property(e => e.EndLatitude).HasColumnType("decimal(10,7)");
+            entity.Property(e => e.EndLongitude).HasColumnType("decimal(10,7)");
+            
+            entity.HasIndex(e => e.OperationDateTime)
+                .HasDatabaseName("idx_ballast_operation_date")
+                .IsDescending();
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_ballast_synced")
+                .HasFilter("is_synced = false");
+        });
+
+        // ========== ENGINE LOG BOOK ==========
+        modelBuilder.Entity<EngineLogBook>(entity =>
+        {
+            entity.ToTable("engine_log_books");
+            
+            // Fix naming convention for acronyms
+            entity.Property(e => e.MainEngineRPM).HasColumnName("main_engine_rpm");
+            entity.Property(e => e.FuelOilConsumedME).HasColumnName("fuel_oil_consumed_me");
+            entity.Property(e => e.FuelOilConsumedAE).HasColumnName("fuel_oil_consumed_ae");
+            entity.Property(e => e.FuelOilROB).HasColumnName("fuel_oil_rob");
+            entity.Property(e => e.LubOilROB).HasColumnName("lub_oil_rob");
+            entity.Property(e => e.FreshWaterROB).HasColumnName("fresh_water_rob");
+            entity.Property(e => e.SludgeROB).HasColumnName("sludge_rob");
+            entity.Property(e => e.BilgeWaterROB).HasColumnName("bilge_water_rob");
+
+            // Decimal precision
+            entity.Property(e => e.MainEngineRPM).HasColumnType("decimal(6,2)");
+            entity.Property(e => e.MainEngineLoad).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.FuelOilConsumedME).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.FuelOilConsumedAE).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.FuelOilConsumedBoiler).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.LubeOilConsumed).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.FreshWaterConsumed).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.FuelOilROB).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.LubOilROB).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.FreshWaterROB).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.SludgeROB).HasColumnType("decimal(10,3)");
+            entity.Property(e => e.BilgeWaterROB).HasColumnType("decimal(10,3)");
+            
+            entity.HasIndex(e => e.LogDateTime)
+                .HasDatabaseName("idx_engine_log_date")
+                .IsDescending();
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_engine_log_synced")
+                .HasFilter("is_synced = false");
+        });
+
         // ========== MATERIAL CATEGORIES ==========
         modelBuilder.Entity<MaterialCategory>(entity =>
         {
@@ -710,6 +1108,9 @@ public class EdgeDbContext : DbContext
                 .HasForeignKey(e => e.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+
+        // ========== MATERIAL RECEIPT ITEMS ==========
+        // Config đã có trong migration, không cần config lại ở đây
 
         // ========== FUEL ANALYTICS SUMMARY ==========
         modelBuilder.Entity<FuelAnalyticsSummary>(entity =>
@@ -1179,14 +1580,52 @@ public class EdgeDbContext : DbContext
 
     public override int SaveChanges()
     {
+        NormalizeDateTimesToUtc();
         ProcessSyncQueue();
         return base.SaveChanges();
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        NormalizeDateTimesToUtc();
         ProcessSyncQueue();
         return await base.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Normalize all DateTime properties to UTC to avoid PostgreSQL timestamp with time zone errors.
+    /// PostgreSQL with Npgsql 6+ requires DateTime.Kind to be UTC for 'timestamp with time zone' columns.
+    /// </summary>
+    private void NormalizeDateTimesToUtc()
+    {
+        var entries = ChangeTracker.Entries()
+            .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
+            .ToList();
+
+        foreach (var entry in entries)
+        {
+            foreach (var property in entry.Properties)
+            {
+                // Handle DateTime properties
+                if (property.Metadata.ClrType == typeof(DateTime))
+                {
+                    if (property.CurrentValue is DateTime dateTime && dateTime.Kind == DateTimeKind.Unspecified)
+                    {
+                        // Assume Unspecified DateTime is UTC
+                        property.CurrentValue = DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
+                    }
+                }
+                // Handle nullable DateTime properties
+                else if (property.Metadata.ClrType == typeof(DateTime?))
+                {
+                    if (property.CurrentValue is DateTime dateTime && dateTime.Kind == DateTimeKind.Unspecified)
+                    {
+                        // Assume Unspecified DateTime is UTC
+                        property.CurrentValue = DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
+                    }
+                }
+            }
+        }
     }
 
     private void ProcessSyncQueue()

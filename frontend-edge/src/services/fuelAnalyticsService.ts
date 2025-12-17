@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+// Use relative URL to leverage Vite proxy configuration
+const API_BASE_URL = '/api';
 
 export interface FuelEfficiencyMetrics {
   periodStart: string;
@@ -63,28 +64,28 @@ export interface DashboardData {
 
 export const fuelAnalyticsService = {
   async getDashboard(): Promise<DashboardData> {
-    const response = await axios.get(`${API_BASE_URL}/api/fuel-analytics/dashboard`);
+    const response = await axios.get(`${API_BASE_URL}/fuel-analytics/dashboard`);
     return response.data;
   },
 
   async getWeeklySummary(): Promise<FuelEfficiencyMetrics> {
-    const response = await axios.get(`${API_BASE_URL}/api/fuel-analytics/summary/weekly`);
+    const response = await axios.get(`${API_BASE_URL}/fuel-analytics/summary/weekly`);
     return response.data;
   },
 
   async getMonthlySummary(): Promise<FuelEfficiencyMetrics> {
-    const response = await axios.get(`${API_BASE_URL}/api/fuel-analytics/summary/monthly`);
+    const response = await axios.get(`${API_BASE_URL}/fuel-analytics/summary/monthly`);
     return response.data;
   },
 
   async getCIIRating(year?: number): Promise<CIIRatingDetails> {
     const params = year ? `?year=${year}` : '';
-    const response = await axios.get(`${API_BASE_URL}/api/fuel-analytics/cii-rating${params}`);
+    const response = await axios.get(`${API_BASE_URL}/fuel-analytics/cii-rating${params}`);
     return response.data;
   },
 
   async getTrend(startDate: string, endDate: string, groupBy: 'HOURLY' | 'DAILY' | 'WEEKLY' = 'DAILY'): Promise<TrendDataPoint[]> {
-    const response = await axios.get(`${API_BASE_URL}/api/fuel-analytics/trend`, {
+    const response = await axios.get(`${API_BASE_URL}/fuel-analytics/trend`, {
       params: { startDate, endDate, groupBy }
     });
     return response.data;

@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace MaritimeEdge.Controllers;
 
@@ -297,11 +299,40 @@ public class CrewController : ControllerBase
                 return Conflict(new { error = $"Crew ID '{crew.CrewId}' already exists" });
             }
 
+            // Normalize all DateTime fields to UTC
             crew.CreatedAt = DateTime.UtcNow;
+            crew.UpdatedAt = DateTime.UtcNow;
             crew.IsSynced = false;
+            
+            // Normalize nullable DateTime fields
+            if (crew.DateOfBirth.HasValue)
+                crew.DateOfBirth = DateTime.SpecifyKind(crew.DateOfBirth.Value, DateTimeKind.Utc);
+            if (crew.CertificateIssue.HasValue)
+                crew.CertificateIssue = DateTime.SpecifyKind(crew.CertificateIssue.Value, DateTimeKind.Utc);
+            if (crew.CertificateExpiry.HasValue)
+                crew.CertificateExpiry = DateTime.SpecifyKind(crew.CertificateExpiry.Value, DateTimeKind.Utc);
+            if (crew.MedicalIssue.HasValue)
+                crew.MedicalIssue = DateTime.SpecifyKind(crew.MedicalIssue.Value, DateTimeKind.Utc);
+            if (crew.MedicalExpiry.HasValue)
+                crew.MedicalExpiry = DateTime.SpecifyKind(crew.MedicalExpiry.Value, DateTimeKind.Utc);
+            if (crew.PassportExpiry.HasValue)
+                crew.PassportExpiry = DateTime.SpecifyKind(crew.PassportExpiry.Value, DateTimeKind.Utc);
+            if (crew.VisaExpiry.HasValue)
+                crew.VisaExpiry = DateTime.SpecifyKind(crew.VisaExpiry.Value, DateTimeKind.Utc);
+            if (crew.JoinDate.HasValue)
+                crew.JoinDate = DateTime.SpecifyKind(crew.JoinDate.Value, DateTimeKind.Utc);
+            if (crew.EmbarkDate.HasValue)
+                crew.EmbarkDate = DateTime.SpecifyKind(crew.EmbarkDate.Value, DateTimeKind.Utc);
+            if (crew.DisembarkDate.HasValue)
+                crew.DisembarkDate = DateTime.SpecifyKind(crew.DisembarkDate.Value, DateTimeKind.Utc);
+            if (crew.ContractEnd.HasValue)
+                crew.ContractEnd = DateTime.SpecifyKind(crew.ContractEnd.Value, DateTimeKind.Utc);
             
             _context.CrewMembers.Add(crew);
             await _context.SaveChangesAsync();
+
+            // Auto-create User for this crew member
+            await CreateUserForCrewMemberAsync(crew);
 
             _logger.LogInformation("Created new crew member: {CrewId} - {FullName}", crew.CrewId, crew.FullName);
 
@@ -317,6 +348,119 @@ public class CrewController : ControllerBase
             _logger.LogError(ex, "Error adding crew member");
             return StatusCode(500, new { error = "Internal server error", details = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// Auto-create User account for a crew member
+    /// </summary>
+    private async Task CreateUserForCrewMemberAsync(CrewMember crew)
+    {
+        try
+        {
+            // Check if user already exists
+            var existingUser = await _context.Users
+                .FirstOrDefaultAsync(u => u.Username == crew.CrewId || u.CrewId == crew.CrewId);
+            
+            if (existingUser != null)
+            {
+                _logger.LogInformation("User already exists for crew: {CrewId}", crew.CrewId);
+                return;
+            }
+
+            // Determine role based on position
+            var roleId = await DetermineRoleIdAsync(crew.Position, crew.Rank);
+
+            // Generate default password from date of birth or use default
+            string defaultPassword;
+            if (crew.DateOfBirth.HasValue)
+            {
+                defaultPassword = crew.DateOfBirth.Value.ToString("ddMMyyyy");
+            }
+            else
+            {
+                defaultPassword = "123456"; // Default password if no DOB
+            }
+
+            var newUser = new User
+            {
+                Username = crew.CrewId,
+                PasswordHash = HashPassword(defaultPassword),
+                RoleId = roleId,
+                CrewId = crew.CrewId,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Users.Add(newUser);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Auto-created user for crew: {CrewId} with role ID: {RoleId}", crew.CrewId, roleId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to auto-create user for crew: {CrewId}", crew.CrewId);
+            // Don't throw - crew creation should still succeed even if user creation fails
+        }
+    }
+
+    /// <summary>
+    /// Determine appropriate role ID based on crew position
+    /// </summary>
+    private async Task<int> DetermineRoleIdAsync(string position, string? rank)
+    {
+        // Default role ID (CREW)
+        var defaultRoleId = 5;
+
+        try
+        {
+            var positionLower = position.ToLower();
+            var rankLower = rank?.ToLower() ?? "";
+
+            string roleCode;
+
+            // Captain / Master
+            if (positionLower.Contains("captain") || positionLower.Contains("master"))
+            {
+                roleCode = "CAPTAIN";
+            }
+            // Chief Engineer
+            else if (positionLower.Contains("chief engineer") || positionLower.Contains("chief eng"))
+            {
+                roleCode = "CHIEF_ENGINEER";
+            }
+            // Officers (Deck/Engine)
+            else if (positionLower.Contains("officer") || rankLower.Contains("officer"))
+            {
+                roleCode = "OFFICER";
+            }
+            // Engineer
+            else if (positionLower.Contains("engineer") || positionLower.Contains("eng"))
+            {
+                roleCode = "ENGINEER";
+            }
+            // Default: Crew
+            else
+            {
+                roleCode = "CREW";
+            }
+
+            var role = await _context.Roles.FirstOrDefaultAsync(r => r.RoleCode == roleCode && r.IsActive);
+            return role?.Id ?? defaultRoleId;
+        }
+        catch
+        {
+            return defaultRoleId;
+        }
+    }
+
+    /// <summary>
+    /// Hash password using SHA256
+    /// </summary>
+    private static string HashPassword(string password)
+    {
+        using var sha256 = SHA256.Create();
+        var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+        return Convert.ToBase64String(hashedBytes);
     }
 
     [HttpPut("{id}")]
@@ -458,6 +602,109 @@ public class CrewController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting expiring certificates");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Sync users for all existing crew members that don't have accounts
+    /// POST /api/crew/sync-users
+    /// </summary>
+    [HttpPost("sync-users")]
+    public async Task<IActionResult> SyncUsersForAllCrew()
+    {
+        try
+        {
+            // Get all crew members
+            var allCrew = await _context.CrewMembers.ToListAsync();
+            
+            // Get existing usernames
+            var existingUsernames = await _context.Users
+                .Select(u => u.Username)
+                .ToListAsync();
+
+            var created = 0;
+            var skipped = 0;
+            var errors = new List<string>();
+
+            foreach (var crew in allCrew)
+            {
+                // Skip if user already exists
+                if (existingUsernames.Contains(crew.CrewId))
+                {
+                    skipped++;
+                    continue;
+                }
+
+                try
+                {
+                    await CreateUserForCrewMemberAsync(crew);
+                    created++;
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"{crew.CrewId}: {ex.Message}");
+                }
+            }
+
+            _logger.LogInformation("Sync users completed: Created={Created}, Skipped={Skipped}, Errors={ErrorCount}", 
+                created, skipped, errors.Count);
+
+            return Ok(new
+            {
+                message = "Sync completed",
+                totalCrew = allCrew.Count,
+                created,
+                skipped,
+                errorCount = errors.Count,
+                errors = errors.Take(10) // Return first 10 errors
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error syncing users for crew");
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get crew members without user accounts
+    /// GET /api/crew/without-users
+    /// </summary>
+    [HttpGet("without-users")]
+    public async Task<IActionResult> GetCrewWithoutUsers()
+    {
+        try
+        {
+            var existingUserCrewIds = await _context.Users
+                .Where(u => u.CrewId != null)
+                .Select(u => u.CrewId!)
+                .ToListAsync();
+
+            var crewWithoutUsers = await _context.CrewMembers
+                .AsNoTracking()
+                .Where(c => !existingUserCrewIds.Contains(c.CrewId))
+                .Select(c => new
+                {
+                    c.Id,
+                    c.CrewId,
+                    c.FullName,
+                    c.Position,
+                    c.Department,
+                    c.IsOnboard,
+                    HasDateOfBirth = c.DateOfBirth != null
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                count = crewWithoutUsers.Count,
+                data = crewWithoutUsers
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting crew without users");
             return StatusCode(500, new { error = "Internal server error" });
         }
     }

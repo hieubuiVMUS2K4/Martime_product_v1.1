@@ -245,11 +245,32 @@ export interface CrewMember {
   createdAt: string
 }
 
+// Task Status - Updated v2.0 (PMS Workflow)
+export type MaintenanceTaskStatus = 
+  | 'SCHEDULED'      // Auto-generated, not yet due
+  | 'DUE'           // Ready for execution
+  | 'OVERDUE'       // Past due date
+  | 'IN_PROGRESS'   // Crew working on it
+  | 'PENDING_APPROVAL' // Waiting for C/E/Master verification
+  | 'RECTIFY'       // Returned for correction (replaces REJECTED)
+  | 'COMPLETED'     // Approved and done
+  | 'CANCELLED'     // Task cancelled
+  // Legacy statuses for backward compatibility
+  | 'TASK' | 'MISSING_BOTH' | 'MISSING_CHECKLIST' | 'MISSING_PIC' | 'PENDING' | 'REJECTED'
+
 export interface MaintenanceTask {
-  id: string // Guid
+  id: string  // GUID from backend
   taskId: string
-  equipmentId: string
-  equipmentName: string
+  taskTypeId?: number
+  
+  // LEGACY: Individual asset fields (nullable for backward compatibility)
+  equipmentId?: string
+  equipmentName?: string
+  
+  // NEW: Equipment group fields (for group-based tasks)
+  equipmentGroupId?: string
+  equipmentGroupName?: string
+  
   taskType: string
   taskDescription: string
   intervalHours?: number
@@ -258,14 +279,280 @@ export interface MaintenanceTask {
   nextDueAt: string
   runningHoursAtLastDone?: number
   priority: 'CRITICAL' | 'HIGH' | 'NORMAL' | 'LOW'
-  status: 'PENDING' | 'OVERDUE' | 'IN_PROGRESS' | 'COMPLETED'
+  status: MaintenanceTaskStatus
   assignedTo?: string
-  completedAt?: string
-  completedBy?: string
+  assignedDepartment?: 'ENGINE' | 'DECK'
+  
+  // ============ DEFERRAL TRACKING ============
+  hasPendingDeferral: boolean
+  deferralCount: number
+  lastDeferredAt?: string
+  lastDeferredBy?: string
+  
+  // ============ EXECUTION TRACKING ============
+  startedAt?: string
+  startedBy?: string
+  actualRunningHours?: number
+  estimatedDuration?: number // minutes
+  actualDuration?: number // minutes
+  
+  // ============ REPORT DATA ============
+  checklistCompleted: boolean
+  photosUploaded: number
+  requiredPhotos: number
+  completionPhotos?: string // JSON array of photo URLs
   notes?: string
   sparePartsUsed?: string
+  
+  // ============ SUBMISSION ============
+  submittedAt?: string
+  submittedBy?: string
+  
+  // ============ VERIFICATION ============
+  verifiedAt?: string
+  verifiedBy?: string
+  verificationResult?: 'APPROVED' | 'REJECTED'
+  verificationNotes?: string
+  
+  // ============ RECTIFY TRACKING ============
+  rejectionReason?: string
+  rejectionCount: number
+  lastRejectedAt?: string
+  lastRejectedBy?: string
+  rejectionHistory?: Array<{
+    reason: string
+    by: string
+    at: string
+  }>
+  
+  // ============ COMPLETION ============
+  completedAt?: string
+  completedBy?: string
+  
+  // ============ CANCELLATION ============
+  cancelledAt?: string
+  cancelledBy?: string
+  cancellationReason?: string
+  
+  // ============ CMS ============
+  isCms: boolean
+  
+  // ============ LEGACY ============
+  approvedBy?: string
+  approvedAt?: string
+  
+  // ============ AUDIT ============
   isSynced: boolean
   createdAt: string
+  updatedAt?: string
+  originNode?: string
+  
+  // ============ RELATED DATA ============
+  checklistItems?: TaskChecklistItem[]
+  
+  requiredSpareParts?: Array<{
+    id?: string
+    materialItemId: string
+    materialCode?: string
+    materialName?: string
+    quantityRequired: number
+    isMandatory: boolean
+    notes?: string
+  }>
+  
+  // Status history (loaded on demand)
+  statusHistory?: TaskStatusHistory[]
+  
+  // Pending deferral (loaded on demand)
+  pendingDeferral?: DeferralRequest
+}
+
+// ============================================================
+// DEFERRAL REQUEST TYPES
+// ============================================================
+
+export interface DeferralRequest {
+  id: string // Guid
+  taskId: string
+  taskCode?: string
+  taskDescription?: string
+  equipmentName?: string
+  
+  requestedBy: string
+  requestedByName?: string
+  requestedAt: string
+  reason: string
+  
+  currentDueDate: string
+  proposedDueDate: string
+  deferralDays: number
+  
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  priority: 'LOW' | 'NORMAL' | 'HIGH'
+  
+  isCmsItem: boolean
+  classPermissionLetter?: string
+  
+  reviewedBy?: string
+  reviewedByName?: string
+  reviewedAt?: string
+  reviewNotes?: string
+  
+  attachments?: string[]
+  createdAt: string
+}
+
+export interface CreateDeferralRequestDto {
+  taskId: string
+  reason: string // min 20 chars
+  proposedDueDate: string
+  priority?: 'LOW' | 'NORMAL' | 'HIGH'
+  attachments?: string[]
+  classPermissionLetter?: string // required if CMS && deferral > 90 days
+}
+
+export interface ReviewDeferralRequestDto {
+  action: 'APPROVE' | 'REJECT'
+  notes?: string
+  adjustedDueDate?: string // reviewer can modify proposed date
+}
+
+// ============================================================
+// TASK STATUS HISTORY
+// ============================================================
+
+export interface TaskStatusHistory {
+  id: string
+  taskId: string
+  fromStatus?: string
+  toStatus: string
+  changedBy: string
+  changedByName?: string
+  changedAt: string
+  reason?: string
+  notes?: string
+  deviceType?: 'WEB' | 'MOBILE'
+}
+
+// ============================================================
+// TASK WORKFLOW DTOs
+// ============================================================
+
+export interface StartTaskDto {
+  taskId: string
+  currentRunningHours?: number
+  notes?: string
+}
+
+export interface SubmitTaskDto {
+  taskId: string
+  completedRunningHours?: number
+  notes?: string
+  sparePartsUsed?: string
+  photoUrls?: string[]
+}
+
+export interface VerifyTaskDto {
+  taskId: string
+  action: 'APPROVE' | 'REJECT'
+  notes?: string
+  rejectionReason?: string // required if action = REJECT
+}
+
+// ============================================================
+// APPROVAL DASHBOARD
+// ============================================================
+
+export interface ApprovalDashboardSummary {
+  pendingApprovalCount: number
+  pendingDeferralCount: number
+  rectifyTaskCount: number
+  overdueTaskCount: number
+  todayDueCount: number
+  thisWeekDueCount: number
+}
+
+export interface MorningBriefing {
+  date: string
+  overdueTasksEngine: number
+  overdueTasksDeck: number
+  dueToday: number
+  pendingApproval: number
+  pendingDeferral: number
+  tasksInProgress: number
+  completedYesterday: number
+  topPriorityTasks?: TaskSummary[]
+}
+
+export interface TaskSummary {
+  id: string
+  taskId: string
+  taskDescription: string
+  equipmentName?: string
+  priority: string
+  status: string
+  nextDueAt: string
+  assignedTo?: string
+  assignedDepartment?: string
+  daysOverdue?: number
+}
+
+// Task Checklist Items - Per-asset tracking within group maintenance tasks
+export interface TaskChecklistItem {
+  id: string
+  taskId: string
+  assetId: string
+  assetCode: string
+  assetName: string
+  sequenceOrder: number
+  isCompleted: boolean
+  completedAt?: string
+  completedBy?: string
+  readingValue?: number  // Pressure, temperature, voltage readings
+  remarks?: string       // Specific notes per asset
+  isAbnormal: boolean    // Flag for abnormal conditions
+  createdAt: string
+}
+
+// DTO for updating checklist item
+export interface UpdateChecklistItemDto {
+  isCompleted?: boolean
+  readingValue?: number
+  remarks?: string
+  isAbnormal?: boolean
+  completedBy?: string
+}
+
+// DTO for completing checklist item with data
+export interface CompleteChecklistItemDto {
+  readingValue?: number
+  remarks?: string
+  isAbnormal: boolean
+  completedBy: string
+}
+
+// Helper interface for parsed schedule info from task
+export interface TaskScheduleInfo {
+  scheduleCode?: string
+  groupName?: string
+  isAutoGenerated: boolean
+}
+
+// Helper function to parse schedule info from task notes
+export function parseTaskScheduleInfo(task: MaintenanceTask): TaskScheduleInfo {
+  if (!task.notes) {
+    return { isAutoGenerated: false }
+  }
+  
+  // Parse format: "Auto-generated from schedule: {ScheduleCode} (Group: {GroupName})"
+  const scheduleMatch = task.notes.match(/Auto-generated from schedule: ([\w-]+)/)
+  const groupMatch = task.notes.match(/\(Group: ([^)]+)\)/)
+  
+  return {
+    scheduleCode: scheduleMatch?.[1],
+    groupName: groupMatch?.[1],
+    isAutoGenerated: !!scheduleMatch
+  }
 }
 
 export interface CargoOperation {
@@ -294,21 +581,59 @@ export interface CargoOperation {
 export interface WatchkeepingLog {
   id: number
   watchDate: string
-  watchPeriod: string
+  watchPeriod: string // 00-04, 04-08, 08-12, 12-16, 16-20, 20-24
   watchType: 'NAVIGATION' | 'ENGINE'
   officerOnWatch: string
+  reliefOfficer?: string // Officer taking over watch
   lookout?: string
+  
+  // STCW Rest Hours Compliance
+  workHours: number
+  restHoursLast24h: number
+  restHoursLast7Days: number
+  restHoursCompliant: boolean
+  restHoursException?: string
+  
+  // Weather & Navigation
   weatherConditions?: string
-  seaState?: string
+  seaState?: string // Douglas Sea Scale
   visibility?: string
   courseLogged?: number
   speedLogged?: number
   positionLat?: number
   positionLon?: number
   distanceRun?: number
+  
+  // Bridge Equipment Status
   engineStatus?: string
+  radarOperational: boolean
+  ecdisOperational: boolean
+  aisOperational: boolean
+  gyroOperational: boolean
+  autopilotEngaged: boolean
+  equipmentDefects?: string
+  
+  // GMDSS Watch
+  gmdssWatchMaintained: boolean
+  navigationWarningsReceived?: string
+  
+  // Watch Events & Handover
   notableEvents?: string
+  handoverNotes?: string
+  handoverChecklistCompleted: boolean
+  watchStartTime?: string
+  watchEndTime?: string
+  
+  // Bridge Manning
+  bridgeManningLevel: number
+  lookoutPosted: boolean
+  
+  // Fatigue Management (MLC 2006)
+  fatigueRiskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'
+  fatigueAssessmentDone: boolean
+  
   masterSignature?: string
+  signedAt?: string
   isSynced: boolean
   createdAt: string
 }
@@ -430,7 +755,7 @@ export interface MaterialCategory {
 }
 
 export interface MaterialItem {
-  id: number;
+  id: string; // Guid
   itemCode: string;
   name: string;
   categoryId: number;

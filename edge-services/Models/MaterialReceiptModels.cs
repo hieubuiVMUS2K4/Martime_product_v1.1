@@ -104,9 +104,35 @@ public class MaterialReceiptItem
 
     /// <summary>
     /// ID vật tư (MaterialItem uses Guid as primary key)
+    /// Nullable: nếu MaterialItem bị xóa, field này = null nhưng vẫn giữ thông tin snapshot
+    /// </summary>
+    public Guid? MaterialItemId { get; set; }
+
+    /// <summary>
+    /// Mã vật tư (snapshot tại thời điểm nhập)
     /// </summary>
     [Required]
-    public Guid MaterialItemId { get; set; }
+    [MaxLength(50)]
+    public string ItemCode { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tên vật tư (snapshot tại thời điểm nhập)
+    /// </summary>
+    [Required]
+    [MaxLength(200)]
+    public string ItemName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Thông số kỹ thuật (snapshot tại thời điểm nhập)
+    /// </summary>
+    public string? Specification { get; set; }
+
+    /// <summary>
+    /// Đơn vị (snapshot tại thời điểm nhập)
+    /// </summary>
+    [Required]
+    [MaxLength(20)]
+    public string Unit { get; set; } = "PCS";
 
     /// <summary>
     /// Số lượng nhập trong lần này

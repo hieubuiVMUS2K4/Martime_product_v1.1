@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { Trash2, Edit2, Plus, CheckSquare, X } from 'lucide-react'
+import { Trash2, Edit2, Plus, CheckSquare, X, ClipboardCheck, FileText } from 'lucide-react'
 
 interface Task {
-  id: number
+  id: string
   title: string
   description?: string
 }
@@ -15,9 +15,13 @@ interface ColumnMenuProps {
   columnTitle: string
   canAddTask?: boolean
   onAddTask?: () => void
-  onEditTask?: (taskId: number) => void
-  onDeleteTask?: (taskId: number) => void
-  onDeleteSelected?: (taskIds: number[]) => void
+  onEditTask?: (taskId: string) => void
+  onDeleteTask?: (taskId: string) => void
+  onDeleteSelected?: (taskIds: string[]) => void
+  // Approval workflow - for Pending Approval column
+  onOpenApprovalQueue?: () => void
+  // Deferral Management - for Deferrals column
+  onOpenDeferralManagement?: () => void
 }
 
 export function ColumnMenu({
@@ -29,9 +33,11 @@ export function ColumnMenu({
   onAddTask,
   onEditTask,
   onDeleteTask,
-  onDeleteSelected
+  onDeleteSelected,
+  onOpenApprovalQueue,
+  onOpenDeferralManagement
 }: ColumnMenuProps) {
-  const [selectedTasks, setSelectedTasks] = useState<number[]>([])
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([])
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -66,7 +72,7 @@ export function ColumnMenu({
 
   if (!isOpen) return null
 
-  const toggleTaskSelection = (taskId: number) => {
+  const toggleTaskSelection = (taskId: string) => {
     setSelectedTasks(prev =>
       prev.includes(taskId)
         ? prev.filter(id => id !== taskId)
@@ -109,7 +115,35 @@ export function ColumnMenu({
       </div>
 
       {/* Actions Bar */}
-      <div className="px-4 py-2.5 border-b border-gray-200 bg-white flex gap-2 items-center">
+      <div className="px-4 py-2.5 border-b border-gray-200 bg-white flex gap-2 items-center flex-wrap">
+        {/* Open Approval Queue - for Pending Approval column */}
+        {onOpenApprovalQueue && (
+          <button
+            onClick={() => {
+              onOpenApprovalQueue()
+              onClose()
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white text-xs font-medium rounded hover:bg-amber-700 transition-colors"
+          >
+            <ClipboardCheck className="w-3.5 h-3.5" />
+            Open Approval Queue
+          </button>
+        )}
+        
+        {/* Open Deferral Management - for Deferrals column */}
+        {onOpenDeferralManagement && (
+          <button
+            onClick={() => {
+              onOpenDeferralManagement()
+              onClose()
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-600 text-white text-xs font-medium rounded hover:bg-yellow-700 transition-colors"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Manage Deferrals
+          </button>
+        )}
+        
         {canAddTask && onAddTask && (
           <button
             onClick={() => {

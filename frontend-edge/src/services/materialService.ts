@@ -90,7 +90,7 @@ export interface MaterialItemResponseDto extends MaterialItem {
 }
 
 export interface StockAdjustmentDto {
-  itemId: number
+  itemId: string; // Guid
   quantity: number
   adjustmentType: 'Add' | 'Subtract' | 'Set'
   reason?: string | null
@@ -155,22 +155,22 @@ export const materialService = {
   getLowStockItems: () =>
     apiClient.get<MaterialItem[]>('/material/items/low-stock'),
 
-  getItemById: (id: number) =>
+  getItemById: (id: string) =>
     apiClient.get<MaterialItem>(`/material/items/${id}`),
 
   createItem: (dto: CreateMaterialItemDto) =>
     apiClient.post<MaterialItem>('/material/items', dto),
 
-  updateItem: (id: number, dto: UpdateMaterialItemDto) =>
+  updateItem: (id: string, dto: UpdateMaterialItemDto) =>
     apiClient.put<MaterialItem>(`/material/items/${id}`, dto),
 
-  deleteItem: (id: number) =>
-    apiClient.delete<{ message: string; id: number; itemCode: string; name: string }>(`/material/items/${id}`),
+  deleteItem: (id: string) =>
+    apiClient.delete<{ message: string; id: string; itemCode: string; name: string }>(`/material/items/${id}`),
 
   adjustStock: (dto: StockAdjustmentDto) =>
     apiClient.post<{
       message: string
-      itemId: number
+      itemId: string // Guid
       itemCode: string
       oldQuantity: number
       newQuantity: number

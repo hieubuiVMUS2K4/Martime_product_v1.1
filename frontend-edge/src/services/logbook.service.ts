@@ -1,0 +1,184 @@
+import { apiClient } from './api.client';
+import { 
+  PaginatedLogbookResponse, 
+  LogbookPaginationDto,
+  CreateDeckLogEntryDto,
+  DeckLogEntryResponseDto,
+  CreateEngineLogEntryDto,
+  EngineLogEntryResponseDto,
+  CreateOilRecordEntryDto,
+  OilRecordEntryResponseDto,
+  CreateWatchkeepingLogDto,
+  WatchkeepingLogResponseDto,
+  CreateGarbageRecordDto,
+  GarbageRecordResponseDto,
+  CreateBallastWaterRecordDto,
+  BallastWaterRecordResponseDto,
+  SignLogbookDto,
+  CreateVoyageLogEntryDto,
+  VoyageLogEntryResponseDto,
+  VoyageLogQueryDto,
+  VoyageLogTimelineItem,
+  VoyageLogEventInfo,
+  SignVoyageLogEntryDto
+} from '../types/logbook.types';
+
+class LogbookService {
+  private buildQueryString(params: any) {
+    const query = new URLSearchParams();
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        query.append(key, params[key].toString());
+      }
+    });
+    return query.toString();
+  }
+
+  // Deck Log
+  async getDeckEntries(params: LogbookPaginationDto) {
+    const queryString = this.buildQueryString(params);
+    return await apiClient.get<PaginatedLogbookResponse<DeckLogEntryResponseDto>>(`/logbooks/deck?${queryString}`);
+  }
+
+  async createDeckEntry(data: CreateDeckLogEntryDto) {
+    return await apiClient.post<DeckLogEntryResponseDto>('/logbooks/deck', data);
+  }
+
+  async signDeckEntry(id: string, data: SignLogbookDto) {
+    return await apiClient.post(`/logbooks/deck/${id}/sign`, {
+      masterSignature: data.signature,
+      signedAt: data.signedAt
+    });
+  }
+
+  // Engine Log
+  async getEngineEntries(params: LogbookPaginationDto) {
+    const queryString = this.buildQueryString(params);
+    return await apiClient.get<PaginatedLogbookResponse<EngineLogEntryResponseDto>>(`/logbooks/engine?${queryString}`);
+  }
+
+  async createEngineEntry(data: CreateEngineLogEntryDto) {
+    return await apiClient.post<EngineLogEntryResponseDto>('/logbooks/engine', data);
+  }
+
+  async signEngineEntry(id: string, data: SignLogbookDto) {
+    return await apiClient.post(`/logbooks/engine/${id}/sign`, {
+      chiefEngineerSignature: data.signature,
+      chiefEngineerRemarks: data.remarks,
+      signedAt: data.signedAt
+    });
+  }
+
+  // Oil Record
+  async getOilEntries(params: LogbookPaginationDto) {
+    const queryString = this.buildQueryString(params);
+    return await apiClient.get<PaginatedLogbookResponse<OilRecordEntryResponseDto>>(`/logbooks/oil?${queryString}`);
+  }
+
+  async createOilEntry(data: CreateOilRecordEntryDto) {
+    return await apiClient.post<OilRecordEntryResponseDto>('/logbooks/oil', data);
+  }
+
+  async signOilEntry(id: string, data: SignLogbookDto) {
+    return await apiClient.post(`/logbooks/oil/${id}/sign`, {
+      masterSignature: data.signature,
+      signedAt: data.signedAt
+    });
+  }
+
+  // Watchkeeping Log
+  async getWatchkeepingEntries(params: LogbookPaginationDto) {
+    const queryString = this.buildQueryString(params);
+    return await apiClient.get<PaginatedLogbookResponse<WatchkeepingLogResponseDto>>(`/logbooks/watchkeeping?${queryString}`);
+  }
+
+  async createWatchkeepingEntry(data: CreateWatchkeepingLogDto) {
+    return await apiClient.post<WatchkeepingLogResponseDto>('/logbooks/watchkeeping', data);
+  }
+
+  async signWatchkeepingEntry(id: string, data: SignLogbookDto) {
+    return await apiClient.post(`/logbooks/watchkeeping/${id}/sign`, {
+      masterSignature: data.signature,
+      signedAt: data.signedAt
+    });
+  }
+
+  // Garbage Record
+  async getGarbageEntries(params: LogbookPaginationDto) {
+    const queryString = this.buildQueryString(params);
+    return await apiClient.get<PaginatedLogbookResponse<GarbageRecordResponseDto>>(`/logbooks/garbage?${queryString}`);
+  }
+
+  async createGarbageEntry(data: CreateGarbageRecordDto) {
+    return await apiClient.post<GarbageRecordResponseDto>('/logbooks/garbage', data);
+  }
+
+  async signGarbageEntry(id: string, data: SignLogbookDto) {
+    return await apiClient.post(`/logbooks/garbage/${id}/sign`, {
+      masterSignature: data.signature,
+      signedAt: data.signedAt
+    });
+  }
+
+  // Ballast Water Record
+  async getBallastWaterEntries(params: LogbookPaginationDto) {
+    const queryString = this.buildQueryString(params);
+    return await apiClient.get<PaginatedLogbookResponse<BallastWaterRecordResponseDto>>(`/logbooks/ballast?${queryString}`);
+  }
+
+  async createBallastWaterEntry(data: CreateBallastWaterRecordDto) {
+    return await apiClient.post<BallastWaterRecordResponseDto>('/logbooks/ballast', data);
+  }
+
+  async signBallastWaterEntry(id: string, data: SignLogbookDto) {
+    return await apiClient.post(`/logbooks/ballast/${id}/sign`, {
+      masterSignature: data.signature,
+      signedAt: data.signedAt
+    });
+  }
+
+  // ==================== VOYAGE LOG ====================
+  
+  async getVoyageLogEntries(params: VoyageLogQueryDto) {
+    const queryString = this.buildQueryString(params);
+    return await apiClient.get<PaginatedLogbookResponse<VoyageLogEntryResponseDto>>(`/voyage-log?${queryString}`);
+  }
+
+  async getVoyageLogEntry(id: string) {
+    return await apiClient.get<VoyageLogEntryResponseDto>(`/voyage-log/${id}`);
+  }
+
+  async createVoyageLogEntry(data: CreateVoyageLogEntryDto) {
+    return await apiClient.post<VoyageLogEntryResponseDto>('/voyage-log', data);
+  }
+
+  async updateVoyageLogEntry(id: string, data: Partial<CreateVoyageLogEntryDto>) {
+    return await apiClient.put<VoyageLogEntryResponseDto>(`/voyage-log/${id}`, data);
+  }
+
+  async deleteVoyageLogEntry(id: string) {
+    return await apiClient.delete(`/voyage-log/${id}`);
+  }
+
+  async signVoyageLogEntry(id: string, data: SignVoyageLogEntryDto) {
+    return await apiClient.post<VoyageLogEntryResponseDto>(`/voyage-log/${id}/sign`, data);
+  }
+
+  async getVoyageLogTimeline(voyageId?: string, limit: number = 50) {
+    const params: Record<string, string> = { limit: limit.toString() };
+    if (voyageId) params.voyageId = voyageId;
+    const queryString = this.buildQueryString(params);
+    return await apiClient.get<VoyageLogTimelineItem[]>(`/voyage-log/timeline?${queryString}`);
+  }
+
+  async getLastVoyageLogEntry(voyageId?: string) {
+    const params = voyageId ? `?voyageId=${voyageId}` : '';
+    return await apiClient.get<VoyageLogEntryResponseDto>(`/voyage-log/last${params}`);
+  }
+
+  async getVoyageLogEventTypes() {
+    return await apiClient.get<VoyageLogEventInfo[]>('/voyage-log/event-types');
+  }
+}
+
+export const logbookService = new LogbookService();

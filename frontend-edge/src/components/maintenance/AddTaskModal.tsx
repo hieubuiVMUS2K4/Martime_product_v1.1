@@ -66,7 +66,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onT
   const loadCrewMembers = async () => {
     try {
       // Fetch all crew members (no pagination limit for dropdown)
-      const response = await fetch('http://localhost:5001/api/crew?pageSize=1000')
+      const response = await fetch('/api/crew?pageSize=1000')
       if (!response.ok) throw new Error('Failed to load crew members')
       const result = await response.json()
       
@@ -80,7 +80,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onT
 
   const loadTaskTypes = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/maintenance/task-types')
+      const response = await fetch('/api/maintenance/task-types')
       if (!response.ok) throw new Error('Failed to load task types')
       const data = await response.json()
       setTaskTypes(data)
@@ -114,7 +114,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onT
     setError(null)
 
     try {
-      const response = await fetch('http://localhost:5001/api/maintenance/tasks', {
+      const response = await fetch('/api/maintenance/tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

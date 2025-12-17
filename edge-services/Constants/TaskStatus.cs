@@ -10,10 +10,17 @@ namespace MaritimeEdge.Constants;
 /// </summary>
 public static class TaskStatus
 {
+    // Basic statuses
     public const string PENDING = "PENDING";
     public const string IN_PROGRESS = "IN_PROGRESS";
     public const string OVERDUE = "OVERDUE";
     public const string COMPLETED = "COMPLETED";
+    
+    // Extended workflow statuses (Kanban board)
+    public const string TASK = "TASK";                       // New task, not yet assigned
+    public const string PENDING_APPROVAL = "PENDING_APPROVAL"; // HIGH/CRITICAL task awaiting C/E approval
+    public const string REJECTED = "REJECTED";               // Task rejected by C/E
+    public const string CANCELLED = "CANCELLED";             // Task cancelled
 }
 
 /// <summary>

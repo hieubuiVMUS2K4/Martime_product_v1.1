@@ -413,7 +413,7 @@ public class MaterialController : ControllerBase
     /// <summary>
     /// Get a single material item by ID
     /// </summary>
-    [HttpGet("items/{id:long}")]
+    [HttpGet("items/{id:guid}")]
     public async Task<IActionResult> GetItemById(Guid id)
     {
         try
@@ -568,18 +568,40 @@ public class MaterialController : ControllerBase
     /// <summary>
     /// Delete a material item
     /// </summary>
-    [HttpDelete("items/{id:long}")]
-    public async Task<IActionResult> DeleteItem(long id)
+    [HttpDelete("items/{id:guid}")]
+    public async Task<IActionResult> DeleteItem(Guid id)
     {
         try
         {
             var item = await _context.MaterialItems.FindAsync(id);
             if (item is null) return NotFound(new { error = "Item not found", id });
 
-            _context.MaterialItems.Remove(item);
+            // Set MaterialItemId = null cho các receipt items (giữ lịch sử nhập kho)
+            var receiptItems = await _context.MaterialReceiptItems
+                .Where(x => x.MaterialItemId == id)
+                .ToListAsync();
+            
+            if (receiptItems.Any())
+            {
+                foreach (var receiptItem in receiptItems)
+                {
+                    receiptItem.MaterialItemId = null; // Giữ ItemCode, ItemName để hiển thị lịch sử
+                }
+            }
+
+            // Soft delete: Set IsActive = false và thêm suffix vào ItemCode để giải phóng ItemCode
+            var originalItemCode = item.ItemCode;
+            item.IsActive = false;
+            item.ItemCode = $"{item.ItemCode}_DELETED_{DateTime.UtcNow:yyyyMMddHHmmss}";
+            item.IsSynced = false;
+            
+            _logger.LogWarning($"[DELETE DEBUG] Deleting item: ID={id}, OriginalCode={originalItemCode}, NewCode={item.ItemCode}, IsActive={item.IsActive}");
+            
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Item deleted successfully", id, item.ItemCode, item.Name });
+            _logger.LogWarning($"[DELETE DEBUG] Successfully saved deletion for {originalItemCode}");
+
+            return Ok(new { message = "Item deleted successfully (soft delete)", id, originalItemCode, newItemCode = item.ItemCode, item.Name, affectedReceipts = receiptItems.Count });
         }
         catch (DbUpdateException ex)
         {

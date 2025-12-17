@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -7,6 +8,7 @@ import '../../providers/task_provider.dart';
 import '../../widgets/task/priority_badge.dart';
 import '../../widgets/task/status_badge.dart';
 import 'complete_task_screen.dart';
+import 'create_deferral_screen.dart';
 import '../../../l10n/app_localizations.dart';
 
 // 🎨 Maritime Professional Color Palette
@@ -49,6 +51,7 @@ class TaskDetailScreen extends StatefulWidget {
 
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
   List<TaskChecklistItem>? _checklistItems;
+  List<dynamic>? _statusHistory;
   bool _loadingChecklist = false;
   String? _checklistError;
 
@@ -58,12 +61,27 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     // Load checklist after frame is built to avoid setState during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadChecklistIfNeeded();
+      _loadTaskDetails();
     });
   }
 
+  Future<void> _loadTaskDetails() async {
+    if (!mounted) return;
+    try {
+      final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+      final details = await taskProvider.fetchTaskDetails(widget.task.id);
+      if (mounted && details['statusHistory'] != null) {
+        setState(() {
+          _statusHistory = details['statusHistory'];
+        });
+      }
+    } catch (e) {
+      print('Failed to load task details: $e');
+    }
+  }
+
   Future<void> _loadChecklistIfNeeded() async {
-    // Chỉ load checklist nếu task có TaskType
-    if (!widget.task.hasTaskType || !mounted) return;
+    if (!mounted) return;
     
     setState(() {
       _loadingChecklist = true;
@@ -72,7 +90,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
     try {
       final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-      await taskProvider.fetchTaskChecklist(widget.task.id);
+      await taskProvider.fetchTaskChecklist(widget.task.taskId);
       
       if (mounted) {
         setState(() {
@@ -99,15 +117,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       await taskProvider.fetchMyTasks();
       
       // Reload checklist nếu có TaskType
-      if (widget.task.hasTaskType) {
-        await _loadChecklistIfNeeded();
-      }
+      await _loadChecklistIfNeeded();
+      await _loadTaskDetails();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(AppLocalizations.of(context).taskDataRefreshed),
-            duration: Duration(seconds: 1),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -133,6 +150,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       appBar: AppBar(
         title: Text(l10n.taskDetails),
         actions: [
+          if (widget.task.canRequestDeferral && !widget.task.hasPendingDeferral)
+            IconButton(
+              icon: const Icon(Icons.schedule_send),
+              tooltip: 'Xin hoãn',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CreateDeferralScreen(task: widget.task),
+                  ),
+                );
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: l10n.refreshTaskData,
@@ -172,6 +202,24 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   ),
                 ),
               
+              // Rejection Info
+              if (widget.task.isRectify) ...[
+                const SizedBox(height: 16),
+                _buildRejectionInfoCard(),
+              ],
+
+              // Pending Approval Panel
+              if (widget.task.isPendingApproval) ...[
+                const SizedBox(height: 16),
+                _buildPendingApprovalPanel(),
+              ],
+
+              // Pending Deferral Card
+              if (widget.task.hasPendingDeferral) ...[
+                const SizedBox(height: 16),
+                _buildDeferralPendingCard(context, taskProvider),
+              ],
+
               // Professional Compact Header Card
               Card(
                 elevation: 2,
@@ -188,7 +236,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              widget.task.equipmentName,
+                              widget.task.displayName,
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -230,7 +278,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ),
                       
                       const SizedBox(height: 10),
-                      Divider(height: 1, color: MaritimeColors.border),
+                      const Divider(height: 1, color: MaritimeColors.border),
                       const SizedBox(height: 10),
                       
                       // Description (only show if not empty)
@@ -280,6 +328,35 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ),
                       const SizedBox(height: 12),
                       _buildChecklistContent(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+
+            // STATUS HISTORY SECTION
+            if (_statusHistory != null && _statusHistory!.isNotEmpty) ...[
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.statusHistory,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade900,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildStatusHistory(),
                     ],
                   ),
                 ),
@@ -382,7 +459,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      dateFormat.format(DateTime.parse(widget.task.nextDueAt)),
+                      widget.task.nextDueAt != null ? dateFormat.format(DateTime.parse(widget.task.nextDueAt!)) : 'N/A',
                       style: TextStyle(
                         fontSize: isSmallScreen ? 13 : 14,
                         fontWeight: FontWeight.w700,
@@ -514,7 +591,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       isSmallScreen,
                     ),
                   if (widget.task.sparePartsUsed != null)
-                    _buildCompactInfoRow(
+                    _buildSparePartsSection(
                       l10n.spareParts,
                       widget.task.sparePartsUsed!,
                       isSmallScreen,
@@ -635,6 +712,115 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// Widget hiển thị danh sách vật tư sử dụng với đầy đủ tên
+  Widget _buildSparePartsSection(String label, String sparePartsJson, bool isSmallScreen) {
+    List<dynamic> spareParts = [];
+    try {
+      if (sparePartsJson.startsWith('[')) {
+        spareParts = json.decode(sparePartsJson);
+      }
+    } catch (e) {
+      // Fallback to plain text display if JSON parsing fails
+      return _buildCompactInfoRow(label, sparePartsJson, isSmallScreen);
+    }
+
+    if (spareParts.isEmpty) {
+      return _buildCompactInfoRow(label, 'Không có', isSmallScreen);
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: isSmallScreen ? 3 : 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 10 : 11,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(height: isSmallScreen ? 4 : 6),
+          ...spareParts.map((part) {
+            final materialName = part['materialName']?.toString() ?? 
+                                 part['name']?.toString() ?? 
+                                 'Vật tư không xác định';
+            final materialCode = part['materialCode']?.toString() ?? 
+                                 part['code']?.toString() ?? 
+                                 part['itemCode']?.toString() ?? '';
+            final quantityUsed = part['quantityUsed'] ?? part['quantity'] ?? 0;
+            final unitCost = part['unitCost'] ?? 0;
+            
+            return Container(
+              margin: EdgeInsets.only(bottom: isSmallScreen ? 4 : 6),
+              padding: EdgeInsets.all(isSmallScreen ? 8 : 10),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade100),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.inventory_2_outlined,
+                    size: isSmallScreen ? 16 : 18,
+                    color: Colors.blue.shade600,
+                  ),
+                  SizedBox(width: isSmallScreen ? 6 : 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          materialName,
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 11 : 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        if (materialCode.isNotEmpty) ...[
+                          SizedBox(height: isSmallScreen ? 2 : 3),
+                          Text(
+                            'Mã: $materialCode',
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 9 : 10,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isSmallScreen ? 6 : 8,
+                      vertical: isSmallScreen ? 2 : 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade100,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'SL: $quantityUsed',
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 10 : 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
         ],
       ),
     );
@@ -780,8 +966,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildChecklistItem(TaskChecklistItem item, int index) {
     final l10n = AppLocalizations.of(context);
-    final detail = item.taskDetail;
     final isCompleted = item.isCompleted;
+    final title = (item.checkpointDescription != null && item.checkpointDescription!.trim().isNotEmpty)
+        ? item.checkpointDescription!.trim()
+        : '${item.assetName} (${item.assetCode})';
     
     return Card(
       elevation: 2,
@@ -791,7 +979,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         borderRadius: BorderRadius.circular(12),
         onTap: () {
           if (widget.task.isInProgress || isCompleted) {
-            // Open dialog for pending items OR completed items (allow editing)
             _showQuickChecklistDialog(item, index);
           }
         },
@@ -851,7 +1038,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          detail.detailName,
+                          title,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -863,51 +1050,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            _buildDetailTypeBadge(detail.detailType),
-                            if (detail.isMandatory) ...[
-                              const SizedBox(width: 5),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  l10n.mandatory.toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    letterSpacing: 0.3,
-                                  ),
+                            _buildDetailTypeBadge(item.requiresReading ? 'MEASUREMENT' : 'CHECKLIST'),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                '${item.assetName} (${item.assetCode})',
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade600,
                                 ),
                               ),
-                            ],
-                            if (detail.detailType == 'MEASUREMENT' && 
-                                detail.unit != null) ...[
-                              const SizedBox(width: 5),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  detail.unit!,
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.blue.shade700,
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ],
                         ),
                       ],
@@ -916,48 +1070,77 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   
                   // Action icon - Clean modern
                   Icon(
-                    isCompleted
-                        ? Icons.edit_outlined
-                        : Icons.chevron_right,
-                    color: isCompleted 
-                        ? Colors.green
+                    isCompleted ? Icons.visibility_outlined : Icons.chevron_right,
+                    color: isCompleted
+                        ? (item.isAbnormal ? MaritimeColors.mandatory : MaritimeColors.completed)
                         : Colors.grey.shade400,
                     size: 20,
                   ),
                 ],
               ),
-              
-              // Description if exists
-              if (detail.description != null && 
-                  detail.description!.isNotEmpty) ...[
+
+              if (item.requiresReading && (item.normalRangeMin != null || item.normalRangeMax != null)) ...[
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
+                    color: const Color(0xFFFFF4E6),
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFFFFD699),
+                      width: 1,
+                    ),
                   ),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.info_outline,
                         size: 14,
-                        color: Colors.grey.shade500,
+                        color: Color(0xFF996600),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          detail.description!,
-                          style: TextStyle(
+                          l10n.limitRange(
+                            item.normalRangeMin?.toString() ?? '?',
+                            item.normalRangeMax?.toString() ?? '?',
+                            item.unit ?? '',
+                          ),
+                          style: const TextStyle(
                             fontSize: 11,
-                            color: Colors.grey.shade700,
-                            height: 1.4,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF663D00),
                           ),
                         ),
                       ),
                     ],
                   ),
+                ),
+              ],
+
+              if (isCompleted && item.requiresReading && item.readingValue != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.speed,
+                      size: 14,
+                      color: Colors.grey.shade500,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        l10n.measuredValueWithUnit(
+                          item.readingValue!.toString(),
+                          item.unit ?? '',
+                        ),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ],
@@ -1010,18 +1193,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   void _showQuickChecklistDialog(TaskChecklistItem item, int index) {
-    final detail = item.taskDetail;
     final isAlreadyCompleted = item.isCompleted;
     final l10n = AppLocalizations.of(context);
+    final title = (item.checkpointDescription != null && item.checkpointDescription!.trim().isNotEmpty)
+        ? item.checkpointDescription!.trim()
+        : '${item.assetName} (${item.assetCode})';
 
     // Controllers for input
     final measurementController = TextEditingController(
-      text: item.executionDetail?.measuredValue ?? '',
+      text: item.readingValue?.toString() ?? '',
     );
     final notesController = TextEditingController(
-      text: item.executionDetail?.notes ?? '',
+      text: item.remarks ?? '',
     );
-    bool checkResult = item.executionDetail?.checkResult ?? true; // Default to OK
+    bool checkResult = !item.isAbnormal; // OK = not abnormal
 
     showModalBottomSheet(
       context: context,
@@ -1091,7 +1276,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                detail.detailName,
+                                title,
                                 style: const TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.bold,
@@ -1101,29 +1286,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  _buildDetailTypeBadge(detail.detailType),
-                                  if (detail.isMandatory) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 7,
-                                        vertical: 3,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: MaritimeColors.mandatory,
-                                        borderRadius: BorderRadius.circular(3),
-                                      ),
-                                      child: Text(
-                                        l10n.mandatory.toUpperCase(),
-                                        style: const TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.white,
-                                          letterSpacing: 0.3,
-                                        ),
+                                  _buildDetailTypeBadge(item.requiresReading ? 'MEASUREMENT' : 'CHECKLIST'),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      '${item.assetName} (${item.assetCode})',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: MaritimeColors.textSecondary,
                                       ),
                                     ),
-                                  ],
+                                  ),
                                 ],
                               ),
                             ],
@@ -1132,95 +1307,61 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ],
                     ),
 
-                    if (detail.description != null && detail.description!.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: MaritimeColors.primaryLight.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: MaritimeColors.primaryLight.withOpacity(0.25),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(
-                              Icons.info_outline, 
-                              size: 16, 
-                              color: MaritimeColors.primaryLight,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                detail.description!,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: MaritimeColors.textSecondary,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-
                     const SizedBox(height: 24),
 
                     // ===== INPUT BASED ON TYPE =====
-                    
-                    // CHECKLIST TYPE: Big OK/NG buttons
-                    if (detail.detailType == 'CHECKLIST') ...[
-                      Text(
-                        l10n.checkResult.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                          color: MaritimeColors.textTertiary,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildCheckButton(
-                              context: context,
-                              label: l10n.okPass,
-                              icon: Icons.check_circle,
-                              isSelected: checkResult == true,
-                              color: MaritimeColors.completed, // Forest Green
-                              onTap: () {
-                                setDialogState(() {
-                                  checkResult = true;
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildCheckButton(
-                              context: context,
-                              label: l10n.ngFail,
-                              icon: Icons.cancel,
-                              isSelected: checkResult == false,
-                              color: MaritimeColors.mandatory, // Deep Red
-                              onTap: () {
-                                setDialogState(() {
-                                  checkResult = false;
-                                });
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
 
-                    // MEASUREMENT TYPE: Big number input
-                    if (detail.detailType == 'MEASUREMENT') ...[
+                    // OK / NG selection (maps to isAbnormal)
+                    Text(
+                      l10n.checkResult.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                        color: MaritimeColors.textTertiary,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildCheckButton(
+                            context: context,
+                            label: l10n.okPass,
+                            icon: Icons.check_circle,
+                            isSelected: checkResult == true,
+                            color: MaritimeColors.completed,
+                            onTap: isAlreadyCompleted
+                                ? () {}
+                                : () {
+                                    setDialogState(() {
+                                      checkResult = true;
+                                    });
+                                  },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildCheckButton(
+                            context: context,
+                            label: l10n.ngFail,
+                            icon: Icons.cancel,
+                            isSelected: checkResult == false,
+                            color: MaritimeColors.mandatory,
+                            onTap: isAlreadyCompleted
+                                ? () {}
+                                : () {
+                                    setDialogState(() {
+                                      checkResult = false;
+                                    });
+                                  },
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    if (item.requiresReading) ...[
+                      const SizedBox(height: 18),
                       Text(
                         l10n.measuredValue.toUpperCase(),
                         style: const TextStyle(
@@ -1233,8 +1374,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       const SizedBox(height: 10),
                       TextField(
                         controller: measurementController,
+                        enabled: !isAlreadyCompleted,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        autofocus: true,
+                        autofocus: !isAlreadyCompleted,
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
@@ -1252,7 +1394,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           suffix: Padding(
                             padding: const EdgeInsets.only(left: 8),
                             child: Text(
-                              detail.unit ?? '',
+                              item.unit ?? '',
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -1290,7 +1432,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           ),
                         ),
                       ),
-                      if (detail.minValue != null || detail.maxValue != null) ...[
+                      if (item.normalRangeMin != null || item.normalRangeMax != null) ...[
                         const SizedBox(height: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1305,17 +1447,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           child: Row(
                             children: [
                               const Icon(
-                                Icons.info_outline, 
-                                size: 16, 
+                                Icons.info_outline,
+                                size: 16,
                                 color: Color(0xFF996600),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   l10n.limitRange(
-                                    detail.minValue?.toString() ?? '?',
-                                    detail.maxValue?.toString() ?? '?',
-                                    detail.unit ?? '',
+                                    item.normalRangeMin?.toString() ?? '?',
+                                    item.normalRangeMax?.toString() ?? '?',
+                                    item.unit ?? '',
                                   ),
                                   style: const TextStyle(
                                     fontSize: 12,
@@ -1330,145 +1472,53 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ],
                     ],
 
-                    // INSPECTION TYPE: Notes field
-                    if (detail.detailType == 'INSPECTION') ...[
-                      Text(
-                        l10n.observationNotes.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                          color: MaritimeColors.textTertiary,
-                        ),
+                    const SizedBox(height: 18),
+                    Text(
+                      l10n.notesOptional.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                        color: MaritimeColors.textTertiary,
                       ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: notesController,
-                        maxLines: 4,
-                        autofocus: true,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: MaritimeColors.textPrimary,
-                          height: 1.4,
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: notesController,
+                      enabled: !isAlreadyCompleted,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        hintText: l10n.addNotesIfNeeded,
+                        hintStyle: TextStyle(
+                          fontSize: 13,
+                          color: MaritimeColors.textTertiary.withOpacity(0.4),
                         ),
-                        decoration: InputDecoration(
-                          hintText: l10n.enterDetailedNotes,
-                          hintStyle: TextStyle(
-                            fontSize: 13,
-                            color: MaritimeColors.textTertiary.withOpacity(0.4),
-                          ),
-                          filled: true,
-                          fillColor: MaritimeColors.surface,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(6),
-                            borderSide: BorderSide(
-                              color: MaritimeColors.border,
-                              width: 1,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(6),
-                            borderSide: BorderSide(
-                              color: MaritimeColors.border,
-                              width: 1,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(6),
-                            borderSide: const BorderSide(
-                              color: MaritimeColors.primary,
-                              width: 2,
-                            ),
-                          ),
-                          contentPadding: const EdgeInsets.all(14),
-                        ),
-                      ),
-                    ],
-
-                    // Optional notes for CHECKLIST and MEASUREMENT
-                    if (detail.detailType != 'INSPECTION') ...[
-                      const SizedBox(height: 18),
-                      Text(
-                        l10n.notesOptional.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                          color: MaritimeColors.textTertiary,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: notesController,
-                        maxLines: 2,
-                        decoration: InputDecoration(
-                          hintText: l10n.addNotesIfNeeded,
-                          hintStyle: TextStyle(
-                            fontSize: 13,
-                            color: MaritimeColors.textTertiary.withOpacity(0.4),
-                          ),
-                          filled: true,
-                          fillColor: MaritimeColors.surface,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(6),
-                            borderSide: BorderSide(
-                              color: MaritimeColors.border,
-                              width: 1,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(6),
-                            borderSide: BorderSide(
-                              color: MaritimeColors.border,
-                              width: 1,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(6),
-                            borderSide: const BorderSide(
-                              color: MaritimeColors.primary,
-                              width: 1.5,
-                            ),
-                          ),
-                          contentPadding: const EdgeInsets.all(12),
-                        ),
-                      ),
-                    ],
-
-                    if (isAlreadyCompleted) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF9E6),
+                        filled: true,
+                        fillColor: MaritimeColors.surface,
+                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: const Color(0xFFFFE699),
+                          borderSide: const BorderSide(
+                            color: MaritimeColors.border,
                             width: 1,
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.edit_outlined, 
-                              color: Color(0xFF996600), 
-                              size: 18,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                l10n.alreadyCompletedCanUpdate,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF663D00),
-                                ),
-                              ),
-                            ),
-                          ],
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          borderSide: const BorderSide(
+                            color: MaritimeColors.border,
+                            width: 1,
+                          ),
                         ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          borderSide: const BorderSide(
+                            color: MaritimeColors.primary,
+                            width: 1.5,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.all(12),
                       ),
-                    ],
+                    ),
 
                     const SizedBox(height: 24),
 
@@ -1480,7 +1530,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             onPressed: () => Navigator.pop(context),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 14),
-                              side: BorderSide(
+                              side: const BorderSide(
                                 color: MaritimeColors.border,
                                 width: 1.5,
                               ),
@@ -1503,8 +1553,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           flex: 2,
                           child: ElevatedButton(
                             onPressed: () async {
-                              // Validate based on type
-                              if (detail.detailType == 'MEASUREMENT') {
+                              if (!widget.task.isInProgress || isAlreadyCompleted) {
+                                Navigator.pop(context);
+                                return;
+                              }
+
+                              double? readingValue;
+                              if (item.requiresReading) {
                                 if (measurementController.text.trim().isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
@@ -1515,8 +1570,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                   return;
                                 }
 
-                                final value = double.tryParse(measurementController.text.trim());
-                                if (value == null) {
+                                readingValue = double.tryParse(measurementController.text.trim());
+                                if (readingValue == null) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(l10n.invalidValue),
@@ -1527,17 +1582,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                 }
                               }
 
-                              if (detail.detailType == 'INSPECTION' && 
-                                  notesController.text.trim().isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(l10n.pleaseEnterObservationNote),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                                return;
-                              }
-
                               // Save data
                               try {
                                 final taskProvider = Provider.of<TaskProvider>(
@@ -1546,19 +1590,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                 );
                                 
                                 await taskProvider.completeChecklistItem(
-                                  taskId: widget.task.id,
-                                  detailId: detail.id,
-                                  measuredValue: detail.detailType == 'MEASUREMENT'
-                                      ? measurementController.text.trim()
-                                      : null,
-                                  checkResult: detail.detailType == 'CHECKLIST' 
-                                      ? checkResult 
-                                      : null,
-                                  inspectionNotes: notesController.text.trim().isNotEmpty
+                                  taskCode: widget.task.taskId,
+                                  itemId: item.id,
+                                  readingValue: readingValue,
+                                  remarks: notesController.text.trim().isNotEmpty
                                       ? notesController.text.trim()
                                       : null,
-                                  photoUrl: null,
-                                  isCompleted: true,
+                                  isAbnormal: !checkResult,
                                 );
 
                                 if (context.mounted) {
@@ -1569,7 +1607,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                         children: [
                                           const Icon(Icons.check_circle, color: Colors.white),
                                           const SizedBox(width: 8),
-                                          Text(l10n.savedItem(detail.detailName)),
+                                          Text(l10n.savedItem(title)),
                                         ],
                                       ),
                                       backgroundColor: Colors.green,
@@ -1603,7 +1641,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               ),
                             ),
                             child: Text(
-                              isAlreadyCompleted ? l10n.update : l10n.complete,
+                              (isAlreadyCompleted || !widget.task.isInProgress) ? l10n.close : l10n.complete,
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
@@ -1677,12 +1715,179 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
+  Widget _buildStatusHistory() {
+    final dateFormat = DateFormat('dd MMM yyyy HH:mm');
+    
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _statusHistory!.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 0), // Timeline connects items
+      itemBuilder: (context, index) {
+        final history = _statusHistory![index];
+        final isFirst = index == 0;
+        final isLast = index == _statusHistory!.length - 1;
+        
+        // Parse status
+        final status = history['status'] as String? ?? 'UNKNOWN';
+        final changedAt = history['changedAt'] as String?;
+        final changedBy = history['changedBy'] as String? ?? 'System';
+        final remarks = history['remarks'] as String?;
+        
+        // Determine color based on status
+        Color statusColor;
+        IconData statusIcon;
+        
+        switch (status) {
+          case 'COMPLETED':
+            statusColor = MaritimeColors.completed;
+            statusIcon = Icons.check_circle;
+            break;
+          case 'IN_PROGRESS':
+            statusColor = MaritimeColors.inProgress;
+            statusIcon = Icons.play_circle_fill;
+            break;
+          case 'OVERDUE':
+            statusColor = MaritimeColors.overdue;
+            statusIcon = Icons.warning;
+            break;
+          case 'PENDING_APPROVAL':
+            statusColor = Colors.blue;
+            statusIcon = Icons.pending;
+            break;
+          case 'RECTIFY':
+            statusColor = MaritimeColors.mandatory;
+            statusIcon = Icons.build_circle;
+            break;
+          default:
+            statusColor = Colors.grey;
+            statusIcon = Icons.circle;
+        }
+
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Timeline column
+              SizedBox(
+                width: 40,
+                child: Column(
+                  children: [
+                    // Top line
+                    Expanded(
+                      flex: 1,
+                      child: Container(
+                        width: 2,
+                        color: isFirst ? Colors.transparent : Colors.grey.shade300,
+                      ),
+                    ),
+                    // Dot
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: statusColor.withOpacity(0.3),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Bottom line
+                    Expanded(
+                      flex: 5,
+                      child: Container(
+                        width: 2,
+                        color: isLast ? Colors.transparent : Colors.grey.shade300,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Content column
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 20, top: 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            status.replaceAll('_', ' '),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: statusColor,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (changedAt != null)
+                            Text(
+                              dateFormat.format(DateTime.parse(changedAt)),
+                              style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: 11,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'By: $changedBy',
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (remarks != null && remarks.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Text(
+                            remarks,
+                            style: TextStyle(
+                              color: Colors.grey.shade800,
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   // New Bottom Action Bar - Professional Maritime Design
   Widget? _buildBottomActionBar(BuildContext context, TaskProvider taskProvider) {
     final l10n = AppLocalizations.of(context);
     
     // Don't show action bar for completed tasks
     if (widget.task.isCompleted) {
+      return null;
+    }
+
+    // Don't show action bar for pending approval tasks
+    if (widget.task.isPendingApproval) {
       return null;
     }
 
@@ -1702,11 +1907,62 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: widget.task.canStart
-              ? _buildStartTaskButton(context, taskProvider, l10n)
-              : widget.task.isInProgress
-                  ? _buildCompleteTaskButton(context, l10n)
-                  : const SizedBox.shrink(),
+          child: widget.task.isRectify
+              ? _buildFixAndContinueButton(context, taskProvider)
+              : widget.task.canStart
+                  ? _buildStartTaskButton(context, taskProvider, l10n)
+                  : widget.task.isInProgress
+                      ? _buildCompleteTaskButton(context, l10n)
+                      : const SizedBox.shrink(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFixAndContinueButton(BuildContext context, TaskProvider taskProvider) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton.icon(
+        onPressed: taskProvider.isLoading
+            ? null
+            : () async {
+                try {
+                  await taskProvider.startTask(widget.task.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Đã bắt đầu lại task để khắc phục'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Lỗi: ${e.toString()}'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+        icon: const Icon(Icons.build_circle, size: 22),
+        label: const Text(
+          'Sửa và tiếp tục',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.orange.shade600,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 2,
         ),
       ),
     );
@@ -1729,7 +1985,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   final confirmed = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
-                      icon: Icon(
+                      icon: const Icon(
                         Icons.warning_rounded,
                         color: MaritimeColors.overdue,
                         size: 44,
@@ -1833,6 +2089,230 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             borderRadius: BorderRadius.circular(12),
           ),
           elevation: 2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRejectionInfoCard() {
+    return Card(
+      color: Colors.orange.shade50,
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.orange.shade200, width: 2),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  'TASK BỊ TRẢ LẠI',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange.shade900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade300),
+              ),
+              child: Text(
+                widget.task.rejectionReason ?? 'No reason provided',
+                style: const TextStyle(fontSize: 14, height: 1.5),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildRejectionDetails(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRejectionDetails() {
+    return Column(
+      children: [
+        _buildInfoRow('Từ chối bởi', widget.task.lastRejectedBy ?? 'Unknown'),
+        _buildInfoRow('Thời gian', _formatDateTime(widget.task.lastRejectedAt)),
+        _buildInfoRow('Số lần từ chối', '${widget.task.rejectionCount} lần'),
+        
+        if (widget.task.rejectionCount >= 3)
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.red.shade300),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red.shade700),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Nhiều lần bị từ chối. Vui lòng liên hệ cấp trên.',
+                    style: TextStyle(color: Colors.red.shade900, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
+  String _formatDateTime(String? isoString) {
+    if (isoString == null) return '-';
+    try {
+      final date = DateTime.parse(isoString);
+      return DateFormat('dd/MM/yyyy HH:mm').format(date);
+    } catch (e) {
+      return isoString;
+    }
+  }
+
+  Widget _buildPendingApprovalPanel() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.shade300),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.pending_actions, size: 48, color: Colors.amber.shade700),
+          const SizedBox(height: 8),
+          Text(
+            'Chờ C/E nghiệm thu',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.amber.shade900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Báo cáo của bạn đang được xem xét',
+            style: TextStyle(color: Colors.amber.shade700),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeferralPendingCard(BuildContext context, TaskProvider taskProvider) {
+    return Card(
+      color: Colors.amber.shade50,
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.amber.shade200, width: 2),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.schedule, color: Colors.amber.shade800, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  'ĐANG CHỜ DUYỆT HOÃN',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber.shade900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Yêu cầu hoãn task đang được xem xét. Bạn không thể bắt đầu task này cho đến khi yêu cầu được xử lý.',
+              style: TextStyle(fontSize: 14, height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            if (widget.task.lastDeferredAt != null)
+              _buildInfoRow('Ngày yêu cầu', _formatDateTime(widget.task.lastDeferredAt)),
+            
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Huỷ yêu cầu hoãn?'),
+                      content: const Text('Bạn có chắc chắn muốn huỷ yêu cầu hoãn này không?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Không'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Huỷ yêu cầu'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true) {
+                    try {
+                       await taskProvider.cancelPendingDeferralForTask(widget.task.id);
+                       if (context.mounted) {
+                         ScaffoldMessenger.of(context).showSnackBar(
+                           const SnackBar(content: Text('Đã huỷ yêu cầu hoãn')),
+                         );
+                       }
+                    } catch (e) {
+                       if (context.mounted) {
+                         ScaffoldMessenger.of(context).showSnackBar(
+                           SnackBar(content: Text('Lỗi: ${e.toString()}')),
+                         );
+                       }
+                    }
+                  }
+                },
+                icon: const Icon(Icons.cancel_outlined),
+                label: const Text('Huỷ yêu cầu'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

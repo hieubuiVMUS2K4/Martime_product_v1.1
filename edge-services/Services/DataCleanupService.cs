@@ -92,7 +92,6 @@ public class DataCleanupService : BackgroundService
         _logger.LogInformation("Starting data cleanup...");
 
         var startTime = DateTime.UtcNow;
-        var totalDeleted = 0;
 
         try
         {

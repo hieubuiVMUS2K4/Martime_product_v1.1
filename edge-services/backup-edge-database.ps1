@@ -4,11 +4,11 @@
 $ErrorActionPreference = "Stop"
 
 # Configuration
-$backupDir = "F:\NCKH\Product\sampleProduct-master (1)\sampleProduct-master\edge-services\backups"
+$backupDir = "D:\backups"
 $containerName = "maritime-edge-postgres"
 $dbUser = "edge_user"
 $dbName = "maritime_edge"
-$retentionDays = 30
+$retentionDays = 100
 
 # Create timestamp
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"

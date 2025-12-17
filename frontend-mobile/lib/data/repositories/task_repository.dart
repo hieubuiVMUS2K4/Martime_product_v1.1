@@ -7,11 +7,14 @@ import '../../core/auth/token_storage.dart';
 import '../../core/constants/cache_keys.dart';
 import '../data_sources/remote/task_api.dart';
 import '../models/maintenance_task.dart';
-import '../models/task_complete_request.dart';
 import '../models/task_checklist_item.dart';
 import '../models/task_progress.dart';
-import '../models/complete_checklist_item_request.dart';
 import '../models/sync_item.dart';
+import '../models/start_task_dto.dart';
+import '../models/submit_task_dto.dart';
+import '../models/complete_task_checklist_item_request.dart';
+import '../models/update_task_checklist_item_request.dart';
+import '../models/create_deferral_request_dto.dart';
 
 class TaskRepository {
   final ApiClient _apiClient;
@@ -70,7 +73,7 @@ class TaskRepository {
       final cached = await _cacheManager.getData(CacheKeys.myTasks);
       if (cached != null) {
         print('📦 TaskRepository: Loaded ${(cached as List).length} tasks from cache');
-        return (cached as List)
+        return (cached)
             .map((json) => MaintenanceTask.fromJson(json))
             .toList();
       }
@@ -107,7 +110,7 @@ class TaskRepository {
   }
 
   /// Get task by ID
-  Future<MaintenanceTask> getTaskById(int id) async {
+  Future<MaintenanceTask> getTaskById(String id) async {
     try {
       if (!await _networkInfo.isConnected) {
         // Try to find in cached tasks
@@ -127,67 +130,65 @@ class TaskRepository {
     }
   }
 
+  /// Get task details with full workflow info
+  Future<Map<String, dynamic>> getTaskDetails(String id) async {
+    try {
+      if (!await _networkInfo.isConnected) {
+        throw Exception('Cannot fetch task details while offline');
+      }
+      final response = await _taskApi.getTaskDetails(id);
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      throw Exception('Failed to fetch task details: $e');
+    }
+  }
+
   /// Start task
-  Future<MaintenanceTask> startTask(int taskId) async {
+  Future<void> startTask(String taskId) async {
     try {
       if (!await _networkInfo.isConnected) {
         throw Exception('Cannot start task while offline');
       }
 
-      final task = await _taskApi.startTask(taskId);
+      final dto = StartTaskDto(taskId: taskId);
+      await _taskApi.startTask(taskId, dto);
 
-      // Clear old checklist cache (in case task was reassigned)
-      final checklistCacheKey = 'task_checklist_$taskId';
-      await _cacheManager.clearCache(checklistCacheKey);
-      
-      // Clear old progress cache
-      final progressCacheKey = 'task_progress_$taskId';
-      await _cacheManager.clearCache(progressCacheKey);
-
-      // Update task cache
-      await _updateTaskInCache(task);
-
-      return task;
+      // Invalidate local caches (task will be refreshed by caller)
+      await _cacheManager.clearCache('task_checklist_${_safeCacheKey(taskId)}');
+      await _cacheManager.clearCache('task_progress_${_safeCacheKey(taskId)}');
     } on DioException catch (e) {
       throw Exception('Failed to start task: ${e.message}');
     }
   }
 
-  /// Complete task - Offline-first with sync queue
-  Future<void> completeTask({
-    required int taskId,
-    required String completedBy,
-    required String completedByCrewId,
-    double? runningHours,
-    String? sparePartsUsed,
+  /// Submit task for approval (PMS Workflow v2.0)
+  Future<void> submitTask({
+    required String taskId,
     String? notes,
+    String? sparePartsUsed,
     List<String>? photoUrls,
+    double? completedRunningHours,
   }) async {
-    final request = TaskCompleteRequest(
-      completedBy: completedBy,
-      completedByCrewId: completedByCrewId,
-      completedAt: DateTime.now().toIso8601String(),
-      runningHoursAtCompletion: runningHours,
-      sparePartsUsed: sparePartsUsed,
+    final dto = SubmitTaskDto(
+      taskId: taskId,
       notes: notes,
+      sparePartsUsed: sparePartsUsed,
       photoUrls: photoUrls,
+      completedRunningHours: completedRunningHours,
     );
 
     try {
       if (await _networkInfo.isConnected) {
         // Online: Send immediately
-        final task = await _taskApi.completeTask(taskId, request);
-
-        // Update cache
-        await _updateTaskInCache(task);
+        await _taskApi.submitTask(taskId, dto);
       } else {
         // Offline: Add to sync queue
         await _syncQueue.addToQueue(
           SyncItem(
-            type: SyncItemType.taskComplete,
+            type: SyncItemType.taskSubmit,
             data: {
               'taskId': taskId,
-              ...request.toJson(),
+              ...dto.toJson(),
             },
           ),
         );
@@ -196,16 +197,18 @@ class TaskRepository {
       // On error, add to sync queue
       await _syncQueue.addToQueue(
         SyncItem(
-          type: SyncItemType.taskComplete,
+          type: SyncItemType.taskSubmit,
           data: {
             'taskId': taskId,
-            ...request.toJson(),
+            ...dto.toJson(),
           },
         ),
       );
       throw Exception('Task saved offline. Will sync when online');
     }
   }
+
+  String _safeCacheKey(String raw) => raw.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
 
   /// Get upcoming tasks
   Future<List<MaintenanceTask>> getUpcomingTasks() async {
@@ -252,40 +255,17 @@ class TaskRepository {
 
   /// Get task checklist with execution status
   /// Returns list of TaskChecklistItem (template + execution data)
-  Future<List<TaskChecklistItem>> getTaskChecklist(int taskId) async {
+  Future<List<TaskChecklistItem>> getTaskChecklist(String taskCode) async {
     try {
-      // Check if task has TaskType
-      final task = await getTaskById(taskId);
-      if (!task.hasTaskType) {
-        // Old task without TaskType - return empty list
-        return [];
-      }
-
       // Cache keys
-      final cacheKey = 'task_checklist_$taskId';
-      final stateKey = 'task_state_$taskId';
-      
-      // Create a state signature to detect task reassignment
-      // Use status + updatedAt + completedAt to detect if task was reassigned
-      final currentState = '${task.status}_${task.updatedAt ?? task.createdAt}_${task.completedAt ?? ""}';
-      
-      // Check if task state changed (indicates reassignment or reset)
-      final cachedState = await _cacheManager.getDataNoExpiry(stateKey);
-      
-      // If state changed AND task is now pending/in_progress (was completed and reassigned)
-      if (cachedState != null && cachedState != currentState) {
-        if (task.isPending || task.isInProgress) {
-          print('🔄 TaskRepository: Task $taskId state changed (likely reassigned), clearing old data');
-          await _cacheManager.clearCache(cacheKey);
-          await _cacheManager.clearCache('task_progress_$taskId');
-        }
-      }
+      final safeTaskCode = _safeCacheKey(taskCode);
+      final cacheKey = 'task_checklist_$safeTaskCode';
       
       // Try cache first
       final cached = await _cacheManager.getData(cacheKey);
       
       if (cached != null && !await _networkInfo.isConnected) {
-        print('📦 TaskRepository: Loaded checklist from cache for task $taskId');
+        print('📦 TaskRepository: Loaded checklist from cache for task $taskCode');
         return (cached as List)
             .map((json) => TaskChecklistItem.fromJson(json))
             .toList();
@@ -293,19 +273,15 @@ class TaskRepository {
 
       // Fetch from API
       if (await _networkInfo.isConnected) {
-        final checklist = await _taskApi.getTaskChecklist(taskId);
+        final checklist = await _taskApi.getTaskChecklist(taskCode);
         
-        print('✅ TaskRepository: API returned ${checklist.length} checklist items for task $taskId');
+        print('✅ TaskRepository: API returned ${checklist.length} checklist items for task $taskCode');
         
         // Cache the result along with state
         await _cacheManager.saveData(
           cacheKey,
           checklist.map((item) => item.toJson()).toList(),
         );
-        
-        // Save current state to detect reassignment
-        await _cacheManager.saveData(stateKey, currentState);
-        
         return checklist;
       }
 
@@ -321,7 +297,7 @@ class TaskRepository {
       print('❌ TaskRepository: Failed to get checklist: ${e.message}');
       
       // Try to return cached data
-      final cacheKey = 'task_checklist_$taskId';
+      final cacheKey = 'task_checklist_${_safeCacheKey(taskCode)}';
       final cached = await _cacheManager.getData(cacheKey);
       if (cached != null) {
         return (cached as List)
@@ -335,56 +311,48 @@ class TaskRepository {
 
   /// Complete a checklist item - Offline-first with sync queue
   Future<void> completeChecklistItem({
-    required int taskId,
-    required int detailId,
-    String? measuredValue,
-    bool? checkResult,
-    String? inspectionNotes,
-    String? photoUrl,
-    required bool isCompleted, // Keep for offline sync compatibility
+    required String taskCode,
+    required String itemId,
+    double? readingValue,
+    String? remarks,
+    bool isAbnormal = false,
   }) async {
-    // Parse measuredValue string to double if provided
-    double? parsedMeasuredValue;
-    if (measuredValue != null && measuredValue.trim().isNotEmpty) {
-      parsedMeasuredValue = double.tryParse(measuredValue.trim());
+    final crewId = await _tokenStorage.getCrewId();
+    if (crewId == null || crewId.isEmpty) {
+      throw Exception('No crew ID found');
     }
 
-    final request = CompleteChecklistItemRequest(
-      measuredValue: parsedMeasuredValue,
-      checkResult: checkResult,
-      notes: inspectionNotes, // Changed parameter name to match backend
-      photoUrl: photoUrl,
-      completedBy: 'Crew', // TODO: Get from auth state
+    final request = CompleteTaskChecklistItemRequest(
+      completedBy: crewId,
+      readingValue: readingValue,
+      remarks: remarks,
+      isAbnormal: isAbnormal,
     );
 
     try {
       if (await _networkInfo.isConnected) {
         // Online: Send immediately
-        await _taskApi.completeChecklistItem(taskId, detailId, request);
-        
-        print('✅ TaskRepository: Completed checklist item $detailId for task $taskId');
+        await _taskApi.completeChecklistItem(taskCode, itemId, request);
+
+        print('✅ TaskRepository: Completed checklist item $itemId for task $taskCode');
 
         // Invalidate checklist cache to force refresh
-        final cacheKey = 'task_checklist_$taskId';
+        final cacheKey = 'task_checklist_${_safeCacheKey(taskCode)}';
         await _cacheManager.clearCache(cacheKey);
-        
-        // Invalidate progress cache
-        final progressKey = 'task_progress_$taskId';
-        await _cacheManager.clearCache(progressKey);
       } else {
         // Offline: Add to sync queue
         await _syncQueue.addToQueue(
           SyncItem(
             type: SyncItemType.checklistComplete,
             data: {
-              'taskId': taskId,
-              'detailId': detailId,
+              'taskCode': taskCode,
+              'itemId': itemId,
               ...request.toJson(),
             },
           ),
         );
         
-        print('💾 TaskRepository: Queued checklist item $detailId for offline sync');
+        print('💾 TaskRepository: Queued checklist item $itemId for offline sync');
       }
     } on DioException catch (e) {
       print('❌ TaskRepository: Failed to complete checklist item: ${e.message}');
@@ -394,8 +362,8 @@ class TaskRepository {
         SyncItem(
           type: SyncItemType.checklistComplete,
           data: {
-            'taskId': taskId,
-            'detailId': detailId,
+            'taskCode': taskCode,
+            'itemId': itemId,
             ...request.toJson(),
           },
         ),
@@ -446,6 +414,87 @@ class TaskRepository {
       }
       
       throw Exception('Failed to fetch progress: ${e.message}');
+    }
+  }
+
+  // === DEFERRALS ===
+  
+  Future<void> createDeferralRequest(CreateDeferralRequestDto dto) async {
+    try {
+      if (await _networkInfo.isConnected) {
+        await _taskApi.createDeferralRequest(dto);
+        print('✅ TaskRepository: Created deferral request for task ${dto.taskId}');
+      } else {
+        // Offline: Add to sync queue
+        await _syncQueue.addToQueue(
+          SyncItem(
+            type: SyncItemType.deferralCreate,
+            data: dto.toJson(),
+          ),
+        );
+        print('💾 TaskRepository: Queued deferral request for offline sync');
+      }
+    } on DioException catch (e) {
+      print('❌ TaskRepository: Failed to create deferral request: ${e.message}');
+      // On error, add to sync queue
+      await _syncQueue.addToQueue(
+        SyncItem(
+          type: SyncItemType.deferralCreate,
+          data: dto.toJson(),
+        ),
+      );
+      throw Exception('Deferral request saved offline. Will sync when online');
+    }
+  }
+
+  Future<Map<String, dynamic>> getDeferralRequests({
+    String? status,
+    String? taskId,
+    int? page,
+    int? pageSize,
+  }) async {
+    try {
+      if (await _networkInfo.isConnected) {
+        final response = await _taskApi.getDeferralRequests(
+          status: status,
+          taskId: taskId,
+          page: page,
+          pageSize: pageSize,
+        );
+        return response.data as Map<String, dynamic>;
+      }
+      // Offline support for viewing deferrals is limited or cached
+      throw Exception('Cannot view deferral requests while offline');
+    } catch (e) {
+      throw Exception('Failed to fetch deferral requests: $e');
+    }
+  }
+
+  Future<void> cancelDeferralRequest(String id) async {
+    try {
+      if (await _networkInfo.isConnected) {
+        await _taskApi.cancelDeferralRequest(id);
+        print('✅ TaskRepository: Cancelled deferral request $id');
+      } else {
+        // Offline: Add to sync queue
+        await _syncQueue.addToQueue(
+          SyncItem(
+            type: SyncItemType.deferralCancel,
+            data: {'id': id},
+          ),
+        );
+        print('💾 TaskRepository: Queued deferral cancellation for offline sync');
+      }
+    } on DioException catch (e) {
+      print('❌ TaskRepository: Failed to cancel deferral request: ${e.message}');
+      // On error, add to sync queue
+      await _syncQueue.addToQueue(
+        SyncItem(
+          type: SyncItemType.deferralCancel,
+          data: {'id': id},
+        ),
+      );
+      throw Exception('Cancellation saved offline. Will sync when online');
     }
   }
 }

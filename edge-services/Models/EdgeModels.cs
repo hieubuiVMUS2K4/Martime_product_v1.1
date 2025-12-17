@@ -848,6 +848,7 @@ public class MaintenanceTaskDetail
 
 /// <summary>
 /// Maintenance Tasks (ISM Code - Planned Maintenance System)
+/// Updated v2.0: Added workflow fields for Deferral & Rectify system
 /// </summary>
 public class MaintenanceTask
 {
@@ -858,15 +859,41 @@ public class MaintenanceTask
     [MaxLength(50)]
     public string TaskId { get; set; } = string.Empty; // Unique task identifier
     
+    // NOTE: Database schema has this as UUID, not int
     public int? TaskTypeId { get; set; } // Foreign key to TaskType (optional for backward compatibility)
     
-    [Required]
+    /// <summary>
+    /// LEGACY: Individual equipment ID (nullable for group-based tasks)
+    /// For backward compatibility with old tasks
+    /// </summary>
     [MaxLength(100)]
-    public string EquipmentId { get; set; } = string.Empty; // MAIN_ENGINE, GEN_1, etc.
+    public string? EquipmentId { get; set; }
     
-    [Required]
+    /// <summary>
+    /// LEGACY: Individual equipment name (nullable for group-based tasks)
+    /// For backward compatibility with old tasks
+    /// </summary>
     [MaxLength(200)]
-    public string EquipmentName { get; set; } = string.Empty;
+    public string? EquipmentName { get; set; }
+    
+    /// <summary>
+    /// NEW: Equipment Group ID for group-based tasks
+    /// Preferred for new tasks (Work Order approach)
+    /// </summary>
+    public Guid? EquipmentGroupId { get; set; }
+    
+    /// <summary>
+    /// NEW: Equipment Group Name (denormalized for display)
+    /// Example: "All Generators", "Main Engine System"
+    /// </summary>
+    [MaxLength(200)]
+    public string? EquipmentGroupName { get; set; }
+    
+    /// <summary>
+    /// NEW: Schedule ID - Links to the maintenance schedule that generated this task
+    /// Null for manually created tasks, populated for auto-generated tasks
+    /// </summary>
+    public Guid? ScheduleId { get; set; }
     
     [Required]
     [MaxLength(50)]
@@ -888,32 +915,475 @@ public class MaintenanceTask
     [MaxLength(20)]
     public string Priority { get; set; } = "NORMAL"; // CRITICAL, HIGH, NORMAL, LOW
     
+    /// <summary>
+    /// Task Status - Updated v2.0
+    /// SCHEDULED: Auto-generated, not yet due
+    /// DUE: Ready for execution
+    /// OVERDUE: Past due date
+    /// IN_PROGRESS: Crew working on it
+    /// PENDING_APPROVAL: Waiting for C/E/Master verification
+    /// RECTIFY: Returned for correction (replaces REJECTED)
+    /// COMPLETED: Approved and done
+    /// CANCELLED: Task cancelled
+    /// </summary>
     [Required]
     [MaxLength(20)]
-    public string Status { get; set; } = "PENDING"; // PENDING, OVERDUE, IN_PROGRESS, COMPLETED
+    public string Status { get; set; } = "SCHEDULED"; // SCHEDULED, DUE, OVERDUE, IN_PROGRESS, PENDING_APPROVAL, RECTIFY, COMPLETED, CANCELLED
     
+    /// <summary>
+    /// PIC (Person In Charge) - Crew ID assigned to this task
+    /// For group tasks: Single PIC responsible for entire group
+    /// </summary>
     [MaxLength(100)]
-    public string? AssignedTo { get; set; } // Crew member name
+    public string? AssignedTo { get; set; }
     
-    public DateTime? StartedAt { get; set; } // When task was started
+    /// <summary>
+    /// Department: ENGINE or DECK
+    /// </summary>
+    [MaxLength(20)]
+    public string? AssignedDepartment { get; set; }
+    
+    // ============ DEFERRAL TRACKING ============
+    
+    /// <summary>
+    /// True if there's a pending deferral request for this task
+    /// </summary>
+    public bool HasPendingDeferral { get; set; } = false;
+    
+    /// <summary>
+    /// Number of times this task has been deferred
+    /// </summary>
+    public int DeferralCount { get; set; } = 0;
+    
+    public DateTime? LastDeferredAt { get; set; }
+    
+    [MaxLength(50)]
+    public string? LastDeferredBy { get; set; }
+    
+    // ============ EXECUTION TRACKING ============
+    
+    public DateTime? StartedAt { get; set; } // When crew pressed "Start"
+    
+    [MaxLength(50)]
+    public string? StartedBy { get; set; } // Crew ID who started
+    
+    /// <summary>
+    /// Running hours at task start (for RH-based tasks)
+    /// </summary>
+    public double? ActualRunningHours { get; set; }
+    
+    /// <summary>
+    /// Estimated duration in minutes (from template)
+    /// </summary>
+    public int? EstimatedDuration { get; set; }
+    
+    /// <summary>
+    /// Actual duration in minutes
+    /// </summary>
+    public int? ActualDuration { get; set; }
+    
+    // ============ REPORT DATA ============
+    
+    /// <summary>
+    /// Whether checklist is fully completed
+    /// </summary>
+    public bool ChecklistCompleted { get; set; } = false;
+    
+    /// <summary>
+    /// Number of photos uploaded
+    /// </summary>
+    public int PhotosUploaded { get; set; } = 0;
+    
+    /// <summary>
+    /// Required number of photos (from template)
+    /// </summary>
+    public int RequiredPhotos { get; set; } = 0;
+    
+    /// <summary>
+    /// JSON array of completion photo URLs (base64 or file paths)
+    /// </summary>
+    [MaxLength(100000)]
+    public string? CompletionPhotos { get; set; }
+    
+    public string? Notes { get; set; }
+    
+    [MaxLength(4000)]
+    public string? SparePartsUsed { get; set; }
+    
+    // ============ SUBMISSION ============
+    
+    public DateTime? SubmittedAt { get; set; } // When crew pressed "Submit"
+    
+    [MaxLength(50)]
+    public string? SubmittedBy { get; set; }
+    
+    // ============ VERIFICATION (C/E/Master) ============
+    
+    public DateTime? VerifiedAt { get; set; }
+    
+    [MaxLength(50)]
+    public string? VerifiedBy { get; set; } // C/E or Master crew ID
+    
+    /// <summary>
+    /// APPROVED or REJECTED
+    /// </summary>
+    [MaxLength(20)]
+    public string? VerificationResult { get; set; }
+    
+    /// <summary>
+    /// Notes from verifier when approving
+    /// </summary>
+    public string? VerificationNotes { get; set; }
+    
+    // ============ RECTIFY (REJECTION) TRACKING ============
+    
+    /// <summary>
+    /// Latest rejection reason
+    /// </summary>
+    public string? RejectionReason { get; set; }
+    
+    /// <summary>
+    /// Number of times this task has been rejected
+    /// </summary>
+    public int RejectionCount { get; set; } = 0;
+    
+    public DateTime? LastRejectedAt { get; set; }
+    
+    [MaxLength(50)]
+    public string? LastRejectedBy { get; set; }
+    
+    /// <summary>
+    /// JSON array of rejection history: [{reason, by, at}]
+    /// </summary>
+    [Column(TypeName = "jsonb")]
+    public string? RejectionHistory { get; set; }
+    
+    // ============ COMPLETION ============
     
     public DateTime? CompletedAt { get; set; }
     
     [MaxLength(100)]
     public string? CompletedBy { get; set; }
     
-    public string? Notes { get; set; }
+    // ============ CANCELLATION ============
     
-    [MaxLength(500)]
-    public string? SparePartsUsed { get; set; }
+    public DateTime? CancelledAt { get; set; }
+    
+    [MaxLength(50)]
+    public string? CancelledBy { get; set; }
+    
+    public string? CancellationReason { get; set; }
+    
+    // ============ CMS (Class Survey) ============
+    
+    /// <summary>
+    /// Is this a Class Maintenance Survey item?
+    /// CMS items have special deferral rules
+    /// </summary>
+    public bool IsCms { get; set; } = false;
+    
+    // ============ LEGACY FIELDS (kept for backward compatibility) ============
+    
+    [MaxLength(50)]
+    public string? ApprovedBy { get; set; } // Legacy - use VerifiedBy instead
+    
+    public DateTime? ApprovedAt { get; set; } // Legacy - use VerifiedAt instead
+    
+    // ============ AUDIT ============
     
     public bool IsSynced { get; set; } = false;
+    
+    public DateTime? SyncedAt { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+    
+    // ============ NAVIGATION PROPERTIES ============
+    
+    public virtual EquipmentGroup? EquipmentGroup { get; set; }
+    public virtual ICollection<TaskChecklistItem> ChecklistItems { get; set; } = new List<TaskChecklistItem>();
+    public virtual ICollection<TaskDeferralRequest> DeferralRequests { get; set; } = new List<TaskDeferralRequest>();
+    public virtual ICollection<TaskStatusHistory> StatusHistory { get; set; } = new List<TaskStatusHistory>();
+}
+
+/// <summary>
+/// Task Deferral Request - Request to postpone a maintenance task
+/// </summary>
+public class TaskDeferralRequest
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// FK -> MaintenanceTask.Id
+    /// </summary>
+    [Required]
+    public Guid TaskId { get; set; }
+    
+    // ============ REQUEST INFO ============
+    
+    [Required]
+    [MaxLength(50)]
+    public string RequestedBy { get; set; } = string.Empty; // Crew ID
+    
+    public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
+    
+    /// <summary>
+    /// Reason for deferral (min 20 chars)
+    /// </summary>
+    [Required]
+    public string Reason { get; set; } = string.Empty;
+    
+    // ============ DATE INFO ============
+    
+    public DateTime CurrentDueDate { get; set; }
+    
+    public DateTime ProposedDueDate { get; set; }
+    
+    /// <summary>
+    /// Number of days to defer
+    /// </summary>
+    public int DeferralDays { get; set; }
+    
+    // ============ APPROVAL INFO ============
+    
+    /// <summary>
+    /// PENDING, APPROVED, REJECTED
+    /// </summary>
+    [Required]
+    [MaxLength(20)]
+    public string Status { get; set; } = "PENDING";
+    
+    [MaxLength(50)]
+    public string? ReviewedBy { get; set; } // Master or C/E
+    
+    public DateTime? ReviewedAt { get; set; }
+    
+    public string? ReviewNotes { get; set; }
+    
+    // ============ METADATA ============
+    
+    /// <summary>
+    /// LOW, NORMAL, HIGH
+    /// </summary>
+    [MaxLength(20)]
+    public string Priority { get; set; } = "NORMAL";
+    
+    /// <summary>
+    /// JSON array of attachment URLs
+    /// </summary>
+    [Column(TypeName = "jsonb")]
+    public string? Attachments { get; set; }
+    
+    // ============ CMS SPECIFIC ============
+    
+    /// <summary>
+    /// Is this for a CMS item?
+    /// </summary>
+    public bool IsCmsItem { get; set; } = false;
+    
+    /// <summary>
+    /// Class Permission Letter URL (required if CMS && deferralDays > 90)
+    /// </summary>
+    [MaxLength(255)]
+    public string? ClassPermissionLetter { get; set; }
+    
+    // ============ OVERDUE SPECIFIC ============
+    
+    /// <summary>
+    /// Flag if this deferral is for an OVERDUE task (requires stricter validation)
+    /// </summary>
+    public bool IsOverdueDeferral { get; set; } = false;
+    
+    /// <summary>
+    /// Root cause analysis (REQUIRED for OVERDUE deferrals)
+    /// </summary>
+    public string? RootCause { get; set; }
+    
+    /// <summary>
+    /// Preventive measures (REQUIRED for OVERDUE deferrals)
+    /// </summary>
+    public string? PreventiveMeasures { get; set; }
+    
+    /// <summary>
+    /// Task status at the time of deferral request (for audit)
+    /// </summary>
+    [MaxLength(20)]
+    public string? TaskStatusAtRequest { get; set; }
+    
+    // ============ AUDIT ============
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+    
+    public bool IsSynced { get; set; } = false;
+    
+    // Navigation
+    public virtual MaintenanceTask Task { get; set; } = null!;
+}
+
+/// <summary>
+/// Task Status History - Audit trail for all status changes
+/// </summary>
+public class TaskStatusHistory
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    public Guid TaskId { get; set; }
+    
+    [MaxLength(20)]
+    public string? FromStatus { get; set; }
+    
+    [Required]
+    [MaxLength(20)]
+    public string ToStatus { get; set; } = string.Empty;
+    
+    [Required]
+    [MaxLength(50)]
+    public string ChangedBy { get; set; } = string.Empty;
+    
+    public DateTime ChangedAt { get; set; } = DateTime.UtcNow;
+    
+    public string? Reason { get; set; }
+    
+    public string? Notes { get; set; }
+    
+    /// <summary>
+    /// WEB or MOBILE
+    /// </summary>
+    [MaxLength(20)]
+    public string? DeviceType { get; set; }
+    
+    [MaxLength(45)]
+    public string? IpAddress { get; set; }
+    
+    public string? UserAgent { get; set; }
+    
+    // Navigation
+    public virtual MaintenanceTask Task { get; set; } = null!;
+}
+
+/// <summary>
+/// Task Checklist Items - Per-asset tracking within group-based maintenance tasks
+/// Allows tracking completion, readings, and abnormalities for each asset in a group
+/// </summary>
+public class TaskChecklistItem
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// FK -> MaintenanceTask.TaskId
+    /// </summary>
+    [Required]
+    [MaxLength(100)]
+    public string TaskId { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// FK -> EquipmentAsset.Id
+    /// </summary>
+    [Required]
+    public Guid AssetId { get; set; }
+    
+    /// <summary>
+    /// Asset code for quick reference (denormalized)
+    /// </summary>
+    [Required]
+    [MaxLength(50)]
+    public string AssetCode { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Asset name for display (denormalized)
+    /// </summary>
+    [Required]
+    [MaxLength(200)]
+    public string AssetName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Order in checklist (from EquipmentGroupMember.SequenceOrder or Template.SequenceOrder)
+    /// </summary>
+    public int SequenceOrder { get; set; } = 0;
+    
+    /// <summary>
+    /// Checkpoint description (cloned from ScheduleChecklistTemplate)
+    /// Example: "Check oil level", "Inspect filter condition"
+    /// </summary>
+    [MaxLength(500)]
+    public string? CheckpointDescription { get; set; }
+    
+    /// <summary>
+    /// Does this checkpoint require a reading value? (from template)
+    /// </summary>
+    public bool RequiresReading { get; set; } = false;
+    
+    /// <summary>
+    /// Minimum value for normal range (from template)
+    /// Example: Oil level min = 80%
+    /// </summary>
+    public double? NormalRangeMin { get; set; }
+    
+    /// <summary>
+    /// Maximum value for normal range (from template)
+    /// Example: Oil level max = 100%
+    /// </summary>
+    public double? NormalRangeMax { get; set; }
+    
+    /// <summary>
+    /// Unit of measurement (from template)
+    /// Example: "°C", "bar", "%", "rpm"
+    /// </summary>
+    [MaxLength(20)]
+    public string? Unit { get; set; }
+    
+    /// <summary>
+    /// Whether this asset's maintenance is completed
+    /// </summary>
+    public bool IsCompleted { get; set; } = false;
+    
+    /// <summary>
+    /// When this item was completed
+    /// </summary>
+    public DateTime? CompletedAt { get; set; }
+    
+    /// <summary>
+    /// Crew ID who completed this item
+    /// </summary>
+    [MaxLength(50)]
+    public string? CompletedBy { get; set; }
+    
+    /// <summary>
+    /// Reading value (e.g., pressure, temperature, voltage)
+    /// Example: Fire extinguisher pressure = 12 bar
+    /// </summary>
+    public double? ReadingValue { get; set; }
+    
+    /// <summary>
+    /// Specific remarks for this asset
+    /// Example: "Cylinder #5 has dent, recommend replacement"
+    /// </summary>
+    public string? Remarks { get; set; }
+    
+    /// <summary>
+    /// Flag for abnormal condition requiring attention
+    /// Example: Fire extinguisher pressure below minimum
+    /// </summary>
+    public bool IsAbnormal { get; set; } = false;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation properties
+    [System.Text.Json.Serialization.JsonIgnore]
+    public virtual MaintenanceTask Task { get; set; } = null!;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public virtual EquipmentAsset Asset { get; set; } = null!;
 }
 
 /// <summary>
@@ -982,7 +1452,7 @@ public class CargoOperation
 }
 
 /// <summary>
-/// Watchkeeping Logs (SOLAS Chapter V/28 - Bridge Watchkeeping)
+/// Watchkeeping Logs (SOLAS Chapter V/28, STCW Convention, MLC 2006)
 /// </summary>
 public class WatchkeepingLog
 {
@@ -1004,15 +1474,31 @@ public class WatchkeepingLog
     public string OfficerOnWatch { get; set; } = string.Empty;
     
     [MaxLength(100)]
+    public string? ReliefOfficer { get; set; } // Officer taking over watch
+    
+    [MaxLength(100)]
     public string? Lookout { get; set; }
     
+    // STCW Rest Hours Compliance (Mandatory)
+    public double WorkHours { get; set; } = 4.0; // Hours worked this watch (default 4h watch)
+    
+    public double RestHoursLast24h { get; set; } // Minimum 10 hours in any 24-hour period
+    
+    public double RestHoursLast7Days { get; set; } // Minimum 77 hours in any 7-day period
+    
+    public bool RestHoursCompliant { get; set; } = true; // Auto-calculated compliance
+    
+    [MaxLength(500)]
+    public string? RestHoursException { get; set; } // If non-compliant, reason must be recorded
+    
+    // Weather & Navigation Conditions
     public string? WeatherConditions { get; set; }
     
     [MaxLength(50)]
-    public string? SeaState { get; set; } // Calm, Moderate, Rough, Very Rough
+    public string? SeaState { get; set; } // 0-9 Douglas Sea Scale (Calm, Smooth, Slight, Moderate, Rough, Very Rough, High, Very High, Phenomenal)
     
     [MaxLength(50)]
-    public string? Visibility { get; set; } // Good, Moderate, Poor, Fog
+    public string? Visibility { get; set; } // Good (>5nm), Moderate (2-5nm), Poor (0.5-2nm), Fog (<0.5nm)
     
     public double? CourseLogged { get; set; } // Degrees true
     
@@ -1024,13 +1510,56 @@ public class WatchkeepingLog
     
     public double? DistanceRun { get; set; } // Nautical miles during watch
     
+    // Bridge Equipment Status
     [MaxLength(200)]
     public string? EngineStatus { get; set; }
     
+    public bool RadarOperational { get; set; } = true;
+    
+    public bool ECDISOperational { get; set; } = true;
+    
+    public bool AISOperational { get; set; } = true;
+    
+    public bool GyroOperational { get; set; } = true;
+    
+    public bool AutopilotEngaged { get; set; } = false;
+    
+    [MaxLength(500)]
+    public string? EquipmentDefects { get; set; } // Any navigation equipment failures
+    
+    // GMDSS Watch (SOLAS Chapter IV)
+    public bool GMDSSWatchMaintained { get; set; } = true;
+    
+    [MaxLength(200)]
+    public string? NavigationWarningsReceived { get; set; } // NAVTEX, SafetyNET messages
+    
+    // Watch Events & Handover
     public string? NotableEvents { get; set; } // Ships sighted, course alterations, weather changes
+    
+    [MaxLength(1000)]
+    public string? HandoverNotes { get; set; } // Notes for relieving officer (mandatory at watch change)
+    
+    public bool HandoverChecklistCompleted { get; set; } = false;
+    
+    public DateTime? WatchStartTime { get; set; }
+    
+    public DateTime? WatchEndTime { get; set; }
+    
+    // Bridge Manning (STCW)
+    public int BridgeManningLevel { get; set; } = 2; // Number of persons on bridge
+    
+    public bool LookoutPosted { get; set; } = true; // Mandatory during hours of darkness/restricted visibility
+    
+    // Fatigue Management (MLC 2006)
+    [MaxLength(20)]
+    public string? FatigueRiskLevel { get; set; } // LOW, MEDIUM, HIGH
+    
+    public bool FatigueAssessmentDone { get; set; } = false;
     
     [MaxLength(200)]
     public string? MasterSignature { get; set; }
+    
+    public DateTime? SignedAt { get; set; }
     
     public bool IsSynced { get; set; } = false;
     
@@ -1039,6 +1568,12 @@ public class WatchkeepingLog
     
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+
+    // Soft Delete Support
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; }
 }
 
 /// <summary>
@@ -1089,6 +1624,490 @@ public class OilRecordBook
     
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+
+    // Soft Delete Support
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; }
+}
+
+/// <summary>
+/// Deck Log Book / Official Log Book (SOLAS Chapter V, Regulation 28)
+/// Records all significant events occurring on board
+/// </summary>
+public class DeckLogBook
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    public DateTime LogDateTime { get; set; }
+    
+    /// <summary>
+    /// Watch period: 00-04, 04-08, 08-12, 12-16, 16-20, 20-24
+    /// </summary>
+    [Required]
+    [MaxLength(10)]
+    public string WatchPeriod { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Officer Of the Watch (OOW)
+    /// </summary>
+    [Required]
+    [MaxLength(100)]
+    public string OfficerOnWatch { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Entry type: ROUTINE, NAVIGATION, WEATHER, SAFETY, DRILL, INCIDENT, PORT_OPS, CREW_CHANGE
+    /// </summary>
+    [Required]
+    [MaxLength(30)]
+    public string EntryType { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Detailed description of the event/observation
+    /// </summary>
+    [Required]
+    public string Description { get; set; } = string.Empty;
+    
+    // Position at time of entry
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    
+    // Navigation details
+    public double? CourseOverGround { get; set; }
+    public double? SpeedOverGround { get; set; }
+    public double? Heading { get; set; }
+    
+    // Weather conditions
+    [MaxLength(20)]
+    public string? WindDirection { get; set; }
+    
+    public double? WindSpeed { get; set; } // Knots
+    
+    [MaxLength(20)]
+    public string? SeaState { get; set; } // Calm, Moderate, Rough, Very Rough
+    
+    [MaxLength(30)]
+    public string? Visibility { get; set; } // Good, Moderate, Poor, Fog
+    
+    public double? BarometricPressure { get; set; }
+    public double? AirTemperature { get; set; }
+    public double? SeaTemperature { get; set; }
+    
+    // Safety drills
+    [MaxLength(50)]
+    public string? DrillType { get; set; } // Fire, Abandon Ship, Man Overboard, etc.
+    
+    public bool? DrillSuccessful { get; set; }
+    
+    // Crew information
+    public int? CrewOnBoard { get; set; }
+    
+    [MaxLength(200)]
+    public string? CrewChanges { get; set; } // Sign on/off details
+    
+    // Port operations
+    [MaxLength(100)]
+    public string? PortName { get; set; }
+    
+    public DateTime? PortArrivalTime { get; set; }
+    public DateTime? PortDepartureTime { get; set; }
+    
+    [MaxLength(100)]
+    public string? PilotName { get; set; }
+    
+    public DateTime? PilotOnBoard { get; set; }
+    public DateTime? PilotOffBoard { get; set; }
+    
+    // Master's signature for important entries
+    [MaxLength(100)]
+    public string? MasterSignature { get; set; }
+    
+    public DateTime? SignedAt { get; set; }
+    
+    // Remarks
+    public string? Remarks { get; set; }
+    
+    // Sync metadata
+    public bool IsSynced { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    // Soft Delete Support
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; }
+}
+
+/// <summary>
+/// Engine Log Book (ISM Code requirement)
+/// Records engine room operations, fuel consumption, and maintenance
+/// </summary>
+public class EngineLogBook
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    public DateTime LogDateTime { get; set; }
+    
+    /// <summary>
+    /// Watch period: 00-04, 04-08, 08-12, 12-16, 16-20, 20-24
+    /// </summary>
+    [Required]
+    [MaxLength(10)]
+    public string WatchPeriod { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Engineer on watch
+    /// </summary>
+    [Required]
+    [MaxLength(100)]
+    public string EngineerOnWatch { get; set; } = string.Empty;
+    
+    // Main Engine parameters
+    [MaxLength(50)]
+    public string? MainEngineStatus { get; set; } // Running, Stopped, Standby
+    
+    public double? MainEngineRPM { get; set; }
+    public double? MainEngineLoad { get; set; } // Percentage
+    public double? MainEngineCoolantTemp { get; set; }
+    public double? MainEngineExhaustTemp { get; set; }
+    public double? MainEngineLubeOilPressure { get; set; }
+    public double? MainEngineLubeOilTemp { get; set; }
+    public double? MainEngineRunningHours { get; set; }
+    
+    // Fuel consumption
+    public double? FuelOilConsumedME { get; set; } // Main Engine (MT or liters)
+    public double? FuelOilConsumedAE { get; set; } // Auxiliary Engines
+    public double? FuelOilConsumedBoiler { get; set; }
+    public double? LubeOilConsumed { get; set; }
+    public double? FreshWaterConsumed { get; set; }
+    
+    [MaxLength(10)]
+    public string? FuelUnit { get; set; } = "MT"; // MT or liters
+    
+    // Auxiliary Engines (up to 3 generators)
+    public bool? AuxEngine1Running { get; set; }
+    public double? AuxEngine1RunningHours { get; set; }
+    public double? AuxEngine1Load { get; set; }
+    
+    public bool? AuxEngine2Running { get; set; }
+    public double? AuxEngine2RunningHours { get; set; }
+    public double? AuxEngine2Load { get; set; }
+    
+    public bool? AuxEngine3Running { get; set; }
+    public double? AuxEngine3RunningHours { get; set; }
+    public double? AuxEngine3Load { get; set; }
+    
+    // Boiler
+    public bool? BoilerInOperation { get; set; }
+    public double? BoilerPressure { get; set; }
+    public double? BoilerWaterLevel { get; set; }
+    
+    // Fuel Oil Tanks
+    public double? FuelOilROB { get; set; } // Remaining On Board (MT)
+    public double? LubOilROB { get; set; }
+    public double? FreshWaterROB { get; set; }
+    public double? SludgeROB { get; set; }
+    public double? BilgeWaterROB { get; set; }
+    
+    [MaxLength(200)]
+    public string? FuelOilTransfers { get; set; } // Tank to tank transfers
+    
+    // Alarms and abnormalities
+    public bool HasAlarms { get; set; } = false;
+    
+    [MaxLength(500)]
+    public string? AlarmsDescription { get; set; }
+    
+    // Maintenance activities during watch
+    [MaxLength(500)]
+    public string? MaintenanceActivities { get; set; }
+    
+    // Chief Engineer's remarks
+    public string? ChiefEngineerRemarks { get; set; }
+    
+    [MaxLength(100)]
+    public string? ChiefEngineerSignature { get; set; }
+    
+    public DateTime? SignedAt { get; set; }
+    
+    // General remarks
+    public string? Remarks { get; set; }
+    
+    // Sync metadata
+    public bool IsSynced { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    // Soft Delete Support
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; }
+}
+
+/// <summary>
+/// Garbage Record Book (MARPOL Annex V)
+/// Mandatory for ships ≥400 GT and all ships certified to carry ≥15 persons
+/// </summary>
+public class GarbageRecordBook
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    public DateTime OperationDateTime { get; set; }
+    
+    /// <summary>
+    /// Operation type (operation_type in DB):
+    /// 1 - Discharge into the sea
+    /// 2 - Discharge to reception facilities
+    /// 3 - Incineration
+    /// 4 - Accidental or other exceptional discharge
+    /// </summary>
+    [Required]
+    [MaxLength(20)]
+    public string OperationCode { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Garbage category (Annex V):
+    /// A - Plastics, B - Food wastes, C - Domestic wastes, D - Cooking oil, E - Incinerator ashes
+    /// F - Operational wastes, G - Cargo residues (non-HME), H - Cargo residues (HME)
+    /// I - Animal carcasses, J - Fishing gear, K - E-waste
+    /// </summary>
+    [Required]
+    [MaxLength(5)]
+    public string GarbageCategory { get; set; } = string.Empty;
+    
+    [Required]
+    public string Description { get; set; } = string.Empty;
+    
+    public double Quantity { get; set; }
+    
+    [MaxLength(10)]
+    public string QuantityUnit { get; set; } = "m³";
+    
+    // Discharge to sea fields
+    public bool DischargeToSea { get; set; } = false;
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public double? DistanceFromNearestLand { get; set; }
+    
+    // Discharge to reception facility fields
+    public bool DischargeToReceptionFacility { get; set; } = false;
+    
+    [MaxLength(100)]
+    public string? PortName { get; set; }
+    
+    [MaxLength(200)]
+    public string? ReceptionFacility { get; set; }
+    
+    [MaxLength(100)]
+    public string? ReceiptNumber { get; set; }
+    
+    public DateTime? ReceiptDate { get; set; }
+    
+    // Incineration fields
+    public bool Incineration { get; set; } = false;
+    
+    [MaxLength(50)]
+    public string? IncineratorType { get; set; }
+    
+    // Note: IncinerationStartTime, IncinerationEndTime, IncineratorDetails removed - not in DB schema
+    public DateTime? IncinerationStartTime { get; set; }
+    public DateTime? IncinerationEndTime { get; set; }
+    
+    [MaxLength(200)]
+    public string? IncineratorDetails { get; set; }
+    
+    // Other processing
+    public bool ComminutedOrGround { get; set; } = false;
+    public bool RetainedOnBoard { get; set; } = false;
+    
+    [MaxLength(100)]
+    public string? StorageLocation { get; set; }
+    
+    // Cargo residues
+    [MaxLength(50)]
+    public string? CargoResiduesCategory { get; set; }
+    
+    [MaxLength(20)]
+    public string? CargoUnNumber { get; set; }
+    
+    public string? DischargeMethod { get; set; }
+    
+    public string? ExceptionalDischargeCircumstances { get; set; }
+    
+    // For accidental discharge
+    [MaxLength(500)]
+    public string? AccidentalDischargeReason { get; set; }
+    
+    [MaxLength(500)]
+    public string? AccidentalDischargeMeasures { get; set; }
+    
+    // Officer in charge
+    [Required]
+    [MaxLength(100)]
+    public string OfficerInCharge { get; set; } = string.Empty;
+    
+    // Master's signature
+    [MaxLength(100)]
+    public string? MasterSignature { get; set; }
+    
+    public DateTime? SignedAt { get; set; }
+    
+    // Remarks
+    public string? Remarks { get; set; }
+    
+    // Sync metadata
+    public bool IsSynced { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    // Soft Delete Support
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; }
+}
+
+/// <summary>
+/// Ballast Water Record Book (BWM Convention)
+/// Mandatory for all ships ≥400 GT
+/// </summary>
+public class BallastWaterRecordBook
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    public DateTime OperationDateTime { get; set; }
+    
+    /// <summary>
+    /// Operation code (BWM Convention):
+    /// 1 - Ballast water uptake
+    /// 2 - Ballast water circulation/exchange at sea
+    /// 3 - Ballast water exchange - sequential method
+    /// 4 - Ballast water exchange - flow-through method
+    /// 5 - Ballast water discharge at sea
+    /// 6 - Ballast water discharge to reception facility
+    /// 7 - Accidental/exceptional uptake or discharge
+    /// 8 - Ballast water management (treatment)
+    /// 9 - Discharge of sediment
+    /// </summary>
+    [Required]
+    [MaxLength(5)]
+    public string OperationCode { get; set; } = string.Empty;
+    
+    [Required]
+    public string OperationDescription { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Ship's ballast tank identifier
+    /// </summary>
+    [Required]
+    [MaxLength(100)]
+    public string BallastTank { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Volume of ballast water (m³)
+    /// </summary>
+    public double Volume { get; set; }
+    
+    // Location at start of operation
+    [Required]
+    public double StartLatitude { get; set; }
+    
+    [Required]
+    public double StartLongitude { get; set; }
+    
+    public DateTime StartDateTime { get; set; }
+    
+    // Location at end of operation
+    public double? EndLatitude { get; set; }
+    public double? EndLongitude { get; set; }
+    public DateTime? EndDateTime { get; set; }
+    
+    // Water depth and distance from nearest land
+    public double? WaterDepth { get; set; } // Meters
+    public double? DistanceFromLand { get; set; } // Nautical miles
+    
+    // For exchange operations
+    public double? ExchangeVolumePercentage { get; set; } // % of tank volume exchanged
+    
+    [MaxLength(30)]
+    public string? ExchangeMethod { get; set; } // Sequential, Flow-through
+    
+    // For treatment system operations
+    public bool? TreatmentSystemUsed { get; set; }
+    
+    [MaxLength(200)]
+    public string? TreatmentSystemType { get; set; } // UV, Electrolysis, Filtration, etc.
+    
+    public bool? TreatmentSuccessful { get; set; }
+    
+    [MaxLength(500)]
+    public string? TreatmentDetails { get; set; }
+    
+    // For accidental/exceptional operations
+    [MaxLength(500)]
+    public string? ExceptionalCircumstances { get; set; }
+    
+    // Salinity measurements (for exchange verification)
+    public double? SalinityBeforeExchange { get; set; } // PPT (parts per thousand)
+    public double? SalinityAfterExchange { get; set; }
+    
+    // Port facility details (if applicable)
+    [MaxLength(100)]
+    public string? PortName { get; set; }
+    
+    [MaxLength(200)]
+    public string? ReceptionFacility { get; set; }
+    
+    [MaxLength(100)]
+    public string? ReceiptNumber { get; set; }
+    
+    // Officer in charge
+    [Required]
+    [MaxLength(100)]
+    public string OfficerInCharge { get; set; } = string.Empty;
+    
+    // Master's signature
+    [MaxLength(100)]
+    public string? MasterSignature { get; set; }
+    
+    public DateTime? SignedAt { get; set; }
+    
+    // Remarks
+    public string? Remarks { get; set; }
+    
+    // Sync metadata
+    public bool IsSynced { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    // Soft Delete Support
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; }
 }
 
 /// <summary>
@@ -2316,6 +3335,685 @@ public class MonthlySummaryReport
     public DateTime? TransmittedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
+}
+
+// ============================================================
+// MAINTENANCE PLANNING SYSTEM (PMS - Planned Maintenance System)
+// ============================================================
+
+/// <summary>
+/// Equipment Assets - Thiết bị trên tàu cần bảo dưỡng
+/// Master catalog of all equipment/machinery on vessel
+/// </summary>
+public class EquipmentAsset
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// Unique asset code (e.g., ME-01, AE-02, PUMP-01)
+    /// </summary>
+    [Required]
+    [MaxLength(50)]
+    public string AssetCode { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Asset name (e.g., "Main Engine", "Auxiliary Engine #1")
+    /// </summary>
+    [Required]
+    [MaxLength(200)]
+    public string AssetName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Category: ENGINE, GENERATOR, PUMP, COMPRESSOR, SEPARATOR, BOILER, DECK_MACHINERY, NAVIGATION, SAFETY, ELECTRICAL, HVAC
+    /// </summary>
+    [Required]
+    [MaxLength(50)]
+    public string Category { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Manufacturer
+    /// </summary>
+    [MaxLength(200)]
+    public string? Manufacturer { get; set; }
+    
+    /// <summary>
+    /// Model number
+    /// </summary>
+    [MaxLength(100)]
+    public string? Model { get; set; }
+    
+    /// <summary>
+    /// Serial number
+    /// </summary>
+    [MaxLength(100)]
+    public string? SerialNumber { get; set; }
+    
+    /// <summary>
+    /// Installation date
+    /// </summary>
+    public DateTime? InstallationDate { get; set; }
+    
+    /// <summary>
+    /// Current running hours (auto-updated from telemetry)
+    /// </summary>
+    public double? CurrentRunningHours { get; set; }
+    
+    /// <summary>
+    /// Last running hours update timestamp
+    /// </summary>
+    public DateTime? LastRunningHoursUpdate { get; set; }
+    
+    /// <summary>
+    /// Equipment group ID (for group task assignments)
+    /// </summary>
+    public Guid? EquipmentGroupId { get; set; }
+    
+    /// <summary>
+    /// Location on vessel (e.g., "Engine Room", "Deck", "Bridge")
+    /// </summary>
+    [MaxLength(100)]
+    public string? Location { get; set; }
+    
+    /// <summary>
+    /// Equipment criticality: CRITICAL, HIGH, NORMAL, LOW
+    /// </summary>
+    [MaxLength(20)]
+    public string Criticality { get; set; } = "NORMAL";
+    
+    /// <summary>
+    /// Equipment status: ACTIVE (in operation), STANDBY (spare/backup), UNDER_MAINTENANCE (being serviced), DECOMMISSIONED (retired), IN_STORAGE (stored)
+    /// </summary>
+    [MaxLength(50)]
+    public string Status { get; set; } = "ACTIVE";
+    
+    /// <summary>
+    /// Default executor role for tasks on this asset (optional)
+    /// Examples: "2/E" (Second Engineer), "3/E" (Third Engineer), "E/O" (Electrical Officer), "Bosun"
+    /// Used for auto-assignment when schedule doesn't specify AssignedToCrewId or AssignedToRole
+    /// </summary>
+    [MaxLength(50)]
+    public string? DefaultExecutorRole { get; set; }
+    
+    /// <summary>
+    /// Default approver role for tasks on this asset (optional)
+    /// Examples: "C/E" (Chief Engineer), "C/O" (Chief Officer)
+    /// </summary>
+    [MaxLength(50)]
+    public string? ApproverRole { get; set; }
+    
+    /// <summary>
+    /// Technical specifications (JSON)
+    /// </summary>
+    public string? TechnicalSpecs { get; set; }
+    
+    /// <summary>
+    /// Additional notes
+    /// </summary>
+    public string? Notes { get; set; }
+    
+    public bool IsActive { get; set; } = true;
+    
+    public bool IsSynced { get; set; } = false;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+}
+
+/// <summary>
+/// Maintenance Schedules - Kế hoạch bảo dưỡng định kỳ
+/// Defines when and how equipment should be maintained
+/// System will auto-generate MaintenanceTasks from these schedules
+/// </summary>
+public class MaintenanceSchedule
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// Unique schedule code (e.g., ME-OIL-CHANGE, AE-FILTER-REPLACE)
+    /// </summary>
+    [Required]
+    [MaxLength(50)]
+    public string ScheduleCode { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// FK -> EquipmentGroup.Id (can be single asset group or multi-asset group)
+    /// When auto-generating tasks, will create 1 task per asset in this group
+    /// </summary>
+    [Required]
+    public Guid EquipmentGroupId { get; set; }
+    
+    /// <summary>
+    /// FK -> TaskType.Id
+    /// </summary>
+    [Required]
+    public int TaskTypeId { get; set; }
+    
+    /// <summary>
+    /// Schedule name (e.g., "Main Engine Oil Change")
+    /// </summary>
+    [Required]
+    [MaxLength(200)]
+    public string ScheduleName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Interval type: RUNNING_HOURS, CALENDAR, HYBRID
+    /// </summary>
+    [Required]
+    [MaxLength(20)]
+    public string IntervalType { get; set; } = "CALENDAR";
+    
+    /// <summary>
+    /// Running hours interval (e.g., 500 hours)
+    /// </summary>
+    public int? IntervalHours { get; set; }
+    
+    /// <summary>
+    /// Calendar interval in days (e.g., 30 days)
+    /// </summary>
+    public int? IntervalDays { get; set; }
+    
+    /// <summary>
+    /// Auto-generate task X days before due (default: 7)
+    /// </summary>
+    public int DaysBeforeDue { get; set; } = 7;
+    
+    /// <summary>
+    /// Last execution date
+    /// </summary>
+    public DateTime? LastExecutedAt { get; set; }
+    
+    /// <summary>
+    /// Running hours at last execution
+    /// </summary>
+    public double? LastExecutedRunningHours { get; set; }
+    
+    /// <summary>
+    /// Next due date
+    /// </summary>
+    public DateTime? NextDueDate { get; set; }
+    
+    /// <summary>
+    /// Running hours at next due
+    /// </summary>
+    public double? NextDueRunningHours { get; set; }
+    
+    /// <summary>
+    /// Priority: CRITICAL, HIGH, NORMAL, LOW
+    /// </summary>
+    [MaxLength(20)]
+    public string Priority { get; set; } = "NORMAL";
+    
+    /// <summary>
+    /// Estimated duration in hours
+    /// </summary>
+    public double? EstimatedDurationHours { get; set; }
+    
+    /// <summary>
+    /// Enable auto-task generation?
+    /// </summary>
+    public bool AutoGenerate { get; set; } = true;
+    
+    /// <summary>
+    /// Assigned crew ID (optional override for auto-generated tasks)
+    /// If set, auto-generated tasks will use this crew ID
+    /// </summary>
+    [MaxLength(50)]
+    public string? AssignedToCrewId { get; set; }
+    
+    /// <summary>
+    /// Assigned role (optional, used when AssignedToCrewId is null)
+    /// Examples: "2/E", "3/E", "E/O", "Bosun"
+    /// </summary>
+    [MaxLength(50)]
+    public string? AssignedToRole { get; set; }
+    
+    /// <summary>
+    /// Additional instructions
+    /// </summary>
+    public string? Instructions { get; set; }
+    
+    public bool IsActive { get; set; } = true;
+    
+    public bool IsSynced { get; set; } = false;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+}
+
+/// <summary>
+/// Schedule Spare Parts - Vật tư cần thiết cho từng lịch bảo dưỡng
+/// Links maintenance schedules to required spare parts
+/// Used for auto-deduction when task is completed
+/// </summary>
+public class ScheduleSparePart
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// FK -> MaintenanceSchedule.Id
+    /// </summary>
+    [Required]
+    public Guid ScheduleId { get; set; }
+    
+    /// <summary>
+    /// FK -> MaterialItem.Id
+    /// </summary>
+    [Required]
+    public Guid MaterialItemId { get; set; }
+    
+    /// <summary>
+    /// Quantity required per execution
+    /// </summary>
+    [Required]
+    [Range(0.001, 999999)]
+    public double QuantityRequired { get; set; }
+    
+    /// <summary>
+    /// Is this spare part mandatory or optional?
+    /// </summary>
+    public bool IsMandatory { get; set; } = true;
+    
+    /// <summary>
+    /// Notes about this spare part requirement
+    /// </summary>
+    [MaxLength(500)]
+    public string? Notes { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Schedule Checklist Templates - Mẫu checklist cho schedule
+/// Defines checkpoint structure that will be replicated for each asset in task
+/// </summary>
+public class ScheduleChecklistTemplate
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// FK -> MaintenanceSchedule.Id
+    /// </summary>
+    [Required]
+    public Guid ScheduleId { get; set; }
+    
+    /// <summary>
+    /// Display order (1, 2, 3...)
+    /// </summary>
+    [Required]
+    public int SequenceOrder { get; set; }
+    
+    /// <summary>
+    /// Checkpoint description (e.g., "Check oil level", "Measure temperature")
+    /// </summary>
+    [Required]
+    [MaxLength(500)]
+    public string CheckpointDescription { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Does this checkpoint require a reading value?
+    /// </summary>
+    public bool RequiresReading { get; set; } = false;
+    
+    /// <summary>
+    /// Minimum value for normal range (if applicable)
+    /// </summary>
+    public double? NormalRangeMin { get; set; }
+    
+    /// <summary>
+    /// Maximum value for normal range (if applicable)
+    /// </summary>
+    public double? NormalRangeMax { get; set; }
+    
+    /// <summary>
+    /// Unit of measurement (e.g., "°C", "bar", "rpm")
+    /// </summary>
+    [MaxLength(20)]
+    public string? Unit { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation property
+    [System.Text.Json.Serialization.JsonIgnore]
+    public virtual MaintenanceSchedule? Schedule { get; set; }
+}
+
+/// <summary>
+/// Maintenance History - Lịch sử thực hiện bảo dưỡng
+/// Audit trail of all maintenance executions with spare parts used
+/// </summary>
+public class MaintenanceHistory
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// FK -> MaintenanceSchedule.Id
+    /// </summary>
+    [Required]
+    public Guid ScheduleId { get; set; }
+    
+    /// <summary>
+    /// FK -> MaintenanceTask.Id
+    /// </summary>
+    [Required]
+    public Guid TaskId { get; set; }
+    
+    /// <summary>
+    /// Execution date
+    /// </summary>
+    [Required]
+    public DateTime ExecutedAt { get; set; }
+    
+    /// <summary>
+    /// Running hours at execution
+    /// </summary>
+    public double? ExecutedRunningHours { get; set; }
+    
+    /// <summary>
+    /// Who completed the task
+    /// </summary>
+    [MaxLength(100)]
+    public string? CompletedBy { get; set; }
+    
+    /// <summary>
+    /// Actual duration in hours
+    /// </summary>
+    public double? ActualDurationHours { get; set; }
+    
+    /// <summary>
+    /// Spare parts used (JSON array)
+    /// Format: [{ "materialItemId": "...", "materialCode": "...", "materialName": "...", "quantity": 2 }]
+    /// </summary>
+    public string? SparePartsUsed { get; set; }
+    
+    /// <summary>
+    /// Total spare parts cost
+    /// </summary>
+    public decimal? TotalSparePartsCost { get; set; }
+    
+    /// <summary>
+    /// Execution notes
+    /// </summary>
+    public string? Notes { get; set; }
+    
+    /// <summary>
+    /// Equipment condition after maintenance: EXCELLENT, GOOD, FAIR, POOR
+    /// </summary>
+    [MaxLength(20)]
+    public string? ConditionAfter { get; set; }
+    
+    public bool IsSynced { get; set; } = false;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+}
+
+/// <summary>
+/// Equipment Groups - Nhóm thiết bị
+/// For group task assignments (e.g., "All Fire Extinguishers", "All Safety Equipment")
+/// </summary>
+public class EquipmentGroup
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// Unique group code (e.g., FIRE-EXT, LIFE-BOAT, PUMP-ALL)
+    /// </summary>
+    [Required]
+    [MaxLength(50)]
+    public string GroupCode { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Group name (e.g., "All Fire Extinguishers", "All Life Boats")
+    /// </summary>
+    [Required]
+    [MaxLength(200)]
+    public string GroupName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Category (same as EquipmentAsset.Category)
+    /// </summary>
+    [MaxLength(50)]
+    public string? Category { get; set; }
+    
+    /// <summary>
+    /// Department responsible for this group: ENGINE, DECK, NAVIGATION, MANAGEMENT
+    /// Used for department-based task filtering and assignment
+    /// </summary>
+    [MaxLength(50)]
+    public string? Department { get; set; }
+    
+    /// <summary>
+    /// Person In Charge role for this equipment group
+    /// Examples: "2/E" (Main Engine group), "3/E" (Generators), "C/O" (Deck), "E/O" (Electrical)
+    /// </summary>
+    [MaxLength(50)]
+    public string? PicRole { get; set; }
+    
+    /// <summary>
+    /// Specific crew ID override for PIC (optional)
+    /// If set, this specific crew member is PIC regardless of role
+    /// </summary>
+    [MaxLength(50)]
+    public string? PicCrewId { get; set; }
+    
+    /// <summary>
+    /// Description
+    /// </summary>
+    public string? Description { get; set; }
+    
+    public bool IsActive { get; set; } = true;
+    
+    public bool IsSynced { get; set; } = false;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+}
+
+/// <summary>
+/// Equipment Group Members - Thành viên của nhóm thiết bị
+/// Many-to-many relationship between EquipmentGroup and EquipmentAsset
+/// </summary>
+public class EquipmentGroupMember
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// FK -> EquipmentGroup.Id
+    /// </summary>
+    [Required]
+    public Guid GroupId { get; set; }
+    
+    /// <summary>
+    /// FK -> EquipmentAsset.Id
+    /// </summary>
+    [Required]
+    public Guid AssetId { get; set; }
+    
+    /// <summary>
+    /// Sequence order in group (for checklist display)
+    /// </summary>
+    public int SequenceOrder { get; set; } = 0;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation properties
+    public virtual EquipmentAsset Asset { get; set; } = null!;
+    public virtual EquipmentGroup Group { get; set; } = null!;
+}
+
+/// <summary>
+/// Voyage Log Entry - Nhật ký Hành trình (SOLAS Chapter V, Reg 28)
+/// Ghi nhận các sự kiện hành trình: xuất/nhập cảng, vị trí, hoa tiêu, etc.
+/// </summary>
+public class VoyageLogEntry
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>
+    /// Link to VoyageRecord (optional - for grouping entries by voyage)
+    /// </summary>
+    public Guid? VoyageId { get; set; }
+    
+    // === Event Info ===
+    
+    /// <summary>
+    /// Event Type: DEP, ARR, NOON, COSP, EOSP, PILOT_ON, PILOT_OFF, ANCHOR_DROP, ANCHOR_UP, DRIFT, DEVIATION
+    /// </summary>
+    [Required]
+    [MaxLength(20)]
+    public string EventType { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Event DateTime in UTC
+    /// </summary>
+    [Required]
+    public DateTime EventDateTime { get; set; } = DateTime.UtcNow;
+    
+    /// <summary>
+    /// Event DateTime in Local Time
+    /// </summary>
+    public DateTime? EventDateTimeLocal { get; set; }
+    
+    /// <summary>
+    /// Time Zone offset, e.g., "UTC+7", "UTC-5"
+    /// </summary>
+    [MaxLength(10)]
+    public string? TimeZone { get; set; }
+    
+    // === Position ===
+    
+    /// <summary>
+    /// Latitude in decimal degrees (-90 to 90)
+    /// </summary>
+    public double Latitude { get; set; }
+    
+    /// <summary>
+    /// Longitude in decimal degrees (-180 to 180)
+    /// </summary>
+    public double Longitude { get; set; }
+    
+    // === Port Info (for DEP/ARR events) ===
+    
+    /// <summary>
+    /// Port Name, e.g., "Ho Chi Minh City", "Singapore"
+    /// </summary>
+    [MaxLength(100)]
+    public string? PortName { get; set; }
+    
+    /// <summary>
+    /// UN/LOCODE (5 chars), e.g., "VNSGN" (Saigon), "SGSIN" (Singapore)
+    /// </summary>
+    [MaxLength(10)]
+    public string? PortLocode { get; set; }
+    
+    /// <summary>
+    /// Country name
+    /// </summary>
+    [MaxLength(50)]
+    public string? PortCountry { get; set; }
+    
+    /// <summary>
+    /// Berth/Terminal number, e.g., "Berth 5", "Terminal A"
+    /// </summary>
+    [MaxLength(50)]
+    public string? BerthNumber { get; set; }
+    
+    // === Distance & Navigation ===
+    
+    /// <summary>
+    /// Distance to next port/destination (Nautical Miles)
+    /// </summary>
+    public double? DistanceToGo { get; set; }
+    
+    /// <summary>
+    /// Distance from last logged position (Nautical Miles)
+    /// </summary>
+    public double? DistanceFromLast { get; set; }
+    
+    /// <summary>
+    /// Total voyage distance so far (Nautical Miles)
+    /// </summary>
+    public double? TotalVoyageDistance { get; set; }
+    
+    /// <summary>
+    /// Course Over Ground (degrees, 0-360)
+    /// </summary>
+    public double? CourseOverGround { get; set; }
+    
+    /// <summary>
+    /// Speed Over Ground (Knots)
+    /// </summary>
+    public double? SpeedOverGround { get; set; }
+    
+    // === Pilot Info (for PILOT_ON/PILOT_OFF events) ===
+    
+    /// <summary>
+    /// Pilot's name
+    /// </summary>
+    [MaxLength(100)]
+    public string? PilotName { get; set; }
+    
+    /// <summary>
+    /// Pilot station name, e.g., "Vung Tau Pilot Station"
+    /// </summary>
+    [MaxLength(100)]
+    public string? PilotStation { get; set; }
+    
+    // === Officer & Signature ===
+    
+    /// <summary>
+    /// Officer on Watch who made this entry
+    /// </summary>
+    [Required]
+    [MaxLength(100)]
+    public string OfficerOnWatch { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Master's signature (base64 or confirmation string)
+    /// </summary>
+    public string? MasterSignature { get; set; }
+    
+    /// <summary>
+    /// When the Master signed this entry
+    /// </summary>
+    public DateTime? SignedAt { get; set; }
+    
+    // === Remarks ===
+    
+    /// <summary>
+    /// Additional notes/remarks
+    /// </summary>
+    [MaxLength(1000)]
+    public string? Remarks { get; set; }
+    
+    // === System Fields ===
+    
+    public bool IsSynced { get; set; } = false;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 

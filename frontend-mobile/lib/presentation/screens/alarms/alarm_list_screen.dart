@@ -352,7 +352,7 @@ class _AlarmListScreenState extends State<AlarmListScreen> {
                 const Divider(height: 24),
                 Row(
                   children: [
-                    Icon(Icons.check_circle, size: 16, color: Colors.green),
+                    const Icon(Icons.check_circle, size: 16, color: Colors.green),
                     const SizedBox(width: 6),
                     Text(
                       'Acknowledged by ${alarm.acknowledgedBy}',

@@ -1,0 +1,16 @@
+ItemCode,ItemName,CategoryName,Quantity,Unit,UnitCost,Currency,Location,PartNumber,Barcode,Manufacturer,Supplier,Specification,MinStock,MaxStock,ReorderLevel,ReorderQuantity,BatchTracked,SerialTracked,ExpiryRequired,BatchNumber,ExpiryDate,Notes
+BOLT-M10-001,Bulông thép M10x50,Fasteners,500,PCS,2.5,USD,Store-A,BM10-50,7290001234567,Hilti,ABC Marine Supply,M10x50 Grade 8.8,100,1000,200,300,FALSE,FALSE,FALSE,,,High strength bolts
+NUT-M10-001,Đai ốc M10,Fasteners,800,PCS,1.2,USD,Store-A,NM10,7290001234568,Hilti,ABC Marine Supply,M10 Grade 8,150,1500,250,400,FALSE,FALSE,FALSE,,,
+WASHER-M10-001,Vòng đệm M10,Fasteners,1000,PCS,0.5,USD,Store-A,WM10,7290001234569,Hilti,ABC Marine Supply,M10 Flat washer,200,2000,300,500,FALSE,FALSE,FALSE,,,
+LUBE-OIL-001,Dầu nhớt động cơ SAE 40,Lubricants,100,LITER,25.5,USD,Oil-Storage,MO-SAE40,7290002345678,Castrol,Marine Oil Traders,SAE 40 Marine Grade,20,200,30,50,TRUE,FALSE,FALSE,LOT-2024-12,2026-12-31,Store in cool place
+HYDRAULIC-OIL-001,Dầu thủy lực ISO 68,Lubricants,80,LITER,32.0,USD,Oil-Storage,HO-68,7290002345679,Shell,Marine Oil Traders,ISO VG 68,15,150,25,40,TRUE,FALSE,FALSE,LOT-2024-11,2027-11-30,
+GREASE-001,Mỡ chống thấm nước,Lubricants,50,KG,18.0,USD,Store-B,GR-MP2,7290002345680,Mobil,Marine Oil Traders,NLGI Grade 2,10,100,15,30,TRUE,FALSE,FALSE,LOT-2024-10,2026-10-31,
+PAINT-001,Sơn chống gỉ epoxy đỏ,Paints,40,LITER,45.0,USD,Paint-Room,EP-RED,7290003456789,Jotun,Ocean Paints Ltd,2-component epoxy,10,80,15,25,TRUE,FALSE,FALSE,BATCH-2024-09,,Shake well before use
+PAINT-002,Sơn phủ polyurethane trắng,Paints,35,LITER,52.0,USD,Paint-Room,PU-WHITE,7290003456790,International,Ocean Paints Ltd,2-component PU,8,70,12,20,TRUE,FALSE,FALSE,BATCH-2024-09,,
+FILTER-OIL-001,Lọc dầu động cơ chính,Filters,12,PCS,85.0,USD,Store-C,FL-OIL-M1,7290004567890,Mann Filter,Marine Parts Co,Main engine oil filter,3,30,5,10,FALSE,TRUE,FALSE,,,Serial number required
+FILTER-FUEL-001,Lọc nhiên liệu,Filters,15,PCS,65.0,USD,Store-C,FL-FUEL-1,7290004567891,Parker,Marine Parts Co,Fuel water separator,4,40,6,12,FALSE,TRUE,FALSE,,,
+SEAL-001,Gioăng cao su NBR 100x120x10,Seals,25,PCS,12.5,USD,Store-D,SEAL-NBR-100,7290005678901,SKF,Technical Marine,NBR 70 Shore A,5,50,10,20,FALSE,FALSE,FALSE,,,
+BEARING-001,Ổ bi SKF 6310,Bearings,8,PCS,125.0,USD,Store-D,6310-SKF,7290005678902,SKF,Technical Marine,Deep groove ball bearing,2,20,4,6,FALSE,TRUE,FALSE,,,Serial tracking
+ROPE-001,Dây thừng polyester 24mm,Deck Supplies,200,METER,8.5,USD,Deck-Store,ROPE-PE-24,7290006789012,Lanex,Ship Chandler,Breaking load 5000kg,50,500,80,100,FALSE,FALSE,FALSE,,,
+SHACKLE-001,Tăclơ inox 1 tấn,Deck Supplies,20,PCS,35.0,USD,Deck-Store,SHACK-1T,7290006789013,Crosby,Ship Chandler,Stainless steel 316,5,40,8,15,FALSE,FALSE,FALSE,,,Load tested
+WIRE-ROPE-001,Cáp thép 12mm,Deck Supplies,150,METER,15.5,USD,Deck-Store,WR-12MM,7290006789014,Bridon,Ship Chandler,6x36 IWRC,30,300,50,80,FALSE,FALSE,FALSE,,,

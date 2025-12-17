@@ -38,8 +38,9 @@ public class MaterialReceiptService
             return response;
         }
 
-        // Lấy tất cả material items hiện có để check duplicate
+        // Lấy tất cả material items ĐANG HOẠT ĐỘNG để check duplicate
         var existingItems = await _context.MaterialItems
+            .Where(m => m.IsActive)
             .ToListAsync();
 
         var existingItemCodes = existingItems.ToDictionary(m => m.ItemCode, m => m);
@@ -192,21 +193,43 @@ public class MaterialReceiptService
                 .Where(c => c.IsActive)
                 .ToListAsync();
 
+            // Load TẤT CẢ MaterialItems active vào memory 1 lần (tránh N+1 query)
+            var allActiveItems = await _context.MaterialItems
+                .AsNoTracking()
+                .Where(m => m.IsActive)
+                .ToListAsync();
+            
+            _logger.LogWarning($"[IMPORT DEBUG] Active items in DB: {string.Join(", ", allActiveItems.Select(m => $"{m.ItemCode}(IsActive={m.IsActive})"))}");
+            
+            var itemsDict = new Dictionary<string, Guid>();
+            foreach (var item in allActiveItems)
+            {
+                itemsDict[item.ItemCode] = item.Id;
+            }
+
             // 2. Xử lý từng item
             foreach (var itemDto in dto.Items)
             {
                 try
                 {
-                    // 2a. Tìm hoặc tạo MaterialItem
-                    var materialItem = await _context.MaterialItems
-                        .FirstOrDefaultAsync(m => m.ItemCode == itemDto.ItemCode);
+                    // 2a. Tìm MaterialItem từ dictionary (chỉ items active)
+                    Guid? existingItemId = null;
+                    if (itemsDict.TryGetValue(itemDto.ItemCode, out var itemId))
+                    {
+                        existingItemId = itemId;
+                    }
 
-                    bool isNewItem = false;
+                    MaterialItem? materialItem = null;
+                    if (existingItemId.HasValue)
+                    {
+                        materialItem = await _context.MaterialItems.FindAsync(existingItemId.Value);
+                    }
+
+                    _logger.LogWarning($"[IMPORT DEBUG] Processing ItemCode={itemDto.ItemCode}, Found={materialItem != null}, ExistingQty={materialItem?.OnHandQuantity ?? 0}, ImportQty={itemDto.Quantity}");
 
                     if (materialItem == null)
                     {
                         // TẠO MỚI MaterialItem
-                        isNewItem = true;
 
                         // Tìm category
                         long? categoryId = itemDto.CategoryId;
@@ -233,6 +256,9 @@ public class MaterialReceiptService
                             Specification = itemDto.Specification,
                             MinStock = (double?)itemDto.MinStock, // Cast decimal? to double?
                             MaxStock = (double?)itemDto.MaxStock, // Cast decimal? to double?
+                            Supplier = itemDto.Supplier,
+                            ReorderLevel = (double?)itemDto.ReorderLevel,
+                            ReorderQuantity = (double?)itemDto.ReorderQuantity,
                             IsActive = true,
                             CreatedAt = DateTime.UtcNow,
                             UpdatedAt = DateTime.UtcNow
@@ -240,6 +266,9 @@ public class MaterialReceiptService
 
                         await _context.MaterialItems.AddAsync(materialItem);
                         await _context.SaveChangesAsync();
+
+                        // Thêm vào dictionary để các dòng sau trong Excel tìm thấy
+                        itemsDict[materialItem.ItemCode] = materialItem.Id;
 
                         _logger.LogInformation($"Created new MaterialItem: {materialItem.ItemCode} - {materialItem.Name}");
                     }
@@ -258,6 +287,22 @@ public class MaterialReceiptService
                         if (!string.IsNullOrEmpty(itemDto.Location))
                         {
                             materialItem.Location = itemDto.Location;
+                        }
+                        
+                        // Cập nhật supplier nếu có
+                        if (!string.IsNullOrEmpty(itemDto.Supplier))
+                        {
+                            materialItem.Supplier = itemDto.Supplier;
+                        }
+                        
+                        // Cập nhật reorder level/quantity nếu có
+                        if (itemDto.ReorderLevel.HasValue)
+                        {
+                            materialItem.ReorderLevel = (double?)itemDto.ReorderLevel;
+                        }
+                        if (itemDto.ReorderQuantity.HasValue)
+                        {
+                            materialItem.ReorderQuantity = (double?)itemDto.ReorderQuantity;
                         }
 
                         materialItem.UpdatedAt = DateTime.UtcNow;
@@ -462,19 +507,19 @@ public class MaterialReceiptService
             ItemCount = receipt.ReceiptItems.Count,
             Items = receipt.ReceiptItems.Select(ri =>
             {
-                var mat = materialItemDict.TryGetValue(ri.MaterialItemId, out var m) ? m : null;
+                var mat = ri.MaterialItemId.HasValue && materialItemDict.TryGetValue(ri.MaterialItemId.Value, out var m) ? m : null;
                 return new MaterialReceiptItemResponseDto
                 {
                     Id = ri.Id,
                     LineNumber = ri.LineNumber ?? 0,
                     MaterialItemId = ri.MaterialItemId,
-                    ItemCode = mat?.ItemCode ?? "",
-                    ItemName = mat?.Name ?? "",
+                    ItemCode = mat?.ItemCode ?? ri.ItemCode, // Dùng snapshot nếu vật tư đã bị xóa
+                    ItemName = mat?.Name ?? ri.ItemName, // Dùng snapshot nếu vật tư đã bị xóa
                     CategoryName = mat != null && categoryDict.TryGetValue(mat.CategoryId, out var catName) 
                         ? catName 
                         : "",
                     Quantity = ri.Quantity,
-                    Unit = mat?.Unit ?? "",
+                    Unit = mat?.Unit ?? ri.Unit, // Dùng snapshot nếu vật tư đã bị xóa
                     UnitCost = ri.UnitCost,
                     TotalCost = ri.TotalCost,
                     Currency = ri.Currency,

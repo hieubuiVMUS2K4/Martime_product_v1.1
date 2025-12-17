@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
+using MaritimeEdge.DTOs;
 using MaritimeEdge.Constants;
+using MaritimeEdge.Services;
 using MTaskStatus = MaritimeEdge.Constants.TaskStatus; // Alias to avoid ambiguity
 
 namespace MaritimeEdge.Controllers;
@@ -12,11 +14,16 @@ namespace MaritimeEdge.Controllers;
 public class MaintenanceController : ControllerBase
 {
     private readonly EdgeDbContext _context;
+    private readonly MaintenanceCompletionService _completionService;
     private readonly ILogger<MaintenanceController> _logger;
 
-    public MaintenanceController(EdgeDbContext context, ILogger<MaintenanceController> logger)
+    public MaintenanceController(
+        EdgeDbContext context, 
+        MaintenanceCompletionService completionService,
+        ILogger<MaintenanceController> logger)
     {
         _context = context;
+        _completionService = completionService;
         _logger = logger;
     }
 
@@ -109,41 +116,74 @@ public class MaintenanceController : ControllerBase
     }
 
     /// <summary>
-    /// Auto-correct task status based on due date
-    /// PENDING tasks past due → OVERDUE
-    /// OVERDUE tasks not yet due → PENDING
-    /// Does not touch IN_PROGRESS or COMPLETED
+    /// Auto-correct task status based on due date (PMS Workflow v2.0)
+    /// SCHEDULED tasks past due → DUE (if due today or in grace period) or OVERDUE (if past due)
+    /// DUE tasks past grace period → OVERDUE
+    /// Does not touch IN_PROGRESS, PENDING_APPROVAL, RECTIFY, or COMPLETED
     /// </summary>
     private async Task<int> AutoCorrectTaskStatuses(List<MaintenanceTask> tasks)
     {
         var now = DateTime.UtcNow;
+        var today = now.Date;
         var tasksToUpdate = new List<MaintenanceTask>();
 
         foreach (var task in tasks)
         {
-            // Only update PENDING and OVERDUE statuses (don't touch IN_PROGRESS or COMPLETED)
-            if (task.Status == MTaskStatus.PENDING || task.Status == MTaskStatus.OVERDUE)
+            // PMS Workflow v2.0: Handle SCHEDULED, DUE, and legacy PENDING/OVERDUE
+            var statusesToProcess = new[] { "SCHEDULED", "DUE", "PENDING", "OVERDUE" };
+            
+            if (!statusesToProcess.Contains(task.Status))
             {
-                var shouldBeOverdue = task.NextDueAt < now;
-                
-                if (shouldBeOverdue && task.Status != MTaskStatus.OVERDUE)
+                continue; // Don't touch IN_PROGRESS, PENDING_APPROVAL, RECTIFY, COMPLETED
+            }
+
+            var dueDate = task.NextDueAt.Date;
+            var isOverdue = dueDate < today;
+            var isDue = dueDate <= today; // Due if today or past
+
+            if (task.Status == "SCHEDULED")
+            {
+                if (isOverdue)
                 {
-                    task.Status = MTaskStatus.OVERDUE;
+                    task.Status = "OVERDUE";
                     tasksToUpdate.Add(task);
                 }
-                else if (!shouldBeOverdue && task.Status == MTaskStatus.OVERDUE)
+                else if (isDue)
                 {
-                    // Fix incorrectly marked OVERDUE tasks
-                    task.Status = MTaskStatus.PENDING;
+                    task.Status = "DUE";
                     tasksToUpdate.Add(task);
                 }
+            }
+            else if (task.Status == "DUE" && isOverdue)
+            {
+                task.Status = "OVERDUE";
+                tasksToUpdate.Add(task);
+            }
+            else if (task.Status == "PENDING") // Legacy: Treat as DUE
+            {
+                if (isOverdue)
+                {
+                    task.Status = "OVERDUE";
+                    tasksToUpdate.Add(task);
+                }
+                else
+                {
+                    task.Status = "DUE"; // Migrate PENDING → DUE
+                    tasksToUpdate.Add(task);
+                }
+            }
+            else if (task.Status == "OVERDUE" && !isOverdue)
+            {
+                // Fix incorrectly marked OVERDUE tasks
+                task.Status = isDue ? "DUE" : "SCHEDULED";
+                tasksToUpdate.Add(task);
             }
         }
 
         if (tasksToUpdate.Any())
         {
             await _context.SaveChangesAsync();
-            _logger.LogInformation($"Auto-corrected {tasksToUpdate.Count} task statuses based on due dates");
+            _logger.LogInformation("Auto-corrected {Count} task statuses based on due dates (PMS Workflow v2.0)", tasksToUpdate.Count);
         }
 
         return tasksToUpdate.Count;
@@ -180,8 +220,10 @@ public class MaintenanceController : ControllerBase
             var totalCount = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
-            // Get paginated data
+            // Get paginated data with related data
             var tasks = await query
+                .Include(t => t.EquipmentGroup)
+                .Include(t => t.ChecklistItems)
                 .OrderBy(t => t.NextDueAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
@@ -310,6 +352,8 @@ public class MaintenanceController : ControllerBase
             // If includeCompleted = true, return all statuses (for Dashboard)
 
             var tasks = await query
+                .Include(t => t.ChecklistItems.OrderBy(ci => ci.SequenceOrder))
+                .Include(t => t.EquipmentGroup)
                 .OrderBy(t => t.NextDueAt)
                 .ToListAsync();
 
@@ -333,7 +377,10 @@ public class MaintenanceController : ControllerBase
     {
         try
         {
-            var task = await _context.MaintenanceTasks.FindAsync(id);
+            var task = await _context.MaintenanceTasks
+                .Include(t => t.EquipmentGroup)
+                .Include(t => t.ChecklistItems.OrderBy(ci => ci.SequenceOrder))
+                .FirstOrDefaultAsync(t => t.Id == id);
             
             if (task == null)
             {
@@ -409,7 +456,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpPut("tasks/{id}")]
-    public async Task<IActionResult> UpdateTask(Guid id, [FromBody] MaintenanceTask task)
+    public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskDto dto)
     {
         try
         {
@@ -420,40 +467,42 @@ public class MaintenanceController : ControllerBase
             }
 
             // ⚠️ IMPORTANT: Validate status transition to prevent conflicts
-            if (task.Status != existing.Status)
+            if (dto.Status != existing.Status)
             {
-                var validationResult = ValidateStatusTransition(existing.Status, task.Status, existing);
+                var validationResult = ValidateStatusTransition(existing.Status, dto.Status, existing);
                 if (!validationResult.IsValid)
                 {
                     return BadRequest(new { 
                         error = "Invalid status transition", 
                         message = validationResult.Message,
                         currentStatus = existing.Status,
-                        attemptedStatus = task.Status
+                        attemptedStatus = dto.Status
                     });
                 }
             }
 
-            // Update all properties
-            existing.TaskId = task.TaskId;
-            existing.EquipmentId = task.EquipmentId;
-            existing.EquipmentName = task.EquipmentName;
-            existing.TaskType = task.TaskType;
-            existing.TaskDescription = task.TaskDescription;
-            existing.IntervalHours = task.IntervalHours;
-            existing.IntervalDays = task.IntervalDays;
-            existing.NextDueAt = task.NextDueAt;
-            existing.Priority = task.Priority;
-            existing.Status = task.Status;
-            existing.AssignedTo = task.AssignedTo;
-            existing.Notes = task.Notes;
-            existing.SparePartsUsed = task.SparePartsUsed;
+            // Update properties from DTO (excludes navigation properties like ChecklistItems)
+            existing.TaskId = dto.TaskId;
+            existing.EquipmentId = dto.EquipmentId;
+            existing.EquipmentName = dto.EquipmentName;
+            existing.EquipmentGroupId = dto.EquipmentGroupId;
+            existing.EquipmentGroupName = dto.EquipmentGroupName;
+            existing.TaskType = dto.TaskType;
+            existing.TaskDescription = dto.TaskDescription;
+            existing.IntervalHours = dto.IntervalHours;
+            existing.IntervalDays = dto.IntervalDays;
+            existing.NextDueAt = dto.NextDueAt;
+            existing.Priority = dto.Priority;
+            existing.Status = dto.Status;
+            existing.AssignedTo = dto.AssignedTo;
+            existing.Notes = dto.Notes;
+            existing.SparePartsUsed = dto.SparePartsUsed;
             existing.IsSynced = false;
 
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Updated maintenance task: {Id} - {TaskId}, Status: {OldStatus} → {NewStatus}", 
-                id, task.TaskId, existing.Status, task.Status);
+                id, dto.TaskId, existing.Status, dto.Status);
 
             return Ok(existing);
         }
@@ -465,37 +514,357 @@ public class MaintenanceController : ControllerBase
     }
 
     /// <summary>
-    /// Validate status transition rules to prevent conflicts between mobile and web
+    /// PATCH /api/maintenance/tasks/{id}/status
+    /// Quick status update for Kanban board drag-and-drop
+    /// </summary>
+    [HttpPatch("tasks/{id}/status")]
+    public async Task<IActionResult> UpdateTaskStatus(Guid id, [FromBody] UpdateStatusRequest request)
+    {
+        try
+        {
+            var existing = await _context.MaintenanceTasks.FindAsync(id);
+            if (existing == null)
+            {
+                return NotFound(new { error = "Maintenance task not found", id });
+            }
+
+            // Validate status transition
+            if (request.Status != existing.Status)
+            {
+                var validationResult = ValidateStatusTransition(existing.Status, request.Status, existing);
+                if (!validationResult.IsValid)
+                {
+                    return BadRequest(new { 
+                        error = "Invalid status transition", 
+                        message = validationResult.Message,
+                        currentStatus = existing.Status,
+                        attemptedStatus = request.Status
+                    });
+                }
+            }
+
+            // ✨ NEW: Validate equipment availability when starting maintenance
+            if (request.Status == MTaskStatus.IN_PROGRESS && existing.Status != MTaskStatus.IN_PROGRESS)
+            {
+                var availabilityCheck = await ValidateEquipmentAvailabilityAsync(existing);
+                if (!availabilityCheck.IsValid)
+                {
+                    return BadRequest(new { 
+                        error = "Equipment not available", 
+                        message = availabilityCheck.Message
+                    });
+                }
+            }
+
+            var oldStatus = existing.Status;
+            existing.Status = request.Status;
+            existing.UpdatedAt = DateTime.UtcNow;
+            existing.IsSynced = false;
+
+            // Auto-set timestamps based on status change
+            if (request.Status == MTaskStatus.IN_PROGRESS && oldStatus != MTaskStatus.IN_PROGRESS)
+            {
+                existing.StartedAt ??= DateTime.UtcNow;
+            }
+            else if (request.Status == MTaskStatus.COMPLETED && oldStatus != MTaskStatus.COMPLETED)
+            {
+                existing.CompletedAt ??= DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+
+            // ✨ NEW: Update equipment status after task status changes
+            await UpdateEquipmentStatusForTaskAsync(existing, request.Status, oldStatus);
+
+            _logger.LogInformation("Task {Id} status changed: {OldStatus} → {NewStatus}", 
+                id, oldStatus, request.Status);
+
+            return Ok(new { 
+                id = existing.Id,
+                taskId = existing.TaskId,
+                status = existing.Status,
+                previousStatus = oldStatus,
+                message = $"Status updated from {oldStatus} to {request.Status}"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating task status {Id}", id);
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Assign task to crew member (Quick Assign from Kanban board)
+    /// POST /api/maintenance/tasks/{id}/assign
+    /// </summary>
+    [HttpPost("tasks/{id}/assign")]
+    public async Task<IActionResult> AssignTask(Guid id, [FromBody] AssignTaskRequest request)
+    {
+        try
+        {
+            var task = await _context.MaintenanceTasks.FindAsync(id);
+            if (task == null)
+            {
+                return NotFound(new { error = "Maintenance task not found", id });
+            }
+
+            // Validate crew member exists and is onboard (if crewId provided)
+            if (!string.IsNullOrWhiteSpace(request.CrewId))
+            {
+                var crew = await _context.CrewMembers
+                    .FirstOrDefaultAsync(c => c.CrewId == request.CrewId);
+                
+                if (crew == null)
+                {
+                    return BadRequest(new { error = "Crew member not found", crewId = request.CrewId });
+                }
+
+                if (!crew.IsOnboard)
+                {
+                    return BadRequest(new { 
+                        error = "Cannot assign to crew member who is not onboard", 
+                        crewId = request.CrewId,
+                        crewName = crew.FullName 
+                    });
+                }
+
+                task.AssignedTo = crew.CrewId;
+                _logger.LogInformation("Task {TaskId} assigned to {CrewId} ({CrewName})", 
+                    task.TaskId, crew.CrewId, crew.FullName);
+            }
+            else
+            {
+                // Unassign (set to null)
+                task.AssignedTo = null;
+                _logger.LogInformation("Task {TaskId} unassigned", task.TaskId);
+            }
+
+            task.UpdatedAt = DateTime.UtcNow;
+            task.IsSynced = false;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { 
+                id = task.Id,
+                taskId = task.TaskId,
+                assignedTo = task.AssignedTo,
+                message = task.AssignedTo != null 
+                    ? $"Task assigned to {task.AssignedTo}" 
+                    : "Task unassigned"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error assigning task {Id}", id);
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/maintenance/tasks/{id}/approve
+    /// Approve or reject HIGH/CRITICAL tasks (C/E or Master only)
+    /// </summary>
+    [HttpPost("tasks/{id}/approve")]
+    public async Task<IActionResult> ApproveTask(Guid id, [FromBody] ApproveTaskRequest request)
+    {
+        try
+        {
+            var task = await _context.MaintenanceTasks.FindAsync(id);
+            if (task == null)
+            {
+                return NotFound(new { error = "Maintenance task not found", id });
+            }
+
+            // Validate current status is PENDING_APPROVAL
+            if (task.Status != "PENDING_APPROVAL")
+            {
+                return BadRequest(new { 
+                    error = "Task is not in PENDING_APPROVAL status", 
+                    currentStatus = task.Status 
+                });
+            }
+
+            // Validate approver exists and has correct rank
+            var approver = await _context.CrewMembers
+                .FirstOrDefaultAsync(c => c.CrewId == request.ApprovedBy);
+            
+            if (approver == null)
+            {
+                return BadRequest(new { error = "Approver not found", crewId = request.ApprovedBy });
+            }
+
+            // Get equipment group to determine department and required approver rank
+            var equipmentCode = task.EquipmentId;
+            var asset = await _context.EquipmentAssets
+                .FirstOrDefaultAsync(a => a.AssetCode == equipmentCode);
+            
+            var groupMember = asset != null 
+                ? await _context.EquipmentGroupMembers
+                    .Include(egm => egm.Group)
+                    .FirstOrDefaultAsync(egm => egm.AssetId == asset.Id)
+                : null;
+
+            var department = groupMember?.Group?.Department;
+            
+            // Validate approver rank based on department
+            // ENGINE: C/E (Chief Engineer) or Master
+            // DECK: C/O (Chief Officer) or Master
+            // Others: Master only
+            var validApproverRanks = new List<string>();
+            
+            if (department == "ENGINE")
+            {
+                validApproverRanks = new List<string> { "C/E", "Master" };
+            }
+            else if (department == "DECK")
+            {
+                validApproverRanks = new List<string> { "C/O", "Master" };
+            }
+            else
+            {
+                validApproverRanks = new List<string> { "Master" };
+            }
+
+            if (string.IsNullOrEmpty(approver.Rank) || !validApproverRanks.Contains(approver.Rank))
+            {
+                return BadRequest(new { 
+                    error = $"Approver must be one of: {string.Join(", ", validApproverRanks)}", 
+                    approverRank = approver.Rank ?? "N/A",
+                    department = department ?? "UNKNOWN"
+                });
+            }
+
+            if (request.IsApproved)
+            {
+                // Approve: Change status to PENDING (ready for execution)
+                task.Status = "PENDING";
+                task.ApprovedBy = request.ApprovedBy;
+                task.ApprovedAt = DateTime.UtcNow;
+                task.RejectionReason = null;
+                
+                _logger.LogInformation("Task {TaskId} approved by {ApprovedBy} ({Rank})", 
+                    task.TaskId, request.ApprovedBy, approver.Rank);
+            }
+            else
+            {
+                // Reject: Change status to REJECTED
+                if (string.IsNullOrWhiteSpace(request.RejectionReason))
+                {
+                    return BadRequest(new { error = "RejectionReason is required when rejecting a task" });
+                }
+
+                task.Status = "REJECTED";
+                task.ApprovedBy = request.ApprovedBy;
+                task.ApprovedAt = DateTime.UtcNow;
+                task.RejectionReason = request.RejectionReason;
+                
+                _logger.LogInformation("Task {TaskId} rejected by {ApprovedBy} ({Rank}): {Reason}", 
+                    task.TaskId, request.ApprovedBy, approver.Rank, request.RejectionReason);
+            }
+
+            task.UpdatedAt = DateTime.UtcNow;
+            task.IsSynced = false;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { 
+                id = task.Id,
+                taskId = task.TaskId,
+                status = task.Status,
+                approvedBy = task.ApprovedBy,
+                approvedAt = task.ApprovedAt,
+                rejectionReason = task.RejectionReason,
+                message = request.IsApproved 
+                    ? $"Task approved by {approver.Rank} {approver.FullName}" 
+                    : $"Task rejected: {task.RejectionReason}"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error approving/rejecting task {Id}", id);
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Validate status transition rules for Kanban board workflow
+    /// Supports extended workflow: TASK → PENDING_APPROVAL → PENDING → IN_PROGRESS → COMPLETED
     /// </summary>
     private (bool IsValid, string Message) ValidateStatusTransition(string currentStatus, string newStatus, MaritimeEdge.Models.MaintenanceTask task)
     {
-        // Rule 1: COMPLETED tasks cannot be moved back (protect crew work)
-        if (currentStatus == MTaskStatus.COMPLETED)
+        // Rule 0: Same status = no transition needed
+        if (currentStatus == newStatus)
         {
-            return (false, "Cannot change status of completed tasks. Task was completed by crew member. Create a new task if rework is needed.");
+            return (true, "No change");
         }
 
-        // Rule 2: IN_PROGRESS can move to PENDING (Captain unassigns) or COMPLETED (Crew finishes)
-        // Allow IN_PROGRESS → PENDING: Captain can unassign a task that crew started (StartedAt timestamp is kept)
-        // Allow IN_PROGRESS → COMPLETED: Crew finishes the task via mobile
-        if (currentStatus == MTaskStatus.IN_PROGRESS && newStatus != MTaskStatus.PENDING && newStatus != MTaskStatus.COMPLETED)
+        // Rule 1: COMPLETED and CANCELLED tasks cannot be moved (final states)
+        if (currentStatus == MTaskStatus.COMPLETED || currentStatus == MTaskStatus.CANCELLED)
         {
-            return (false, $"In-progress tasks can only move to PENDING (unassign) or COMPLETED, not {newStatus}");
+            return (false, $"Cannot change status of {currentStatus.ToLower()} tasks. Create a new task if needed.");
         }
 
-        // Rule 3: PENDING can move to IN_PROGRESS (assign) or OVERDUE (auto by system)
-        if (currentStatus == MTaskStatus.PENDING && newStatus != MTaskStatus.IN_PROGRESS && newStatus != MTaskStatus.OVERDUE)
+        // Define valid transitions for extended workflow
+        var validTransitions = new Dictionary<string, HashSet<string>>
         {
-            return (false, $"Pending tasks can only move to IN_PROGRESS or OVERDUE, not {newStatus}");
+            // TASK (new, unassigned) can go to: PENDING_APPROVAL (HIGH/CRITICAL), PENDING (LOW/NORMAL), REJECTED (direct reject)
+            [MTaskStatus.TASK] = new HashSet<string> { 
+                MTaskStatus.PENDING_APPROVAL, 
+                MTaskStatus.PENDING, 
+                MTaskStatus.REJECTED,
+                MTaskStatus.CANCELLED 
+            },
+            
+            // PENDING_APPROVAL can go to: PENDING (approved), REJECTED (rejected by C/E)
+            [MTaskStatus.PENDING_APPROVAL] = new HashSet<string> { 
+                MTaskStatus.PENDING, 
+                MTaskStatus.REJECTED,
+                MTaskStatus.TASK // Return for revision
+            },
+            
+            // REJECTED can go to: TASK (revise and resubmit)
+            [MTaskStatus.REJECTED] = new HashSet<string> { 
+                MTaskStatus.TASK,
+                MTaskStatus.CANCELLED
+            },
+            
+            // PENDING can go to: IN_PROGRESS (start), OVERDUE (auto), COMPLETED (direct), TASK (unassign)
+            [MTaskStatus.PENDING] = new HashSet<string> { 
+                MTaskStatus.IN_PROGRESS, 
+                MTaskStatus.OVERDUE, 
+                MTaskStatus.COMPLETED,
+                MTaskStatus.TASK,
+                MTaskStatus.CANCELLED
+            },
+            
+            // OVERDUE can go to: IN_PROGRESS (start late), PENDING (reschedule), COMPLETED (direct)
+            [MTaskStatus.OVERDUE] = new HashSet<string> { 
+                MTaskStatus.IN_PROGRESS, 
+                MTaskStatus.PENDING, 
+                MTaskStatus.COMPLETED,
+                MTaskStatus.CANCELLED
+            },
+            
+            // IN_PROGRESS can go to: PENDING (unassign), COMPLETED (finish)
+            [MTaskStatus.IN_PROGRESS] = new HashSet<string> { 
+                MTaskStatus.PENDING, 
+                MTaskStatus.COMPLETED 
+            }
+        };
+
+        // Check if transition is valid
+        if (validTransitions.TryGetValue(currentStatus, out var allowedStatuses))
+        {
+            if (allowedStatuses.Contains(newStatus))
+            {
+                return (true, "Valid transition");
+            }
+            return (false, $"Cannot transition from {currentStatus} to {newStatus}. Allowed: {string.Join(", ", allowedStatuses)}");
         }
 
-        // Rule 4: OVERDUE can only go to IN_PROGRESS (crew starts late task)
-        if (currentStatus == MTaskStatus.OVERDUE && newStatus != MTaskStatus.IN_PROGRESS)
-        {
-            return (false, "Overdue tasks must be started (IN_PROGRESS) before completion");
-        }
-
-        return (true, "Valid transition");
+        // Unknown current status - allow transition (backward compatibility)
+        return (true, "Valid transition (unknown source status)");
     }
 
     [HttpDelete("tasks/{id}")]
@@ -573,28 +942,38 @@ public class MaintenanceController : ControllerBase
     {
         try
         {
-            var task = await _context.MaintenanceTasks.FindAsync(id);
-            if (task == null)
+            // Use MaintenanceCompletionService for automatic spare parts deduction
+            var sparePartsUsed = request.SparePartsUsed != null
+                ? System.Text.Json.JsonSerializer.Deserialize<List<SparePartUsage>>(request.SparePartsUsed) ?? new List<SparePartUsage>()
+                : new List<SparePartUsage>();
+
+            var result = await _completionService.CompleteTaskAsync(
+                id,
+                request.CompletedBy,
+                sparePartsUsed,
+                request.Notes,
+                request.ConditionAfter
+            );
+
+            if (!result.IsSuccess)
             {
-                return NotFound(new { message = "Task not found" });
+                return BadRequest(new { error = result.ErrorMessage });
             }
 
-            task.Status = MTaskStatus.COMPLETED;
-            task.CompletedAt = DateTime.UtcNow;
-            task.CompletedBy = request.CompletedBy;
-            task.Notes = request.Notes;
-            task.SparePartsUsed = request.SparePartsUsed;
-            task.LastDoneAt = DateTime.UtcNow;
-            
-            // Calculate next due date
-            if (task.IntervalDays.HasValue)
+            var response = new
             {
-                task.NextDueAt = DateTime.UtcNow.AddDays(task.IntervalDays.Value);
+                message = "Task completed successfully",
+                deductedSpareParts = result.DeductedItems,
+                warnings = result.Warnings
+            };
+
+            if (result.Warnings != null && result.Warnings.Any())
+            {
+                _logger.LogWarning("Task {TaskId} completed with warnings: {Warnings}", 
+                    id, string.Join(", ", result.Warnings));
             }
 
-            await _context.SaveChangesAsync();
-
-            return Ok(task);
+            return Ok(response);
         }
         catch (Exception ex)
         {
@@ -605,10 +984,11 @@ public class MaintenanceController : ControllerBase
 
     /// <summary>
     /// Lấy danh sách task details (checklist) của một maintenance task
-    /// GET /api/maintenance/tasks/{taskId}/checklist
+    /// GET /api/maintenance/tasks/{taskId}/checklist-legacy
+    /// NOTE: Use /api/maintenance/tasks/{taskId}/checklist endpoint from TaskChecklistItemsController instead
     /// </summary>
-    [HttpGet("tasks/{taskId}/checklist")]
-    public async Task<IActionResult> GetTaskChecklist(Guid taskId)
+    [HttpGet("tasks/{taskId}/checklist-legacy")]
+    public async Task<IActionResult> GetTaskChecklistLegacy(Guid taskId)
     {
         try
         {
@@ -688,10 +1068,11 @@ public class MaintenanceController : ControllerBase
 
     /// <summary>
     /// Complete một task detail item trong checklist
-    /// POST /api/maintenance/tasks/{taskId}/checklist/{detailId}/complete
+    /// POST /api/maintenance/tasks/{taskId}/details/{detailId}/complete
+    /// NOTE: Use /api/maintenance/tasks/{taskId}/checklist/{itemId}/complete from TaskChecklistItemsController instead
     /// </summary>
-    [HttpPost("tasks/{taskId}/checklist/{detailId}/complete")]
-    public async Task<IActionResult> CompleteChecklistItem(Guid taskId, long detailId, [FromBody] CompleteChecklistItemRequest request)
+    [HttpPost("tasks/{taskId}/details/{detailId}/complete")]
+    public async Task<IActionResult> CompleteChecklistItemLegacy(Guid taskId, long detailId, [FromBody] CompleteChecklistItemRequest request)
     {
         try
         {
@@ -818,6 +1199,7 @@ public class MaintenanceController : ControllerBase
         public string CompletedBy { get; set; } = string.Empty;
         public string? Notes { get; set; }
         public string? SparePartsUsed { get; set; }
+        public string? ConditionAfter { get; set; }
     }
 
     public class CreateMaintenanceTaskRequest
@@ -840,5 +1222,216 @@ public class MaintenanceController : ControllerBase
         public string? PhotoUrl { get; set; }
         public string? SignatureUrl { get; set; }
         public string CompletedBy { get; set; } = string.Empty;
+    }
+
+    public class AssignTaskRequest
+    {
+        public string? CrewId { get; set; }
+    }
+
+    public class ApproveTaskRequest
+    {
+        public bool IsApproved { get; set; } // true = approve, false = reject
+        public string? RejectionReason { get; set; } // Required if IsApproved = false
+        public string ApprovedBy { get; set; } = string.Empty; // Crew ID of approver
+    }
+
+    // ==================== EQUIPMENT STATUS MANAGEMENT ====================
+    
+    /// <summary>
+    /// Update equipment status when task status changes
+    /// - IN_PROGRESS: Equipment → UNDER_MAINTENANCE
+    /// - COMPLETED/CANCELLED: Equipment → ACTIVE (if no other maintenance)
+    /// </summary>
+    private async Task UpdateEquipmentStatusForTaskAsync(MaintenanceTask task, string newStatus, string oldStatus)
+    {
+        try
+        {
+            // Only update when transitioning to/from IN_PROGRESS or COMPLETED
+            if (newStatus == oldStatus)
+                return;
+
+            var shouldSetMaintenance = newStatus == MTaskStatus.IN_PROGRESS && oldStatus != MTaskStatus.IN_PROGRESS;
+            var shouldRestoreActive = (newStatus == MTaskStatus.COMPLETED || newStatus == MTaskStatus.CANCELLED) &&
+                                      (oldStatus == MTaskStatus.IN_PROGRESS);
+
+            if (!shouldSetMaintenance && !shouldRestoreActive)
+                return;
+
+            // Get equipment list (either from EquipmentGroupId or legacy EquipmentId)
+            List<EquipmentAsset> equipmentList = new List<EquipmentAsset>();
+
+            if (task.EquipmentGroupId.HasValue)
+            {
+                // NEW: Get all equipment in the group
+                var members = await _context.EquipmentGroupMembers
+                    .Where(m => m.GroupId == task.EquipmentGroupId.Value)
+                    .ToListAsync();
+
+                var assetIds = members.Select(m => m.AssetId).ToList();
+                equipmentList = await _context.EquipmentAssets
+                    .Where(a => assetIds.Contains(a.Id) && a.IsActive)
+                    .ToListAsync();
+            }
+            else if (!string.IsNullOrEmpty(task.EquipmentId))
+            {
+                // LEGACY: Try to find equipment by AssetCode
+                var equipment = await _context.EquipmentAssets
+                    .FirstOrDefaultAsync(a => a.AssetCode == task.EquipmentId && a.IsActive);
+                
+                if (equipment != null)
+                    equipmentList.Add(equipment);
+            }
+
+            if (!equipmentList.Any())
+            {
+                _logger.LogWarning("No equipment found for task {TaskId}", task.TaskId);
+                return;
+            }
+
+            foreach (var equipment in equipmentList)
+            {
+                if (shouldSetMaintenance)
+                {
+                    // Set to UNDER_MAINTENANCE
+                    _logger.LogInformation("Setting equipment {AssetCode} to UNDER_MAINTENANCE for task {TaskId}",
+                        equipment.AssetCode, task.TaskId);
+                    
+                    equipment.Status = "UNDER_MAINTENANCE";
+                    equipment.UpdatedAt = DateTime.UtcNow;
+                    equipment.IsSynced = false;
+                }
+                else if (shouldRestoreActive)
+                {
+                    // Check if there are other IN_PROGRESS tasks for this equipment
+                    bool hasOtherActiveMaintenance = false;
+
+                    if (task.EquipmentGroupId.HasValue)
+                    {
+                        // Check if equipment group has other active tasks
+                        hasOtherActiveMaintenance = await _context.MaintenanceTasks
+                            .AnyAsync(t => t.EquipmentGroupId == task.EquipmentGroupId.Value &&
+                                          t.Id != task.Id &&
+                                          t.Status == MTaskStatus.IN_PROGRESS);
+                    }
+                    else
+                    {
+                        // Check if this specific equipment has other active tasks
+                        var groupMembership = await _context.EquipmentGroupMembers
+                            .Where(m => m.AssetId == equipment.Id)
+                            .Select(m => m.GroupId)
+                            .ToListAsync();
+
+                        hasOtherActiveMaintenance = await _context.MaintenanceTasks
+                            .AnyAsync(t => (t.EquipmentId == equipment.AssetCode ||
+                                           (t.EquipmentGroupId.HasValue && groupMembership.Contains(t.EquipmentGroupId.Value))) &&
+                                          t.Id != task.Id &&
+                                          t.Status == MTaskStatus.IN_PROGRESS);
+                    }
+
+                    if (!hasOtherActiveMaintenance)
+                    {
+                        // Safe to restore to ACTIVE
+                        _logger.LogInformation("Restoring equipment {AssetCode} to ACTIVE after task {TaskId} completion",
+                            equipment.AssetCode, task.TaskId);
+                        
+                        equipment.Status = "ACTIVE";
+                        equipment.UpdatedAt = DateTime.UtcNow;
+                        equipment.IsSynced = false;
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Equipment {AssetCode} remains UNDER_MAINTENANCE - other active tasks exist",
+                            equipment.AssetCode);
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating equipment status for task {TaskId}", task.TaskId);
+            // Don't throw - this is a secondary operation, shouldn't block task status update
+        }
+    }
+
+    /// <summary>
+    /// Validate if equipment can start maintenance (not already under maintenance by critical task)
+    /// </summary>
+    private async Task<(bool IsValid, string? Message)> ValidateEquipmentAvailabilityAsync(MaintenanceTask task)
+    {
+        try
+        {
+            // Get equipment list
+            List<EquipmentAsset> equipmentList = new List<EquipmentAsset>();
+
+            if (task.EquipmentGroupId.HasValue)
+            {
+                var members = await _context.EquipmentGroupMembers
+                    .Where(m => m.GroupId == task.EquipmentGroupId.Value)
+                    .ToListAsync();
+
+                var assetIds = members.Select(m => m.AssetId).ToList();
+                equipmentList = await _context.EquipmentAssets
+                    .Where(a => assetIds.Contains(a.Id) && a.IsActive)
+                    .ToListAsync();
+            }
+            else if (!string.IsNullOrEmpty(task.EquipmentId))
+            {
+                var equipment = await _context.EquipmentAssets
+                    .FirstOrDefaultAsync(a => a.AssetCode == task.EquipmentId && a.IsActive);
+                
+                if (equipment != null)
+                    equipmentList.Add(equipment);
+            }
+
+            // Check if any equipment is under critical maintenance
+            foreach (var equipment in equipmentList)
+            {
+                if (equipment.Status == "UNDER_MAINTENANCE")
+                {
+                    // Find the blocking task
+                    MaintenanceTask? blockingTask = null;
+
+                    if (task.EquipmentGroupId.HasValue)
+                    {
+                        blockingTask = await _context.MaintenanceTasks
+                            .Where(t => t.EquipmentGroupId == task.EquipmentGroupId.Value &&
+                                       t.Id != task.Id &&
+                                       t.Status == MTaskStatus.IN_PROGRESS &&
+                                       t.Priority == "CRITICAL")
+                            .FirstOrDefaultAsync();
+                    }
+                    else
+                    {
+                        var groupIds = await _context.EquipmentGroupMembers
+                            .Where(m => m.AssetId == equipment.Id)
+                            .Select(m => m.GroupId)
+                            .ToListAsync();
+
+                        blockingTask = await _context.MaintenanceTasks
+                            .Where(t => (t.EquipmentId == equipment.AssetCode ||
+                                        (t.EquipmentGroupId.HasValue && groupIds.Contains(t.EquipmentGroupId.Value))) &&
+                                       t.Id != task.Id &&
+                                       t.Status == MTaskStatus.IN_PROGRESS &&
+                                       t.Priority == "CRITICAL")
+                            .FirstOrDefaultAsync();
+                    }
+
+                    if (blockingTask != null)
+                    {
+                        return (false, $"Equipment {equipment.AssetCode} is under CRITICAL maintenance (Task: {blockingTask.TaskId}). Complete critical task first.");
+                    }
+                }
+            }
+
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error validating equipment availability for task {TaskId}", task.TaskId);
+            return (true, null); // Allow on error to not block workflow
+        }
     }
 }

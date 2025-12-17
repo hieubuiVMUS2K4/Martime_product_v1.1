@@ -80,44 +80,133 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
             return;
           }
 
-          // Map Excel columns to DTO
+          // Column name mapping (support both English and Vietnamese)
+          const columnMappings: Record<string, string> = {
+            // English names
+            'ItemCode': 'itemCode',
+            'itemcode': 'itemCode',
+            'Item Code': 'itemCode',
+            'ItemName': 'itemName',
+            'itemname': 'itemName',
+            'Item Name': 'itemName',
+            'Category': 'categoryName',
+            'category': 'categoryName',
+            'Quantity': 'quantity',
+            'quantity': 'quantity',
+            'Qty': 'quantity',
+            'Unit': 'unit',
+            'unit': 'unit',
+            'UnitCost': 'unitCost',
+            'unitcost': 'unitCost',
+            'Unit Cost': 'unitCost',
+            'Cost': 'unitCost',
+            'Price': 'unitCost',
+            'PartNumber': 'partNumber',
+            'partnumber': 'partNumber',
+            'Part Number': 'partNumber',
+            'Barcode': 'barcode',
+            'barcode': 'barcode',
+            'Manufacturer': 'manufacturer',
+            'manufacturer': 'manufacturer',
+            'Specification': 'specification',
+            'specification': 'specification',
+            'Spec': 'specification',
+            'Location': 'location',
+            'location': 'location',
+            'Supplier': 'supplier',
+            'supplier': 'supplier',
+            'MinStock': 'minStock',
+            'minstock': 'minStock',
+            'Min Stock': 'minStock',
+            'MaxStock': 'maxStock',
+            'maxstock': 'maxStock',
+            'Max Stock': 'maxStock',
+            'ReorderLevel': 'reorderLevel',
+            'reorderlevel': 'reorderLevel',
+            'Reorder Level': 'reorderLevel',
+            'ReorderQuantity': 'reorderQuantity',
+            'reorderquantity': 'reorderQuantity',
+            'Reorder Quantity': 'reorderQuantity',
+            'BatchTracked': 'batchTracked',
+            'batchtracked': 'batchTracked',
+            'Batch Tracked': 'batchTracked',
+            'SerialTracked': 'serialTracked',
+            'serialtracked': 'serialTracked',
+            'Serial Tracked': 'serialTracked',
+            'ExpiryRequired': 'expiryRequired',
+            'expiryrequired': 'expiryRequired',
+            'Expiry Required': 'expiryRequired',
+            // Vietnamese names
+            'Mã vật tư': 'itemCode',
+            'Tên vật tư': 'itemName',
+            'Danh mục': 'categoryName',
+            'Số lượng': 'quantity',
+            'Đơn vị': 'unit',
+            'Đơn giá': 'unitCost',
+            'Mã linh kiện': 'partNumber',
+            'Mã vạch': 'barcode',
+            'Nhà sản xuất': 'manufacturer',
+            'Thông số': 'specification',
+            'Vị trí': 'location',
+            'Nhà cung cấp': 'supplier',
+          };
+
+          // Map Excel data to ImportReceiptItemDto
           const items: ImportReceiptItemDto[] = jsonData.map((row, index) => {
-            // Hỗ trợ nhiều tên cột khác nhau (tiếng Việt và tiếng Anh)
-            const getCell = (keys: string[]) => {
-              for (const key of keys) {
-                if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
-                  return row[key];
-                }
-              }
-              return undefined;
-            };
+            // Normalize row keys
+            const normalizedRow: Record<string, any> = {};
+            for (const key of Object.keys(row)) {
+              const mappedKey = columnMappings[key] || columnMappings[key.trim()] || key.toLowerCase();
+              normalizedRow[mappedKey] = row[key];
+            }
+
+            // Validate required fields
+            const itemCode = normalizedRow.itemCode || normalizedRow.itemcode;
+            const itemName = normalizedRow.itemName || normalizedRow.itemname;
+            const quantity = Number(normalizedRow.quantity) || 0;
+            const unit = normalizedRow.unit || 'pcs';
+
+            if (!itemCode || !itemName) {
+              console.warn(`Row ${index + 2}: Missing itemCode or itemName, skipping`);
+              return null;
+            }
+
+            if (quantity <= 0) {
+              console.warn(`Row ${index + 2}: Invalid quantity, skipping`);
+              return null;
+            }
 
             return {
-              itemCode: String(getCell(['ItemCode', 'Item Code', 'Mã vật tư', 'Ma vat tu']) || `ITEM-${index + 1}`),
-              itemName: String(getCell(['ItemName', 'Item Name', 'Tên vật tư', 'Ten vat tu']) || 'Unknown'),
-              categoryName: getCell(['Category', 'CategoryName', 'Danh mục', 'Danh muc']),
-              quantity: parseFloat(getCell(['Quantity', 'Số lượng', 'So luong', 'Qty']) || 0),
-              unit: String(getCell(['Unit', 'Đơn vị', 'Don vi', 'UOM']) || 'pcs'),
-              unitCost: getCell(['UnitCost', 'Unit Cost', 'Đơn giá', 'Don gia', 'Price']) 
-                ? parseFloat(getCell(['UnitCost', 'Unit Cost', 'Đơn giá', 'Don gia', 'Price'])!)
-                : undefined,
-              location: getCell(['Location', 'Warehouse', 'Kho', 'Vị trí', 'Vi tri', 'Storage']),
-              partNumber: getCell(['PartNumber', 'Part Number', 'Mã linh kiện', 'Ma linh kien', 'PN']),
-              barcode: getCell(['Barcode', 'Mã vạch', 'Ma vach']),
-              manufacturer: getCell(['Manufacturer', 'Nhà sản xuất', 'Nha san xuat', 'Brand']),
-              specification: getCell(['Specification', 'Spec', 'Mô tả', 'Mo ta', 'Description']),
-              minStock: getCell(['MinStock', 'Min Stock', 'Tồn kho tối thiểu'])
-                ? parseFloat(getCell(['MinStock', 'Min Stock', 'Tồn kho tối thiểu'])!)
-                : undefined,
-              maxStock: getCell(['MaxStock', 'Max Stock', 'Tồn kho tối đa'])
-                ? parseFloat(getCell(['MaxStock', 'Max Stock', 'Tồn kho tối đa'])!)
-                : undefined,
-              lineNumber: index + 1
+              itemCode: String(itemCode).trim(),
+              itemName: String(itemName).trim(),
+              categoryName: normalizedRow.categoryName || normalizedRow.category || 'General',
+              quantity,
+              unit: String(unit).trim(),
+              unitCost: Number(normalizedRow.unitCost) || 0,
+              location: normalizedRow.location || undefined,
+              supplier: normalizedRow.supplier || undefined,
+              partNumber: normalizedRow.partNumber || undefined,
+              barcode: normalizedRow.barcode || undefined,
+              manufacturer: normalizedRow.manufacturer || undefined,
+              specification: normalizedRow.specification || undefined,
+              minStock: Number(normalizedRow.minStock) || undefined,
+              maxStock: Number(normalizedRow.maxStock) || undefined,
+              reorderLevel: Number(normalizedRow.reorderLevel) || Number(normalizedRow.reorderlevel) || undefined,
+              reorderQuantity: Number(normalizedRow.reorderQuantity) || Number(normalizedRow.reorderquantity) || undefined,
+              batchTracked: normalizedRow.batchTracked === 'TRUE' || normalizedRow.batchTracked === true || normalizedRow.batchtracked === 'TRUE',
+              serialTracked: normalizedRow.serialTracked === 'TRUE' || normalizedRow.serialTracked === true || normalizedRow.serialtracked === 'TRUE',
+              expiryRequired: normalizedRow.expiryRequired === 'TRUE' || normalizedRow.expiryRequired === true || normalizedRow.expiryrequired === 'TRUE',
             };
-          }).filter(item => item.quantity > 0);
+          }).filter((item) => item !== null) as ImportReceiptItemDto[];
+
+          if (items.length === 0) {
+            reject(new Error('No valid items found. Please check required columns: ItemCode, ItemName, Quantity, Unit'));
+            return;
+          }
 
           resolve(items);
-        } catch (error) {
+        } catch (error: any) {
+          console.error('Excel parse error:', error);
           reject(new Error('Failed to parse Excel file. Please check the format.'));
         }
       };
