@@ -100,7 +100,8 @@ public class AggregateReportService : IAggregateReportService
 
             // ⚡ OPTIMIZED: Aggregate maintenance hours on SQL side
             var maintenanceQuery = _context.MaintenanceTasks
-                .Where(mt => mt.CompletedAt >= weekStartDate && 
+                .Where(mt => !mt.IsDeleted &&
+                            mt.CompletedAt >= weekStartDate && 
                             mt.CompletedAt <= weekEndDate &&
                             mt.Status == "COMPLETED" &&
                             mt.CompletedAt.HasValue && 
@@ -344,7 +345,7 @@ public class AggregateReportService : IAggregateReportService
                 .FirstOrDefaultAsync();
 
             var maintenanceStats = await _context.MaintenanceTasks
-                .Where(mt => mt.CompletedAt >= monthStartDate && mt.CompletedAt <= monthEndDate)
+                .Where(mt => !mt.IsDeleted && mt.CompletedAt >= monthStartDate && mt.CompletedAt <= monthEndDate)
                 .GroupBy(mt => 1)
                 .Select(g => new
                 {

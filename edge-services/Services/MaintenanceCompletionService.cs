@@ -45,7 +45,7 @@ public class MaintenanceCompletionService
         {
             // 1. Get maintenance task
             var task = await _context.MaintenanceTasks
-                .FirstOrDefaultAsync(t => t.Id == taskId);
+                .FirstOrDefaultAsync(t => t.Id == taskId && !t.IsDeleted);
 
             if (task == null)
                 return CompletionResult.Failure("Task not found");

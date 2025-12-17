@@ -295,7 +295,7 @@ public class MaintenanceController : ControllerBase
         {
             var now = DateTime.UtcNow;
             var tasks = await _context.MaintenanceTasks
-                .Where(t => t.Status != MTaskStatus.COMPLETED && t.NextDueAt < now)
+                .Where(t => !t.IsDeleted && t.Status != MTaskStatus.COMPLETED && t.NextDueAt < now)
                 .OrderBy(t => t.NextDueAt)
                 .ToListAsync();
 
@@ -320,7 +320,8 @@ public class MaintenanceController : ControllerBase
     {
         try
         {
-            IQueryable<MaintenanceTask> query = _context.MaintenanceTasks;
+            IQueryable<MaintenanceTask> query = _context.MaintenanceTasks
+                .Where(t => !t.IsDeleted);
 
             // IMPORTANT: Chỉ trả về tasks được assign cho crew member này
             // Nếu không có crewId và assignedTo thì trả về empty list (không trả về tất cả tasks)
@@ -539,7 +540,7 @@ public class MaintenanceController : ControllerBase
         try
         {
             var existing = await _context.MaintenanceTasks.FindAsync(id);
-            if (existing == null)
+            if (existing == null || existing.IsDeleted)
             {
                 return NotFound(new { error = "Maintenance task not found", id });
             }
@@ -601,7 +602,7 @@ public class MaintenanceController : ControllerBase
         try
         {
             var existing = await _context.MaintenanceTasks.FindAsync(id);
-            if (existing == null)
+            if (existing == null || existing.IsDeleted)
             {
                 return NotFound(new { error = "Maintenance task not found", id });
             }
@@ -749,7 +750,7 @@ public class MaintenanceController : ControllerBase
         try
         {
             var task = await _context.MaintenanceTasks.FindAsync(id);
-            if (task == null)
+            if (task == null || task.IsDeleted)
             {
                 return NotFound(new { error = "Maintenance task not found", id });
             }
@@ -955,15 +956,9 @@ public class MaintenanceController : ControllerBase
         try
         {
             var task = await _context.MaintenanceTasks.FindAsync(id);
-            if (task == null)
+            if (task == null || task.IsDeleted)
             {
                 return NotFound(new { error = "Maintenance task not found", id });
-            }
-
-            // Check if already deleted
-            if (task.IsDeleted)
-            {
-                return BadRequest(new { error = "Task is already deleted", id });
             }
 
             // Soft delete - set flags instead of removing
@@ -998,7 +993,7 @@ public class MaintenanceController : ControllerBase
         try
         {
             var task = await _context.MaintenanceTasks.FindAsync(id);
-            if (task == null)
+            if (task == null || task.IsDeleted)
             {
                 return NotFound(new { error = "Task not found", id });
             }
@@ -1225,7 +1220,8 @@ public class MaintenanceController : ControllerBase
                     {
                         // Check if equipment group has other active tasks
                         hasOtherActiveMaintenance = await _context.MaintenanceTasks
-                            .AnyAsync(t => t.EquipmentGroupId == task.EquipmentGroupId.Value &&
+                            .AnyAsync(t => !t.IsDeleted &&
+                                          t.EquipmentGroupId == task.EquipmentGroupId.Value &&
                                           t.Id != task.Id &&
                                           t.Status == MTaskStatus.IN_PROGRESS);
                     }
@@ -1238,7 +1234,8 @@ public class MaintenanceController : ControllerBase
                             .ToListAsync();
 
                         hasOtherActiveMaintenance = await _context.MaintenanceTasks
-                            .AnyAsync(t => (t.EquipmentId == equipment.AssetCode ||
+                            .AnyAsync(t => !t.IsDeleted &&
+                                          (t.EquipmentId == equipment.AssetCode ||
                                            (t.EquipmentGroupId.HasValue && groupMembership.Contains(t.EquipmentGroupId.Value))) &&
                                           t.Id != task.Id &&
                                           t.Status == MTaskStatus.IN_PROGRESS);
@@ -1312,7 +1309,8 @@ public class MaintenanceController : ControllerBase
                     if (task.EquipmentGroupId.HasValue)
                     {
                         blockingTask = await _context.MaintenanceTasks
-                            .Where(t => t.EquipmentGroupId == task.EquipmentGroupId.Value &&
+                            .Where(t => !t.IsDeleted &&
+                                       t.EquipmentGroupId == task.EquipmentGroupId.Value &&
                                        t.Id != task.Id &&
                                        t.Status == MTaskStatus.IN_PROGRESS &&
                                        t.Priority == "CRITICAL")
@@ -1326,7 +1324,8 @@ public class MaintenanceController : ControllerBase
                             .ToListAsync();
 
                         blockingTask = await _context.MaintenanceTasks
-                            .Where(t => (t.EquipmentId == equipment.AssetCode ||
+                            .Where(t => !t.IsDeleted &&
+                                       (t.EquipmentId == equipment.AssetCode ||
                                         (t.EquipmentGroupId.HasValue && groupIds.Contains(t.EquipmentGroupId.Value))) &&
                                        t.Id != task.Id &&
                                        t.Status == MTaskStatus.IN_PROGRESS &&

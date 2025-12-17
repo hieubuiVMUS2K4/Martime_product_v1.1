@@ -164,7 +164,7 @@ public class MaintenanceSchedulerService : BackgroundService
             // Get all tasks that need status correction (exclude MISSING_* - they are validation warnings)
             var statusesToProcess = new[] { "SCHEDULED", "DUE", "PENDING", "OVERDUE" };
             var tasks = await context.MaintenanceTasks
-                .Where(t => statusesToProcess.Contains(t.Status))
+                .Where(t => !t.IsDeleted && statusesToProcess.Contains(t.Status))
                 .ToListAsync();
 
             int correctedCount = 0;
@@ -300,10 +300,13 @@ public class MaintenanceSchedulerService : BackgroundService
                 if (daysUntilDue <= effectiveLeadTime || daysUntilDue < 0)
                 {
                     // Check if task already exists for this schedule and due date
+                    // IMPORTANT: Exclude soft-deleted tasks (IsDeleted = true) from check
+                    // This allows auto-regeneration after task deletion
                     var existingTask = await context.MaintenanceTasks
                         .Where(t => t.ScheduleId == schedule.Id &&
                                    t.Status != "COMPLETED" &&
-                                   t.Status != "CANCELLED")
+                                   t.Status != "CANCELLED" &&
+                                   !t.IsDeleted)  // Only count active (non-deleted) tasks
                         .FirstOrDefaultAsync();
 
                     if (existingTask == null)
@@ -384,13 +387,20 @@ public class MaintenanceSchedulerService : BackgroundService
             // Create unique task ID with group code
             var taskId = $"SCHED-{schedule.ScheduleCode}-{group.GroupCode}-{DateTime.UtcNow:yyyyMMdd}";
 
-            // Check if task already exists
+            // CRITICAL FIX: Check by TaskId directly to prevent duplicate key violations
+            // TaskId format includes date (yyyyMMdd), so multiple runs in same day generate same TaskId
+            // We must check for ANY task with this TaskId (including COMPLETED/CANCELLED)
+            // Only create new task if:
+            // 1. No task with this TaskId exists, OR
+            // 2. Existing task is from a PREVIOUS day (which means TaskId is different)
             var existingTask = await context.MaintenanceTasks
-                .FirstOrDefaultAsync(t => t.TaskId == taskId && t.Status != "COMPLETED");
+                .FirstOrDefaultAsync(t => t.TaskId == taskId);
             
             if (existingTask != null)
             {
-                _logger.LogDebug("Task {TaskId} already exists, skipping", taskId);
+                _logger.LogDebug(
+                    "Task {TaskId} already exists for schedule {ScheduleId} (Status: {Status}, IsDeleted: {IsDeleted}), skipping", 
+                    taskId, schedule.Id, existingTask.Status, existingTask.IsDeleted);
                 return;
             }
 

@@ -39,7 +39,8 @@ public class TaskWorkflowController : ControllerBase
             var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
             var deviceType = Request.Headers["X-Device-Type"].FirstOrDefault() ?? "MOBILE";
 
-            var task = await _context.MaintenanceTasks.FirstOrDefaultAsync(t => t.Id == id);
+            var task = await _context.MaintenanceTasks
+                .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
             
             if (task == null)
             {
@@ -130,7 +131,7 @@ public class TaskWorkflowController : ControllerBase
 
             var task = await _context.MaintenanceTasks
                 .Include(t => t.ChecklistItems)
-                .FirstOrDefaultAsync(t => t.Id == id);
+                .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
             
             if (task == null)
             {
@@ -252,7 +253,8 @@ public class TaskWorkflowController : ControllerBase
             var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
             var deviceType = Request.Headers["X-Device-Type"].FirstOrDefault() ?? "WEB";
 
-            var task = await _context.MaintenanceTasks.FirstOrDefaultAsync(t => t.Id == id);
+            var task = await _context.MaintenanceTasks
+                .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
             
             if (task == null)
             {
@@ -477,7 +479,7 @@ public class TaskWorkflowController : ControllerBase
                 .AsNoTracking()
                 .Include(t => t.DeferralRequests.Where(d => d.Status == "PENDING"))
                 .Include(t => t.StatusHistory.OrderByDescending(h => h.ChangedAt).Take(20))
-                .FirstOrDefaultAsync(t => t.Id == id);
+                .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
 
             if (task == null)
             {
@@ -600,7 +602,7 @@ public class TaskWorkflowController : ControllerBase
         {
             var query = _context.MaintenanceTasks
                 .AsNoTracking()
-                .Where(t => t.Status == "PENDING_APPROVAL")
+                .Where(t => !t.IsDeleted && t.Status == "PENDING_APPROVAL")
                 .OrderBy(t => t.SubmittedAt);
 
             var totalCount = await query.CountAsync();
@@ -717,23 +719,23 @@ public class TaskWorkflowController : ControllerBase
             var summary = new ApprovalDashboardSummaryDto
             {
                 PendingApprovalCount = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "PENDING_APPROVAL"),
+                    .CountAsync(t => !t.IsDeleted && t.Status == "PENDING_APPROVAL"),
                 
                 PendingDeferralCount = await _context.TaskDeferralRequests
                     .CountAsync(d => d.Status == "PENDING"),
                 
                 RectifyTaskCount = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "RECTIFY"),
+                    .CountAsync(t => !t.IsDeleted && t.Status == "RECTIFY"),
                 
                 OverdueTaskCount = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "OVERDUE"),
+                    .CountAsync(t => !t.IsDeleted && t.Status == "OVERDUE"),
                 
                 TodayDueCount = await _context.MaintenanceTasks
-                    .CountAsync(t => (t.Status == "DUE" || t.Status == "SCHEDULED") 
+                    .CountAsync(t => !t.IsDeleted && (t.Status == "DUE" || t.Status == "SCHEDULED") 
                         && t.NextDueAt.Date == today),
                 
                 ThisWeekDueCount = await _context.MaintenanceTasks
-                    .CountAsync(t => (t.Status == "DUE" || t.Status == "SCHEDULED") 
+                    .CountAsync(t => !t.IsDeleted && (t.Status == "DUE" || t.Status == "SCHEDULED") 
                         && t.NextDueAt >= today && t.NextDueAt <= endOfWeek)
             };
 
@@ -763,32 +765,32 @@ public class TaskWorkflowController : ControllerBase
                 Date = today,
                 
                 OverdueTasksEngine = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "OVERDUE" && t.AssignedDepartment == "ENGINE"),
+                    .CountAsync(t => !t.IsDeleted && t.Status == "OVERDUE" && t.AssignedDepartment == "ENGINE"),
                 
                 OverdueTasksDeck = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "OVERDUE" && t.AssignedDepartment == "DECK"),
+                    .CountAsync(t => !t.IsDeleted && t.Status == "OVERDUE" && t.AssignedDepartment == "DECK"),
                 
                 DueToday = await _context.MaintenanceTasks
-                    .CountAsync(t => (t.Status == "DUE" || t.Status == "SCHEDULED") 
+                    .CountAsync(t => !t.IsDeleted && (t.Status == "DUE" || t.Status == "SCHEDULED") 
                         && t.NextDueAt.Date == today),
                 
                 PendingApproval = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "PENDING_APPROVAL"),
+                    .CountAsync(t => !t.IsDeleted && t.Status == "PENDING_APPROVAL"),
                 
                 PendingDeferral = await _context.TaskDeferralRequests
                     .CountAsync(d => d.Status == "PENDING"),
                 
                 TasksInProgress = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "IN_PROGRESS"),
+                    .CountAsync(t => !t.IsDeleted && t.Status == "IN_PROGRESS"),
                 
                 CompletedYesterday = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "COMPLETED" 
+                    .CountAsync(t => !t.IsDeleted && t.Status == "COMPLETED" 
                         && t.CompletedAt.HasValue 
                         && t.CompletedAt.Value.Date == yesterday),
                 
                 TopPriorityTasks = await _context.MaintenanceTasks
-                    .Where(t => t.Status == "OVERDUE" || 
-                               (t.Status == "DUE" && t.Priority == "CRITICAL"))
+                    .Where(t => !t.IsDeleted && (t.Status == "OVERDUE" || 
+                               (t.Status == "DUE" && t.Priority == "CRITICAL")))
                     .OrderBy(t => t.NextDueAt)
                     .Take(5)
                     .Select(t => new TaskSummaryDto
@@ -846,7 +848,7 @@ public class TaskWorkflowController : ControllerBase
             }
 
             var tasks = await _context.MaintenanceTasks
-                .Where(t => dto.TaskIds.Contains(t.Id) && t.Status == "PENDING_APPROVAL")
+                .Where(t => !t.IsDeleted && dto.TaskIds.Contains(t.Id) && t.Status == "PENDING_APPROVAL")
                 .ToListAsync();
 
             if (!tasks.Any())
@@ -1023,7 +1025,8 @@ public class TaskWorkflowController : ControllerBase
                     {
                         // Check if equipment group has other active tasks
                         hasOtherActiveMaintenance = await _context.MaintenanceTasks
-                            .AnyAsync(t => t.EquipmentGroupId == task.EquipmentGroupId.Value &&
+                            .AnyAsync(t => !t.IsDeleted &&
+                                          t.EquipmentGroupId == task.EquipmentGroupId.Value &&
                                           t.Id != task.Id &&
                                           t.Status == MTaskStatus.IN_PROGRESS);
                     }
@@ -1031,7 +1034,8 @@ public class TaskWorkflowController : ControllerBase
                     {
                         // LEGACY: Check if this specific equipment has other active tasks
                         hasOtherActiveMaintenance = await _context.MaintenanceTasks
-                            .AnyAsync(t => t.EquipmentId == task.EquipmentId &&
+                            .AnyAsync(t => !t.IsDeleted &&
+                                          t.EquipmentId == task.EquipmentId &&
                                           t.Id != task.Id &&
                                           t.Status == MTaskStatus.IN_PROGRESS);
                     }

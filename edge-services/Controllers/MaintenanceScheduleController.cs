@@ -782,7 +782,8 @@ public class MaintenanceScheduleController : ControllerBase
         {
             // Find all active tasks for this schedule (TASK, MISSING_*, PENDING_APPROVAL, PENDING)
             var activeTasks = await _context.MaintenanceTasks
-                .Where(t => t.TaskId.StartsWith($"SCHED-{scheduleCode}") &&
+                .Where(t => !t.IsDeleted && 
+                           t.TaskId.StartsWith($"SCHED-{scheduleCode}") &&
                            t.Status != "IN_PROGRESS" &&
                            t.Status != "COMPLETED" &&
                            t.Status != "CANCELLED")

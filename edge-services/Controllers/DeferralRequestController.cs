@@ -42,7 +42,7 @@ public class DeferralRequestController : ControllerBase
             // Validate task exists and is in valid status
             var task = await _context.MaintenanceTasks
                 .AsNoTracking() // Prevent circular reference in sync queue
-                .FirstOrDefaultAsync(t => t.Id == dto.TaskId);
+                .FirstOrDefaultAsync(t => t.Id == dto.TaskId && !t.IsDeleted);
 
             if (task == null)
             {

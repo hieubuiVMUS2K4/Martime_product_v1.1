@@ -898,6 +898,8 @@ export function KanbanBoard({ tasks, onTaskUpdate: _onTaskUpdate, onTaskDelete, 
                   onOpenApprovalQueue={column.id === 'pending-approval' ? () => navigate('/pms/approval-dashboard') : undefined}
                   // Open Deferral Management - only for deferrals column
                   onOpenDeferralManagement={column.id === 'deferrals' ? () => navigate('/pms/deferrals') : undefined}
+                  // Open Maintenance History - only for completed column
+                  onOpenMaintenanceHistory={column.id === 'completed' ? () => navigate('/pms/maintenance-history') : undefined}
                 />
               )}
             </div>
