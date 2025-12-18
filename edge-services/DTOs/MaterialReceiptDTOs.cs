@@ -70,6 +70,11 @@ public class ImportReceiptItemDto
     // Stock thresholds
     public decimal? MinStock { get; set; }
     public decimal? MaxStock { get; set; }
+    
+    // Additional fields
+    public string? Supplier { get; set; }
+    public decimal? ReorderLevel { get; set; }
+    public decimal? ReorderQuantity { get; set; }
 }
 
 /// <summary>
@@ -159,7 +164,7 @@ public class MaterialReceiptItemResponseDto
 {
     public int Id { get; set; }
     public int LineNumber { get; set; }
-    public Guid MaterialItemId { get; set; } // Guid because MaterialItem.Id is Guid
+    public Guid? MaterialItemId { get; set; } // Nullable: null nếu vật tư đã bị xóa
     public string ItemCode { get; set; } = string.Empty;
     public string ItemName { get; set; } = string.Empty;
     public string CategoryName { get; set; } = string.Empty;

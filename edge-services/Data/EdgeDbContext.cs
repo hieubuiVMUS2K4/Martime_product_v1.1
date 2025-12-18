@@ -1040,6 +1040,9 @@ public class EdgeDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // ========== MATERIAL RECEIPT ITEMS ==========
+        // Config đã có trong migration, không cần config lại ở đây
+
         // ========== FUEL ANALYTICS SUMMARY ==========
         modelBuilder.Entity<FuelAnalyticsSummary>(entity =>
         {

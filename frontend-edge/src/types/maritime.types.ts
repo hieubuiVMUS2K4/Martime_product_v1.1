@@ -760,7 +760,7 @@ export interface MaterialCategory {
 }
 
 export interface MaterialItem {
-  id: number;
+  id: string; // Guid
   itemCode: string;
   name: string;
   categoryId: number;

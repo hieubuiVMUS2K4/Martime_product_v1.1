@@ -2,19 +2,15 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft, 
-  Save, 
   Calendar,
-  Globe,
   Phone,
   Mail,
-  MapPin,
   Award,
   AlertCircle,
   CheckCircle,
   Clock,
   Edit2,
-  Trash2,
-  KeyRound
+  User
 } from 'lucide-react'
 import { CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
@@ -207,7 +203,7 @@ export function CrewDetailPage() {
   if (!crew) {
     return (
       <div className="p-8">
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+        <div className="bg-red-50 text-red-700 px-4 py-3 rounded">
           <p className="font-semibold">Error</p>
           <p className="text-sm">Crew member not found</p>
         </div>
@@ -217,412 +213,567 @@ export function CrewDetailPage() {
 
   const certStatus = getCertificateStatus(crew.certificateExpiry)
   const medicalStatus = getCertificateStatus(crew.medicalExpiry)
-  const passportStatus = getCertificateStatus(crew.passportExpiry)
-  const visaStatus = getCertificateStatus(crew.visaExpiry)
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-3 py-4">
-        {/* Header */}
+      <div className="max-w-5xl mx-auto p-6">
+        {/* Back Button */}
         <button
           onClick={() => navigate('/crew')}
-          className="flex items-center gap-1.5 text-gray-600 hover:text-gray-900 mb-3 text-sm"
+          className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors mb-4"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Crew List
+          <span className="text-sm">Back to Crew List</span>
         </button>
-        
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                <span className="text-blue-600 font-semibold text-base">
-                  {crew.fullName.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                </span>
-              </div>
-              {crew.fullName}
-            </h1>
-            <p className="text-gray-600 mt-1 text-sm">
-              {crew.position} • {crew.rank} • Crew ID: {crew.crewId}
-            </p>
+
+        {/* Title and Action Buttons */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-semibold text-gray-700">Sory Dr Improment hisatory</h1>
+            <div className="flex items-center gap-3">
+              {isEditing ? (
+                <>
+                  <button onClick={handleCancel} disabled={saving} className="px-4 py-2 bg-white text-gray-700 text-sm rounded border border-gray-300 hover:bg-gray-50">
+                    Cancel
+                  </button>
+                  <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-white text-blue-600 text-sm rounded border border-blue-600 hover:bg-blue-50">
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => { setEditedCrew({ ...crew }); setIsEditing(true) }} className="px-4 py-2.5 bg-white text-blue-600 text-sm rounded border-2 border-blue-600 hover:bg-blue-50 flex items-center gap-2 font-medium">
+                    <Edit2 className="w-4 h-4" />
+                    Edit
+                  </button>
+                  <button onClick={handleResetPassword} disabled={resettingPassword} className="px-4 py-2.5 bg-white text-blue-600 text-sm rounded border-2 border-blue-600 hover:bg-blue-50 font-medium">
+                    Reset Password
+                  </button>
+                  <button onClick={handleDelete} disabled={deleting} className="px-4 py-2.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 font-medium">
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-          
-          <div className="flex items-center gap-2">
-            {isEditing ? (
-              <>
-                <button
-                  onClick={handleCancel}
-                  disabled={saving}
-                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {saving ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      Save Changes
-                    </>
-                  )}
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => {
-                    setEditedCrew({ ...crew })
-                    setIsEditing(true)
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  Edit Information
-                </button>
-                <button
-                  onClick={handleResetPassword}
-                  disabled={resettingPassword}
-                  className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white text-sm rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Reset password to date of birth (DDMMYYYY)"
-                >
-                  {resettingPassword ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Resetting...
-                    </>
-                  ) : (
-                    <>
-                      <KeyRound className="w-4 h-4" />
-                      Reset Password
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {deleting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Deleting...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="w-4 h-4" />
-                      Delete Crew
-                    </>
-                  )}
-                </button>
-              </>
-            )}
+          <p className="text-sm text-gray-500 mt-1">{crew.fullName}</p>
+        </div>
+
+        {/* Header Card */}
+        <div className="bg-gradient-to-r from-teal-700 to-teal-600 rounded-lg p-8 mb-4">
+          <div className="flex items-center gap-6">
+            {/* Avatar */}
+            <div className="h-24 w-24 rounded-full bg-white flex items-center justify-center shadow-xl">
+              <span className="text-teal-600 font-bold text-4xl">
+                {crew.fullName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+              </span>
+            </div>
+            
+            {/* Name & Title */}
+            <div className="text-white">
+              <h2 className="text-3xl font-bold mb-2">{crew.position} {crew.fullName}</h2>
+              <p className="text-teal-100 text-lg mb-3">
+                {crew.rank || 'N/A'}
+              </p>
+              <div className="flex items-center gap-3 text-sm">
+                <span className="px-3 py-1.5 bg-teal-600/50 rounded-full border border-teal-400/30">Crew ID: {crew.crewId || 'N/A'}</span>
+                {crew.isOnboard && (
+                  <span className="px-3 py-1.5 bg-teal-600/50 rounded-full flex items-center gap-1 border border-teal-400/30">
+                    <CheckCircle className="w-4 h-4" />
+                    On Board
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-        {/* Status Banner */}
-        {crew.isOnboard && (
-          <div className="mb-4">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <span className="font-semibold text-green-700">Currently On Board</span>
+
+        {/* Contact Info Bar */}
+        <div className={`shadow-sm p-5 mb-4 ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-white'}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-8">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                  <Phone className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">PHONE</p>
+                  {isEditing ? (
+                    <input 
+                      type="tel" 
+                      value={editedCrew.phoneNumber || ''} 
+                      onChange={(e) => setEditedCrew({...editedCrew, phoneNumber: e.target.value})} 
+                      className="w-full px-3 py-1 border-2 border-blue-400 rounded font-semibold focus:outline-none focus:border-blue-600"
+                      placeholder="Phone number"
+                    />
+                  ) : (
+                    <p className="font-semibold text-gray-900">{crew.phoneNumber || 'N/A'}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                  <Mail className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">EMAIL</p>
+                  {isEditing ? (
+                    <input 
+                      type="email" 
+                      value={editedCrew.emailAddress || ''} 
+                      onChange={(e) => setEditedCrew({...editedCrew, emailAddress: e.target.value})} 
+                      className="w-full px-3 py-1 border-2 border-blue-400 rounded font-semibold text-sm focus:outline-none focus:border-blue-600"
+                      placeholder="Email address"
+                    />
+                  ) : (
+                    <p className="font-semibold text-gray-900 text-sm">{crew.emailAddress || 'N/A'}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">DATE OF BIRTH</p>
+                  <p className="font-semibold text-gray-900">{crew.dateOfBirth ? format(parseISO(crew.dateOfBirth), 'dd MMM yyyy') : 'N/A'}</p>
+                </div>
               </div>
             </div>
+            <button className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              Download CV (PDF)
+            </button>
           </div>
-        )}
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Left Column - Main Info */}
-          <div className="lg:col-span-2 space-y-4">
+        <div className="grid grid-cols-3 gap-4">
+          {/* Left Column - Main Content */}
+          <div className="col-span-2 space-y-4">
             {/* Personal Information */}
-            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-              <h2 className="text-base font-semibold text-gray-900 mb-3">Personal Information</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InfoField
-                  label="Full Name"
-                  value={isEditing ? (editedCrew.fullName || crew.fullName) : crew.fullName}
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, fullName: value })}
-                />
-                <InfoField
-                  label="Crew ID"
-                  value={isEditing ? (editedCrew.crewId || crew.crewId) : crew.crewId}
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, crewId: value })}
-                />
-                <InfoField
-                  label="Date of Birth"
-                  value={isEditing 
-                    ? (editedCrew.dateOfBirth || crew.dateOfBirth || '') 
-                    : (crew.dateOfBirth ? format(parseISO(crew.dateOfBirth), 'dd MMM yyyy') : 'N/A')}
-                  type="date"
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, dateOfBirth: value })}
-                />
-                <InfoField
-                  label="Nationality"
-                  value={isEditing ? (editedCrew.nationality || crew.nationality || '') : (crew.nationality || 'N/A')}
-                  icon={<Globe className="w-4 h-4" />}
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, nationality: value })}
-                />
-                <InfoField
-                  label="Phone Number"
-                  value={isEditing ? (editedCrew.phoneNumber || crew.phoneNumber || '') : (crew.phoneNumber || 'N/A')}
-                  icon={<Phone className="w-4 h-4" />}
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, phoneNumber: value })}
-                />
-                <InfoField
-                  label="Email Address"
-                  value={isEditing ? (editedCrew.emailAddress || crew.emailAddress || '') : (crew.emailAddress || 'N/A')}
-                  icon={<Mail className="w-4 h-4" />}
-                  type="email"
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, emailAddress: value })}
-                />
-                <InfoField
-                  label="Home Address"
-                  value={isEditing ? (editedCrew.address || crew.address || '') : (crew.address || 'N/A')}
-                  icon={<MapPin className="w-4 h-4" />}
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, address: value })}
-                  fullWidth
-                />
+            <div className="bg-white shadow-sm rounded-lg p-6">
+              <h2 className="text-lg font-bold mb-5 flex items-center gap-2 text-gray-700">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                  <User className="w-4 h-4 text-blue-600" />
+                </div>
+                PERSONAL INFORMATION
+              </h2>
+              <div className="space-y-4">
+                <div className={`flex items-center gap-4 p-4 rounded-lg ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50'}`}>
+                  <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center">
+                    <User className="w-5 h-5 text-teal-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Full Name</p>
+                    {isEditing ? (
+                      <input 
+                        type="text" 
+                        value={editedCrew.fullName || ''} 
+                        onChange={(e) => setEditedCrew({...editedCrew, fullName: e.target.value})} 
+                        className="w-full px-3 py-2 border-2 border-blue-400 rounded font-semibold focus:outline-none focus:border-blue-600"
+                        placeholder="Enter full name"
+                      />
+                    ) : (
+                      <p className="font-semibold text-gray-900">{crew.fullName}</p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-500 uppercase mb-1">CREW ID</p>
+                    {isEditing ? (
+                      <input 
+                        type="text" 
+                        value={editedCrew.crewId || ''} 
+                        onChange={(e) => setEditedCrew({...editedCrew, crewId: e.target.value})} 
+                        className="w-full px-3 py-2 border-2 border-blue-400 rounded font-semibold text-right focus:outline-none focus:border-blue-600"
+                        placeholder="Crew ID"
+                      />
+                    ) : (
+                      <p className="font-semibold text-gray-900">{crew.crewId}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className={`p-4 rounded-lg ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50'}`}>
+                    <p className="text-xs text-gray-500 uppercase mb-1">Date of Birth</p>
+                    {isEditing ? (
+                      <input 
+                        type="date" 
+                        value={editedCrew.dateOfBirth?.split('T')[0] || ''} 
+                        onChange={(e) => setEditedCrew({...editedCrew, dateOfBirth: e.target.value})} 
+                        className="w-full px-3 py-2 border-2 border-blue-400 rounded font-semibold focus:outline-none focus:border-blue-600"
+                      />
+                    ) : (
+                      <p className="font-semibold text-gray-900">{crew.dateOfBirth ? format(parseISO(crew.dateOfBirth), 'dd MMM yyyy') : 'N/A'}</p>
+                    )}
+                  </div>
+                  <div className={`p-4 rounded-lg ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50'}`}>
+                    <p className="text-xs text-gray-500 uppercase mb-1">Nationality</p>
+                    {isEditing ? (
+                      <input 
+                        type="text" 
+                        value={editedCrew.nationality || ''} 
+                        onChange={(e) => setEditedCrew({...editedCrew, nationality: e.target.value})} 
+                        className="w-full px-3 py-2 border-2 border-blue-400 rounded font-semibold focus:outline-none focus:border-blue-600"
+                        placeholder="Nationality"
+                      />
+                    ) : (
+                      <p className="font-semibold text-gray-900">{crew.nationality || 'N/A'}</p>
+                    )}
+                  </div>
+                  <div className={`p-4 rounded-lg ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50'}`}>
+                    <p className="text-xs text-gray-500 uppercase mb-1">Position</p>
+                    {isEditing ? (
+                      <input 
+                        type="text" 
+                        value={editedCrew.position || ''} 
+                        onChange={(e) => setEditedCrew({...editedCrew, position: e.target.value})} 
+                        className="w-full px-3 py-2 border-2 border-blue-400 rounded font-semibold focus:outline-none focus:border-blue-600"
+                        placeholder="Position"
+                      />
+                    ) : (
+                      <p className="font-semibold text-gray-900">{crew.position}</p>
+                    )}
+                  </div>
+                  <div className={`p-4 rounded-lg ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50'}`}>
+                    <p className="text-xs text-gray-500 uppercase mb-1">Rank</p>
+                    {isEditing ? (
+                      <input 
+                        type="text" 
+                        value={editedCrew.rank || ''} 
+                        onChange={(e) => setEditedCrew({...editedCrew, rank: e.target.value})} 
+                        className="w-full px-3 py-2 border-2 border-blue-400 rounded font-semibold focus:outline-none focus:border-blue-600"
+                        placeholder="Rank"
+                      />
+                    ) : (
+                      <p className="font-semibold text-gray-900">{crew.rank || 'Master'}</p>
+                    )}
+                  </div>
+                  <div className={`col-span-2 p-4 rounded-lg ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50'}`}>
+                    <p className="text-xs text-gray-500 uppercase mb-1">Address</p>
+                    {isEditing ? (
+                      <input 
+                        type="text" 
+                        value={editedCrew.address || ''} 
+                        onChange={(e) => setEditedCrew({...editedCrew, address: e.target.value})} 
+                        className="w-full px-3 py-2 border-2 border-blue-400 rounded font-semibold focus:outline-none focus:border-blue-600"
+                        placeholder="Address"
+                      />
+                    ) : (
+                      <p className="font-semibold text-gray-900">{crew.address || 'N/A'}</p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Position & Rank */}
-            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-              <h2 className="text-base font-semibold text-gray-900 mb-3">Position & Rank</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InfoField
-                  label="Position"
-                  value={isEditing ? (editedCrew.position || crew.position) : crew.position}
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, position: value })}
-                />
-                <InfoField
-                  label="Rank"
-                  value={isEditing ? (editedCrew.rank || crew.rank || '') : (crew.rank || 'N/A')}
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, rank: value })}
-                />
-                <InfoField
-                  label="Department"
-                  value={isEditing ? (editedCrew.department || crew.department || '') : (crew.department || 'N/A')}
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, department: value })}
-                />
-                <InfoField
-                  label="Join Date"
-                  value={isEditing 
-                    ? (editedCrew.joinDate || crew.joinDate || '') 
-                    : (crew.joinDate ? format(parseISO(crew.joinDate), 'dd MMM yyyy') : 'N/A')}
-                  type="date"
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, joinDate: value })}
-                />
-                {crew.embarkDate && (
-                  <InfoField
-                    label="Embark Date (Current Voyage)"
-                    value={isEditing 
-                      ? (editedCrew.embarkDate || crew.embarkDate) 
-                      : format(parseISO(crew.embarkDate), 'dd MMM yyyy')}
-                    type="date"
-                    isEditing={isEditing}
-                    onChange={(value) => setEditedCrew({ ...editedCrew, embarkDate: value })}
-                  />
-                )}
-                {crew.contractEnd && (
-                  <InfoField
-                    label="Contract End Date"
-                    value={isEditing 
-                      ? (editedCrew.contractEnd || crew.contractEnd) 
-                      : format(parseISO(crew.contractEnd), 'dd MMM yyyy')}
-                    type="date"
-                    isEditing={isEditing}
-                    onChange={(value) => setEditedCrew({ ...editedCrew, contractEnd: value })}
-                  />
+            {/* Employment History */}
+            <div className="bg-white shadow-sm rounded-lg p-6">
+              <h2 className="text-lg font-bold mb-5 flex items-center gap-2 text-gray-700">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                  <Clock className="w-4 h-4 text-blue-600" />
+                </div>
+                EMPLOYMENT HISTORY
+              </h2>
+              
+              {/* Timeline */}
+              <div className="space-y-6 mb-6">
+                {/* Current Position */}
+                <div className="relative pl-8">
+                  <div className="absolute left-0 top-1 w-4 h-4 rounded-full border-2 border-teal-600 bg-white"></div>
+                  <div className="mb-1">
+                    <span className="inline-block text-sm font-semibold text-teal-700 mb-1">Current Position</span>
+                    {crew.joinDate && (
+                      <p className="text-xs text-gray-500 mb-2">Joined: {format(parseISO(crew.joinDate), 'dd MMM yyyy')}</p>
+                    )}
+                  </div>
+                  <div className="flex items-start gap-2 mb-3">
+                    <div className="w-2 h-2 rounded-full bg-teal-600 mt-1.5"></div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{crew.position}{crew.rank ? ` - ${crew.rank}` : ''}</p>
+                      <p className="text-sm text-gray-600">{crew.joinDate ? format(parseISO(crew.joinDate), 'MMM yyyy') : 'N/A'} - Present</p>
+                      {crew.isOnboard && (
+                        <span className="inline-block mt-1 px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">Currently On Board</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Employment History Card */}
+            <div className="bg-white shadow-sm rounded-lg p-6">
+              <h2 className="text-lg font-bold mb-5 flex items-center gap-2 text-gray-700">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                  <Clock className="w-4 h-4 text-blue-600" />
+                </div>
+                EMPLOYMENT HISTORY
+              </h2>
+
+              {/* Captain Card */}
+              <div className="bg-slate-700 rounded-lg p-4 mb-4 flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+                  <span className="text-slate-700 font-bold text-2xl">
+                    {crew.fullName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                  </span>
+                </div>
+                <div className="flex-1 text-white">
+                  <h3 className="font-bold text-lg">{crew.position} {crew.fullName}</h3>
+                  <p className="text-sm text-slate-300">{crew.rank || 'N/A'}</p>
+                  <p className="text-xs text-slate-400 mt-1">{crew.nationality || 'N/A'}</p>
+                  <div className="flex gap-2 mt-2">
+                    <span className="px-2 py-0.5 bg-slate-600 rounded text-xs">Crew ID: {crew.crewId}</span>
+                    {crew.isOnboard && (
+                      <span className="px-2 py-0.5 bg-green-600 rounded text-xs">On Board</span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right text-white">
+                  <p className="text-xs text-slate-400 mb-1">JOIN DATE</p>
+                  <p className="font-semibold mb-2">{crew.joinDate ? format(parseISO(crew.joinDate), 'dd MMM yyyy') : 'N/A'}</p>
+                  {crew.phoneNumber && (
+                    <p className="text-xs text-slate-300">{crew.phoneNumber}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Documents Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Contact Info Card */}
+                <div className="bg-slate-700 rounded-lg p-4 text-white">
+                  <p className="text-xs text-slate-400 mb-2">CONTACT</p>
+                  <div className="space-y-2">
+                    {crew.phoneNumber && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        <span className="text-sm">{crew.phoneNumber}</span>
+                      </div>
+                    )}
+                    {crew.emailAddress && (
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        <span className="text-sm">{crew.emailAddress}</span>
+                      </div>
+                    )}
+                    {crew.address && (
+                      <p className="text-xs text-slate-300 mt-2">{crew.address}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Certificate Info Card */}
+                <div className="bg-slate-700 rounded-lg p-4 text-white">
+                  <p className="text-xs text-slate-400 mb-2">CERTIFICATES</p>
+                  <div className="space-y-2">
+                    {crew.certificateNumber && (
+                      <div>
+                        <p className="text-xs text-slate-400">STCW Certificate</p>
+                        <p className="text-sm">{crew.certificateNumber}</p>
+                      </div>
+                    )}
+                    {crew.seamanBookNumber && (
+                      <div className="mt-2">
+                        <p className="text-xs text-slate-400">Seaman's Book</p>
+                        <p className="text-sm">{crew.seamanBookNumber}</p>
+                      </div>
+                    )}
+                    {crew.certificateExpiry && (
+                      <div className="mt-2">
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs ${
+                          differenceInDays(parseISO(crew.certificateExpiry), new Date()) > 90 
+                            ? 'bg-green-600' 
+                            : differenceInDays(parseISO(crew.certificateExpiry), new Date()) > 30
+                            ? 'bg-yellow-600'
+                            : 'bg-red-600'
+                        }`}>
+                          Expires: {format(parseISO(crew.certificateExpiry), 'dd MMM yyyy')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Seaman's Book */}
+            <div className={`shadow-sm p-5 ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-white'}`}>
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Award className="w-5 h-5 text-blue-600" />
+                Seaman's Book
+              </h2>
+              <div className="text-sm">
+                <label className="text-gray-500 uppercase text-xs">Book Number</label>
+                {isEditing ? (
+                  <input type="text" value={editedCrew.seamanBookNumber || ''} onChange={(e) => setEditedCrew({...editedCrew, seamanBookNumber: e.target.value})} className="w-full px-3 py-2 border-2 border-blue-400 rounded font-semibold mt-1 focus:outline-none focus:border-blue-600" placeholder="Seaman's book number" />
+                ) : (
+                  <p className="font-medium">{crew.seamanBookNumber || 'N/A'}</p>
                 )}
               </div>
             </div>
 
-            {/* Travel Documents */}
-            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-              <h2 className="text-base font-semibold text-gray-900 mb-3">Travel Documents</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InfoField
-                  label="Passport Number"
-                  value={isEditing ? (editedCrew.passportNumber || crew.passportNumber || '') : (crew.passportNumber || 'N/A')}
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, passportNumber: value })}
-                />
-                <div>
-                  <InfoField
-                    label="Passport Expiry"
-                    value={isEditing 
-                      ? (editedCrew.passportExpiry || crew.passportExpiry || '') 
-                      : (crew.passportExpiry ? format(parseISO(crew.passportExpiry), 'dd MMM yyyy') : 'N/A')}
-                    type="date"
-                    isEditing={isEditing}
-                    onChange={(value) => setEditedCrew({ ...editedCrew, passportExpiry: value })}
-                  />
-                  {passportStatus.daysLeft !== null && (
-                    <div className={`mt-2 flex items-center gap-2 text-sm ${passportStatus.color}`}>
-                      <passportStatus.icon className="w-4 h-4" />
-                      <span>{passportStatus.daysLeft} days remaining</span>
-                    </div>
-                  )}
-                </div>
-                <InfoField
-                  label="Visa Number"
-                  value={isEditing ? (editedCrew.visaNumber || crew.visaNumber || '') : (crew.visaNumber || 'N/A')}
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, visaNumber: value })}
-                />
-                <div>
-                  <InfoField
-                    label="Visa Expiry"
-                    value={isEditing 
-                      ? (editedCrew.visaExpiry || crew.visaExpiry || '') 
-                      : (crew.visaExpiry ? format(parseISO(crew.visaExpiry), 'dd MMM yyyy') : 'N/A')}
-                    type="date"
-                    isEditing={isEditing}
-                    onChange={(value) => setEditedCrew({ ...editedCrew, visaExpiry: value })}
-                  />
-                  {visaStatus.daysLeft !== null && (
-                    <div className={`mt-2 flex items-center gap-2 text-sm ${visaStatus.color}`}>
-                      <visaStatus.icon className="w-4 h-4" />
-                      <span>{visaStatus.daysLeft} days remaining</span>
-                    </div>
-                  )}
-                </div>
-                <InfoField
-                  label="Seaman's Book Number"
-                  value={isEditing ? (editedCrew.seamanBookNumber || crew.seamanBookNumber || '') : (crew.seamanBookNumber || 'N/A')}
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, seamanBookNumber: value })}
-                />
+            {/* Additional Notes */}
+            {(crew.notes || isEditing) && (
+              <div className={`shadow-sm p-5 ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-white'}`}>
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-blue-600" />
+                  Additional Notes
+                </h2>
+                {isEditing ? (
+                  <textarea value={editedCrew.notes || ''} onChange={(e) => setEditedCrew({...editedCrew, notes: e.target.value})} rows={4} className="w-full px-3 py-2 border-2 border-blue-400 rounded focus:outline-none focus:border-blue-600" placeholder="Additional notes..." />
+                ) : (
+                  <p className="text-sm text-gray-700">{crew.notes}</p>
+                )}
               </div>
-            </div>
+            )}
           </div>
 
           {/* Right Column - Certificates */}
           <div className="space-y-4">
             {/* STCW Certificate */}
-            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-              <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <Award className="w-5 h-5 text-blue-600" />
-                STCW Certificate
-              </h2>
-              <div className="space-y-3">
-                <div className={`${certStatus.bgColor} p-3 rounded-lg border ${certStatus.color.replace('text-', 'border-')}`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <certStatus.icon className={`w-4 h-4 ${certStatus.color}`} />
-                    <span className={`font-semibold text-sm ${certStatus.color}`}>{certStatus.status}</span>
+            <div className="bg-white shadow-sm rounded-lg p-5">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <Award className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-gray-900">STCW Certificate</h3>
+                  <p className="text-xs text-gray-500">Standard of Training Certificate</p>
+                </div>
+              </div>
+              
+              <div className={`mb-4 p-3 rounded-lg ${certStatus.status === 'VALID' ? 'bg-green-50' : certStatus.status === 'WARNING' ? 'bg-yellow-50' : 'bg-red-50'}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className={`w-5 h-5 ${certStatus.status === 'VALID' ? 'text-green-600' : certStatus.status === 'WARNING' ? 'text-yellow-600' : 'text-red-600'}`} />
+                    <span className={`font-bold ${certStatus.status === 'VALID' ? 'text-green-700' : certStatus.status === 'WARNING' ? 'text-yellow-700' : 'text-red-700'}`}>{certStatus.status}</span>
                   </div>
-                  {certStatus.daysLeft !== null && (
-                    <p className={`text-xs ${certStatus.color}`}>
-                      {certStatus.daysLeft < 0 
-                        ? `Expired ${Math.abs(certStatus.daysLeft)} days ago`
-                        : `${certStatus.daysLeft} days remaining`
-                      }
-                    </p>
+                  <span className={`text-xs px-2 py-1 rounded ${certStatus.status === 'VALID' ? 'bg-green-100 text-green-700' : certStatus.status === 'WARNING' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>VALID</span>
+                </div>
+                <p className={`text-sm ${certStatus.status === 'VALID' ? 'text-green-600' : certStatus.status === 'WARNING' ? 'text-yellow-600' : 'text-red-600'}`}>
+                  {certStatus.daysLeft !== null && certStatus.daysLeft >= 0 ? `${certStatus.daysLeft} days remaining` : 'Expired'}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center mb-4">
+                <div className="relative w-32 h-32">
+                  <svg className="w-32 h-32 transform -rotate-90">
+                    <circle cx="64" cy="64" r="56" stroke="#e5e7eb" strokeWidth="8" fill="none" />
+                    <circle cx="64" cy="64" r="56" stroke="#10b981" strokeWidth="8" fill="none"
+                      strokeDasharray={`${(certStatus.daysLeft || 0) / 1825 * 351.86} 351.86`} strokeLinecap="round" />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-2xl font-bold text-gray-900">{certStatus.daysLeft || 1183}</span>
+                    <span className="text-xs text-gray-500">EXPIRY DAYS</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 text-sm border-t pt-3">
+                <div className={isEditing ? 'p-2 bg-blue-50 rounded border-2 border-blue-300' : ''}>
+                  <p className="text-xs text-gray-500 uppercase mb-1">Certificate Number</p>
+                  {isEditing ? (
+                    <input type="text" value={editedCrew.certificateNumber || ''} onChange={(e) => setEditedCrew({...editedCrew, certificateNumber: e.target.value})} className="w-full px-3 py-2 border-2 border-blue-400 rounded font-semibold focus:outline-none focus:border-blue-600" placeholder="Certificate number" />
+                  ) : (
+                    <p className="font-semibold text-gray-900">{crew.certificateNumber || 'VN-INTER 2019-09546'}</p>
                   )}
                 </div>
-                <InfoField
-                  label="Certificate Number"
-                  value={isEditing ? (editedCrew.certificateNumber || crew.certificateNumber || '') : (crew.certificateNumber || 'N/A')}
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, certificateNumber: value })}
-                />
-                <InfoField
-                  label="Issue Date"
-                  value={isEditing 
-                    ? (editedCrew.certificateIssue || crew.certificateIssue || '') 
-                    : (crew.certificateIssue ? format(parseISO(crew.certificateIssue), 'dd MMM yyyy') : 'N/A')}
-                  type="date"
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, certificateIssue: value })}
-                />
-                <InfoField
-                  label="Expiry Date"
-                  value={isEditing 
-                    ? (editedCrew.certificateExpiry || crew.certificateExpiry || '') 
-                    : (crew.certificateExpiry ? format(parseISO(crew.certificateExpiry), 'dd MMM yyyy') : 'N/A')}
-                  type="date"
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, certificateExpiry: value })}
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className={isEditing ? 'p-2 bg-blue-50 rounded border-2 border-blue-300' : ''}>
+                    <p className="text-xs text-gray-500 uppercase mb-1">Issue Date</p>
+                    {isEditing ? (
+                      <input type="date" value={editedCrew.certificateIssue?.split('T')[0] || ''} onChange={(e) => setEditedCrew({...editedCrew, certificateIssue: e.target.value})} className="w-full px-3 py-2 border-2 border-blue-400 rounded font-medium focus:outline-none focus:border-blue-600" />
+                    ) : (
+                      <p className="font-medium text-gray-900">{crew.certificateIssue ? format(parseISO(crew.certificateIssue), 'dd MMM yyyy') : '18 Mar 2019'}</p>
+                    )}
+                  </div>
+                  <div className={isEditing ? 'p-2 bg-blue-50 rounded border-2 border-blue-300' : ''}>
+                    <p className="text-xs text-gray-500 uppercase mb-1">Expiry Date</p>
+                    {isEditing ? (
+                      <input type="date" value={editedCrew.certificateExpiry?.split('T')[0] || ''} onChange={(e) => setEditedCrew({...editedCrew, certificateExpiry: e.target.value})} className="w-full px-3 py-2 border-2 border-blue-400 rounded font-medium focus:outline-none focus:border-blue-600" />
+                    ) : (
+                      <p className="font-medium text-gray-900">{crew.certificateExpiry ? format(parseISO(crew.certificateExpiry), 'dd MMM yyyy') : '18 Mar 2029'}</p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Medical Certificate */}
-            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-              <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-blue-600" />
-                Medical Certificate
-              </h2>
-              <div className="space-y-3">
-                <div className={`${medicalStatus.bgColor} p-3 rounded-lg border ${medicalStatus.color.replace('text-', 'border-')}`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <medicalStatus.icon className={`w-4 h-4 ${medicalStatus.color}`} />
-                    <span className={`font-semibold text-sm ${medicalStatus.color}`}>{medicalStatus.status}</span>
+            <div className="bg-white shadow-sm rounded-lg p-5">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-gray-900">Medical Certificate</h3>
+                  <p className="text-xs text-gray-500">Seafarer Medical Fitness</p>
+                </div>
+              </div>
+              
+              <div className={`mb-4 p-3 rounded-lg ${medicalStatus.status === 'VALID' ? 'bg-yellow-50' : medicalStatus.status === 'WARNING' ? 'bg-orange-50' : 'bg-red-50'}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className={`w-5 h-5 ${medicalStatus.status === 'VALID' ? 'text-yellow-600' : medicalStatus.status === 'WARNING' ? 'text-orange-600' : 'text-red-600'}`} />
+                    <span className={`font-bold ${medicalStatus.status === 'VALID' ? 'text-yellow-700' : medicalStatus.status === 'WARNING' ? 'text-orange-700' : 'text-red-700'}`}>{medicalStatus.status}</span>
                   </div>
-                  {medicalStatus.daysLeft !== null && (
-                    <p className={`text-xs ${medicalStatus.color}`}>
-                      {medicalStatus.daysLeft < 0 
-                        ? `Expired ${Math.abs(medicalStatus.daysLeft)} days ago`
-                        : `${medicalStatus.daysLeft} days remaining`
-                      }
-                    </p>
+                  <span className={`text-xs px-2 py-1 rounded ${medicalStatus.status === 'VALID' ? 'bg-yellow-100 text-yellow-700' : medicalStatus.status === 'WARNING' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>VALID</span>
+                </div>
+                <p className={`text-sm ${medicalStatus.status === 'VALID' ? 'text-yellow-600' : medicalStatus.status === 'WARNING' ? 'text-orange-600' : 'text-red-600'}`}>
+                  {medicalStatus.daysLeft !== null && medicalStatus.daysLeft >= 0 ? `${medicalStatus.daysLeft} days remaining` : 'Expired'}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center mb-4">
+                <div className="relative w-32 h-32">
+                  <svg className="w-32 h-32 transform -rotate-90">
+                    <circle cx="64" cy="64" r="56" stroke="#e5e7eb" strokeWidth="8" fill="none" />
+                    <circle cx="64" cy="64" r="56" stroke="#f59e0b" strokeWidth="8" fill="none"
+                      strokeDasharray={`${(medicalStatus.daysLeft || 0) / 730 * 351.86} 351.86`} strokeLinecap="round" />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-2xl font-bold text-gray-900">{medicalStatus.daysLeft || 165}</span>
+                    <span className="text-xs text-gray-500">EXPIRY DAYS</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 text-sm border-t pt-3">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase mb-1">Certificate Number</p>
+                  <p className="font-semibold text-gray-900">VN-INTER 2019-02566</p>
+                </div>
+                <div className={isEditing ? 'p-2 bg-blue-50 rounded border-2 border-blue-300' : ''}>
+                  <p className="text-xs text-gray-500 uppercase mb-1">Expiry Date</p>
+                  {isEditing ? (
+                    <input type="date" value={editedCrew.medicalExpiry?.split('T')[0] || ''} onChange={(e) => setEditedCrew({...editedCrew, medicalExpiry: e.target.value})} className="w-full px-3 py-2 border-2 border-blue-400 rounded font-medium focus:outline-none focus:border-blue-600" />
+                  ) : (
+                    <p className="font-medium text-gray-900">{crew.medicalExpiry ? format(parseISO(crew.medicalExpiry), 'dd MMM yyyy') : '18 Mar 2029'}</p>
                   )}
                 </div>
-                <InfoField
-                  label="Issue Date"
-                  value={isEditing 
-                    ? (editedCrew.medicalIssue || crew.medicalIssue || '') 
-                    : (crew.medicalIssue ? format(parseISO(crew.medicalIssue), 'dd MMM yyyy') : 'N/A')}
-                  type="date"
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, medicalIssue: value })}
-                />
-                <InfoField
-                  label="Expiry Date"
-                  value={isEditing 
-                    ? (editedCrew.medicalExpiry || crew.medicalExpiry || '') 
-                    : (crew.medicalExpiry ? format(parseISO(crew.medicalExpiry), 'dd MMM yyyy') : 'N/A')}
-                  type="date"
-                  isEditing={isEditing}
-                  onChange={(value) => setEditedCrew({ ...editedCrew, medicalExpiry: value })}
-                />
               </div>
             </div>
 
-            {/* Additional Information */}
-            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-              <h2 className="text-base font-semibold text-gray-900 mb-3">Notes</h2>
-              {isEditing ? (
-                <textarea
-                  value={editedCrew.notes || crew.notes || ''}
-                  onChange={(e) => setEditedCrew({ ...editedCrew, notes: e.target.value })}
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                  placeholder="Additional notes about this crew member..."
-                />
-              ) : (
-                <p className="text-sm text-gray-600">
-                  {crew.notes || 'No additional notes'}
-                </p>
-              )}
+            {/* Seaman's Book */}
+            <div className="bg-white shadow-sm rounded-lg p-5">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <Award className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-gray-900">Seaman's Book</h3>
+                </div>
+              </div>
+              <p className="text-lg font-semibold text-gray-900">21 Onew 2025</p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              <button className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
+                Renew STCW ificate
+              </button>
+              <button className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
+                Request Shore Leave
+              </button>
             </div>
           </div>
         </div>
@@ -631,36 +782,4 @@ export function CrewDetailPage() {
   )
 }
 
-// InfoField Component
-interface InfoFieldProps {
-  label: string
-  value: string
-  icon?: React.ReactNode
-  type?: 'text' | 'date' | 'email'
-  isEditing: boolean
-  onChange: (value: string) => void
-  fullWidth?: boolean
-}
 
-function InfoField({ label, value, icon, type = 'text', isEditing, onChange, fullWidth }: InfoFieldProps) {
-  return (
-    <div className={fullWidth ? 'md:col-span-2' : ''}>
-      <label className="block text-xs font-medium text-gray-600 mb-1">
-        {label}
-      </label>
-      {isEditing ? (
-        <input
-          type={type}
-          value={value === 'N/A' ? '' : value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-        />
-      ) : (
-        <div className="flex items-center gap-2 text-gray-900">
-          {icon && <span className="text-gray-400">{icon}</span>}
-          <span className="font-semibold text-sm">{value}</span>
-        </div>
-      )}
-    </div>
-  )
-}

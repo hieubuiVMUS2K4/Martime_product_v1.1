@@ -121,6 +121,21 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
             'MaxStock': 'maxStock',
             'maxstock': 'maxStock',
             'Max Stock': 'maxStock',
+            'ReorderLevel': 'reorderLevel',
+            'reorderlevel': 'reorderLevel',
+            'Reorder Level': 'reorderLevel',
+            'ReorderQuantity': 'reorderQuantity',
+            'reorderquantity': 'reorderQuantity',
+            'Reorder Quantity': 'reorderQuantity',
+            'BatchTracked': 'batchTracked',
+            'batchtracked': 'batchTracked',
+            'Batch Tracked': 'batchTracked',
+            'SerialTracked': 'serialTracked',
+            'serialtracked': 'serialTracked',
+            'Serial Tracked': 'serialTracked',
+            'ExpiryRequired': 'expiryRequired',
+            'expiryrequired': 'expiryRequired',
+            'Expiry Required': 'expiryRequired',
             // Vietnamese names
             'Mã vật tư': 'itemCode',
             'Tên vật tư': 'itemName',
@@ -137,7 +152,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
           };
 
           // Map Excel data to ImportReceiptItemDto
-          const items: ImportReceiptItemDto[] = jsonData.map((row, index): ImportReceiptItemDto | null => {
+          const items: ImportReceiptItemDto[] = jsonData.map((row, index) => {
             // Normalize row keys
             const normalizedRow: Record<string, any> = {};
             for (const key of Object.keys(row)) {
@@ -168,14 +183,21 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
               quantity,
               unit: String(unit).trim(),
               unitCost: Number(normalizedRow.unitCost) || 0,
+              location: normalizedRow.location || undefined,
+              supplier: normalizedRow.supplier || undefined,
               partNumber: normalizedRow.partNumber || undefined,
               barcode: normalizedRow.barcode || undefined,
               manufacturer: normalizedRow.manufacturer || undefined,
               specification: normalizedRow.specification || undefined,
               minStock: Number(normalizedRow.minStock) || undefined,
               maxStock: Number(normalizedRow.maxStock) || undefined,
-            } as ImportReceiptItemDto;
-          }).filter((item): item is ImportReceiptItemDto => item !== null);
+              reorderLevel: Number(normalizedRow.reorderLevel) || Number(normalizedRow.reorderlevel) || undefined,
+              reorderQuantity: Number(normalizedRow.reorderQuantity) || Number(normalizedRow.reorderquantity) || undefined,
+              batchTracked: normalizedRow.batchTracked === 'TRUE' || normalizedRow.batchTracked === true || normalizedRow.batchtracked === 'TRUE',
+              serialTracked: normalizedRow.serialTracked === 'TRUE' || normalizedRow.serialTracked === true || normalizedRow.serialtracked === 'TRUE',
+              expiryRequired: normalizedRow.expiryRequired === 'TRUE' || normalizedRow.expiryRequired === true || normalizedRow.expiryrequired === 'TRUE',
+            };
+          }).filter((item) => item !== null) as ImportReceiptItemDto[];
 
           if (items.length === 0) {
             reject(new Error('No valid items found. Please check required columns: ItemCode, ItemName, Quantity, Unit'));

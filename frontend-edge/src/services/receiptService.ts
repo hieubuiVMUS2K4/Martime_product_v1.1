@@ -14,6 +14,7 @@ export interface ImportReceiptItemDto {
   unitCost?: number;
   currency?: string;
   location?: string;
+  supplier?: string;
   partNumber?: string;
   barcode?: string;
   manufacturer?: string;
@@ -24,6 +25,11 @@ export interface ImportReceiptItemDto {
   lineNumber?: number;
   minStock?: number;
   maxStock?: number;
+  reorderLevel?: number;
+  reorderQuantity?: number;
+  batchTracked?: boolean;
+  serialTracked?: boolean;
+  expiryRequired?: boolean;
 }
 
 export interface ImportReceiptDto {
