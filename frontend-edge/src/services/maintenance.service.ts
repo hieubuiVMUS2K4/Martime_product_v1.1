@@ -459,7 +459,7 @@ export const bulkVerifyTasks = async (dto: BulkVerifyTaskDto): Promise<BulkVerif
 // DEFERRAL REQUEST API FUNCTIONS
 // ============================================================
 
-const DEFERRAL_BASE = '/deferrals';
+const DEFERRAL_BASE = '/deferral-requests';
 
 export interface DeferralRequest {
   id: string;
@@ -479,6 +479,12 @@ export interface DeferralRequest {
   reviewedByName?: string;
   reviewedAt?: string;
   reviewNotes?: string;
+  // OVERDUE deferral fields
+  isOverdueDeferral?: boolean;
+  rootCause?: string;
+  preventiveMeasures?: string;
+  attachments?: string[];
+  taskStatusAtRequest?: string;
 }
 
 // ============================================================
@@ -543,7 +549,7 @@ export const reviewDeferralRequest = async (
   deferralId: string, 
   dto: ReviewDeferralDto
 ): Promise<{ message: string; status: string }> => {
-  const response = await api.post(`${DEFERRAL_BASE}/${deferralId}/review`, dto);
+  const response = await api.put(`${DEFERRAL_BASE}/${deferralId}/review`, dto);
   return response.data;
 };
 

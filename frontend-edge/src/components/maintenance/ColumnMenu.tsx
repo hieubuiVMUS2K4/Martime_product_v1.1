@@ -22,6 +22,8 @@ interface ColumnMenuProps {
   onOpenApprovalQueue?: () => void
   // Deferral Management - for Deferrals column
   onOpenDeferralManagement?: () => void
+  // Maintenance History - for Completed column
+  onOpenMaintenanceHistory?: () => void
 }
 
 export function ColumnMenu({
@@ -35,7 +37,8 @@ export function ColumnMenu({
   onDeleteTask,
   onDeleteSelected,
   onOpenApprovalQueue,
-  onOpenDeferralManagement
+  onOpenDeferralManagement,
+  onOpenMaintenanceHistory
 }: ColumnMenuProps) {
   const [selectedTasks, setSelectedTasks] = useState<string[]>([])
   const menuRef = useRef<HTMLDivElement>(null)
@@ -141,6 +144,20 @@ export function ColumnMenu({
           >
             <FileText className="w-3.5 h-3.5" />
             Manage Deferrals
+          </button>
+        )}
+        
+        {/* Open Maintenance History - for Completed column */}
+        {onOpenMaintenanceHistory && (
+          <button
+            onClick={() => {
+              onOpenMaintenanceHistory()
+              onClose()
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 transition-colors"
+          >
+            <ClipboardCheck className="w-3.5 h-3.5" />
+            Open Maintenance History
           </button>
         )}
         

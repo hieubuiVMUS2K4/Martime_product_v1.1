@@ -21,11 +21,6 @@ public class MaintenanceScheduleDto
     public int AssetCount { get; set; } = 0;
     
     [Required]
-    public int TaskTypeId { get; set; }
-    
-    public string? TaskTypeName { get; set; }
-    
-    [Required]
     [MaxLength(200)]
     public string ScheduleName { get; set; } = string.Empty;
     
@@ -74,9 +69,6 @@ public class CreateMaintenanceScheduleDto
     
     [Required]
     public Guid EquipmentGroupId { get; set; }
-    
-    [Required]
-    public int TaskTypeId { get; set; }
     
     [Required]
     [MaxLength(200)]

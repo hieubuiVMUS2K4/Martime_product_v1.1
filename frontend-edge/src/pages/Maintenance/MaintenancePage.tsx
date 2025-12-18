@@ -20,6 +20,7 @@ export function MaintenancePage() {
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
   const [groupFilter, setGroupFilter] = useState<string>('all')
   const [scheduleFilter, setScheduleFilter] = useState<string>('all')
+  const [picFilter, setPicFilter] = useState<string>('all')
   const [isAddScheduleModalOpen, setIsAddScheduleModalOpen] = useState(false)
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false)
   const [crewList, setCrewList] = useState<CrewMember[]>([])
@@ -130,17 +131,39 @@ export function MaintenancePage() {
       })
     }
 
-    console.log('📊 Tasks by status:', {
-      PENDING: filtered.filter(t => t.status === 'PENDING').length,
-      IN_PROGRESS: filtered.filter(t => t.status === 'IN_PROGRESS').length,
+    // PIC filter (by AssignedTo)
+    if (picFilter !== 'all') {
+      if (picFilter === 'unassigned') {
+        filtered = filtered.filter(task => !task.assignedTo)
+      } else {
+        filtered = filtered.filter(task => task.assignedTo === picFilter)
+      }
+    }
+
+    // Get all unique statuses in filtered tasks
+    const uniqueStatuses = [...new Set(filtered.map(t => t.status))]
+    const statusBreakdown: Record<string, number> = {}
+    uniqueStatuses.forEach(status => {
+      statusBreakdown[status] = filtered.filter(t => t.status === status).length
+    })
+    
+    console.log('📊 All unique statuses found:', uniqueStatuses)
+    console.log('📊 Full status breakdown:', statusBreakdown)
+    console.log('📊 Tasks by standard status:', {
+      SCHEDULED: filtered.filter(t => t.status === 'SCHEDULED').length,
+      DUE: filtered.filter(t => t.status === 'DUE').length,
       OVERDUE: filtered.filter(t => t.status === 'OVERDUE').length,
+      IN_PROGRESS: filtered.filter(t => t.status === 'IN_PROGRESS').length,
+      PENDING_APPROVAL: filtered.filter(t => t.status === 'PENDING_APPROVAL').length,
+      RECTIFY: filtered.filter(t => t.status === 'RECTIFY').length,
       COMPLETED: filtered.filter(t => t.status === 'COMPLETED').length,
+      PENDING: filtered.filter(t => t.status === 'PENDING').length, // Legacy
       total: filtered.length,
       hiddenCompleted: !showCompleted ? tasks.filter(t => t.status === 'COMPLETED').length : 0
     })
 
     setFilteredTasks(filtered)
-  }, [tasks, searchQuery, priorityFilter, groupFilter, scheduleFilter, timeWindow, showCompleted])
+  }, [tasks, searchQuery, priorityFilter, groupFilter, scheduleFilter, picFilter, timeWindow, showCompleted])
 
   // Calculate quick stats for time windows
   const getTimeWindowStats = () => {
@@ -376,6 +399,21 @@ export function MaintenancePage() {
               <option value="all">All Schedules</option>
               {uniqueSchedules.map(schedule => (
                 <option key={schedule} value={schedule}>{schedule}</option>
+              ))}
+            </select>
+
+            {/* PIC Filter */}
+            <select
+              value={picFilter}
+              onChange={(e) => setPicFilter(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+            >
+              <option value="all">All PICs</option>
+              <option value="unassigned">Unassigned</option>
+              {crewList.map(crew => (
+                <option key={crew.crewId} value={crew.crewId}>
+                  {crew.fullName} ({crew.rank})
+                </option>
               ))}
             </select>
 

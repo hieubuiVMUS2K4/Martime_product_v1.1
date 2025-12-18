@@ -398,7 +398,12 @@ export interface DeferralRequest {
   reviewedAt?: string
   reviewNotes?: string
   
+  // OVERDUE deferral fields (PMS Workflow v2.0 - Section 3.4)
+  isOverdueDeferral?: boolean
+  rootCause?: string
+  preventiveMeasures?: string
   attachments?: string[]
+  taskStatusAtRequest?: string
   createdAt: string
 }
 

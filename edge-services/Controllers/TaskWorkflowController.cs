@@ -39,7 +39,8 @@ public class TaskWorkflowController : ControllerBase
             var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
             var deviceType = Request.Headers["X-Device-Type"].FirstOrDefault() ?? "MOBILE";
 
-            var task = await _context.MaintenanceTasks.FirstOrDefaultAsync(t => t.Id == id);
+            var task = await _context.MaintenanceTasks
+                .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
             
             if (task == null)
             {
@@ -96,6 +97,9 @@ public class TaskWorkflowController : ControllerBase
 
             await _context.SaveChangesAsync();
 
+            // Update equipment status to UNDER_MAINTENANCE
+            await UpdateEquipmentStatusForTaskAsync(task, "IN_PROGRESS", previousStatus);
+
             _logger.LogInformation("Task {TaskId} started by {UserId} from status {PreviousStatus}", 
                 task.TaskId, userId, previousStatus);
 
@@ -127,7 +131,7 @@ public class TaskWorkflowController : ControllerBase
 
             var task = await _context.MaintenanceTasks
                 .Include(t => t.ChecklistItems)
-                .FirstOrDefaultAsync(t => t.Id == id);
+                .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
             
             if (task == null)
             {
@@ -249,7 +253,8 @@ public class TaskWorkflowController : ControllerBase
             var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
             var deviceType = Request.Headers["X-Device-Type"].FirstOrDefault() ?? "WEB";
 
-            var task = await _context.MaintenanceTasks.FirstOrDefaultAsync(t => t.Id == id);
+            var task = await _context.MaintenanceTasks
+                .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
             
             if (task == null)
             {
@@ -441,6 +446,12 @@ public class TaskWorkflowController : ControllerBase
 
             await _context.SaveChangesAsync();
 
+            // Update equipment status (COMPLETED → ACTIVE if no other maintenance)
+            if (action == "APPROVE")
+            {
+                await UpdateEquipmentStatusForTaskAsync(task, "COMPLETED", "PENDING_APPROVAL");
+            }
+
             return Ok(new { 
                 message = action == "APPROVE" ? "Task approved and completed" : "Task returned for rectification",
                 taskId = task.TaskId,
@@ -468,7 +479,7 @@ public class TaskWorkflowController : ControllerBase
                 .AsNoTracking()
                 .Include(t => t.DeferralRequests.Where(d => d.Status == "PENDING"))
                 .Include(t => t.StatusHistory.OrderByDescending(h => h.ChangedAt).Take(20))
-                .FirstOrDefaultAsync(t => t.Id == id);
+                .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
 
             if (task == null)
             {
@@ -591,7 +602,7 @@ public class TaskWorkflowController : ControllerBase
         {
             var query = _context.MaintenanceTasks
                 .AsNoTracking()
-                .Where(t => t.Status == "PENDING_APPROVAL")
+                .Where(t => !t.IsDeleted && t.Status == "PENDING_APPROVAL")
                 .OrderBy(t => t.SubmittedAt);
 
             var totalCount = await query.CountAsync();
@@ -708,23 +719,23 @@ public class TaskWorkflowController : ControllerBase
             var summary = new ApprovalDashboardSummaryDto
             {
                 PendingApprovalCount = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "PENDING_APPROVAL"),
+                    .CountAsync(t => !t.IsDeleted && t.Status == "PENDING_APPROVAL"),
                 
                 PendingDeferralCount = await _context.TaskDeferralRequests
                     .CountAsync(d => d.Status == "PENDING"),
                 
                 RectifyTaskCount = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "RECTIFY"),
+                    .CountAsync(t => !t.IsDeleted && t.Status == "RECTIFY"),
                 
                 OverdueTaskCount = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "OVERDUE"),
+                    .CountAsync(t => !t.IsDeleted && t.Status == "OVERDUE"),
                 
                 TodayDueCount = await _context.MaintenanceTasks
-                    .CountAsync(t => (t.Status == "DUE" || t.Status == "SCHEDULED") 
+                    .CountAsync(t => !t.IsDeleted && (t.Status == "DUE" || t.Status == "SCHEDULED") 
                         && t.NextDueAt.Date == today),
                 
                 ThisWeekDueCount = await _context.MaintenanceTasks
-                    .CountAsync(t => (t.Status == "DUE" || t.Status == "SCHEDULED") 
+                    .CountAsync(t => !t.IsDeleted && (t.Status == "DUE" || t.Status == "SCHEDULED") 
                         && t.NextDueAt >= today && t.NextDueAt <= endOfWeek)
             };
 
@@ -754,32 +765,32 @@ public class TaskWorkflowController : ControllerBase
                 Date = today,
                 
                 OverdueTasksEngine = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "OVERDUE" && t.AssignedDepartment == "ENGINE"),
+                    .CountAsync(t => !t.IsDeleted && t.Status == "OVERDUE" && t.AssignedDepartment == "ENGINE"),
                 
                 OverdueTasksDeck = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "OVERDUE" && t.AssignedDepartment == "DECK"),
+                    .CountAsync(t => !t.IsDeleted && t.Status == "OVERDUE" && t.AssignedDepartment == "DECK"),
                 
                 DueToday = await _context.MaintenanceTasks
-                    .CountAsync(t => (t.Status == "DUE" || t.Status == "SCHEDULED") 
+                    .CountAsync(t => !t.IsDeleted && (t.Status == "DUE" || t.Status == "SCHEDULED") 
                         && t.NextDueAt.Date == today),
                 
                 PendingApproval = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "PENDING_APPROVAL"),
+                    .CountAsync(t => !t.IsDeleted && t.Status == "PENDING_APPROVAL"),
                 
                 PendingDeferral = await _context.TaskDeferralRequests
                     .CountAsync(d => d.Status == "PENDING"),
                 
                 TasksInProgress = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "IN_PROGRESS"),
+                    .CountAsync(t => !t.IsDeleted && t.Status == "IN_PROGRESS"),
                 
                 CompletedYesterday = await _context.MaintenanceTasks
-                    .CountAsync(t => t.Status == "COMPLETED" 
+                    .CountAsync(t => !t.IsDeleted && t.Status == "COMPLETED" 
                         && t.CompletedAt.HasValue 
                         && t.CompletedAt.Value.Date == yesterday),
                 
                 TopPriorityTasks = await _context.MaintenanceTasks
-                    .Where(t => t.Status == "OVERDUE" || 
-                               (t.Status == "DUE" && t.Priority == "CRITICAL"))
+                    .Where(t => !t.IsDeleted && (t.Status == "OVERDUE" || 
+                               (t.Status == "DUE" && t.Priority == "CRITICAL")))
                     .OrderBy(t => t.NextDueAt)
                     .Take(5)
                     .Select(t => new TaskSummaryDto
@@ -837,7 +848,7 @@ public class TaskWorkflowController : ControllerBase
             }
 
             var tasks = await _context.MaintenanceTasks
-                .Where(t => dto.TaskIds.Contains(t.Id) && t.Status == "PENDING_APPROVAL")
+                .Where(t => !t.IsDeleted && dto.TaskIds.Contains(t.Id) && t.Status == "PENDING_APPROVAL")
                 .ToListAsync();
 
             if (!tasks.Any())
@@ -937,6 +948,122 @@ public class TaskWorkflowController : ControllerBase
         {
             _logger.LogError(ex, "Error in bulk verify");
             return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    // ==================== EQUIPMENT STATUS MANAGEMENT ====================
+    
+    /// <summary>
+    /// Update equipment status when task status changes
+    /// - IN_PROGRESS: Equipment → UNDER_MAINTENANCE
+    /// - COMPLETED/CANCELLED: Equipment → ACTIVE (if no other maintenance)
+    /// </summary>
+    private async Task UpdateEquipmentStatusForTaskAsync(MaintenanceTask task, string newStatus, string oldStatus)
+    {
+        try
+        {
+            // Only update when transitioning to/from IN_PROGRESS or COMPLETED
+            if (newStatus == oldStatus)
+                return;
+
+            var shouldSetMaintenance = newStatus == MTaskStatus.IN_PROGRESS && oldStatus != MTaskStatus.IN_PROGRESS;
+            var shouldRestoreActive = (newStatus == MTaskStatus.COMPLETED || newStatus == MTaskStatus.CANCELLED) &&
+                                      (oldStatus == MTaskStatus.IN_PROGRESS || oldStatus == "PENDING_APPROVAL");
+
+            if (!shouldSetMaintenance && !shouldRestoreActive)
+                return;
+
+            // Get equipment list (either from EquipmentGroupId or legacy EquipmentId)
+            List<EquipmentAsset> equipmentList = new List<EquipmentAsset>();
+
+            if (task.EquipmentGroupId.HasValue)
+            {
+                // Get all equipment in the group
+                var members = await _context.EquipmentGroupMembers
+                    .Where(m => m.GroupId == task.EquipmentGroupId.Value)
+                    .ToListAsync();
+
+                var assetIds = members.Select(m => m.AssetId).ToList();
+                equipmentList = await _context.EquipmentAssets
+                    .Where(a => assetIds.Contains(a.Id) && a.IsActive)
+                    .ToListAsync();
+            }
+            else if (!string.IsNullOrEmpty(task.EquipmentId))
+            {
+                // LEGACY: Find equipment by AssetCode
+                var equipment = await _context.EquipmentAssets
+                    .FirstOrDefaultAsync(a => a.AssetCode == task.EquipmentId && a.IsActive);
+                
+                if (equipment != null)
+                    equipmentList.Add(equipment);
+            }
+
+            if (!equipmentList.Any())
+            {
+                _logger.LogWarning("No equipment found for task {TaskId}", task.TaskId);
+                return;
+            }
+
+            foreach (var equipment in equipmentList)
+            {
+                if (shouldSetMaintenance)
+                {
+                    // Set to UNDER_MAINTENANCE
+                    _logger.LogInformation("Setting equipment {AssetCode} to UNDER_MAINTENANCE for task {TaskId}",
+                        equipment.AssetCode, task.TaskId);
+                    
+                    equipment.Status = "UNDER_MAINTENANCE";
+                    equipment.UpdatedAt = DateTime.UtcNow;
+                    equipment.IsSynced = false;
+                }
+                else if (shouldRestoreActive)
+                {
+                    // Check if there are other IN_PROGRESS tasks for this equipment
+                    bool hasOtherActiveMaintenance = false;
+
+                    if (task.EquipmentGroupId.HasValue)
+                    {
+                        // Check if equipment group has other active tasks
+                        hasOtherActiveMaintenance = await _context.MaintenanceTasks
+                            .AnyAsync(t => !t.IsDeleted &&
+                                          t.EquipmentGroupId == task.EquipmentGroupId.Value &&
+                                          t.Id != task.Id &&
+                                          t.Status == MTaskStatus.IN_PROGRESS);
+                    }
+                    else if (!string.IsNullOrEmpty(task.EquipmentId))
+                    {
+                        // LEGACY: Check if this specific equipment has other active tasks
+                        hasOtherActiveMaintenance = await _context.MaintenanceTasks
+                            .AnyAsync(t => !t.IsDeleted &&
+                                          t.EquipmentId == task.EquipmentId &&
+                                          t.Id != task.Id &&
+                                          t.Status == MTaskStatus.IN_PROGRESS);
+                    }
+
+                    if (!hasOtherActiveMaintenance)
+                    {
+                        // Safe to restore to ACTIVE
+                        _logger.LogInformation("Restoring equipment {AssetCode} to ACTIVE after task {TaskId} completion",
+                            equipment.AssetCode, task.TaskId);
+                        
+                        equipment.Status = "ACTIVE";
+                        equipment.UpdatedAt = DateTime.UtcNow;
+                        equipment.IsSynced = false;
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Equipment {AssetCode} remains UNDER_MAINTENANCE - other active tasks exist",
+                            equipment.AssetCode);
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating equipment status for task {TaskId}", task.TaskId);
+            // Don't throw - this is a secondary operation, shouldn't block task status update
         }
     }
 }

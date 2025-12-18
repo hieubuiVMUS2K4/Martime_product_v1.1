@@ -67,6 +67,15 @@ class AuthRepository {
 
       return response;
     } on DioException catch (e) {
+      print('❌ AuthRepository: DioException - ${e.response?.statusCode}');
+      print('   Response data: ${e.response?.data}');
+      
+      // Handle error response with success: false
+      if (e.response?.data is Map && e.response?.data['success'] == false) {
+        final errorMsg = e.response?.data['message'] as String? ?? 'Login failed';
+        throw Exception(errorMsg);
+      }
+      
       if (e.response?.statusCode == 401) {
         throw Exception('Invalid crew ID or password');
       } else if (e.response?.statusCode == 400) {
@@ -77,6 +86,7 @@ class AuthRepository {
       }
       throw Exception('Login failed: ${e.message}');
     } catch (e) {
+      print('❌ AuthRepository: Exception - $e');
       throw Exception('Login failed: $e');
     }
   }

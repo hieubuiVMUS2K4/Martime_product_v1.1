@@ -16,7 +16,6 @@ import { CompliancePage } from './pages/Compliance/CompliancePage'
 import { SyncPage } from './pages/Sync/SyncPage'
 import { MaterialPage } from './pages/Material/MaterialPage'
 import { FuelAnalyticsPage } from './pages/FuelAnalytics'
-import { TaskManagementPage } from './pages/TaskManagement/TaskManagementPage'
 
 // PMS Pages
 import AssetsPage from './pages/PMS/AssetsPage'
@@ -27,6 +26,7 @@ import ApprovalDashboardPage from './pages/PMS/ApprovalDashboardPage'
 import DeferralManagementPage from './pages/PMS/DeferralManagementPage'
 import WorkPlanningPage from './pages/PMS/WorkPlanningPage'
 import EquipmentGroupsPage from './pages/PMS/EquipmentGroupsPage'
+import { MaintenanceHistoryPage } from './pages/PMS/MaintenanceHistoryPage'
 
 // Reporting Pages
 import { ReportingDashboard } from './pages/Reporting/ReportingDashboard'
@@ -63,7 +63,6 @@ function App() {
         <Route path="alarms" element={<AlarmsPage />} />
         <Route path="crew" element={<CrewPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
-        <Route path="task-management" element={<TaskManagementPage />} />
         <Route path="voyage" element={<VoyagePage />} />
         <Route path="compliance" element={<CompliancePage />} />
         <Route path="sync" element={<SyncPage />} />
@@ -88,6 +87,7 @@ function App() {
         <Route path="pms/unassigned-tasks" element={<UnassignedTasksPage />} />
         <Route path="pms/approval-dashboard" element={<ApprovalDashboardPage />} />
         <Route path="pms/deferrals" element={<DeferralManagementPage />} />
+        <Route path="pms/maintenance-history" element={<MaintenanceHistoryPage />} />
         <Route path="pms/work-planning" element={<WorkPlanningPage />} />
         
         {/* Reporting Routes */}

@@ -1,6 +1,6 @@
 class ApiConstants {
   // Base URL - Có thể thay đổi trong Settings
-  static String baseUrl = 'http://192.168.1.6:5001'; // LAN IP của Edge Server
+  static String baseUrl = 'http://192.168.1.81:5001'; // LAN IP của Edge Server
   
   // Auth Endpoints
   static const String login = '/api/auth/login';
@@ -26,8 +26,8 @@ class ApiConstants {
   static const String syncData = '/api/sync/upload';
   
   // Timeouts
-  static const int connectionTimeout = 30000; // 30 seconds
-  static const int receiveTimeout = 30000;
+  static const int connectionTimeout = 60000; // Tăng lên 60s cho deferral với photos
+  static const int receiveTimeout = 60000;
   
   // Cache Duration
   static const Duration cacheDuration = Duration(hours: 1);

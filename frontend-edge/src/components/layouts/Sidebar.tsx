@@ -46,7 +46,6 @@ const navigation = [
   { name: 'Fuel Analytics', to: '/fuel-analytics', icon: Fuel },
   { name: 'Alarms', to: '/alarms', icon: AlertTriangle },
   { name: 'Crew', to: '/crew', icon: Users },
-  { name: 'Task Management', to: '/task-management', icon: ListChecks },
   { 
     name: 'PMS Planning', 
     icon: Calendar, 

@@ -1,8 +1,9 @@
-import { X, Calendar, Clock, AlertCircle, User, Package, CheckCircle, FileText, Wrench, Box, RefreshCw, History, ExternalLink } from 'lucide-react';
+import { X, Calendar, Clock, AlertCircle, User, Package, CheckCircle, FileText, Wrench, Box, RefreshCw, History, XCircle, Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import type { MaintenanceTask } from '@/types/maritime.types';
 import { materialService } from '@/services/materialService';
+import { reviewDeferralRequest, type ReviewDeferralDto } from '@/services/maintenance.service';
 
 interface CrewMember {
   crewId: string;
@@ -110,7 +111,6 @@ function parseSparePartsFromSchedule(sparePartsUsed?: string): Array<{
 }
 
 export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onApprove, onReject }: ViewTaskModalProps) {
-  const navigate = useNavigate();
   const [materialsMap, setMaterialsMap] = useState<Map<string, MaterialInfo>>(new Map());
   const [loadingMaterials, setLoadingMaterials] = useState(false);
   
@@ -120,6 +120,12 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
   const [rejectionReason, setRejectionReason] = useState('');
   const [approvalNotes, setApprovalNotes] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  
+  // Deferral review state
+  const [showDeferralReviewModal, setShowDeferralReviewModal] = useState(false);
+  const [deferralReviewAction, setDeferralReviewAction] = useState<'APPROVE' | 'REJECT'>('APPROVE');
+  const [deferralReviewNotes, setDeferralReviewNotes] = useState('');
+  const [deferralActionLoading, setDeferralActionLoading] = useState(false);
   
   // Photo lightbox state
   const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
@@ -154,6 +160,55 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
     
     fetchMaterials();
   }, [isOpen]);
+
+  // Handle deferral review
+  const handleDeferralReview = (action: 'APPROVE' | 'REJECT') => {
+    setDeferralReviewAction(action);
+    setDeferralReviewNotes('');
+    setShowDeferralReviewModal(true);
+  };
+
+  const handleDeferralReviewConfirm = async () => {
+    if (!task?.pendingDeferral) return;
+    
+    // Validate rejection reason
+    if (deferralReviewAction === 'REJECT' && !deferralReviewNotes.trim()) {
+      toast.error('Please provide a reason for rejecting the deferral request');
+      return;
+    }
+
+    try {
+      setDeferralActionLoading(true);
+      const dto: ReviewDeferralDto = {
+        action: deferralReviewAction,
+        notes: deferralReviewNotes.trim() || undefined
+      };
+      
+      await reviewDeferralRequest(task.pendingDeferral.id, dto);
+      
+      toast.success(
+        deferralReviewAction === 'APPROVE' 
+          ? '✅ Deferral request approved successfully' 
+          : '❌ Deferral request rejected'
+      );
+      
+      // Close modals
+      setShowDeferralReviewModal(false);
+      setDeferralReviewNotes('');
+      
+      // Close task modal and refresh the board
+      setTimeout(() => {
+        onClose();
+        window.location.reload(); // Refresh to show updated task
+      }, 500);
+      
+    } catch (err) {
+      console.error('Error reviewing deferral:', err);
+      toast.error('Failed to review deferral request');
+    } finally {
+      setDeferralActionLoading(false);
+    }
+  };
 
   if (!isOpen || !task) return null;
 
@@ -659,25 +714,77 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
                 </div>
                 {task.pendingDeferral && (
                   <div className="mt-4 pt-4 border-t border-amber-200">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-3">
                       <p className="text-sm font-medium text-amber-800">Pending Deferral Request</p>
-                      <button
-                        onClick={() => {
-                          onClose();
-                          navigate('/pms/deferrals');
-                        }}
-                        className="inline-flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 font-medium"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                        Review in Deferral Management
-                      </button>
+                      {canApprove && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleDeferralReview('APPROVE')}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-md hover:bg-green-700 transition-colors"
+                          >
+                            <CheckCircle className="w-3 h-3" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleDeferralReview('REJECT')}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-white text-red-600 text-xs font-medium rounded-md border border-red-300 hover:bg-red-50 transition-colors"
+                          >
+                            <XCircle className="w-3 h-3" />
+                            Reject
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <div className="bg-white p-3 rounded border border-amber-300">
-                      <p className="text-sm text-gray-700 mb-2"><strong>Reason:</strong> {task.pendingDeferral.reason}</p>
-                      <p className="text-sm text-gray-700">
-                        <strong>Proposed Date:</strong> {new Date(task.pendingDeferral.proposedDueDate).toLocaleDateString()}
-                        ({task.pendingDeferral.deferralDays} days from current due date)
-                      </p>
+                      <div className="space-y-2">
+                        <div>
+                          <span className="text-xs font-medium text-gray-500">Requested by:</span>
+                          <p className="text-sm text-gray-900">{task.pendingDeferral.requestedByName || task.pendingDeferral.requestedBy}</p>
+                        </div>
+                        <div>
+                          <span className="text-xs font-medium text-gray-500">Reason:</span>
+                          <p className="text-sm text-gray-700">{task.pendingDeferral.reason}</p>
+                        </div>
+                        {(task.pendingDeferral.rootCause || task.pendingDeferral.preventiveMeasures) && (
+                          <div className="pt-2 border-t border-gray-200">
+                            {task.pendingDeferral.rootCause && (
+                              <div className="mb-2">
+                                <span className="text-xs font-medium text-gray-500">Root Cause:</span>
+                                <p className="text-sm text-gray-700">{task.pendingDeferral.rootCause}</p>
+                              </div>
+                            )}
+                            {task.pendingDeferral.preventiveMeasures && (
+                              <div>
+                                <span className="text-xs font-medium text-gray-500">Preventive Measures:</span>
+                                <p className="text-sm text-gray-700">{task.pendingDeferral.preventiveMeasures}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <div className="pt-2 border-t border-gray-200 grid grid-cols-2 gap-3">
+                          <div>
+                            <span className="text-xs font-medium text-gray-500">Current Due Date:</span>
+                            <p className="text-sm text-gray-900">{new Date(task.pendingDeferral.currentDueDate).toLocaleDateString()}</p>
+                          </div>
+                          <div>
+                            <span className="text-xs font-medium text-gray-500">Proposed Due Date:</span>
+                            <p className="text-sm font-medium text-amber-700">
+                              {new Date(task.pendingDeferral.proposedDueDate).toLocaleDateString()}
+                              <span className="text-xs text-gray-600 ml-1">(+{task.pendingDeferral.deferralDays} days)</span>
+                            </p>
+                          </div>
+                        </div>
+                        {task.pendingDeferral.isCmsItem && task.pendingDeferral.deferralDays > 90 && (
+                          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                            <div className="flex items-start gap-2">
+                              <Shield className="w-4 h-4 text-blue-600 mt-0.5" />
+                              <p className="text-xs text-blue-800">
+                                <strong>CMS Item:</strong> Deferral exceeds 90 days. Requires Class Permission Letter.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1022,6 +1129,146 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
             <FileText className="w-4 h-4" />
             Download
           </a>
+        </div>
+      )}
+
+      {/* Deferral Review Modal */}
+      {showDeferralReviewModal && task?.pendingDeferral && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                {deferralReviewAction === 'APPROVE' ? 'Approve' : 'Reject'} Deferral Request
+              </h3>
+              
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="font-medium">Task:</span> {task.taskId}
+                  </div>
+                  <div>
+                    <span className="font-medium">Requested by:</span> {task.pendingDeferral.requestedByName || task.pendingDeferral.requestedBy}
+                  </div>
+                  <div>
+                    <span className="font-medium">Reason:</span>
+                    <p className="text-gray-700 mt-1">{task.pendingDeferral.reason}</p>
+                  </div>
+                  <div className="pt-2 border-t border-gray-200">
+                    <span className="font-medium">Deferral Period:</span>
+                    <p className="text-gray-600 mt-1">
+                      {new Date(task.pendingDeferral.currentDueDate).toLocaleDateString()} → {new Date(task.pendingDeferral.proposedDueDate).toLocaleDateString()} (+{task.pendingDeferral.deferralDays} days)
+                    </p>
+                  </div>
+                  {task.pendingDeferral.isCmsItem && (
+                    <div className="pt-2 border-t border-gray-200">
+                      <span className="inline-flex items-center gap-1 text-blue-700 font-medium">
+                        <Shield className="w-4 h-4" />
+                        This is a CMS item
+                        {task.pendingDeferral.deferralDays > 90 && ' - requires Class approval for deferrals > 90 days'}
+                      </span>
+                    </div>
+                  )}
+                  {task.pendingDeferral.isOverdueDeferral && (
+                    <div className="pt-2 border-t border-gray-200">
+                      <div className="flex items-center gap-2 text-red-700 font-medium">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>OVERDUE task deferral</span>
+                      </div>
+                      {task.pendingDeferral.rootCause && (
+                        <div className="mt-2">
+                          <span className="text-xs font-medium text-gray-600">Root Cause:</span>
+                          <p className="text-xs text-gray-700 mt-0.5">{task.pendingDeferral.rootCause}</p>
+                        </div>
+                      )}
+                      {task.pendingDeferral.preventiveMeasures && (
+                        <div className="mt-2">
+                          <span className="text-xs font-medium text-gray-600">Preventive Measures:</span>
+                          <p className="text-xs text-gray-700 mt-0.5">{task.pendingDeferral.preventiveMeasures}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className={`rounded-lg p-3 mb-4 ${
+                deferralReviewAction === 'APPROVE' 
+                  ? 'bg-green-50 border border-green-200' 
+                  : 'bg-red-50 border border-red-200'
+              }`}>
+                <p className={`text-sm ${deferralReviewAction === 'APPROVE' ? 'text-green-800' : 'text-red-800'}`}>
+                  {deferralReviewAction === 'APPROVE' 
+                    ? task.status === 'OVERDUE'
+                      ? 'Task status will be reset to DUE and due date will be updated to the proposed date'
+                      : 'Task due date will be updated to the proposed date'
+                    : 'Deferral request will be rejected, task due date remains unchanged'
+                  }
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Review Notes {deferralReviewAction === 'REJECT' ? <span className="text-red-600">*</span> : '(Optional)'}
+                </label>
+                <textarea
+                  value={deferralReviewNotes}
+                  onChange={(e) => setDeferralReviewNotes(e.target.value)}
+                  placeholder={deferralReviewAction === 'APPROVE' 
+                    ? 'Add any notes about this approval...' 
+                    : 'Please provide reason for rejection...'
+                  }
+                  rows={3}
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:border-transparent ${
+                    deferralReviewAction === 'APPROVE' 
+                      ? 'border-gray-300 focus:ring-green-500' 
+                      : 'border-gray-300 focus:ring-red-500'
+                  }`}
+                  required={deferralReviewAction === 'REJECT'}
+                />
+                {deferralReviewAction === 'REJECT' && !deferralReviewNotes.trim() && (
+                  <p className="text-xs text-red-600 mt-1">* Rejection reason is required</p>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeferralReviewModal(false);
+                    setDeferralReviewNotes('');
+                  }}
+                  disabled={deferralActionLoading}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeferralReviewConfirm}
+                  disabled={deferralActionLoading || (deferralReviewAction === 'REJECT' && !deferralReviewNotes.trim())}
+                  className={`flex-1 px-4 py-2 text-white rounded-md disabled:opacity-50 flex items-center justify-center gap-2 ${
+                    deferralReviewAction === 'APPROVE'
+                      ? 'bg-green-600 hover:bg-green-700'
+                      : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {deferralActionLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      {deferralReviewAction === 'APPROVE' ? (
+                        <CheckCircle className="w-4 h-4" />
+                      ) : (
+                        <XCircle className="w-4 h-4" />
+                      )}
+                      {deferralReviewAction === 'APPROVE' ? 'Approve Deferral' : 'Reject Deferral'}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

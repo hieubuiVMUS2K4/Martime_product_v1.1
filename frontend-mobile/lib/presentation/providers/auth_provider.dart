@@ -13,10 +13,10 @@ class AuthProvider with ChangeNotifier {
   bool _isLoggedIn = false;
   bool _isLoading = false;
   String? _error;
+  int? _userId;
   String? _crewId;
   String? _fullName;
   String? _position;
-  int? _userId;
 
   AuthProvider() {
     _authRepository = AuthRepository(

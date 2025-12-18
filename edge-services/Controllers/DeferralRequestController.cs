@@ -29,32 +29,50 @@ public class DeferralRequestController : ControllerBase
     {
         try
         {
+            _logger.LogInformation("=== CreateDeferralRequest START ===");
+            _logger.LogInformation("TaskId: {TaskId}", dto.TaskId);
+            _logger.LogInformation("Reason length: {Length}", dto.Reason?.Length ?? 0);
+            _logger.LogInformation("ProposedDueDate: {Date}", dto.ProposedDueDate);
+            _logger.LogInformation("Attachments count: {Count}", dto.Attachments?.Count ?? 0);
+            
             // Get user ID from header (set by mobile app or frontend)
             var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
             var deviceType = Request.Headers["X-Device-Type"].FirstOrDefault() ?? "WEB";
 
             // Validate task exists and is in valid status
             var task = await _context.MaintenanceTasks
-                .FirstOrDefaultAsync(t => t.Id == dto.TaskId);
+                .AsNoTracking() // Prevent circular reference in sync queue
+                .FirstOrDefaultAsync(t => t.Id == dto.TaskId && !t.IsDeleted);
 
             if (task == null)
             {
+                _logger.LogWarning("Task not found: {TaskId}", dto.TaskId);
                 return NotFound(new { error = "Task not found" });
             }
 
-            // Can only defer tasks in SCHEDULED, DUE, or OVERDUE status
-            var allowedStatuses = new[] { "SCHEDULED", "DUE", "OVERDUE" };
+            _logger.LogInformation("Found task: {TaskId}, Status: {Status}, NextDueAt: {NextDueAt}", 
+                task.TaskId, task.Status, task.NextDueAt);
+            
+            // No need to re-attach - we'll update directly without loading nav properties
+            // Just update the specific fields we need
+
+            // Can only defer tasks in SCHEDULED, DUE, OVERDUE, or MISSING_* statuses
+            // MISSING_* statuses are warnings, not workflow states - still eligible for deferral
+            var allowedStatuses = new[] { "SCHEDULED", "DUE", "OVERDUE", "MISSING_CHECKLIST", "MISSING_PIC", "MISSING_BOTH" };
             if (!allowedStatuses.Contains(task.Status))
             {
                 return BadRequest(new { 
                     error = "Cannot defer task in current status",
                     currentStatus = task.Status,
-                    allowedStatuses = allowedStatuses
+                    allowedStatuses = allowedStatuses,
+                    hint = "Only tasks that are scheduled, due, overdue, or missing setup can be deferred"
                 });
             }
 
-            // OVERDUE tasks require stricter validation
-            var isOverdueDeferral = task.Status == "OVERDUE";
+            // OVERDUE or overdue MISSING_* tasks require stricter validation
+            var isOverdue = task.Status == "OVERDUE" || 
+                            (task.Status.StartsWith("MISSING_") && task.NextDueAt < DateTime.UtcNow);
+            var isOverdueDeferral = isOverdue;
             if (isOverdueDeferral)
             {
                 // Require longer, more detailed reason
@@ -112,8 +130,10 @@ public class DeferralRequestController : ControllerBase
             }
 
             // Validate proposed date
+
             if (dto.ProposedDueDate <= task.NextDueAt)
             {
+                _logger.LogWarning("Invalid proposed date: {Proposed} <= {Current}", dto.ProposedDueDate, task.NextDueAt);
                 return BadRequest(new { 
                     error = "Proposed due date must be after current due date",
                     currentDueDate = task.NextDueAt,
@@ -122,6 +142,7 @@ public class DeferralRequestController : ControllerBase
             }
 
             var deferralDays = (int)(dto.ProposedDueDate - task.NextDueAt).TotalDays;
+            _logger.LogInformation("Deferral days calculated: {Days}", deferralDays);
 
             // CMS validation: require Class Permission Letter if deferral > 90 days
             if (task.IsCms && deferralDays > 90 && string.IsNullOrEmpty(dto.ClassPermissionLetter))
@@ -134,6 +155,40 @@ public class DeferralRequestController : ControllerBase
             }
 
             // Create deferral request
+            _logger.LogInformation("Creating deferral request object...");
+            
+            // Serialize attachments with size check
+            string? attachmentsJson = null;
+            if (dto.Attachments != null && dto.Attachments.Count > 0)
+            {
+                try
+                {
+                    _logger.LogInformation("Serializing {Count} attachments...", dto.Attachments.Count);
+                    var totalSize = dto.Attachments.Sum(a => a.Length);
+                    _logger.LogInformation("Total attachments size: {Size} bytes ({MB} MB)", totalSize, totalSize / 1024.0 / 1024.0);
+                    
+                    if (totalSize > 10 * 1024 * 1024) // 10MB limit
+                    {
+                        _logger.LogWarning("Attachments too large: {Size} MB", totalSize / 1024.0 / 1024.0);
+                        return BadRequest(new {
+                            error = "Attachments too large - maximum 10MB total",
+                            totalSize = $"{totalSize / 1024.0 / 1024.0:F2} MB"
+                        });
+                    }
+                    
+                    attachmentsJson = JsonSerializer.Serialize(dto.Attachments);
+                    _logger.LogInformation("✅ Attachments serialized successfully");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to serialize attachments");
+                    return StatusCode(500, new {
+                        error = "Failed to process attachments",
+                        message = ex.Message
+                    });
+                }
+            }
+            
             var deferralRequest = new TaskDeferralRequest
             {
                 Id = Guid.NewGuid(),
@@ -145,27 +200,30 @@ public class DeferralRequestController : ControllerBase
                 ProposedDueDate = dto.ProposedDueDate,
                 DeferralDays = deferralDays,
                 Status = "PENDING",
-                Priority = isOverdueDeferral ? "HIGH" : dto.Priority, // Escalate OVERDUE to HIGH
+                Priority = isOverdueDeferral ? "HIGH" : dto.Priority,
                 IsCmsItem = task.IsCms,
                 ClassPermissionLetter = dto.ClassPermissionLetter,
-                Attachments = dto.Attachments != null ? JsonSerializer.Serialize(dto.Attachments) : null,
+                Attachments = attachmentsJson,
                 IsOverdueDeferral = isOverdueDeferral,
                 RootCause = dto.RootCause,
                 PreventiveMeasures = dto.PreventiveMeasures,
                 TaskStatusAtRequest = task.Status,
                 OriginNode = task.OriginNode,
-                IsSynced = false
+                IsSynced = true // Skip sync queue to avoid circular reference
             };
 
-            // Update task
-            task.HasPendingDeferral = true;
-            task.UpdatedAt = DateTime.UtcNow;
+            // Update task directly via ExecuteSqlRaw to avoid loading nav properties
+            _logger.LogInformation("Updating task {TaskId} via SQL - setting HasPendingDeferral = true", task.TaskId);
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE maintenance_tasks SET has_pending_deferral = true, updated_at = {0} WHERE id = {1}",
+                DateTime.UtcNow, dto.TaskId
+            );
 
             // Add status history entry
             var statusHistory = new TaskStatusHistory
             {
                 Id = Guid.NewGuid(),
-                TaskId = task.Id,
+                TaskId = dto.TaskId,
                 FromStatus = null,
                 ToStatus = "DEFERRAL_REQUESTED",
                 ChangedBy = userId,
@@ -176,7 +234,10 @@ public class DeferralRequestController : ControllerBase
 
             _context.TaskDeferralRequests.Add(deferralRequest);
             _context.TaskStatusHistories.Add(statusHistory);
+            
+            _logger.LogInformation("Saving to database...");
             await _context.SaveChangesAsync();
+            _logger.LogInformation("✅ Deferral request saved successfully");
 
             _logger.LogInformation("Deferral request created for task {TaskId} by {UserId}", task.TaskId, userId);
 
@@ -190,8 +251,17 @@ public class DeferralRequestController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating deferral request");
-            return StatusCode(500, new { error = "Internal server error" });
+            _logger.LogError(ex, "❌ Error creating deferral request - Exception: {Message}", ex.Message);
+            _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
+            if (ex.InnerException != null)
+            {
+                _logger.LogError("Inner exception: {InnerMessage}", ex.InnerException.Message);
+            }
+            return StatusCode(500, new { 
+                error = "Internal server error",
+                message = ex.Message,
+                type = ex.GetType().Name
+            });
         }
     }
 

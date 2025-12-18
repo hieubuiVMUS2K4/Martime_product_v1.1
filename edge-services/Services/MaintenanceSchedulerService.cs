@@ -53,6 +53,65 @@ public class MaintenanceSchedulerService : BackgroundService
         return Math.Max(recommendedDays, priorityMinimum);
     }
 
+    /// <summary>
+    /// Validate and correct lead time with CEILING RULE (PMS Workflow v2.2 - Updated 16/12/2025)
+    /// SHORT INTERVALS (≤7 days): Lead time = 50% of interval
+    /// LONG INTERVALS (>7 days): ISM Code minimum OR work-based, CAPPED at 70% of interval
+    /// CEILING RULE prevents task overlap (next task won't appear before previous completes)
+    /// </summary>
+    private int ValidateAndCorrectLeadTime(int daysBeforeDue, string priority, double? estimatedHours, int? intervalDays)
+    {
+        var minimumLeadTime = GetMinimumLeadTime(priority);
+        
+        // SHORT INTERVALS (≤ 7 days): Proportional lead time
+        if (intervalDays.HasValue && intervalDays.Value <= 7)
+        {
+            var proportionalLeadTime = Math.Max(1, intervalDays.Value / 2);
+            
+            if (daysBeforeDue != proportionalLeadTime)
+            {
+                _logger.LogWarning(
+                    "DaysBeforeDue {Configured} adjusted to proportional {Proportional} " +
+                    "for {Interval}-day interval. Short intervals require tight lead times.",
+                    daysBeforeDue, proportionalLeadTime, intervalDays.Value);
+            }
+            return proportionalLeadTime;
+        }
+        
+        // LONG INTERVALS (> 7 days): ISM Code + Work-based + CEILING RULE
+        var workDays = (int)Math.Ceiling((estimatedHours ?? 4) / 8.0);
+        var workBasedMinimum = workDays * 3;
+        var effectiveMinimum = Math.Max(minimumLeadTime, workBasedMinimum);
+        
+        // 🚨 CEILING RULE: Lead time MUST NOT exceed 70% of interval
+        // Prevents task overlap (e.g., 14-day interval with 30-day lead time)
+        if (intervalDays.HasValue)
+        {
+            var maxAllowedLeadTime = (int)Math.Floor(intervalDays.Value * 0.7);
+            
+            if (effectiveMinimum > maxAllowedLeadTime)
+            {
+                _logger.LogWarning(
+                    "ISM Code minimum {ISMMinimum} days for {Priority} priority " +
+                    "exceeds interval ceiling {Ceiling} days (70% of {Interval}-day interval). " +
+                    "Using ceiling to prevent task overlap.",
+                    effectiveMinimum, priority, maxAllowedLeadTime, intervalDays.Value);
+                effectiveMinimum = Math.Max(1, maxAllowedLeadTime);
+            }
+        }
+        
+        if (daysBeforeDue < effectiveMinimum)
+        {
+            _logger.LogWarning(
+                "DaysBeforeDue {Configured} is less than minimum {Minimum} " +
+                "for {Priority} priority. Auto-correcting.",
+                daysBeforeDue, effectiveMinimum, priority);
+            return effectiveMinimum;
+        }
+        
+        return daysBeforeDue;
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Maintenance Scheduler Service started");
@@ -89,6 +148,8 @@ public class MaintenanceSchedulerService : BackgroundService
     /// - DUE → OVERDUE (when past due date)
     /// - OVERDUE → DUE/SCHEDULED (if due date was extended via deferral)
     /// Does NOT touch: IN_PROGRESS, PENDING_APPROVAL, RECTIFY, COMPLETED
+    /// Does NOT touch: MISSING_* statuses (these are validation warnings, not workflow statuses)
+    /// NOTE: Kanban board filters by next_due_at, not by status. MISSING_* tasks still appear in OVERDUE/DUE columns.
     /// </summary>
     private async Task AutoCorrectTaskStatuses()
     {
@@ -100,10 +161,10 @@ public class MaintenanceSchedulerService : BackgroundService
             var now = DateTime.UtcNow;
             var today = now.Date;
 
-            // Get all tasks that need status correction
+            // Get all tasks that need status correction (exclude MISSING_* - they are validation warnings)
             var statusesToProcess = new[] { "SCHEDULED", "DUE", "PENDING", "OVERDUE" };
             var tasks = await context.MaintenanceTasks
-                .Where(t => statusesToProcess.Contains(t.Status))
+                .Where(t => !t.IsDeleted && statusesToProcess.Contains(t.Status))
                 .ToListAsync();
 
             int correctedCount = 0;
@@ -210,30 +271,28 @@ public class MaintenanceSchedulerService : BackgroundService
                 // Check if task should be generated (X days before due)
                 var daysUntilDue = (schedule.NextDueDate.Value.Date - now.Date).Days;
                 
-                // SAFETY CHECK: Validate and ENFORCE minimum lead time (ISM Code compliance)
-                var minimumLeadTime = GetMinimumLeadTime(schedule.Priority);
-                var effectiveLeadTime = Math.Max(schedule.DaysBeforeDue, minimumLeadTime);
+                // SAFETY CHECK: Validate and ENFORCE lead time with CEILING RULE (PMS Workflow v2.2)
+                // - Short intervals (≤7d): 50% proportional lead time
+                // - Long intervals (>7d): ISM Code minimum, capped at 70% of interval
+                var effectiveLeadTime = ValidateAndCorrectLeadTime(
+                    schedule.DaysBeforeDue, 
+                    schedule.Priority,
+                    schedule.EstimatedDurationHours,
+                    schedule.IntervalDays
+                );
                 
-                // AUTO-CORRECTION: Update schedule if configured lead time is insufficient
-                if (effectiveLeadTime > schedule.DaysBeforeDue)
+                // AUTO-CORRECTION: Update schedule if calculated lead time differs
+                if (effectiveLeadTime != schedule.DaysBeforeDue)
                 {
-                    _logger.LogWarning(
-                        "Schedule {ScheduleCode} has insufficient lead time ({Configured} days). " +
-                        "AUTO-CORRECTING to minimum {Minimum} days for {Priority} priority. " +
-                        "Recommended: {Recommended} days for {Hours}h task.",
-                        schedule.ScheduleCode, 
-                        schedule.DaysBeforeDue,
-                        minimumLeadTime,
-                        schedule.Priority,
-                        CalculateRecommendedLeadTime(schedule),
-                        schedule.EstimatedDurationHours ?? 0);
-                    
-                    // Auto-correct the schedule's DaysBeforeDue to meet minimum requirements
+                    var oldLeadTime = schedule.DaysBeforeDue;
                     schedule.DaysBeforeDue = effectiveLeadTime;
                     await scheduleRepo.UpdateAsync(schedule);
+                    
                     _logger.LogInformation(
-                        "Schedule {ScheduleCode} DaysBeforeDue updated from {Old} to {New} (ISM Code compliance)",
-                        schedule.ScheduleCode, schedule.DaysBeforeDue, effectiveLeadTime);
+                        "Schedule {ScheduleCode} DaysBeforeDue auto-corrected: {Old}d → {New}d " +
+                        "(Interval: {Interval}d, Priority: {Priority}, ISM Code compliance with ceiling rule)",
+                        schedule.ScheduleCode, oldLeadTime, effectiveLeadTime, 
+                        schedule.IntervalDays, schedule.Priority);
                 }
                 
                 // Generate task if within lead time window OR already overdue
@@ -241,10 +300,13 @@ public class MaintenanceSchedulerService : BackgroundService
                 if (daysUntilDue <= effectiveLeadTime || daysUntilDue < 0)
                 {
                     // Check if task already exists for this schedule and due date
+                    // IMPORTANT: Exclude soft-deleted tasks (IsDeleted = true) from check
+                    // This allows auto-regeneration after task deletion
                     var existingTask = await context.MaintenanceTasks
                         .Where(t => t.ScheduleId == schedule.Id &&
                                    t.Status != "COMPLETED" &&
-                                   t.Status != "CANCELLED")
+                                   t.Status != "CANCELLED" &&
+                                   !t.IsDeleted)  // Only count active (non-deleted) tasks
                         .FirstOrDefaultAsync();
 
                     if (existingTask == null)
@@ -325,13 +387,20 @@ public class MaintenanceSchedulerService : BackgroundService
             // Create unique task ID with group code
             var taskId = $"SCHED-{schedule.ScheduleCode}-{group.GroupCode}-{DateTime.UtcNow:yyyyMMdd}";
 
-            // Check if task already exists
+            // CRITICAL FIX: Check by TaskId directly to prevent duplicate key violations
+            // TaskId format includes date (yyyyMMdd), so multiple runs in same day generate same TaskId
+            // We must check for ANY task with this TaskId (including COMPLETED/CANCELLED)
+            // Only create new task if:
+            // 1. No task with this TaskId exists, OR
+            // 2. Existing task is from a PREVIOUS day (which means TaskId is different)
             var existingTask = await context.MaintenanceTasks
-                .FirstOrDefaultAsync(t => t.TaskId == taskId && t.Status != "COMPLETED");
+                .FirstOrDefaultAsync(t => t.TaskId == taskId);
             
             if (existingTask != null)
             {
-                _logger.LogDebug("Task {TaskId} already exists, skipping", taskId);
+                _logger.LogDebug(
+                    "Task {TaskId} already exists for schedule {ScheduleId} (Status: {Status}, IsDeleted: {IsDeleted}), skipping", 
+                    taskId, schedule.Id, existingTask.Status, existingTask.IsDeleted);
                 return;
             }
 
@@ -393,6 +462,10 @@ public class MaintenanceSchedulerService : BackgroundService
                 .Where(t => t.ScheduleId == schedule.Id)
                 .OrderBy(t => t.SequenceOrder)
                 .ToListAsync();
+
+            _logger.LogInformation(
+                "📋 Generating task for schedule {ScheduleCode} (ID: {ScheduleId}): Found {Count} checklist templates",
+                schedule.ScheduleCode, schedule.Id, checklistTemplates.Count);
 
             if (checklistTemplates.Any())
             {

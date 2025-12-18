@@ -755,7 +755,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                  part['code']?.toString() ?? 
                                  part['itemCode']?.toString() ?? '';
             final quantityUsed = part['quantityUsed'] ?? part['quantity'] ?? 0;
-            final unitCost = part['unitCost'] ?? 0;
             
             return Container(
               margin: EdgeInsets.only(bottom: isSmallScreen ? 4 : 6),

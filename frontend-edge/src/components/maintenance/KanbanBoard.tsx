@@ -466,6 +466,21 @@ export function KanbanBoard({ tasks, onTaskUpdate: _onTaskUpdate, onTaskDelete, 
       return 'deferrals'
     }
     
+    // For MISSING_* statuses (validation warnings), categorize by due date, not status
+    // These are warning labels - the task should still appear in correct column based on next_due_at
+    if (task.status === 'MISSING_BOTH' || task.status === 'MISSING_CHECKLIST' || task.status === 'MISSING_PIC') {
+      if (!task.nextDueAt) return 'scheduled'
+      
+      const dueDate = new Date(task.nextDueAt)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      dueDate.setHours(0, 0, 0, 0)
+      
+      if (dueDate < today) return 'overdue'
+      if (dueDate.getTime() === today.getTime()) return 'due'
+      return 'scheduled'
+    }
+    
     // Map database status to Kanban columns
     switch (task.status) {
       // New PMS Workflow statuses
@@ -480,9 +495,6 @@ export function KanbanBoard({ tasks, onTaskUpdate: _onTaskUpdate, onTaskDelete, 
       
       // Legacy statuses for backward compatibility
       case 'TASK': return 'scheduled'
-      case 'MISSING_BOTH': return 'scheduled'
-      case 'MISSING_CHECKLIST': return 'scheduled'
-      case 'MISSING_PIC': return 'scheduled'
       case 'PENDING': return 'due' // Legacy pending → due
       case 'REJECTED': return 'rectify' // Renamed to rectify
       
@@ -886,6 +898,8 @@ export function KanbanBoard({ tasks, onTaskUpdate: _onTaskUpdate, onTaskDelete, 
                   onOpenApprovalQueue={column.id === 'pending-approval' ? () => navigate('/pms/approval-dashboard') : undefined}
                   // Open Deferral Management - only for deferrals column
                   onOpenDeferralManagement={column.id === 'deferrals' ? () => navigate('/pms/deferrals') : undefined}
+                  // Open Maintenance History - only for completed column
+                  onOpenMaintenanceHistory={column.id === 'completed' ? () => navigate('/pms/maintenance-history') : undefined}
                 />
               )}
             </div>
