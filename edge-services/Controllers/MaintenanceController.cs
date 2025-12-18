@@ -232,6 +232,9 @@ public class MaintenanceController : ControllerBase
             var totalCount = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
+            _logger.LogInformation("🔍 GetAllTasks - Total: {Total}, Page: {Page}/{TotalPages}", 
+                totalCount, page, totalPages);
+
             // Get paginated data with related data
             var tasks = await query
                 .Include(t => t.EquipmentGroup)
@@ -241,6 +244,11 @@ public class MaintenanceController : ControllerBase
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
+
+            var pendingApprovalTasks = tasks.Where(t => t.Status == "PENDING_APPROVAL").ToList();
+            _logger.LogInformation("📋 PENDING_APPROVAL tasks returned: {Count}. Tasks: {Tasks}", 
+                pendingApprovalTasks.Count,
+                string.Join(", ", pendingApprovalTasks.Select(t => $"{t.TaskId}(defer:{t.DeferralCount})")));
 
             // Map tasks with pending deferral
             var mappedTasks = tasks.Select(MapTaskWithPendingDeferral).ToList();

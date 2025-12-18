@@ -1,6 +1,7 @@
 class ApiConstants {
   // Base URL - Có thể thay đổi trong Settings
-  static String baseUrl = 'http://192.168.1.81:5001'; // LAN IP của Edge Server
+  // Đổi thành IP của Edge Server trong LAN, hoặc localhost nếu chạy trên cùng máy
+  static String baseUrl = 'http://192.168.1.81:5001'; // LAN IP của Edge Server (PORT 5001)
   
   // Auth Endpoints
   static const String login = '/api/auth/login';
