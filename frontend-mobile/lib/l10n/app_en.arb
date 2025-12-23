@@ -580,5 +580,213 @@
   "fixAndContinue": "Fix & Continue",
   "deferralPending": "Deferral Pending",
   "deferralRequest": "Request Deferral",
-  "cancelDeferral": "Cancel Deferral"
+  "cancelDeferral": "Cancel Deferral",
+
+  "takePhoto": "Take Photo",
+  "selectFromGallery": "Select from Gallery",
+  "errorSelectingPhoto": "Error selecting photo: {error}",
+  "@errorSelectingPhoto": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "photoAdded": "Photo {count} added ({size})",
+  "@photoAdded": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "size": {"type": "String"}
+    }
+  },
+  "imageStillLarge": "Image still large: {size}",
+  "@imageStillLarge": {
+    "placeholders": {
+      "size": {"type": "String"}
+    }
+  },
+  "uploadPhotoOrTake": "Upload or take photo",
+  "maxPhotosReached": "Maximum {max} photos reached",
+  "@maxPhotosReached": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "minPhotosRequired": "Minimum {required} photos required (current: {current})",
+  "@minPhotosRequired": {
+    "placeholders": {
+      "required": {"type": "int"},
+      "current": {"type": "int"}
+    }
+  },
+  "abnormalValue": "Abnormal Value",
+  "measuredValueIs": "Measured value is {value} {unit}",
+  "@measuredValueIs": {
+    "placeholders": {
+      "value": {"type": "String"},
+      "unit": {"type": "String"}
+    }
+  },
+  "valueOutOfRange": "Value out of range",
+  "confirmAbnormalValue": "This value is outside the normal range. Do you want to record it?",
+  "reenter": "Re-enter",
+  "confirmRecord": "Confirm & Record",
+  "valueOutOfRangeWarning": "Value {value} is outside range ({min} - {max})",
+  "@valueOutOfRangeWarning": {
+    "placeholders": {
+      "value": {"type": "String"},
+      "min": {"type": "String"},
+      "max": {"type": "String"}
+    }
+  },
+  "required": "Required",
+  "enterMeasuredValue": "Enter measured value",
+  "sparePartsReference": "Spare Parts Reference",
+  "unknownMaterial": "Unknown Material",
+  "sparePartsActuallyUsed": "Spare Parts Actually Used",
+  "selectMaterialFromInventory": "Select material from inventory",
+  "addUsedMaterial": "Add Used Material",
+  "enterQuantity": "Enter Quantity",
+  "editQuantity": "Edit Quantity",
+  "stockOnHand": "Stock on hand: {quantity} {unit}",
+  "@stockOnHand": {
+    "placeholders": {
+      "quantity": {"type": "String"},
+      "unit": {"type": "String"}
+    }
+  },
+  "add": "Add",
+  "quantityUsed": "Quantity Used",
+  "loadingMaterials": "Loading materials...",
+  "materialsCount": "{count} materials",
+  "@materialsCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "noMaterialsFound": "No materials found",
+  "reload": "Reload",
+  "materialCode": "Code: {code} | On hand: {onHand} {unit}",
+  "@materialCode": {
+    "placeholders": {
+      "code": {"type": "String"},
+      "onHand": {"type": "String"},
+      "unit": {"type": "String"}
+    }
+  },
+  "requestDeferral": "Request Deferral",
+  "currentDueDate": "Current due date: {date}",
+  "@currentDueDate": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "selectDate": "Select Date",
+  "selectReason": "Select Reason",
+  "enterMoreDetails": "Enter more details (optional)",
+  "addingPhoto": "Adding photo...",
+  "addPhoto": "Add Photo",
+  "submitRequest": "Submit Request",
+  "pleaseSelectDeferralDate": "Please select a deferral date",
+  "pleaseSelectDeferralReason": "Please select a deferral reason",
+  "deferralRequestSent": "Deferral request sent successfully",
+  "deferralReasonPartsPending": "Spare parts pending",
+  "deferralReasonWeatherCondition": "Weather condition",
+  "deferralReasonHigherPriority": "Higher priority task",
+  "deferralReasonAwaitingApproval": "Awaiting approval",
+  "deferralReasonPersonnelUnavailable": "Personnel unavailable",
+  "deferralReasonEquipmentInUse": "Equipment in use",
+  "deferralReasonOther": "Other",
+  "overdueReasonPartsPending": "Spare parts pending",
+  "overdueReasonExternalFactors": "External factors",
+  "overdueReasonHigherPriority": "Higher priority task",
+  "overdueReasonResourceShortage": "Resource shortage",
+  "overdueReasonAwaitingApproval": "Awaiting approval",
+  "overdueReasonTechnicalIssue": "Technical issue",
+  "overdueReasonOther": "Other",
+  "cancelDeferralQuestion": "Cancel Deferral Request?",
+  "cancelDeferralConfirm": "Are you sure you want to cancel this deferral request?",
+  "no": "No",
+  "cancelRequest": "Cancel Request",
+  "deferralCancelled": "Deferral request cancelled",
+  "taskRestartedForFix": "Task restarted for fix",
+  "loading": "Loading...",
+  "noData": "No data",
+  "allowedRange": "Allowed range: {min} - {max} {unit}",
+  "@allowedRange": {
+    "placeholders": {
+      "min": {"type": "String"},
+      "max": {"type": "String"},
+      "unit": {"type": "String"}
+    }
+  },
+
+  "statusDue": "Due",
+  "statusRectify": "Rectify",
+  "statusPendingApproval": "Pending Approval",
+  "reportPhotos": "Report Photos",
+  "photosRequired": "{current}/{required} Required",
+  "@photosRequired": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "required": {"type": "int"}
+    }
+  },
+  "deferralPendingApprovalTitle": "DEFERRAL PENDING APPROVAL",
+  "deferralPendingApprovalMessage": "Deferral request is being reviewed. You cannot start this task until the request is processed.",
+  "requestDate": "Request Date",
+  "notes": "Notes",
+  "addNotesHint": "Add any additional notes or observations (optional)",
+
+  "additionalInfoOverdue": "Additional Information (overdue)",
+  "rootCauseLabel": "Root cause (optional)",
+  "rootCauseHint": "Describe root cause...",
+  "preventiveMeasuresLabel": "Preventive measures (optional)",
+  "preventiveMeasuresHint": "Measures to prevent recurrence...",
+  "evidencePhotosOptional": "Evidence photos (optional)",
+  "evidencePhotosHint": "Attach spare parts order, weather report, Class email, or other documents",
+  "requestDeferralTooltip": "Request Deferral",
+  "notAvailableShort": "N/A",
+  "taskRejectedTitle": "TASK REJECTED",
+  "rejectedByLabel": "Rejected by",
+  "timeLabel": "Time",
+  "rejectionCountLabel": "Rejection count: {count} time(s)",
+  "@rejectionCountLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "multipleRejectionWarning": "Multiple rejections. Please contact supervisor.",
+  "waitingForCEApproval": "Waiting for C/E approval",
+  "yourReportBeingReviewed": "Your report is being reviewed",
+  "errorPrefix": "Error: {error}",
+  "@errorPrefix": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "materialCodeInfo": "Code: {code}",
+  "@materialCodeInfo": {
+    "placeholders": {
+      "code": {"type": "String"}
+    }
+  },
+  "materialCodeQuantity": "Code: {code} \u2022 Qty required: {quantity}",
+  "@materialCodeQuantity": {
+    "placeholders": {
+      "code": {"type": "String"},
+      "quantity": {"type": "String"}
+    }
+  },
+  "materialCodeStock": "Code: {code} \u2022 In stock: {onHand} {unit}",
+  "@materialCodeStock": {
+    "placeholders": {
+      "code": {"type": "String"},
+      "onHand": {"type": "String"},
+      "unit": {"type": "String"}
+    }
+  },
+  "deferralNotFound": "Pending deferral request not found",
+  "requestTimeoutError": "Request timeout - image may be too large. Please try a smaller image",
+  "validationError": "Validation error - please check the form again",
+  "serverError": "Server error - please try again later",
+  "vietnameseLanguage": "Vietnamese Language"
 }

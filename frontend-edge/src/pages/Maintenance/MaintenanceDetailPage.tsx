@@ -524,25 +524,44 @@ export function MaintenanceDetailPage() {
             </div>
 
             {/* Spare Parts - Redesigned */}
-            {(task.sparePartsUsed || isEditing) && (
+            {(task.requiredSpareParts || task.sparePartsUsed || isEditing) && (
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-7 border border-gray-200 dark:border-gray-700">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-5 flex items-center gap-3">
                   <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
                     <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
-                  Spare Parts Used
+                  Spare Parts
                 </h2>
-                {isEditing ? (
-                  <textarea
-                    value={editedTask.sparePartsUsed || task.sparePartsUsed || ''}
-                    onChange={(e) => setEditedTask({ ...editedTask, sparePartsUsed: e.target.value })}
-                    rows={3}
-                    className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all"
-                    placeholder="List spare parts used (e.g., Oil Filter x2, Gasket Set x1)"
-                  />
-                ) : (
-                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{task.sparePartsUsed}</p>
+                
+                {/* Required Spare Parts (from schedule) */}
+                {task.requiredSpareParts && (
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">📋 Required (from schedule)</h3>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{task.requiredSpareParts}</p>
+                    </div>
+                  </div>
                 )}
+                
+                {/* Actually Used Spare Parts (crew input) */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">🔧 Actually Used</h3>
+                  {isEditing ? (
+                    <textarea
+                      value={editedTask.sparePartsUsed || task.sparePartsUsed || ''}
+                      onChange={(e) => setEditedTask({ ...editedTask, sparePartsUsed: e.target.value })}
+                      rows={3}
+                      className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all"
+                      placeholder="List spare parts used (e.g., Oil Filter x2, Gasket Set x1)"
+                    />
+                  ) : (
+                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                        {task.sparePartsUsed || <span className="text-gray-400 italic">No spare parts used yet</span>}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

@@ -70,6 +70,14 @@ abstract class TaskApi {
   /// Get task progress
   @GET('/api/maintenance/tasks/{taskId}/progress')
   Future<TaskProgress> getTaskProgress(@Path('taskId') int taskId);
+  
+  /// Update spare parts used during task execution (real-time sync)
+  @PUT('/api/maintenance/tasks/{taskId}/spare-parts')
+  @DioResponseType(ResponseType.json)
+  Future<HttpResponse<dynamic>> updateSparePartsUsed(
+    @Path('taskId') String taskId,
+    @Body() Map<String, dynamic> sparePartsData,
+  );
 
   // === DEFERRALS ===
   @POST('/api/deferral-requests')

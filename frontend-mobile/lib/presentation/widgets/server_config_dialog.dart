@@ -182,7 +182,7 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
     return Dialog(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 500),
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
@@ -195,11 +195,15 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
                   children: [
                     Icon(Icons.settings, color: Colors.blue.shade700),
                     const SizedBox(width: 12),
-                    const Text(
-                      'Server Configuration',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                    const Expanded(
+                      child: Text(
+                        'Server Configuration',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -305,11 +309,13 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
                         children: [
                           Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
                           const SizedBox(width: 8),
-                          Text(
-                            'How to connect to Edge Server:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue.shade900,
+                          Expanded(
+                            child: Text(
+                              'How to connect to Edge Server:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade900,
+                              ),
                             ),
                           ),
                         ],
@@ -328,42 +334,39 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
                 const SizedBox(height: 24),
 
                 // Action Buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     TextButton(
                       onPressed: _isLoading || _isTesting ? null : () => Navigator.pop(context),
                       child: const Text('Cancel'),
                     ),
-                    Row(
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: _isLoading || _isTesting ? null : _testConnection,
-                          icon: _isTesting
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(Icons.wifi_find),
-                          label: const Text('Test'),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton.icon(
-                          onPressed: _isLoading || _isTesting ? null : _saveAndApply,
-                          icon: _isLoading
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(Icons.save),
-                          label: const Text('Save'),
-                        ),
-                      ],
+                    OutlinedButton.icon(
+                      onPressed: _isLoading || _isTesting ? null : _testConnection,
+                      icon: _isTesting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.wifi_find, size: 18),
+                      label: const Text('Test'),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _isLoading || _isTesting ? null : _saveAndApply,
+                      icon: _isLoading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.save, size: 18),
+                      label: const Text('Save'),
                     ),
                   ],
                 ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../providers/task_provider.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
@@ -24,7 +25,8 @@ class _TaskListScreenState extends State<TaskListScreen>
   
   // Auto-refresh timer để sync với backend khi Captain giao task mới
   Timer? _refreshTimer;
-  static const _refreshInterval = Duration(seconds: 5); // Reduced from 30s to 5s for faster sync
+  // Use optimized interval from constants (30s) - balances battery life with real-time updates
+  static const _refreshInterval = PerformanceConstants.taskListRefreshInterval;
 
   @override
   void initState() {
@@ -59,11 +61,14 @@ class _TaskListScreenState extends State<TaskListScreen>
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     taskProvider.fetchMyTasks(forceRefresh: true); // Force API call on init
     
-    // Auto-refresh every 5s to get task updates from Captain
+    // Auto-refresh every 30s - optimized for battery life while staying reasonably up-to-date
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(_refreshInterval, (_) {
       if (mounted) {
-        taskProvider.fetchMyTasks(forceRefresh: true); // Always force refresh from API
+        // Only force refresh if app is visible and not already loading
+        if (!taskProvider.isLoading) {
+          taskProvider.fetchMyTasks(forceRefresh: true);
+        }
       }
     });
   }
@@ -142,7 +147,7 @@ class _TaskListScreenState extends State<TaskListScreen>
             ),
             tabs: [
               _buildTab(
-                label: 'Đến hạn',
+                label: l10n.statusDue,
                 count: taskProvider.dueTasks.length,
                 icon: Icons.event_available,
                 isSmallScreen: isSmallScreen,
@@ -160,13 +165,13 @@ class _TaskListScreenState extends State<TaskListScreen>
                 isSmallScreen: isSmallScreen,
               ),
               _buildTab(
-                label: 'Cần sửa',
+                label: l10n.statusRectify,
                 count: taskProvider.rectifyTasks.length,
                 icon: Icons.build_circle,
                 isSmallScreen: isSmallScreen,
               ),
               _buildTab(
-                label: 'Chờ duyệt',
+                label: l10n.statusPendingApproval,
                 count: taskProvider.pendingApprovalTasks.length,
                 icon: Icons.pending_actions,
                 isSmallScreen: isSmallScreen,

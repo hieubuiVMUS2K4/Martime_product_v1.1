@@ -73,45 +73,11 @@ public class DeferralRequestController : ControllerBase
             var isOverdue = task.Status == "OVERDUE" || 
                             (task.Status.StartsWith("MISSING_") && task.NextDueAt < DateTime.UtcNow);
             var isOverdueDeferral = isOverdue;
-            if (isOverdueDeferral)
-            {
-                // Require longer, more detailed reason
-                if (dto.Reason.Length < 50)
-                {
-                    return BadRequest(new {
-                        error = "OVERDUE tasks require detailed explanation (minimum 50 characters)",
-                        provided = dto.Reason.Length,
-                        required = 50
-                    });
-                }
-
-                // Require attachments (proof of issue)
-                if (dto.Attachments == null || dto.Attachments.Count == 0)
-                {
-                    return BadRequest(new {
-                        error = "OVERDUE task deferrals require photo/document attachments as proof",
-                        hint = "Please provide evidence of the issue (e.g., spare parts order, weather report, Class email)"
-                    });
-                }
-
-                // Require root cause and preventive measures in reason
-                var reasonLower = dto.Reason.ToLower();
-                if (string.IsNullOrWhiteSpace(dto.RootCause) || dto.RootCause.Length < 20)
-                {
-                    return BadRequest(new {
-                        error = "OVERDUE deferrals require root cause analysis (minimum 20 characters)",
-                        hint = "Explain why the task became overdue"
-                    });
-                }
-
-                if (string.IsNullOrWhiteSpace(dto.PreventiveMeasures) || dto.PreventiveMeasures.Length < 20)
-                {
-                    return BadRequest(new {
-                        error = "OVERDUE deferrals require preventive measures (minimum 20 characters)",
-                        hint = "Explain how you will prevent this from happening again"
-                    });
-                }
-            }
+            
+            // Note: Validation for overdue tasks relaxed - reason comes from dropdown selection
+            // Additional details (rootCause, preventiveMeasures, attachments) are now optional
+            _logger.LogInformation("Task is overdue: {IsOverdue}, Reason length: {Length}", 
+                isOverdueDeferral, dto.Reason?.Length ?? 0);
 
             // Check for existing pending deferral
             if (task.HasPendingDeferral)

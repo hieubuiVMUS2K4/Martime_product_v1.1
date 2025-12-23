@@ -350,7 +350,8 @@ export interface MaintenanceTask {
   // ============ RELATED DATA ============
   checklistItems?: TaskChecklistItem[]
   
-  requiredSpareParts?: Array<{
+  // Required spare parts - can be JSON string from DB or parsed array
+  requiredSpareParts?: string | Array<{
     id?: string
     materialItemId: string
     materialCode?: string

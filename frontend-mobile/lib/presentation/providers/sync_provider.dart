@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/cache/sync_queue.dart';
 import '../../core/network/network_info.dart';
+import '../../core/di/service_locator.dart';
 
 class SyncProvider with ChangeNotifier {
   final SyncQueue _syncQueue;
@@ -11,9 +12,10 @@ class SyncProvider with ChangeNotifier {
   bool _isOnline = false;
   DateTime? _lastSyncTime;
   
+  // Use service locator to avoid duplicate instances
   SyncProvider()
-      : _syncQueue = SyncQueue(NetworkInfo()),
-        _networkInfo = NetworkInfo() {
+      : _syncQueue = sl<SyncQueue>(),
+        _networkInfo = sl<NetworkInfo>() {
     _init();
   }
   

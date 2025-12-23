@@ -8,6 +8,7 @@ import 'dart:typed_data';
 import '../../../data/models/maintenance_task.dart';
 import '../../../data/models/create_deferral_request_dto.dart';
 import '../../providers/task_provider.dart';
+import '../../../l10n/app_localizations.dart';
 
 class CreateDeferralScreen extends StatefulWidget {
   final MaintenanceTask task;
@@ -24,6 +25,7 @@ class CreateDeferralScreen extends StatefulWidget {
 class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
   final _formKey = GlobalKey<FormState>();
   final _reasonController = TextEditingController();
+  final _additionalNoteController = TextEditingController();
   final _rootCauseController = TextEditingController();
   final _preventiveMeasuresController = TextEditingController();
   
@@ -31,7 +33,15 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
   String _priority = 'NORMAL';
   bool _isSubmitting = false;
   
-  // Photo upload state (required for OVERDUE tasks)
+  // Common reasons for deferral - will be populated from l10n
+  String? _selectedReason;
+  List<String> _commonReasons = [];
+  
+  // Common reasons for overdue tasks (more detailed)
+  String? _selectedOverdueReason;
+  List<String> _commonOverdueReasons = [];
+  
+  // Photo upload state (optional)
   final List<String> _photoUrls = [];
   bool _isUploadingPhoto = false;
   final ImagePicker _picker = ImagePicker();
@@ -39,6 +49,7 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
   @override
   void dispose() {
     _reasonController.dispose();
+    _additionalNoteController.dispose();
     _rootCauseController.dispose();
     _preventiveMeasuresController.dispose();
     super.dispose();
@@ -48,39 +59,53 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
     try {
       setState(() => _isUploadingPhoto = true);
       
+      // Production settings: Compress heavily for maritime bandwidth
+      // Target: ~150KB per image for fast upload over satellite
       final XFile? image = await _picker.pickImage(
         source: source,
-        imageQuality: 20, // Giảm xuống 20% để tránh timeout
-        maxWidth: 480,    // Giảm xuống 480px
-        maxHeight: 360,
+        imageQuality: 35, // Aggressive compression for bandwidth
+        maxWidth: 800,    // Smaller dimension for faster transfer
+        maxHeight: 600,
       );
 
       if (image != null) {
         final File imageFile = File(image.path);
         final Uint8List imageBytes = await imageFile.readAsBytes();
+        final int imageSize = imageBytes.length;
         
-        if (imageBytes.length > 200 * 1024) { // Giảm xuống 200KB
+        // Check size - should be under 300KB after compression
+        if (imageSize > 300 * 1024) {
           if (mounted) {
+            final l10n = AppLocalizations.of(context);
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Ảnh quá lớn (max 200KB), vui lòng chọn ảnh khác hoặc chụp lại')),
+              SnackBar(
+                content: Text(l10n.imageStillLarge(_formatBytes(imageSize))),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 1),
+              ),
             );
           }
-          return;
+          // Try picking again with even more compression
+          final XFile? recompressed = await _picker.pickImage(
+            source: source,
+            imageQuality: 20,
+            maxWidth: 640,
+            maxHeight: 480,
+          );
+          if (recompressed != null) {
+            final recompressedBytes = await File(recompressed.path).readAsBytes();
+            _addImageToList(recompressedBytes, recompressed.path);
+            return;
+          }
         }
         
-        final String base64Image = base64Encode(imageBytes);
-        final String extension = image.path.split('.').last.toLowerCase();
-        final String mimeType = extension == 'png' ? 'image/png' : 'image/jpeg';
-        final String dataUrl = 'data:$mimeType;base64,$base64Image';
-        
-        setState(() {
-          _photoUrls.add(dataUrl);
-        });
+        _addImageToList(imageBytes, image.path);
       }
     } catch (e) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi chọn ảnh: $e')),
+          SnackBar(content: Text(l10n.errorSelectingPhoto(e.toString()))),
         );
       }
     } finally {
@@ -90,7 +115,36 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
     }
   }
 
+  void _addImageToList(Uint8List imageBytes, String path) {
+    final String base64Image = base64Encode(imageBytes);
+    final String extension = path.split('.').last.toLowerCase();
+    final String mimeType = extension == 'png' ? 'image/png' : 'image/jpeg';
+    final String dataUrl = 'data:$mimeType;base64,$base64Image';
+    
+    setState(() {
+      _photoUrls.add(dataUrl);
+    });
+    
+    if (mounted) {
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.photoAdded(_photoUrls.length, _formatBytes(imageBytes.length))),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
   void _showImageSourceActionSheet() {
+    final l10n = AppLocalizations.of(context);
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -98,7 +152,7 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_camera),
-              title: const Text('Chụp ảnh'),
+              title: Text(l10n.takePhoto),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.camera);
@@ -106,7 +160,7 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Chọn từ thư viện'),
+              title: Text(l10n.selectFromGallery),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.gallery);
@@ -138,21 +192,21 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
   }
 
   Future<void> _submit() async {
+    final l10n = AppLocalizations.of(context);
     if (!_formKey.currentState!.validate()) return;
     if (_proposedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn ngày hoãn đến')),
+        SnackBar(content: Text(l10n.pleaseSelectDeferralDate)),
       );
       return;
     }
 
-    // Validate photos for OVERDUE tasks
-    if (widget.task.isOverdue && _photoUrls.isEmpty) {
+    // Validate reason selection
+    final isOverdue = widget.task.isOverdue;
+    final selectedReason = isOverdue ? _selectedOverdueReason : _selectedReason;
+    if (selectedReason == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Task quá hạn bắt buộc phải có ảnh chứng minh (spare parts order, weather report, v.v.)'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(l10n.pleaseSelectDeferralReason)),
       );
       return;
     }
@@ -160,21 +214,28 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      // Build final reason: selected reason + optional note
+      String finalReason = selectedReason;
+      final additionalNote = _additionalNoteController.text.trim();
+      if (additionalNote.isNotEmpty) {
+        finalReason = '$selectedReason. $additionalNote';
+      }
+
       print('📤 Creating deferral request for task ${widget.task.id}');
-      print('   Reason length: ${_reasonController.text.trim().length}');
+      print('   Reason: $finalReason');
       print('   Photos: ${_photoUrls.length}');
-      if (widget.task.isOverdue) {
-        print('   Root cause length: ${_rootCauseController.text.trim().length}');
-        print('   Preventive measures length: ${_preventiveMeasuresController.text.trim().length}');
+      if (isOverdue) {
+        print('   Root cause: ${_rootCauseController.text.trim()}');
+        print('   Preventive measures: ${_preventiveMeasuresController.text.trim()}');
       }
       
       final dto = CreateDeferralRequestDto(
         taskId: widget.task.id,
-        reason: _reasonController.text.trim(),
+        reason: finalReason,
         proposedDueDate: _proposedDate!.toIso8601String(),
         priority: _priority,
-        rootCause: widget.task.isOverdue ? _rootCauseController.text.trim() : null,
-        preventiveMeasures: widget.task.isOverdue ? _preventiveMeasuresController.text.trim() : null,
+        rootCause: isOverdue ? _rootCauseController.text.trim() : null,
+        preventiveMeasures: isOverdue ? _preventiveMeasuresController.text.trim() : null,
         attachments: _photoUrls.isNotEmpty ? _photoUrls : null,
       );
 
@@ -183,8 +244,8 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã gửi yêu cầu hoãn task'),
+          SnackBar(
+            content: Text(l10n.deferralRequestSent),
             backgroundColor: Colors.green,
           ),
         );
@@ -198,16 +259,16 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
         String errorMsg = e.toString();
         if (errorMsg.contains('DioException')) {
           if (errorMsg.contains('timeout')) {
-            errorMsg = 'Request timeout - ảnh có thể quá lớn. Vui lòng thử ảnh nhỏ hơn';
+            errorMsg = l10n.requestTimeoutError;
           } else if (errorMsg.contains('400')) {
-            errorMsg = 'Validation error - kiểm tra lại form (reason, photos, v.v.)';
+            errorMsg = l10n.validationError;
           } else if (errorMsg.contains('500')) {
-            errorMsg = 'Server error - vui lòng thử lại sau';
+            errorMsg = l10n.serverError;
           }
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi: $errorMsg'),
+            content: Text(l10n.errorMessage(errorMsg)),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           ),
@@ -220,12 +281,37 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final isOverdue = widget.task.isOverdue;
     final dateFormat = DateFormat('dd/MM/yyyy');
+    
+    // Populate reasons from l10n
+    if (_commonReasons.isEmpty) {
+      _commonReasons = [
+        l10n.deferralReasonPartsPending,
+        l10n.deferralReasonWeatherCondition,
+        l10n.deferralReasonHigherPriority,
+        l10n.deferralReasonAwaitingApproval,
+        l10n.deferralReasonPersonnelUnavailable,
+        l10n.deferralReasonEquipmentInUse,
+        l10n.deferralReasonOther,
+      ];
+    }
+    if (_commonOverdueReasons.isEmpty) {
+      _commonOverdueReasons = [
+        l10n.overdueReasonPartsPending,
+        l10n.overdueReasonExternalFactors,
+        l10n.overdueReasonHigherPriority,
+        l10n.overdueReasonResourceShortage,
+        l10n.overdueReasonAwaitingApproval,
+        l10n.overdueReasonTechnicalIssue,
+        l10n.overdueReasonOther,
+      ];
+    }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Xin hoãn Task'),
+        title: Text(l10n.requestDeferral),
       ),
       body: Form(
         key: _formKey,
@@ -245,11 +331,11 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 4),
-                    Text('Hạn hiện tại: ${widget.task.nextDueAt != null ? dateFormat.format(DateTime.parse(widget.task.nextDueAt!)) : "N/A"}'),
+                    Text(l10n.currentDueDate(widget.task.nextDueAt != null ? dateFormat.format(DateTime.parse(widget.task.nextDueAt!)) : "N/A")),
                     if (isOverdue)
-                      const Text(
-                        'ĐANG QUÁ HẠN',
-                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                      Text(
+                        l10n.statusOverdue.toUpperCase(),
+                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                       ),
                   ],
                 ),
@@ -261,13 +347,13 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
             InkWell(
               onTap: () => _selectDate(context),
               child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Xin hoãn đến ngày *',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.calendar_today),
+                decoration: InputDecoration(
+                  labelText: '${l10n.deferralRequest} *',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.calendar_today),
                 ),
                 child: Text(
-                  _proposedDate != null ? dateFormat.format(_proposedDate!) : 'Chọn ngày',
+                  _proposedDate != null ? dateFormat.format(_proposedDate!) : l10n.selectDate,
                   style: TextStyle(
                     color: _proposedDate != null ? Colors.black : Colors.grey,
                   ),
@@ -279,89 +365,127 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
             // Priority
             DropdownButtonFormField<String>(
               value: _priority,
-              decoration: const InputDecoration(
-                labelText: 'Mức độ ưu tiên',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.taskPriority,
+                border: const OutlineInputBorder(),
               ),
-              items: const [
-                DropdownMenuItem(value: 'LOW', child: Text('Thấp')),
-                DropdownMenuItem(value: 'NORMAL', child: Text('Bình thường')),
-                DropdownMenuItem(value: 'HIGH', child: Text('Cao')),
+              items: [
+                DropdownMenuItem(value: 'LOW', child: Text(l10n.priorityLow)),
+                DropdownMenuItem(value: 'NORMAL', child: Text(l10n.priorityNormal)),
+                DropdownMenuItem(value: 'HIGH', child: Text(l10n.priorityHigh)),
               ],
               onChanged: (val) => setState(() => _priority = val!),
             ),
             const SizedBox(height: 16),
 
-            // Reason
-            TextFormField(
-              controller: _reasonController,
-              decoration: const InputDecoration(
-                labelText: 'Lý do xin hoãn *',
-                border: OutlineInputBorder(),
-                helperText: 'Tối thiểu 20 ký tự (50 nếu quá hạn)',
+            // Reason Selection - Normal tasks
+            if (!isOverdue) ...[
+              DropdownButtonFormField<String>(
+                value: _selectedReason,
+                decoration: InputDecoration(
+                  labelText: '${l10n.deferralRequest} *',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.format_list_bulleted),
+                ),
+                hint: Text(l10n.selectReason),
+                items: _commonReasons.map((reason) {
+                  return DropdownMenuItem(value: reason, child: Text(reason));
+                }).toList(),
+                onChanged: (val) => setState(() => _selectedReason = val),
+                validator: (value) {
+                  if (value == null) return l10n.pleaseSelectDeferralReason;
+                  return null;
+                },
               ),
-              maxLines: 3,
-              validator: (value) {
-                if (value == null || value.isEmpty) return 'Vui lòng nhập lý do';
-                final minLength = isOverdue ? 50 : 20;
-                if (value.length < minLength) {
-                  return 'Lý do phải có ít nhất $minLength ký tự';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+              
+              // Additional note (optional)
+              TextFormField(
+                controller: _additionalNoteController,
+                decoration: InputDecoration(
+                  labelText: l10n.notesOptional,
+                  border: const OutlineInputBorder(),
+                  hintText: l10n.enterMoreDetails,
+                  prefixIcon: const Icon(Icons.note_add),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // Overdue specific fields
             if (isOverdue) ...[
+              // Reason Selection - Overdue tasks
+              DropdownButtonFormField<String>(
+                value: _selectedOverdueReason,
+                decoration: InputDecoration(
+                  labelText: '${l10n.deferralRequest} *',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.format_list_bulleted),
+                ),
+                hint: Text(l10n.selectReason),
+                items: _commonOverdueReasons.map((reason) {
+                  return DropdownMenuItem(value: reason, child: Text(reason));
+                }).toList(),
+                onChanged: (val) => setState(() => _selectedOverdueReason = val),
+                validator: (value) {
+                  if (value == null) return l10n.pleaseSelectDeferralReason;
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              
+              // Additional note for overdue (optional)
+              TextFormField(
+                controller: _additionalNoteController,
+                decoration: InputDecoration(
+                  labelText: l10n.notesOptional,
+                  border: const OutlineInputBorder(),
+                  hintText: l10n.enterMoreDetails,
+                  prefixIcon: const Icon(Icons.note_add),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+              
               const Divider(),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  'Thông tin bổ sung (Bắt buộc do quá hạn)',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                  l10n.additionalInfoOverdue,
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
                 ),
               ),
               TextFormField(
                 controller: _rootCauseController,
-                decoration: const InputDecoration(
-                  labelText: 'Nguyên nhân gốc rễ *',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.rootCauseLabel,
+                  border: const OutlineInputBorder(),
+                  hintText: l10n.rootCauseHint,
                 ),
                 maxLines: 2,
-                validator: (value) {
-                  if (value == null || value.length < 20) {
-                    return 'Vui lòng nhập ít nhất 20 ký tự';
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _preventiveMeasuresController,
-                decoration: const InputDecoration(
-                  labelText: 'Biện pháp phòng ngừa *',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.preventiveMeasuresLabel,
+                  border: const OutlineInputBorder(),
+                  hintText: l10n.preventiveMeasuresHint,
                 ),
                 maxLines: 2,
-                validator: (value) {
-                  if (value == null || value.length < 20) {
-                    return 'Vui lòng nhập ít nhất 20 ký tự';
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: 16),
 
-              // Photo upload section for OVERDUE
-              const Text(
-                'Ảnh chứng minh (Bắt buộc) *',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              // Photo upload section for OVERDUE (optional)
+              Text(
+                l10n.evidencePhotosOptional,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Vui lòng đính kèm spare parts order, weather report, Class email, hoặc tài liệu khác chứng minh lý do hoãn',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+              Text(
+                l10n.evidencePhotosHint,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 12),
               
@@ -429,7 +553,7 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.add_photo_alternate),
-                label: Text(_isUploadingPhoto ? 'Đang tải...' : 'Thêm ảnh'),
+                label: Text(_isUploadingPhoto ? l10n.addingPhoto : l10n.addPhoto),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -446,7 +570,7 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
               ),
               child: _isSubmitting
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('GỬI YÊU CẦU'),
+                  : Text(l10n.submitRequest),
             ),
           ],
         ),

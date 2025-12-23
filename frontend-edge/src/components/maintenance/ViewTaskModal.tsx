@@ -85,29 +85,52 @@ function getMaterialDisplay(
   return { name: materialId.substring(0, 8) + '...', code: materialId };
 }
 
-function parseSparePartsFromSchedule(sparePartsUsed?: string): Array<{
-  materialItemId: string;
-  quantityRequired: number;
-  isMandatory: boolean;
-}> | null {
-  if (!sparePartsUsed) return null;
+// Parse spare parts data from sparePartsUsed field
+// sparePartsUsed contains data synced from mobile - what crew actually used
+function parseSparePartsData(sparePartsUsed?: string): {
+  actuallyUsedParts: Array<{
+    materialItemId: string;
+    materialCode?: string;
+    materialName?: string;
+    quantityUsed: number;
+    unit?: string;
+    onHandQuantity?: number;
+  }>;
+} {
+  const result = {
+    actuallyUsedParts: [] as Array<{
+      materialItemId: string;
+      materialCode?: string;
+      materialName?: string;
+      quantityUsed: number;
+      unit?: string;
+      onHandQuantity?: number;
+    }>
+  };
+
+  if (!sparePartsUsed) return result;
   
   try {
-    // Try to parse as JSON array
     const parsed = JSON.parse(sparePartsUsed);
-    if (Array.isArray(parsed)) {
-      return parsed;
-    }
-    // If it's a single object, wrap in array
-    if (typeof parsed === 'object') {
-      return [parsed];
-    }
+    if (!Array.isArray(parsed)) return result;
+    
+    parsed.forEach(item => {
+      // Parse as actually used spare parts from mobile
+      result.actuallyUsedParts.push({
+        materialItemId: item.materialItemId || item.MaterialItemId || '',
+        materialCode: item.materialCode || item.MaterialCode,
+        materialName: item.materialName || item.MaterialName,
+        // Support both quantityUsed (mobile format) and quantityRequired (old format)
+        quantityUsed: item.quantityUsed ?? item.QuantityUsed ?? item.quantityRequired ?? item.QuantityRequired ?? 0,
+        unit: item.unit || item.Unit,
+        onHandQuantity: item.onHandQuantity ?? item.OnHandQuantity
+      });
+    });
   } catch (e) {
-    // Not JSON, return null
-    return null;
+    console.log('Failed to parse sparePartsUsed:', e);
   }
   
-  return null;
+  return result;
 }
 
 export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onApprove, onReject }: ViewTaskModalProps) {
@@ -212,12 +235,48 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
 
   if (!isOpen || !task) return null;
 
-  // Parse spare parts from sparePartsUsed (JSON from Schedule Config)
-  const requiredSpareParts = parseSparePartsFromSchedule(task.sparePartsUsed);
+  // Parse spare parts data - distinguishes between required parts (from schedule) and actually used (from mobile)
+  const parsedSparePartsData = parseSparePartsData(task.sparePartsUsed);
   
-  // Debug: Check if requiredSpareParts exists
+  // Parse requiredSpareParts from JSON string if exists
+  let parsedRequiredSpareParts: Array<{
+    materialItemId: string;
+    materialCode?: string;
+    materialName?: string;
+    quantityRequired: number;
+    isMandatory: boolean;
+  }> | null = null;
+  
+  if (task.requiredSpareParts && typeof task.requiredSpareParts === 'string') {
+    try {
+      const parsed = JSON.parse(task.requiredSpareParts);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        parsedRequiredSpareParts = parsed.map(item => ({
+          materialItemId: item.materialItemId || item.MaterialItemId || '',
+          materialCode: item.materialCode || item.MaterialCode,
+          materialName: item.materialName || item.MaterialName,
+          // Handle both quantityRequired (correct) and quantityUsed (from old migration)
+          quantityRequired: item.quantityRequired ?? item.QuantityRequired ?? item.quantityUsed ?? item.QuantityUsed ?? 0,
+          isMandatory: item.isMandatory ?? item.IsMandatory ?? false
+        }));
+      }
+    } catch (e) {
+      console.warn('Failed to parse requiredSpareParts JSON:', e);
+    }
+  }
+  
+  // Required spare parts: ONLY from task.requiredSpareParts (from schedule config)
+  // DO NOT fallback to sparePartsUsed - that's what crew actually used, not what was required
+  const requiredSpareParts = parsedRequiredSpareParts;
+  
+  // Actually used spare parts: from sparePartsUsed field (synced from mobile)
+  const actuallyUsedSpareParts = parsedSparePartsData.actuallyUsedParts;
+  
+  // Debug: Check spare parts data
   console.log('Task data:', task);
-  console.log('Parsed Required Spare Parts:', requiredSpareParts);
+  console.log('Task requiredSpareParts:', task.requiredSpareParts);
+  console.log('Parsed spare parts data:', parsedSparePartsData);
+  console.log('Actually used spare parts:', actuallyUsedSpareParts);
 
   const statusInfo = STATUS_LABELS[task.status] || { label: task.status, color: 'bg-gray-100 text-gray-800' };
 
@@ -549,22 +608,24 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
                     {requiredSpareParts.map((part, index) => {
-                      const material = getMaterialDisplay(part.materialItemId, materialsMap);
+                      // Use materialName/materialCode from parsed JSON if available, otherwise lookup
+                      const displayName = part.materialName || getMaterialDisplay(part.materialItemId, materialsMap).name;
+                      const displayCode = part.materialCode || getMaterialDisplay(part.materialItemId, materialsMap).code;
                       return (
                         <tr key={index} className="hover:bg-blue-50/50">
                           <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                            {loadingMaterials ? (
+                            {loadingMaterials && !part.materialName ? (
                               <span className="text-gray-400">Loading...</span>
                             ) : (
-                              material.name
+                              displayName
                             )}
                           </td>
                           <td className="px-4 py-3 text-sm font-mono text-gray-600">
-                            {!loadingMaterials && material.code}
+                            {displayCode}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-900">
                             <span className="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-800 font-semibold">
-                              {part.quantityRequired}
+                              {part.quantityRequired ?? '-'}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-sm">
@@ -593,17 +654,60 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
             )}
           </div>
 
-          {/* 2. Spare Parts Actually Used (from Mobile - not implemented yet) */}
+          {/* 2. Spare Parts Actually Used (from Mobile) */}
           <div>
             <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <CheckCircle className="w-5 h-5 text-green-600" />
               Spare Parts Actually Used
             </h3>
-            <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
-              <CheckCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-sm text-gray-500">Not yet recorded</p>
-              <p className="text-xs text-gray-400 mt-1">Will be selected via mobile app during task execution</p>
-            </div>
+            {actuallyUsedSpareParts && actuallyUsedSpareParts.length > 0 ? (
+              <div className="border border-green-200 rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-green-100">
+                  <thead className="bg-green-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Material Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Code</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Quantity Used</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Unit</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {actuallyUsedSpareParts.map((part, index) => {
+                      const displayName = part.materialName || getMaterialDisplay(part.materialItemId, materialsMap).name;
+                      const displayCode = part.materialCode || getMaterialDisplay(part.materialItemId, materialsMap).code;
+                      return (
+                        <tr key={index} className="hover:bg-green-50/50">
+                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                            {loadingMaterials && !part.materialName ? (
+                              <span className="text-gray-400">Loading...</span>
+                            ) : (
+                              displayName
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-mono text-gray-600">
+                            {displayCode}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            <span className="inline-flex items-center px-2 py-1 rounded bg-green-100 text-green-800 font-semibold">
+                              {part.quantityUsed}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {part.unit || '-'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
+                <CheckCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-gray-500">Not yet recorded</p>
+                <p className="text-xs text-gray-400 mt-1">Will be selected via mobile app during task execution</p>
+              </div>
+            )}
           </div>
 
           {/* 3. Additional Information (Notes only) */}
@@ -1041,16 +1145,15 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Rejection Reason <span className="text-red-500">*</span>
+                      Rejection Reason
                     </label>
                     <textarea
                       value={rejectionReason}
                       onChange={(e) => setRejectionReason(e.target.value)}
-                      placeholder="Explain what needs to be corrected..."
+                      placeholder="Explain what needs to be corrected (optional)..."
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
                       rows={3}
                     />
-                    <p className="text-xs text-gray-500 mt-1">Minimum 10 characters required</p>
                   </div>
                   <div className="flex gap-3">
                     <button
@@ -1065,10 +1168,9 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
                     </button>
                     <button
                       onClick={async () => {
-                        if (!rejectionReason.trim() || rejectionReason.trim().length < 10) return;
                         setActionLoading(true);
                         try {
-                          await onReject(task.id, rejectionReason);
+                          await onReject(task.id, rejectionReason.trim() || 'Rejected');
                           setShowRejectModal(false);
                           setRejectionReason('');
                           onClose();
@@ -1078,7 +1180,7 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
                           setActionLoading(false);
                         }
                       }}
-                      disabled={actionLoading || rejectionReason.trim().length < 10}
+                      disabled={actionLoading}
                       className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                     >
                       <AlertCircle className="w-4 h-4" />

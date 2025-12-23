@@ -38,11 +38,22 @@ export function MaintenancePage() {
         setIsBackgroundRefreshing(true)
       }
       // Fetch all tasks with high pageSize to get all records
+      // Add timestamp to bust cache and ensure fresh data
       const [tasksResponse, crewResponse] = await Promise.all([
         maritimeService.maintenance.getAll({ pageSize: 1000 }),
         maritimeService.crew.getAll({ pageSize: 100, isOnboard: true })
       ])
-      setTasks(tasksResponse.data)
+      
+      // Only update state if data actually changed (prevent unnecessary re-renders)
+      setTasks(prevTasks => {
+        const newTasksJson = JSON.stringify(tasksResponse.data)
+        const prevTasksJson = JSON.stringify(prevTasks)
+        if (newTasksJson !== prevTasksJson) {
+          console.log('📊 Kanban: Tasks updated from server')
+          return tasksResponse.data
+        }
+        return prevTasks
+      })
       setCrewList(crewResponse.data)
     } catch (error) {
       console.error('Failed to load maintenance data:', error)

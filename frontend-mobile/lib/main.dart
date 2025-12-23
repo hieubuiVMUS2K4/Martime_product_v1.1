@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'app.dart';
-import 'core/network/api_client.dart';
+import 'core/di/service_locator.dart';
 import 'core/localization/locale_provider.dart';
 import 'data/models/sync_item.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Hive
+  // Initialize Hive for local storage
   await Hive.initFlutter();
   
   // Register Hive adapters
@@ -20,8 +20,9 @@ void main() async {
   await Hive.openBox('cache_box');
   await Hive.openBox<SyncItem>('sync_queue');
   
-  // Initialize ApiClient with saved server URL
-  await ApiClient().initialize();
+  // Setup dependency injection with Service Locator
+  // This ensures singleton instances for all services
+  await setupServiceLocator();
   
   // Initialize LocaleProvider
   final localeProvider = LocaleProvider();

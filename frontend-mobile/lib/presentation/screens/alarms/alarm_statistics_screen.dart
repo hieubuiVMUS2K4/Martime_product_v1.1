@@ -42,7 +42,7 @@ class _AlarmStatisticsScreenState extends State<AlarmStatisticsScreen> {
                   const Icon(Icons.error_outline, size: 64, color: Colors.red),
                   const SizedBox(height: 16),
                   Text(
-                    'Lỗi: ${provider.error}',
+                    l10n.errorPrefix(provider.error ?? ''),
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.red),
                   ),

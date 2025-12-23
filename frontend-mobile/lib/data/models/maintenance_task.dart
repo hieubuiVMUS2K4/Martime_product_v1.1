@@ -28,7 +28,8 @@ class MaintenanceTask extends Equatable {
   final String? completedBy;
   final String? completedByCrewId;
   final String? notes;
-  final String? sparePartsUsed;
+  final String? requiredSpareParts; // From schedule config - what's needed
+  final String? sparePartsUsed; // Filled by crew - what was actually used
   final double? runningHoursAtCompletion;
   final String? photoUrls;
   final bool isSynced;
@@ -95,6 +96,7 @@ class MaintenanceTask extends Equatable {
     this.completedBy,
     this.completedByCrewId,
     this.notes,
+    this.requiredSpareParts,
     this.sparePartsUsed,
     this.runningHoursAtCompletion,
     this.photoUrls,
@@ -148,6 +150,7 @@ class MaintenanceTask extends Equatable {
       completedBy: json['completedBy']?.toString(),
       completedByCrewId: json['completedByCrewId']?.toString(),
       notes: json['notes']?.toString(),
+      requiredSpareParts: json['requiredSpareParts']?.toString(),
       sparePartsUsed: json['sparePartsUsed']?.toString(),
       runningHoursAtCompletion: json['runningHoursAtCompletion']?.toDouble(),
       photoUrls: json['photoUrls']?.toString(),
@@ -208,6 +211,7 @@ class MaintenanceTask extends Equatable {
       'completedBy': completedBy,
       'completedByCrewId': completedByCrewId,
       'notes': notes,
+      'requiredSpareParts': requiredSpareParts,
       'sparePartsUsed': sparePartsUsed,
       'runningHoursAtCompletion': runningHoursAtCompletion,
       'photoUrls': photoUrls,
@@ -327,5 +331,6 @@ class MaintenanceTask extends Equatable {
     equipmentId, equipmentName,
     equipmentGroupId, equipmentGroupName,
     assignedTo, assignedDepartment,
+    requiredSpareParts, sparePartsUsed,
   ];
 }

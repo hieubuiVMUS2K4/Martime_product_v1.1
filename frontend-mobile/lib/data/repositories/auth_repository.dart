@@ -9,17 +9,17 @@ import '../models/refresh_token_request.dart';
 
 class AuthRepository {
   final ApiClient _apiClient;
-  final NetworkInfo _networkInfo;
   final TokenStorage _tokenStorage;
+  final NetworkInfo _networkInfo;
   late final AuthApi _authApi;
 
   AuthRepository({
     required ApiClient apiClient,
-    required NetworkInfo networkInfo,
     required TokenStorage tokenStorage,
+    required NetworkInfo networkInfo,
   })  : _apiClient = apiClient,
-        _networkInfo = networkInfo,
-        _tokenStorage = tokenStorage {
+        _tokenStorage = tokenStorage,
+        _networkInfo = networkInfo {
     _authApi = AuthApi(_apiClient.dio);
   }
 
@@ -124,9 +124,8 @@ class AuthRepository {
   /// Logout
   Future<void> logout() async {
     try {
-      if (await _networkInfo.isConnected) {
-        await _authApi.logout();
-      }
+      // Try to call logout API but don't fail if network unavailable
+      await _authApi.logout();
     } catch (e) {
       // Ignore logout API errors
     } finally {

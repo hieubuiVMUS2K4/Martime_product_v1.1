@@ -7,10 +7,15 @@ import 'dart:convert';
 import 'dart:typed_data';
 import '../../../data/models/maintenance_task.dart';
 import '../../../data/models/task_checklist_item.dart';
+import '../../../data/repositories/task_repository.dart';
 import '../../providers/task_provider.dart';
 import '../../providers/sync_provider.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../core/cache/cache_manager.dart';
+import '../../../core/constants/cache_keys.dart';
+import '../../../core/di/service_locator.dart';
+import '../../../core/cache/sync_queue.dart';
 
 class CompleteTaskScreen extends StatefulWidget {
   final MaintenanceTask task;
@@ -41,54 +46,63 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
   late List<TaskChecklistItem> _checklistItems;
   bool _isTogglingChecklist = false;
   
-  // Spare parts usage state - maps materialItemId to quantity used
-  final Map<String, TextEditingController> _sparePartsUsageControllers = {};
+  // Spare parts from task requirements (display only)
   List<Map<String, dynamic>> _requiredSpareParts = [];
+  
+  // Actually used spare parts (selected from inventory)
+  List<Map<String, dynamic>> _actuallyUsedSpareParts = [];
 
   Future<void> _pickImage(ImageSource source) async {
     try {
       setState(() => _isUploadingPhoto = true);
       
-      // Giảm kích thước và chất lượng ảnh để tránh crash
+      // Production settings: Compress heavily for maritime bandwidth
+      // Target: ~150KB per image for fast upload over satellite
       final XFile? image = await _picker.pickImage(
         source: source,
-        imageQuality: 30, // Giảm chất lượng xuống 30%
-        maxWidth: 640,    // Giảm kích thước tối đa
-        maxHeight: 480,
+        imageQuality: 35, // Aggressive compression for bandwidth
+        maxWidth: 800,    // Smaller dimension for faster transfer
+        maxHeight: 600,
       );
 
       if (image != null) {
-        // Convert image to base64 for sending to server
         final File imageFile = File(image.path);
         final Uint8List imageBytes = await imageFile.readAsBytes();
+        final int imageSize = imageBytes.length;
         
-        // Kiểm tra kích thước - bỏ qua nếu > 500KB
-        if (imageBytes.length > 500 * 1024) {
+        // Check size - should be under 300KB after compression
+        if (imageSize > 300 * 1024) {
           if (mounted) {
+            final l10n = AppLocalizations.of(context);
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Ảnh quá lớn, vui lòng chọn ảnh khác')),
+              SnackBar(
+                content: Text(l10n.imageStillLarge(_formatBytes(imageSize))),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 1),
+              ),
             );
           }
-          return;
+          // Try picking again with even more compression
+          final XFile? recompressed = await _picker.pickImage(
+            source: source,
+            imageQuality: 20,
+            maxWidth: 640,
+            maxHeight: 480,
+          );
+          if (recompressed != null) {
+            final recompressedBytes = await File(recompressed.path).readAsBytes();
+            _addImageToList(recompressedBytes, recompressed.path);
+            return;
+          }
         }
         
-        final String base64Image = base64Encode(imageBytes);
-        
-        // Determine mime type from file extension
-        final String extension = image.path.split('.').last.toLowerCase();
-        final String mimeType = extension == 'png' ? 'image/png' : 'image/jpeg';
-        
-        // Create data URL format
-        final String dataUrl = 'data:$mimeType;base64,$base64Image';
-        
-        setState(() {
-          _photoUrls.add(dataUrl);
-        });
+        _addImageToList(imageBytes, image.path);
       }
     } catch (e) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error picking image: $e')),
+          SnackBar(content: Text(l10n.errorSelectingPhoto(e.toString()))),
         );
       }
     } finally {
@@ -98,7 +112,36 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
     }
   }
 
+  void _addImageToList(Uint8List imageBytes, String path) {
+    final String base64Image = base64Encode(imageBytes);
+    final String extension = path.split('.').last.toLowerCase();
+    final String mimeType = extension == 'png' ? 'image/png' : 'image/jpeg';
+    final String dataUrl = 'data:$mimeType;base64,$base64Image';
+    
+    setState(() {
+      _photoUrls.add(dataUrl);
+    });
+    
+    if (mounted) {
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.photoAdded(_photoUrls.length, _formatBytes(imageBytes.length))),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
   void _showImageSourceActionSheet() {
+    final l10n = AppLocalizations.of(context);
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -106,7 +149,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_camera),
-              title: const Text('Chụp ảnh'),
+              title: Text(l10n.takePhoto),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.camera);
@@ -114,7 +157,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Chọn từ thư viện'),
+              title: Text(l10n.selectFromGallery),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.gallery);
@@ -136,28 +179,213 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
     // Initialize local checklist state from task
     _checklistItems = List.from(widget.task.checklistItems);
     
-    // Parse required spare parts and create controllers for each
-    _initializeSparePartsControllers();
+    // Parse required spare parts (display only)
+    _initializeRequiredSpareParts();
+    
+    // Load draft spare parts from cache (if user previously exited without submitting)
+    _loadDraftSpareParts();
+    
+    // Load draft form data (notes, etc.)
+    _loadDraftFormData();
+
+    // Load latest checklist status from cache/API
+    _loadChecklistStatus();
+  }
+
+  Future<void> _loadChecklistStatus() async {
+    try {
+      final repository = sl<TaskRepository>();
+      // Use taskId (which is the task code/ID used for API calls)
+      final items = await repository.getTaskChecklist(widget.task.taskId);
+      
+      // Load draft checklist state (local changes not yet submitted)
+      await _loadDraftChecklistState(items);
+      
+      if (mounted) {
+        setState(() {
+          _checklistItems = items;
+        });
+        debugPrint('✅ Loaded ${items.length} checklist items from repository');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error loading checklist status: $e');
+    }
   }
   
-  void _initializeSparePartsControllers() {
+  /// Load draft checklist state from cache
+  Future<void> _loadDraftChecklistState(List<TaskChecklistItem> items) async {
     try {
-      if (widget.task.sparePartsUsed != null && widget.task.sparePartsUsed!.startsWith('[')) {
-        final parsed = json.decode(widget.task.sparePartsUsed!);
+      final cacheManager = sl<CacheManager>();
+      final draftKey = '${CacheKeys.draftChecklistPrefix}${widget.task.id}';
+      final cached = await cacheManager.getDataNoExpiry(draftKey);
+      
+      if (cached != null && cached is Map<String, dynamic>) {
+        final draftStates = Map<String, dynamic>.from(cached);
+        
+        // Apply draft states to items
+        for (int i = 0; i < items.length; i++) {
+          final itemId = items[i].id;
+          if (draftStates.containsKey(itemId)) {
+            final draftState = draftStates[itemId] as Map<String, dynamic>;
+            items[i] = items[i].copyWith(
+              isCompleted: draftState['isCompleted'] ?? items[i].isCompleted,
+              readingValue: draftState['readingValue']?.toDouble(),
+              remarks: draftState['remarks'],
+              isAbnormal: draftState['isAbnormal'] ?? items[i].isAbnormal,
+            );
+          }
+        }
+        
+        debugPrint('📦 Applied draft checklist state for task ${widget.task.id}');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error loading draft checklist state: $e');
+    }
+  }
+  
+  /// Save draft checklist state to cache
+  Future<void> _saveDraftChecklistState() async {
+    try {
+      final cacheManager = sl<CacheManager>();
+      final draftKey = '${CacheKeys.draftChecklistPrefix}${widget.task.id}';
+      
+      // Create state map from current checklist
+      final draftStates = <String, dynamic>{};
+      
+      for (final item in _checklistItems) {
+        draftStates[item.id] = {
+          'isCompleted': item.isCompleted,
+          'readingValue': item.readingValue,
+          'remarks': item.remarks,
+          'isAbnormal': item.isAbnormal,
+          'savedAt': DateTime.now().toIso8601String(),
+        };
+      }
+      
+      await cacheManager.saveDataForOffline(draftKey, draftStates);
+      debugPrint('💾 Saved draft checklist state for task ${widget.task.id}');
+    } catch (e) {
+      debugPrint('⚠️ Error saving draft checklist state: $e');
+    }
+  }
+  
+  /// Load draft spare parts from cache - similar to checklist pending mechanism
+  Future<void> _loadDraftSpareParts() async {
+    try {
+      final cacheManager = sl<CacheManager>();
+      final draftKey = '${CacheKeys.draftSparePartsPrefix}${widget.task.id}';
+      final cached = await cacheManager.getDataNoExpiry(draftKey);
+      
+      if (cached != null && cached is List) {
+        setState(() {
+          _actuallyUsedSpareParts = List<Map<String, dynamic>>.from(
+            cached.map((item) => Map<String, dynamic>.from(item as Map))
+          );
+        });
+        debugPrint('📦 Loaded ${_actuallyUsedSpareParts.length} draft spare parts for task ${widget.task.id}');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error loading draft spare parts: $e');
+    }
+  }
+  
+  /// Save draft spare parts to cache when user adds/removes/edits
+  Future<void> _saveDraftSpareParts() async {
+    try {
+      final cacheManager = sl<CacheManager>();
+      final draftKey = '${CacheKeys.draftSparePartsPrefix}${widget.task.id}';
+      
+      if (_actuallyUsedSpareParts.isEmpty) {
+        // Clear cache if empty
+        await cacheManager.clearCache(draftKey);
+      } else {
+        // Save to cache for offline persistence
+        await cacheManager.saveDataForOffline(draftKey, _actuallyUsedSpareParts);
+      }
+      
+      // Sync to server for real-time visibility on edge frontend
+      await _syncSparePartsToServer();
+      
+      debugPrint('💾 Saved ${_actuallyUsedSpareParts.length} draft spare parts for task ${widget.task.id}');
+    } catch (e) {
+      debugPrint('⚠️ Error saving draft spare parts: $e');
+    }
+  }
+  
+  /// Sync spare parts to server for real-time visibility
+  Future<void> _syncSparePartsToServer() async {
+    try {
+      final repository = sl<TaskRepository>();
+      await repository.syncSparePartsUsed(
+        taskCode: widget.task.taskId,
+        sparePartsUsed: _actuallyUsedSpareParts,
+      );
+      debugPrint('✅ Synced spare parts to server for task ${widget.task.taskId}');
+    } catch (e) {
+      debugPrint('⚠️ Error syncing spare parts to server: $e');
+      // Don't throw - this is for real-time visibility, not critical
+    }
+  }
+  
+  /// Clear draft after successful submission
+  Future<void> _clearDraftData() async {
+    try {
+      final cacheManager = sl<CacheManager>();
+      await cacheManager.clearCache('${CacheKeys.draftSparePartsPrefix}${widget.task.id}');
+      await cacheManager.clearCache('${CacheKeys.draftTaskFormPrefix}${widget.task.id}');
+      await cacheManager.clearCache('${CacheKeys.draftChecklistPrefix}${widget.task.id}');
+      debugPrint('🧹 Cleared draft data for task ${widget.task.id}');
+    } catch (e) {
+      debugPrint('⚠️ Error clearing draft data: $e');
+    }
+  }
+  
+  /// Load draft form data (notes)
+  Future<void> _loadDraftFormData() async {
+    try {
+      final cacheManager = sl<CacheManager>();
+      final draftKey = '${CacheKeys.draftTaskFormPrefix}${widget.task.id}';
+      final cached = await cacheManager.getDataNoExpiry(draftKey);
+      
+      if (cached != null && cached is Map) {
+        final data = Map<String, dynamic>.from(cached);
+        if (data['notes'] != null && _notesController.text.isEmpty) {
+          _notesController.text = data['notes'].toString();
+        }
+        debugPrint('📦 Loaded draft form data for task ${widget.task.id}');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error loading draft form data: $e');
+    }
+  }
+  
+  /// Save draft form data
+  Future<void> _saveDraftFormData() async {
+    try {
+      final cacheManager = sl<CacheManager>();
+      final draftKey = '${CacheKeys.draftTaskFormPrefix}${widget.task.id}';
+      
+      final data = {
+        'notes': _notesController.text,
+        'savedAt': DateTime.now().toIso8601String(),
+      };
+      
+      await cacheManager.saveDataForOffline(draftKey, data);
+    } catch (e) {
+      debugPrint('⚠️ Error saving draft form data: $e');
+    }
+  }
+  
+  void _initializeRequiredSpareParts() {
+    try {
+      // Use requiredSpareParts field (from schedule config), NOT sparePartsUsed (which is for completion)
+      final spareParts = widget.task.requiredSpareParts;
+      if (spareParts != null && spareParts.startsWith('[')) {
+        final parsed = json.decode(spareParts);
         if (parsed is List) {
           _requiredSpareParts = List<Map<String, dynamic>>.from(
             parsed.map((item) => Map<String, dynamic>.from(item))
           );
-          
-          // Create a TextEditingController for each spare part
-          for (var part in _requiredSpareParts) {
-            final materialItemId = part['materialItemId']?.toString() ?? '';
-            if (materialItemId.isNotEmpty) {
-              _sparePartsUsageControllers[materialItemId] = TextEditingController(
-                text: '0', // Default to 0
-              );
-            }
-          }
         }
       }
     } catch (e) {
@@ -167,16 +395,58 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
 
   @override
   void dispose() {
+    // Save draft states before disposing (user might return later)
+    // Use unawaited to avoid blocking dispose
+    // Note: These are fire-and-forget operations
+    _saveDraftFormData();
+    _saveDraftSparePartsSync();
+    _saveDraftChecklistStateSync();
+    
     _runningHoursController.dispose();
     _sparePartsController.dispose();
     _notesController.dispose();
-    // Dispose all spare parts controllers
-    for (var controller in _sparePartsUsageControllers.values) {
-      controller.dispose();
-    }
     // Clear cached photo bytes
     _cachedPhotoBytes.clear();
     super.dispose();
+  }
+  
+  // Synchronous version for dispose - won't wait for network
+  void _saveDraftSparePartsSync() {
+    try {
+      final cacheManager = sl<CacheManager>();
+      final draftKey = '${CacheKeys.draftSparePartsPrefix}${widget.task.id}';
+      
+      if (_actuallyUsedSpareParts.isEmpty) {
+        cacheManager.clearCache(draftKey);
+      } else {
+        cacheManager.saveDataForOffline(draftKey, _actuallyUsedSpareParts);
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error saving draft spare parts sync: $e');
+    }
+  }
+  
+  // Synchronous version for dispose - won't wait for network
+  void _saveDraftChecklistStateSync() {
+    try {
+      final cacheManager = sl<CacheManager>();
+      final draftKey = '${CacheKeys.draftChecklistPrefix}${widget.task.id}';
+      
+      final draftStates = <String, dynamic>{};
+      for (final item in _checklistItems) {
+        draftStates[item.id] = {
+          'isCompleted': item.isCompleted,
+          'readingValue': item.readingValue,
+          'remarks': item.remarks,
+          'isAbnormal': item.isAbnormal,
+          'savedAt': DateTime.now().toIso8601String(),
+        };
+      }
+      
+      cacheManager.saveDataForOffline(draftKey, draftStates);
+    } catch (e) {
+      debugPrint('⚠️ Error saving draft checklist sync: $e');
+    }
   }
 
   // Cache để tránh decode base64 nhiều lần
@@ -294,7 +564,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
     if (widget.task.requiredPhotos > 0 && _photoUrls.length < widget.task.requiredPhotos) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Yêu cầu tối thiểu ${widget.task.requiredPhotos} ảnh. Hiện có: ${_photoUrls.length}'),
+          content: Text(l10n.minPhotosRequired(widget.task.requiredPhotos, _photoUrls.length)),
           backgroundColor: Colors.red,
         ),
       );
@@ -309,10 +579,9 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
       final taskProvider = Provider.of<TaskProvider>(context, listen: false);
       final syncProvider = Provider.of<SyncProvider>(context, listen: false);
 
-        // Build spare parts usage JSON from input controllers
-        final sparePartsUsageList = _buildSparePartsUsageJson();
-        final sparePartsJson = sparePartsUsageList.isNotEmpty 
-            ? json.encode(sparePartsUsageList)
+        // Build spare parts usage JSON from actually used list
+        final sparePartsJson = _actuallyUsedSpareParts.isNotEmpty 
+            ? json.encode(_actuallyUsedSpareParts)
             : _sparePartsController.text.trim().isEmpty ? null : _sparePartsController.text.trim();
 
         // Backend uses headers for user identity; body carries workflow fields only.
@@ -330,6 +599,9 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
       if (syncProvider.isOnline) {
         await syncProvider.syncQueue();
       }
+      
+      // Clear draft data after successful submission
+      await _clearDraftData();
 
       if (mounted) {
         // Show success message
@@ -339,10 +611,14 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
               children: [
                 const Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 8),
-                Text(
-                  syncProvider.isOnline
-                      ? l10n.taskCompletedSuccessfully
-                      : l10n.taskSavedWillSync,
+                Expanded(
+                  child: Text(
+                    syncProvider.isOnline
+                        ? l10n.taskCompletedSuccessfully
+                        : l10n.taskSavedWillSync,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
@@ -433,11 +709,15 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                       const SizedBox(height: 24),
                     ],
 
-                    // Required Spare Parts Section (from schedule config)
+                    // Required Spare Parts Section (display only - reference)
                     if (widget.task.sparePartsUsed != null && widget.task.sparePartsUsed!.isNotEmpty) ...[
                       _buildRequiredSparePartsSection(context),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
                     ],
+
+                    // Actually Used Spare Parts Section (user selects from inventory)
+                    _buildActuallyUsedSparePartsSection(context),
+                    const SizedBox(height: 24),
 
                     // Offline Warning
                     if (!syncProvider.isOnline)
@@ -526,7 +806,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Hình ảnh báo cáo',
+                          l10n.reportPhotos,
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -546,7 +826,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                               ),
                             ),
                             child: Text(
-                              '${_photoUrls.length}/${widget.task.requiredPhotos} Required',
+                              l10n.photosRequired(_photoUrls.length, widget.task.requiredPhotos),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -585,7 +865,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                         icon: _isUploadingPhoto 
                             ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                             : const Icon(Icons.add_a_photo),
-                        label: Text(_photoUrls.length >= 5 ? 'Đã đạt tối đa 5 ảnh' : 'Chụp ảnh / Tải lên'),
+                        label: Text(_photoUrls.length >= 5 ? l10n.maxPhotosReached(5) : l10n.uploadPhotoOrTake),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           side: BorderSide(color: _photoUrls.length >= 5 ? Colors.grey : Theme.of(context).primaryColor),
@@ -678,12 +958,15 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Checklist Progress',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                Flexible(
+                  child: Text(
+                    'Checklist Progress',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -735,29 +1018,41 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
     
     setState(() => _isTogglingChecklist = true);
     
+    // Calculate new state BEFORE updating
+    final newIsCompleted = !item.isCompleted;
+    
     try {
       final taskProvider = Provider.of<TaskProvider>(context, listen: false);
       
-      // Call API to toggle checklist item
-      await taskProvider.completeChecklistItem(
+      // Update local state FIRST for instant UI feedback
+      _checklistItems[index] = item.copyWith(isCompleted: newIsCompleted);
+      
+      // Single setState after all state changes
+      if (mounted) setState(() {});
+      
+      // Call API in background with explicit isCompleted state
+      taskProvider.completeChecklistItem(
         taskCode: widget.task.taskId,
         itemId: item.id,
         readingValue: item.readingValue,
-      );
-      
-      // Update local state
-      setState(() {
-        _checklistItems[index] = item.copyWith(isCompleted: !item.isCompleted);
+        isCompleted: newIsCompleted, // Pass explicit state for toggle support
+      ).then((_) {
+        // Save draft state after successful API call
+        _saveDraftChecklistState();
+      }).catchError((e) {
+        // Revert on error
+        if (mounted) {
+          _checklistItems[index] = item; // Revert to original
+          setState(() {});
+          final l10n = AppLocalizations.of(context)!;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.errorPrefix(e.toString())),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     } finally {
       if (mounted) {
         setState(() => _isTogglingChecklist = false);
@@ -771,45 +1066,77 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
     
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(item.assetName),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (item.checkpointDescription != null)
-              Text(
-                item.checkpointDescription!,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+      builder: (ctx) => _ReadingInputDialog(
+        item: item,
+        controller: readingController,
+        onSubmit: (value, isAbnormal) async {
+          Navigator.pop(ctx);
+          if (isAbnormal) {
+            // Show confirmation dialog for abnormal values
+            final l10n = AppLocalizations.of(context);
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (confirmCtx) => AlertDialog(
+                title: Row(
+                  children: [
+                    Icon(Icons.warning_amber, color: Colors.orange.shade700),
+                    const SizedBox(width: 8),
+                    Flexible(child: Text(l10n.abnormalValue)),
+                  ],
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.measuredValueIs(value.toString(), item.unit ?? ''),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const SizedBox(height: 8),
+                    if (item.minValue != null && item.maxValue != null)
+                      Text(
+                        l10n.allowedRange(item.minValue.toString(), item.maxValue.toString(), item.unit ?? ''),
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.shade300),
+                      ),
+                      child: Text(
+                        l10n.confirmAbnormalValue,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(confirmCtx, false),
+                    child: Text(l10n.reenter),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(confirmCtx, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                    ),
+                    child: Text(l10n.confirmRecord),
+                  ),
+                ],
               ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: readingController,
-              decoration: InputDecoration(
-                labelText: 'Giá trị đo',
-                suffixText: item.unit ?? '',
-                border: const OutlineInputBorder(),
-                hintText: item.minValue != null && item.maxValue != null
-                    ? 'Phạm vi: ${item.minValue} - ${item.maxValue}'
-                    : null,
-              ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await _submitReadingValue(index, double.tryParse(readingController.text));
-            },
-            child: const Text('Xác nhận'),
-          ),
-        ],
+            );
+            
+            if (confirmed != true) {
+              // Re-open the reading dialog
+              _showReadingDialog(index);
+              return;
+            }
+          }
+          await _submitReadingValue(index, value);
+        },
       ),
     );
   }
@@ -818,6 +1145,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
     if (readingValue == null) return;
     
     setState(() => _isTogglingChecklist = true);
+    final l10n = AppLocalizations.of(context);
     
     try {
       final item = _checklistItems[index];
@@ -837,7 +1165,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
         taskCode: widget.task.taskId,
         itemId: item.id,
         readingValue: readingValue,
-        remarks: isAbnormal ? 'Giá trị ngoài phạm vi cho phép' : null,
+        remarks: isAbnormal ? l10n.valueOutOfRange : null,
         isAbnormal: isAbnormal,
       );
       
@@ -850,10 +1178,22 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
         );
       });
       
+      // Save draft state for offline persistence
+      await _saveDraftChecklistState();
+      
+      // Trigger immediate sync if online to update edge frontend
+      try {
+        final syncQueue = sl<SyncQueue>();
+        await syncQueue.processSyncQueue();
+      } catch (e) {
+        debugPrint('⚠️ Error processing sync queue: $e');
+        // Don't throw - checklist update already succeeded
+      }
+      
       if (isAbnormal && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('⚠️ Giá trị $readingValue ngoài phạm vi cho phép (${item.minValue} - ${item.maxValue})'),
+            content: Text(l10n.valueOutOfRangeWarning(readingValue.toString(), item.minValue?.toString() ?? '', item.maxValue?.toString() ?? '')),
             backgroundColor: Colors.orange,
           ),
         );
@@ -861,7 +1201,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(content: Text(l10n.errorMessage(e.toString())), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -916,9 +1256,9 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                             color: Colors.red.shade100,
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Text(
-                            'Bắt buộc',
-                            style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
+                          child: Text(
+                            AppLocalizations.of(context).required,
+                            style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
                           ),
                         ),
                     ],
@@ -958,7 +1298,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                           Text(
                             item.readingValue != null
                                 ? '${item.readingValue} ${item.unit ?? ''}'
-                                : 'Nhập giá trị đo',
+                                : AppLocalizations.of(context).enterMeasuredValue,
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -985,10 +1325,97 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
     );
   }
 
-  /// Build Required Spare Parts Section with input fields
+  /// Build Required Spare Parts Section - DISPLAY ONLY
   Widget _buildRequiredSparePartsSection(BuildContext context) {
     if (_requiredSpareParts.isEmpty) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context);
 
+    return Card(
+      color: Colors.blue.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.list_alt, color: Colors.blue.shade700, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.sparePartsReference,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade900,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ..._requiredSpareParts.map((part) => _buildRequiredSparePartItem(part)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRequiredSparePartItem(Map<String, dynamic> part) {
+    final l10n = AppLocalizations.of(context);
+    final materialName = part['materialName']?.toString() ?? 
+                         part['name']?.toString() ?? 
+                         l10n.unknownMaterial;
+    final materialCode = part['materialCode']?.toString() ?? 
+                         part['code']?.toString() ?? '';
+    final quantityRequired = part['quantityRequired'] ?? 0;
+    final isMandatory = part['isMandatory'] ?? false;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            isMandatory ? Icons.warning_amber : Icons.inventory_2,
+            color: isMandatory ? Colors.red : Colors.grey,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  materialName,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+                if (materialCode.isNotEmpty)
+                  Text(
+                    l10n.materialCodeQuantity(materialCode, quantityRequired.toString()),
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                  ),
+              ],
+            ),
+          ),
+          if (isMandatory)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                l10n.required,
+                style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Build Actually Used Spare Parts Section - COMBOBOX from inventory
+  Widget _buildActuallyUsedSparePartsSection(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Card(
       color: Colors.amber.shade50,
       child: Padding(
@@ -1002,7 +1429,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Vật tư sử dụng',
+                    l10n.sparePartsActuallyUsed,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Colors.amber.shade900,
@@ -1013,7 +1440,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Nhập số lượng đã sử dụng - sẽ tự động trừ kho',
+              l10n.selectMaterialFromInventory,
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.amber.shade800,
@@ -1021,151 +1448,700 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            ..._requiredSpareParts.map((part) => _buildSparePartInputItem(part)),
+            
+            // List of actually used spare parts
+            if (_actuallyUsedSpareParts.isNotEmpty) ...[
+              ..._actuallyUsedSpareParts.asMap().entries.map((entry) => 
+                _buildActuallyUsedItem(entry.key, entry.value)),
+              const SizedBox(height: 8),
+            ],
+            
+            // Add button
+            OutlinedButton.icon(
+              onPressed: _showAddMaterialDialog,
+              icon: const Icon(Icons.add),
+              label: Text(l10n.addUsedMaterial),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                side: BorderSide(color: Colors.amber.shade700),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSparePartInputItem(Map<String, dynamic> part) {
-    final materialItemId = part['materialItemId']?.toString() ?? 'Unknown';
-    final materialName = part['materialName']?.toString() ?? 
-                         part['name']?.toString() ?? 
-                         'Vật tư không xác định';
-    final materialCode = part['materialCode']?.toString() ?? 
-                         part['code']?.toString() ?? '';
-    final quantityRequired = part['quantityRequired'] ?? 0;
-    final isMandatory = part['isMandatory'] ?? false;
-    final controller = _sparePartsUsageControllers[materialItemId];
+  Widget _buildActuallyUsedItem(int index, Map<String, dynamic> item) {
+    final l10n = AppLocalizations.of(context);
+    final materialName = item['materialName']?.toString() ?? 'Unknown';
+    final materialCode = item['materialCode']?.toString() ?? '';
+    final quantityUsed = item['quantityUsed'] ?? 0;
+    final unit = item['unit']?.toString() ?? 'pcs';
+    final onHand = item['onHandQuantity'] ?? 0;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.amber.shade200),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(
-            isMandatory ? Icons.warning_amber : Icons.inventory_2,
-            color: isMandatory ? Colors.red : Colors.grey,
-            size: 18,
-          ),
-          const SizedBox(width: 8),
           Expanded(
-            flex: 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   materialName,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (materialCode.isNotEmpty)
-                  Text(
-                    'Mã: $materialCode',
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-                  ),
                 Text(
-                  'Yêu cầu: $quantityRequired',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  l10n.materialCodeStock(materialCode, onHand.toString(), unit),
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(l10n.quantityUsed, style: const TextStyle(fontSize: 12)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '$quantityUsed $unit',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber.shade900,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          // Quantity input field
-          SizedBox(
-            width: 80,
-            height: 40,
-            child: TextFormField(
-              controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              decoration: InputDecoration(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.amber.shade300),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.amber.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.amber.shade700, width: 2),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                hintText: '0',
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-              ],
-              validator: isMandatory
-                  ? (value) {
-                      final qty = double.tryParse(value ?? '0') ?? 0;
-                      if (qty <= 0) {
-                        return 'Bắt buộc';
-                      }
-                      return null;
-                    }
-                  : null,
-            ),
+          IconButton(
+            icon: const Icon(Icons.edit, size: 20),
+            onPressed: () => _showEditQuantityDialog(index, item),
+            color: Colors.blue,
           ),
-          if (isMandatory) ...[
-            const SizedBox(width: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.red.shade100,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text(
-                '*',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
+          IconButton(
+            icon: const Icon(Icons.delete, size: 20),
+            onPressed: () {
+              setState(() {
+                _actuallyUsedSpareParts.removeAt(index);
+              });
+              _saveDraftSpareParts(); // Auto-save after removal
+            },
+            color: Colors.red,
+          ),
         ],
       ),
     );
   }
-  
-  /// Build JSON array of spare parts usage to send to backend
-  List<Map<String, dynamic>> _buildSparePartsUsageJson() {
-    final usageList = <Map<String, dynamic>>[];
-    
-    for (var part in _requiredSpareParts) {
-      final materialItemId = part['materialItemId']?.toString() ?? '';
-      final controller = _sparePartsUsageControllers[materialItemId];
-      final quantityUsed = double.tryParse(controller?.text ?? '0') ?? 0;
-      
-      if (quantityUsed > 0) {
-        usageList.add({
-          'materialItemId': materialItemId,
-          'quantityUsed': quantityUsed,
-          'quantityRequired': part['quantityRequired'] ?? 0,
-          'isMandatory': part['isMandatory'] ?? false,
+
+  void _showAddMaterialDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => _MaterialSelectionSheet(
+        taskProvider: Provider.of<TaskProvider>(context, listen: false),
+        alreadyUsedParts: _actuallyUsedSpareParts,
+        onMaterialSelected: (material) {
+          Navigator.pop(ctx);
+          _showQuantityInputDialog(material);
+        },
+      ),
+    );
+  }
+
+  void _showQuantityInputDialog(Map<String, dynamic> material) {
+    final quantityController = TextEditingController(text: '1');
+    final name = material['name']?.toString() ?? 'Unknown';
+    final onHand = material['onHandQuantity'] ?? 0;
+    final unit = material['unit']?.toString() ?? 'pcs';
+    final l10n = AppLocalizations.of(context);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.enterQuantity),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(l10n.stockOnHand(onHand.toString(), unit), style: TextStyle(color: Colors.grey.shade600)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: quantityController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: l10n.quantityUsed,
+                suffixText: unit,
+                border: const OutlineInputBorder(),
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.cancel),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final qty = double.tryParse(quantityController.text) ?? 0;
+              if (qty > 0) {
+                setState(() {
+                  _actuallyUsedSpareParts.add({
+                    'materialItemId': material['id']?.toString() ?? '',
+                    'materialCode': material['itemCode']?.toString() ?? '',
+                    'materialName': material['name']?.toString() ?? '',
+                    'quantityUsed': qty,
+                    'unit': unit,
+                    'onHandQuantity': onHand,
+                  });
+                });
+                _saveDraftSpareParts(); // Auto-save after adding
+                Navigator.pop(context);
+              }
+            },
+            child: Text(l10n.add),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditQuantityDialog(int index, Map<String, dynamic> item) {
+    final quantityController = TextEditingController(
+      text: (item['quantityUsed'] ?? 1).toString(),
+    );
+    final name = item['materialName']?.toString() ?? 'Unknown';
+    final onHand = item['onHandQuantity'] ?? 0;
+    final unit = item['unit']?.toString() ?? 'pcs';
+    final l10n = AppLocalizations.of(context);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.editQuantity),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(l10n.stockOnHand(onHand.toString(), unit), style: TextStyle(color: Colors.grey.shade600)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: quantityController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: l10n.quantityUsed,
+                suffixText: unit,
+                border: const OutlineInputBorder(),
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.cancel),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final qty = double.tryParse(quantityController.text) ?? 0;
+              if (qty > 0) {
+                setState(() {
+                  _actuallyUsedSpareParts[index]['quantityUsed'] = qty;
+                });
+                _saveDraftSpareParts(); // Auto-save after editing
+                Navigator.pop(context);
+              }
+            },
+            child: Text(l10n.save),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Separate StatefulWidget for material selection to handle its own state
+class _MaterialSelectionSheet extends StatefulWidget {
+  final TaskProvider taskProvider;
+  final List<Map<String, dynamic>> alreadyUsedParts;
+  final Function(Map<String, dynamic>) onMaterialSelected;
+
+  const _MaterialSelectionSheet({
+    required this.taskProvider,
+    required this.alreadyUsedParts,
+    required this.onMaterialSelected,
+  });
+
+  @override
+  State<_MaterialSelectionSheet> createState() => _MaterialSelectionSheetState();
+}
+
+class _MaterialSelectionSheetState extends State<_MaterialSelectionSheet> {
+  List<Map<String, dynamic>> _materials = [];
+  bool _isLoading = true;
+  bool _isOffline = false;
+  final _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMaterials();
+  }
+
+  Future<void> _loadMaterials() async {
+    setState(() => _isLoading = true);
+    try {
+      final materials = await widget.taskProvider.fetchAvailableMaterials();
+      final isOnline = await widget.taskProvider.isOnline();
+      if (mounted) {
+        setState(() {
+          _materials = materials;
+          _isLoading = false;
+          // Check if we're using cached data (materials loaded but might be offline)
+          _isOffline = !isOnline;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading materials: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isOffline = true;
         });
       }
     }
-    
-    return usageList;
   }
 
-  dynamic _decodeJson(String jsonStr) {
-    // Simple JSON decode - in production use dart:convert
-    try {
-      return json.decode(jsonStr);
-    } catch (e) {
-      return [];
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final filtered = _materials.where((m) {
+      final query = _searchController.text.toLowerCase();
+      if (query.isEmpty) return true;
+      final name = (m['name'] ?? '').toString().toLowerCase();
+      final code = (m['itemCode'] ?? '').toString().toLowerCase();
+      return name.contains(query) || code.contains(query);
+    }).toList();
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.5,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (context, scrollController) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.inventory_2, color: Colors.amber),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.selectFromGallery.replaceAll('Gallery', 'Inventory'),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: l10n.searchByEquipmentName,
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            // Offline indicator banner
+            if (_isOffline && _materials.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.wifi_off, color: Colors.orange.shade700, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Offline mode - using cached data',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange.shade800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Text(l10n.materialsCount(filtered.length), style: TextStyle(color: Colors.grey.shade600)),
+            const SizedBox(height: 8),
+            Expanded(
+              child: _isLoading
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: 16),
+                          Text(l10n.loadingMaterials),
+                        ],
+                      ),
+                    )
+                  : filtered.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey),
+                              const SizedBox(height: 16),
+                              Text(l10n.noMaterialsFound),
+                              const SizedBox(height: 8),
+                              TextButton.icon(
+                                onPressed: _loadMaterials,
+                                icon: const Icon(Icons.refresh),
+                                label: Text(l10n.reload),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: scrollController,
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final material = filtered[index];
+                            final id = material['id']?.toString() ?? '';
+                            final name = material['name']?.toString() ?? 'Unknown';
+                            final code = material['itemCode']?.toString() ?? '';
+                            final onHand = material['onHandQuantity'] ?? 0;
+                            final unit = material['unit']?.toString() ?? 'pcs';
+                            
+                            // Check if already added
+                            final alreadyAdded = widget.alreadyUsedParts.any(
+                              (p) => p['materialItemId'] == id
+                            );
+
+                            return ListTile(
+                              leading: Icon(
+                                Icons.inventory_2,
+                                color: alreadyAdded ? Colors.grey : Colors.amber.shade700,
+                              ),
+                              title: Text(name, maxLines: 2, overflow: TextOverflow.ellipsis),
+                              subtitle: Text(l10n.materialCode(code, onHand.toString(), unit)),
+                              trailing: alreadyAdded
+                                  ? const Icon(Icons.check, color: Colors.green)
+                                  : Icon(Icons.add_circle, color: Colors.amber.shade700),
+                              onTap: alreadyAdded
+                                  ? null
+                                  : () => widget.onMaterialSelected(material),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+}
+
+/// Dialog widget for entering reading values with real-time validation
+class _ReadingInputDialog extends StatefulWidget {
+  final TaskChecklistItem item;
+  final TextEditingController controller;
+  final Function(double value, bool isAbnormal) onSubmit;
+
+  const _ReadingInputDialog({
+    required this.item,
+    required this.controller,
+    required this.onSubmit,
+  });
+
+  @override
+  State<_ReadingInputDialog> createState() => _ReadingInputDialogState();
+}
+
+class _ReadingInputDialogState extends State<_ReadingInputDialog> {
+  bool _isAbnormal = false;
+  String? _errorMessage;
+  double? _currentValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _validateValue(widget.controller.text);
+    widget.controller.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() {
+    _validateValue(widget.controller.text);
+  }
+
+  void _validateValue(String text) {
+    final value = double.tryParse(text);
+    setState(() {
+      _currentValue = value;
+      
+      if (text.isEmpty) {
+        _errorMessage = null;
+        _isAbnormal = false;
+        return;
+      }
+      
+      if (value == null) {
+        _errorMessage = _getValidNumberError();
+        _isAbnormal = false;
+        return;
+      }
+      
+      _errorMessage = null;
+      
+      // Check min/max bounds
+      if (widget.item.minValue != null && value < widget.item.minValue!) {
+        _isAbnormal = true;
+      } else if (widget.item.maxValue != null && value > widget.item.maxValue!) {
+        _isAbnormal = true;
+      } else {
+        _isAbnormal = false;
+      }
+    });
+  }
+
+  String _getValidNumberError() {
+    return AppLocalizations.of(context).pleaseEnterValidNumber;
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onTextChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final hasRange = widget.item.minValue != null || widget.item.maxValue != null;
+    
+    return AlertDialog(
+      title: Text(widget.item.assetName),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Description
+            if (widget.item.checkpointDescription != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  widget.item.checkpointDescription!,
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                ),
+              ),
+            
+            // Range indicator
+            if (hasRange)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                        const SizedBox(width: 6),
+                        Text(
+                          l10n.allowedRange('', '', '').split(':')[0],
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _buildRangeText(),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.blue.shade900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
+            // Input field
+            TextField(
+              controller: widget.controller,
+              decoration: InputDecoration(
+                labelText: l10n.enterMeasuredValue,
+                suffixText: widget.item.unit ?? '',
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: _isAbnormal ? Colors.orange : Colors.grey,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: _isAbnormal ? Colors.orange : Colors.grey.shade400,
+                    width: _isAbnormal ? 2 : 1,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: _isAbnormal ? Colors.orange : Colors.blue,
+                    width: 2,
+                  ),
+                ),
+                errorText: _errorMessage,
+                errorBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.red, width: 2),
+                ),
+              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              autofocus: true,
+            ),
+            
+            // Warning message for abnormal values
+            if (_isAbnormal && _currentValue != null)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade300),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.warning_amber, color: Colors.orange.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.valueOutOfRange,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade900,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _buildAbnormalReason(l10n),
+                            style: TextStyle(
+                              color: Colors.orange.shade800,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.cancel),
+        ),
+        ElevatedButton(
+          onPressed: _currentValue == null || _errorMessage != null
+              ? null
+              : () => widget.onSubmit(_currentValue!, _isAbnormal),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _isAbnormal ? Colors.orange : null,
+          ),
+          child: Text(_isAbnormal ? l10n.confirmRecord : l10n.confirm),
+        ),
+      ],
+    );
+  }
+
+  String _buildRangeText() {
+    final min = widget.item.minValue;
+    final max = widget.item.maxValue;
+    final unit = widget.item.unit ?? '';
+    
+    if (min != null && max != null) {
+      return '$min - $max $unit';
+    } else if (min != null) {
+      return '≥ $min $unit';
+    } else if (max != null) {
+      return '≤ $max $unit';
     }
+    return '';
+  }
+
+  String _buildAbnormalReason(AppLocalizations l10n) {
+    if (_currentValue == null) return '';
+    
+    final min = widget.item.minValue;
+    final max = widget.item.maxValue;
+    final unit = widget.item.unit ?? '';
+    
+    if (min != null && _currentValue! < min) {
+      return l10n.valueOutOfRangeWarning(_currentValue.toString(), min.toString(), max?.toString() ?? '');
+    } else if (max != null && _currentValue! > max) {
+      return l10n.valueOutOfRangeWarning(_currentValue.toString(), min?.toString() ?? '', max.toString());
+    }
+    return '';
   }
 }

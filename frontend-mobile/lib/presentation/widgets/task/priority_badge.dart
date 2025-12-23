@@ -38,6 +38,7 @@ class PriorityBadge extends StatelessWidget {
     }
 
     return Container(
+      constraints: const BoxConstraints(maxWidth: 100), // Prevent overflow on small screens
       padding: EdgeInsets.symmetric(
         horizontal: small ? 6 : 8,
         vertical: small ? 2 : 4,

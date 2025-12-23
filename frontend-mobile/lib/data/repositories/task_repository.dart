@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'dart:convert';
 import '../../core/network/api_client.dart';
 import '../../core/network/network_info.dart';
 import '../../core/cache/cache_manager.dart';
@@ -13,6 +14,7 @@ import '../models/sync_item.dart';
 import '../models/start_task_dto.dart';
 import '../models/submit_task_dto.dart';
 import '../models/complete_task_checklist_item_request.dart';
+import '../models/update_task_checklist_item_request.dart';
 import '../models/create_deferral_request_dto.dart';
 
 class TaskRepository {
@@ -280,36 +282,49 @@ class TaskRepository {
     }
   }
 
-  /// Complete a checklist item - Offline-first with sync queue
+  /// Toggle a checklist item - Offline-first with optimistic cache update
+  /// Supports both completing and uncompleting items
   Future<void> completeChecklistItem({
     required String taskCode,
     required String itemId,
     double? readingValue,
     String? remarks,
     bool isAbnormal = false,
+    bool? isCompleted, // null = toggle to complete, true/false = set explicitly
   }) async {
     final crewId = await _tokenStorage.getCrewId();
     if (crewId == null || crewId.isEmpty) {
       throw Exception('No crew ID found');
     }
 
-    final request = CompleteTaskChecklistItemRequest(
-      completedBy: crewId,
+    // Determine target state - default is complete (true)
+    final targetCompleted = isCompleted ?? true;
+
+    // ALWAYS update local cache FIRST for instant UI feedback
+    final cacheKey = 'task_checklist_${_safeCacheKey(taskCode)}';
+    await _updateChecklistItemInCache(
+      cacheKey: cacheKey,
+      itemId: itemId,
+      isCompleted: targetCompleted,
+      completedBy: targetCompleted ? crewId : '',
       readingValue: readingValue,
       remarks: remarks,
       isAbnormal: isAbnormal,
     );
+    print('💾 TaskRepository: Updated cache optimistically for item $itemId (completed: $targetCompleted)');
 
     try {
       if (await _networkInfo.isConnected) {
-        // Online: Send immediately
-        await _taskApi.completeChecklistItem(taskCode, itemId, request);
-
-        print('✅ TaskRepository: Completed checklist item $itemId for task $taskCode');
-
-        // Invalidate checklist cache to force refresh
-        final cacheKey = 'task_checklist_${_safeCacheKey(taskCode)}';
-        await _cacheManager.clearCache(cacheKey);
+        // Online: Use updateChecklistItem API to support toggle
+        final updateRequest = UpdateTaskChecklistItemRequest(
+          isCompleted: targetCompleted,
+          completedBy: targetCompleted ? crewId : null,
+          readingValue: readingValue,
+          remarks: remarks,
+          isAbnormal: isAbnormal,
+        );
+        await _taskApi.updateChecklistItem(taskCode, itemId, updateRequest);
+        print('✅ TaskRepository: Updated checklist item $itemId for task $taskCode (completed: $targetCompleted)');
       } else {
         // Offline: Add to sync queue
         await _syncQueue.addToQueue(
@@ -318,29 +333,80 @@ class TaskRepository {
             data: {
               'taskCode': taskCode,
               'itemId': itemId,
-              ...request.toJson(),
+              'isCompleted': targetCompleted,
+              'completedBy': targetCompleted ? crewId : null,
+              'readingValue': readingValue,
+              'remarks': remarks,
+              'isAbnormal': isAbnormal,
             },
           ),
         );
-        
         print('💾 TaskRepository: Queued checklist item $itemId for offline sync');
       }
     } on DioException catch (e) {
-      print('❌ TaskRepository: Failed to complete checklist item: ${e.message}');
+      print('❌ TaskRepository: Failed to update checklist item: ${e.message}');
       
-      // On error, add to sync queue
+      // On error, add to sync queue (cache already updated)
       await _syncQueue.addToQueue(
         SyncItem(
           type: SyncItemType.checklistComplete,
           data: {
             'taskCode': taskCode,
             'itemId': itemId,
-            ...request.toJson(),
+            'isCompleted': targetCompleted,
+            'completedBy': targetCompleted ? crewId : null,
+            'readingValue': readingValue,
+            'remarks': remarks,
+            'isAbnormal': isAbnormal,
           },
         ),
       );
       
-      throw Exception('Checklist item saved offline. Will sync when online');
+      // Don't throw - cache is already updated, will sync later
+      print('💾 TaskRepository: Saved to sync queue, will retry later');
+    }
+  }
+
+  /// Helper to update a single checklist item in cache
+  Future<void> _updateChecklistItemInCache({
+    required String cacheKey,
+    required String itemId,
+    required bool isCompleted,
+    required String completedBy,
+    double? readingValue,
+    String? remarks,
+    bool isAbnormal = false,
+  }) async {
+    final cached = await _cacheManager.getData(cacheKey);
+    if (cached == null) return;
+
+    try {
+      final items = (cached as List).map((json) => 
+        TaskChecklistItem.fromJson(json as Map<String, dynamic>)
+      ).toList();
+
+      // Find and update the item
+      for (int i = 0; i < items.length; i++) {
+        if (items[i].id == itemId) {
+          items[i] = items[i].copyWith(
+            isCompleted: isCompleted,
+            completedAt: DateTime.now().toIso8601String(),
+            completedBy: completedBy,
+            readingValue: readingValue,
+            remarks: remarks,
+            isAbnormal: isAbnormal,
+          );
+          break;
+        }
+      }
+
+      // Save updated cache
+      await _cacheManager.saveData(
+        cacheKey,
+        items.map((item) => item.toJson()).toList(),
+      );
+    } catch (e) {
+      print('⚠️ TaskRepository: Error updating cache: $e');
     }
   }
 
@@ -488,6 +554,116 @@ class TaskRepository {
         ),
       );
       throw Exception('Cancellation saved offline. Will sync when online');
+    }
+  }
+
+  // ========== MATERIALS ==========
+  
+  /// Get available materials from inventory for spare parts selection
+  Future<List<Map<String, dynamic>>> getAvailableMaterials({
+    String? search,
+    bool onlyInStock = true,
+  }) async {
+    final cacheKey = 'available_materials';
+    
+    try {
+      // Try cache first for offline support
+      final cached = await _cacheManager.getData(cacheKey);
+      
+      if (!await _networkInfo.isConnected) {
+        if (cached != null) {
+          print('📦 TaskRepository: Loaded materials from cache');
+          return List<Map<String, dynamic>>.from(cached as List);
+        }
+        throw Exception('No cached materials available. Please connect to internet');
+      }
+
+      // Fetch from API
+      final response = await _apiClient.dio.get(
+        '/api/material/items',
+        queryParameters: {
+          'onlyActive': true,
+          if (search != null && search.isNotEmpty) 'q': search,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final items = List<Map<String, dynamic>>.from(response.data as List);
+        
+        // Filter by stock if needed
+        final filtered = onlyInStock
+            ? items.where((item) => (item['onHandQuantity'] ?? 0) > 0).toList()
+            : items;
+        
+        print('✅ TaskRepository: Loaded ${filtered.length} materials from API');
+        
+        // Cache for offline use
+        await _cacheManager.saveDataForOffline(cacheKey, items);
+        
+        return filtered;
+      }
+      
+      throw Exception('Failed to fetch materials');
+    } catch (e) {
+      print('❌ TaskRepository: Error fetching materials: $e');
+      
+      // Return cached data if available
+      final cached = await _cacheManager.getData(cacheKey);
+      if (cached != null) {
+        final items = List<Map<String, dynamic>>.from(cached as List);
+        return onlyInStock
+            ? items.where((item) => (item['onHandQuantity'] ?? 0) > 0).toList()
+            : items;
+      }
+      
+      rethrow;
+    }
+  }
+  
+  /// Sync spare parts used in real-time (for edge frontend visibility)
+  Future<void> syncSparePartsUsed({
+    required String taskCode,
+    required List<Map<String, dynamic>> sparePartsUsed,
+  }) async {
+    try {
+      if (await _networkInfo.isConnected) {
+        // Online: Send to server immediately
+        final sparePartsData = {
+          'sparePartsUsed': json.encode(sparePartsUsed),
+          'updatedAt': DateTime.now().toIso8601String(),
+        };
+        
+        await _taskApi.updateSparePartsUsed(taskCode, sparePartsData);
+        print('✅ TaskRepository: Synced spare parts for task $taskCode');
+      } else {
+        // Offline: Add to sync queue
+        await _syncQueue.addToQueue(
+          SyncItem(
+            type: SyncItemType.sparePartsSync,
+            data: {
+              'taskCode': taskCode,
+              'sparePartsUsed': sparePartsUsed,
+            },
+          ),
+        );
+        print('💾 TaskRepository: Queued spare parts sync for offline');
+      }
+    } on DioException catch (e) {
+      print('❌ TaskRepository: Failed to sync spare parts: ${e.message}');
+      
+      // On error, add to sync queue
+      await _syncQueue.addToQueue(
+        SyncItem(
+          type: SyncItemType.sparePartsSync,
+          data: {
+            'taskCode': taskCode,
+            'sparePartsUsed': sparePartsUsed,
+          },
+        ),
+      );
+      
+      // Don't throw - will sync later
+      print('💾 TaskRepository: Saved spare parts to sync queue');
     }
   }
 }

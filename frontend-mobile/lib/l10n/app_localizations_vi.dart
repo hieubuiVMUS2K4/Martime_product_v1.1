@@ -1062,4 +1062,346 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get cancelDeferral => 'Huỷ yêu cầu hoãn';
+
+  @override
+  String get takePhoto => 'Chụp ảnh';
+
+  @override
+  String get selectFromGallery => 'Chọn từ thư viện';
+
+  @override
+  String errorSelectingPhoto(String error) {
+    return 'Lỗi chọn ảnh: $error';
+  }
+
+  @override
+  String photoAdded(int count, String size) {
+    return 'Đã thêm ảnh $count ($size)';
+  }
+
+  @override
+  String imageStillLarge(String size) {
+    return 'Ảnh vẫn còn lớn: $size';
+  }
+
+  @override
+  String get uploadPhotoOrTake => 'Tải lên hoặc chụp ảnh';
+
+  @override
+  String maxPhotosReached(int max) {
+    return 'Đã đạt tối đa $max ảnh';
+  }
+
+  @override
+  String minPhotosRequired(int required, int current) {
+    return 'Yêu cầu tối thiểu $required ảnh (hiện tại: $current)';
+  }
+
+  @override
+  String get abnormalValue => 'Giá trị bất thường';
+
+  @override
+  String measuredValueIs(String value, String unit) {
+    return 'Giá trị đo được là $value $unit';
+  }
+
+  @override
+  String get valueOutOfRange => 'Giá trị ngoài phạm vi';
+
+  @override
+  String get confirmAbnormalValue =>
+      'Giá trị này nằm ngoài phạm vi bình thường. Bạn có muốn ghi nhận không?';
+
+  @override
+  String get reenter => 'Nhập lại';
+
+  @override
+  String get confirmRecord => 'Xác nhận ghi nhận';
+
+  @override
+  String valueOutOfRangeWarning(String value, String min, String max) {
+    return 'Giá trị $value nằm ngoài phạm vi ($min - $max)';
+  }
+
+  @override
+  String get required => 'Bắt buộc';
+
+  @override
+  String get enterMeasuredValue => 'Nhập giá trị đo';
+
+  @override
+  String get sparePartsReference => 'Vật tư tham khảo';
+
+  @override
+  String get unknownMaterial => 'Vật tư không xác định';
+
+  @override
+  String get sparePartsActuallyUsed => 'Vật tư thực tế sử dụng';
+
+  @override
+  String get selectMaterialFromInventory => 'Chọn vật tư từ kho';
+
+  @override
+  String get addUsedMaterial => 'Thêm vật tư đã dùng';
+
+  @override
+  String get enterQuantity => 'Nhập số lượng';
+
+  @override
+  String get editQuantity => 'Sửa số lượng';
+
+  @override
+  String stockOnHand(String quantity, String unit) {
+    return 'Tồn kho: $quantity $unit';
+  }
+
+  @override
+  String get add => 'Thêm';
+
+  @override
+  String get quantityUsed => 'Số lượng đã dùng';
+
+  @override
+  String get loadingMaterials => 'Đang tải vật tư...';
+
+  @override
+  String materialsCount(int count) {
+    return '$count vật tư';
+  }
+
+  @override
+  String get noMaterialsFound => 'Không tìm thấy vật tư';
+
+  @override
+  String get reload => 'Tải lại';
+
+  @override
+  String materialCode(String code, String onHand, String unit) {
+    return 'Mã: $code | Tồn: $onHand $unit';
+  }
+
+  @override
+  String get requestDeferral => 'Yêu cầu hoãn';
+
+  @override
+  String currentDueDate(String date) {
+    return 'Ngày đến hạn hiện tại: $date';
+  }
+
+  @override
+  String get selectDate => 'Chọn ngày';
+
+  @override
+  String get selectReason => 'Chọn lý do';
+
+  @override
+  String get enterMoreDetails => 'Nhập chi tiết thêm (tùy chọn)';
+
+  @override
+  String get addingPhoto => 'Đang thêm ảnh...';
+
+  @override
+  String get addPhoto => 'Thêm ảnh';
+
+  @override
+  String get submitRequest => 'Gửi yêu cầu';
+
+  @override
+  String get pleaseSelectDeferralDate => 'Vui lòng chọn ngày hoãn';
+
+  @override
+  String get pleaseSelectDeferralReason => 'Vui lòng chọn lý do hoãn';
+
+  @override
+  String get deferralRequestSent => 'Đã gửi yêu cầu hoãn thành công';
+
+  @override
+  String get deferralReasonPartsPending => 'Chờ phụ tùng';
+
+  @override
+  String get deferralReasonWeatherCondition => 'Điều kiện thời tiết';
+
+  @override
+  String get deferralReasonHigherPriority => 'Công việc ưu tiên cao hơn';
+
+  @override
+  String get deferralReasonAwaitingApproval => 'Chờ phê duyệt';
+
+  @override
+  String get deferralReasonPersonnelUnavailable => 'Nhân sự không sẵn sàng';
+
+  @override
+  String get deferralReasonEquipmentInUse => 'Thiết bị đang sử dụng';
+
+  @override
+  String get deferralReasonOther => 'Lý do khác';
+
+  @override
+  String get overdueReasonPartsPending => 'Chờ phụ tùng';
+
+  @override
+  String get overdueReasonExternalFactors => 'Yếu tố bên ngoài';
+
+  @override
+  String get overdueReasonHigherPriority => 'Công việc ưu tiên cao hơn';
+
+  @override
+  String get overdueReasonResourceShortage => 'Thiếu nguồn lực';
+
+  @override
+  String get overdueReasonAwaitingApproval => 'Chờ phê duyệt';
+
+  @override
+  String get overdueReasonTechnicalIssue => 'Vấn đề kỹ thuật';
+
+  @override
+  String get overdueReasonOther => 'Lý do khác';
+
+  @override
+  String get cancelDeferralQuestion => 'Huỷ yêu cầu hoãn?';
+
+  @override
+  String get cancelDeferralConfirm =>
+      'Bạn có chắc chắn muốn huỷ yêu cầu hoãn này không?';
+
+  @override
+  String get no => 'Không';
+
+  @override
+  String get cancelRequest => 'Huỷ yêu cầu';
+
+  @override
+  String get deferralCancelled => 'Đã huỷ yêu cầu hoãn';
+
+  @override
+  String get taskRestartedForFix => 'Đã khởi động lại công việc để sửa';
+
+  @override
+  String get loading => 'Đang tải...';
+
+  @override
+  String get noData => 'Không có dữ liệu';
+
+  @override
+  String allowedRange(String min, String max, String unit) {
+    return 'Phạm vi cho phép: $min - $max $unit';
+  }
+
+  @override
+  String get statusDue => 'Đến hạn';
+
+  @override
+  String get statusRectify => 'Cần sửa';
+
+  @override
+  String get statusPendingApproval => 'Chờ duyệt';
+
+  @override
+  String get reportPhotos => 'Hình ảnh báo cáo';
+
+  @override
+  String photosRequired(int current, int required) {
+    return '$current/$required Bắt buộc';
+  }
+
+  @override
+  String get deferralPendingApprovalTitle => 'ĐANG CHỜ DUYỆT HOÃN';
+
+  @override
+  String get deferralPendingApprovalMessage =>
+      'Yêu cầu hoãn task đang được xem xét. Bạn không thể bắt đầu task này cho đến khi yêu cầu được xử lý.';
+
+  @override
+  String get requestDate => 'Ngày yêu cầu';
+
+  @override
+  String get addNotesHint => 'Thêm ghi chú hoặc nhận xét (tùy chọn)';
+
+  @override
+  String get additionalInfoOverdue => 'Thông tin bổ sung (do quá hạn)';
+
+  @override
+  String get rootCauseLabel => 'Nguyên nhân gốc rễ (tùy chọn)';
+
+  @override
+  String get rootCauseHint => 'Mô tả nguyên nhân gốc...';
+
+  @override
+  String get preventiveMeasuresLabel => 'Biện pháp phòng ngừa (tùy chọn)';
+
+  @override
+  String get preventiveMeasuresHint => 'Các biện pháp để tránh tái diễn...';
+
+  @override
+  String get evidencePhotosOptional => 'Ảnh chứng minh (tùy chọn)';
+
+  @override
+  String get evidencePhotosHint =>
+      'Có thể đính kèm spare parts order, weather report, Class email, hoặc tài liệu khác';
+
+  @override
+  String get requestDeferralTooltip => 'Xin hoãn';
+
+  @override
+  String get notAvailableShort => 'Không có';
+
+  @override
+  String get taskRejectedTitle => 'TASK BỊ TRẢ LẠI';
+
+  @override
+  String get rejectedByLabel => 'Từ chối bởi';
+
+  @override
+  String get timeLabel => 'Thời gian';
+
+  @override
+  String rejectionCountLabel(int count) {
+    return 'Số lần từ chối: $count lần';
+  }
+
+  @override
+  String get multipleRejectionWarning =>
+      'Nhiều lần bị từ chối. Vui lòng liên hệ cấp trên.';
+
+  @override
+  String get waitingForCEApproval => 'Chờ C/E nghiệm thu';
+
+  @override
+  String get yourReportBeingReviewed => 'Báo cáo của bạn đang được xem xét';
+
+  @override
+  String errorPrefix(String error) {
+    return 'Lỗi: $error';
+  }
+
+  @override
+  String materialCodeInfo(String code) {
+    return 'Mã: $code';
+  }
+
+  @override
+  String materialCodeQuantity(String code, String quantity) {
+    return 'Mã: $code • SL yêu cầu: $quantity';
+  }
+
+  @override
+  String materialCodeStock(String code, String onHand, String unit) {
+    return 'Mã: $code • Tồn kho: $onHand $unit';
+  }
+
+  @override
+  String get deferralNotFound => 'Không tìm thấy yêu cầu hoãn đang chờ';
+
+  @override
+  String get requestTimeoutError =>
+      'Request timeout - ảnh có thể quá lớn. Vui lòng thử ảnh nhỏ hơn';
+
+  @override
+  String get validationError => 'Validation error - kiểm tra lại form';
+
+  @override
+  String get serverError => 'Server error - vui lòng thử lại sau';
+
+  @override
+  String get vietnameseLanguage => 'Ngôn ngữ Việt Nam';
 }

@@ -54,6 +54,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   List<dynamic>? _statusHistory;
   bool _loadingChecklist = false;
   String? _checklistError;
+  bool _isOffline = false;
 
   @override
   void initState() {
@@ -90,18 +91,29 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
     try {
       final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+      final isOnline = await taskProvider.isOnline();
       await taskProvider.fetchTaskChecklist(widget.task.taskId);
       
       if (mounted) {
         setState(() {
           _checklistItems = taskProvider.currentChecklist;
           _loadingChecklist = false;
+          _isOffline = !isOnline && _checklistItems != null && _checklistItems!.isNotEmpty;
         });
       }
     } catch (e) {
       if (mounted) {
+        final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+        // Even on error, check if we have cached checklist
+        final cachedItems = taskProvider.currentChecklist;
         setState(() {
-          _checklistError = e.toString();
+          if (cachedItems.isNotEmpty) {
+            _checklistItems = cachedItems;
+            _isOffline = true;
+            _checklistError = null; // Clear error if we have cached data
+          } else {
+            _checklistError = e.toString();
+          }
           _loadingChecklist = false;
         });
       }
@@ -153,7 +165,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           if (widget.task.canRequestDeferral && !widget.task.hasPendingDeferral)
             IconButton(
               icon: const Icon(Icons.schedule_send),
-              tooltip: 'Xin hoãn',
+              tooltip: l10n.requestDeferralTooltip,
               onPressed: () {
                 Navigator.push(
                   context,
@@ -249,8 +261,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ),
                       const SizedBox(height: 6),
                       
-                      // Task ID + Badges in one compact row
-                      Row(
+                      // Task ID + Badges in one compact row - Using Wrap to prevent overflow
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -270,9 +285,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 6),
                           PriorityBadge(priority: widget.task.priority),
-                          const SizedBox(width: 6),
                           StatusBadge(task: widget.task),
                         ],
                       ),
@@ -719,6 +732,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   /// Widget hiển thị danh sách vật tư sử dụng với đầy đủ tên
   Widget _buildSparePartsSection(String label, String sparePartsJson, bool isSmallScreen) {
+    final l10n = AppLocalizations.of(context)!;
     List<dynamic> spareParts = [];
     try {
       if (sparePartsJson.startsWith('[')) {
@@ -730,7 +744,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
 
     if (spareParts.isEmpty) {
-      return _buildCompactInfoRow(label, 'Không có', isSmallScreen);
+      return _buildCompactInfoRow(label, l10n.notAvailableShort, isSmallScreen);
     }
 
     return Padding(
@@ -750,7 +764,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           ...spareParts.map((part) {
             final materialName = part['materialName']?.toString() ?? 
                                  part['name']?.toString() ?? 
-                                 'Vật tư không xác định';
+                                 l10n.unknownMaterial;
             final materialCode = part['materialCode']?.toString() ?? 
                                  part['code']?.toString() ?? 
                                  part['itemCode']?.toString() ?? '';
@@ -788,7 +802,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         if (materialCode.isNotEmpty) ...[
                           SizedBox(height: isSmallScreen ? 2 : 3),
                           Text(
-                            'Mã: $materialCode',
+                            l10n.materialCodeInfo(materialCode),
                             style: TextStyle(
                               fontSize: isSmallScreen ? 9 : 10,
                               color: Colors.grey.shade600,
@@ -892,6 +906,32 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     // Hiển thị danh sách checklist items
     return Column(
       children: [
+        // Offline mode indicator
+        if (_isOffline)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.wifi_off, color: Colors.orange.shade700, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Offline mode - changes will sync when online',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.orange.shade800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         // Progress bar
         if (_checklistItems!.isNotEmpty) ...[
           _buildProgressBar(),
@@ -1606,7 +1646,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                         children: [
                                           const Icon(Icons.check_circle, color: Colors.white),
                                           const SizedBox(width: 8),
-                                          Text(l10n.savedItem(title)),
+                                          Expanded(child: Text(l10n.savedItem(title))),
                                         ],
                                       ),
                                       backgroundColor: Colors.green,
@@ -1727,11 +1767,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         final isFirst = index == 0;
         final isLast = index == _statusHistory!.length - 1;
         
-        // Parse status
-        final status = history['status'] as String? ?? 'UNKNOWN';
+        // Parse status - backend returns 'toStatus' field
+        final status = history['toStatus'] as String? ?? history['status'] as String? ?? 'UNKNOWN';
         final changedAt = history['changedAt'] as String?;
-        final changedBy = history['changedBy'] as String? ?? 'System';
-        final remarks = history['remarks'] as String?;
+        final changedBy = history['changedByName'] as String? ?? history['changedBy'] as String? ?? 'System';
+        final remarks = history['notes'] as String? ?? history['reason'] as String? ?? history['remarks'] as String?;
         
         // Determine color based on status
         Color statusColor;
@@ -1757,6 +1797,26 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           case 'RECTIFY':
             statusColor = MaritimeColors.mandatory;
             statusIcon = Icons.build_circle;
+            break;
+          case 'SCHEDULED':
+            statusColor = Colors.blueGrey;
+            statusIcon = Icons.schedule;
+            break;
+          case 'DUE':
+            statusColor = Colors.orange;
+            statusIcon = Icons.event;
+            break;
+          case 'DEFERRAL_PENDING':
+            statusColor = Colors.amber;
+            statusIcon = Icons.hourglass_top;
+            break;
+          case 'DEFERRAL_APPROVED':
+            statusColor = Colors.teal;
+            statusIcon = Icons.check;
+            break;
+          case 'DEFERRAL_REJECTED':
+            statusColor = Colors.red;
+            statusIcon = Icons.close;
             break;
           default:
             statusColor = Colors.grey;
@@ -1818,15 +1878,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     children: [
                       Row(
                         children: [
-                          Text(
-                            status.replaceAll('_', ' '),
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: statusColor,
-                              fontSize: 14,
+                          Flexible(
+                            child: Text(
+                              status.replaceAll('_', ' '),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: statusColor,
+                                fontSize: 14,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 8),
                           if (changedAt != null)
                             Text(
                               dateFormat.format(DateTime.parse(changedAt)),
@@ -1919,6 +1983,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildFixAndContinueButton(BuildContext context, TaskProvider taskProvider) {
+    final l10n = AppLocalizations.of(context);
     return SizedBox(
       width: double.infinity,
       height: 48,
@@ -1930,8 +1995,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   await taskProvider.startTask(widget.task.id);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Đã bắt đầu lại task để khắc phục'),
+                      SnackBar(
+                        content: Text(l10n.taskRestartedForFix),
                         backgroundColor: Colors.orange,
                       ),
                     );
@@ -1940,7 +2005,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Lỗi: ${e.toString()}'),
+                        content: Text(l10n.errorMessage(e.toString())),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -1948,9 +2013,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 }
               },
         icon: const Icon(Icons.build_circle, size: 22),
-        label: const Text(
-          'Sửa và tiếp tục',
-          style: TextStyle(
+        label: Text(
+          l10n.fixAndContinue,
+          style: const TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
           ),
@@ -2094,6 +2159,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildRejectionInfoCard() {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       color: Colors.orange.shade50,
       elevation: 2,
@@ -2111,7 +2177,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700, size: 24),
                 const SizedBox(width: 8),
                 Text(
-                  'TASK BỊ TRẢ LẠI',
+                  l10n.taskRejectedTitle,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -2142,11 +2208,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildRejectionDetails() {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       children: [
-        _buildInfoRow('Từ chối bởi', widget.task.lastRejectedBy ?? 'Unknown'),
-        _buildInfoRow('Thời gian', _formatDateTime(widget.task.lastRejectedAt)),
-        _buildInfoRow('Số lần từ chối', '${widget.task.rejectionCount} lần'),
+        _buildInfoRow(l10n.rejectedByLabel, widget.task.lastRejectedBy ?? 'Unknown'),
+        _buildInfoRow(l10n.timeLabel, _formatDateTime(widget.task.lastRejectedAt)),
+        _buildInfoRow(l10n.rejectionCount, l10n.rejectionCountLabel(widget.task.rejectionCount)),
         
         if (widget.task.rejectionCount >= 3)
           Container(
@@ -2163,7 +2230,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Nhiều lần bị từ chối. Vui lòng liên hệ cấp trên.',
+                    l10n.multipleRejectionWarning,
                     style: TextStyle(color: Colors.red.shade900, fontSize: 13),
                   ),
                 ),
@@ -2178,10 +2245,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value, 
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              textAlign: TextAlign.end,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
@@ -2198,6 +2274,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildPendingApprovalPanel() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -2210,7 +2287,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           Icon(Icons.pending_actions, size: 48, color: Colors.amber.shade700),
           const SizedBox(height: 8),
           Text(
-            'Chờ C/E nghiệm thu',
+            l10n.waitingForCEApproval,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -2219,7 +2296,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Báo cáo của bạn đang được xem xét',
+            l10n.yourReportBeingReviewed,
             style: TextStyle(color: Colors.amber.shade700),
           ),
         ],
@@ -2228,6 +2305,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildDeferralPendingCard(BuildContext context, TaskProvider taskProvider) {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       color: Colors.amber.shade50,
       elevation: 2,
@@ -2245,7 +2323,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 Icon(Icons.schedule, color: Colors.amber.shade800, size: 24),
                 const SizedBox(width: 8),
                 Text(
-                  'ĐANG CHỜ DUYỆT HOÃN',
+                  l10n.deferralPendingApprovalTitle,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -2255,32 +2333,33 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Yêu cầu hoãn task đang được xem xét. Bạn không thể bắt đầu task này cho đến khi yêu cầu được xử lý.',
-              style: TextStyle(fontSize: 14, height: 1.4),
+            Text(
+              l10n.deferralPendingApprovalMessage,
+              style: const TextStyle(fontSize: 14, height: 1.4),
             ),
             const SizedBox(height: 16),
             if (widget.task.lastDeferredAt != null)
-              _buildInfoRow('Ngày yêu cầu', _formatDateTime(widget.task.lastDeferredAt)),
+              _buildInfoRow(l10n.requestDate, _formatDateTime(widget.task.lastDeferredAt)),
             
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () async {
+                  final l10n = AppLocalizations.of(context);
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
-                      title: const Text('Huỷ yêu cầu hoãn?'),
-                      content: const Text('Bạn có chắc chắn muốn huỷ yêu cầu hoãn này không?'),
+                      title: Text(l10n.cancelDeferralQuestion),
+                      content: Text(l10n.cancelDeferralConfirm),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Không'),
+                          child: Text(l10n.no),
                         ),
                         TextButton(
                           onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Huỷ yêu cầu'),
+                          child: Text(l10n.cancelRequest),
                         ),
                       ],
                     ),
@@ -2291,20 +2370,21 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                        await taskProvider.cancelPendingDeferralForTask(widget.task.id);
                        if (context.mounted) {
                          ScaffoldMessenger.of(context).showSnackBar(
-                           const SnackBar(content: Text('Đã huỷ yêu cầu hoãn')),
+                           SnackBar(content: Text(l10n.deferralCancelled)),
                          );
                        }
                     } catch (e) {
                        if (context.mounted) {
+                         final l10n = AppLocalizations.of(context);
                          ScaffoldMessenger.of(context).showSnackBar(
-                           SnackBar(content: Text('Lỗi: ${e.toString()}')),
+                           SnackBar(content: Text(l10n.errorMessage(e.toString()))),
                          );
                        }
                     }
                   }
                 },
                 icon: const Icon(Icons.cancel_outlined),
-                label: const Text('Huỷ yêu cầu'),
+                label: Text(AppLocalizations.of(context).cancelRequest),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.red,
                   side: const BorderSide(color: Colors.red),

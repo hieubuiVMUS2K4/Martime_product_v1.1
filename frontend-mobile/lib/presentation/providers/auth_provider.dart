@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import '../../core/auth/token_storage.dart';
 import '../../core/cache/cache_manager.dart';
 import '../../data/repositories/auth_repository.dart';
-import '../../core/network/api_client.dart';
-import '../../core/network/network_info.dart';
+import '../../core/di/service_locator.dart';
 
 class AuthProvider with ChangeNotifier {
-  final TokenStorage _tokenStorage = TokenStorage();
-  final CacheManager _cacheManager = CacheManager();
+  late final TokenStorage _tokenStorage;
+  late final CacheManager _cacheManager;
   late final AuthRepository _authRepository;
   
   bool _isLoggedIn = false;
@@ -19,11 +18,9 @@ class AuthProvider with ChangeNotifier {
   String? _position;
 
   AuthProvider() {
-    _authRepository = AuthRepository(
-      apiClient: ApiClient(),
-      networkInfo: NetworkInfo(),
-      tokenStorage: _tokenStorage,
-    );
+    _tokenStorage = sl<TokenStorage>();
+    _cacheManager = sl<CacheManager>();
+    _authRepository = sl<AuthRepository>();
   }
   
   bool get isLoggedIn => _isLoggedIn;

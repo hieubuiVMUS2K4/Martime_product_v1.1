@@ -1,6 +1,8 @@
 import 'package:hive/hive.dart';
 import '../network/network_info.dart';
 import '../../data/models/sync_item.dart';
+import '../di/service_locator.dart';
+import '../../data/repositories/task_repository.dart';
 
 class SyncQueue {
   static const String _syncBox = 'sync_queue';
@@ -54,45 +56,52 @@ class SyncQueue {
   }
   
   Future<void> _syncItemToServer(SyncItem item) async {
-    // Note: This is a placeholder. In production, you should inject
-    // the appropriate API clients/repositories to handle sync.
-    // For now, just log and mark as synced.
     print('🔄 Syncing item ${item.id} of type ${item.type}');
     
-    switch (item.type) {
-      case SyncItemType.taskComplete:
-        // TODO: Call complete task API with item.data
-        print('📤 Syncing task completion: ${item.data}');
-        break;
-      case SyncItemType.taskStart:
-        // TODO: Call start task API with item.data
-        print('📤 Syncing task start: ${item.data}');
-        break;
-      case SyncItemType.profileUpdate:
-        // TODO: Call profile update API with item.data
-        print('📤 Syncing profile update: ${item.data}');
-        break;
-      case SyncItemType.checklistComplete:
-        // TODO: Call complete checklist item API with item.data
-        print('📤 Syncing checklist completion: ${item.data}');
-        // Expected data: taskId, detailId, measuredValue, checkResult, etc.
-        break;
-      case SyncItemType.taskSubmit:
-        // TODO: Call submit task API with item.data
-        print('📤 Syncing task submit: ${item.data}');
-        break;
-      case SyncItemType.deferralCreate:
-        // TODO: Call create deferral API with item.data
-        print('📤 Syncing deferral create: ${item.data}');
-        break;
-      case SyncItemType.deferralCancel:
-        // TODO: Call cancel deferral API with item.data
-        print('📤 Syncing deferral cancel: ${item.data}');
-        break;
+    try {
+      final taskRepository = sl<TaskRepository>();
+      
+      switch (item.type) {
+        case SyncItemType.checklistComplete:
+          // Sync checklist toggle (complete/uncomplete)
+          final data = item.data;
+          await taskRepository.completeChecklistItem(
+            taskCode: data['taskCode'] as String,
+            itemId: data['itemId'] as String,
+            readingValue: data['readingValue']?.toDouble(),
+            remarks: data['remarks'] as String?,
+            isAbnormal: data['isAbnormal'] as bool? ?? false,
+            isCompleted: data['isCompleted'] as bool?, // Support toggle
+          );
+          print('✅ Synced checklist item: ${data['itemId']} (completed: ${data['isCompleted']})');
+          break;
+          
+        case SyncItemType.sparePartsSync:
+          // Sync spare parts updates
+          final data = item.data;
+          await taskRepository.syncSparePartsUsed(
+            taskCode: data['taskCode'] as String,
+            sparePartsUsed: List<Map<String, dynamic>>.from(
+              data['sparePartsUsed'] as List
+            ),
+          );
+          print('✅ Synced spare parts for task: ${data['taskCode']}');
+          break;
+          
+        case SyncItemType.taskComplete:
+        case SyncItemType.taskStart:
+        case SyncItemType.profileUpdate:
+        case SyncItemType.taskSubmit:
+        case SyncItemType.deferralCreate:
+        case SyncItemType.deferralCancel:
+          // TODO: Implement other sync types as needed
+          print('📤 Placeholder sync for type: ${item.type}');
+          break;
+      }
+    } catch (e) {
+      print('❌ Sync failed for item ${item.id}: $e');
+      rethrow; // Let the caller handle retry logic
     }
-    
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
   }
   
   // Get queue size

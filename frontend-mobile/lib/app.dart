@@ -13,9 +13,8 @@ import 'presentation/providers/task_provider.dart';
 import 'presentation/providers/sync_provider.dart';
 import 'presentation/providers/alarm_provider.dart';
 import 'providers/watchkeeping_provider.dart';
+import 'core/di/service_locator.dart';
 import 'data/repositories/alarm_repository.dart';
-import 'data/data_sources/remote/alarm_api.dart';
-import 'core/network/api_client.dart';
 import 'core/localization/locale_provider.dart';
 
 class MyApp extends StatelessWidget {
@@ -26,21 +25,25 @@ class MyApp extends StatelessWidget {
     // LocaleProvider đã được provide từ main.dart
     return Consumer<LocaleProvider>(
       builder: (context, localeProvider, child) {
-        return MultiProvider(
-          providers: [
-            ChangeNotifierProvider(create: (_) => AuthProvider()),
-            ChangeNotifierProvider(create: (_) => TaskProvider()),
-            ChangeNotifierProvider(create: (_) => SyncProvider()),
-            ChangeNotifierProvider(
-              create: (_) => AlarmProvider(
-                AlarmRepository(
-                  AlarmApi(ApiClient().dio),
-                ),
-              ),
-            ),
-            ChangeNotifierProvider(create: (_) => WatchkeepingProvider()),
-          ],
-          child: MaterialApp(
+        // Return the MaterialApp, providers should be set up outside or with child
+        return child!;
+      },
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AuthProvider()),
+          ChangeNotifierProvider(create: (_) => TaskProvider()),
+          ChangeNotifierProvider(create: (_) => SyncProvider()),
+          ChangeNotifierProvider(
+            create: (_) => AlarmProvider(sl<AlarmRepository>()),
+          ),
+          ChangeNotifierProvider(create: (_) => WatchkeepingProvider()),
+        ],
+        child: Builder(
+          builder: (context) {
+            // Get locale provider from the outer context
+            final localeProvider = Provider.of<LocaleProvider>(context);
+            
+            return MaterialApp(
             title: 'Maritime Crew App',
             debugShowCheckedModeBanner: false,
             
@@ -112,9 +115,10 @@ class MyApp extends StatelessWidget {
               '/alarms/statistics': (context) => const AlarmStatisticsScreen(),
               '/alarms/history': (context) => const AlarmHistoryScreen(),
             },
-          ),
-        );
-      },
+            );
+          },
+        ),
+      ),
     );
   }
 }

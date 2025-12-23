@@ -199,6 +199,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpGet("tasks")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> GetAllTasks(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
@@ -275,6 +276,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpGet("tasks/pending")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> GetPendingTasks()
     {
         try
@@ -297,6 +299,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpGet("tasks/overdue")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> GetOverdueTasks()
     {
         try
@@ -324,6 +327,7 @@ public class MaintenanceController : ControllerBase
     /// Chỉ trả về tasks có AssignedTo chứa crew_id hoặc full_name của crew member
     /// </summary>
     [HttpGet("tasks/my-tasks")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> GetMyTasks([FromQuery] string? crewId = null, [FromQuery] string? assignedTo = null, [FromQuery] bool includeCompleted = true)
     {
         try
@@ -398,6 +402,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpGet("tasks/{id}")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> GetTaskById(Guid id)
     {
         try
@@ -495,6 +500,7 @@ public class MaintenanceController : ControllerBase
             task.RequiredPhotos,
             task.CompletionPhotos,
             task.Notes,
+            task.RequiredSpareParts,
             task.SparePartsUsed,
             
             // Submission

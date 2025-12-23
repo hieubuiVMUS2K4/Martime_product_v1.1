@@ -17,7 +17,7 @@ public class CreateDeferralRequestDto
     public Guid TaskId { get; set; }
     
     [Required]
-    [MinLength(20, ErrorMessage = "Reason must be at least 20 characters")]
+    [MinLength(5, ErrorMessage = "Reason must be at least 5 characters")]
     [JsonPropertyName("reason")]
     public string Reason { get; set; } = string.Empty;
     
@@ -29,19 +29,19 @@ public class CreateDeferralRequestDto
     public string Priority { get; set; } = "NORMAL"; // LOW, NORMAL, HIGH
     
     /// <summary>
-    /// Root cause analysis (REQUIRED for OVERDUE deferrals, min 20 chars)
+    /// Root cause analysis (optional, for detailed explanation)
     /// </summary>
     [JsonPropertyName("rootCause")]
     public string? RootCause { get; set; }
     
     /// <summary>
-    /// Preventive measures (REQUIRED for OVERDUE deferrals, min 20 chars)
+    /// Preventive measures (optional, for detailed explanation)
     /// </summary>
     [JsonPropertyName("preventiveMeasures")]
     public string? PreventiveMeasures { get; set; }
     
     /// <summary>
-    /// JSON array of attachment URLs (optional for DUE, REQUIRED for OVERDUE)
+    /// JSON array of attachment URLs (optional)
     /// </summary>
     [JsonPropertyName("attachments")]
     public List<string>? Attachments { get; set; }

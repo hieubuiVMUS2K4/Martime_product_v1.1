@@ -47,10 +47,14 @@ enum SyncItemType {
   // PMS Workflow v2.0
   @HiveField(4)
   taskSubmit,
-
+  
   @HiveField(5)
   deferralCreate,
-
+  
   @HiveField(6)
   deferralCancel,
+  
+  // Real-time spare parts sync
+  @HiveField(7)
+  sparePartsSync,
 }

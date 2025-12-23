@@ -164,7 +164,7 @@ class LanguageSelectionScreen extends StatelessWidget {
       case 'en':
         return 'IMO Standard Language';
       case 'vi':
-        return 'Ngôn ngữ Việt Nam';
+        return 'Vietnamese Language';
       case 'fil':
         return 'Wikang Filipino';
       case 'hi':

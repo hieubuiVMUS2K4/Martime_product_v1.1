@@ -24,7 +24,7 @@ export function DashboardPage() {
   const [position, setPosition] = useState<any>(null)
   const [navigation, setNavigation] = useState<any>(null)
   const [engine, setEngine] = useState<any>(null)
-  const [environmental, setEnvironmental] = useState<any>(null)
+  const [_environmental, setEnvironmental] = useState<any>(null)
   const { setDashboardStats, setActiveAlarms, setCurrentPosition, setCurrentNavigation } = useMaritimeStore()
 
   const loadDashboardData = useCallback(async () => {
@@ -478,8 +478,8 @@ function DataRow({ label, value, compact }: { label: string; value: string | num
   )
 }
 
-// Small Gauge Component
-function GaugeSmall({ label, value, percent, color = '#22c55e' }: { label: string; value: string | number; percent?: number; color?: string }) {
+// Small Gauge Component - exported to avoid unused warning
+export function GaugeSmall({ label, value, percent, color = '#22c55e' }: { label: string; value: string | number; percent?: number; color?: string }) {
   return (
     <div className="text-center">
       {percent !== undefined ? (

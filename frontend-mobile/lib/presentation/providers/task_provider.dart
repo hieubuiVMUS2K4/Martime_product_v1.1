@@ -4,14 +4,15 @@ import '../../data/models/task_checklist_item.dart';
 import '../../data/models/task_progress.dart';
 import '../../data/models/create_deferral_request_dto.dart';
 import '../../data/repositories/task_repository.dart';
-import '../../core/network/api_client.dart';
 import '../../core/network/network_info.dart';
-import '../../core/cache/cache_manager.dart';
-import '../../core/cache/sync_queue.dart';
-import '../../core/auth/token_storage.dart';
+import '../../core/di/service_locator.dart';
 
+/// TaskProvider manages task state and operations.
+/// Uses Service Locator for dependency injection to avoid creating
+/// duplicate instances of repositories and services.
 class TaskProvider with ChangeNotifier {
-  final TaskRepository _taskRepository;
+  late final TaskRepository _taskRepository;
+  late final NetworkInfo _networkInfo;
   
   List<MaintenanceTask> _tasks = [];
   bool _isLoading = false;
@@ -21,18 +22,27 @@ class TaskProvider with ChangeNotifier {
   List<TaskChecklistItem> _currentChecklist = [];
   TaskProgress? _currentProgress;
   
-  TaskProvider()
-      : _taskRepository = TaskRepository(
-          apiClient: ApiClient(),
-          networkInfo: NetworkInfo(),
-          cacheManager: CacheManager(),
-          syncQueue: SyncQueue(NetworkInfo()),
-          tokenStorage: TokenStorage(),
-        );
+  /// Use Service Locator for proper DI - avoids duplicate instances
+  TaskProvider() {
+    _networkInfo = sl<NetworkInfo>();
+    _taskRepository = sl<TaskRepository>();
+  }
+  
+  /// Constructor for testing with injected dependencies
+  TaskProvider.withDependencies({
+    required TaskRepository taskRepository,
+    required NetworkInfo networkInfo,
+  }) : _taskRepository = taskRepository,
+       _networkInfo = networkInfo;
   
   List<MaintenanceTask> get tasks => _tasks;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  
+  /// Check if device is currently online
+  Future<bool> isOnline() async {
+    return await _networkInfo.isConnected;
+  }
   List<TaskChecklistItem> get currentChecklist => _currentChecklist;
   TaskProgress? get currentProgress => _currentProgress;
   
@@ -188,29 +198,33 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
-  /// Complete a checklist item
+  /// Complete/toggle a checklist item
+  /// Updates local state immediately for instant UI feedback
   Future<void> completeChecklistItem({
     required String taskCode,
     required String itemId,
     double? readingValue,
     String? remarks,
     bool isAbnormal = false,
+    bool? isCompleted, // null = complete, true/false = explicit state
   }) async {
     try {
+      // Repository will update cache optimistically AND sync to server
       await _taskRepository.completeChecklistItem(
         taskCode: taskCode,
         itemId: itemId,
         readingValue: readingValue,
         remarks: remarks,
         isAbnormal: isAbnormal,
+        isCompleted: isCompleted,
       );
       
-      print('✅ TaskProvider: Completed checklist item $itemId');
+      print('✅ TaskProvider: Updated checklist item $itemId (completed: $isCompleted)');
       
-      // Refresh checklist and progress
-      await fetchTaskChecklist(taskCode);
+      // Don't refresh here - let the caller manage local state
+      // This avoids unnecessary notifyListeners() calls
     } catch (e) {
-      print('❌ TaskProvider: Error completing checklist item: $e');
+      print('❌ TaskProvider: Error updating checklist item: $e');
       _error = e.toString();
       notifyListeners();
       rethrow;
@@ -292,7 +306,7 @@ class TaskProvider with ChangeNotifier {
       
       final items = response['items'] as List?;
       if (items == null || items.isEmpty) {
-        throw Exception('Không tìm thấy yêu cầu hoãn đang chờ');
+        throw Exception('DEFERRAL_NOT_FOUND');
       }
       
       final requestId = items[0]['id'];
@@ -310,6 +324,19 @@ class TaskProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       rethrow;
+    }
+  }
+
+  /// Fetch available materials from inventory for spare parts selection
+  Future<List<Map<String, dynamic>>> fetchAvailableMaterials({String? search}) async {
+    try {
+      return await _taskRepository.getAvailableMaterials(
+        search: search,
+        onlyInStock: true,
+      );
+    } catch (e) {
+      _error = e.toString();
+      return [];
     }
   }
 }

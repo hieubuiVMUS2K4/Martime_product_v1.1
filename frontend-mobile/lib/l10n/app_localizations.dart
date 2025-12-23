@@ -6,12 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_en.dart';
-import 'app_localizations_fil.dart';
-import 'app_localizations_hi.dart';
-import 'app_localizations_ja.dart';
-import 'app_localizations_ko.dart';
 import 'app_localizations_vi.dart';
-import 'app_localizations_zh.dart';
 
 // ignore_for_file: type=lint
 
@@ -100,12 +95,7 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('fil'),
-    Locale('hi'),
-    Locale('ja'),
-    Locale('ko'),
-    Locale('vi'),
-    Locale('zh')
+    Locale('vi')
   ];
 
   /// The application name
@@ -2063,6 +2053,606 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel Deferral'**
   String get cancelDeferral;
+
+  /// No description provided for @takePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Take Photo'**
+  String get takePhoto;
+
+  /// No description provided for @selectFromGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Select from Gallery'**
+  String get selectFromGallery;
+
+  /// No description provided for @errorSelectingPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Error selecting photo: {error}'**
+  String errorSelectingPhoto(String error);
+
+  /// No description provided for @photoAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo {count} added ({size})'**
+  String photoAdded(int count, String size);
+
+  /// No description provided for @imageStillLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Image still large: {size}'**
+  String imageStillLarge(String size);
+
+  /// No description provided for @uploadPhotoOrTake.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload or take photo'**
+  String get uploadPhotoOrTake;
+
+  /// No description provided for @maxPhotosReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum {max} photos reached'**
+  String maxPhotosReached(int max);
+
+  /// No description provided for @minPhotosRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum {required} photos required (current: {current})'**
+  String minPhotosRequired(int required, int current);
+
+  /// No description provided for @abnormalValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Abnormal Value'**
+  String get abnormalValue;
+
+  /// No description provided for @measuredValueIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Measured value is {value} {unit}'**
+  String measuredValueIs(String value, String unit);
+
+  /// No description provided for @valueOutOfRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Value out of range'**
+  String get valueOutOfRange;
+
+  /// No description provided for @confirmAbnormalValue.
+  ///
+  /// In en, this message translates to:
+  /// **'This value is outside the normal range. Do you want to record it?'**
+  String get confirmAbnormalValue;
+
+  /// No description provided for @reenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-enter'**
+  String get reenter;
+
+  /// No description provided for @confirmRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm & Record'**
+  String get confirmRecord;
+
+  /// No description provided for @valueOutOfRangeWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Value {value} is outside range ({min} - {max})'**
+  String valueOutOfRangeWarning(String value, String min, String max);
+
+  /// No description provided for @required.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get required;
+
+  /// No description provided for @enterMeasuredValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter measured value'**
+  String get enterMeasuredValue;
+
+  /// No description provided for @sparePartsReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Spare Parts Reference'**
+  String get sparePartsReference;
+
+  /// No description provided for @unknownMaterial.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Material'**
+  String get unknownMaterial;
+
+  /// No description provided for @sparePartsActuallyUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Spare Parts Actually Used'**
+  String get sparePartsActuallyUsed;
+
+  /// No description provided for @selectMaterialFromInventory.
+  ///
+  /// In en, this message translates to:
+  /// **'Select material from inventory'**
+  String get selectMaterialFromInventory;
+
+  /// No description provided for @addUsedMaterial.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Used Material'**
+  String get addUsedMaterial;
+
+  /// No description provided for @enterQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter Quantity'**
+  String get enterQuantity;
+
+  /// No description provided for @editQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Quantity'**
+  String get editQuantity;
+
+  /// No description provided for @stockOnHand.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock on hand: {quantity} {unit}'**
+  String stockOnHand(String quantity, String unit);
+
+  /// No description provided for @add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get add;
+
+  /// No description provided for @quantityUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity Used'**
+  String get quantityUsed;
+
+  /// No description provided for @loadingMaterials.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading materials...'**
+  String get loadingMaterials;
+
+  /// No description provided for @materialsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} materials'**
+  String materialsCount(int count);
+
+  /// No description provided for @noMaterialsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No materials found'**
+  String get noMaterialsFound;
+
+  /// No description provided for @reload.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload'**
+  String get reload;
+
+  /// No description provided for @materialCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Code: {code} | On hand: {onHand} {unit}'**
+  String materialCode(String code, String onHand, String unit);
+
+  /// No description provided for @requestDeferral.
+  ///
+  /// In en, this message translates to:
+  /// **'Request Deferral'**
+  String get requestDeferral;
+
+  /// No description provided for @currentDueDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Current due date: {date}'**
+  String currentDueDate(String date);
+
+  /// No description provided for @selectDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Date'**
+  String get selectDate;
+
+  /// No description provided for @selectReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Reason'**
+  String get selectReason;
+
+  /// No description provided for @enterMoreDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter more details (optional)'**
+  String get enterMoreDetails;
+
+  /// No description provided for @addingPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Adding photo...'**
+  String get addingPhoto;
+
+  /// No description provided for @addPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Photo'**
+  String get addPhoto;
+
+  /// No description provided for @submitRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit Request'**
+  String get submitRequest;
+
+  /// No description provided for @pleaseSelectDeferralDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a deferral date'**
+  String get pleaseSelectDeferralDate;
+
+  /// No description provided for @pleaseSelectDeferralReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a deferral reason'**
+  String get pleaseSelectDeferralReason;
+
+  /// No description provided for @deferralRequestSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Deferral request sent successfully'**
+  String get deferralRequestSent;
+
+  /// No description provided for @deferralReasonPartsPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Spare parts pending'**
+  String get deferralReasonPartsPending;
+
+  /// No description provided for @deferralReasonWeatherCondition.
+  ///
+  /// In en, this message translates to:
+  /// **'Weather condition'**
+  String get deferralReasonWeatherCondition;
+
+  /// No description provided for @deferralReasonHigherPriority.
+  ///
+  /// In en, this message translates to:
+  /// **'Higher priority task'**
+  String get deferralReasonHigherPriority;
+
+  /// No description provided for @deferralReasonAwaitingApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting approval'**
+  String get deferralReasonAwaitingApproval;
+
+  /// No description provided for @deferralReasonPersonnelUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Personnel unavailable'**
+  String get deferralReasonPersonnelUnavailable;
+
+  /// No description provided for @deferralReasonEquipmentInUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Equipment in use'**
+  String get deferralReasonEquipmentInUse;
+
+  /// No description provided for @deferralReasonOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get deferralReasonOther;
+
+  /// No description provided for @overdueReasonPartsPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Spare parts pending'**
+  String get overdueReasonPartsPending;
+
+  /// No description provided for @overdueReasonExternalFactors.
+  ///
+  /// In en, this message translates to:
+  /// **'External factors'**
+  String get overdueReasonExternalFactors;
+
+  /// No description provided for @overdueReasonHigherPriority.
+  ///
+  /// In en, this message translates to:
+  /// **'Higher priority task'**
+  String get overdueReasonHigherPriority;
+
+  /// No description provided for @overdueReasonResourceShortage.
+  ///
+  /// In en, this message translates to:
+  /// **'Resource shortage'**
+  String get overdueReasonResourceShortage;
+
+  /// No description provided for @overdueReasonAwaitingApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting approval'**
+  String get overdueReasonAwaitingApproval;
+
+  /// No description provided for @overdueReasonTechnicalIssue.
+  ///
+  /// In en, this message translates to:
+  /// **'Technical issue'**
+  String get overdueReasonTechnicalIssue;
+
+  /// No description provided for @overdueReasonOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get overdueReasonOther;
+
+  /// No description provided for @cancelDeferralQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel Deferral Request?'**
+  String get cancelDeferralQuestion;
+
+  /// No description provided for @cancelDeferralConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to cancel this deferral request?'**
+  String get cancelDeferralConfirm;
+
+  /// No description provided for @no.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get no;
+
+  /// No description provided for @cancelRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel Request'**
+  String get cancelRequest;
+
+  /// No description provided for @deferralCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Deferral request cancelled'**
+  String get deferralCancelled;
+
+  /// No description provided for @taskRestartedForFix.
+  ///
+  /// In en, this message translates to:
+  /// **'Task restarted for fix'**
+  String get taskRestartedForFix;
+
+  /// No description provided for @loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading...'**
+  String get loading;
+
+  /// No description provided for @noData.
+  ///
+  /// In en, this message translates to:
+  /// **'No data'**
+  String get noData;
+
+  /// No description provided for @allowedRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed range: {min} - {max} {unit}'**
+  String allowedRange(String min, String max, String unit);
+
+  /// No description provided for @statusDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Due'**
+  String get statusDue;
+
+  /// No description provided for @statusRectify.
+  ///
+  /// In en, this message translates to:
+  /// **'Rectify'**
+  String get statusRectify;
+
+  /// No description provided for @statusPendingApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Approval'**
+  String get statusPendingApproval;
+
+  /// No description provided for @reportPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Report Photos'**
+  String get reportPhotos;
+
+  /// No description provided for @photosRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'{current}/{required} Required'**
+  String photosRequired(int current, int required);
+
+  /// No description provided for @deferralPendingApprovalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'DEFERRAL PENDING APPROVAL'**
+  String get deferralPendingApprovalTitle;
+
+  /// No description provided for @deferralPendingApprovalMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Deferral request is being reviewed. You cannot start this task until the request is processed.'**
+  String get deferralPendingApprovalMessage;
+
+  /// No description provided for @requestDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Request Date'**
+  String get requestDate;
+
+  /// No description provided for @addNotesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add any additional notes or observations (optional)'**
+  String get addNotesHint;
+
+  /// No description provided for @additionalInfoOverdue.
+  ///
+  /// In en, this message translates to:
+  /// **'Additional Information (overdue)'**
+  String get additionalInfoOverdue;
+
+  /// No description provided for @rootCauseLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Root cause (optional)'**
+  String get rootCauseLabel;
+
+  /// No description provided for @rootCauseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe root cause...'**
+  String get rootCauseHint;
+
+  /// No description provided for @preventiveMeasuresLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Preventive measures (optional)'**
+  String get preventiveMeasuresLabel;
+
+  /// No description provided for @preventiveMeasuresHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Measures to prevent recurrence...'**
+  String get preventiveMeasuresHint;
+
+  /// No description provided for @evidencePhotosOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Evidence photos (optional)'**
+  String get evidencePhotosOptional;
+
+  /// No description provided for @evidencePhotosHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach spare parts order, weather report, Class email, or other documents'**
+  String get evidencePhotosHint;
+
+  /// No description provided for @requestDeferralTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Request Deferral'**
+  String get requestDeferralTooltip;
+
+  /// No description provided for @notAvailableShort.
+  ///
+  /// In en, this message translates to:
+  /// **'N/A'**
+  String get notAvailableShort;
+
+  /// No description provided for @taskRejectedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'TASK REJECTED'**
+  String get taskRejectedTitle;
+
+  /// No description provided for @rejectedByLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected by'**
+  String get rejectedByLabel;
+
+  /// No description provided for @timeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get timeLabel;
+
+  /// No description provided for @rejectionCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejection count: {count} time(s)'**
+  String rejectionCountLabel(int count);
+
+  /// No description provided for @multipleRejectionWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Multiple rejections. Please contact supervisor.'**
+  String get multipleRejectionWarning;
+
+  /// No description provided for @waitingForCEApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for C/E approval'**
+  String get waitingForCEApproval;
+
+  /// No description provided for @yourReportBeingReviewed.
+  ///
+  /// In en, this message translates to:
+  /// **'Your report is being reviewed'**
+  String get yourReportBeingReviewed;
+
+  /// No description provided for @errorPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: {error}'**
+  String errorPrefix(String error);
+
+  /// No description provided for @materialCodeInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Code: {code}'**
+  String materialCodeInfo(String code);
+
+  /// No description provided for @materialCodeQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Code: {code} • Qty required: {quantity}'**
+  String materialCodeQuantity(String code, String quantity);
+
+  /// No description provided for @materialCodeStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Code: {code} • In stock: {onHand} {unit}'**
+  String materialCodeStock(String code, String onHand, String unit);
+
+  /// No description provided for @deferralNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending deferral request not found'**
+  String get deferralNotFound;
+
+  /// No description provided for @requestTimeoutError.
+  ///
+  /// In en, this message translates to:
+  /// **'Request timeout - image may be too large. Please try a smaller image'**
+  String get requestTimeoutError;
+
+  /// No description provided for @validationError.
+  ///
+  /// In en, this message translates to:
+  /// **'Validation error - please check the form again'**
+  String get validationError;
+
+  /// No description provided for @serverError.
+  ///
+  /// In en, this message translates to:
+  /// **'Server error - please try again later'**
+  String get serverError;
+
+  /// No description provided for @vietnameseLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Vietnamese Language'**
+  String get vietnameseLanguage;
 }
 
 class _AppLocalizationsDelegate
@@ -2075,15 +2665,8 @@ class _AppLocalizationsDelegate
   }
 
   @override
-  bool isSupported(Locale locale) => <String>[
-        'en',
-        'fil',
-        'hi',
-        'ja',
-        'ko',
-        'vi',
-        'zh'
-      ].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      <String>['en', 'vi'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -2094,18 +2677,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   switch (locale.languageCode) {
     case 'en':
       return AppLocalizationsEn();
-    case 'fil':
-      return AppLocalizationsFil();
-    case 'hi':
-      return AppLocalizationsHi();
-    case 'ja':
-      return AppLocalizationsJa();
-    case 'ko':
-      return AppLocalizationsKo();
     case 'vi':
       return AppLocalizationsVi();
-    case 'zh':
-      return AppLocalizationsZh();
   }
 
   throw FlutterError(

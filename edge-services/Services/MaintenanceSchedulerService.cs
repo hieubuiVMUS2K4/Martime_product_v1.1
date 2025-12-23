@@ -380,7 +380,7 @@ public class MaintenanceSchedulerService : BackgroundService
                     materialName = materials.ContainsKey(sp.MaterialItemId) ? materials[sp.MaterialItemId].Name : "Unknown Material",
                     quantityRequired = sp.QuantityRequired,
                     isMandatory = sp.IsMandatory
-                }))
+                }), new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase })
                 : null;
 
             // === NEW APPROACH: Create ONE task for the entire equipment group ===
@@ -448,7 +448,8 @@ public class MaintenanceSchedulerService : BackgroundService
                 Priority = schedule.Priority,
                 Status = initialStatus, // SCHEDULED, MISSING_*, based on validation (PMS Workflow v2.0)
                 AssignedTo = assignedTo, // Auto-assigned based on waterfall logic (null if unassigned)
-                SparePartsUsed = sparePartsJson,
+                RequiredSpareParts = sparePartsJson, // From schedule config - not yet used
+                SparePartsUsed = null, // Will be filled when crew completes the task
                 Notes = $"Auto-generated from schedule: {schedule.ScheduleCode} (Group: {group.GroupName})",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow

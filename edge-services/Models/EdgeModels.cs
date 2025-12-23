@@ -909,12 +909,24 @@ public class MaintenanceTask
     
     /// <summary>
     /// JSON array of completion photo URLs (base64 or file paths)
+    /// Supports up to 5 compressed photos (~150KB each = ~1MB total, ~1.3MB as base64)
     /// </summary>
-    [MaxLength(100000)]
+    [MaxLength(2000000)] // 2MB for safety margin with base64 encoding
     public string? CompletionPhotos { get; set; }
     
     public string? Notes { get; set; }
     
+    /// <summary>
+    /// Required spare parts from schedule config (JSON array)
+    /// This is populated when task is auto-generated from schedule
+    /// </summary>
+    [MaxLength(4000)]
+    public string? RequiredSpareParts { get; set; }
+    
+    /// <summary>
+    /// Spare parts actually used when completing the task (JSON array)
+    /// This is set by crew when they complete the task
+    /// </summary>
     [MaxLength(4000)]
     public string? SparePartsUsed { get; set; }
     

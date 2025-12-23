@@ -1058,4 +1058,348 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cancelDeferral => 'Cancel Deferral';
+
+  @override
+  String get takePhoto => 'Take Photo';
+
+  @override
+  String get selectFromGallery => 'Select from Gallery';
+
+  @override
+  String errorSelectingPhoto(String error) {
+    return 'Error selecting photo: $error';
+  }
+
+  @override
+  String photoAdded(int count, String size) {
+    return 'Photo $count added ($size)';
+  }
+
+  @override
+  String imageStillLarge(String size) {
+    return 'Image still large: $size';
+  }
+
+  @override
+  String get uploadPhotoOrTake => 'Upload or take photo';
+
+  @override
+  String maxPhotosReached(int max) {
+    return 'Maximum $max photos reached';
+  }
+
+  @override
+  String minPhotosRequired(int required, int current) {
+    return 'Minimum $required photos required (current: $current)';
+  }
+
+  @override
+  String get abnormalValue => 'Abnormal Value';
+
+  @override
+  String measuredValueIs(String value, String unit) {
+    return 'Measured value is $value $unit';
+  }
+
+  @override
+  String get valueOutOfRange => 'Value out of range';
+
+  @override
+  String get confirmAbnormalValue =>
+      'This value is outside the normal range. Do you want to record it?';
+
+  @override
+  String get reenter => 'Re-enter';
+
+  @override
+  String get confirmRecord => 'Confirm & Record';
+
+  @override
+  String valueOutOfRangeWarning(String value, String min, String max) {
+    return 'Value $value is outside range ($min - $max)';
+  }
+
+  @override
+  String get required => 'Required';
+
+  @override
+  String get enterMeasuredValue => 'Enter measured value';
+
+  @override
+  String get sparePartsReference => 'Spare Parts Reference';
+
+  @override
+  String get unknownMaterial => 'Unknown Material';
+
+  @override
+  String get sparePartsActuallyUsed => 'Spare Parts Actually Used';
+
+  @override
+  String get selectMaterialFromInventory => 'Select material from inventory';
+
+  @override
+  String get addUsedMaterial => 'Add Used Material';
+
+  @override
+  String get enterQuantity => 'Enter Quantity';
+
+  @override
+  String get editQuantity => 'Edit Quantity';
+
+  @override
+  String stockOnHand(String quantity, String unit) {
+    return 'Stock on hand: $quantity $unit';
+  }
+
+  @override
+  String get add => 'Add';
+
+  @override
+  String get quantityUsed => 'Quantity Used';
+
+  @override
+  String get loadingMaterials => 'Loading materials...';
+
+  @override
+  String materialsCount(int count) {
+    return '$count materials';
+  }
+
+  @override
+  String get noMaterialsFound => 'No materials found';
+
+  @override
+  String get reload => 'Reload';
+
+  @override
+  String materialCode(String code, String onHand, String unit) {
+    return 'Code: $code | On hand: $onHand $unit';
+  }
+
+  @override
+  String get requestDeferral => 'Request Deferral';
+
+  @override
+  String currentDueDate(String date) {
+    return 'Current due date: $date';
+  }
+
+  @override
+  String get selectDate => 'Select Date';
+
+  @override
+  String get selectReason => 'Select Reason';
+
+  @override
+  String get enterMoreDetails => 'Enter more details (optional)';
+
+  @override
+  String get addingPhoto => 'Adding photo...';
+
+  @override
+  String get addPhoto => 'Add Photo';
+
+  @override
+  String get submitRequest => 'Submit Request';
+
+  @override
+  String get pleaseSelectDeferralDate => 'Please select a deferral date';
+
+  @override
+  String get pleaseSelectDeferralReason => 'Please select a deferral reason';
+
+  @override
+  String get deferralRequestSent => 'Deferral request sent successfully';
+
+  @override
+  String get deferralReasonPartsPending => 'Spare parts pending';
+
+  @override
+  String get deferralReasonWeatherCondition => 'Weather condition';
+
+  @override
+  String get deferralReasonHigherPriority => 'Higher priority task';
+
+  @override
+  String get deferralReasonAwaitingApproval => 'Awaiting approval';
+
+  @override
+  String get deferralReasonPersonnelUnavailable => 'Personnel unavailable';
+
+  @override
+  String get deferralReasonEquipmentInUse => 'Equipment in use';
+
+  @override
+  String get deferralReasonOther => 'Other';
+
+  @override
+  String get overdueReasonPartsPending => 'Spare parts pending';
+
+  @override
+  String get overdueReasonExternalFactors => 'External factors';
+
+  @override
+  String get overdueReasonHigherPriority => 'Higher priority task';
+
+  @override
+  String get overdueReasonResourceShortage => 'Resource shortage';
+
+  @override
+  String get overdueReasonAwaitingApproval => 'Awaiting approval';
+
+  @override
+  String get overdueReasonTechnicalIssue => 'Technical issue';
+
+  @override
+  String get overdueReasonOther => 'Other';
+
+  @override
+  String get cancelDeferralQuestion => 'Cancel Deferral Request?';
+
+  @override
+  String get cancelDeferralConfirm =>
+      'Are you sure you want to cancel this deferral request?';
+
+  @override
+  String get no => 'No';
+
+  @override
+  String get cancelRequest => 'Cancel Request';
+
+  @override
+  String get deferralCancelled => 'Deferral request cancelled';
+
+  @override
+  String get taskRestartedForFix => 'Task restarted for fix';
+
+  @override
+  String get loading => 'Loading...';
+
+  @override
+  String get noData => 'No data';
+
+  @override
+  String allowedRange(String min, String max, String unit) {
+    return 'Allowed range: $min - $max $unit';
+  }
+
+  @override
+  String get statusDue => 'Due';
+
+  @override
+  String get statusRectify => 'Rectify';
+
+  @override
+  String get statusPendingApproval => 'Pending Approval';
+
+  @override
+  String get reportPhotos => 'Report Photos';
+
+  @override
+  String photosRequired(int current, int required) {
+    return '$current/$required Required';
+  }
+
+  @override
+  String get deferralPendingApprovalTitle => 'DEFERRAL PENDING APPROVAL';
+
+  @override
+  String get deferralPendingApprovalMessage =>
+      'Deferral request is being reviewed. You cannot start this task until the request is processed.';
+
+  @override
+  String get requestDate => 'Request Date';
+
+  @override
+  String get addNotesHint =>
+      'Add any additional notes or observations (optional)';
+
+  @override
+  String get additionalInfoOverdue => 'Additional Information (overdue)';
+
+  @override
+  String get rootCauseLabel => 'Root cause (optional)';
+
+  @override
+  String get rootCauseHint => 'Describe root cause...';
+
+  @override
+  String get preventiveMeasuresLabel => 'Preventive measures (optional)';
+
+  @override
+  String get preventiveMeasuresHint => 'Measures to prevent recurrence...';
+
+  @override
+  String get evidencePhotosOptional => 'Evidence photos (optional)';
+
+  @override
+  String get evidencePhotosHint =>
+      'Attach spare parts order, weather report, Class email, or other documents';
+
+  @override
+  String get requestDeferralTooltip => 'Request Deferral';
+
+  @override
+  String get notAvailableShort => 'N/A';
+
+  @override
+  String get taskRejectedTitle => 'TASK REJECTED';
+
+  @override
+  String get rejectedByLabel => 'Rejected by';
+
+  @override
+  String get timeLabel => 'Time';
+
+  @override
+  String rejectionCountLabel(int count) {
+    return 'Rejection count: $count time(s)';
+  }
+
+  @override
+  String get multipleRejectionWarning =>
+      'Multiple rejections. Please contact supervisor.';
+
+  @override
+  String get waitingForCEApproval => 'Waiting for C/E approval';
+
+  @override
+  String get yourReportBeingReviewed => 'Your report is being reviewed';
+
+  @override
+  String errorPrefix(String error) {
+    return 'Error: $error';
+  }
+
+  @override
+  String materialCodeInfo(String code) {
+    return 'Code: $code';
+  }
+
+  @override
+  String materialCodeQuantity(String code, String quantity) {
+    return 'Code: $code • Qty required: $quantity';
+  }
+
+  @override
+  String materialCodeStock(String code, String onHand, String unit) {
+    return 'Code: $code • In stock: $onHand $unit';
+  }
+
+  @override
+  String get deferralNotFound => 'Pending deferral request not found';
+
+  @override
+  String get requestTimeoutError =>
+      'Request timeout - image may be too large. Please try a smaller image';
+
+  @override
+  String get validationError =>
+      'Validation error - please check the form again';
+
+  @override
+  String get serverError => 'Server error - please try again later';
+
+  @override
+  String get vietnameseLanguage => 'Vietnamese Language';
 }

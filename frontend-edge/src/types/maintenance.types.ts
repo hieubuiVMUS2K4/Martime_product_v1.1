@@ -47,7 +47,8 @@ export interface MaintenanceTask {
   completedBy?: string;
   
   notes?: string;
-  sparePartsUsed?: string;
+  requiredSpareParts?: string;  // Required spare parts from schedule (reference)
+  sparePartsUsed?: string;      // Actually used spare parts (crew input)
   
   // PMS Workflow v2.0 fields
   isCms?: boolean;           // Class Maintenance Survey item
