@@ -120,10 +120,13 @@ public class MaintenanceSchedulerService : BackgroundService
         {
             try
             {
-                // 1. Auto-correct task statuses based on due dates
+                // 1. Fix past due dates in schedules (run once at startup, then periodically)
+                await FixPastDueDatesInSchedules();
+                
+                // 2. Auto-correct task statuses based on due dates
                 await AutoCorrectTaskStatuses();
                 
-                // 2. Generate new tasks from schedules
+                // 3. Generate new tasks from schedules
                 await GenerateTasksFromSchedules();
                 
                 await Task.Delay(_checkInterval, stoppingToken).ConfigureAwait(false);
@@ -138,6 +141,125 @@ public class MaintenanceSchedulerService : BackgroundService
                 _logger.LogError(ex, "Error in Maintenance Scheduler Service");
                 await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken).ConfigureAwait(false); // Wait 5 min on error
             }
+        }
+    }
+
+    /// <summary>
+    /// Fix schedules with past due dates by skipping to next future occurrence
+    /// Prevents creating OVERDUE tasks immediately after system restart or downtime
+    /// </summary>
+    private async Task FixPastDueDatesInSchedules()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<EdgeDbContext>();
+        var scheduleRepo = scope.ServiceProvider.GetRequiredService<IMaintenanceScheduleRepository>();
+
+        try
+        {
+            var now = DateTime.UtcNow;
+            var today = now.Date;
+            
+            // Find all schedules with past due dates
+            var pastDueSchedules = await context.MaintenanceSchedules
+                .Where(s => s.AutoGenerate && 
+                           s.NextDueDate.HasValue && 
+                           s.NextDueDate.Value.Date < today &&
+                           s.IntervalType == "CALENDAR" &&
+                           s.IntervalDays.HasValue)
+                .ToListAsync();
+
+            if (!pastDueSchedules.Any())
+            {
+                _logger.LogDebug("No past due schedules found");
+                return;
+            }
+
+            _logger.LogInformation(
+                "Found {ScheduleCount} schedules with past due dates. Auto-correcting to future dates...",
+                pastDueSchedules.Count);
+
+            int fixedCount = 0;
+            foreach (var schedule in pastDueSchedules)
+            {
+                var daysPast = (today - schedule.NextDueDate!.Value.Date).Days;
+                var intervalDays = schedule.IntervalDays.Value;
+                
+                // Calculate how many intervals to skip to get to future
+                var intervalsToSkip = (int)Math.Ceiling((double)daysPast / intervalDays);
+                
+                var oldDueDate = schedule.NextDueDate.Value;
+                schedule.NextDueDate = oldDueDate.AddDays(intervalsToSkip * intervalDays);
+                schedule.UpdatedAt = DateTime.UtcNow;
+                
+                _logger.LogInformation(
+                    "Schedule {ScheduleCode}: {OldDue} -> {NewDue} (skipped {Intervals} intervals of {IntervalDays} days)",
+                    schedule.ScheduleCode,
+                    oldDueDate.ToString("yyyy-MM-dd"),
+                    schedule.NextDueDate.Value.ToString("yyyy-MM-dd"),
+                    intervalsToSkip,
+                    intervalDays);
+                
+                fixedCount++;
+            }
+
+            await context.SaveChangesAsync();
+            
+            _logger.LogInformation(
+                "✅ Fixed {Count} schedules with past due dates",
+                fixedCount);
+            
+            // Also update existing SCHEDULED/DUE tasks that have past NextDueAt
+            var tasksToUpdate = await context.MaintenanceTasks
+                .Where(t => (t.Status == "SCHEDULED" || t.Status == "DUE" || t.Status == "OVERDUE") &&
+                           t.NextDueAt < today &&
+                           t.ScheduleId != null &&
+                           !t.IsDeleted)
+                .ToListAsync();
+            
+            if (tasksToUpdate.Any())
+            {
+                _logger.LogInformation(
+                    "Found {TaskCount} existing tasks with past due dates. Updating...",
+                    tasksToUpdate.Count);
+                
+                foreach (var task in tasksToUpdate)
+                {
+                    // Find corresponding schedule
+                    var schedule = pastDueSchedules.FirstOrDefault(s => s.Id == task.ScheduleId);
+                    if (schedule != null && schedule.NextDueDate.HasValue)
+                    {
+                        var oldTaskDue = task.NextDueAt;
+                        task.NextDueAt = schedule.NextDueDate.Value;
+                        task.UpdatedAt = DateTime.UtcNow;
+                        
+                        // Update status based on new date
+                        var daysUntilDue = (task.NextDueAt.Date - today).Days;
+                        if (daysUntilDue < 0)
+                            task.Status = "OVERDUE";
+                        else if (daysUntilDue == 0)
+                            task.Status = "DUE";
+                        else
+                            task.Status = "SCHEDULED";
+                        
+                        _logger.LogInformation(
+                            "Task {TaskId}: {OldDue} -> {NewDue} ({Status})",
+                            task.TaskId,
+                            oldTaskDue.ToString("yyyy-MM-dd"),
+                            task.NextDueAt.ToString("yyyy-MM-dd"),
+                            task.Status);
+                    }
+                }
+                
+                await context.SaveChangesAsync();
+                
+                _logger.LogInformation(
+                    "✅ Updated {TaskCount} existing tasks to match new schedule dates",
+                    tasksToUpdate.Count);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fixing past due dates in schedules");
         }
     }
 
@@ -270,6 +392,51 @@ public class MaintenanceSchedulerService : BackgroundService
 
                 // Check if task should be generated (X days before due)
                 var daysUntilDue = (schedule.NextDueDate.Value.Date - now.Date).Days;
+                
+                // 🔒 CRITICAL FIX: If NextDueDate is in the PAST, recalculate it first
+                // This happens when tasks complete late and scheduler hasn't run in a while
+                if (daysUntilDue < 0)
+                {
+                    _logger.LogWarning(
+                        "Schedule {ScheduleCode} has past due date {DueDate} ({Days} days ago). " +
+                        "Recalculating next occurrence to prevent immediate OVERDUE tasks.",
+                        schedule.ScheduleCode, schedule.NextDueDate.Value.ToString("yyyy-MM-dd"), Math.Abs(daysUntilDue));
+                    
+                    // Get asset for interval calculation
+                    var groupMembers = await context.EquipmentGroupMembers
+                        .Where(egm => egm.GroupId == schedule.EquipmentGroupId)
+                        .Include(egm => egm.Asset)
+                        .ToListAsync();
+                    
+                    var asset = groupMembers
+                        .Select(gm => gm.Asset)
+                        .Where(a => a != null && a.IsActive)
+                        .OrderByDescending(a => a.CurrentRunningHours ?? 0)
+                        .FirstOrDefault();
+                    
+                    if (asset != null && schedule.IntervalDays.HasValue)
+                    {
+                        // Skip forward to next future occurrence
+                        var intervalDays = schedule.IntervalDays.Value;
+                        var daysPast = Math.Abs(daysUntilDue);
+                        var intervalsToSkip = (int)Math.Ceiling((double)daysPast / intervalDays);
+                        
+                        var oldDueDate = schedule.NextDueDate.Value;
+                        schedule.NextDueDate = oldDueDate.AddDays(intervalsToSkip * intervalDays);
+                        
+                        await scheduleRepo.UpdateAsync(schedule);
+                        
+                        _logger.LogInformation(
+                            "Schedule {ScheduleCode} recalculated: {OldDue} → {NewDue} (skipped {Intervals} intervals)",
+                            schedule.ScheduleCode, 
+                            oldDueDate.ToString("yyyy-MM-dd"),
+                            schedule.NextDueDate.Value.ToString("yyyy-MM-dd"),
+                            intervalsToSkip);
+                        
+                        // Recalculate daysUntilDue with new date
+                        daysUntilDue = (schedule.NextDueDate.Value.Date - now.Date).Days;
+                    }
+                }
                 
                 // SAFETY CHECK: Validate and ENFORCE lead time with CEILING RULE (PMS Workflow v2.2)
                 // - Short intervals (≤7d): 50% proportional lead time
@@ -581,7 +748,11 @@ public class MaintenanceSchedulerService : BackgroundService
     {
         if (schedule.IntervalType == "CALENDAR" && schedule.IntervalDays.HasValue)
         {
-            var baseDate = schedule.LastExecutedAt ?? DateTime.UtcNow;
+            // Use LastExecutedAt as base to maintain interval consistency
+            // If never executed, use current NextDueDate or UtcNow as fallback
+            var baseDate = schedule.LastExecutedAt 
+                ?? schedule.NextDueDate 
+                ?? DateTime.UtcNow;
             schedule.NextDueDate = baseDate.AddDays(schedule.IntervalDays.Value);
         }
         else if (schedule.IntervalType == "RUNNING_HOURS" && schedule.IntervalHours.HasValue)
@@ -602,7 +773,9 @@ public class MaintenanceSchedulerService : BackgroundService
 
             if (schedule.IntervalDays.HasValue)
             {
-                var baseDate = schedule.LastExecutedAt ?? DateTime.UtcNow;
+                var baseDate = schedule.LastExecutedAt 
+                    ?? schedule.NextDueDate 
+                    ?? DateTime.UtcNow;
                 calendarDue = baseDate.AddDays(schedule.IntervalDays.Value);
             }
 

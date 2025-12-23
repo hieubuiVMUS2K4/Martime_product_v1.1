@@ -225,7 +225,15 @@ public class MaintenanceCompletionService
     {
         if (schedule.IntervalType == "CALENDAR" && schedule.IntervalDays.HasValue)
         {
-            schedule.NextDueDate = DateTime.UtcNow.AddDays(schedule.IntervalDays.Value);
+            // Use LastExecutedAt (completion date) as base for next interval
+            // This ensures interval consistency regardless of late completion
+            var baseDate = schedule.LastExecutedAt ?? DateTime.UtcNow;
+            schedule.NextDueDate = baseDate.AddDays(schedule.IntervalDays.Value);
+            
+            _logger.LogInformation(
+                "Schedule {Code}: Next due calculated from {Base} + {Interval} days = {NextDue}",
+                schedule.ScheduleCode, baseDate.ToString("yyyy-MM-dd"), 
+                schedule.IntervalDays.Value, schedule.NextDueDate?.ToString("yyyy-MM-dd"));
         }
         else if (schedule.IntervalType == "RUNNING_HOURS" && schedule.IntervalHours.HasValue)
         {
@@ -236,6 +244,10 @@ public class MaintenanceCompletionService
             var hoursRemaining = schedule.NextDueRunningHours.Value - currentHours;
             var daysRemaining = (int)(hoursRemaining / 10.0);
             schedule.NextDueDate = DateTime.UtcNow.AddDays(daysRemaining);
+            
+            _logger.LogInformation(
+                "Schedule {Code}: Next due at {Hours} running hours (estimated {Days} days from now)",
+                schedule.ScheduleCode, schedule.NextDueRunningHours.Value, daysRemaining);
         }
         else if (schedule.IntervalType == "HYBRID")
         {
@@ -244,7 +256,8 @@ public class MaintenanceCompletionService
 
             if (schedule.IntervalDays.HasValue)
             {
-                calendarDue = DateTime.UtcNow.AddDays(schedule.IntervalDays.Value);
+                var baseDate = schedule.LastExecutedAt ?? DateTime.UtcNow;
+                calendarDue = baseDate.AddDays(schedule.IntervalDays.Value);
             }
 
             if (schedule.IntervalHours.HasValue)

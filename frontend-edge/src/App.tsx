@@ -62,7 +62,7 @@ function App() {
         <Route path="engine" element={<EnginePage />} />
         <Route path="alarms" element={<AlarmsPage />} />
         <Route path="crew" element={<CrewPage />} />
-        <Route path="maintenance" element={<MaintenancePage />} />
+        <Route path="pms/maintenance" element={<MaintenancePage />} />
         <Route path="voyage" element={<VoyagePage />} />
         <Route path="compliance" element={<CompliancePage />} />
         <Route path="sync" element={<SyncPage />} />
@@ -104,7 +104,7 @@ function App() {
       
       {/* Full-screen pages outside MainLayout */}
       <Route path="/crew/:id" element={<CrewDetailPage />} />
-      <Route path="/maintenance/:id" element={<MaintenanceDetailPage />} />
+      <Route path="/pms/maintenance/:id" element={<MaintenanceDetailPage />} />
       </Routes>
     </>
   )

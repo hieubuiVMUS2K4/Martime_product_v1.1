@@ -216,10 +216,11 @@ export const KanbanCard = memo(function KanbanCard({
               e.stopPropagation()
               navigate('/pms/schedules')
             }}
-            className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-[10px] font-medium hover:bg-purple-100 transition-colors"
+            className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-[10px] font-medium hover:bg-purple-100 transition-colors max-w-full"
+            title={scheduleInfo.scheduleCode}
           >
-            <Package className="w-2.5 h-2.5" />
-            {scheduleInfo.scheduleCode}
+            <Package className="w-2.5 h-2.5 flex-shrink-0" />
+            <span className="truncate">{scheduleInfo.scheduleCode}</span>
           </button>
         </div>
       )}
@@ -248,8 +249,8 @@ export const KanbanCard = memo(function KanbanCard({
       {/* Subtitle - Show legacy equipment name if exists (backward compat) */}
       {task.equipmentGroupId && task.equipmentName && (
         <p className="text-xs text-gray-600 mb-2 flex items-center gap-1">
-          <Package className="w-3 h-3" />
-          Legacy: {task.equipmentName}
+          <Package className="w-3 h-3 flex-shrink-0" />
+          <span className="truncate" title={task.equipmentName}>Legacy: {task.equipmentName}</span>
         </p>
       )}
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, Download, Clock, RefreshCw } from 'lucide-react';
+import { addDays, parseISO, differenceInDays } from 'date-fns';
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
 import type { SchedulePreview } from '@/types/pms.types';
 
@@ -20,6 +21,8 @@ interface GanttTask {
   intervalValue?: number;
   estimatedHours?: number;
   progress: number;  // Actual completion progress (0-100)
+  nextDueDate?: Date;  // For showing next occurrence after completion
+  hasNextDue?: boolean;  // Flag to show this is a future scheduled occurrence
 }
 
 const PRIORITY_COLORS = {
@@ -54,6 +57,7 @@ export default function MasterSchedulePage() {
 
   // Calculate next due date based on interval type if not set
   const calculateNextDueDate = (preview: SchedulePreview): Date => {
+    // Always use database value if exists (source of truth for compliance)
     if (preview.nextDueDate) {
       return new Date(preview.nextDueDate);
     }
@@ -61,10 +65,7 @@ export default function MasterSchedulePage() {
     // If no nextDueDate, calculate based on interval type from today
     const today = new Date();
     const intervalDays = getIntervalDays(preview.intervalType, preview.intervalValue);
-    
-    const dueDate = new Date(today);
-    dueDate.setDate(dueDate.getDate() + intervalDays);
-    return dueDate;
+    return addDays(today, intervalDays);
   };
   
   // Convert interval type to days
@@ -102,74 +103,68 @@ export default function MasterSchedulePage() {
       const previews = await maintenanceScheduleService.getPreview();
       
       // Convert previews to Gantt tasks with CORRECT work period calculation
-      // Include ALL schedules, not just those with nextDueDate
-      const ganttTasks: GanttTask[] = previews
-        .map(preview => {
-          // Calculate or use existing due date
-          const dueDate = calculateNextDueDate(preview);
-          
-          // DEBUG: Log schedule details
-          if (preview.scheduleName.includes('Generator')) {
-            console.log('🔍 Generator schedule preview:', {
-              name: preview.scheduleName,
-              nextDueDate: preview.nextDueDate,
-              calculatedDueDate: dueDate,
-              intervalType: preview.intervalType,
-              intervalValue: preview.intervalValue,
-              daysBeforeDue: preview.daysBeforeDue
-            });
-          }
-          
-          // Recalculate days until due
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const dueDateTime = new Date(dueDate);
-          dueDateTime.setHours(0, 0, 0, 0);
-          const daysUntil = Math.ceil((dueDateTime.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          
-          // Calculate actual work duration (man-hours to calendar days)
-          const estimatedHours = preview.estimatedDurationHours || 4;
-          const workDurationDays = Math.ceil(estimatedHours / 8); // 8 hours per workday
-          
-          // Lead time = when to start preparing (ordering parts, allocating crew)
-          const leadTimeDays = preview.daysBeforeDue || 7;
-          
-          // Start date = Due date - lead time
-          const startDate = new Date(dueDate);
-          startDate.setDate(startDate.getDate() - leadTimeDays);
-          
-          // Calculate REAL progress (for tasks already generated)
-          let progress = 0;
-          const isOverdue = daysUntil < 0;
-          if (isOverdue) {
-            progress = 100; // Should be completed
-          } else if (daysUntil <= leadTimeDays) {
-            // Task is in active window, show preparation progress
-            const elapsed = leadTimeDays - daysUntil;
-            progress = Math.min(95, (elapsed / leadTimeDays) * 100);
-          }
-          
-          return {
-            id: preview.scheduleId,
-            name: preview.scheduleName,
-            groupName: preview.assetName,
-            dueDate,
-            startDate,
-            workDurationDays,
-            leadTimeDays,
-            priority: preview.priority,
-            isOverdue,
-            daysUntilDue: daysUntil,
-            intervalType: preview.intervalType,
-            intervalValue: preview.intervalValue,
-            estimatedHours,
-            progress
-          };
-        })
-        .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+      const ganttTasks: GanttTask[] = previews.map(preview => {
+        // Calculate or use existing due date
+        const dueDate = calculateNextDueDate(preview);
+        
+        // Recalculate days until due
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dueDateTime = new Date(dueDate);
+        dueDateTime.setHours(0, 0, 0, 0);
+        const daysUntil = Math.ceil((dueDateTime.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Calculate actual work duration (man-hours to calendar days)
+        const estimatedHours = preview.estimatedDurationHours || 4;
+        const workDurationDays = Math.ceil(estimatedHours / 8); // 8 hours per workday
+        
+        // Lead time = when to start preparing (ordering parts, allocating crew)
+        const leadTimeDays = preview.daysBeforeDue || 7;
+        
+        // Start date = Due date - lead time
+        const startDate = new Date(dueDate);
+        startDate.setDate(startDate.getDate() - leadTimeDays);
+        
+        // Calculate REAL progress (for tasks already generated)
+        let progress = 0;
+        const isOverdue = daysUntil < 0;
+        if (isOverdue) {
+          progress = 100; // Should be completed
+        } else if (daysUntil <= leadTimeDays) {
+          // Task is in active window, show preparation progress
+          const elapsed = leadTimeDays - daysUntil;
+          progress = Math.min(95, (elapsed / leadTimeDays) * 100);
+        }
+        
+        // ✨ Calculate next occurrence for display on same row
+        let nextDueDate: Date | undefined;
+        if (preview.intervalType && preview.intervalValue) {
+          const intervalDays = getIntervalDays(preview.intervalType, preview.intervalValue);
+          nextDueDate = addDays(dueDate, intervalDays);
+        }
+        
+        return {
+          id: preview.scheduleId,
+          name: preview.scheduleName,
+          groupName: preview.assetName,
+          dueDate,
+          startDate,
+          workDurationDays,
+          leadTimeDays,
+          priority: preview.priority,
+          isOverdue,
+          daysUntilDue: daysUntil,
+          intervalType: preview.intervalType,
+          intervalValue: preview.intervalValue,
+          estimatedHours,
+          progress,
+          nextDueDate,  // 🎯 Include next due on same task
+          hasNextDue: !!nextDueDate
+        };
+      }).sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
 
       console.log('📊 Total Gantt tasks:', ganttTasks.length);
-      console.log('📊 Generator tasks:', ganttTasks.filter(t => t.name.includes('Generator')));
+      console.log('📊 Tasks with next due:', ganttTasks.filter(t => t.hasNextDue).length);
 
       setTasks(ganttTasks);
       setLastRefresh(new Date());
@@ -480,7 +475,15 @@ export default function MasterSchedulePage() {
             ))}
             <div className="flex items-center gap-2 ml-4">
               <div className="w-4 h-4 bg-blue-600 rounded-full"></div>
-              <span className="text-sm text-gray-600">Due Date</span>
+              <span className="text-sm text-gray-600">Current Due Date</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-purple-600 rounded-full"></div>
+              <span className="text-sm text-gray-600">Next Due Date (Upcoming)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-green-600 rounded-full"></div>
+              <span className="text-sm text-gray-600">Start Date</span>
             </div>
           </div>
         </div>
@@ -579,6 +582,11 @@ export default function MasterSchedulePage() {
                             <div className="text-xs text-gray-500 mt-2 space-y-0.5">
                               <div>Lead time: {task.leadTimeDays}d</div>
                               {formatInterval(task) && <div>{formatInterval(task)}</div>}
+                              {task.nextDueDate && (
+                                <div className="text-purple-600 font-medium">
+                                  🔄 Next: {task.nextDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -649,7 +657,7 @@ export default function MasterSchedulePage() {
                           ) : null;
                         })()}
 
-                        {/* Due Date Milestone */}
+                        {/* Current Due Date Milestone */}
                         {duePos !== null && (
                           <div className="absolute top-1/2 transform -translate-y-1/2 z-20" style={{ left: `${duePos}%` }}>
                             <div className="relative -ml-3">
@@ -660,13 +668,35 @@ export default function MasterSchedulePage() {
                                 <div className="w-2 h-2 bg-white rounded-full"></div>
                               </div>
                               <div className="absolute top-full mt-1 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                                <div className="text-xs font-medium text-gray-900 bg-white px-2 py-1 rounded shadow border border-gray-200">
+                                <div className="text-xs font-medium text-gray-900 bg-white px-2 py-1 rounded shadow border-2 border-blue-600">
                                   Due: {task.dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                 </div>
                               </div>
                             </div>
                           </div>
                         )}
+
+                        {/* Next Due Date Milestone (if exists) */}
+                        {task.nextDueDate && (() => {
+                          const nextPos = getDatePosition(task.nextDueDate, days, 'end');
+                          return nextPos !== null ? (
+                            <div className="absolute top-1/2 transform -translate-y-1/2 z-20" style={{ left: `${nextPos}%` }}>
+                              <div className="relative -ml-3">
+                                <div 
+                                  className="w-6 h-6 rounded-full shadow-lg flex items-center justify-center ring-2 ring-white"
+                                  style={{ backgroundColor: '#9333EA' }}
+                                >
+                                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                                </div>
+                                <div className="absolute top-full mt-1 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                  <div className="text-xs font-medium text-purple-900 bg-purple-50 px-2 py-1 rounded shadow border-2 border-purple-600">
+                                    🔄 Next: {task.nextDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
                   );
@@ -678,4 +708,4 @@ export default function MasterSchedulePage() {
       </div>
     </div>
   );
-}
+};

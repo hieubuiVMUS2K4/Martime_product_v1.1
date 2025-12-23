@@ -126,7 +126,7 @@ export function MaintenanceHistoryPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate('/maintenance')}
+                onClick={() => navigate('/pms/maintenance')}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -207,14 +207,14 @@ export function MaintenanceHistoryPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
+                      <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded flex-shrink-0">
                         {task.taskId}
                       </span>
-                      <h3 className="font-semibold text-gray-900">
+                      <h3 className="font-semibold text-gray-900 break-words">
                         {task.equipmentGroupName || task.equipmentName}
                       </h3>
                     </div>
-                    <p className="text-sm text-gray-600 mb-3">{task.taskDescription}</p>
+                    <p className="text-sm text-gray-600 mb-3 break-words">{task.taskDescription}</p>
                     
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div className="flex items-center gap-2 text-gray-600">
@@ -240,8 +240,8 @@ export function MaintenanceHistoryPage() {
                     {task.notes && (
                       <div className="mt-3 p-3 bg-gray-50 rounded text-sm text-gray-700">
                         <div className="flex items-start gap-2">
-                          <FileText className="w-4 h-4 text-gray-400 mt-0.5" />
-                          <p className="flex-1">{task.notes}</p>
+                          <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                          <p className="flex-1 break-words whitespace-pre-wrap">{task.notes}</p>
                         </div>
                       </div>
                     )}
@@ -249,8 +249,8 @@ export function MaintenanceHistoryPage() {
                     {task.sparePartsUsed && (
                       <div className="mt-2 p-3 bg-blue-50 rounded text-sm">
                         <div className="flex items-start gap-2">
-                          <Wrench className="w-4 h-4 text-blue-600 mt-0.5" />
-                          <div className="flex-1">
+                          <Wrench className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 break-words">
                             <span className="text-blue-900 font-medium">Spare Parts: </span>
                             <span className="text-blue-700">{task.sparePartsUsed}</span>
                           </div>
@@ -289,12 +289,12 @@ export function MaintenanceHistoryPage() {
               
               <div>
                 <label className="text-sm font-medium text-gray-700">Equipment</label>
-                <p className="mt-1 text-gray-900">{selectedTask.equipmentGroupName || selectedTask.equipmentName}</p>
+                <p className="mt-1 text-gray-900 break-words">{selectedTask.equipmentGroupName || selectedTask.equipmentName}</p>
               </div>
               
               <div>
                 <label className="text-sm font-medium text-gray-700">Description</label>
-                <p className="mt-1 text-gray-900">{selectedTask.taskDescription}</p>
+                <p className="mt-1 text-gray-900 break-words whitespace-pre-wrap">{selectedTask.taskDescription}</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -324,28 +324,28 @@ export function MaintenanceHistoryPage() {
               {selectedTask.notes && (
                 <div>
                   <label className="text-sm font-medium text-gray-700">Notes</label>
-                  <p className="mt-1 text-gray-900 bg-gray-50 p-3 rounded">{selectedTask.notes}</p>
+                  <p className="mt-1 text-gray-900 bg-gray-50 p-3 rounded break-words whitespace-pre-wrap">{selectedTask.notes}</p>
                 </div>
               )}
               
               {selectedTask.sparePartsUsed && (
                 <div>
                   <label className="text-sm font-medium text-gray-700">Spare Parts Used</label>
-                  <p className="mt-1 text-gray-900 bg-blue-50 p-3 rounded">{selectedTask.sparePartsUsed}</p>
+                  <p className="mt-1 text-gray-900 bg-blue-50 p-3 rounded break-words whitespace-pre-wrap">{selectedTask.sparePartsUsed}</p>
                 </div>
               )}
               
               {selectedTask.verificationNotes && (
                 <div>
                   <label className="text-sm font-medium text-gray-700">Verification Notes</label>
-                  <p className="mt-1 text-gray-900 bg-green-50 p-3 rounded">{selectedTask.verificationNotes}</p>
+                  <p className="mt-1 text-gray-900 bg-green-50 p-3 rounded break-words whitespace-pre-wrap">{selectedTask.verificationNotes}</p>
                 </div>
               )}
             </div>
             
             <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t border-gray-200">
               <button
-                onClick={() => navigate(`/maintenance/${selectedTask.id}`)}
+                onClick={() => navigate(`/pms/maintenance/${selectedTask.id}`)}
                 className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 View Full Details

@@ -255,7 +255,7 @@ export default function DeferralManagementPage() {
                   </div>
                   
                   {/* Reason */}
-                  <p className="text-gray-700 mb-3">{deferral.reason}</p>
+                  <p className="text-gray-700 mb-3 break-words whitespace-pre-wrap">{deferral.reason}</p>
                   
                   {/* Dates */}
                   <div className="flex items-center gap-6 text-sm">
@@ -284,8 +284,8 @@ export default function DeferralManagementPage() {
                       <span>Reviewed by: <span className="font-medium text-gray-700">{deferral.reviewedByName || deferral.reviewedBy}</span></span>
                       <span>on {format(parseISO(deferral.reviewedAt), 'dd MMM yyyy HH:mm')}</span>
                       {deferral.reviewNotes && (
-                        <span className="flex items-center gap-1">
-                          <FileText className="w-3 h-3" />
+                        <span className="flex items-center gap-1 break-words">
+                          <FileText className="w-3 h-3 flex-shrink-0" />
                           {deferral.reviewNotes}
                         </span>
                       )}

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Download, LayoutGrid } from 'lucide-react'
+import { Download, LayoutGrid, Calendar, Clock, AlertCircle, FileText, Wrench, ClipboardList, RefreshCw, CheckCircle } from 'lucide-react'
 import { MaintenanceTask, parseTaskScheduleInfo, CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { differenceInDays, parseISO } from 'date-fns'
@@ -25,9 +25,62 @@ export function MaintenancePage() {
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false)
   const [crewList, setCrewList] = useState<CrewMember[]>([])
   
-  // Time window filter (Maritime PMS pattern) - Default to Week view for better overview
-  const [timeWindow, setTimeWindow] = useState<'today' | 'week' | '2weeks' | 'month' | 'all'>('week')
+  // Time window filter (Maritime PMS pattern) - Default to All Tasks
+  const [timeWindow, setTimeWindow] = useState<'today' | 'week' | '2weeks' | 'month' | 'all'>('all')
   const [showCompleted, setShowCompleted] = useState(false)
+  
+  // More Filters dropdown
+  const [isMoreFiltersOpen, setIsMoreFiltersOpen] = useState(false)
+  
+  // Column Filter state - passed to KanbanBoard
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('kanban_visible_columns')
+    if (saved) {
+      return new Set(JSON.parse(saved))
+    }
+    return new Set(['scheduled', 'due', 'overdue', 'in-progress', 'pending-approval', 'rectify', 'completed', 'deferrals'])
+  })
+  const [isColumnFilterOpen, setIsColumnFilterOpen] = useState(false)
+
+  // Save visible columns to localStorage
+  useEffect(() => {
+    localStorage.setItem('kanban_visible_columns', JSON.stringify([...visibleColumns]))
+  }, [visibleColumns])
+
+  // Toggle column visibility
+  const toggleColumnVisibility = (columnId: string) => {
+    setVisibleColumns(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(columnId)) {
+        newSet.delete(columnId)
+      } else {
+        newSet.add(columnId)
+      }
+      return newSet
+    })
+  }
+
+  // Toggle all columns
+  const toggleAllColumns = (show: boolean) => {
+    const allColumnIds = ['scheduled', 'due', 'overdue', 'in-progress', 'pending-approval', 'rectify', 'completed', 'deferrals']
+    if (show) {
+      setVisibleColumns(new Set(allColumnIds))
+    } else {
+      setVisibleColumns(new Set())
+    }
+  }
+
+  // Column data for filter UI
+  const columnData = [
+    { id: 'scheduled', title: 'Scheduled', icon: <Calendar className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-slate-500 to-slate-600' },
+    { id: 'due', title: 'Due', icon: <Clock className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-blue-500 to-blue-600' },
+    { id: 'overdue', title: 'Overdue', icon: <AlertCircle className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-red-500 to-pink-600' },
+    { id: 'deferrals', title: 'Deferrals', icon: <FileText className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-yellow-500 to-amber-600' },
+    { id: 'in-progress', title: 'In Progress', icon: <Wrench className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-purple-500 to-indigo-600' },
+    { id: 'pending-approval', title: 'Pending Approval', icon: <ClipboardList className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-amber-500 to-orange-600' },
+    { id: 'rectify', title: 'Rectify', icon: <RefreshCw className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-orange-500 to-red-500' },
+    { id: 'completed', title: 'Completed', icon: <CheckCircle className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-green-500 to-emerald-600' },
+  ]
 
   // Load maintenance data - wrapped in useCallback
   const loadMaintenanceData = useCallback(async (showSpinner = true) => {
@@ -328,10 +381,10 @@ export function MaintenancePage() {
           </nav>
         </div>
 
-        {/* Single Row Filters */}
+        {/* Compact Filters Row */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            {/* View Selector - Maritime PMS Standard */}
+            {/* View Selector */}
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-700 whitespace-nowrap">View:</span>
               <select
@@ -365,59 +418,183 @@ export function MaintenancePage() {
               </span>
             </label>
 
-            {/* Priority Filter */}
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-            >
-              <option value="all">All Priorities</option>
-              <option value="CRITICAL">Critical</option>
-              <option value="HIGH">High</option>
-              <option value="NORMAL">Normal</option>
-              <option value="LOW">Low</option>
-            </select>
+            {/* More Filters Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsMoreFiltersOpen(!isMoreFiltersOpen)}
+                className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors bg-white font-medium whitespace-nowrap"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                More Filters
+                {(priorityFilter !== 'all' || groupFilter !== 'all' || scheduleFilter !== 'all' || picFilter !== 'all') && (
+                  <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-500 text-white rounded-full">●</span>
+                )}
+              </button>
 
-            {/* Equipment Group Filter */}
-            <select
-              value={groupFilter}
-              onChange={(e) => setGroupFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-            >
-              <option value="all">All Groups</option>
-              {uniqueGroups.map(group => (
-                <option key={group} value={group}>{group}</option>
-              ))}
-            </select>
+              {isMoreFiltersOpen && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => setIsMoreFiltersOpen(false)} />
+                  <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-200 z-30 p-4 space-y-3">
+                    {/* Priority Filter */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Priority</label>
+                      <select
+                        value={priorityFilter}
+                        onChange={(e) => setPriorityFilter(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="all">All Priorities</option>
+                        <option value="CRITICAL">Critical</option>
+                        <option value="HIGH">High</option>
+                        <option value="NORMAL">Normal</option>
+                        <option value="LOW">Low</option>
+                      </select>
+                    </div>
 
-            {/* Schedule Filter */}
-            <select
-              value={scheduleFilter}
-              onChange={(e) => setScheduleFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-            >
-              <option value="all">All Schedules</option>
-              {uniqueSchedules.map(schedule => (
-                <option key={schedule} value={schedule}>{schedule}</option>
-              ))}
-            </select>
+                    {/* Equipment Group Filter */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Equipment Group</label>
+                      <select
+                        value={groupFilter}
+                        onChange={(e) => setGroupFilter(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="all">All Groups</option>
+                        {uniqueGroups.map(group => (
+                          <option key={group} value={group}>{group}</option>
+                        ))}
+                      </select>
+                    </div>
 
-            {/* PIC Filter */}
-            <select
-              value={picFilter}
-              onChange={(e) => setPicFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-            >
-              <option value="all">All PICs</option>
-              <option value="unassigned">Unassigned</option>
-              {crewList.map(crew => (
-                <option key={crew.crewId} value={crew.crewId}>
-                  {crew.fullName} ({crew.rank})
-                </option>
-              ))}
-            </select>
+                    {/* Schedule Filter */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Schedule Type</label>
+                      <select
+                        value={scheduleFilter}
+                        onChange={(e) => setScheduleFilter(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="all">All Schedules</option>
+                        {uniqueSchedules.map(schedule => (
+                          <option key={schedule} value={schedule}>{schedule}</option>
+                        ))}
+                      </select>
+                    </div>
 
-            {/* Search - Takes remaining space */}
+                    {/* PIC Filter */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Person in Charge</label>
+                      <select
+                        value={picFilter}
+                        onChange={(e) => setPicFilter(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="all">All PICs</option>
+                        <option value="unassigned">Unassigned</option>
+                        {crewList.map(crew => (
+                          <option key={crew.crewId} value={crew.crewId}>
+                            {crew.fullName} ({crew.rank})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Clear Filters Button */}
+                    {(priorityFilter !== 'all' || groupFilter !== 'all' || scheduleFilter !== 'all' || picFilter !== 'all') && (
+                      <button
+                        onClick={() => {
+                          setPriorityFilter('all')
+                          setGroupFilter('all')
+                          setScheduleFilter('all')
+                          setPicFilter('all')
+                        }}
+                        className="w-full px-3 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                      >
+                        Clear All Filters
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Column Filter Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsColumnFilterOpen(!isColumnFilterOpen)}
+                className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors bg-white font-medium whitespace-nowrap"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 0v10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                </svg>
+                Columns ({visibleColumns.size}/{columnData.length})
+              </button>
+
+              {isColumnFilterOpen && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => setIsColumnFilterOpen(false)} />
+                  <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-200 z-30">
+                    <div className="p-3 border-b border-gray-200">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => toggleAllColumns(true)}
+                          className="flex-1 px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 rounded transition-colors"
+                        >
+                          Show All
+                        </button>
+                        <button
+                          onClick={() => toggleAllColumns(false)}
+                          className="flex-1 px-3 py-1.5 text-xs font-medium bg-gray-50 text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                        >
+                          Hide All
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="max-h-96 overflow-y-auto p-2">
+                      {columnData.map((column) => {
+                        const isVisible = visibleColumns.has(column.id)
+                        const columnTasks = filteredTasks.filter(t => {
+                          if (column.id === 'scheduled') return t.status === 'SCHEDULED'
+                          if (column.id === 'due') return t.status === 'DUE'
+                          if (column.id === 'overdue') return t.status === 'OVERDUE'
+                          if (column.id === 'deferrals') return t.hasPendingDeferral
+                          if (column.id === 'in-progress') return t.status === 'IN_PROGRESS'
+                          if (column.id === 'pending-approval') return t.status === 'PENDING_APPROVAL'
+                          if (column.id === 'rectify') return t.status === 'RECTIFY'
+                          if (column.id === 'completed') return t.status === 'COMPLETED'
+                          return false
+                        })
+                        
+                        return (
+                          <label
+                            key={column.id}
+                            className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isVisible}
+                              onChange={() => toggleColumnVisibility(column.id)}
+                              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                            />
+                            <div className="flex items-center gap-2 flex-1">
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">{column.title}</div>
+                                <div className="text-xs text-gray-500">{columnTasks.length} tasks</div>
+                              </div>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Search */}
             <input
               type="text"
               placeholder="Search by equipment, task description, or task ID..."
@@ -441,9 +618,11 @@ export function MaintenancePage() {
                 tasks={filteredTasks} 
                 onTaskUpdate={handleTaskUpdate}
                 onTaskDelete={handleTaskDelete}
-                onTaskClick={(id) => navigate(`/maintenance/${id}`)}
+                onTaskClick={(id) => navigate(`/pms/maintenance/${id}`)}
                 onAddTask={() => setIsAddScheduleModalOpen(true)}
                 crewList={crewList}
+                visibleColumns={visibleColumns}
+                onVisibleColumnsChange={setVisibleColumns}
               />
             )}
           </>

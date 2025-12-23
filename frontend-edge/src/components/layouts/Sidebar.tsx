@@ -54,7 +54,7 @@ const navigation = [
       { name: 'Equipment Groups', to: '/pms/groups', icon: Boxes },
       { name: 'Schedule Config', to: '/pms/schedules', icon: ListChecks },
       { name: 'Master Schedule', to: '/pms/master-schedule', icon: Calendar },
-      { name: 'Maintenance', to: '/maintenance', icon: Wrench },
+      { name: 'Maintenance', to: '/pms/maintenance', icon: Wrench },
     ]
   },
   { name: 'Materials', to: '/materials', icon: Boxes },

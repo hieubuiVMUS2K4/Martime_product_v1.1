@@ -29,6 +29,8 @@ interface KanbanBoardProps {
   onTaskClick: (taskId: string) => void
   onAddTask?: () => void
   crewList?: CrewMember[]
+  visibleColumns?: Set<string>
+  onVisibleColumnsChange?: (columns: Set<string>) => void
 }
 
 // PMS Workflow v2.0 - Column order follows task lifecycle
@@ -120,7 +122,16 @@ const columns: Column[] = [
 const STORAGE_KEY = 'kanban_custom_columns'
 const CUSTOM_TASKS_KEY = 'kanban_custom_tasks'
 
-export function KanbanBoard({ tasks, onTaskUpdate: _onTaskUpdate, onTaskDelete, onTaskClick, onAddTask: _onAddTask }: KanbanBoardProps) {
+export function KanbanBoard({ 
+  tasks, 
+  onTaskUpdate: _onTaskUpdate, 
+  onTaskDelete, 
+  onTaskClick, 
+  onAddTask: _onAddTask,
+  crewList: _crewList,
+  visibleColumns: externalVisibleColumns,
+  onVisibleColumnsChange
+}: KanbanBoardProps) {
   const navigate = useNavigate()
   const [activeTask, setActiveTask] = useState<MaintenanceTask | null>(null)
   const [activeCustomTask, setActiveCustomTask] = useState<CustomTask | null>(null)
@@ -133,6 +144,9 @@ export function KanbanBoard({ tasks, onTaskUpdate: _onTaskUpdate, onTaskDelete, 
   const [openMenuColumnId, setOpenMenuColumnId] = useState<string | null>(null)
   const [viewTaskModalOpen, setViewTaskModalOpen] = useState(false)
   const [selectedViewTask, setSelectedViewTask] = useState<MaintenanceTask | null>(null)
+  
+  // Use external visible columns if provided, otherwise use internal state
+  const visibleColumns = externalVisibleColumns || new Set(columns.map(col => col.id))
 
   // Approval handlers for ViewTaskModal
   const handleApproveTask = async (taskId: string, notes?: string) => {
@@ -787,7 +801,7 @@ export function KanbanBoard({ tasks, onTaskUpdate: _onTaskUpdate, onTaskDelete, 
         onDragEnd={handleDragEnd}
       >
         <div className="flex gap-5 p-6 min-w-max">
-          {allColumns.map((column) => {
+          {allColumns.filter(col => col.isCustom || visibleColumns.has(col.id)).map((column) => {
             const columnTasks = tasksByColumn[column.id]
             
             return (
@@ -807,6 +821,15 @@ export function KanbanBoard({ tasks, onTaskUpdate: _onTaskUpdate, onTaskDelete, 
                       : undefined
                   }
                   onDeleteColumn={column.isCustom ? () => handleDeleteColumn(column.id) : undefined}
+                  onHideColumn={
+                    !column.isCustom && onVisibleColumnsChange
+                      ? () => {
+                          const newVisible = new Set(externalVisibleColumns)
+                          newVisible.delete(column.id)
+                          onVisibleColumnsChange(newVisible)
+                        }
+                      : undefined
+                  }
                   onMenuClick={() => setOpenMenuColumnId(column.id)}
                 >
                   <SortableContext
