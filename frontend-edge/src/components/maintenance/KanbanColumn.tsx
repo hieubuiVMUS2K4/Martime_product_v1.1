@@ -8,9 +8,10 @@ interface KanbanColumnProps {
   onAddTask?: () => void
   onDeleteColumn?: () => void
   onMenuClick?: () => void
+  onHideColumn?: () => void
 }
 
-export function KanbanColumn({ id, title, count, children, onAddTask, onDeleteColumn, onMenuClick }: KanbanColumnProps) {
+export function KanbanColumn({ id, title, count, children, onAddTask, onDeleteColumn, onMenuClick, onHideColumn }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: id,
   })
@@ -21,13 +22,13 @@ export function KanbanColumn({ id, title, count, children, onAddTask, onDeleteCo
       <div className="bg-gray-50 rounded-lg flex flex-col h-full">
         {/* Column Header */}
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-200">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-sm text-gray-800">{title}</h3>
-            <div className="bg-blue-500 px-2 py-0.5 rounded flex items-center justify-center min-w-[24px]">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <h3 className="font-semibold text-sm text-gray-800 truncate" title={title}>{title}</h3>
+            <div className="bg-blue-500 px-2 py-0.5 rounded flex items-center justify-center min-w-[24px] flex-shrink-0">
               <span className="text-xs font-bold text-white">{count}</span>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-shrink-0">
             {onAddTask && (
               <button 
                 onClick={onAddTask}
@@ -47,6 +48,17 @@ export function KanbanColumn({ id, title, count, children, onAddTask, onDeleteCo
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )}
+            {onHideColumn && (
+              <button 
+                onClick={onHideColumn}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded p-1 transition-colors"
+                title="Hide column"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                 </svg>
               </button>
             )}

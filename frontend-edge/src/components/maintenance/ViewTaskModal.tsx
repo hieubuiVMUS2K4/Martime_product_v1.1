@@ -326,22 +326,22 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">Equipment Group</label>
-                    <p className="text-sm text-gray-900 font-medium">{task.equipmentGroupName || task.equipmentGroupId}</p>
+                    <p className="text-sm text-gray-900 font-medium break-words">{task.equipmentGroupName || task.equipmentGroupId}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">Group ID</label>
-                    <p className="text-sm text-gray-700 font-mono text-xs">{task.equipmentGroupId}</p>
+                    <p className="text-sm text-gray-700 font-mono text-xs break-all">{task.equipmentGroupId}</p>
                   </div>
                 </>
               ) : (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">Equipment Name</label>
-                    <p className="text-sm text-gray-900 font-medium">{task.equipmentName || '-'}</p>
+                    <p className="text-sm text-gray-900 font-medium break-words">{task.equipmentName || '-'}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">Equipment ID</label>
-                    <p className="text-sm text-gray-700 font-mono text-xs">{task.equipmentId || '-'}</p>
+                    <p className="text-sm text-gray-700 font-mono text-xs break-all">{task.equipmentId || '-'}</p>
                   </div>
                 </>
               )}
@@ -361,7 +361,7 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
               </div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-600 mb-1">Description</label>
-                <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded border border-gray-200">
+                <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded border border-gray-200 break-words whitespace-pre-wrap">
                   {task.taskDescription || '-'}
                 </p>
               </div>
@@ -929,7 +929,7 @@ export function ViewTaskModal({ isOpen, task, onClose, crewList, canApprove, onA
                 {task.verificationNotes && (
                   <div className="mt-4">
                     <label className="block text-sm font-medium text-gray-600 mb-2">Verifier Notes</label>
-                    <p className="text-sm text-gray-700 bg-white p-3 rounded border border-orange-300">
+                    <p className="text-sm text-gray-700 bg-white p-3 rounded border border-orange-300 break-words whitespace-pre-wrap">
                       {task.verificationNotes}
                     </p>
                   </div>

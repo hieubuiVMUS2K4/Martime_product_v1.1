@@ -464,7 +464,7 @@ export default function EquipmentGroupsPage() {
                     <span className="font-mono text-sm font-medium text-gray-900">{group.groupCode}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">{group.groupName}</div>
+                    <div className="font-medium text-gray-900 break-words max-w-xs">{group.groupName}</div>
                   </td>
                   <td className="px-4 py-3">
                     {group.category ? (

@@ -948,5 +948,76 @@ public class MaintenanceScheduleController : ControllerBase
             }
         }
     }
-}
-
+    
+    /// <summary>
+    /// ADMIN: Force fix all past due dates in schedules and tasks
+    /// Useful after system downtime or data migration
+    /// </summary>
+    [HttpPost("admin/fix-past-due-dates")]
+    public async Task<IActionResult> FixPastDueDates()
+    {
+        try
+        {
+            var today = DateTime.UtcNow.Date;
+            var fixedSchedules = 0;
+            var fixedTasks = 0;
+            
+            // 1. Fix schedules
+            var pastDueSchedules = await _context.MaintenanceSchedules
+                .Where(s => s.AutoGenerate && 
+                           s.NextDueDate.HasValue && 
+                           s.NextDueDate.Value.Date < today &&
+                           s.IntervalType == "CALENDAR" &&
+                           s.IntervalDays.HasValue)
+                .ToListAsync();
+            
+            foreach (var schedule in pastDueSchedules)
+            {
+                var daysPast = (today - schedule.NextDueDate!.Value.Date).Days;
+                var intervalDays = schedule.IntervalDays!.Value;
+                var intervalsToSkip = (int)Math.Ceiling((double)daysPast / intervalDays);
+                
+                schedule.NextDueDate = schedule.NextDueDate.Value.AddDays(intervalsToSkip * intervalDays);
+                schedule.UpdatedAt = DateTime.UtcNow;
+                fixedSchedules++;
+            }
+            
+            await _context.SaveChangesAsync();
+            
+            // 2. Fix existing tasks
+            var tasksToUpdate = await _context.MaintenanceTasks
+                .Where(t => (t.Status == "SCHEDULED" || t.Status == "DUE" || t.Status == "OVERDUE") &&
+                           t.NextDueAt < today &&
+                           t.ScheduleId != null &&
+                           !t.IsDeleted)
+                .ToListAsync();
+            
+            foreach (var task in tasksToUpdate)
+            {
+                var schedule = pastDueSchedules.FirstOrDefault(s => s.Id == task.ScheduleId);
+                if (schedule?.NextDueDate != null)
+                {
+                    task.NextDueAt = schedule.NextDueDate.Value;
+                    task.UpdatedAt = DateTime.UtcNow;
+                    
+                    var daysUntilDue = (task.NextDueAt.Date - today).Days;
+                    task.Status = daysUntilDue < 0 ? "OVERDUE" : daysUntilDue == 0 ? "DUE" : "SCHEDULED";
+                    fixedTasks++;
+                }
+            }
+            
+            await _context.SaveChangesAsync();
+            
+            return Ok(new { 
+                success = true,
+                fixedSchedules,
+                fixedTasks,
+                message = $"Fixed {fixedSchedules} schedules and {fixedTasks} tasks"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fixing past due dates");
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }}

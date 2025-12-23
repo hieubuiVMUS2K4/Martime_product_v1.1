@@ -30,13 +30,13 @@ export function DashboardPage() {
   const loadDashboardData = useCallback(async () => {
     try {
       // Load all dashboard data in parallel
-      const [dashStats, alarms, posData, navData, engineData, envData] = await Promise.all([
+      const [dashStats, alarms, posData, navData, engineData] = await Promise.all([
         dashboardService.getStats(),
         alarmService.getActiveAlarms(),
         telemetryService.getLatestPosition(),
         telemetryService.getLatestNavigation(),
         telemetryService.getEngineStatus(),
-        telemetryService.getEnvironmentalData(),
+        // telemetryService.getEnvironmentalData(),
       ])
 
       // Batch state updates to minimize re-renders
@@ -44,7 +44,7 @@ export function DashboardPage() {
       setPosition(posData)
       setNavigation(navData)
       setEngine(engineData?.[0] || null) // Get first engine
-      setEnvironmental(envData)
+      // setEnvironmental(envData)
       
       // Update Zustand store
       setDashboardStats(dashStats)

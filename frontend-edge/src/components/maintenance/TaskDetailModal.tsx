@@ -27,12 +27,12 @@ export function TaskDetailModal({ task, isOpen, onClose }: TaskDetailModalProps)
         <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
           {/* Header */}
           <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
-            <h2 className="text-xl font-bold">
+            <h2 className="text-xl font-bold break-words pr-4">
               {task.equipmentGroupName || task.equipmentName}
             </h2>
             <button 
               onClick={onClose} 
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
             >
               <X className="w-5 h-5" />
             </button>
@@ -94,14 +94,14 @@ export function TaskDetailModal({ task, isOpen, onClose }: TaskDetailModalProps)
             {/* Description */}
             <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Description</h3>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{task.taskDescription}</p>
+              <p className="text-sm text-gray-600 whitespace-pre-wrap break-words">{task.taskDescription}</p>
             </div>
 
             {/* Notes */}
             {task.notes && (
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">Notes</h3>
-                <p className="text-sm text-gray-600 whitespace-pre-wrap">{task.notes}</p>
+                <p className="text-sm text-gray-600 whitespace-pre-wrap break-words">{task.notes}</p>
               </div>
             )}
 
@@ -154,7 +154,7 @@ export function TaskDetailModal({ task, isOpen, onClose }: TaskDetailModalProps)
                           )}
                           
                           {item.remarks && (
-                            <div className="text-sm text-gray-600 mt-1">
+                            <div className="text-sm text-gray-600 mt-1 break-words">
                               <span className="font-medium">Remarks:</span> {item.remarks}
                             </div>
                           )}
