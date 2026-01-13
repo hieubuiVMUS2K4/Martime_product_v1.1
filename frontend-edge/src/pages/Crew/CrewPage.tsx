@@ -5,10 +5,12 @@ import { CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { format, parseISO } from 'date-fns'
 import { AddCrewModal } from '../../components/crew/AddCrewModal'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
 type TabType = 'all' | 'onboard' | 'certificates' | 'reports'
 
 export function CrewPage() {
+  const { t } = useTranslationSafe()
   const navigate = useNavigate()
   const location = useLocation()
   const [activeTab, setActiveTab] = useState<TabType>('onboard')
@@ -22,6 +24,10 @@ export function CrewPage() {
   // Cache for certificate data to avoid reloading
   const [certificateCache, setCertificateCache] = useState<any[] | null>(null)
   const [certificateLoading, setCertificateLoading] = useState(false)
+  
+  // Cache for crew data to avoid reloading
+  const [crewOnboardCache, setCrewOnboardCache] = useState<CrewMember[] | null>(null)
+  const [crewAllCache, setCrewAllCache] = useState<CrewMember[] | null>(null)
 
   // Sorting states
   const [sortType, setSortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>(null)
@@ -55,10 +61,26 @@ export function CrewPage() {
       let data: CrewMember[]
       
       if (activeTab === 'onboard') {
+        // Use cache if available
+        if (crewOnboardCache !== null) {
+          console.log('✅ Using cached onboard crew:', crewOnboardCache.length)
+          setCrewMembers(crewOnboardCache)
+          setLoading(false)
+          return
+        }
         data = await maritimeService.crew.getOnboard()
+        setCrewOnboardCache(data) // Cache for future use
       } else {
+        // Use cache if available
+        if (crewAllCache !== null) {
+          console.log('✅ Using cached all crew:', crewAllCache.length)
+          setCrewMembers(crewAllCache)
+          setLoading(false)
+          return
+        }
         const response = await maritimeService.crew.getAll()
         data = response.data || response as any // Handle both PaginatedResponse and direct array
+        setCrewAllCache(data) // Cache for future use
       }
       
       setCrewMembers(data)
@@ -78,53 +100,24 @@ export function CrewPage() {
 
     try {
       setCertificateLoading(true)
-      console.log('🔵 Loading certificates (first time)...')
-      const data = await maritimeService.certificates.getAll()
-      console.log('✅ Loaded certificates:', data.length)
+      console.log('🔵 Loading certificates with crew counts...')
       
-      // Load crew count for each certificate
-      const statsPromises = data.map(async (cert: any) => {
-        try {
-          console.log(`🔵 Loading crew for certificate ${cert.id} (${cert.certificateName})`)
-          const crewCerts = await maritimeService.certificates.getCrewCertificates(cert.id)
-          console.log(`✅ Certificate ${cert.id}: ${crewCerts.length} crew members`)
-          
-          // Calculate expiry status
-          let validCount = 0
-          let expiringCount = 0
-          let expiredCount = 0
-          
-          crewCerts.forEach((cc: any) => {
-            if (cc.expiryDate) {
-              const daysLeft = Math.floor((new Date(cc.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-              if (daysLeft < 0) expiredCount++
-              else if (daysLeft <= 90) expiringCount++
-              else validCount++
-            }
-          })
-          
-          return {
-            ...cert,
-            totalCrew: crewCerts.length,
-            validCount,
-            expiringCount,
-            expiredCount
-          }
-        } catch (error) {
-          console.error(`❌ Failed to load crew for certificate ${cert.id}:`, error)
-          return {
-            ...cert,
-            totalCrew: 0,
-            validCount: 0,
-            expiringCount: 0,
-            expiredCount: 0
-          }
-        }
-      })
+      // Use the new endpoint that returns certificates with crew count and status
+      const certsWithCount = await maritimeService.certificates.getWithCrewCount()
+      console.log('✅ Loaded certificates with crew count:', certsWithCount.length)
       
-      const statsData = await Promise.all(statsPromises)
-      console.log('✅ All certificate stats loaded and cached:', statsData)
-      setCertificateCache(statsData)
+      // Map the data to our expected format
+      const certData = certsWithCount.map((cert: any) => ({
+        ...cert,
+        totalCrew: cert.crewCount || 0,
+        validCount: cert.validCount || 0,
+        expiringCount: cert.expiringCount || 0,
+        expiredCount: cert.expiredCount || 0,
+        statsLoaded: true
+      }))
+      
+      console.log('✅ Certificates cached with stats')
+      setCertificateCache(certData)
     } catch (error) {
       console.error('❌ Failed to load certificates:', error)
     } finally {
@@ -213,6 +206,9 @@ export function CrewPage() {
 
   const handleAddCrew = async (newCrew: Partial<CrewMember>) => {
     await maritimeService.crew.add(newCrew)
+    // Clear cache to force reload with new data
+    setCrewOnboardCache(null)
+    setCrewAllCache(null)
     await loadCrewData()
   }
 
@@ -222,15 +218,15 @@ export function CrewPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Crew Management</h1>
-          <p className="text-sm text-gray-600 mt-1">STCW Certificate Tracking & Crew Records</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('crew.title')}</h1>
+          <p className="text-sm text-gray-600 mt-1">{t('crew.subtitle')}</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <UserPlus className="w-5 h-5" />
-          Add Crew Member
+          {t('crew.addCrewMember')}
         </button>
       </div>
 
@@ -238,23 +234,23 @@ export function CrewPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard
           icon={<Users className="w-6 h-6 text-blue-600" />}
-          label="Crew Onboard"
+          label={t('crew.stats.crewOnboard')}
           value={crewMembers.filter(c => c.isOnboard).length}
           total={crewMembers.length}
         />
         <StatCard
           icon={<Shield className="w-6 h-6 text-green-600" />}
-          label="Officers"
+          label={t('crew.stats.officers')}
           value={crewMembers.filter(c => c.rank === 'Officer').length}
         />
         <StatCard
           icon={<AlertTriangle className="w-6 h-6 text-yellow-600" />}
-          label="Ratings"
+          label={t('crew.stats.ratings')}
           value={crewMembers.filter(c => c.rank === 'Rating').length}
         />
         <StatCard
           icon={<Calendar className="w-6 h-6 text-red-600" />}
-          label="Engineers"
+          label={t('crew.stats.engineers')}
           value={crewMembers.filter(c => c.rank === 'Engineer').length}
         />
       </div>
@@ -267,25 +263,25 @@ export function CrewPage() {
               active={activeTab === 'onboard'}
               onClick={() => setActiveTab('onboard')}
               icon={<Users className="w-5 h-5" />}
-              label="Onboard Crew"
+              label={t('crew.tabs.onboard')}
             />
             <TabButton
               active={activeTab === 'all'}
               onClick={() => setActiveTab('all')}
               icon={<FileText className="w-5 h-5" />}
-              label="All Crew"
+              label={t('crew.tabs.all')}
             />
             <TabButton
               active={activeTab === 'certificates'}
               onClick={() => setActiveTab('certificates')}
               icon={<Shield className="w-5 h-5" />}
-              label="Certificate Monitor"
+              label={t('crew.tabs.certificates')}
             />
             <TabButton
               active={activeTab === 'reports'}
               onClick={() => setActiveTab('reports')}
               icon={<FileText className="w-5 h-5" />}
-              label="Reports"
+              label={t('crew.tabs.reports')}
             />
           </nav>
         </div>
@@ -592,6 +588,7 @@ function CertificateMonitorView({
   certificateCache: any[] | null;
   certificateLoading: boolean;
 }) {
+  const { t } = useTranslationSafe()
   const navigate = useNavigate()
   const [currentPage, setCurrentPage] = useState(1)
   const ITEMS_PER_PAGE = 10
@@ -710,31 +707,31 @@ function CertificateMonitorView({
           <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '28%', position:'relative'}}>
-                Certificate Name
+                {t('crew.certificateManagement.certificateName')}
                 {setSortType && setSortMenu && (
-                  <SortDropdown col="name" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+                  <SortDropdown col="name" options={[{label:t('crew.certificateManagement.sortAZ'),dir:'asc'},{label:t('crew.certificateManagement.sortZA'),dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
                 )}
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '14%'}}>
-                Code
+                {t('crew.certificateManagement.code')}
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '12%'}}>
-                Category
+                {t('crew.certificateManagement.category')}
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '10%'}}>
-                Validity
+                {t('crew.certificateManagement.validity')}
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '10%', position:'relative'}}>
-                Total Crew
+                {t('crew.certificateManagement.totalCrew')}
                 {setSortType && setSortMenu && (
-                  <SortDropdown col="totalCrew" options={[{label:'Nhiều nhất',dir:'desc'},{label:'Ít nhất',dir:'asc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+                  <SortDropdown col="totalCrew" options={[{label:t('crew.certificateManagement.sortMost'),dir:'desc'},{label:t('crew.certificateManagement.sortLeast'),dir:'asc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
                 )}
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '14%'}}>
-                Status
+                {t('crew.certificateManagement.status')}
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '12%'}}>
-                Action
+                {t('crew.certificateManagement.action')}
               </th>
             </tr>
           </thead>
@@ -751,7 +748,7 @@ function CertificateMonitorView({
                       {cert.certificateName}
                       {cert.isMandatory && (
                         <span className="ml-2 px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
-                          Mandatory
+                          {t('crew.certificateManagement.mandatory')}
                         </span>
                       )}
                     </div>
@@ -806,7 +803,7 @@ function CertificateMonitorView({
                     }}
                     className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-xs"
                   >
-                    View →
+                    {t('crew.certificateManagement.view')} →
                   </button>
                 </td>
               </tr>
@@ -816,34 +813,34 @@ function CertificateMonitorView({
 
         {paginatedCerts.length === 0 && certificateStats.length > 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-500">No items on this page</p>
+            <p className="text-gray-500">{t('crew.certificateManagement.noItemsOnPage')}</p>
           </div>
         )}
 
         {certificateStats.length === 0 && (
           <div className="text-center py-12">
             <Award className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-900 font-medium">No Certificate Types</p>
-            <p className="text-sm text-gray-500 mt-1">No certificate types available</p>
+            <p className="text-gray-900 font-medium">{t('crew.certificateManagement.noCertificateTypes')}</p>
+            <p className="text-sm text-gray-500 mt-1">{t('crew.certificateManagement.noCertificateTypesMessage')}</p>
           </div>
         )}
       </div>
 
       {/* Legend */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h4 className="text-sm font-semibold text-gray-900 mb-2">Status Legend:</h4>
+        <h4 className="text-sm font-semibold text-gray-900 mb-2">{t('crew.certificateManagement.statusLegend')}:</h4>
         <div className="flex items-center gap-6 text-sm">
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-green-500"></span>
-            <span className="text-gray-700">Valid (&gt;90 days)</span>
+            <span className="text-gray-700">{t('crew.certificateManagement.valid')}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
-            <span className="text-gray-700">Expiring Soon (30-90 days)</span>
+            <span className="text-gray-700">{t('crew.certificateManagement.expiringSoon')}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-red-500"></span>
-            <span className="text-gray-700">Expired or Critical (&lt;30 days)</span>
+            <span className="text-gray-700">{t('crew.certificateManagement.expiredOrCritical')}</span>
           </div>
         </div>
       </div>
@@ -855,6 +852,7 @@ function CertificateMonitorView({
 
 // Reports View Component
 function ReportsView({ crewMembers }: { crewMembers: CrewMember[] }) {
+  const { t } = useTranslationSafe()
   const stats = {
     totalCrew: crewMembers.length,
     onboard: crewMembers.filter(c => c.isOnboard).length,
@@ -867,40 +865,40 @@ function ReportsView({ crewMembers }: { crewMembers: CrewMember[] }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <ReportCard label="Total Crew" value={stats.totalCrew} />
-        <ReportCard label="Onboard" value={stats.onboard} />
-        <ReportCard label="Officers" value={stats.officers} />
-        <ReportCard label="Ratings" value={stats.ratings} />
+        <ReportCard label={t('crew.reports.totalCrew')} value={stats.totalCrew} />
+        <ReportCard label={t('crew.reports.onboard')} value={stats.onboard} />
+        <ReportCard label={t('crew.reports.officers')} value={stats.officers} />
+        <ReportCard label={t('crew.reports.ratings')} value={stats.ratings} />
       </div>
 
       <div className="border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Crew Distribution by Rank</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('crew.reports.crewDistribution')}</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
             <p className="text-3xl font-bold text-blue-600">{stats.officers}</p>
-            <p className="text-sm text-gray-600 mt-1">Officers</p>
+            <p className="text-sm text-gray-600 mt-1">{t('crew.reports.officers')}</p>
           </div>
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
             <p className="text-3xl font-bold text-purple-600">{stats.ratings}</p>
-            <p className="text-sm text-gray-600 mt-1">Ratings</p>
+            <p className="text-sm text-gray-600 mt-1">{t('crew.reports.ratings')}</p>
           </div>
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
             <p className="text-3xl font-bold text-orange-600">{stats.engineers}</p>
-            <p className="text-sm text-gray-600 mt-1">Engineers</p>
+            <p className="text-sm text-gray-600 mt-1">{t('crew.reports.engineers')}</p>
           </div>
           <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-center">
             <p className="text-3xl font-bold text-indigo-600">{stats.seniorOfficers}</p>
-            <p className="text-sm text-gray-600 mt-1">Senior Officers</p>
+            <p className="text-sm text-gray-600 mt-1">{t('crew.reports.seniorOfficers')}</p>
           </div>
         </div>
       </div>
 
       <div className="flex gap-4">
         <button className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-          Export Crew List (PDF)
+          {t('crew.reports.exportPdf')}
         </button>
         <button className="flex-1 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50">
-          Export Crew Report (Excel)
+          {t('crew.reports.exportExcel')}
         </button>
       </div>
     </div>

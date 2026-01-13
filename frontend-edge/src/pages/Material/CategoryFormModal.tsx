@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import type { MaterialCategory } from '@/types/maritime.types'
 import type { CreateMaterialCategoryDto, UpdateMaterialCategoryDto } from '@/services/materialService'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
 interface CategoryFormModalProps {
   isOpen: boolean
@@ -20,6 +21,7 @@ export function CategoryFormModal({
   categories,
   title,
 }: CategoryFormModalProps) {
+  const { t } = useTranslationSafe()
   const [formData, setFormData] = useState<CreateMaterialCategoryDto>({
     categoryCode: '',
     name: '',
@@ -72,7 +74,7 @@ export function CategoryFormModal({
         isActive: true,
       })
     } catch (err: any) {
-      setError(err.message || 'Failed to save category')
+      setError(err.message || t('materials.category.saveFailed'))
     } finally {
       setLoading(false)
     }
@@ -111,7 +113,7 @@ export function CategoryFormModal({
               {/* Category Code */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category Code <span className="text-red-500">*</span>
+                  {t('materials.category.code')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -120,14 +122,14 @@ export function CategoryFormModal({
                   value={formData.categoryCode}
                   onChange={(e) => setFormData({ ...formData, categoryCode: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., CAT-001"
+                  placeholder={t('materials.category.codePlaceholder')}
                 />
               </div>
 
               {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name <span className="text-red-500">*</span>
+                  {t('materials.category.name')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -136,7 +138,7 @@ export function CategoryFormModal({
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Category name"
+                  placeholder={t('materials.category.namePlaceholder')}
                 />
               </div>
             </div>
@@ -144,7 +146,7 @@ export function CategoryFormModal({
             {/* Parent Category */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Parent Category
+                {t('materials.category.parentCategory')}
               </label>
               <select
                 value={formData.parentCategoryId || ''}
@@ -156,7 +158,7 @@ export function CategoryFormModal({
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="">None (Top Level)</option>
+                <option value="">{t('materials.category.noneTopLevel')}</option>
                 {availableParents.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name} ({cat.categoryCode})
@@ -168,7 +170,7 @@ export function CategoryFormModal({
             {/* Description */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
+                {t('materials.category.description')}
               </label>
               <textarea
                 rows={3}
@@ -176,7 +178,7 @@ export function CategoryFormModal({
                 value={formData.description || ''}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Optional description"
+                placeholder={t('materials.category.descriptionPlaceholder')}
               />
             </div>
 
@@ -190,7 +192,7 @@ export function CategoryFormModal({
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
-                Active
+                {t('materials.active')}
               </label>
             </div>
 
@@ -202,14 +204,14 @@ export function CategoryFormModal({
                 disabled={loading}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={loading}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Saving...' : category ? 'Update' : 'Create'}
+                {loading ? t('materials.saving') : category ? t('materials.update') : t('materials.create')}
               </button>
             </div>
           </form>

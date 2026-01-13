@@ -19,10 +19,12 @@ import {
 import { MaintenanceTask, CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { format, parseISO, differenceInDays } from 'date-fns'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
 export function MaintenanceDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { t } = useTranslationSafe()
   
   const [task, setTask] = useState<MaintenanceTask | null>(null)
   const [loading, setLoading] = useState(true)
@@ -181,7 +183,7 @@ export function MaintenanceDetailPage() {
       <div className="fixed inset-0 bg-gray-50 dark:bg-gray-900 flex items-center justify-center z-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading task details...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">{t('maintenance.detail.loading')}</p>
         </div>
       </div>
     )
@@ -192,13 +194,13 @@ export function MaintenanceDetailPage() {
       <div className="fixed inset-0 bg-gray-50 dark:bg-gray-900 flex items-center justify-center z-50">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Maintenance Task Not Found</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">The requested maintenance task could not be found.</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{t('maintenance.detail.notFound')}</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">{t('maintenance.detail.notFoundDesc')}</p>
           <button
             onClick={() => navigate('/pms/maintenance')}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            Back to Maintenance List
+            {t('maintenance.detail.backToList')}
           </button>
         </div>
       </div>
@@ -230,9 +232,9 @@ export function MaintenanceDetailPage() {
                   {task.equipmentName}
                 </h1>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5 font-medium">
-                  Task ID: <span className="text-gray-700 dark:text-gray-300">{task.taskId}</span>
+                  {t('maintenance.detail.taskId')}: <span className="text-gray-700 dark:text-gray-300">{task.taskId}</span>
                   <span className="mx-2">•</span>
-                  Equipment: <span className="text-gray-700 dark:text-gray-300">{task.equipmentId}</span>
+                  {t('maintenance.detail.equipment')}: <span className="text-gray-700 dark:text-gray-300">{task.equipmentId}</span>
                 </p>
               </div>
             </div>
@@ -248,7 +250,7 @@ export function MaintenanceDetailPage() {
                     className="flex items-center gap-2 px-5 py-2.5 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-medium hover:scale-105"
                   >
                     <X className="w-4 h-4" />
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     onClick={handleSave}
@@ -258,12 +260,12 @@ export function MaintenanceDetailPage() {
                     {saving ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Saving...
+                        {t('maintenance.detail.saving')}
                       </>
                     ) : (
                       <>
                         <Save className="w-4 h-4" />
-                        Save Changes
+                        {t('maintenance.detail.saveChanges')}
                       </>
                     )}
                   </button>
@@ -278,7 +280,7 @@ export function MaintenanceDetailPage() {
                     className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-medium shadow-lg hover:shadow-xl hover:scale-105"
                   >
                     <Edit2 className="w-4 h-4" />
-                    Edit Task
+                    {t('maintenance.detail.editTask')}
                   </button>
                   
                   <button
@@ -289,12 +291,12 @@ export function MaintenanceDetailPage() {
                     {deleting ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Deleting...
+                        {t('maintenance.detail.deleting')}
                       </>
                     ) : (
                       <>
                         <Trash2 className="w-4 h-4" />
-                        Delete
+                        {t('common.delete')}
                       </>
                     )}
                   </button>
@@ -317,7 +319,7 @@ export function MaintenanceDetailPage() {
                   <div className="p-2 bg-white/50 rounded-lg">
                     <AlertCircle className="w-6 h-6" />
                   </div>
-                  <span className="text-sm font-semibold uppercase tracking-wide">Priority Level</span>
+                  <span className="text-sm font-semibold uppercase tracking-wide">{t('maintenance.detail.priorityLevel')}</span>
                 </div>
                 <p className="text-3xl font-bold">{task.priority}</p>
               </div>
@@ -327,7 +329,7 @@ export function MaintenanceDetailPage() {
                   <div className="p-2 bg-white/50 rounded-lg">
                     <CheckCircle className="w-6 h-6" />
                   </div>
-                  <span className="text-sm font-semibold uppercase tracking-wide">Current Status</span>
+                  <span className="text-sm font-semibold uppercase tracking-wide">{t('maintenance.detail.currentStatus')}</span>
                 </div>
                 <p className="text-3xl font-bold">{task.status.replace('_', ' ')}</p>
               </div>
@@ -341,9 +343,9 @@ export function MaintenanceDetailPage() {
                     <AlertCircle className="w-7 h-7 text-white flex-shrink-0" />
                   </div>
                   <div>
-                    <p className="font-bold text-red-900 text-lg">⚠️ OVERDUE MAINTENANCE</p>
+                    <p className="font-bold text-red-900 text-lg">⚠️ {t('maintenance.detail.overdueMaintenance')}</p>
                     <p className="text-sm text-red-700 mt-1.5 font-medium">
-                      This task is <span className="font-bold">{Math.abs(daysLeft)} days overdue</span>. Immediate action required!
+                      {t('maintenance.detail.overdueMessage', { days: Math.abs(daysLeft) })}
                     </p>
                   </div>
                 </div>
@@ -357,9 +359,9 @@ export function MaintenanceDetailPage() {
                     <Clock className="w-7 h-7 text-white flex-shrink-0" />
                   </div>
                   <div>
-                    <p className="font-bold text-yellow-900 text-lg">⏰ DUE SOON</p>
+                    <p className="font-bold text-yellow-900 text-lg">⏰ {t('maintenance.detail.dueSoon')}</p>
                     <p className="text-sm text-yellow-700 mt-1.5 font-medium">
-                      This task is due in <span className="font-bold">{daysLeft} days</span>. Please schedule accordingly.
+                      {t('maintenance.detail.dueSoonMessage', { days: daysLeft })}
                     </p>
                   </div>
                 </div>
@@ -372,7 +374,7 @@ export function MaintenanceDetailPage() {
                 <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
                   <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
-                Task Description
+                {t('maintenance.detail.taskDescription')}
               </h2>
               {isEditing ? (
                 <textarea
@@ -394,7 +396,7 @@ export function MaintenanceDetailPage() {
                 <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
                   <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
-                Maintenance Schedule
+                {t('maintenance.detail.maintenanceSchedule')}
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <InfoField
@@ -462,12 +464,12 @@ export function MaintenanceDetailPage() {
                 <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
                   <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
-                Assignment & Notes
+                {t('maintenance.detail.assignmentNotes')}
               </h2>
               <div className="space-y-4">
                 <div className="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4">
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    Assigned To
+                    {t('maintenance.detail.assignedTo')}
                   </label>
                   {isEditing ? (
                     <div className="space-y-2">
@@ -477,7 +479,7 @@ export function MaintenanceDetailPage() {
                         className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all"
                         disabled={loadingCrew}
                       >
-                        <option value="">-- Select Crew Member --</option>
+                        <option value="">-- {t('maintenance.detail.selectCrewMember')} --</option>
                         {crewMembers.map((crew) => (
                           <option key={crew.id} value={crew.fullName}>
                             {crew.fullName} - {crew.position} ({crew.rank})
@@ -488,23 +490,23 @@ export function MaintenanceDetailPage() {
                         type="text"
                         value={editedTask.assignedTo || task.assignedTo || ''}
                         onChange={(e) => setEditedTask({ ...editedTask, assignedTo: e.target.value })}
-                        placeholder="Or type name manually..."
+                        placeholder={t('maintenance.detail.orTypeManually')}
                         className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all"
                       />
                       {loadingCrew && (
-                        <p className="text-xs text-gray-500">Loading crew members...</p>
+                        <p className="text-xs text-gray-500">{t('maintenance.detail.loadingCrew')}</p>
                       )}
                     </div>
                   ) : (
                     <p className="text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
-                      {task.assignedTo || <span className="text-gray-400 italic">Unassigned</span>}
+                      {task.assignedTo || <span className="text-gray-400 italic">{t('maintenance.detail.unassigned')}</span>}
                     </p>
                   )}
                 </div>
                 
                 <div className="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4">
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    Notes
+                    {t('maintenance.detail.notes')}
                   </label>
                   {isEditing ? (
                     <textarea
@@ -512,11 +514,11 @@ export function MaintenanceDetailPage() {
                       onChange={(e) => setEditedTask({ ...editedTask, notes: e.target.value })}
                       rows={4}
                       className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all"
-                      placeholder="Add maintenance notes, observations, or special instructions..."
+                      placeholder={t('maintenance.detail.notesPlaceholder')}
                     />
                   ) : (
                     <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
-                      {task.notes || <span className="text-gray-400 italic">No notes available</span>}
+                      {task.notes || <span className="text-gray-400 italic">{t('maintenance.detail.noNotes')}</span>}
                     </p>
                   )}
                 </div>
@@ -530,34 +532,39 @@ export function MaintenanceDetailPage() {
                   <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
                     <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
-                  Spare Parts
+                  {t('maintenance.detail.spareParts')}
                 </h2>
                 
                 {/* Required Spare Parts (from schedule) */}
                 {task.requiredSpareParts && (
                   <div className="mb-4">
-                    <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">📋 Required (from schedule)</h3>
+                    <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">📋 {t('maintenance.detail.requiredFromSchedule')}</h3>
                     <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{task.requiredSpareParts}</p>
+                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                        {typeof task.requiredSpareParts === 'string' 
+                          ? task.requiredSpareParts 
+                          : task.requiredSpareParts.map(sp => `${sp.materialName || sp.materialCode || 'Item'} x${sp.quantityRequired}`).join(', ')
+                        }
+                      </p>
                     </div>
                   </div>
                 )}
                 
                 {/* Actually Used Spare Parts (crew input) */}
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">🔧 Actually Used</h3>
+                  <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">🔧 {t('maintenance.detail.actuallyUsed')}</h3>
                   {isEditing ? (
                     <textarea
                       value={editedTask.sparePartsUsed || task.sparePartsUsed || ''}
                       onChange={(e) => setEditedTask({ ...editedTask, sparePartsUsed: e.target.value })}
                       rows={3}
                       className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all"
-                      placeholder="List spare parts used (e.g., Oil Filter x2, Gasket Set x1)"
+                      placeholder={t('maintenance.detail.sparePartsPlaceholder')}
                     />
                   ) : (
                     <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
                       <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                        {task.sparePartsUsed || <span className="text-gray-400 italic">No spare parts used yet</span>}
+                        {task.sparePartsUsed || <span className="text-gray-400 italic">{t('maintenance.detail.noSparePartsUsed')}</span>}
                       </p>
                     </div>
                   )}
@@ -572,17 +579,17 @@ export function MaintenanceDetailPage() {
                   <div className="p-2 bg-green-500 rounded-xl">
                     <CheckCircle className="w-5 h-5 text-white" />
                   </div>
-                  Completion Details
+                  {t('maintenance.detail.completionDetails')}
                 </h2>
                 <div className="grid grid-cols-2 gap-5">
                   <div className="bg-white/60 dark:bg-gray-800/40 rounded-xl p-4">
-                    <p className="text-sm text-green-700 dark:text-green-300 font-semibold mb-1">Completed At</p>
+                    <p className="text-sm text-green-700 dark:text-green-300 font-semibold mb-1">{t('maintenance.detail.completedAt')}</p>
                     <p className="text-green-900 dark:text-green-100 font-medium">
                       {task.completedAt ? format(parseISO(task.completedAt), 'dd MMM yyyy HH:mm') : 'N/A'}
                     </p>
                   </div>
                   <div className="bg-white/60 dark:bg-gray-800/40 rounded-xl p-4">
-                    <p className="text-sm text-green-700 dark:text-green-300 font-semibold mb-1">Completed By</p>
+                    <p className="text-sm text-green-700 dark:text-green-300 font-semibold mb-1">{t('maintenance.detail.completedBy')}</p>
                     <p className="text-green-900 dark:text-green-100 font-medium">{task.completedBy || 'N/A'}</p>
                   </div>
                 </div>
@@ -596,7 +603,7 @@ export function MaintenanceDetailPage() {
                   <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
                     <CheckSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
-                  Checklist Items
+                  {t('maintenance.detail.checklistItems')}
                   {loadingChecklist && (
                     <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
                   )}
@@ -630,7 +637,7 @@ export function MaintenanceDetailPage() {
                               </span>
                               {detail.isMandatory && (
                                 <span className="px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded">
-                                  Required
+                                  {t('maintenance.detail.required')}
                                 </span>
                               )}
                             </div>
@@ -644,11 +651,11 @@ export function MaintenanceDetailPage() {
                             {detail.detailType === 'MEASUREMENT' && (
                               <div className="ml-7 space-y-1">
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  Expected Range: {detail.minValue ?? '-'} - {detail.maxValue ?? '-'} {detail.unit || ''}
+                                  {t('maintenance.detail.expectedRange')}: {detail.minValue ?? '-'} - {detail.maxValue ?? '-'} {detail.unit || ''}
                                 </p>
                                 {execution?.measuredValue && (
                                   <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                                    Measured: {execution.measuredValue} {detail.unit || ''}
+                                    {t('maintenance.detail.measured')}: {execution.measuredValue} {detail.unit || ''}
                                   </p>
                                 )}
                               </div>
@@ -657,7 +664,7 @@ export function MaintenanceDetailPage() {
                             {detail.detailType === 'CHECKLIST' && execution?.checkResult !== undefined && (
                               <div className="ml-7">
                                 <p className={`text-sm font-medium ${execution.checkResult ? 'text-green-700' : 'text-red-700'}`}>
-                                  Result: {execution.checkResult ? '✓ OK' : '✗ Not OK'}
+                                  {t('maintenance.detail.result')}: {execution.checkResult ? `✓ ${t('maintenance.detail.ok')}` : `✗ ${t('maintenance.detail.notOk')}`}
                                 </p>
                               </div>
                             )}
@@ -665,15 +672,15 @@ export function MaintenanceDetailPage() {
                             {detail.detailType === 'INSPECTION' && execution?.inspectionNotes && (
                               <div className="ml-7">
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  <span className="font-medium">Notes:</span> {execution.inspectionNotes}
+                                  <span className="font-medium">{t('maintenance.detail.notes')}:</span> {execution.inspectionNotes}
                                 </p>
                               </div>
                             )}
                             
                             {execution?.completedAt && (
                               <p className="ml-7 text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                Completed: {format(parseISO(execution.completedAt), 'dd MMM yyyy HH:mm')}
-                                {execution.completedBy && ` by ${execution.completedBy}`}
+                                {t('maintenance.detail.completedLabel')}: {format(parseISO(execution.completedAt), 'dd MMM yyyy HH:mm')}
+                                {execution.completedBy && ` ${t('maintenance.detail.by')} ${execution.completedBy}`}
                               </p>
                             )}
                           </div>
@@ -694,9 +701,9 @@ export function MaintenanceDetailPage() {
                 {/* Progress Summary - Redesigned */}
                 <div className="mt-6 pt-5 border-t-2 border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between text-sm mb-3">
-                    <span className="text-gray-600 dark:text-gray-400 font-semibold">Overall Progress</span>
+                    <span className="text-gray-600 dark:text-gray-400 font-semibold">{t('maintenance.detail.overallProgress')}</span>
                     <span className="font-bold text-gray-900 dark:text-white text-lg">
-                      {checklist.filter(item => item.executionDetail?.isCompleted).length} / {checklist.length} completed
+                      {checklist.filter(item => item.executionDetail?.isCompleted).length} / {checklist.length} {t('maintenance.detail.completedCount')}
                     </span>
                   </div>
                   <div className="mt-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 shadow-inner">
@@ -716,18 +723,18 @@ export function MaintenanceDetailPage() {
           <div className="space-y-6">
             {/* Equipment Info - Redesigned */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-7 border border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-5">Equipment Information</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-5">{t('maintenance.detail.equipmentInfo')}</h2>
               <div className="space-y-4">
                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold mb-1">Equipment ID</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold mb-1">{t('maintenance.detail.equipmentId')}</p>
                   <p className="font-bold text-gray-900 dark:text-white text-lg">{task.equipmentId}</p>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold mb-1">Equipment Name</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold mb-1">{t('maintenance.detail.equipmentName')}</p>
                   <p className="font-bold text-gray-900 dark:text-white text-lg">{task.equipmentName}</p>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold mb-1">Task ID</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold mb-1">{t('maintenance.detail.taskIdLabel')}</p>
                   <p className="font-mono text-sm text-gray-900 dark:text-white font-bold">{task.taskId}</p>
                 </div>
               </div>
@@ -735,30 +742,30 @@ export function MaintenanceDetailPage() {
 
             {/* Quick Stats - Redesigned */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-7 border border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-5">Quick Stats</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-5">{t('maintenance.detail.quickStats')}</h2>
               <div className="space-y-4">
                 <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                  <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">Days Until Due</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">{t('maintenance.detail.daysUntilDue')}</span>
                   <span className={`font-bold text-lg ${
                     isOverdue ? 'text-red-600' : 
                     isDueSoon ? 'text-yellow-600' : 
                     'text-green-600'
                   }`}>
-                    {isOverdue ? `${Math.abs(daysLeft)} overdue` : `${daysLeft} days`}
+                    {isOverdue ? `${Math.abs(daysLeft)} ${t('maintenance.detail.overdueLabel')}` : `${daysLeft} ${t('maintenance.detail.days')}`}
                   </span>
                 </div>
                 <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                  <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">Priority</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">{t('maintenance.detail.priorityLabel')}</span>
                   <span className="font-bold text-lg">{task.priority}</span>
                 </div>
                 <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                  <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">Status</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">{t('maintenance.detail.statusLabel')}</span>
                   <span className="font-bold text-lg">{task.status.replace('_', ' ')}</span>
                 </div>
                 <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                  <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">Sync Status</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">{t('maintenance.detail.syncStatus')}</span>
                   <span className={`font-bold ${task.isSynced ? 'text-green-600' : 'text-yellow-600'}`}>
-                    {task.isSynced ? '✓ Synced' : '⏳ Pending'}
+                    {task.isSynced ? `✓ ${t('maintenance.detail.synced')}` : `⏳ ${t('maintenance.detail.pending')}`}
                   </span>
                 </div>
               </div>
@@ -771,12 +778,11 @@ export function MaintenanceDetailPage() {
                   <span className="text-2xl">⚓</span>
                 </div>
                 <p className="text-base text-blue-900 dark:text-blue-100 font-bold">
-                  ISM Code Compliance
+                  {t('maintenance.detail.ismCodeCompliance')}
                 </p>
               </div>
               <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-                This maintenance task is part of the ship's Planned Maintenance System (PMS) 
-                as required by the ISM Code for safe vessel operations.
+                {t('maintenance.detail.ismCodeDescription')}
               </p>
             </div>
           </div>

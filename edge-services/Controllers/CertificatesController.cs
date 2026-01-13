@@ -41,6 +41,46 @@ public class CertificatesController : ControllerBase
         }
     }
 
+    // GET: api/certificates/with-crew-count
+    [HttpGet("with-crew-count")]
+    public async Task<IActionResult> GetCertificatesWithCrewCount()
+    {
+        try
+        {
+            var now = DateTime.UtcNow;
+            var warningDate = now.AddDays(90); // 90 days warning threshold
+
+            var certificates = await _context.Certificates
+                .AsNoTracking()
+                .Where(c => c.IsActive)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.CertificateCode,
+                    c.CertificateName,
+                    c.Category,
+                    c.ValidityPeriodMonths,
+                    c.IsMandatory,
+                    c.Description,
+                    c.IsActive,
+                    CrewCount = _context.CrewCertificates.Count(cc => cc.CertificateId == c.Id),
+                    ValidCount = _context.CrewCertificates.Count(cc => cc.CertificateId == c.Id && cc.ExpiryDate != null && cc.ExpiryDate > warningDate),
+                    ExpiringCount = _context.CrewCertificates.Count(cc => cc.CertificateId == c.Id && cc.ExpiryDate != null && cc.ExpiryDate <= warningDate && cc.ExpiryDate > now),
+                    ExpiredCount = _context.CrewCertificates.Count(cc => cc.CertificateId == c.Id && cc.ExpiryDate != null && cc.ExpiryDate <= now)
+                })
+                .OrderBy(c => c.Category)
+                .ThenBy(c => c.CertificateName)
+                .ToListAsync();
+
+            return Ok(certificates);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching certificates with crew count");
+            return StatusCode(500, new { message = "Error fetching certificates with crew count", error = ex.Message });
+        }
+    }
+
     // GET: api/certificates/{id}
     [HttpGet("{id}")]
     public async Task<IActionResult> GetCertificateById(int id)

@@ -15,8 +15,10 @@ import {
 import { CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { format, parseISO } from 'date-fns'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
 export function CrewDetailPage() {
+  const { t } = useTranslationSafe()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   
@@ -180,8 +182,8 @@ export function CrewDetailPage() {
     return (
       <div className="p-8">
         <div className="bg-red-50 text-red-700 px-4 py-3 rounded">
-          <p className="font-semibold">Error</p>
-          <p className="text-sm">Crew member not found</p>
+          <p className="font-semibold">{t('crew.detail.error')}</p>
+          <p className="text-sm">{t('crew.detail.crewNotFound')}</p>
         </div>
       </div>
     )
@@ -198,7 +200,7 @@ export function CrewDetailPage() {
           className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors mb-4"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span className="text-sm">Back to Crew List</span>
+          <span className="text-sm">{t('crew.detail.backToList')}</span>
         </button>
 
         {/* Title and Action Buttons */}
@@ -209,23 +211,23 @@ export function CrewDetailPage() {
               {isEditing ? (
                 <>
                   <button onClick={handleCancel} disabled={saving} className="px-4 py-2 bg-white text-gray-700 text-sm rounded border border-gray-300 hover:bg-gray-50">
-                    Cancel
+                    {t('crew.detail.cancel')}
                   </button>
                   <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-white text-blue-600 text-sm rounded border border-blue-600 hover:bg-blue-50">
-                    {saving ? 'Saving...' : 'Save'}
+                    {saving ? t('crew.detail.saving') : t('crew.detail.save')}
                   </button>
                 </>
               ) : (
                 <>
                   <button onClick={() => { setEditedCrew({ ...crew }); setIsEditing(true) }} className="px-4 py-2.5 bg-white text-blue-600 text-sm rounded border-2 border-blue-600 hover:bg-blue-50 flex items-center gap-2 font-medium">
                     <Edit2 className="w-4 h-4" />
-                    Edit
+                    {t('crew.detail.edit')}
                   </button>
                   <button onClick={handleResetPassword} disabled={resettingPassword} className="px-4 py-2.5 bg-white text-blue-600 text-sm rounded border-2 border-blue-600 hover:bg-blue-50 font-medium">
-                    Reset Password
+                    {t('crew.detail.resetPassword')}
                   </button>
                   <button onClick={handleDelete} disabled={deleting} className="px-4 py-2.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 font-medium">
-                    Delete
+                    {t('crew.detail.delete')}
                   </button>
                 </>
               )}
@@ -251,11 +253,11 @@ export function CrewDetailPage() {
                 {crew.rank || 'N/A'}
               </p>
               <div className="flex items-center gap-3 text-sm">
-                <span className="px-3 py-1.5 bg-teal-600/50 rounded-full border border-teal-400/30">Crew ID: {crew.crewId || 'N/A'}</span>
+                <span className="px-3 py-1.5 bg-teal-600/50 rounded-full border border-teal-400/30">{t('crew.detail.crewId')}: {crew.crewId || 'N/A'}</span>
                 {crew.isOnboard && (
                   <span className="px-3 py-1.5 bg-teal-600/50 rounded-full flex items-center gap-1 border border-teal-400/30">
                     <CheckCircle className="w-4 h-4" />
-                    On Board
+                    {t('crew.status.onBoard')}
                   </span>
                 )}
               </div>
@@ -272,7 +274,7 @@ export function CrewDetailPage() {
                   <Phone className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 uppercase">PHONE</p>
+                  <p className="text-xs text-gray-500 uppercase">{t('crew.detail.phone')}</p>
                   {isEditing ? (
                     <input 
                       type="tel" 
@@ -291,7 +293,7 @@ export function CrewDetailPage() {
                   <Mail className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 uppercase">EMAIL</p>
+                  <p className="text-xs text-gray-500 uppercase">{t('crew.detail.email')}</p>
                   {isEditing ? (
                     <input 
                       type="email" 
@@ -310,14 +312,14 @@ export function CrewDetailPage() {
                   <Calendar className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 uppercase">DATE OF BIRTH</p>
+                  <p className="text-xs text-gray-500 uppercase">{t('crew.detail.dateOfBirth')}</p>
                   <p className="font-semibold text-gray-900">{crew.dateOfBirth ? format(parseISO(crew.dateOfBirth), 'dd MMM yyyy') : 'N/A'}</p>
                 </div>
               </div>
             </div>
             <button className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              Download CV (PDF)
+              {t('crew.detail.downloadCV')}
             </button>
           </div>
         </div>
@@ -331,7 +333,7 @@ export function CrewDetailPage() {
                 <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                   <User className="w-4 h-4 text-blue-600" />
                 </div>
-                PERSONAL INFORMATION
+                {t('crew.section.personalInfo').toUpperCase()}
               </h2>
               <div className="space-y-4">
                 <div className={`flex items-center gap-4 p-4 rounded-lg ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50'}`}>
@@ -339,7 +341,7 @@ export function CrewDetailPage() {
                     <User className="w-5 h-5 text-teal-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs text-gray-500 uppercase mb-1">Full Name</p>
+                    <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.detail.fullName')}</p>
                     {isEditing ? (
                       <input 
                         type="text" 
@@ -353,7 +355,7 @@ export function CrewDetailPage() {
                     )}
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-gray-500 uppercase mb-1">CREW ID</p>
+                    <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.detail.crewId')}</p>
                     {isEditing ? (
                       <input 
                         type="text" 
@@ -370,7 +372,7 @@ export function CrewDetailPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className={`p-4 rounded-lg ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50'}`}>
-                    <p className="text-xs text-gray-500 uppercase mb-1">Date of Birth</p>
+                    <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.detail.dateOfBirth')}</p>
                     {isEditing ? (
                       <input 
                         type="date" 
@@ -383,7 +385,7 @@ export function CrewDetailPage() {
                     )}
                   </div>
                   <div className={`p-4 rounded-lg ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50'}`}>
-                    <p className="text-xs text-gray-500 uppercase mb-1">Nationality</p>
+                    <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.detail.nationality')}</p>
                     {isEditing ? (
                       <input 
                         type="text" 
@@ -397,7 +399,7 @@ export function CrewDetailPage() {
                     )}
                   </div>
                   <div className={`p-4 rounded-lg ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50'}`}>
-                    <p className="text-xs text-gray-500 uppercase mb-1">Position</p>
+                    <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.detail.position')}</p>
                     {isEditing ? (
                       <input 
                         type="text" 
@@ -411,7 +413,7 @@ export function CrewDetailPage() {
                     )}
                   </div>
                   <div className={`p-4 rounded-lg ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50'}`}>
-                    <p className="text-xs text-gray-500 uppercase mb-1">Rank</p>
+                    <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.detail.rank')}</p>
                     {isEditing ? (
                       <input 
                         type="text" 
@@ -425,7 +427,7 @@ export function CrewDetailPage() {
                     )}
                   </div>
                   <div className={`col-span-2 p-4 rounded-lg ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50'}`}>
-                    <p className="text-xs text-gray-500 uppercase mb-1">Address</p>
+                    <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.detail.address')}</p>
                     {isEditing ? (
                       <input 
                         type="text" 
@@ -448,7 +450,7 @@ export function CrewDetailPage() {
                 <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                   <Clock className="w-4 h-4 text-blue-600" />
                 </div>
-                EMPLOYMENT HISTORY
+                {t('crew.section.employmentHistory').toUpperCase()}
               </h2>
               
               {/* Timeline */}
@@ -457,18 +459,18 @@ export function CrewDetailPage() {
                 <div className="relative pl-8">
                   <div className="absolute left-0 top-1 w-4 h-4 rounded-full border-2 border-teal-600 bg-white"></div>
                   <div className="mb-1">
-                    <span className="inline-block text-sm font-semibold text-teal-700 mb-1">Current Position</span>
+                    <span className="inline-block text-sm font-semibold text-teal-700 mb-1">{t('crew.detail.currentPosition')}</span>
                     {crew.joinDate && (
-                      <p className="text-xs text-gray-500 mb-2">Joined: {format(parseISO(crew.joinDate), 'dd MMM yyyy')}</p>
+                      <p className="text-xs text-gray-500 mb-2">{t('crew.detail.joined')}: {format(parseISO(crew.joinDate), 'dd MMM yyyy')}</p>
                     )}
                   </div>
                   <div className="flex items-start gap-2 mb-3">
                     <div className="w-2 h-2 rounded-full bg-teal-600 mt-1.5"></div>
                     <div>
                       <p className="font-semibold text-gray-900">{crew.position}{crew.rank ? ` - ${crew.rank}` : ''}</p>
-                      <p className="text-sm text-gray-600">{crew.joinDate ? format(parseISO(crew.joinDate), 'MMM yyyy') : 'N/A'} - Present</p>
+                      <p className="text-sm text-gray-600">{crew.joinDate ? format(parseISO(crew.joinDate), 'MMM yyyy') : 'N/A'} - {t('crew.detail.present')}</p>
                       {crew.isOnboard && (
-                        <span className="inline-block mt-1 px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">Currently On Board</span>
+                        <span className="inline-block mt-1 px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">{t('crew.status.currentlyOnBoard')}</span>
                       )}
                     </div>
                   </div>
@@ -482,7 +484,7 @@ export function CrewDetailPage() {
                 <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                   <Clock className="w-4 h-4 text-blue-600" />
                 </div>
-                EMPLOYMENT HISTORY
+                {t('crew.section.employmentHistory').toUpperCase()}
               </h2>
 
               {/* Captain Card */}
@@ -497,14 +499,14 @@ export function CrewDetailPage() {
                   <p className="text-sm text-slate-300">{crew.rank || 'N/A'}</p>
                   <p className="text-xs text-slate-400 mt-1">{crew.nationality || 'N/A'}</p>
                   <div className="flex gap-2 mt-2">
-                    <span className="px-2 py-0.5 bg-slate-600 rounded text-xs">Crew ID: {crew.crewId}</span>
+                    <span className="px-2 py-0.5 bg-slate-600 rounded text-xs">{t('crew.detail.crewId')}: {crew.crewId}</span>
                     {crew.isOnboard && (
-                      <span className="px-2 py-0.5 bg-green-600 rounded text-xs">On Board</span>
+                      <span className="px-2 py-0.5 bg-green-600 rounded text-xs">{t('crew.status.onBoard')}</span>
                     )}
                   </div>
                 </div>
                 <div className="text-right text-white">
-                  <p className="text-xs text-slate-400 mb-1">JOIN DATE</p>
+                  <p className="text-xs text-slate-400 mb-1">{t('crew.detail.joinDate').toUpperCase()}</p>
                   <p className="font-semibold mb-2">{crew.joinDate ? format(parseISO(crew.joinDate), 'dd MMM yyyy') : 'N/A'}</p>
                   {crew.phoneNumber && (
                     <p className="text-xs text-slate-300">{crew.phoneNumber}</p>
@@ -516,7 +518,7 @@ export function CrewDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 {/* Contact Info Card */}
                 <div className="bg-slate-700 rounded-lg p-4 text-white">
-                  <p className="text-xs text-slate-400 mb-2">CONTACT</p>
+                  <p className="text-xs text-slate-400 mb-2">{t('crew.detail.contact').toUpperCase()}</p>
                   <div className="space-y-2">
                     {crew.phoneNumber && (
                       <div className="flex items-center gap-2">
@@ -538,11 +540,11 @@ export function CrewDetailPage() {
 
                 {/* Certificate Info Card - Now managed via crew_certificates table */}
                 <div className="bg-slate-700 rounded-lg p-4 text-white">
-                  <p className="text-xs text-slate-400 mb-2">CERTIFICATES</p>
+                  <p className="text-xs text-slate-400 mb-2">{t('crew.detail.certificates').toUpperCase()}</p>
                   <div className="space-y-2">
                     {crew.seamanBookNumber && (
                       <div>
-                        <p className="text-xs text-slate-400">Seaman's Book</p>
+                        <p className="text-xs text-slate-400">{t('crew.detail.seamanBook')}</p>
                         <p className="text-sm">{crew.seamanBookNumber}</p>
                       </div>
                     )}
@@ -551,7 +553,7 @@ export function CrewDetailPage() {
                         onClick={() => navigate('/crew', { state: { activeTab: 'certificates' } })}
                         className="text-xs text-blue-300 hover:text-blue-200 underline"
                       >
-                        View All Certificates →
+                        {t('crew.detail.viewAllCertificates')} →
                       </button>
                     </div>
                   </div>
@@ -563,12 +565,12 @@ export function CrewDetailPage() {
             <div className={`shadow-sm p-5 ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-white'}`}>
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Award className="w-5 h-5 text-blue-600" />
-                Seaman's Book
+                {t('crew.detail.seamanBook')}
               </h2>
               <div className="text-sm">
-                <label className="text-gray-500 uppercase text-xs">Book Number</label>
+                <label className="text-gray-500 uppercase text-xs">{t('crew.detail.bookNumber')}</label>
                 {isEditing ? (
-                  <input type="text" value={editedCrew.seamanBookNumber || ''} onChange={(e) => setEditedCrew({...editedCrew, seamanBookNumber: e.target.value})} className="w-full px-3 py-2 border-2 border-blue-400 rounded font-semibold mt-1 focus:outline-none focus:border-blue-600" placeholder="Seaman's book number" />
+                  <input type="text" value={editedCrew.seamanBookNumber || ''} onChange={(e) => setEditedCrew({...editedCrew, seamanBookNumber: e.target.value})} className="w-full px-3 py-2 border-2 border-blue-400 rounded font-semibold mt-1 focus:outline-none focus:border-blue-600" placeholder={t('crew.detail.bookNumber')} />
                 ) : (
                   <p className="font-medium">{crew.seamanBookNumber || 'N/A'}</p>
                 )}
@@ -580,10 +582,10 @@ export function CrewDetailPage() {
               <div className={`shadow-sm p-5 ${isEditing ? 'bg-blue-50 border-2 border-blue-300' : 'bg-white'}`}>
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <AlertCircle className="w-5 h-5 text-blue-600" />
-                  Additional Notes
+                  {t('crew.detail.additionalNotes')}
                 </h2>
                 {isEditing ? (
-                  <textarea value={editedCrew.notes || ''} onChange={(e) => setEditedCrew({...editedCrew, notes: e.target.value})} rows={4} className="w-full px-3 py-2 border-2 border-blue-400 rounded focus:outline-none focus:border-blue-600" placeholder="Additional notes..." />
+                  <textarea value={editedCrew.notes || ''} onChange={(e) => setEditedCrew({...editedCrew, notes: e.target.value})} rows={4} className="w-full px-3 py-2 border-2 border-blue-400 rounded focus:outline-none focus:border-blue-600" placeholder={t('crew.detail.additionalNotes')} />
                 ) : (
                   <p className="text-sm text-gray-700">{crew.notes}</p>
                 )}
@@ -600,24 +602,24 @@ export function CrewDetailPage() {
                   <Award className="w-6 h-6 text-blue-600" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-gray-900">Certificates ({certificates.length})</h3>
-                  <p className="text-xs text-gray-500">STCW & Maritime Certificates</p>
+                  <h3 className="font-bold text-gray-900">{t('crew.detail.certificates')} ({certificates.length})</h3>
+                  <p className="text-xs text-gray-500">{t('crew.detail.stcwCertificates')}</p>
                 </div>
               </div>
               
               {loadingCertificates ? (
                 <div className="text-center py-4">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="text-xs text-gray-500 mt-2">Loading certificates...</p>
+                  <p className="text-xs text-gray-500 mt-2">{t('crew.detail.loadingCertificates')}</p>
                 </div>
               ) : certificates.length === 0 ? (
                 <div className="p-3 bg-gray-50 rounded-lg text-center">
-                  <p className="text-sm text-gray-600 mb-2">No certificates found</p>
+                  <p className="text-sm text-gray-600 mb-2">{t('crew.detail.noCertificatesFound')}</p>
                   <button
                     onClick={() => navigate('/crew', { state: { activeTab: 'certificates' } })}
                     className="text-sm text-blue-600 hover:text-blue-800 font-semibold underline"
                   >
-                    View Certificate Management →
+                    {t('crew.detail.viewCertificateManagement')} →
                   </button>
                 </div>
               ) : (
@@ -641,39 +643,39 @@ export function CrewDetailPage() {
                           {isExpired ? (
                             <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-semibold flex items-center gap-1">
                               <AlertCircle className="w-3 h-3" />
-                              Expired
+                              {t('crew.detail.expired')}
                             </span>
                           ) : isExpiring ? (
                             <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-semibold flex items-center gap-1">
                               <Clock className="w-3 h-3" />
-                              Expiring
+                              {t('crew.detail.expiring')}
                             </span>
                           ) : (
                             <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold flex items-center gap-1">
                               <CheckCircle className="w-3 h-3" />
-                              Valid
+                              {t('crew.detail.valid')}
                             </span>
                           )}
                         </div>
                         
                         <div className="space-y-1 text-xs">
                           <div className="flex justify-between">
-                            <span className="text-gray-500">Number:</span>
+                            <span className="text-gray-500">{t('crew.detail.number')}:</span>
                             <span className="font-medium text-gray-900">{cert.certificateNumber}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-500">Issue Date:</span>
+                            <span className="text-gray-500">{t('crew.detail.issueDate')}:</span>
                             <span className="font-medium text-gray-900">{format(parseISO(cert.issueDate), 'dd MMM yyyy')}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-500">Expiry Date:</span>
+                            <span className="text-gray-500">{t('crew.detail.expiryDate')}:</span>
                             <span className={`font-medium ${isExpired ? 'text-red-600' : isExpiring ? 'text-yellow-600' : 'text-gray-900'}`}>
                               {format(parseISO(cert.expiryDate), 'dd MMM yyyy')}
                             </span>
                           </div>
                           {cert.issuingAuthority && (
                             <div className="flex justify-between mt-2 pt-2 border-t border-gray-200">
-                              <span className="text-gray-500">Issued By:</span>
+                              <span className="text-gray-500">{t('crew.detail.issuedBy')}:</span>
                               <span className="font-medium text-gray-900 text-right max-w-[150px] truncate">{cert.issuingAuthority}</span>
                             </div>
                           )}
@@ -682,14 +684,14 @@ export function CrewDetailPage() {
                         {isExpired && (
                           <div className="mt-2 pt-2 border-t border-gray-200">
                             <p className="text-xs text-red-600 font-medium">
-                              ⚠️ Expired {Math.abs(daysLeft)} days ago
+                              ⚠️ {t('crew.detail.expiredDaysAgo', { days: Math.abs(daysLeft) })}
                             </p>
                           </div>
                         )}
                         {isExpiring && (
                           <div className="mt-2 pt-2 border-t border-gray-200">
                             <p className="text-xs text-yellow-600 font-medium">
-                              ⏰ Expires in {daysLeft} days
+                              ⏰ {t('crew.detail.expiresInDays', { days: daysLeft })}
                             </p>
                           </div>
                         )}
@@ -701,7 +703,7 @@ export function CrewDetailPage() {
                     onClick={() => navigate('/crew', { state: { activeTab: 'certificates' } })}
                     className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 font-semibold border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
                   >
-                    View All Certificates →
+                    {t('crew.detail.viewAllCertificates')} →
                   </button>
                 </div>
               )}
@@ -716,19 +718,19 @@ export function CrewDetailPage() {
                   <Award className="w-6 h-6 text-blue-600" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-gray-900">Seaman's Book</h3>
+                  <h3 className="font-bold text-gray-900">{t('crew.detail.seamanBook')}</h3>
                 </div>
               </div>
-              <p className="text-lg font-semibold text-gray-900">21 Onew 2025</p>
+              <p className="text-lg font-semibold text-gray-900">{crew.seamanBookNumber || 'N/A'}</p>
             </div>
 
             {/* Action Buttons */}
             <div className="space-y-3">
               <button className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
-                Renew STCW ificate
+                {t('crew.detail.renewStcw')}
               </button>
               <button className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
-                Request Shore Leave
+                {t('crew.detail.requestShoreLeave')}
               </button>
             </div>
           </div>
@@ -737,5 +739,3 @@ export function CrewDetailPage() {
     </div>
   )
 }
-
-

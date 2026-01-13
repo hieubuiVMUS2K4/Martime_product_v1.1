@@ -1,6 +1,545 @@
+/* ============================================
+   Font Scaling System for Settings
+   ============================================ */
+:root {
+  --font-scale: 1;
+}
+
+/* Apply font scaling to root - affects all rem-based sizes */
+html {
+  font-size: calc(16px * var(--font-scale));
+}
+
+/* Elements that should NOT scale (icons, fixed UI) */
+.font-fixed {
+  font-size: 16px !important;
+}
+
+/* Prevent text overflow at large font sizes */
+.text-safe {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Font size specific adjustments */
+html[data-font-size="xlarge"] {
+  --spacing-scale: 0.9;
+}
+
+html[data-font-size="xlarge"] .sidebar-nav {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============================================
+   Theme Transition (prevent flash)
+   ============================================ */
+html {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.no-transition,
+html.no-transition * {
+  transition: none !important;
+}
+
+/* ============================================
+   Accessibility Improvements
+   ============================================ */
+*:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================
+   Tailwind Directives
+   ============================================ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ============================================
+   Dark Mode Auto-Fix for Legacy Components
+   These rules ensure components without explicit 
+   dark: variants still look correct in dark mode
+   ============================================ */
+@layer components {
+  /* ========== GRADIENT BACKGROUNDS ========== */
+  /* Override gradient backgrounds in dark mode */
+  .dark .bg-gradient-to-br,
+  .dark .bg-gradient-to-r,
+  .dark .bg-gradient-to-l,
+  .dark .bg-gradient-to-t,
+  .dark .bg-gradient-to-b,
+  .dark .bg-gradient-to-tr,
+  .dark .bg-gradient-to-tl,
+  .dark .bg-gradient-to-bl {
+    background-image: none !important;
+    background-color: rgb(17 24 39) !important; /* gray-900 */
+  }
+
+  /* ========== SLATE COLORS ========== */
+  .dark .bg-slate-50,
+  .dark .from-slate-50,
+  .dark .via-slate-50,
+  .dark .to-slate-50 {
+    background-color: rgb(17 24 39) !important; /* gray-900 */
+  }
+  
+  .dark .bg-slate-100,
+  .dark .from-slate-100,
+  .dark .to-slate-100 {
+    background-color: rgb(17 24 39) !important; /* gray-900 */
+  }
+
+  .dark .text-slate-900,
+  .dark .text-slate-800,
+  .dark .text-slate-700 {
+    color: rgb(243 244 246) !important; /* gray-100 */
+  }
+  
+  .dark .text-slate-600,
+  .dark .text-slate-500 {
+    color: rgb(156 163 175) !important; /* gray-400 */
+  }
+
+  /* ========== BACKGROUNDS ========== */
+  .dark .bg-white {
+    background-color: rgb(31 41 55) !important; /* gray-800 */
+  }
+  
+  .dark .bg-gray-50,
+  .dark .from-gray-50,
+  .dark .via-gray-50,
+  .dark .to-gray-50 {
+    background-color: rgb(17 24 39) !important; /* gray-900 */
+  }
+  
+  .dark .bg-gray-100,
+  .dark .from-gray-100,
+  .dark .to-gray-100 {
+    background-color: rgb(31 41 55) !important; /* gray-800 */
+  }
+
+  /* Blue gradient backgrounds */
+  .dark .from-blue-50,
+  .dark .via-blue-50,
+  .dark .to-blue-50 {
+    background-color: rgb(17 24 39) !important;
+  }
+
+  /* ========== BORDERS ========== */
+  .dark .border-gray-100,
+  .dark .border-slate-100 {
+    border-color: rgb(55 65 81) !important; /* gray-600 */
+  }
+  
+  .dark .border-gray-200,
+  .dark .border-slate-200 {
+    border-color: rgb(55 65 81) !important; /* gray-600 */
+  }
+  
+  .dark .border-gray-300,
+  .dark .border-slate-300 {
+    border-color: rgb(75 85 99) !important; /* gray-500 */
+  }
+
+  /* ========== TEXT COLORS ========== */
+  .dark .text-gray-900 {
+    color: rgb(243 244 246) !important; /* gray-100 */
+  }
+  
+  .dark .text-gray-800 {
+    color: rgb(229 231 235) !important; /* gray-200 */
+  }
+  
+  .dark .text-gray-700 {
+    color: rgb(209 213 219) !important; /* gray-300 */
+  }
+  
+  .dark .text-gray-600 {
+    color: rgb(156 163 175) !important; /* gray-400 */
+  }
+  
+  .dark .text-gray-500 {
+    color: rgb(156 163 175) !important; /* gray-400 */
+  }
+  
+  .dark .text-gray-400 {
+    color: rgb(156 163 175) !important; /* gray-400 */
+  }
+
+  /* Fix black text in dark mode */
+  .dark .text-black {
+    color: rgb(243 244 246) !important; /* gray-100 */
+  }
+
+  /* ========== DIVIDE COLORS ========== */
+  .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+  .dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgb(55 65 81) !important; /* gray-600 */
+  }
+  
+  .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+  .dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgb(55 65 81) !important; /* gray-600 */
+  }
+
+  /* ========== RING/OUTLINE ========== */
+  .dark .ring-gray-200,
+  .dark .ring-slate-200 {
+    --tw-ring-color: rgb(55 65 81) !important;
+  }
+
+  /* ========== FORM ELEMENTS ========== */
+  .dark input,
+  .dark select,
+  .dark textarea {
+    background-color: rgb(55 65 81) !important; /* gray-600 */
+    border-color: rgb(75 85 99) !important; /* gray-500 */
+    color: rgb(243 244 246) !important; /* gray-100 */
+  }
+  
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: rgb(156 163 175) !important; /* gray-400 */
+  }
+
+  /* Select options */
+  .dark option {
+    background-color: rgb(55 65 81) !important;
+    color: rgb(243 244 246) !important;
+  }
+
+  /* ========== TABLE ========== */
+  .dark table {
+    background-color: rgb(31 41 55) !important; /* gray-800 */
+  }
+  
+  .dark thead {
+    background-color: rgb(55 65 81) !important; /* gray-600 */
+  }
+  
+  .dark th {
+    color: rgb(209 213 219) !important; /* gray-300 */
+    background-color: rgb(55 65 81) !important;
+  }
+  
+  .dark tbody {
+    background-color: rgb(31 41 55) !important; /* gray-800 */
+  }
+  
+  .dark td {
+    color: rgb(209 213 219) !important; /* gray-300 */
+  }
+  
+  .dark tr {
+    border-color: rgb(55 65 81) !important;
+  }
+  
+  .dark tbody tr:hover {
+    background-color: rgb(55 65 81) !important;
+  }
+
+  /* ========== CARDS WITH SHADOW ========== */
+  .dark .shadow,
+  .dark .shadow-sm,
+  .dark .shadow-md,
+  .dark .shadow-lg,
+  .dark .shadow-xl {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  /* ========== BUTTONS ========== */
+  /* Ghost/secondary buttons - fix text visibility */
+  .dark button {
+    color: rgb(209 213 219); /* gray-300 */
+  }
+  
+  /* Primary buttons should keep their colors */
+  .dark button[class*="bg-blue"],
+  .dark button[class*="bg-green"],
+  .dark button[class*="bg-red"],
+  .dark button[class*="bg-yellow"],
+  .dark button[class*="bg-purple"],
+  .dark button[class*="bg-indigo"] {
+    color: white;
+  }
+  
+  /* Hover states for light-colored buttons */
+  .dark .hover\:bg-gray-50:hover,
+  .dark .hover\:bg-slate-50:hover {
+    background-color: rgb(55 65 81) !important; /* gray-600 */
+  }
+  
+  .dark .hover\:bg-gray-100:hover,
+  .dark .hover\:bg-slate-100:hover {
+    background-color: rgb(55 65 81) !important; /* gray-600 */
+  }
+  
+  .dark .hover\:bg-gray-200:hover {
+    background-color: rgb(75 85 99) !important; /* gray-500 */
+  }
+  
+  .dark .hover\:bg-blue-50:hover {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+  }
+
+  /* ========== BADGES & PILLS ========== */
+  .dark .bg-gray-200 {
+    background-color: rgb(55 65 81) !important; /* gray-600 */
+  }
+  
+  .dark .bg-gray-100 {
+    background-color: rgb(55 65 81) !important;
+  }
+
+  /* Badge text colors for proper contrast */
+  .dark .bg-gray-100.text-gray-600,
+  .dark .bg-gray-100.text-gray-700,
+  .dark .bg-gray-200.text-gray-600,
+  .dark .bg-gray-200.text-gray-700 {
+    color: rgb(209 213 219) !important;
+  }
+
+  /* ========== HEADINGS ========== */
+  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+    color: rgb(243 244 246) !important; /* gray-100 */
+  }
+
+  /* ========== PARAGRAPHS & SPANS ========== */
+  .dark p:not([class*="text-"]),
+  .dark span:not([class*="text-"]):not([class*="bg-"]) {
+    color: rgb(209 213 219); /* gray-300 */
+  }
+
+  /* ========== LABELS ========== */
+  .dark label {
+    color: rgb(209 213 219) !important; /* gray-300 */
+  }
+
+  /* ========== LINKS ========== */
+  .dark a:not([class*="text-blue"]):not([class*="text-green"]):not([class*="text-red"]) {
+    color: rgb(156 163 175); /* gray-400 */
+  }
+  
+  .dark a:hover {
+    color: rgb(209 213 219); /* gray-300 */
+  }
+
+  /* ========== COLORED BACKGROUNDS (lighter versions) ========== */
+  .dark .bg-blue-50 {
+    background-color: rgba(59, 130, 246, 0.15) !important;
+  }
+  
+  .dark .bg-blue-100 {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+  }
+  
+  .dark .bg-green-50 {
+    background-color: rgba(34, 197, 94, 0.15) !important;
+  }
+  
+  .dark .bg-green-100 {
+    background-color: rgba(34, 197, 94, 0.2) !important;
+  }
+  
+  .dark .bg-yellow-50 {
+    background-color: rgba(234, 179, 8, 0.15) !important;
+  }
+  
+  .dark .bg-yellow-100 {
+    background-color: rgba(234, 179, 8, 0.2) !important;
+  }
+  
+  .dark .bg-red-50 {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+  }
+  
+  .dark .bg-red-100 {
+    background-color: rgba(239, 68, 68, 0.2) !important;
+  }
+  
+  .dark .bg-purple-50 {
+    background-color: rgba(168, 85, 247, 0.15) !important;
+  }
+  
+  .dark .bg-purple-100 {
+    background-color: rgba(168, 85, 247, 0.2) !important;
+  }
+  
+  .dark .bg-orange-50 {
+    background-color: rgba(249, 115, 22, 0.15) !important;
+  }
+  
+  .dark .bg-orange-100 {
+    background-color: rgba(249, 115, 22, 0.2) !important;
+  }
+  
+  .dark .bg-indigo-50 {
+    background-color: rgba(99, 102, 241, 0.15) !important;
+  }
+  
+  .dark .bg-indigo-100 {
+    background-color: rgba(99, 102, 241, 0.2) !important;
+  }
+
+  /* ========== COLORED TEXT ========== */
+  .dark .text-blue-600,
+  .dark .text-blue-700 {
+    color: rgb(96 165 250) !important; /* blue-400 */
+  }
+  
+  .dark .text-green-600,
+  .dark .text-green-700 {
+    color: rgb(74 222 128) !important; /* green-400 */
+  }
+  
+  .dark .text-red-600,
+  .dark .text-red-700 {
+    color: rgb(248 113 113) !important; /* red-400 */
+  }
+  
+  .dark .text-yellow-600,
+  .dark .text-yellow-700 {
+    color: rgb(250 204 21) !important; /* yellow-400 */
+  }
+  
+  .dark .text-orange-600,
+  .dark .text-orange-700 {
+    color: rgb(251 146 60) !important; /* orange-400 */
+  }
+  
+  .dark .text-purple-600,
+  .dark .text-purple-700 {
+    color: rgb(192 132 252) !important; /* purple-400 */
+  }
+  
+  .dark .text-indigo-600,
+  .dark .text-indigo-700 {
+    color: rgb(129 140 248) !important; /* indigo-400 */
+  }
+
+  /* ========== ICONS ========== */
+  .dark svg:not([class*="text-"]) {
+    color: rgb(156 163 175); /* gray-400 */
+  }
+
+  /* ========== MODALS & DIALOGS ========== */
+  .dark [role="dialog"],
+  .dark [data-radix-popper-content-wrapper] > div {
+    background-color: rgb(31 41 55) !important; /* gray-800 */
+    color: rgb(243 244 246) !important;
+  }
+
+  /* ========== TABS & NAV ========== */
+  .dark [role="tablist"] {
+    border-color: rgb(55 65 81) !important;
+  }
+  
+  .dark [role="tab"] {
+    color: rgb(156 163 175) !important;
+  }
+  
+  .dark [role="tab"][data-state="active"],
+  .dark [role="tab"][aria-selected="true"] {
+    color: rgb(96 165 250) !important; /* blue-400 */
+  }
+  
+  /* Custom tab buttons (not using role="tab") */
+  .dark nav button,
+  .dark nav a {
+    color: rgb(156 163 175); /* gray-400 */
+  }
+  
+  .dark nav button:hover,
+  .dark nav a:hover {
+    color: rgb(209 213 219); /* gray-300 */
+  }
+
+  /* ========== DROPDOWN MENUS ========== */
+  .dark .absolute[class*="bg-white"],
+  .dark div[class*="absolute"][class*="rounded"][class*="shadow"] {
+    background-color: rgb(55 65 81) !important;
+    border-color: rgb(75 85 99) !important;
+  }
+
+  /* ========== PAGINATION ========== */
+  .dark .disabled\:opacity-50:disabled {
+    opacity: 0.5;
+  }
+
+  /* ========== STAT CARDS ========== */
+  /* Cards with colored borders on left */
+  .dark .border-l-4 {
+    background-color: rgb(31 41 55) !important;
+  }
+
+  /* ========== GANTT CHART / TIMELINE ========== */
+  /* Fix alternating row backgrounds */
+  .dark .bg-gray-50\/50 {
+    background-color: rgba(55, 65, 81, 0.5) !important;
+  }
+  
+  /* Fix hover states on timeline rows */
+  .dark .hover\:bg-blue-50:hover {
+    background-color: rgba(59, 130, 246, 0.15) !important;
+  }
+
+  /* Ensure inline background colors are overridden in dark mode */
+  .dark [style*="background"] {
+    /* This won't work for inline styles, need JS */
+  }
+  
+  /* Fix min-width containers that might have white bg */
+  .dark .min-w-\[800px\] {
+    background-color: rgb(31 41 55) !important;
+  }
+  
+  .dark .min-w-\[1200px\] {
+    background-color: rgb(31 41 55) !important;
+  }
+
+  /* Fix flex containers commonly used in Gantt */
+  .dark .flex-1.min-w-\[800px\] {
+    background-color: rgb(31 41 55) !important;
+  }
+
+  /* ========== OVERFLOW CONTAINERS ========== */
+  .dark .overflow-x-auto {
+    background-color: rgb(31 41 55) !important;
+  }
+  
+  .dark .overflow-y-auto:not(.h-screen):not(.h-full) {
+    background-color: rgb(17 24 39) !important;
+  }
+
+  /* ========== ALTERNATING ROWS ========== */
+  .dark [class*="odd:bg-"],
+  .dark [class*="even:bg-"] {
+    background-color: rgb(31 41 55) !important;
+  }
+  
+  /* Specific fix for idx % 2 pattern (programmatic alternating) */
+  .dark .flex.hover\:bg-blue-50 {
+    background-color: rgb(31 41 55) !important;
+  }
+  
+  .dark .flex.hover\:bg-blue-50:hover {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+  }
+}
 
 @layer base {
   :root {

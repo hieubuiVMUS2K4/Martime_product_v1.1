@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X, Package, Calendar, DollarSign, FileText, Clock } from 'lucide-react';
 import { receiptService } from '../../services/receiptService';
 import type { MaterialReceiptResponseDto } from '../../services/receiptService';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 
 interface ReceiptDetailModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface ReceiptDetailModalProps {
 }
 
 export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetailModalProps) {
+  const { t } = useTranslationSafe();
   const [receipt, setReceipt] = useState<MaterialReceiptResponseDto | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +29,7 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
       const data = await receiptService.getReceiptById(receiptId);
       setReceipt(data);
     } catch (err: any) {
-      setError(err.message || 'Failed to load receipt details');
+      setError(err.message || t('materials.receipt.loadFailed'));
       console.error('Error loading receipt:', err);
     } finally {
       setLoading(false);
@@ -54,7 +56,7 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
                 <FileText className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Receipt Details</h3>
+                <h3 className="text-xl font-bold text-gray-900">{t('materials.receipt.details')}</h3>
                 {receipt && (
                   <p className="text-sm text-gray-600 mt-0.5">
                     {receipt.receiptCode} - {new Date(receipt.receiptDate).toLocaleDateString('vi-VN')}
@@ -75,7 +77,7 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-gray-600 mt-4">Loading receipt details...</p>
+                <p className="text-gray-600 mt-4">{t('materials.receipt.loading')}</p>
               </div>
             ) : error ? (
               <div className="text-center py-12">
@@ -87,7 +89,7 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
                   onClick={loadReceiptDetail}
                   className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                  Retry
+                  {t('materials.receipt.retry')}
                 </button>
               </div>
             ) : receipt ? (
@@ -116,11 +118,11 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                     <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                       <FileText className="w-4 h-4" />
-                      Receipt Information
+                      {t('materials.receipt.receiptInfo')}
                     </h4>
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Status:</span>
+                        <span className="text-gray-600">{t('materials.receipt.status')}:</span>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                           receipt.status === 'Completed' ? 'bg-green-100 text-green-700' :
                           receipt.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
@@ -131,19 +133,19 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
                       </div>
                       {receipt.createdBy && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Created By:</span>
+                          <span className="text-gray-600">{t('materials.receipt.createdBy')}:</span>
                           <span className="text-gray-900 font-medium">{receipt.createdBy}</span>
                         </div>
                       )}
                       {receipt.importSource && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Import Source:</span>
+                          <span className="text-gray-600">{t('materials.receipt.importSource')}:</span>
                           <span className="text-gray-900">{receipt.importSource}</span>
                         </div>
                       )}
                       {receipt.importFileName && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">File Name:</span>
+                          <span className="text-gray-600">{t('materials.receipt.fileName')}:</span>
                           <span className="text-gray-900 truncate max-w-[200px]" title={receipt.importFileName}>
                             {receipt.importFileName}
                           </span>
@@ -155,24 +157,24 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                     <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                       <Clock className="w-4 h-4" />
-                      Timestamps
+                      {t('materials.receipt.timestamps')}
                     </h4>
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Created At:</span>
+                        <span className="text-gray-600">{t('materials.receipt.createdAt')}:</span>
                         <span className="text-gray-900">
                           {new Date(receipt.createdAt).toLocaleString('vi-VN')}
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Updated At:</span>
+                        <span className="text-gray-600">{t('materials.receipt.updatedAt')}:</span>
                         <span className="text-gray-900">
                           {new Date(receipt.updatedAt).toLocaleString('vi-VN')}
                         </span>
                       </div>
                       {receipt.approvedDate && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Approved Date:</span>
+                          <span className="text-gray-600">{t('materials.receipt.approvedDate')}:</span>
                           <span className="text-gray-900">
                             {new Date(receipt.approvedDate).toLocaleString('vi-VN')}
                           </span>
@@ -185,7 +187,7 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
                 {/* Notes */}
                 {receipt.notes && (
                   <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Notes:</h4>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">{t('materials.receipt.notes')}:</h4>
                     <p className="text-sm text-gray-700">{receipt.notes}</p>
                   </div>
                 )}
@@ -194,7 +196,7 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
                 <div>
                   <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
                     <Package className="w-5 h-5" />
-                    Receipt Items ({receipt.items.length})
+                    {t('materials.receipt.receiptItems')} ({receipt.items.length})
                   </h4>
                   <div className="overflow-x-auto border border-gray-200 rounded-lg">
                     <table className="min-w-full divide-y divide-gray-200">
@@ -264,7 +266,7 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
                       <tfoot className="bg-gray-50">
                         <tr>
                           <td colSpan={7} className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
-                            Grand Total:
+                            {t('materials.receipt.grandTotal')}:
                           </td>
                           <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">
                             {receipt.totalAmount ? receipt.totalAmount.toFixed(2) : '0.00'} {receipt.currency}
@@ -284,7 +286,7 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              Close
+              {t('common.close')}
             </button>
           </div>
         </div>

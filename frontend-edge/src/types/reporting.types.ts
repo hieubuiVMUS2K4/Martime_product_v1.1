@@ -27,7 +27,7 @@ export interface MaritimeReport {
   reportNumber: string;
   reportTypeId: number;
   reportDateTime: string;
-  voyageId?: number;
+  voyageId?: string | null; // Guid? in backend - can be null
   status: ReportStatus;
   preparedBy?: string;
   masterSignature?: string;
@@ -45,7 +45,7 @@ export interface MaritimeReport {
 
 export interface CreateNoonReportDto {
   reportDate: string;
-  voyageId?: number;
+  voyageId?: string | null; // Guid? in backend - can be null
   
   // Position
   latitude?: number;
@@ -79,10 +79,10 @@ export interface CreateNoonReportDto {
   freshWaterROB?: number;
   
   // Engine
-  mainEngineRunningHours?: number;
+  mainEngineRunningHours?: string; // Backend expects string (e.g., "1234.5")
   mainEngineRPM?: number;
   mainEnginePower?: number;
-  auxEngineRunningHours?: number;
+  auxEngineRunningHours?: string; // Backend expects string
   
   // Cargo
   cargoOnBoard?: number;
@@ -98,7 +98,41 @@ export interface CreateNoonReportDto {
   completedTaskIds?: string[]; // Array of TaskId from MaintenanceTask
   totalManHours?: number;
   
+  // Crew & Safety (SOLAS/ISM Code Compliance)
+  crewOnBoard?: number;
+  passengersOnBoard?: number;
+  safetyDrillsConducted?: string;
+  safetyIncidents?: string;
+  maintenanceRemarks?: string;
+  
   preparedBy?: string;
+}
+
+// ============================================================
+// NOON REPORT - MAINTENANCE SUMMARY (Aggregated from PMS)
+// ============================================================
+
+export interface NoonReportMaintenanceSummaryDto {
+  tasksCompletedLast24h: number;
+  tasksInProgress: number;
+  overdueTasks: number;
+  upcomingTasksNext7Days: number;
+  criticalEquipmentIssues: number;
+  sparesUsedLast24h: number;
+  totalManHoursLast24h: number;
+}
+
+// ============================================================
+// NOON REPORT - ALARM SUMMARY (Aggregated from Alarms)
+// ============================================================
+
+export interface NoonReportAlarmSummaryDto {
+  activeAlarms: number;
+  criticalAlarms: number;
+  warningAlarms: number;
+  acknowledgedAlarms: number;
+  resolvedLast24h: number;
+  unacknowledgedAlarms: number;
 }
 
 export interface NoonReportDto extends CreateNoonReportDto {
@@ -111,6 +145,10 @@ export interface NoonReportDto extends CreateNoonReportDto {
   isTransmitted: boolean;
   transmittedAt?: string;
   createdAt: string;
+  
+  // Aggregated Data from other modules
+  maintenanceSummary?: NoonReportMaintenanceSummaryDto;
+  alarmSummary?: NoonReportAlarmSummaryDto;
 }
 
 // ============================================================
@@ -119,7 +157,7 @@ export interface NoonReportDto extends CreateNoonReportDto {
 
 export interface CreateDepartureReportDto {
   departureDateTime: string;
-  voyageId?: number;
+  voyageId?: string; // Guid in backend - string type
   
   portName: string;
   portCode?: string;
@@ -168,7 +206,7 @@ export interface DepartureReportDto extends CreateDepartureReportDto {
 
 export interface CreateArrivalReportDto {
   arrivalDateTime: string;
-  voyageId?: number;
+  voyageId?: string; // Guid in backend - string type
   
   portName: string;
   portCode?: string;
@@ -321,7 +359,7 @@ export interface ReportPaginationDto {
   reportTypeId?: number;
   fromDate?: string;
   toDate?: string;
-  voyageId?: number;
+  voyageId?: string; // Guid in backend - string type
 }
 
 export interface ReportSummaryDto {
@@ -332,7 +370,7 @@ export interface ReportSummaryDto {
   reportTypeCode: string;
   reportDateTime: string;
   status: ReportStatus;
-  voyageId?: number;
+  voyageId?: string; // Guid in backend - string type
   voyageNumber?: string;
   preparedBy?: string;
   masterSignature?: string;

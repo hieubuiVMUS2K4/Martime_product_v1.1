@@ -56,6 +56,7 @@ public class ReportTypeDto
 
 /// <summary>
 /// Create Noon Report Request (IMO compliant)
+/// Extended to include operational data from project modules
 /// </summary>
 public class CreateNoonReportDto
 {
@@ -64,7 +65,7 @@ public class CreateNoonReportDto
 
     public Guid? VoyageId { get; set; }
 
-    // Position
+    // ============ POSITION DATA ============
     [Range(-90, 90)]
     public double? Latitude { get; set; }
 
@@ -83,63 +84,82 @@ public class CreateNoonReportDto
     public double? DistanceToGo { get; set; }
     public DateTime? EstimatedTimeOfArrival { get; set; }
 
-    // Weather
+    // ============ WEATHER DATA ============
     [MaxLength(50)]
-    public string? WeatherConditions { get; set; }
+    public string? WeatherConditions { get; set; } // FAIR, CLOUDY, RAIN, STORM
 
     [MaxLength(20)]
-    public string? SeaState { get; set; }
+    public string? SeaState { get; set; } // CALM, MODERATE, ROUGH, VERY_ROUGH
 
     [Range(-50, 50)]
-    public double? AirTemperature { get; set; }
+    public double? AirTemperature { get; set; } // Celsius
 
     [Range(-50, 50)]
-    public double? SeaTemperature { get; set; }
+    public double? SeaTemperature { get; set; } // Celsius
 
     [Range(900, 1100)]
-    public double? BarometricPressure { get; set; }
+    public double? BarometricPressure { get; set; } // hPa
 
     [MaxLength(20)]
-    public string? WindDirection { get; set; }
+    public string? WindDirection { get; set; } // N, NE, E, SE, S, SW, W, NW
 
     [Range(0, 100)]
-    public double? WindSpeed { get; set; }
+    public double? WindSpeed { get; set; } // knots
 
     [MaxLength(20)]
-    public string? Visibility { get; set; }
+    public string? Visibility { get; set; } // GOOD, MODERATE, POOR, FOG
 
-    // Fuel Consumption (24h)
-    public double? FuelOilConsumed { get; set; }
-    public double? DieselOilConsumed { get; set; }
-    public double? LubOilConsumed { get; set; }
-    public double? FreshWaterConsumed { get; set; }
+    // ============ FUEL DATA (24h consumption) ============
+    public double? FuelOilConsumed { get; set; } // MT (Metric Tons)
+    public double? DieselOilConsumed { get; set; } // MT
+    public double? LubOilConsumed { get; set; } // Liters
+    public double? FreshWaterConsumed { get; set; } // Tons
 
-    // ROB (Remaining On Board)
-    public double? FuelOilROB { get; set; }
-    public double? DieselOilROB { get; set; }
-    public double? LubOilROB { get; set; }
-    public double? FreshWaterROB { get; set; }
+    // ============ ROB (Remaining On Board) ============
+    public double? FuelOilROB { get; set; } // MT
+    public double? DieselOilROB { get; set; } // MT
+    public double? LubOilROB { get; set; } // Liters
+    public double? FreshWaterROB { get; set; } // Tons
 
-    // Engine Performance
+    // ============ ENGINE PERFORMANCE ============
     [MaxLength(50)]
     public string? MainEngineRunningHours { get; set; }
 
     public double? MainEngineRPM { get; set; }
-    public double? MainEnginePower { get; set; }
+    public double? MainEnginePower { get; set; } // kW
 
     [MaxLength(50)]
     public string? AuxEngineRunningHours { get; set; }
 
-    // Cargo
-    public double? CargoOnBoard { get; set; }
+    // ============ CARGO DATA ============
+    public double? CargoOnBoard { get; set; } // MT
 
     [MaxLength(100)]
     public string? CargoDescription { get; set; }
 
-    // Remarks
+    // ============ CREW STATUS (optional - auto-calculated if not provided) ============
+    /// <summary>Number of crew currently on board</summary>
+    public int? CrewOnBoard { get; set; }
+    
+    /// <summary>Number of passengers on board (if any)</summary>
+    public int? PassengersOnBoard { get; set; }
+
+    // ============ SAFETY NOTES (optional) ============
+    /// <summary>Any safety drills conducted</summary>
+    [MaxLength(500)]
+    public string? SafetyDrillsConducted { get; set; }
+    
+    /// <summary>Any safety incidents or near-misses</summary>
+    [MaxLength(500)]
+    public string? SafetyIncidents { get; set; }
+
+    // ============ REMARKS ============
     public string? OperationalRemarks { get; set; }
     public string? MachineryRemarks { get; set; }
     public string? CargoRemarks { get; set; }
+    
+    /// <summary>Maintenance notes for the day</summary>
+    public string? MaintenanceRemarks { get; set; }
 
     [MaxLength(100)]
     public string? PreparedBy { get; set; }
@@ -148,7 +168,7 @@ public class CreateNoonReportDto
 }
 
 /// <summary>
-/// Noon Report Response DTO
+/// Noon Report Response DTO - Extended with operational data from project modules
 /// </summary>
 public class NoonReportDto
 {
@@ -157,8 +177,10 @@ public class NoonReportDto
     public string ReportNumber { get; set; } = string.Empty;
     public DateTime ReportDate { get; set; }
     public string Status { get; set; } = string.Empty;
+    public Guid? VoyageId { get; set; }
+    public string? VoyageNumber { get; set; }
     
-    // Position
+    // ============ POSITION DATA ============
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
     public double? CourseOverGround { get; set; }
@@ -167,31 +189,109 @@ public class NoonReportDto
     public double? DistanceToGo { get; set; }
     public DateTime? EstimatedTimeOfArrival { get; set; }
 
-    // Weather Summary
+    // ============ WEATHER DATA ============
     public string? WeatherConditions { get; set; }
     public string? SeaState { get; set; }
     public double? AirTemperature { get; set; }
+    public double? SeaTemperature { get; set; }
+    public double? BarometricPressure { get; set; }
+    public string? WindDirection { get; set; }
     public double? WindSpeed { get; set; }
+    public string? Visibility { get; set; }
 
-    // Fuel Summary
+    // ============ FUEL DATA ============
     public double? FuelOilConsumed { get; set; }
+    public double? DieselOilConsumed { get; set; }
+    public double? LubOilConsumed { get; set; }
+    public double? FreshWaterConsumed { get; set; }
     public double? FuelOilROB { get; set; }
     public double? DieselOilROB { get; set; }
+    public double? LubOilROB { get; set; }
+    public double? FreshWaterROB { get; set; }
 
-    // Engine
+    // ============ ENGINE DATA ============
     public double? MainEngineRPM { get; set; }
+    public double? MainEnginePower { get; set; }
     public string? MainEngineRunningHours { get; set; }
+    public string? AuxEngineRunningHours { get; set; }
 
-    // Cargo
+    // ============ CARGO DATA ============
     public double? CargoOnBoard { get; set; }
+    public string? CargoDescription { get; set; }
 
-    // Metadata
+    // ============ REMARKS ============
+    public string? OperationalRemarks { get; set; }
+    public string? MachineryRemarks { get; set; }
+    public string? CargoRemarks { get; set; }
+    public string? GeneralRemarks { get; set; }
+
+    // ============ CREW STATUS (from Crew module) ============
+    public int? CrewOnBoard { get; set; }
+    public int? CertificatesExpiringSoon { get; set; } // Within 30 days
+    
+    // ============ MAINTENANCE STATUS (from Maintenance module) ============
+    public NoonReportMaintenanceSummaryDto? MaintenanceSummary { get; set; }
+    
+    // ============ SAFETY/ALARMS (from Alarms module) ============
+    public NoonReportAlarmSummaryDto? AlarmSummary { get; set; }
+
+    // ============ METADATA ============
     public string? PreparedBy { get; set; }
     public string? MasterSignature { get; set; }
     public DateTime? SignedAt { get; set; }
     public bool IsTransmitted { get; set; }
     public DateTime? TransmittedAt { get; set; }
     public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// Maintenance summary included in Noon Report
+/// </summary>
+public class NoonReportMaintenanceSummaryDto
+{
+    /// <summary>Tasks completed in last 24 hours</summary>
+    public int TasksCompletedLast24h { get; set; }
+    
+    /// <summary>Tasks currently in progress</summary>
+    public int TasksInProgress { get; set; }
+    
+    /// <summary>Overdue tasks requiring attention</summary>
+    public int OverdueTasks { get; set; }
+    
+    /// <summary>Critical/High priority tasks due within 7 days</summary>
+    public int CriticalTasksDueSoon { get; set; }
+    
+    /// <summary>Total scheduled tasks for the day</summary>
+    public int TotalScheduledToday { get; set; }
+    
+    /// <summary>Pending deferral requests</summary>
+    public int PendingDeferrals { get; set; }
+    
+    /// <summary>Brief notes on critical maintenance</summary>
+    public string? CriticalMaintenanceNotes { get; set; }
+}
+
+/// <summary>
+/// Alarm/Safety summary included in Noon Report
+/// </summary>
+public class NoonReportAlarmSummaryDto
+{
+    /// <summary>Active alarms not yet resolved</summary>
+    public int ActiveAlarms { get; set; }
+    
+    /// <summary>Alarms acknowledged but not resolved</summary>
+    public int AcknowledgedAlarms { get; set; }
+    
+    /// <summary>Alarms resolved in last 24 hours</summary>
+    public int ResolvedLast24h { get; set; }
+    
+    /// <summary>Critical/Warning alarms breakdown</summary>
+    public int CriticalAlarms { get; set; }
+    public int WarningAlarms { get; set; }
+    
+    /// <summary>Brief safety notes</summary>
+    public string? SafetyNotes { get; set; }
 }
 
 // ============================================================

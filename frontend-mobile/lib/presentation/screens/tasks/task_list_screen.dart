@@ -21,10 +21,14 @@ class _TaskListScreenState extends State<TaskListScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   String _searchQuery = '';
+  // PERFORMANCE: Cache lowercase search query to avoid repeated toLowerCase() calls
+  String _searchQueryLower = '';
   final TextEditingController _searchController = TextEditingController();
   
   // Auto-refresh timer để sync với backend khi Captain giao task mới
   Timer? _refreshTimer;
+  // PERFORMANCE: Debounce timer for search input
+  Timer? _searchDebounceTimer;
   // Use optimized interval from constants (30s) - balances battery life with real-time updates
   static const _refreshInterval = PerformanceConstants.taskListRefreshInterval;
 
@@ -43,6 +47,7 @@ class _TaskListScreenState extends State<TaskListScreen>
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _searchDebounceTimer?.cancel();
     _tabController.dispose();
     _searchController.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -51,24 +56,42 @@ class _TaskListScreenState extends State<TaskListScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Refresh khi app quay lại foreground
+    // Refresh khi app quay lại foreground, pause timer khi app đi background
     if (state == AppLifecycleState.resumed) {
       Provider.of<TaskProvider>(context, listen: false).fetchMyTasks(forceRefresh: true);
+      _startRefreshTimer();
+    } else if (state == AppLifecycleState.paused) {
+      // PERFORMANCE: Stop refresh timer when app is in background to save battery
+      _refreshTimer?.cancel();
     }
+  }
+
+  void _startRefreshTimer() {
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
+      if (mounted && !taskProvider.isLoading) {
+        taskProvider.fetchMyTasks(forceRefresh: true);
+      }
+    });
   }
 
   void _fetchAndStartTimer() {
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     taskProvider.fetchMyTasks(forceRefresh: true); // Force API call on init
-    
-    // Auto-refresh every 30s - optimized for battery life while staying reasonably up-to-date
-    _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
+    _startRefreshTimer();
+  }
+
+  // PERFORMANCE: Debounced search to avoid excessive rebuilds
+  void _onSearchChanged(String value) {
+    _searchDebounceTimer?.cancel();
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () {
       if (mounted) {
-        // Only force refresh if app is visible and not already loading
-        if (!taskProvider.isLoading) {
-          taskProvider.fetchMyTasks(forceRefresh: true);
-        }
+        setState(() {
+          _searchQuery = value;
+          // PERFORMANCE: Cache lowercase version once instead of calling toLowerCase() N times
+          _searchQueryLower = value.toLowerCase();
+        });
       }
     });
   }
@@ -207,6 +230,7 @@ class _TaskListScreenState extends State<TaskListScreen>
                           _searchController.clear();
                           setState(() {
                             _searchQuery = '';
+                            _searchQueryLower = '';
                           });
                         },
                       )
@@ -219,11 +243,7 @@ class _TaskListScreenState extends State<TaskListScreen>
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
+              onChanged: _onSearchChanged,
             ),
           ),
 
@@ -260,15 +280,14 @@ class _TaskListScreenState extends State<TaskListScreen>
       );
     }
 
-    // Filter by search query
+    // Filter by search query - PERFORMANCE: Use cached lowercase search query
     final filteredTasks = tasks.where((task) {
-      final searchLower = _searchQuery.toLowerCase();
       final nameMatch = (task.equipmentName ?? task.equipmentGroupName ?? '')
               .toLowerCase()
-              .contains(searchLower);
+              .contains(_searchQueryLower);
       final descMatch = task.taskDescription
               .toLowerCase()
-              .contains(searchLower);
+              .contains(_searchQueryLower);
       return nameMatch || descMatch;
     }).toList();
 
@@ -321,6 +340,8 @@ class _TaskListScreenState extends State<TaskListScreen>
             itemBuilder: (context, index) {
               final task = filteredTasks[index];
               return Padding(
+                // PERFORMANCE: Use ValueKey for efficient widget recycling
+                key: ValueKey(task.id),
                 padding: EdgeInsets.only(bottom: isNarrow ? 8 : 12),
                 child: TaskCard(
                   task: task,

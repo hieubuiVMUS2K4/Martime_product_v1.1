@@ -3,7 +3,7 @@
  * IMO/SOLAS Compliant Maritime Reporting
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Ship, 
@@ -16,12 +16,46 @@ import {
   Send,
   AlertTriangle,
   Wrench,
-  CheckCircle2
+  CheckCircle2,
+  Users,
+  Loader2
 } from 'lucide-react';
 import { ReportingService } from '../../services/reporting.service';
 import { getTasksCompletedLast24Hours, calculateManHours, toTaskSummary } from '../../services/maintenance.service';
+import { maritimeService } from '../../services/maritime.service';
 import type { CreateNoonReportDto } from '../../types/reporting.types';
 import type { TaskSummary } from '../../types/maintenance.types';
+
+// Field name mapping for better error messages
+const FIELD_LABELS: Record<string, string> = {
+  'reportDate': 'Report Date',
+  'voyageId': 'Voyage ID',
+  'latitude': 'Latitude',
+  'longitude': 'Longitude',
+  'courseOverGround': 'Course Over Ground (COG)',
+  'speedOverGround': 'Speed Over Ground (SOG)',
+  'distanceTraveled': 'Distance Traveled',
+  'distanceToGo': 'Distance To Go',
+  'weatherConditions': 'Weather Conditions',
+  'seaState': 'Sea State',
+  'windDirection': 'Wind Direction',
+  'windSpeed': 'Wind Speed',
+  'airTemperature': 'Air Temperature',
+  'seaTemperature': 'Sea Temperature',
+  'barometricPressure': 'Barometric Pressure',
+  'visibility': 'Visibility',
+  'fuelOilConsumed': 'Fuel Oil Consumed',
+  'dieselOilConsumed': 'Diesel Oil Consumed',
+  'fuelOilROB': 'Fuel Oil ROB',
+  'dieselOilROB': 'Diesel Oil ROB',
+  'mainEngineRunningHours': 'M/E Running Hours',
+  'auxEngineRunningHours': 'A/E Running Hours',
+  'cargoOnBoard': 'Cargo On Board',
+  'preparedBy': 'Prepared By',
+  'generalRemarks': 'General Remarks',
+  'crewOnBoard': 'Crew On Board',
+  'passengersOnBoard': 'Passengers On Board',
+};
 
 export function NoonReportForm() {
   const navigate = useNavigate();
@@ -32,16 +66,30 @@ export function NoonReportForm() {
   const [loadingReport, setLoadingReport] = useState(isEditMode);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
+  
+  // Refs for scrolling to error fields
+  const fieldRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null>>({});
+  
+  // Callback ref setter that doesn't return a value
+  const setFieldRef = (fieldName: string) => (el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null) => {
+    fieldRefs.current[fieldName] = el;
+  };
   
   // Daily Tasks Summary
   const [completedTasks, setCompletedTasks] = useState<TaskSummary[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [totalManHours, setTotalManHours] = useState(0);
+  
+  // Auto-load states
+  const [loadingVoyage, setLoadingVoyage] = useState(true);
+  const [loadingCrew, setLoadingCrew] = useState(true);
+  const [currentVoyageNumber, setCurrentVoyageNumber] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<CreateNoonReportDto>({
     reportDate: new Date().toISOString().split('T')[0],
-    voyageId: 0,
+    voyageId: undefined, // Guid? in backend - send undefined instead of 0
     
     // Position
     latitude: 0,
@@ -69,9 +117,9 @@ export function NoonReportForm() {
     fuelOilConsumed: 0,
     dieselOilConsumed: 0,
     
-    // Engine
-    mainEngineRunningHours: 0,
-    auxEngineRunningHours: 0,
+    // Engine - Backend expects string type
+    mainEngineRunningHours: '',
+    auxEngineRunningHours: '',
     
     // Cargo
     cargoOnBoard: 0,
@@ -118,6 +166,54 @@ export function NoonReportForm() {
     
     loadCompletedTasks();
   }, []);
+  
+  // Auto-load current voyage and crew data on mount
+  useEffect(() => {
+    const loadAutoData = async () => {
+      // Skip auto-load if in edit mode (data comes from existing report)
+      if (isEditMode) {
+        setLoadingVoyage(false);
+        setLoadingCrew(false);
+        return;
+      }
+      
+      // Load current voyage
+      try {
+        setLoadingVoyage(true);
+        const voyage = await maritimeService.voyage.getCurrent();
+        if (voyage && voyage.id) {
+          setFormData(prev => ({ ...prev, voyageId: String(voyage.id) }));
+          setCurrentVoyageNumber(voyage.voyageNumber || `Voyage ${String(voyage.id).slice(0, 8)}`);
+          console.log('✅ Auto-loaded current voyage:', voyage.voyageNumber || voyage.id);
+        }
+      } catch (err) {
+        console.warn('⚠️ No active voyage found - user must select manually');
+      } finally {
+        setLoadingVoyage(false);
+      }
+      
+      // Load crew onboard count
+      try {
+        setLoadingCrew(true);
+        const crewOnboard = await maritimeService.crew.getOnboard();
+        if (crewOnboard && Array.isArray(crewOnboard)) {
+          setFormData(prev => ({ 
+            ...prev, 
+            crewOnBoard: crewOnboard.length,
+            // Default passengers to 0 (typically no passengers on cargo ships)
+            passengersOnBoard: prev.passengersOnBoard || 0
+          }));
+          console.log('✅ Auto-loaded crew count:', crewOnboard.length);
+        }
+      } catch (err) {
+        console.warn('⚠️ Failed to load crew data:', err);
+      } finally {
+        setLoadingCrew(false);
+      }
+    };
+    
+    loadAutoData();
+  }, [isEditMode]);
 
   // Load existing report data if in edit mode
   useEffect(() => {
@@ -200,7 +296,7 @@ export function NoonReportForm() {
     // Auto-save interval (every 60 seconds)
     const autoSaveInterval = setInterval(() => {
       // Only auto-save if form has meaningful data
-      if (formData.voyageId && formData.voyageId !== 0) {
+      if (formData.voyageId) {
         try {
           localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(formData));
           setLastAutoSave(new Date());
@@ -218,76 +314,178 @@ export function NoonReportForm() {
 
   const handleChange = (field: keyof CreateNoonReportDto, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear field error when user starts typing
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
+  
+  // Helper to get input class with error styling
+  const getInputClassName = (fieldName: string, baseClass: string = '') => {
+    const hasError = fieldErrors[fieldName];
+    const errorClass = 'border-red-500 bg-red-50 ring-2 ring-red-300 focus:ring-red-500 focus:border-red-500';
+    const normalClass = 'border-gray-300 focus:ring-blue-500 focus:border-transparent';
+    const baseInput = 'w-full px-3 py-1.5 text-sm border rounded-lg focus:ring-2 transition-all duration-200';
+    return `${baseInput} ${hasError ? errorClass : normalClass} ${baseClass}`;
+  };
+  
+  // Helper to render field error message
+  const renderFieldError = (fieldName: string) => {
+    if (!fieldErrors[fieldName]) return null;
+    return (
+      <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+        <AlertTriangle className="h-3 w-3" />
+        {fieldErrors[fieldName]}
+      </p>
+    );
+  };
+
+  // Helper to scroll to first error field
+  const scrollToFirstError = (fieldErrorsMap: Record<string, string>) => {
+    const firstErrorField = Object.keys(fieldErrorsMap)[0];
+    if (firstErrorField) {
+      const fieldRef = fieldRefs.current[firstErrorField];
+      if (fieldRef) {
+        fieldRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        fieldRef.focus();
+      }
+    }
   };
 
   const validateForm = (): boolean => {
     const errors: string[] = [];
+    const newFieldErrors: Record<string, string> = {};
     
     // Required fields
-    if (!formData.voyageId || formData.voyageId === 0) {
+    if (!formData.voyageId) {
       errors.push('Voyage ID is required');
+      newFieldErrors['voyageId'] = 'Voyage ID is required';
     }
     
     if (!formData.preparedBy?.trim()) {
       errors.push('Prepared By is required');
+      newFieldErrors['preparedBy'] = 'Prepared By is required';
     }
     
     // GPS validation
     if (formData.latitude !== undefined && (formData.latitude < -90 || formData.latitude > 90)) {
       errors.push('Latitude must be between -90 and 90');
+      newFieldErrors['latitude'] = 'Must be between -90 and 90';
     }
     
     if (formData.longitude !== undefined && (formData.longitude < -180 || formData.longitude > 180)) {
       errors.push('Longitude must be between -180 and 180');
+      newFieldErrors['longitude'] = 'Must be between -180 and 180';
     }
     
     // Null Island check
     if (formData.latitude === 0 && formData.longitude === 0) {
       errors.push('Invalid position (Null Island) - please enter actual coordinates');
+      newFieldErrors['latitude'] = 'Invalid Null Island position';
+      newFieldErrors['longitude'] = 'Invalid Null Island position';
     }
     
     // Speed validation
     if (formData.speedOverGround !== undefined && (formData.speedOverGround < 0 || formData.speedOverGround > 40)) {
       errors.push('Speed must be between 0 and 40 knots');
+      newFieldErrors['speedOverGround'] = 'Must be between 0 and 40 knots';
     }
     
     // Course validation
     if (formData.courseOverGround !== undefined && (formData.courseOverGround < 0 || formData.courseOverGround > 360)) {
       errors.push('Course must be between 0 and 360 degrees');
+      newFieldErrors['courseOverGround'] = 'Must be between 0 and 360°';
     }
     
     // Fuel validation
     if (formData.fuelOilROB !== undefined && formData.fuelOilROB < 0) {
       errors.push('Fuel Oil ROB cannot be negative');
+      newFieldErrors['fuelOilROB'] = 'Cannot be negative';
     }
     
     if (formData.fuelOilConsumed !== undefined && formData.fuelOilConsumed < 0) {
       errors.push('Fuel Oil Consumed cannot be negative');
+      newFieldErrors['fuelOilConsumed'] = 'Cannot be negative';
+    }
+    
+    // Backend validation rules (from ReportingDTOs.cs)
+    if (formData.barometricPressure !== undefined && 
+        (formData.barometricPressure < 900 || formData.barometricPressure > 1100)) {
+      errors.push('Barometric Pressure must be between 900 and 1100 hPa');
+      newFieldErrors['barometricPressure'] = 'Must be 900-1100 hPa';
+    }
+    
+    if (formData.airTemperature !== undefined && 
+        (formData.airTemperature < -50 || formData.airTemperature > 50)) {
+      errors.push('Air Temperature must be between -50 and 50°C');
+      newFieldErrors['airTemperature'] = 'Must be -50 to 50°C';
+    }
+    
+    if (formData.seaTemperature !== undefined && 
+        (formData.seaTemperature < -50 || formData.seaTemperature > 50)) {
+      errors.push('Sea Temperature must be between -50 and 50°C');
+      newFieldErrors['seaTemperature'] = 'Must be -50 to 50°C';
+    }
+    
+    if (formData.windSpeed !== undefined && 
+        (formData.windSpeed < 0 || formData.windSpeed > 100)) {
+      errors.push('Wind Speed must be between 0 and 100 knots');
+      newFieldErrors['windSpeed'] = 'Must be 0-100 knots';
+    }
+    
+    if (formData.distanceTraveled !== undefined && 
+        (formData.distanceTraveled < 0 || formData.distanceTraveled > 1000)) {
+      errors.push('Distance Traveled must be between 0 and 1000 nm');
+      newFieldErrors['distanceTraveled'] = 'Must be 0-1000 nm';
     }
     
     setValidationErrors(errors);
+    setFieldErrors(newFieldErrors);
+    
+    // Scroll to first error
+    if (Object.keys(newFieldErrors).length > 0) {
+      setTimeout(() => scrollToFirstError(newFieldErrors), 100);
+    }
+    
     return errors.length === 0;
   };
 
   const handleSubmit = async (asDraft: boolean = false) => {
     if (!asDraft && !validateForm()) {
-      return;
+      return; // validateForm now handles scrolling
     }
     
     try {
       setLoading(true);
       setError(null);
+      setValidationErrors([]); // Clear previous errors
+      setFieldErrors({}); // Clear field errors
+      
+      // Clean up data before sending - ensure voyageId is valid GUID or null
+      const cleanedData = {
+        ...formData,
+        // VoyageId: if empty string or invalid, send null; otherwise keep as-is
+        voyageId: formData.voyageId && formData.voyageId.trim() !== '' 
+          ? formData.voyageId 
+          : null,
+      };
+      
+      console.log('📤 Submitting report with data:', cleanedData);
       
       let reportId: string;
       
       if (isEditMode && id) {
         // UPDATE existing report
-        await ReportingService.updateNoonReport(id, formData);
+        await ReportingService.updateNoonReport(id, cleanedData);
         reportId = id;
         console.log('✅ Report updated successfully');
       } else {
         // CREATE new report
-        const report = await ReportingService.createNoonReport(formData);
+        const report = await ReportingService.createNoonReport(cleanedData);
         reportId = report.reportId;
         console.log('✅ Report created successfully');
       }
@@ -307,32 +505,102 @@ export function NoonReportForm() {
     } catch (err: any) {
       console.error('Failed to save Noon Report:', err);
       
+      // Check for validation errors from backend
+      if (err.validationErrors) {
+        const backendErrors: string[] = [];
+        const newFieldErrors: Record<string, string> = {};
+        
+        Object.entries(err.validationErrors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            messages.forEach((msg: string) => {
+              // Map backend field names to frontend field names
+              const fieldNameMap: Record<string, string> = {
+                'ReportDate': 'reportDate',
+                'VoyageId': 'voyageId',
+                'Latitude': 'latitude',
+                'Longitude': 'longitude',
+                'CourseOverGround': 'courseOverGround',
+                'SpeedOverGround': 'speedOverGround',
+                'DistanceTraveled': 'distanceTraveled',
+                'DistanceToGo': 'distanceToGo',
+                'BarometricPressure': 'barometricPressure',
+                'AirTemperature': 'airTemperature',
+                'SeaTemperature': 'seaTemperature',
+                'WindSpeed': 'windSpeed',
+                'WindDirection': 'windDirection',
+                'FuelOilROB': 'fuelOilROB',
+                'DieselOilROB': 'dieselOilROB',
+                'FuelOilConsumed': 'fuelOilConsumed',
+                'DieselOilConsumed': 'dieselOilConsumed',
+                'PreparedBy': 'preparedBy',
+                'WeatherConditions': 'weatherConditions',
+                'SeaState': 'seaState',
+                'GeneralRemarks': 'generalRemarks',
+                'CargoOnBoard': 'cargoOnBoard',
+                'MainEngineRunningHours': 'mainEngineRunningHours',
+                'AuxEngineRunningHours': 'auxEngineRunningHours',
+                'CrewOnBoard': 'crewOnBoard',
+                'PassengersOnBoard': 'passengersOnBoard',
+              };
+              
+              const frontendField = fieldNameMap[field] || field.charAt(0).toLowerCase() + field.slice(1);
+              const readableField = FIELD_LABELS[frontendField] || field.replace(/([A-Z])/g, ' $1').trim();
+              
+              backendErrors.push(`${readableField}: ${msg}`);
+              newFieldErrors[frontendField] = msg;
+            });
+          }
+        });
+        
+        setValidationErrors(backendErrors);
+        setFieldErrors(newFieldErrors);
+        
+        // Scroll to first error field
+        if (Object.keys(newFieldErrors).length > 0) {
+          setTimeout(() => scrollToFirstError(newFieldErrors), 100);
+        }
+        
+        setError('❌ Validation failed. Please check the fields highlighted below.');
+        return;
+      }
+      
       // User-friendly error messages
       let errorMsg = 'Không thể tạo Noon Report';
       
       if (err?.response?.data?.error) {
         errorMsg = err.response.data.error;
       } else if (err.message) {
-        const msg = err.message.toLowerCase();
-        
-        if (msg.includes('validation') || msg.includes('invalid')) {
-          errorMsg = '❌ Dữ liệu không hợp lệ. Vui lòng kiểm tra lại các trường bắt buộc (có dấu *)';
-        } else if (msg.includes('duplicate')) {
-          errorMsg = `⚠️ Đã tồn tại Noon Report cho ngày ${formData.reportDate}.\n\nVui lòng chỉnh sửa báo cáo hiện tại thay vì tạo mới.`;
-        } else if (msg.includes('timeout') || msg.includes('network')) {
-          errorMsg = '🌐 Lỗi kết nối mạng. Báo cáo đã được lưu nháp tự động, bạn có thể gửi lại sau.';
-        } else if (msg.includes('401') || msg.includes('unauthorized')) {
-          errorMsg = '🔒 Phiên đăng nhập đã hết hạn. Dữ liệu đã được lưu nháp, vui lòng đăng nhập lại.';
-        } else if (msg.includes('403') || msg.includes('forbidden')) {
-          errorMsg = '⛔ Bạn không có quyền tạo báo cáo. Vui lòng liên hệ Chief Officer hoặc Captain.';
-        } else if (msg.includes('500') || msg.includes('internal')) {
-          errorMsg = '⚠️ Lỗi máy chủ. Dữ liệu đã được lưu nháp tự động, vui lòng thử lại sau.';
-        } else {
+        // If it's a formatted validation message from api.client
+        if (err.message.includes('Validation failed:')) {
           errorMsg = err.message;
+          // Also parse the individual errors
+          const lines = err.message.split('\n').filter((l: string) => l.startsWith('•'));
+          if (lines.length > 0) {
+            setValidationErrors(lines.map((l: string) => l.replace('• ', '')));
+          }
+        } else {
+          const msg = err.message.toLowerCase();
+          
+          if (msg.includes('validation') || msg.includes('invalid')) {
+            errorMsg = '❌ Dữ liệu không hợp lệ. Vui lòng kiểm tra lại các trường bắt buộc (có dấu *)';
+          } else if (msg.includes('duplicate')) {
+            errorMsg = `⚠️ Đã tồn tại Noon Report cho ngày ${formData.reportDate}.\n\nVui lòng chỉnh sửa báo cáo hiện tại thay vì tạo mới.`;
+          } else if (msg.includes('timeout') || msg.includes('network')) {
+            errorMsg = '🌐 Lỗi kết nối mạng. Báo cáo đã được lưu nháp tự động, bạn có thể gửi lại sau.';
+          } else if (msg.includes('401') || msg.includes('unauthorized')) {
+            errorMsg = '🔒 Phiên đăng nhập đã hết hạn. Dữ liệu đã được lưu nháp, vui lòng đăng nhập lại.';
+          } else if (msg.includes('403') || msg.includes('forbidden')) {
+            errorMsg = '⛔ Bạn không có quyền tạo báo cáo. Vui lòng liên hệ Chief Officer hoặc Captain.';
+          } else if (msg.includes('500') || msg.includes('internal')) {
+            errorMsg = '⚠️ Lỗi máy chủ. Dữ liệu đã được lưu nháp tự động, vui lòng thử lại sau.';
+          } else {
+            errorMsg = err.message;
+          }
         }
       }
       
       setError(errorMsg);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -369,18 +637,30 @@ export function NoonReportForm() {
           </div>
         </div>
 
-        {/* Compact Validation Errors */}
+        {/* Validation Errors - Enhanced */}
         {validationErrors.length > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+          <div className="bg-red-50 border-l-4 border-red-500 rounded-r-xl p-4 mb-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-red-900 mb-1">Validation Errors</h3>
-                <ul className="list-disc list-inside space-y-0.5 text-xs text-red-700">
-                  {validationErrors.map((err, idx) => (
-                    <li key={idx}>{err}</li>
-                  ))}
-                </ul>
+                <h3 className="text-base font-bold text-red-900 mb-2">
+                  ❌ Validation Failed ({validationErrors.length} {validationErrors.length === 1 ? 'error' : 'errors'})
+                </h3>
+                <p className="text-sm text-red-700 mb-3">
+                  Please fix the following issues before submitting:
+                </p>
+                <div className="bg-white rounded-lg p-3 border border-red-200">
+                  <ul className="space-y-2">
+                    {validationErrors.map((err, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm text-red-800">
+                        <span className="text-red-500 font-bold">•</span>
+                        <span>{err}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
@@ -396,11 +676,18 @@ export function NoonReportForm() {
           </div>
         )}
 
-        {/* Compact Error Message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg mb-4">
-            <p className="text-sm font-semibold">Error</p>
-            <p className="text-xs mt-0.5">{error}</p>
+        {/* Error Message - Enhanced */}
+        {error && !validationErrors.length && (
+          <div className="bg-red-50 border-l-4 border-red-500 rounded-r-xl p-4 mb-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-red-900 mb-1">Error</h3>
+                <p className="text-sm text-red-700 whitespace-pre-wrap">{error}</p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -415,25 +702,37 @@ export function NoonReportForm() {
                 </label>
                 <input
                   type="date"
+                  ref={setFieldRef('reportDate')}
                   value={formData.reportDate}
                   onChange={(e) => handleChange('reportDate', e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={getInputClassName('reportDate')}
                   required
                 />
+                {renderFieldError('reportDate')}
               </div>
               
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Voyage ID <span className="text-red-600">*</span>
+                  Voyage <span className="text-red-600">*</span>
+                  {loadingVoyage && <Loader2 className="inline h-3 w-3 ml-1 animate-spin text-blue-500" />}
+                  {!loadingVoyage && currentVoyageNumber && (
+                    <span className="ml-2 text-xs font-normal text-green-600">✓ {currentVoyageNumber}</span>
+                  )}
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  ref={setFieldRef('voyageId')}
                   value={formData.voyageId || ''}
-                  onChange={(e) => handleChange('voyageId', parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onChange={(e) => handleChange('voyageId', e.target.value || undefined)}
+                  className={getInputClassName('voyageId')}
                   required
-                  min="1"
+                  placeholder={loadingVoyage ? "Loading current voyage..." : "Auto-loaded from active voyage"}
+                  readOnly={!!currentVoyageNumber}
                 />
+                {!currentVoyageNumber && !loadingVoyage && (
+                  <p className="text-xs text-amber-600 mt-1">⚠️ No active voyage found. Please enter manually.</p>
+                )}
+                {renderFieldError('voyageId')}
               </div>
               
               <div className="md:col-span-2">
@@ -442,12 +741,14 @@ export function NoonReportForm() {
               </label>
               <input
                 type="text"
+                ref={setFieldRef('preparedBy')}
                 value={formData.preparedBy}
                 onChange={(e) => handleChange('preparedBy', e.target.value)}
                 placeholder="Officer name"
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('preparedBy')}
                 required
               />
+              {renderFieldError('preparedBy')}
             </div>
           </div>
         </div>
@@ -466,13 +767,14 @@ export function NoonReportForm() {
               <input
                 type="number"
                 step="0.000001"
+                ref={setFieldRef('latitude')}
                 value={formData.latitude}
                 onChange={(e) => handleChange('latitude', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('latitude')}
                 placeholder="e.g. 10.762622"
                 required
               />
-              <p className="text-xs text-gray-500 mt-0.5">Range: -90 to +90</p>
+              {renderFieldError('latitude') || <p className="text-xs text-gray-500 mt-0.5">Range: -90 to +90</p>}
             </div>
             
             <div>
@@ -482,13 +784,14 @@ export function NoonReportForm() {
               <input
                 type="number"
                 step="0.000001"
+                ref={setFieldRef('longitude')}
                 value={formData.longitude}
                 onChange={(e) => handleChange('longitude', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('longitude')}
                 placeholder="e.g. 106.660172"
                 required
               />
-              <p className="text-xs text-gray-500 mt-0.5">Range: -180 to +180</p>
+              {renderFieldError('longitude') || <p className="text-xs text-gray-500 mt-0.5">Range: -180 to +180</p>}
             </div>
             
             <div>
@@ -498,13 +801,14 @@ export function NoonReportForm() {
               <input
                 type="number"
                 step="1"
+                ref={setFieldRef('courseOverGround')}
                 value={formData.courseOverGround}
                 onChange={(e) => handleChange('courseOverGround', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('courseOverGround')}
                 min="0"
                 max="360"
               />
-              <p className="text-xs text-gray-500 mt-1">0-360 degrees</p>
+              {renderFieldError('courseOverGround') || <p className="text-xs text-gray-500 mt-1">0-360 degrees</p>}
             </div>
             
             <div>
@@ -514,12 +818,14 @@ export function NoonReportForm() {
               <input
                 type="number"
                 step="0.1"
+                ref={setFieldRef('speedOverGround')}
                 value={formData.speedOverGround}
                 onChange={(e) => handleChange('speedOverGround', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('speedOverGround')}
                 min="0"
                 max="40"
               />
+              {renderFieldError('speedOverGround')}
             </div>
           </div>
         </div>
@@ -536,9 +842,10 @@ export function NoonReportForm() {
                 Weather
               </label>
               <select
+                ref={setFieldRef('weatherConditions')}
                 value={formData.weatherConditions}
                 onChange={(e) => handleChange('weatherConditions', e.target.value)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('weatherConditions')}
               >
                 <option value="CLEAR">Clear</option>
                 <option value="FAIR">Fair</option>
@@ -547,6 +854,7 @@ export function NoonReportForm() {
                 <option value="STORM">Storm</option>
                 <option value="FOG">Fog</option>
               </select>
+              {renderFieldError('weatherConditions')}
             </div>
             
             <div>
@@ -554,9 +862,10 @@ export function NoonReportForm() {
                 Wind Direction
               </label>
               <select
+                ref={setFieldRef('windDirection')}
                 value={formData.windDirection}
                 onChange={(e) => handleChange('windDirection', e.target.value)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('windDirection')}
               >
                 <option value="N">N</option>
                 <option value="NE">NE</option>
@@ -567,6 +876,7 @@ export function NoonReportForm() {
                 <option value="W">W</option>
                 <option value="NW">NW</option>
               </select>
+              {renderFieldError('windDirection')}
             </div>
             
             <div>
@@ -576,11 +886,13 @@ export function NoonReportForm() {
               <input
                 type="number"
                 step="1"
+                ref={setFieldRef('windSpeed')}
                 value={formData.windSpeed}
                 onChange={(e) => handleChange('windSpeed', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('windSpeed')}
                 min="0"
               />
+              {renderFieldError('windSpeed')}
             </div>
             
             <div>
@@ -588,9 +900,10 @@ export function NoonReportForm() {
                 Sea State
               </label>
               <select
+                ref={setFieldRef('seaState')}
                 value={formData.seaState}
                 onChange={(e) => handleChange('seaState', e.target.value)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('seaState')}
               >
                 <option value="CALM">Calm (0-1)</option>
                 <option value="SLIGHT">Slight (2-3)</option>
@@ -598,6 +911,7 @@ export function NoonReportForm() {
                 <option value="ROUGH">Rough (6-7)</option>
                 <option value="VERY_ROUGH">Very Rough (8-9)</option>
               </select>
+              {renderFieldError('seaState')}
             </div>
             
             <div>
@@ -605,15 +919,17 @@ export function NoonReportForm() {
                 Visibility
               </label>
               <select
+                ref={setFieldRef('visibility')}
                 value={formData.visibility}
                 onChange={(e) => handleChange('visibility', e.target.value)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('visibility')}
               >
                 <option value="EXCELLENT">Excellent (&gt;10 nm)</option>
                 <option value="GOOD">Good (5-10 nm)</option>
                 <option value="MODERATE">Moderate (2-5 nm)</option>
                 <option value="POOR">Poor (&lt;2 nm)</option>
               </select>
+              {renderFieldError('visibility')}
             </div>
             
             <div>
@@ -623,10 +939,12 @@ export function NoonReportForm() {
               <input
                 type="number"
                 step="0.1"
+                ref={setFieldRef('barometricPressure')}
                 value={formData.barometricPressure}
                 onChange={(e) => handleChange('barometricPressure', parseFloat(e.target.value) || 1013.25)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('barometricPressure')}
               />
+              {renderFieldError('barometricPressure')}
             </div>
           </div>
         </div>
@@ -645,10 +963,12 @@ export function NoonReportForm() {
               <input
                 type="number"
                 step="0.1"
+                ref={setFieldRef('distanceTraveled')}
                 value={formData.distanceTraveled}
                 onChange={(e) => handleChange('distanceTraveled', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('distanceTraveled')}
               />
+              {renderFieldError('distanceTraveled')}
             </div>
             
             <div>
@@ -658,10 +978,12 @@ export function NoonReportForm() {
               <input
                 type="number"
                 step="0.1"
+                ref={setFieldRef('distanceToGo')}
                 value={formData.distanceToGo}
                 onChange={(e) => handleChange('distanceToGo', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('distanceToGo')}
               />
+              {renderFieldError('distanceToGo')}
             </div>
           </div>
         </div>
@@ -680,11 +1002,13 @@ export function NoonReportForm() {
               <input
                 type="number"
                 step="0.1"
+                ref={setFieldRef('fuelOilROB')}
                 value={formData.fuelOilROB}
                 onChange={(e) => handleChange('fuelOilROB', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('fuelOilROB')}
                 min="0"
               />
+              {renderFieldError('fuelOilROB')}
             </div>
             
             <div>
@@ -694,11 +1018,13 @@ export function NoonReportForm() {
               <input
                 type="number"
                 step="0.1"
+                ref={setFieldRef('dieselOilROB')}
                 value={formData.dieselOilROB}
                 onChange={(e) => handleChange('dieselOilROB', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('dieselOilROB')}
                 min="0"
               />
+              {renderFieldError('dieselOilROB')}
             </div>
             
             <div>
@@ -708,11 +1034,13 @@ export function NoonReportForm() {
               <input
                 type="number"
                 step="0.1"
+                ref={setFieldRef('fuelOilConsumed')}
                 value={formData.fuelOilConsumed}
                 onChange={(e) => handleChange('fuelOilConsumed', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('fuelOilConsumed')}
                 min="0"
               />
+              {renderFieldError('fuelOilConsumed')}
             </div>
             
             <div>
@@ -722,11 +1050,13 @@ export function NoonReportForm() {
               <input
                 type="number"
                 step="0.1"
+                ref={setFieldRef('dieselOilConsumed')}
                 value={formData.dieselOilConsumed}
                 onChange={(e) => handleChange('dieselOilConsumed', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('dieselOilConsumed')}
                 min="0"
               />
+              {renderFieldError('dieselOilConsumed')}
             </div>
           </div>
         </div>
@@ -743,13 +1073,14 @@ export function NoonReportForm() {
                 Main Engine (hrs)
               </label>
               <input
-                type="number"
-                step="0.1"
+                type="text"
+                ref={setFieldRef('mainEngineRunningHours')}
                 value={formData.mainEngineRunningHours}
-                onChange={(e) => handleChange('mainEngineRunningHours', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                min="0"
+                onChange={(e) => handleChange('mainEngineRunningHours', e.target.value)}
+                className={getInputClassName('mainEngineRunningHours')}
+                placeholder="e.g., 12345.5"
               />
+              {renderFieldError('mainEngineRunningHours')}
             </div>
             
             <div>
@@ -757,13 +1088,14 @@ export function NoonReportForm() {
                 Auxiliary Engine (hrs)
               </label>
               <input
-                type="number"
-                step="0.1"
+                type="text"
+                ref={setFieldRef('auxEngineRunningHours')}
                 value={formData.auxEngineRunningHours}
-                onChange={(e) => handleChange('auxEngineRunningHours', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                min="0"
+                onChange={(e) => handleChange('auxEngineRunningHours', e.target.value)}
+                className={getInputClassName('auxEngineRunningHours')}
+                placeholder="e.g., 5678.2"
               />
+              {renderFieldError('auxEngineRunningHours')}
             </div>
           </div>
         </div>
@@ -779,11 +1111,13 @@ export function NoonReportForm() {
               <input
                 type="number"
                 step="0.1"
+                ref={setFieldRef('cargoOnBoard')}
                 value={formData.cargoOnBoard}
                 onChange={(e) => handleChange('cargoOnBoard', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getInputClassName('cargoOnBoard')}
                 min="0"
               />
+              {renderFieldError('cargoOnBoard')}
             </div>
           </div>
         </div>
@@ -880,24 +1214,164 @@ export function NoonReportForm() {
           )}
         </div>
 
-        {/* Remarks */}
-        <div className="bg-white rounded-lg shadow-sm p-2 border border-gray-200">
-          <h2 className="text-sm font-semibold text-gray-900 mb-2">General Remarks</h2>
-          <textarea
-            value={formData.generalRemarks}
-            onChange={(e) => handleChange('generalRemarks', e.target.value)}
-            rows={4}
-            placeholder="Any additional information..."
-            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+        {/* Crew & Safety Section (SOLAS/ISM Code Compliance) */}
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-200">
+          <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <Users className="h-5 w-5 text-blue-600" />
+            Crew & Safety (SOLAS Compliance)
+            {loadingCrew && <Loader2 className="h-4 w-4 animate-spin text-blue-500" />}
+            {!loadingCrew && formData.crewOnBoard !== undefined && formData.crewOnBoard > 0 && (
+              <span className="ml-2 text-xs font-normal text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                ✓ Auto-loaded
+              </span>
+            )}
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="bg-blue-50 rounded-lg p-3">
+              <label className="block text-xs font-medium text-blue-700 mb-1">
+                Crew On Board
+                {loadingCrew && <Loader2 className="inline h-3 w-3 ml-1 animate-spin" />}
+              </label>
+              <input
+                type="number"
+                ref={setFieldRef('crewOnBoard')}
+                value={formData.crewOnBoard || 0}
+                onChange={(e) => handleChange('crewOnBoard', parseInt(e.target.value) || 0)}
+                className={`w-full px-3 py-2 text-sm border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white ${formData.crewOnBoard && formData.crewOnBoard > 0 ? 'font-semibold text-blue-800' : ''}`}
+                min="0"
+                placeholder={loadingCrew ? "Loading..." : "Total crew members"}
+              />
+              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Auto-loaded from Crew module
+              </p>
+            </div>
+            
+            <div className="bg-blue-50 rounded-lg p-3">
+              <label className="block text-xs font-medium text-blue-700 mb-1">
+                Passengers On Board
+              </label>
+              <input
+                type="number"
+                ref={setFieldRef('passengersOnBoard')}
+                value={formData.passengersOnBoard || 0}
+                onChange={(e) => handleChange('passengersOnBoard', parseInt(e.target.value) || 0)}
+                className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                min="0"
+                placeholder="Total passengers (usually 0 for cargo ships)"
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Safety Drills Conducted
+              </label>
+              <input
+                type="text"
+                value={formData.safetyDrillsConducted || ''}
+                onChange={(e) => handleChange('safetyDrillsConducted', e.target.value)}
+                placeholder="e.g., Fire Drill, Abandon Ship Drill"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
+                <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                Safety Incidents (if any)
+              </label>
+              <input
+                type="text"
+                value={formData.safetyIncidents || ''}
+                onChange={(e) => handleChange('safetyIncidents', e.target.value)}
+                placeholder="Brief description of any incidents"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-2 justify-end">
+        {/* Remarks - Enhanced */}
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-200">
+          <h2 className="text-base font-semibold text-gray-900 mb-3">Remarks & Notes</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Operational Remarks
+              </label>
+              <textarea
+                value={formData.operationalRemarks || ''}
+                onChange={(e) => handleChange('operationalRemarks', e.target.value)}
+                rows={2}
+                placeholder="Navigation, voyage progress..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Machinery Remarks
+              </label>
+              <textarea
+                value={formData.machineryRemarks || ''}
+                onChange={(e) => handleChange('machineryRemarks', e.target.value)}
+                rows={2}
+                placeholder="Engine performance, issues..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Cargo Remarks
+              </label>
+              <textarea
+                value={formData.cargoRemarks || ''}
+                onChange={(e) => handleChange('cargoRemarks', e.target.value)}
+                rows={2}
+                placeholder="Cargo condition, handling..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Maintenance Remarks
+              </label>
+              <textarea
+                value={formData.maintenanceRemarks || ''}
+                onChange={(e) => handleChange('maintenanceRemarks', e.target.value)}
+                rows={2}
+                placeholder="PMS activities, repairs..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              General Remarks
+            </label>
+            <textarea
+              value={formData.generalRemarks}
+              onChange={(e) => handleChange('generalRemarks', e.target.value)}
+              rows={3}
+              placeholder="Any additional information..."
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        {/* Action Buttons - Enhanced */}
+        <div className="flex gap-3 justify-end pt-2">
           <button
             type="button"
             onClick={() => navigate('/reporting/reports')}
-            className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
             disabled={loading}
           >
             Cancel
@@ -906,7 +1380,7 @@ export function NoonReportForm() {
           <button
             type="button"
             onClick={() => handleSubmit(true)}
-            className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+            className="px-6 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 font-medium"
             disabled={loading}
           >
             <Save className="h-4 w-4" />
@@ -916,7 +1390,7 @@ export function NoonReportForm() {
           <button
             type="button"
             onClick={() => handleSubmit(false)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md flex items-center gap-2 font-medium"
             disabled={loading}
           >
             {loading ? (
@@ -932,3 +1406,4 @@ export function NoonReportForm() {
     </div>
   );
 }
+

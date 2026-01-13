@@ -8,13 +8,14 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  Shield
 } from 'lucide-react'
 import { Certificate, CrewCertificate, CrewMember } from '../../types/maritime.types'
 import { format, differenceInDays, parseISO } from 'date-fns'
 import { maritimeService } from '../../services/maritime.service'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
 export function CertificateManagementPage() {
+  const { t } = useTranslationSafe()
   const navigate = useNavigate()
   const { certificateId } = useParams<{ certificateId: string }>()
   const [certificates, setCertificates] = useState<Certificate[]>([])
@@ -142,10 +143,10 @@ export function CertificateManagementPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
             <Award className="w-8 h-8 text-blue-600" />
-            Certificate Management
+            {t('crew.certificateManagement.title')}
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Xem danh sách thuyền viên có chứng chỉ này
+            {t('crew.certificateManagement.subtitle')}
           </p>
         </div>
         
@@ -153,7 +154,7 @@ export function CertificateManagementPage() {
           onClick={() => navigate('/crew', { state: { activeTab: 'certificates' } })}
           className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
         >
-          ← Back to Crew Page
+          ← {t('crew.certificateManagement.backToCrewPage')}
         </button>
       </div>
 
@@ -171,7 +172,7 @@ export function CertificateManagementPage() {
                         {selectedCertificate.certificateName}
                       </h2>
                       <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Code: <code className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded font-mono">
+                        {t('crew.certificateManagement.code')}: <code className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded font-mono">
                           {selectedCertificate.certificateCode}
                         </code>
                       </p>
@@ -186,25 +187,25 @@ export function CertificateManagementPage() {
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Category</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('crew.certificateManagement.category')}</p>
                       <div className="mt-1">{getCategoryBadge(selectedCertificate.category)}</div>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Validity Period</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('crew.certificateManagement.validityPeriod')}</p>
                       <p className="text-lg font-semibold text-gray-900 dark:text-white mt-1">
-                        {selectedCertificate.validityPeriodMonths ? `${selectedCertificate.validityPeriodMonths} months` : 'N/A'}
+                        {selectedCertificate.validityPeriodMonths ? `${selectedCertificate.validityPeriodMonths} ${t('crew.certificateManagement.months')}` : 'N/A'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Mandatory</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('crew.certificateManagement.mandatory')}</p>
                       <p className="text-lg font-semibold text-gray-900 dark:text-white mt-1">
-                        {selectedCertificate.isMandatory ? 'Yes' : 'No'}
+                        {selectedCertificate.isMandatory ? t('crew.certificateManagement.yes') : t('crew.certificateManagement.no')}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('crew.certificateManagement.status')}</p>
                       <p className="text-lg font-semibold text-gray-900 dark:text-white mt-1">
-                        {selectedCertificate.isActive ? 'Active' : 'Inactive'}
+                        {selectedCertificate.isActive ? t('crew.certificateManagement.active') : t('crew.certificateManagement.inactive')}
                       </p>
                     </div>
                   </div>
@@ -218,14 +219,14 @@ export function CertificateManagementPage() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                     <Users className="w-5 h-5" />
-                    Crew Members with This Certificate ({crewWithCertificate.length})
+                    {t('crew.certificateManagement.crewWithCertificate')} ({crewWithCertificate.length})
                   </h3>
                   <button 
                     onClick={() => navigate(`/crew/certificates/${selectedCertificate.id}/add-crew`)}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
-                    Add Certificate to Crew
+                    {t('crew.certificateManagement.addCertificateToCrew')}
                   </button>
                 </div>
               </div>
@@ -235,25 +236,25 @@ export function CertificateManagementPage() {
                   <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '22%'}}>
-                        Crew Member
+                        {t('crew.certificateManagement.crewMember')}
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '13%'}}>
-                        Certificate Number
+                        {t('crew.certificateManagement.certificateNumber')}
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '11%'}}>
-                        Issue Date
+                        {t('crew.certificateManagement.issueDate')}
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '13%'}}>
-                        Expiry Date
+                        {t('crew.certificateManagement.expiryDate')}
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '15%'}}>
-                        Issuing Authority
+                        {t('crew.certificateManagement.issuingAuthority')}
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '12%'}}>
-                        Status
+                        {t('crew.certificateManagement.status')}
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '14%'}}>
-                        Actions
+                        {t('crew.certificateManagement.actions')}
                       </th>
                     </tr>
                   </thead>
@@ -300,7 +301,7 @@ export function CertificateManagementPage() {
                                 {format(parseISO(crewCert.expiryDate), 'dd MMM yyyy')}
                               </div>
                               <div className={`text-xs ${status.color} truncate`}>
-                                {differenceInDays(parseISO(crewCert.expiryDate), new Date())} days left
+                                {differenceInDays(parseISO(crewCert.expiryDate), new Date())} {t('crew.certificateManagement.daysLeft')}
                               </div>
                             </div>
                           </td>
@@ -323,7 +324,7 @@ export function CertificateManagementPage() {
                               }}
                               className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-xs"
                             >
-                              View Details →
+                              {t('crew.certificateManagement.viewDetails')} →
                             </button>
                           </td>
                         </tr>
@@ -335,9 +336,9 @@ export function CertificateManagementPage() {
                 {crewWithCertificate.length === 0 && (
                   <div className="text-center py-12">
                     <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-900 font-medium">No Crew Members</p>
+                    <p className="text-gray-900 font-medium">{t('crew.certificateManagement.noCrew')}</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      No crew members have this certificate yet
+                      {t('crew.certificateManagement.noCrewMessage')}
                     </p>
                   </div>
                 )}
@@ -349,16 +350,16 @@ export function CertificateManagementPage() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
           <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            No Certificate Selected
+            {t('crew.certificateManagement.noCertificateSelected')}
           </h3>
           <p className="text-gray-500 dark:text-gray-400 mb-6">
-            Please select a certificate from the Certificate Monitor page
+            {t('crew.certificateManagement.selectCertificateMessage')}
           </p>
           <button
             onClick={() => navigate('/crew', { state: { activeTab: 'certificates' } })}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Go to Certificate Monitor
+            {t('crew.certificateManagement.goToCertificateMonitor')}
           </button>
         </div>
       )}

@@ -703,9 +703,54 @@ public class CrewMember
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
     
-    // Navigation property
+    // Navigation property - new certificate system
     [JsonIgnore]
     public List<CrewCertificate> Certificates { get; set; } = new();
+    
+    // ============================================
+    // Legacy computed properties for backward compatibility
+    // These are NOT stored in DB, computed from Certificates collection
+    // ============================================
+    
+    /// <summary>
+    /// Legacy: Get first STCW certificate number (computed from Certificates)
+    /// </summary>
+    [NotMapped]
+    public string? CertificateNumber => Certificates?
+        .FirstOrDefault(c => c.Certificate?.Category == "COMPETENCY" || c.Certificate?.CertificateCode?.StartsWith("STCW") == true)?
+        .CertificateNumber;
+    
+    /// <summary>
+    /// Legacy: Get first STCW certificate expiry (computed from Certificates)
+    /// </summary>
+    [NotMapped]
+    public DateTime? CertificateExpiry => Certificates?
+        .FirstOrDefault(c => c.Certificate?.Category == "COMPETENCY" || c.Certificate?.CertificateCode?.StartsWith("STCW") == true)?
+        .ExpiryDate;
+    
+    /// <summary>
+    /// Legacy: Get first STCW certificate issue date (computed from Certificates)
+    /// </summary>
+    [NotMapped]
+    public DateTime? CertificateIssue => Certificates?
+        .FirstOrDefault(c => c.Certificate?.Category == "COMPETENCY" || c.Certificate?.CertificateCode?.StartsWith("STCW") == true)?
+        .IssueDate;
+    
+    /// <summary>
+    /// Legacy: Get Medical certificate expiry (computed from Certificates)
+    /// </summary>
+    [NotMapped]
+    public DateTime? MedicalExpiry => Certificates?
+        .FirstOrDefault(c => c.Certificate?.Category == "MEDICAL" || c.Certificate?.CertificateCode == "MEDICAL")?
+        .ExpiryDate;
+    
+    /// <summary>
+    /// Legacy: Get Medical certificate issue date (computed from Certificates)
+    /// </summary>
+    [NotMapped]
+    public DateTime? MedicalIssue => Certificates?
+        .FirstOrDefault(c => c.Certificate?.Category == "MEDICAL" || c.Certificate?.CertificateCode == "MEDICAL")?
+        .IssueDate;
 }
 
 /// <summary>
@@ -2486,6 +2531,7 @@ public class ReportWorkflowHistory
 /// <summary>
 /// Noon Report Daily - Báo cáo giữa trưa hàng ngày (IMO standard)
 /// Most important daily operational report
+/// Extended with crew/safety data for comprehensive reporting
 /// </summary>
 public class NoonReport
 {
@@ -2503,6 +2549,8 @@ public class NoonReport
     /// </summary>
     [Required]
     public DateTime ReportDate { get; set; }
+    
+    // ============ POSITION DATA ============
     
     /// <summary>
     /// Noon position - Latitude
@@ -2544,12 +2592,13 @@ public class NoonReport
     /// </summary>
     public DateTime? EstimatedTimeOfArrival { get; set; }
     
-    // Weather conditions
+    // ============ WEATHER DATA ============
+    
     [MaxLength(50)]
     public string? WeatherConditions { get; set; } // FAIR, CLOUDY, RAIN, STORM
     
     [MaxLength(20)]
-    public string? SeaState { get; set; } // CALM, MODERATE, ROUGH
+    public string? SeaState { get; set; } // CALM, MODERATE, ROUGH, VERY_ROUGH
     
     [Range(-50, 50)]
     public double? AirTemperature { get; set; } // Celsius
@@ -2567,7 +2616,9 @@ public class NoonReport
     public double? WindSpeed { get; set; } // knots
     
     [MaxLength(20)]
-    public string? Visibility { get; set; } // GOOD, MODERATE, POOR
+    public string? Visibility { get; set; } // GOOD, MODERATE, POOR, FOG
+    
+    // ============ FUEL DATA ============
     
     // Fuel consumption (last 24h)
     public double? FuelOilConsumed { get; set; } // MT (Metric Tons)
@@ -2581,24 +2632,48 @@ public class NoonReport
     public double? LubOilROB { get; set; } // Liters
     public double? FreshWaterROB { get; set; } // Tons
     
-    // Engine performance
+    // ============ ENGINE DATA ============
+    
     [MaxLength(50)]
     public string? MainEngineRunningHours { get; set; }
     public double? MainEngineRPM { get; set; }
-    public double? MainEnginePower { get; set; } // kW or HP
+    public double? MainEnginePower { get; set; } // kW
     
     [MaxLength(50)]
     public string? AuxEngineRunningHours { get; set; }
     
-    // Cargo information
+    // ============ CARGO DATA ============
+    
     public double? CargoOnBoard { get; set; } // MT
     [MaxLength(100)]
     public string? CargoDescription { get; set; }
     
-    // Additional remarks
+    // ============ CREW STATUS ============
+    
+    /// <summary>Number of crew on board</summary>
+    public int? CrewOnBoard { get; set; }
+    
+    /// <summary>Number of passengers on board</summary>
+    public int? PassengersOnBoard { get; set; }
+    
+    // ============ SAFETY DATA ============
+    
+    /// <summary>Safety drills conducted today</summary>
+    [MaxLength(500)]
+    public string? SafetyDrillsConducted { get; set; }
+    
+    /// <summary>Any safety incidents or near-misses</summary>
+    [MaxLength(500)]
+    public string? SafetyIncidents { get; set; }
+    
+    // ============ REMARKS ============
+    
     public string? OperationalRemarks { get; set; }
     public string? MachineryRemarks { get; set; }
     public string? CargoRemarks { get; set; }
+    
+    /// <summary>Maintenance notes for the day</summary>
+    public string? MaintenanceRemarks { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

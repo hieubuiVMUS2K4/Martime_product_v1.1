@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { X, Upload, FileSpreadsheet, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { receiptService, type ImportReceiptDto, type ImportReceiptItemDto, type ReceiptPreviewResponseDto } from '../../services/receiptService';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 
 interface ImportReceiptModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface ImportReceiptModalProps {
 }
 
 export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceiptModalProps) {
+  const { t } = useTranslationSafe();
   const [step, setStep] = useState<'upload' | 'preview' | 'importing'>('upload');
   const [receiptDate, setReceiptDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
@@ -49,7 +51,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
       setParsedItems(items);
       
       if (items.length === 0) {
-        setError('No valid items found in Excel file');
+        setError(t('materials.import.noValidItems'));
       }
     } catch (err: any) {
       setError(err.message || 'Failed to parse Excel file');
@@ -200,7 +202,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
           }).filter((item) => item !== null) as ImportReceiptItemDto[];
 
           if (items.length === 0) {
-            reject(new Error('No valid items found. Please check required columns: ItemCode, ItemName, Quantity, Unit'));
+            reject(new Error(t('materials.import.noValidItemsDetail')));
             return;
           }
 
@@ -279,8 +281,8 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
           <div className="flex items-center gap-3">
             <FileSpreadsheet className="w-6 h-6 text-blue-600" />
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Import Phiếu Nhập Kho</h2>
-              <p className="text-sm text-gray-600">Nhập nhiều vật tư cùng lúc từ dữ liệu Excel</p>
+              <h2 className="text-xl font-bold text-gray-900">{t('materials.import.title')}</h2>
+              <p className="text-sm text-gray-600">{t('materials.import.subtitle')}</p>
             </div>
           </div>
           <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -296,7 +298,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ngày nhập kho <span className="text-red-500">*</span>
+                    {t('materials.import.receiptDate')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
@@ -307,25 +309,25 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Người tạo
+                    {t('materials.import.createdBy')}
                   </label>
                   <input
                     type="text"
                     value={createdBy}
                     onChange={(e) => setCreatedBy(e.target.value)}
-                    placeholder="Nhập tên người tạo..."
+                    placeholder={t('materials.import.createdByPlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ghi chú
+                    {t('materials.import.notes')}
                   </label>
                   <input
                     type="text"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Ghi chú về phiếu nhập..."
+                    placeholder={t('materials.import.notesPlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -333,20 +335,20 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
 
               {/* Instructions */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-semibold text-blue-900 mb-2">📋 Hướng dẫn:</h3>
+                <h3 className="font-semibold text-blue-900 mb-2">📋 {t('materials.import.instructions')}:</h3>
                 <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-                  <li>Chuẩn bị file Excel với các cột sau:</li>
+                  <li>{t('materials.import.instruction1')}</li>
                   <li className="ml-6"><code className="bg-blue-100 px-1 rounded">ItemCode, ItemName, Category, Quantity, Unit, UnitCost, Location</code></li>
-                  <li className="ml-6">Các cột tùy chọn: <code className="bg-blue-100 px-1 rounded">PartNumber, Barcode, Manufacturer, Specification, MinStock, MaxStock</code></li>
-                  <li>Upload file Excel (.xlsx hoặc .xls)</li>
-                  <li>Click "Preview" để kiểm tra trước khi import</li>
+                  <li className="ml-6">{t('materials.import.instruction2')}: <code className="bg-blue-100 px-1 rounded">PartNumber, Barcode, Manufacturer, Specification, MinStock, MaxStock</code></li>
+                  <li>{t('materials.import.instruction3')}</li>
+                  <li>{t('materials.import.instruction4')}</li>
                 </ol>
               </div>
 
               {/* File Upload Area */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Upload File Excel <span className="text-red-500">*</span>
+                  {t('materials.import.uploadFile')} <span className="text-red-500">*</span>
                 </label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors">
                   <input
@@ -363,7 +365,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                       <div>
                         <p className="text-sm font-medium text-gray-900">{uploadedFile.name}</p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {parsedItems.length} items đã được phát hiện
+                          {parsedItems.length} {t('materials.import.itemsDetected')}
                         </p>
                         <button
                           type="button"
@@ -377,16 +379,16 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                           }}
                           className="mt-2 text-sm text-red-600 hover:text-red-800"
                         >
-                          Xóa file
+                          {t('materials.import.removeFile')}
                         </button>
                       </div>
                     ) : (
                       <div>
                         <p className="text-sm text-gray-600">
-                          Click để chọn file Excel hoặc kéo thả vào đây
+                          {t('materials.import.clickToSelect')}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                          Hỗ trợ định dạng: .xlsx, .xls
+                          {t('materials.import.supportedFormats')}
                         </p>
                       </div>
                     )}
@@ -398,10 +400,10 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
               {parsedItems.length > 0 && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <p className="text-sm font-semibold text-green-900">
-                    ✓ Đã phân tích file thành công: {parsedItems.length} items
+                    ✓ {t('materials.import.parseSuccess', { count: parsedItems.length })}
                   </p>
                   <p className="text-xs text-green-700 mt-1">
-                    Click "Preview" để xem chi tiết trước khi import
+                    {t('materials.import.clickPreview')}
                   </p>
                 </div>
               )}
@@ -410,7 +412,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-semibold text-red-900">Lỗi</p>
+                    <p className="font-semibold text-red-900">{t('common.error')}</p>
                     <p className="text-sm text-red-800">{error}</p>
                   </div>
                 </div>
@@ -423,23 +425,23 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
               {/* Summary */}
               <div className="grid grid-cols-5 gap-4">
                 <div className="bg-blue-50 rounded-lg p-4">
-                  <p className="text-xs text-blue-600 font-medium">Tổng items</p>
+                  <p className="text-xs text-blue-600 font-medium">{t('materials.import.totalItems')}</p>
                   <p className="text-2xl font-bold text-blue-900">{preview.summary.totalItems}</p>
                 </div>
                 <div className="bg-green-50 rounded-lg p-4">
-                  <p className="text-xs text-green-600 font-medium">Tạo mới</p>
+                  <p className="text-xs text-green-600 font-medium">{t('materials.import.newItems')}</p>
                   <p className="text-2xl font-bold text-green-900">{preview.summary.newItems}</p>
                 </div>
                 <div className="bg-yellow-50 rounded-lg p-4">
-                  <p className="text-xs text-yellow-600 font-medium">Cập nhật</p>
+                  <p className="text-xs text-yellow-600 font-medium">{t('materials.import.updateItems')}</p>
                   <p className="text-2xl font-bold text-yellow-900">{preview.summary.existingItems}</p>
                 </div>
                 <div className="bg-red-50 rounded-lg p-4">
-                  <p className="text-xs text-red-600 font-medium">Lỗi</p>
+                  <p className="text-xs text-red-600 font-medium">{t('materials.import.errorItems')}</p>
                   <p className="text-2xl font-bold text-red-900">{preview.summary.errorItems}</p>
                 </div>
                 <div className="bg-purple-50 rounded-lg p-4">
-                  <p className="text-xs text-purple-600 font-medium">Tổng giá trị</p>
+                  <p className="text-xs text-purple-600 font-medium">{t('materials.import.totalValue')}</p>
                   <p className="text-2xl font-bold text-purple-900">${preview.summary.totalAmount.toFixed(2)}</p>
                 </div>
               </div>
@@ -447,7 +449,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
               {/* Warnings & Errors */}
               {preview.warnings.length > 0 && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="font-semibold text-yellow-900 mb-2">⚠️ Cảnh báo:</p>
+                  <p className="font-semibold text-yellow-900 mb-2">⚠️ {t('materials.import.warnings')}:</p>
                   <ul className="text-sm text-yellow-800 space-y-1">
                     {preview.warnings.map((w, i) => <li key={i}>• {w}</li>)}
                   </ul>
@@ -456,7 +458,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
 
               {preview.errors.length > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <p className="font-semibold text-red-900 mb-2">❌ Lỗi:</p>
+                  <p className="font-semibold text-red-900 mb-2">❌ {t('materials.import.errors')}:</p>
                   <ul className="text-sm text-red-800 space-y-1">
                     {preview.errors.map((e, i) => <li key={i}>• {e}</li>)}
                   </ul>
@@ -528,8 +530,8 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
           {step === 'importing' && (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
-              <p className="text-lg font-medium text-gray-900">Đang import...</p>
-              <p className="text-sm text-gray-600">Vui lòng đợi trong giây lát</p>
+              <p className="text-lg font-medium text-gray-900">{t('materials.import.importing')}</p>
+              <p className="text-sm text-gray-600">{t('materials.import.pleaseWait')}</p>
             </div>
           )}
         </div>
@@ -537,9 +539,9 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
         {/* Footer */}
         <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
           <div className="text-sm text-gray-600">
-            {step === 'upload' && 'Bước 1: Nhập dữ liệu'}
-            {step === 'preview' && 'Bước 2: Xem trước và xác nhận'}
-            {step === 'importing' && 'Đang xử lý...'}
+            {step === 'upload' && t('materials.import.step1')}
+            {step === 'preview' && t('materials.import.step2')}
+            {step === 'importing' && t('materials.import.processing')}
           </div>
           <div className="flex gap-3">
             <button
@@ -547,7 +549,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
               disabled={step === 'importing'}
               className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
             >
-              Hủy
+              {t('common.cancel')}
             </button>
             {step === 'upload' && (
               <button
@@ -558,7 +560,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Đang xử lý...
+                    {t('materials.import.processing')}
                   </>
                 ) : (
                   <>
@@ -574,7 +576,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                   onClick={() => setStep('upload')}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
-                  ← Quay lại
+                  ← {t('common.back')}
                 </button>
                 <button
                   onClick={handleImport}
@@ -582,7 +584,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   <CheckCircle className="w-4 h-4" />
-                  Confirm & Import
+                  {t('materials.import.confirmImport')}
                 </button>
               </>
             )}

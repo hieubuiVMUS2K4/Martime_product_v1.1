@@ -1,9 +1,10 @@
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                import { useState, useEffect, useMemo } from 'react';
+                                import { useState, useEffect, useMemo } from 'react';
 import { Plus, Calendar, Clock, Wrench, Search, ChevronLeft, ChevronRight, Edit2, Trash2 } from 'lucide-react';
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
 import { AddScheduleModal } from '@/components/pms/AddScheduleModal';
 import { EditScheduleModal } from '@/components/pms/EditScheduleModal';
 import { ViewScheduleModal } from '@/components/pms/ViewScheduleModal';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { MaintenanceSchedule } from '@/types/pms.types';
 
 
@@ -16,6 +17,7 @@ const PRIORITY_LEVELS = [
 ];
 
 export default function ScheduleConfigPage() {
+  const { t } = useTranslationSafe();
   const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -90,7 +92,7 @@ export default function ScheduleConfigPage() {
   // View functionality available via handleEdit - users can edit or just view
   
   const handleDelete = async (schedule: MaintenanceSchedule) => {
-    if (!confirm(`Are you sure you want to delete schedule "${schedule.scheduleName}"?\n\nThis will permanently remove the schedule configuration.`)) {
+    if (!confirm(t('pms.scheduleConfig.confirmDelete', { name: schedule.scheduleName }))) {
       return;
     }
     try {
@@ -112,7 +114,7 @@ export default function ScheduleConfigPage() {
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading schedules...</p>
+          <p className="mt-4 text-gray-600">{t('pms.scheduleConfig.loading')}</p>
         </div>
       </div>
     );
@@ -124,15 +126,15 @@ export default function ScheduleConfigPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Maintenance Schedules</h1>
-            <p className="text-gray-600 mt-1">Configure periodic maintenance plans and intervals</p>
+            <h1 className="text-2xl font-bold text-gray-900">{t('pms.scheduleConfig.title')}</h1>
+            <p className="text-gray-600 mt-1">{t('pms.scheduleConfig.subtitle')}</p>
           </div>
           <button
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" />
-            Add Schedule
+            {t('pms.scheduleConfig.addSchedule')}
           </button>
         </div>
 
@@ -145,7 +147,7 @@ export default function ScheduleConfigPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search by code or name..."
+                  placeholder={t('pms.scheduleConfig.searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -157,37 +159,37 @@ export default function ScheduleConfigPage() {
           {/* Filter Options */}
           <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('pms.scheduleConfig.priority')}</label>
                 <select
                   value={selectedPriority}
                   onChange={(e) => setSelectedPriority(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">All Priorities</option>
+                  <option value="">{t('pms.scheduleConfig.allPriorities')}</option>
                   {PRIORITY_LEVELS.map(p => (
                     <option key={p.value} value={p.value}>{p.label}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Interval Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('pms.scheduleConfig.intervalType')}</label>
                 <select
                   value={selectedIntervalType}
                   onChange={(e) => setSelectedIntervalType(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">All Types</option>
-                  <option value="CALENDAR">Calendar</option>
-                  <option value="RUNNING_HOURS">Running Hours</option>
-                  <option value="HYBRID">Hybrid</option>
+                  <option value="">{t('pms.scheduleConfig.allTypes')}</option>
+                  <option value="CALENDAR">{t('pms.scheduleConfig.calendar')}</option>
+                  <option value="RUNNING_HOURS">{t('pms.scheduleConfig.runningHours')}</option>
+                  <option value="HYBRID">{t('pms.scheduleConfig.hybrid')}</option>
                 </select>
               </div>
             </div>
 
           {/* Results Count */}
           <div className="mt-3 text-sm text-gray-600">
-            Showing {paginatedSchedules.length} of {filteredSchedules.length} schedules
-            {filteredSchedules.length !== schedules.length && ` (filtered from ${schedules.length} total)`}
+            {t('pms.scheduleConfig.showing', { current: paginatedSchedules.length, total: filteredSchedules.length })}
+            {filteredSchedules.length !== schedules.length && ` ${t('pms.scheduleConfig.filteredFrom', { total: schedules.length })}`}
           </div>
         </div>
 
@@ -196,17 +198,17 @@ export default function ScheduleConfigPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
             <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              No Maintenance Schedules
+              {t('pms.scheduleConfig.noSchedules')}
             </h3>
             <p className="text-gray-600 mb-4">
-              Create schedules to automate maintenance task generation
+              {t('pms.scheduleConfig.noSchedulesDesc')}
             </p>
             <button
               onClick={() => setShowAddModal(true)}
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               <Plus className="w-5 h-5" />
-              Add First Schedule
+              {t('pms.scheduleConfig.addFirstSchedule')}
             </button>
           </div>
         ) : (
@@ -214,15 +216,15 @@ export default function ScheduleConfigPage() {
           <table className="min-w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Equipment Group</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Interval Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Interval</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Spare Parts</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Auto</th>
-                <th className="pl-6 pr-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('pms.scheduleConfig.code')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('pms.scheduleConfig.name')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('pms.scheduleConfig.equipmentGroup')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('pms.scheduleConfig.intervalType')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('pms.scheduleConfig.interval')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('pms.scheduleConfig.priority')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('pms.scheduleConfig.spareParts')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('pms.scheduleConfig.auto')}</th>
+                <th className="pl-6 pr-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('pms.scheduleConfig.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -248,13 +250,13 @@ export default function ScheduleConfigPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    {schedule.requiredSpareParts?.length || 0} items
+                    {schedule.requiredSpareParts?.length || 0} {t('pms.scheduleConfig.items', { count: schedule.requiredSpareParts?.length || 0 }).replace(/^\d+\s*/, '')}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     {schedule.autoGenerate ? (
-                      <span className="text-green-600 font-medium">✓ Yes</span>
+                      <span className="text-green-600 font-medium">✓ {t('pms.scheduleConfig.yes')}</span>
                     ) : (
-                      <span className="text-gray-400">- No</span>
+                      <span className="text-gray-400">- {t('pms.scheduleConfig.no')}</span>
                     )}
                   </td>
                   <td className="pl-6 pr-2 py-4 text-sm text-left">
@@ -262,14 +264,14 @@ export default function ScheduleConfigPage() {
                       <button
                         onClick={() => handleEdit(schedule)}
                         className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
-                        title="Edit Schedule"
+                        title={t('pms.scheduleConfig.editSchedule')}
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(schedule)}
                         className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Delete Schedule"
+                        title={t('pms.scheduleConfig.deleteSchedule')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -283,7 +285,7 @@ export default function ScheduleConfigPage() {
           {/* Pagination */}
           <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                Page {currentPage} of {totalPages}
+                {t('pms.scheduleConfig.page', { current: currentPage, total: totalPages })}
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -292,7 +294,7 @@ export default function ScheduleConfigPage() {
                   className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                 >
                   <ChevronLeft className="w-4 h-4" />
-                  Previous
+                  {t('pms.scheduleConfig.previous')}
                 </button>
                 <div className="flex items-center gap-1">
                   {[...Array(totalPages)].map((_, i) => {
@@ -326,7 +328,7 @@ export default function ScheduleConfigPage() {
                   disabled={currentPage === totalPages}
                   className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                 >
-                  Next
+                  {t('pms.scheduleConfig.next')}
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>

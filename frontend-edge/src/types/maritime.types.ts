@@ -232,8 +232,15 @@ export interface CrewMember {
   // Additional
   notes?: string
   
-  // Certificates (new system)
+  // Certificates (new system - relation to CrewCertificate[])
   certificates?: CrewCertificate[]
+  
+  // Legacy certificate fields (for backward compatibility)
+  // TODO: Migrate to certificates[] array in future refactor
+  certificateNumber?: string
+  certificateExpiry?: string
+  certificateIssue?: string
+  medicalExpiry?: string
   
   isSynced: boolean
   createdAt: string

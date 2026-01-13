@@ -364,23 +364,44 @@ public class MaintenanceSchedulerService : BackgroundService
             var schedules = await scheduleRepo.GetAutoGenerateSchedulesAsync();
 
             int tasksGenerated = 0;
+            
+            // P1 FIX: Batch load all equipment group members ONCE to avoid N+1 queries
+            // Instead of querying inside foreach loop (N queries), we query once here
+            var scheduleGroupIds = schedules
+                .Select(s => s.EquipmentGroupId)
+                .Distinct()
+                .ToList();
+            
+            var allGroupMembers = await context.EquipmentGroupMembers
+                .Where(egm => scheduleGroupIds.Contains(egm.GroupId))
+                .Include(egm => egm.Asset)
+                .ToListAsync();
+            
+            // P1 FIX: Create lookup dictionary for O(1) access
+            var groupMembersLookup = allGroupMembers
+                .GroupBy(egm => egm.GroupId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+            
+            // P1 FIX: Helper function to get asset from pre-loaded data
+            EquipmentAsset? GetPrimaryAssetForGroup(Guid groupId)
+            {
+                if (!groupMembersLookup.TryGetValue(groupId, out var members))
+                    return null;
+                
+                return members
+                    .Select(gm => gm.Asset)
+                    .Where(a => a != null && a.IsActive)
+                    .OrderByDescending(a => a.CurrentRunningHours ?? 0)
+                    .FirstOrDefault();
+            }
 
             foreach (var schedule in schedules)
             {
                 if (!schedule.NextDueDate.HasValue)
                 {
                     // Calculate next due date if not set
-                    // Get first active asset from the group (for interval calculation)
-                    var groupMembers = await context.EquipmentGroupMembers
-                        .Where(egm => egm.GroupId == schedule.EquipmentGroupId)
-                        .Include(egm => egm.Asset)
-                        .ToListAsync();
-                    
-                    var asset = groupMembers
-                        .Select(gm => gm.Asset)
-                        .Where(a => a != null && a.IsActive)
-                        .OrderByDescending(a => a.CurrentRunningHours ?? 0)
-                        .FirstOrDefault();
+                    // P1 FIX: Use pre-loaded data instead of querying in loop
+                    var asset = GetPrimaryAssetForGroup(schedule.EquipmentGroupId);
                     
                     if (asset != null)
                     {
@@ -402,17 +423,8 @@ public class MaintenanceSchedulerService : BackgroundService
                         "Recalculating next occurrence to prevent immediate OVERDUE tasks.",
                         schedule.ScheduleCode, schedule.NextDueDate.Value.ToString("yyyy-MM-dd"), Math.Abs(daysUntilDue));
                     
-                    // Get asset for interval calculation
-                    var groupMembers = await context.EquipmentGroupMembers
-                        .Where(egm => egm.GroupId == schedule.EquipmentGroupId)
-                        .Include(egm => egm.Asset)
-                        .ToListAsync();
-                    
-                    var asset = groupMembers
-                        .Select(gm => gm.Asset)
-                        .Where(a => a != null && a.IsActive)
-                        .OrderByDescending(a => a.CurrentRunningHours ?? 0)
-                        .FirstOrDefault();
+                    // P1 FIX: Use pre-loaded data instead of querying in loop
+                    var asset = GetPrimaryAssetForGroup(schedule.EquipmentGroupId);
                     
                     if (asset != null && schedule.IntervalDays.HasValue)
                     {

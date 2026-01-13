@@ -894,7 +894,7 @@ namespace MaritimeEdge.Data.Migrations
                         .HasDatabaseName("idx_crew_cert_crew_id");
 
                     b.HasIndex("ExpiryDate")
-                        .HasDatabaseName("idx_crew_cert_expiry");
+                        .HasDatabaseName("idx_crew_cert_expiry_date");
 
                     b.HasIndex("IsSynced")
                         .HasDatabaseName("idx_crew_cert_synced")

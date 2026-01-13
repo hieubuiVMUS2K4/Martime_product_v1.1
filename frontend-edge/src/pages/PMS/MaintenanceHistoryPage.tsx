@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Calendar, Clock, CheckCircle, User, FileText, Image, Wrench, Download, Filter, Search } from 'lucide-react'
 import { MaintenanceTask } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import { toast } from 'sonner'
 
 export function MaintenanceHistoryPage() {
+  const { t } = useTranslationSafe()
   const navigate = useNavigate()
   const [tasks, setTasks] = useState<MaintenanceTask[]>([])
   const [filteredTasks, setFilteredTasks] = useState<MaintenanceTask[]>([])
@@ -112,7 +114,7 @@ export function MaintenanceHistoryPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-gray-600 mt-4">Loading maintenance history...</p>
+          <p className="text-gray-600 mt-4">{t('pms.history.loading')}</p>
         </div>
       </div>
     )
@@ -132,9 +134,9 @@ export function MaintenanceHistoryPage() {
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Maintenance History</h1>
+                <h1 className="text-2xl font-bold text-gray-900">{t('pms.history.title')}</h1>
                 <p className="text-sm text-gray-600 mt-1">
-                  {filteredTasks.length} completed task{filteredTasks.length !== 1 ? 's' : ''}
+                  {t('pms.history.subtitle', { count: filteredTasks.length })}
                 </p>
               </div>
             </div>
@@ -143,7 +145,7 @@ export function MaintenanceHistoryPage() {
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
               <Download className="w-4 h-4" />
-              Export CSV
+              {t('pms.history.exportCSV')}
             </button>
           </div>
 
@@ -156,10 +158,10 @@ export function MaintenanceHistoryPage() {
                 onChange={(e) => setDateRange(e.target.value as any)}
                 className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
               >
-                <option value="7days">Last 7 Days</option>
-                <option value="30days">Last 30 Days</option>
-                <option value="90days">Last 90 Days</option>
-                <option value="all">All Time</option>
+                <option value="7days">{t('pms.history.last7Days')}</option>
+                <option value="30days">{t('pms.history.last30Days')}</option>
+                <option value="90days">{t('pms.history.last90Days')}</option>
+                <option value="all">{t('pms.history.allTime')}</option>
               </select>
             </div>
 
@@ -168,7 +170,7 @@ export function MaintenanceHistoryPage() {
               onChange={(e) => setEquipmentFilter(e.target.value)}
               className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
             >
-              <option value="all">All Equipment</option>
+              <option value="all">{t('pms.history.allEquipment')}</option>
               {uniqueEquipment.map(eq => (
                 <option key={eq} value={eq}>{eq}</option>
               ))}
@@ -178,7 +180,7 @@ export function MaintenanceHistoryPage() {
               <Search className="w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by task ID, equipment, or description..."
+                placeholder={t('pms.history.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1 text-sm outline-none"
@@ -193,8 +195,8 @@ export function MaintenanceHistoryPage() {
         {filteredTasks.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm p-12 text-center">
             <CheckCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No completed tasks found</h3>
-            <p className="text-sm text-gray-500">Try adjusting your filters</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('pms.history.noTasks')}</h3>
+            <p className="text-sm text-gray-500">{t('pms.history.noTasksDesc')}</p>
           </div>
         ) : (
           <div className="space-y-3">

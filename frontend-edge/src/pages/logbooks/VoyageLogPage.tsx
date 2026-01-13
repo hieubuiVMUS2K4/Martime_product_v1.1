@@ -5,6 +5,7 @@ import { MaritimeInput } from '../../components/common/MaritimeInput';
 import { CoordinatePicker } from '../../components/common/CoordinatePicker';
 import { toast } from 'sonner';
 import { logbookService } from '../../services/logbook.service';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { 
   VoyageLogEntryResponseDto, 
   VoyageLogTimelineItem,
@@ -15,8 +16,7 @@ import { VOYAGE_LOG_EVENT_TYPES } from '../../types/logbook.types';
 // Event Categories for UI grouping
 const EVENT_CATEGORIES = [
   {
-    name: 'Sự kiện Cảng',
-    nameEn: 'Port Events',
+    nameKey: 'voyageLog.categories.portEvents',
     events: [
       VOYAGE_LOG_EVENT_TYPES.DEP,
       VOYAGE_LOG_EVENT_TYPES.ARR,
@@ -25,8 +25,7 @@ const EVENT_CATEGORIES = [
     ]
   },
   {
-    name: 'Sự kiện Hành trình',
-    nameEn: 'Passage Events',
+    nameKey: 'voyageLog.categories.passageEvents',
     events: [
       VOYAGE_LOG_EVENT_TYPES.COSP,
       VOYAGE_LOG_EVENT_TYPES.EOSP,
@@ -34,16 +33,14 @@ const EVENT_CATEGORIES = [
     ]
   },
   {
-    name: 'Sự kiện Hoa tiêu',
-    nameEn: 'Pilot Events',
+    nameKey: 'voyageLog.categories.pilotEvents',
     events: [
       VOYAGE_LOG_EVENT_TYPES.PILOT_ON,
       VOYAGE_LOG_EVENT_TYPES.PILOT_OFF,
     ]
   },
   {
-    name: 'Sự kiện Đặc biệt',
-    nameEn: 'Special Events',
+    nameKey: 'voyageLog.categories.specialEvents',
     events: [
       VOYAGE_LOG_EVENT_TYPES.DRIFT,
       VOYAGE_LOG_EVENT_TYPES.DEVIATION,
@@ -53,6 +50,7 @@ const EVENT_CATEGORIES = [
 
 export const VoyageLogPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslationSafe();
   const [entries, setEntries] = useState<VoyageLogEntryResponseDto[]>([]);
   const [timeline, setTimeline] = useState<VoyageLogTimelineItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -180,36 +178,36 @@ export const VoyageLogPage: React.FC = () => {
 
   return (
     <LogbookGrid 
-      title="🚢 Voyage Log - Nhật ký Hành trình"
+      title={t('voyageLog.title')}
       actions={
         <div className="flex gap-3">
-          <div className="flex bg-gray-100 rounded-lg p-1">
+          <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
             <button
               onClick={() => setViewMode('timeline')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 viewMode === 'timeline' 
-                  ? 'bg-white text-blue-600 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm' 
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
-              Timeline
+              {t('voyageLog.timeline')}
             </button>
             <button
               onClick={() => setViewMode('table')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 viewMode === 'table' 
-                  ? 'bg-white text-blue-600 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm' 
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
-              Table
+              {t('voyageLog.table')}
             </button>
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
             className="bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:bg-blue-700"
           >
-            {showForm ? 'Cancel' : '+ New Entry'}
+            {showForm ? t('common.cancel') : t('voyageLog.newEntry')}
           </button>
         </div>
       }
@@ -235,16 +233,16 @@ export const VoyageLogPage: React.FC = () => {
 
           {/* Step 1: Select Event Type */}
           {step === 1 && (
-            <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-              <h2 className="text-blue-600 font-sans text-xl font-bold mb-6">
-                Step 1: Chọn loại sự kiện
+            <div className="bg-white dark:bg-gray-800 p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+              <h2 className="text-blue-600 dark:text-blue-400 font-sans text-xl font-bold mb-6">
+                {t('voyageLog.step1Title')}
               </h2>
               
               <div className="flex flex-col gap-6">
                 {EVENT_CATEGORIES.map(category => (
-                  <div key={category.name}>
+                  <div key={category.nameKey}>
                     <h3 className="text-gray-500 text-sm font-semibold mb-3 uppercase tracking-wide">
-                      {category.name} ({category.nameEn})
+                      {t(category.nameKey)}
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {category.events.map(event => (
@@ -279,9 +277,9 @@ export const VoyageLogPage: React.FC = () => {
 
           {/* Step 2: Enter Details */}
           {step === 2 && selectedEventType && (
-            <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-              <h2 className="text-blue-600 font-sans text-xl font-bold mb-4">
-                Step 2: Nhập chi tiết
+            <div className="bg-white dark:bg-gray-800 p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+              <h2 className="text-blue-600 dark:text-blue-400 font-sans text-xl font-bold mb-4">
+                {t('voyageLog.step2Title')}
               </h2>
               
               {/* Selected Event Info */}
@@ -299,7 +297,7 @@ export const VoyageLogPage: React.FC = () => {
               <div className="flex flex-col gap-6">
                 {/* Date/Time */}
                 <MaritimeInput
-                  label="Event Date & Time (UTC)"
+                  label={t('voyageLog.form.eventDateTime')}
                   type="datetime-local"
                   value={formData.eventDateTime || ''}
                   onChange={e => setFormData({ ...formData, eventDateTime: e.target.value })}
@@ -307,16 +305,16 @@ export const VoyageLogPage: React.FC = () => {
 
                 {/* Position */}
                 <div className="border border-blue-200 bg-blue-50/30 p-4 rounded-lg">
-                  <div className="text-blue-600 font-sans text-sm font-semibold mb-4">📍 Position</div>
+                  <div className="text-blue-600 font-sans text-sm font-semibold mb-4">📍 {t('voyageLog.form.position')}</div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <CoordinatePicker
-                      label="Latitude"
+                      label={t('voyageLog.form.latitude')}
                       type="latitude"
                       value={formData.latitude || 0}
                       onChange={lat => setFormData({ ...formData, latitude: lat })}
                     />
                     <CoordinatePicker
-                      label="Longitude"
+                      label={t('voyageLog.form.longitude')}
                       type="longitude"
                       value={formData.longitude || 0}
                       onChange={lon => setFormData({ ...formData, longitude: lon })}
@@ -327,32 +325,32 @@ export const VoyageLogPage: React.FC = () => {
                 {/* Port Info - for DEP/ARR */}
                 {selectedEventType.requiresPort && (
                   <div className="border border-green-200 bg-green-50/30 p-4 rounded-lg">
-                    <div className="text-green-600 font-sans text-sm font-semibold mb-4">🏭 Port Information</div>
+                    <div className="text-green-600 font-sans text-sm font-semibold mb-4">🏭 {t('voyageLog.form.portInformation')}</div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <MaritimeInput
-                        label="Port Name *"
+                        label={t('voyageLog.form.portName')}
                         value={formData.portName || ''}
                         onChange={e => setFormData({ ...formData, portName: e.target.value })}
-                        placeholder="e.g., Ho Chi Minh City"
+                        placeholder={t('voyageLog.form.portNamePlaceholder')}
                       />
                       <MaritimeInput
-                        label="UN/LOCODE"
+                        label={t('voyageLog.form.unLocode')}
                         value={formData.portLocode || ''}
                         onChange={e => setFormData({ ...formData, portLocode: e.target.value.toUpperCase() })}
                         placeholder="e.g., VNSGN"
                         maxLength={5}
                       />
                       <MaritimeInput
-                        label="Country"
+                        label={t('voyageLog.form.country')}
                         value={formData.portCountry || ''}
                         onChange={e => setFormData({ ...formData, portCountry: e.target.value })}
-                        placeholder="e.g., Vietnam"
+                        placeholder={t('voyageLog.form.countryPlaceholder')}
                       />
                       <MaritimeInput
-                        label="Berth / Terminal"
+                        label={t('voyageLog.form.berthTerminal')}
                         value={formData.berthNumber || ''}
                         onChange={e => setFormData({ ...formData, berthNumber: e.target.value })}
-                        placeholder="e.g., Berth 5"
+                        placeholder={t('voyageLog.form.berthPlaceholder')}
                       />
                     </div>
                   </div>
@@ -361,19 +359,19 @@ export const VoyageLogPage: React.FC = () => {
                 {/* Pilot Info - for PILOT_ON/PILOT_OFF */}
                 {(selectedEventType.code === 'PILOT_ON' || selectedEventType.code === 'PILOT_OFF') && (
                   <div className="border border-orange-200 bg-orange-50/30 p-4 rounded-lg">
-                    <div className="text-orange-600 font-sans text-sm font-semibold mb-4">👤 Pilot Information</div>
+                    <div className="text-orange-600 font-sans text-sm font-semibold mb-4">👤 {t('voyageLog.form.pilotInformation')}</div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <MaritimeInput
-                        label="Pilot Name"
+                        label={t('voyageLog.form.pilotName')}
                         value={formData.pilotName || ''}
                         onChange={e => setFormData({ ...formData, pilotName: e.target.value })}
-                        placeholder="Enter pilot's name"
+                        placeholder={t('voyageLog.form.pilotNamePlaceholder')}
                       />
                       <MaritimeInput
-                        label="Pilot Station"
+                        label={t('voyageLog.form.pilotStation')}
                         value={formData.pilotStation || ''}
                         onChange={e => setFormData({ ...formData, pilotStation: e.target.value })}
-                        placeholder="e.g., Vung Tau Pilot Station"
+                        placeholder={t('voyageLog.form.pilotStationPlaceholder')}
                       />
                     </div>
                   </div>
@@ -382,10 +380,10 @@ export const VoyageLogPage: React.FC = () => {
                 {/* Navigation Info - for NOON, COSP, EOSP */}
                 {['NOON', 'COSP', 'EOSP'].includes(selectedEventType.code) && (
                   <div className="border border-purple-200 bg-purple-50/30 p-4 rounded-lg">
-                    <div className="text-purple-600 font-sans text-sm font-semibold mb-4">🧭 Navigation</div>
+                    <div className="text-purple-600 font-sans text-sm font-semibold mb-4">🧭 {t('voyageLog.form.navigation')}</div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <MaritimeInput
-                        label="Course (°)"
+                        label={t('voyageLog.form.course')}
                         type="number"
                         min="0"
                         max="360"
@@ -394,7 +392,7 @@ export const VoyageLogPage: React.FC = () => {
                         placeholder="0-360"
                       />
                       <MaritimeInput
-                        label="Speed (kts)"
+                        label={t('voyageLog.form.speed')}
                         type="number"
                         step="0.1"
                         value={formData.speedOverGround?.toString() || ''}
@@ -402,11 +400,11 @@ export const VoyageLogPage: React.FC = () => {
                         placeholder="e.g., 12.5"
                       />
                       <MaritimeInput
-                        label="Distance to Go (NM)"
+                        label={t('voyageLog.form.distanceToGo')}
                         type="number"
                         value={formData.distanceToGo?.toString() || ''}
                         onChange={e => setFormData({ ...formData, distanceToGo: e.target.value ? parseFloat(e.target.value) : undefined })}
-                        placeholder="Nautical Miles"
+                        placeholder={t('voyageLog.form.nauticalMiles')}
                       />
                     </div>
                   </div>
@@ -415,20 +413,20 @@ export const VoyageLogPage: React.FC = () => {
                 {/* Officer & Remarks */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <MaritimeInput
-                    label="Officer on Watch *"
+                    label={t('voyageLog.form.officerOnWatch')}
                     value={formData.officerOnWatch || ''}
                     onChange={e => setFormData({ ...formData, officerOnWatch: e.target.value })}
-                    placeholder="Name / Rank"
+                    placeholder={t('voyageLog.form.officerPlaceholder')}
                   />
                 </div>
 
                 <div>
-                  <label className="text-blue-600 font-sans text-sm block mb-2">Remarks</label>
+                  <label className="text-blue-600 font-sans text-sm block mb-2">{t('voyageLog.form.remarks')}</label>
                   <textarea
                     value={formData.remarks || ''}
                     onChange={e => setFormData({ ...formData, remarks: e.target.value })}
                     className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans p-4 rounded-lg focus:border-blue-500 focus:outline-none h-24 resize-none"
-                    placeholder="Additional notes..."
+                    placeholder={t('voyageLog.form.remarksPlaceholder')}
                   />
                 </div>
 
@@ -436,15 +434,15 @@ export const VoyageLogPage: React.FC = () => {
                 <div className="flex justify-between mt-6">
                   <button 
                     onClick={() => setStep(1)}
-                    className="text-gray-900 font-sans underline hover:text-blue-600"
+                    className="text-gray-900 dark:text-gray-100 font-sans underline hover:text-blue-600 dark:hover:text-blue-400"
                   >
-                    ← Back
+                    ← {t('common.back')}
                   </button>
                   <button
                     onClick={handleSave}
                     className="bg-green-600 text-white font-semibold py-2.5 px-8 rounded-lg shadow-md hover:bg-green-700"
                   >
-                    Save Entry
+                    {t('voyageLog.saveEntry')}
                   </button>
                 </div>
               </div>
@@ -457,14 +455,14 @@ export const VoyageLogPage: React.FC = () => {
       {viewMode === 'timeline' && !showForm && (
         <div className="max-w-3xl mx-auto">
           {loading && (
-            <div className="text-center py-8 text-gray-500">Loading...</div>
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">{t('common.loading')}</div>
           )}
           
           {!loading && timeline.length === 0 && (
-            <div className="text-center py-12 text-gray-500 bg-white rounded-lg border border-gray-200">
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="text-4xl mb-4">🚢</div>
-              <div className="font-semibold mb-2">No voyage log entries yet</div>
-              <div className="text-sm">Click "+ New Entry" to start logging your voyage</div>
+              <div className="font-semibold mb-2">{t('voyageLog.noEntries')}</div>
+              <div className="text-sm">{t('voyageLog.noEntriesDesc')}</div>
             </div>
           )}
 
@@ -515,7 +513,7 @@ export const VoyageLogPage: React.FC = () => {
                             <div className="text-sm text-gray-500">{time} UTC</div>
                             {item.isSigned && (
                               <span className="inline-block mt-1 bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">
-                                ✓ SIGNED
+                                ✓ {t('voyageLog.signed')}
                               </span>
                             )}
                           </div>
@@ -532,29 +530,29 @@ export const VoyageLogPage: React.FC = () => {
 
       {/* Table View */}
       {viewMode === 'table' && !showForm && (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto shadow-sm">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-x-auto shadow-sm">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50 text-blue-600 font-sans text-sm font-semibold">
-                <th className="p-4 border-b border-gray-200">Date/Time</th>
-                <th className="p-4 border-b border-gray-200">Event</th>
-                <th className="p-4 border-b border-gray-200">Location</th>
-                <th className="p-4 border-b border-gray-200">Position</th>
-                <th className="p-4 border-b border-gray-200">Details</th>
-                <th className="p-4 border-b border-gray-200">Officer</th>
-                <th className="p-4 border-b border-gray-200">Status</th>
+              <tr className="bg-gray-50 dark:bg-gray-700 text-blue-600 dark:text-blue-400 font-sans text-sm font-semibold">
+                <th className="p-4 border-b border-gray-200 dark:border-gray-600">{t('voyageLog.dateTime')}</th>
+                <th className="p-4 border-b border-gray-200 dark:border-gray-600">{t('voyageLog.event')}</th>
+                <th className="p-4 border-b border-gray-200 dark:border-gray-600">{t('voyageLog.location')}</th>
+                <th className="p-4 border-b border-gray-200 dark:border-gray-600">{t('voyageLog.position')}</th>
+                <th className="p-4 border-b border-gray-200 dark:border-gray-600">{t('voyageLog.details')}</th>
+                <th className="p-4 border-b border-gray-200 dark:border-gray-600">{t('voyageLog.officer')}</th>
+                <th className="p-4 border-b border-gray-200 dark:border-gray-600">{t('voyageLog.status')}</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={7} className="p-4 text-center text-gray-500">Loading...</td>
+                  <td colSpan={7} className="p-4 text-center text-gray-500 dark:text-gray-400">{t('common.loading')}</td>
                 </tr>
               )}
               {!loading && entries.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-4 text-center text-gray-500">
-                    No voyage log entries. Click "+ New Entry" to start logging.
+                  <td colSpan={7} className="p-4 text-center text-gray-500 dark:text-gray-400">
+                    {t('voyageLog.noEntriesTable')}
                   </td>
                 </tr>
               )}
@@ -589,26 +587,26 @@ export const VoyageLogPage: React.FC = () => {
                           )}
                         </div>
                       ) : (
-                        <span className="text-gray-400">At Sea</span>
+                        <span className="text-gray-400">{t('voyageLog.atSea')}</span>
                       )}
                     </td>
                     <td className="p-4 text-sm text-gray-600">
                       {entry.latitude.toFixed(4)}°, {entry.longitude.toFixed(4)}°
                     </td>
                     <td className="p-4 text-sm text-gray-600">
-                      {entry.pilotName && <div>Pilot: {entry.pilotName}</div>}
-                      {entry.speedOverGround && <div>Speed: {entry.speedOverGround} kts</div>}
-                      {entry.courseOverGround && <div>Course: {entry.courseOverGround}°</div>}
+                      {entry.pilotName && <div>{t('voyageLog.pilot')}: {entry.pilotName}</div>}
+                      {entry.speedOverGround && <div>{t('voyageLog.speedLabel')}: {entry.speedOverGround} kts</div>}
+                      {entry.courseOverGround && <div>{t('voyageLog.courseLabel')}: {entry.courseOverGround}°</div>}
                     </td>
                     <td className="p-4 text-sm text-gray-900">{entry.officerOnWatch}</td>
                     <td className="p-4">
                       {entry.masterSignature ? (
                         <span className="bg-green-600 text-white text-xs px-2 py-1 rounded font-bold">
-                          SIGNED
+                          {t('voyageLog.signed')}
                         </span>
                       ) : (
                         <span className="bg-yellow-500 text-white text-xs px-2 py-1 rounded font-bold">
-                          DRAFT
+                          {t('voyageLog.draft')}
                         </span>
                       )}
                     </td>

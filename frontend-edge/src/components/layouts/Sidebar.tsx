@@ -27,47 +27,54 @@ import {
   ChevronRight,
   MapPin,
 } from 'lucide-react'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
-// Logbooks submenu
-const logbooksMenu = [
-  { name: 'Voyage Log', to: '/logbooks/voyage', icon: MapPin },
-  { name: 'Deck Log', to: '/logbooks/deck', icon: Compass },
-  { name: 'Engine Log', to: '/logbooks/engine', icon: BookOpen },
-  { name: 'Oil Record', to: '/logbooks/oil', icon: Droplets },
-  { name: 'Garbage Record', to: '/logbooks/garbage', icon: Trash2 },
-  { name: 'Ballast Water', to: '/logbooks/ballast', icon: Waves },
-  { name: 'Watchkeeping', to: '/logbooks/watchkeeping', icon: Clock },
-]
-
-const navigation = [
-  { name: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-  { name: 'Navigation', to: '/navigation', icon: Navigation },
-  { name: 'Engine Room', to: '/engine', icon: Zap },
-  { name: 'Fuel Analytics', to: '/fuel-analytics', icon: Fuel },
-  { name: 'Alarms', to: '/alarms', icon: AlertTriangle },
-  { name: 'Crew', to: '/crew', icon: Users },
+// Navigation items with translation keys
+const getNavigation = (t: (key: string) => string) => [
+  { name: t('nav.dashboard'), to: '/dashboard', icon: LayoutDashboard },
+  { name: t('nav.navigation'), to: '/navigation', icon: Navigation },
+  { name: t('nav.engine'), to: '/engine', icon: Zap },
+  { name: t('nav.fuelAnalytics'), to: '/fuel-analytics', icon: Fuel },
+  { name: t('nav.alarms'), to: '/alarms', icon: AlertTriangle },
+  { name: t('nav.crew'), to: '/crew', icon: Users },
   { 
-    name: 'PMS Planning', 
+    name: t('nav.pms'), 
     icon: Calendar, 
     subItems: [
-      { name: 'Equipment Assets', to: '/pms/assets', icon: Settings },
-      { name: 'Equipment Groups', to: '/pms/groups', icon: Boxes },
-      { name: 'Schedule Config', to: '/pms/schedules', icon: ListChecks },
-      { name: 'Master Schedule', to: '/pms/master-schedule', icon: Calendar },
-      { name: 'Maintenance', to: '/pms/maintenance', icon: Wrench },
+      { name: t('nav.equipmentAssets'), to: '/pms/assets', icon: Settings },
+      { name: t('nav.equipmentGroups'), to: '/pms/groups', icon: Boxes },
+      { name: t('nav.scheduleConfig'), to: '/pms/schedules', icon: ListChecks },
+      { name: t('nav.masterSchedule'), to: '/pms/master-schedule', icon: Calendar },
+      { name: t('nav.maintenance'), to: '/pms/maintenance', icon: Wrench },
     ]
   },
-  { name: 'Materials', to: '/materials', icon: Boxes },
-  { name: 'Reporting', to: '/reporting', icon: ClipboardList },
-  { name: 'Voyage', to: '/voyage', icon: Ship },
-  { name: 'Compliance', to: '/compliance', icon: FileText },
-  { name: 'Sync Status', to: '/sync', icon: RefreshCw },
+  { name: t('nav.materials'), to: '/materials', icon: Boxes },
+  { name: t('nav.reporting'), to: '/reporting', icon: ClipboardList },
+  { name: t('nav.voyage'), to: '/voyage', icon: Ship },
+  { name: t('nav.compliance'), to: '/compliance', icon: FileText },
+  { name: t('nav.sync'), to: '/sync', icon: RefreshCw },
+]
+
+// Logbooks submenu with translation keys
+const getLogbooksMenu = (t: (key: string) => string) => [
+  { name: t('nav.voyageLog'), to: '/logbooks/voyage', icon: MapPin },
+  { name: t('nav.deckLog'), to: '/logbooks/deck', icon: Compass },
+  { name: t('nav.engineLog'), to: '/logbooks/engine', icon: BookOpen },
+  { name: t('nav.oilRecord'), to: '/logbooks/oil', icon: Droplets },
+  { name: t('nav.garbageRecord'), to: '/logbooks/garbage', icon: Trash2 },
+  { name: t('nav.ballastWater'), to: '/logbooks/ballast', icon: Waves },
+  { name: t('nav.watchkeeping'), to: '/logbooks/watchkeeping', icon: Clock },
 ]
 
 export function Sidebar() {
   const location = useLocation()
+  const { t } = useTranslationSafe()
   const [logbooksOpen, setLogbooksOpen] = useState(location.pathname.startsWith('/logbooks'))
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['PMS Planning'])
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([t('nav.pms')])
+
+  // Get translated navigation items
+  const navigation = getNavigation(t)
+  const logbooksMenu = getLogbooksMenu(t)
 
   const toggleMenu = (menuName: string) => {
     setExpandedMenus(prev => 
@@ -83,7 +90,7 @@ export function Sidebar() {
       <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
         <Anchor className="w-8 h-8 text-blue-600 dark:text-blue-400" />
         <span className="ml-2 text-xl font-bold text-gray-800 dark:text-white">
-          Edge Dashboard
+          {t('nav.edgeDashboard')}
         </span>
       </div>
 
@@ -164,7 +171,7 @@ export function Sidebar() {
             }`}
           >
             <FileText className={`w-5 h-5 mr-3 flex-shrink-0 ${location.pathname.startsWith('/logbooks') ? 'text-white' : ''}`} />
-            <span className="truncate flex-1 text-left">Logbooks</span>
+            <span className="truncate flex-1 text-left">{t('nav.logbooks')}</span>
             {logbooksOpen ? (
               <ChevronDown className="w-4 h-4 flex-shrink-0" />
             ) : (
@@ -203,7 +210,7 @@ export function Sidebar() {
       {/* Vessel Info */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
         <div className="text-xs text-gray-500 dark:text-gray-400">
-          <p className="font-semibold text-gray-700 dark:text-gray-300">Local Vessel</p>
+          <p className="font-semibold text-gray-700 dark:text-gray-300">{t('nav.localVessel')}</p>
           <p className="mt-1">EDGE_LOCAL</p>
         </div>
       </div>

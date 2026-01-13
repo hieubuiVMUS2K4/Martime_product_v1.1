@@ -126,6 +126,18 @@ export class ReportingService {
   }
 
   // ============================================================
+  // GENERIC REPORT ACCESS
+  // ============================================================
+
+  /**
+   * Get any report by ID (auto-detects type)
+   * Returns the appropriate report DTO based on the report type
+   */
+  static async getReportById(reportId: string): Promise<any> {
+    return await apiClient.get(`${BASE_URL}/${reportId}`);
+  }
+
+  // ============================================================
   // NOON REPORTS
   // ============================================================
 
@@ -214,22 +226,22 @@ export class ReportingService {
   // ============================================================
 
   static async submitReport(reportId: string): Promise<void> {
-    await apiClient.post(`${BASE_URL}/${reportId}/submit`, {});
+    await apiClient.put(`${BASE_URL}/${reportId}/submit`, {});
   }
 
   static async approveReport(reportId: string, data: ApproveReportDto): Promise<void> {
-    await apiClient.post(`${BASE_URL}/${reportId}/approve`, data);
+    await apiClient.put(`${BASE_URL}/${reportId}/approve`, data);
   }
 
   static async rejectReport(reportId: string, reason: string): Promise<void> {
-    await apiClient.post(`${BASE_URL}/${reportId}/reject`, { reason });
+    await apiClient.put(`${BASE_URL}/${reportId}/reject`, { reason });
   }
 
   /**
    * Reopen rejected report for corrections
    */
   static async reopenReport(reportId: string, corrections: string): Promise<void> {
-    await apiClient.post(`${BASE_URL}/${reportId}/reopen`, { corrections });
+    await apiClient.put(`${BASE_URL}/${reportId}/reopen`, { corrections });
   }
 
   /**

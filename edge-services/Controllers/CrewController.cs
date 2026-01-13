@@ -34,7 +34,11 @@ public class CrewController : ControllerBase
             if (pageSize < 1) pageSize = 50;
             if (pageSize > 100) pageSize = 100; // Max 100 items per page
 
-            var query = _context.CrewMembers.AsNoTracking().AsQueryable();
+            var query = _context.CrewMembers
+                .AsNoTracking()
+                .Include(c => c.Certificates)
+                    .ThenInclude(cc => cc.Certificate)
+                .AsQueryable();
 
             // Apply filters
             if (!string.IsNullOrWhiteSpace(search))
@@ -89,6 +93,8 @@ public class CrewController : ControllerBase
         {
             var crew = await _context.CrewMembers
                 .AsNoTracking()
+                .Include(c => c.Certificates)
+                    .ThenInclude(cc => cc.Certificate)
                 .Where(c => c.IsOnboard)
                 .ToListAsync();
 
@@ -106,7 +112,10 @@ public class CrewController : ControllerBase
     {
         try
         {
-            var crew = await _context.CrewMembers.FindAsync(id);
+            var crew = await _context.CrewMembers
+                .Include(c => c.Certificates)
+                    .ThenInclude(cc => cc.Certificate)
+                .FirstOrDefaultAsync(c => c.Id == id);
             if (crew == null)
             {
                 return NotFound(new { message = "Crew member not found" });

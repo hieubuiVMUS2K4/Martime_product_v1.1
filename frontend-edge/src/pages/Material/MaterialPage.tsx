@@ -10,10 +10,12 @@ import { CategoryFormModal } from './CategoryFormModal';
 import { StockAdjustmentModal } from './StockAdjustmentModal';
 import { ImportReceiptModal } from './ImportReceiptModal';
 import { ReceiptDetailModal } from './ReceiptDetailModal';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 
 type TabType = 'items' | 'low' | 'categories' | 'receipts';
 
 export function MaterialPage() {
+  const { t } = useTranslationSafe();
   const [activeTab, setActiveTab] = useState<TabType>('items');
   const [items, setItems] = useState<MaterialItem[]>([]);
   const [lowStock, setLowStock] = useState<MaterialItem[]>([]);
@@ -306,8 +308,8 @@ export function MaterialPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Material Management</h1>
-            <p className="text-sm text-gray-600 mt-1">Inventory items, categories, and low stock alerts</p>
+            <h1 className="text-2xl font-bold text-gray-900">{t('materials.title')}</h1>
+            <p className="text-sm text-gray-600 mt-1">{t('materials.subtitle')}</p>
           </div>
           <div className="flex gap-2">
             <button 
@@ -316,7 +318,7 @@ export function MaterialPage() {
               }}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
             >
-              <FileSpreadsheet className="w-5 h-5" /> Import Receipt
+              <FileSpreadsheet className="w-5 h-5" /> {t('materials.importReceipt')}
             </button>
             <button 
               onClick={() => {
@@ -325,7 +327,7 @@ export function MaterialPage() {
               }}
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
             >
-              <Layers className="w-5 h-5" /> Add Category
+              <Layers className="w-5 h-5" /> {t('materials.addCategory')}
             </button>
           </div>
         </div>
@@ -334,10 +336,10 @@ export function MaterialPage() {
         <div className="bg-white rounded-lg shadow">
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px">
-              <TabButton active={activeTab === 'items'} onClick={() => setActiveTab('items')} icon={<Boxes className="w-5 h-5" />} label="Items" />
-              <TabButton active={activeTab === 'low'} onClick={() => setActiveTab('low')} icon={<AlertTriangle className="w-5 h-5" />} label="Low Stock" />
-              <TabButton active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} icon={<Layers className="w-5 h-5" />} label="Categories" />
-              <TabButton active={activeTab === 'receipts'} onClick={() => setActiveTab('receipts')} icon={<FileSpreadsheet className="w-5 h-5" />} label="Receipts" />
+              <TabButton active={activeTab === 'items'} onClick={() => setActiveTab('items')} icon={<Boxes className="w-5 h-5" />} label={t('materials.tabs.items')} />
+              <TabButton active={activeTab === 'low'} onClick={() => setActiveTab('low')} icon={<AlertTriangle className="w-5 h-5" />} label={t('materials.tabs.lowStock')} />
+              <TabButton active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} icon={<Layers className="w-5 h-5" />} label={t('materials.tabs.categories')} />
+              <TabButton active={activeTab === 'receipts'} onClick={() => setActiveTab('receipts')} icon={<FileSpreadsheet className="w-5 h-5" />} label={t('materials.tabs.receipts')} />
             </nav>
           </div>
 
@@ -349,7 +351,7 @@ export function MaterialPage() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by code, name, part number, barcode..."
+                  placeholder={t('materials.searchPlaceholder')}
                   className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -358,7 +360,7 @@ export function MaterialPage() {
                 onChange={(e) => setCategoryId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[180px]"
               >
-                <option value="all">All Categories</option>
+                <option value="all">{t('materials.allCategories')}</option>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <select
@@ -366,7 +368,7 @@ export function MaterialPage() {
                 onChange={(e) => setFilterUnit(e.target.value)}
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[150px]"
               >
-                <option value="all">All Units</option>
+                <option value="all">{t('materials.allUnits')}</option>
                 {uniqueUnits.map(unit => <option key={unit} value={unit}>{unit}</option>)}
               </select>
             </div>
@@ -380,7 +382,7 @@ export function MaterialPage() {
                 <input
                   value={categorySearch}
                   onChange={(e) => setCategorySearch(e.target.value)}
-                  placeholder="Search by name, code, or description..."
+                  placeholder={t('materials.categorySearchPlaceholder')}
                   className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -392,7 +394,7 @@ export function MaterialPage() {
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-gray-600 mt-4">Loading materials...</p>
+                <p className="text-gray-600 mt-4">{t('materials.loading')}</p>
               </div>
             ) : (
               <>
@@ -447,7 +449,7 @@ export function MaterialPage() {
                     <div className="flex items-center justify-between mb-4">
                       {/* Left - Display info */}
                       <div className="text-sm text-gray-600">
-                        Hiển thị {sortedItems.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedItems.length)} trong tổng số {sortedItems.length} vật tư
+                        {t('materials.showingItems', { start: sortedItems.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1, end: Math.min(currentPage * itemsPerPage, sortedItems.length), total: sortedItems.length })}
                       </div>
 
                       {/* Right - Pagination */}
@@ -458,11 +460,11 @@ export function MaterialPage() {
                             disabled={currentPage === 1}
                             className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
                           >
-                            ← Trước
+                            {t('materials.previous')}
                           </button>
                           
                           <span className="text-sm text-gray-600 px-2">
-                            Trang {currentPage} / {totalPages}
+                            {t('materials.pageOf', { current: currentPage, total: totalPages })}
                           </span>
 
                           <button
@@ -470,7 +472,7 @@ export function MaterialPage() {
                             disabled={currentPage === totalPages}
                             className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
                           >
-                            Sau →
+                            {t('materials.next')}
                           </button>
                         </div>
                       )}
@@ -513,7 +515,7 @@ export function MaterialPage() {
         onSubmit={editingItem ? handleUpdateItem : handleCreateItem}
         item={editingItem}
         categories={categories}
-        title={editingItem ? 'Edit Material Item' : 'Add New Material Item'}
+        title={editingItem ? t('materials.editItem') : t('materials.addItem')}
       />
 
       <CategoryFormModal
@@ -525,7 +527,7 @@ export function MaterialPage() {
         onSubmit={editingCategory ? handleUpdateCategory : handleCreateCategory}
         category={editingCategory}
         categories={categories}
-        title={editingCategory ? 'Edit Category' : 'Add New Category'}
+        title={editingCategory ? t('materials.editCategory') : t('materials.addCategory')}
       />
 
       <StockAdjustmentModal
@@ -573,6 +575,7 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
   sortMenu?: string | null;
   setSortMenu?: (sortMenu: string | null) => void;
 }) {
+  const { t } = useTranslationSafe()
   const getCategoryName = (catId: number) => {
     const cat = categories.find(c => c.id === catId);
     return cat?.name || 'Unknown';
@@ -728,7 +731,7 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
                         onAdjustStock(it);
                       }}
                       className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
-                      title="Điều chỉnh tồn kho"
+                      title={t('materials.adjustStock')}
                     >
                       <TrendingUp className="w-4 h-4" />
                     </button>
@@ -738,7 +741,7 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
                         onDelete(it);
                       }}
                       className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                      title="Xóa"
+                      title={t('common.delete')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -753,7 +756,7 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
       {items.length === 0 && (
         <div className="text-center py-12">
           <Boxes className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">No items found</p>
+          <p className="text-gray-500">{t('materials.noItemsFound')}</p>
         </div>
       )}
     </div>

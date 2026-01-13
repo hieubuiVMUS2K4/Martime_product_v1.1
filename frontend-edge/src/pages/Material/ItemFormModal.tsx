@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import type { MaterialItem, MaterialCategory } from '@/types/maritime.types'
 import type { CreateMaterialItemDto, UpdateMaterialItemDto } from '@/services/materialService'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
 interface ItemFormModalProps {
   isOpen: boolean
@@ -20,6 +21,7 @@ export function ItemFormModal({
   categories,
   title,
 }: ItemFormModalProps) {
+  const { t } = useTranslationSafe()
   const [formData, setFormData] = useState<CreateMaterialItemDto>({
     itemCode: '',
     name: '',
@@ -115,7 +117,7 @@ export function ItemFormModal({
       await onSubmit(formData)
       onClose()
     } catch (err: any) {
-      setError(err.message || 'Failed to save item')
+      setError(err.message || t('materials.item.saveFailed'))
     } finally {
       setLoading(false)
     }
@@ -150,11 +152,11 @@ export function ItemFormModal({
 
             {/* Basic Information */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('materials.item.basicInfo')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Item Code <span className="text-red-500">*</span>
+                    {t('materials.item.itemCode')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -163,13 +165,13 @@ export function ItemFormModal({
                     value={formData.itemCode}
                     onChange={(e) => setFormData({ ...formData, itemCode: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., ITEM-001"
+                    placeholder={t('materials.item.itemCodePlaceholder')}
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name <span className="text-red-500">*</span>
+                    {t('materials.item.name')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -178,13 +180,13 @@ export function ItemFormModal({
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Item name"
+                    placeholder={t('materials.item.namePlaceholder')}
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category <span className="text-red-500">*</span>
+                    {t('materials.item.category')} <span className="text-red-500">*</span>
                   </label>
                   <select
                     required
@@ -192,7 +194,7 @@ export function ItemFormModal({
                     onChange={(e) => setFormData({ ...formData, categoryId: Number(e.target.value) })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="">Select category</option>
+                    <option value="">{t('materials.item.selectCategory')}</option>
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.name} ({cat.categoryCode})
@@ -203,7 +205,7 @@ export function ItemFormModal({
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Unit <span className="text-red-500">*</span>
+                    {t('materials.item.unit')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -212,14 +214,14 @@ export function ItemFormModal({
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., PCS, KG, L"
+                    placeholder={t('materials.item.unitPlaceholder')}
                   />
                 </div>
               </div>
 
               <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Specification
+                  {t('materials.item.specification')}
                 </label>
                 <textarea
                   rows={2}
@@ -227,18 +229,18 @@ export function ItemFormModal({
                   value={formData.specification || ''}
                   onChange={(e) => setFormData({ ...formData, specification: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Technical specifications"
+                  placeholder={t('materials.item.specificationPlaceholder')}
                 />
               </div>
             </div>
 
             {/* Stock Information */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Stock Information</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('materials.item.stockInfo')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    On Hand Quantity
+                    {t('materials.item.onHandQuantity')}
                   </label>
                   <input
                     type="number"
@@ -252,7 +254,7 @@ export function ItemFormModal({
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Min Stock
+                    {t('materials.item.minStock')}
                   </label>
                   <input
                     type="number"
@@ -266,7 +268,7 @@ export function ItemFormModal({
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Max Stock
+                    {t('materials.item.maxStock')}
                   </label>
                   <input
                     type="number"
@@ -280,7 +282,7 @@ export function ItemFormModal({
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Reorder Level
+                    {t('materials.item.reorderLevel')}
                   </label>
                   <input
                     type="number"
@@ -294,7 +296,7 @@ export function ItemFormModal({
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Reorder Quantity
+                    {t('materials.item.reorderQuantity')}
                   </label>
                   <input
                     type="number"
@@ -308,7 +310,7 @@ export function ItemFormModal({
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Location
+                    {t('materials.item.location')}
                   </label>
                   <input
                     type="text"
@@ -316,7 +318,7 @@ export function ItemFormModal({
                     value={formData.location || ''}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Storage location"
+                    placeholder={t('materials.item.locationPlaceholder')}
                   />
                 </div>
               </div>
@@ -324,11 +326,11 @@ export function ItemFormModal({
 
             {/* Supplier Information */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Supplier Information</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('materials.item.supplierInfo')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Manufacturer
+                    {t('materials.item.manufacturer')}
                   </label>
                   <input
                     type="text"
@@ -341,7 +343,7 @@ export function ItemFormModal({
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Supplier
+                    {t('materials.item.supplier')}
                   </label>
                   <input
                     type="text"
@@ -354,7 +356,7 @@ export function ItemFormModal({
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Part Number
+                    {t('materials.item.partNumber')}
                   </label>
                   <input
                     type="text"
@@ -367,7 +369,7 @@ export function ItemFormModal({
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Barcode
+                    {t('materials.item.barcode')}
                   </label>
                   <input
                     type="text"
@@ -382,11 +384,11 @@ export function ItemFormModal({
 
             {/* Cost Information */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Cost Information</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('materials.item.costInfo')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Unit Cost
+                    {t('materials.item.unitCost')}
                   </label>
                   <input
                     type="number"
@@ -400,7 +402,7 @@ export function ItemFormModal({
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Currency
+                    {t('materials.item.currency')}
                   </label>
                   <select
                     value={formData.currency || 'USD'}
@@ -419,7 +421,7 @@ export function ItemFormModal({
 
             {/* Tracking Options */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Tracking Options</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('materials.item.trackingOptions')}</h3>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <input
@@ -430,7 +432,7 @@ export function ItemFormModal({
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <label htmlFor="batchTracked" className="text-sm font-medium text-gray-700">
-                    Batch Tracked
+                    {t('materials.item.batchTracked')}
                   </label>
                 </div>
 
@@ -443,7 +445,7 @@ export function ItemFormModal({
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <label htmlFor="serialTracked" className="text-sm font-medium text-gray-700">
-                    Serial Number Tracked
+                    {t('materials.item.serialTracked')}
                   </label>
                 </div>
 
@@ -456,7 +458,7 @@ export function ItemFormModal({
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <label htmlFor="expiryRequired" className="text-sm font-medium text-gray-700">
-                    Expiry Date Required
+                    {t('materials.item.expiryRequired')}
                   </label>
                 </div>
 
@@ -469,7 +471,7 @@ export function ItemFormModal({
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
-                    Active
+                    {t('materials.active')}
                   </label>
                 </div>
               </div>
@@ -478,7 +480,7 @@ export function ItemFormModal({
             {/* Notes */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Notes
+                {t('materials.item.notes')}
               </label>
               <textarea
                 rows={3}
@@ -486,7 +488,7 @@ export function ItemFormModal({
                 value={formData.notes || ''}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Additional notes"
+                placeholder={t('materials.item.notesPlaceholder')}
               />
             </div>
 
@@ -498,14 +500,14 @@ export function ItemFormModal({
                 disabled={loading}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={loading}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Saving...' : item ? 'Update' : 'Create'}
+                {loading ? t('materials.saving') : item ? t('materials.update') : t('materials.create')}
               </button>
             </div>
           </form>

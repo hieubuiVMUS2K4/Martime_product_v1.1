@@ -3,8 +3,10 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Award, Calendar, FileText, Building, ArrowLeft, Save, Users } from 'lucide-react'
 import { maritimeService } from '../../services/maritime.service'
 import { Certificate, CrewMember } from '../../types/maritime.types'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
 export function AddCrewCertificatePage() {
+  const { t } = useTranslationSafe()
   const navigate = useNavigate()
   const { certificateId } = useParams<{ certificateId?: string }>()
   const [searchParams] = useSearchParams()
@@ -184,7 +186,7 @@ export function AddCrewCertificatePage() {
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-gray-600 mt-4">Loading data...</p>
+          <p className="text-gray-600 mt-4">{t('common.loading')}</p>
         </div>
       </div>
     )
@@ -200,7 +202,7 @@ export function AddCrewCertificatePage() {
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back
+            {t('common.back')}
           </button>
           
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-6 shadow-lg">
@@ -210,10 +212,10 @@ export function AddCrewCertificatePage() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-white">
-                  Add Certificate to Crew Member
+                  {t('crew.certificateManagement.addCertificate.title')}
                 </h1>
                 <p className="text-blue-100 mt-1">
-                  Assign a certificate to a crew member
+                  {t('crew.certificateManagement.addCertificate.subtitle')}
                 </p>
               </div>
             </div>
@@ -226,11 +228,11 @@ export function AddCrewCertificatePage() {
             <div className="flex items-center gap-3">
               <Award className="w-6 h-6 text-blue-600" />
               <div>
-                <p className="text-sm text-gray-500">Selected Certificate</p>
+                <p className="text-sm text-gray-500">{t('crew.certificateManagement.addCertificate.selectedCertificate')}</p>
                 <p className="font-semibold text-gray-900">{selectedCertificate.certificateName}</p>
                 <p className="text-xs text-gray-600 mt-1">
-                  Code: {selectedCertificate.certificateCode} • 
-                  Validity: {selectedCertificate.validityPeriodMonths} months
+                  {t('crew.certificateManagement.code')}: {selectedCertificate.certificateCode} • 
+                  {t('crew.certificateManagement.validityPeriod')}: {selectedCertificate.validityPeriodMonths} {t('crew.certificateManagement.months')}
                 </p>
               </div>
             </div>
@@ -244,7 +246,7 @@ export function AddCrewCertificatePage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Award className="w-4 h-4 inline mr-2" />
-                Certificate Type *
+                {t('crew.certificateManagement.addCertificate.certificateType')} *
               </label>
               <select
                 name="certificateId"
@@ -255,7 +257,7 @@ export function AddCrewCertificatePage() {
                   errors.certificateId ? 'border-red-500' : 'border-gray-300'
                 } ${certificateId ? 'bg-gray-100' : ''}`}
               >
-                <option value="">Select a certificate type</option>
+                <option value="">{t('crew.certificateManagement.addCertificate.selectCertificateType')}</option>
                 {certificates.map(cert => (
                   <option key={cert.id} value={cert.id}>
                     {cert.certificateName} ({cert.certificateCode})
@@ -271,7 +273,7 @@ export function AddCrewCertificatePage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Users className="w-4 h-4 inline mr-2" />
-                Crew Member *
+                {t('crew.certificateManagement.addCertificate.crewMember')} *
               </label>
               <select
                 name="crewMemberId"
@@ -282,7 +284,7 @@ export function AddCrewCertificatePage() {
                   errors.crewMemberId ? 'border-red-500' : 'border-gray-300'
                 } ${crewIdParam ? 'bg-gray-100' : ''}`}
               >
-                <option value="">Select a crew member</option>
+                <option value="">{t('crew.certificateManagement.addCertificate.selectCrewMember')}</option>
                 {crewMembers.map(crew => (
                   <option key={crew.id} value={crew.id}>
                     {crew.fullName} - {crew.position} ({crew.crewId})
@@ -298,7 +300,7 @@ export function AddCrewCertificatePage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <FileText className="w-4 h-4 inline mr-2" />
-                Certificate Number *
+                {t('crew.certificateManagement.certificateNumber')} *
               </label>
               <input
                 type="text"
@@ -320,7 +322,7 @@ export function AddCrewCertificatePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Calendar className="w-4 h-4 inline mr-2" />
-                  Issue Date *
+                  {t('crew.certificateManagement.issueDate')} *
                 </label>
                 <input
                   type="date"
@@ -339,7 +341,7 @@ export function AddCrewCertificatePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Calendar className="w-4 h-4 inline mr-2" />
-                  Expiry Date *
+                  {t('crew.certificateManagement.expiryDate')} *
                 </label>
                 <input
                   type="date"
@@ -360,7 +362,7 @@ export function AddCrewCertificatePage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Building className="w-4 h-4 inline mr-2" />
-                Issuing Authority
+                {t('crew.certificateManagement.issuingAuthority')}
               </label>
               <input
                 type="text"
@@ -375,7 +377,7 @@ export function AddCrewCertificatePage() {
             {/* Status */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Status
+                {t('crew.certificateManagement.status')}
               </label>
               <select
                 name="status"
@@ -383,24 +385,24 @@ export function AddCrewCertificatePage() {
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
               >
-                <option value="VALID">Valid</option>
-                <option value="EXPIRED">Expired</option>
-                <option value="SUSPENDED">Suspended</option>
-                <option value="REVOKED">Revoked</option>
+                <option value="VALID">{t('crew.certificateManagement.addCertificate.statusValid')}</option>
+                <option value="EXPIRED">{t('crew.certificateManagement.addCertificate.statusExpired')}</option>
+                <option value="SUSPENDED">{t('crew.certificateManagement.addCertificate.statusSuspended')}</option>
+                <option value="REVOKED">{t('crew.certificateManagement.addCertificate.statusRevoked')}</option>
               </select>
             </div>
 
             {/* Notes */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Notes
+                {t('crew.certificateManagement.addCertificate.notes')}
               </label>
               <textarea
                 name="notes"
                 value={formData.notes}
                 onChange={handleChange}
                 rows={4}
-                placeholder="Additional notes or remarks..."
+                placeholder={t('crew.certificateManagement.addCertificate.notesPlaceholder')}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
               />
             </div>
@@ -412,7 +414,7 @@ export function AddCrewCertificatePage() {
                 onClick={handleBack}
                 className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
@@ -422,12 +424,12 @@ export function AddCrewCertificatePage() {
                 {loading ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-                    Adding Certificate...
+                    {t('crew.certificateManagement.addCertificate.saving')}
                   </>
                 ) : (
                   <>
                     <Save className="w-5 h-5" />
-                    Add Certificate
+                    {t('crew.certificateManagement.addCertificate.save')}
                   </>
                 )}
               </button>

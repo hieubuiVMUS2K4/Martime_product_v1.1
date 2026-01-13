@@ -8,6 +8,7 @@ import '../../data/repositories/task_repository.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/alarm_repository.dart';
 import '../../data/data_sources/remote/alarm_api.dart';
+import '../../data/data_sources/remote/task_api.dart';
 
 /// Service Locator using GetIt
 /// 
@@ -40,6 +41,14 @@ Future<void> setupServiceLocator() async {
   // Sync Queue (depends on NetworkInfo)
   sl.registerLazySingleton<SyncQueue>(
     () => SyncQueue(sl<NetworkInfo>()),
+  );
+
+  // ============================================
+  // API CLIENTS (Singletons)
+  // ============================================
+  
+  sl.registerLazySingleton<TaskApi>(
+    () => TaskApi(sl<ApiClient>().dio),
   );
 
   // ============================================

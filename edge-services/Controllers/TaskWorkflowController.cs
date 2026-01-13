@@ -30,10 +30,14 @@ public class TaskWorkflowController : ControllerBase
     /// <summary>
     /// Start working on a task (Crew starts execution)
     /// DUE/OVERDUE → IN_PROGRESS
+    /// P1 FIX: Wrapped in transaction to ensure atomicity
     /// </summary>
     [HttpPost("{id:guid}/start")]
     public async Task<IActionResult> StartTask(Guid id, [FromBody] StartTaskDto dto)
     {
+        // P1 FIX: Use transaction to ensure atomicity of task start + equipment status update
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        
         try
         {
             var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
@@ -100,6 +104,9 @@ public class TaskWorkflowController : ControllerBase
             // Update equipment status to UNDER_MAINTENANCE
             await UpdateEquipmentStatusForTaskAsync(task, "IN_PROGRESS", previousStatus);
 
+            // P1 FIX: Commit transaction after all operations succeed
+            await transaction.CommitAsync();
+
             _logger.LogInformation("Task {TaskId} started by {UserId} from status {PreviousStatus}", 
                 task.TaskId, userId, previousStatus);
 
@@ -112,6 +119,8 @@ public class TaskWorkflowController : ControllerBase
         }
         catch (Exception ex)
         {
+            // P1 FIX: Rollback transaction on any error
+            await transaction.RollbackAsync();
             _logger.LogError(ex, "Error starting task {Id}", id);
             return StatusCode(500, new { error = "Internal server error" });
         }

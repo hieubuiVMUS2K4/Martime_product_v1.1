@@ -7,11 +7,13 @@ import { differenceInDays, parseISO } from 'date-fns'
 import { KanbanBoard } from '../../components/maintenance/KanbanBoard'
 import { AddScheduleModal } from '@/components/pms/AddScheduleModal'
 import { toast } from 'sonner'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
 type TabType = 'tasks'
 
 export function MaintenancePage() {
   const navigate = useNavigate()
+  const { t } = useTranslationSafe()
   const [activeTab, setActiveTab] = useState<TabType>('tasks')
   const [tasks, setTasks] = useState<MaintenanceTask[]>([])
   const [filteredTasks, setFilteredTasks] = useState<MaintenanceTask[]>([])
@@ -72,14 +74,14 @@ export function MaintenancePage() {
 
   // Column data for filter UI
   const columnData = [
-    { id: 'scheduled', title: 'Scheduled', icon: <Calendar className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-slate-500 to-slate-600' },
-    { id: 'due', title: 'Due', icon: <Clock className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-blue-500 to-blue-600' },
-    { id: 'overdue', title: 'Overdue', icon: <AlertCircle className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-red-500 to-pink-600' },
-    { id: 'deferrals', title: 'Deferrals', icon: <FileText className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-yellow-500 to-amber-600' },
-    { id: 'in-progress', title: 'In Progress', icon: <Wrench className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-purple-500 to-indigo-600' },
-    { id: 'pending-approval', title: 'Pending Approval', icon: <ClipboardList className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-amber-500 to-orange-600' },
-    { id: 'rectify', title: 'Rectify', icon: <RefreshCw className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-orange-500 to-red-500' },
-    { id: 'completed', title: 'Completed', icon: <CheckCircle className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-green-500 to-emerald-600' },
+    { id: 'scheduled', title: t('maintenance.columns.scheduled'), icon: <Calendar className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-slate-500 to-slate-600' },
+    { id: 'due', title: t('maintenance.columns.due'), icon: <Clock className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-blue-500 to-blue-600' },
+    { id: 'overdue', title: t('maintenance.columns.overdue'), icon: <AlertCircle className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-red-500 to-pink-600' },
+    { id: 'deferrals', title: t('maintenance.columns.deferrals'), icon: <FileText className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-yellow-500 to-amber-600' },
+    { id: 'in-progress', title: t('maintenance.columns.inProgress'), icon: <Wrench className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-purple-500 to-indigo-600' },
+    { id: 'pending-approval', title: t('maintenance.columns.pendingApproval'), icon: <ClipboardList className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-amber-500 to-orange-600' },
+    { id: 'rectify', title: t('maintenance.columns.rectify'), icon: <RefreshCw className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-orange-500 to-red-500' },
+    { id: 'completed', title: t('maintenance.columns.completed'), icon: <CheckCircle className="w-3.5 h-3.5" />, gradient: 'bg-gradient-to-br from-green-500 to-emerald-600' },
   ]
 
   // Load maintenance data - wrapped in useCallback
@@ -349,23 +351,23 @@ export function MaintenancePage() {
         <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">Planned Maintenance System</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('maintenance.pageTitle')}</h1>
             {isBackgroundRefreshing && (
               <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                <span className="text-xs text-blue-700 font-medium">Syncing...</span>
+                <span className="text-xs text-blue-700 font-medium">{t('maintenance.syncing')}</span>
               </div>
             )}
           </div>
           <p className="text-sm text-gray-600 mt-1">
-            ISM Code Compliance - Equipment Maintenance Tracking • Auto-refresh: 10s
+            {t('maintenance.subtitle')}
             {timeWindow !== 'all' && (
               <span className="ml-2 text-blue-600 font-medium">
-                • Filtered by: {
-                  timeWindow === 'today' ? 'Today' :
-                  timeWindow === 'week' ? 'This Week' :
-                  timeWindow === '2weeks' ? 'Next 2 Weeks' :
-                  'This Month'
+                • {t('maintenance.filteredBy')}: {
+                  timeWindow === 'today' ? t('maintenance.timeWindow.today') :
+                  timeWindow === 'week' ? t('maintenance.timeWindow.week') :
+                  timeWindow === '2weeks' ? t('maintenance.timeWindow.twoWeeks') :
+                  t('maintenance.timeWindow.month')
                 }
               </span>
             )}
@@ -374,7 +376,7 @@ export function MaintenancePage() {
         <div className="flex gap-3">
           <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm hover:shadow">
             <Download className="w-5 h-5" />
-            Export Report
+            {t('maintenance.exportReport')}
           </button>
         </div>
       </div>
@@ -387,7 +389,7 @@ export function MaintenancePage() {
               active={activeTab === 'tasks'}
               onClick={() => setActiveTab('tasks')}
               icon={<LayoutGrid className="w-5 h-5" />}
-              label="Tasks"
+              label={t('maintenance.tasks')}
             />
           </nav>
         </div>
@@ -397,17 +399,17 @@ export function MaintenancePage() {
           <div className="flex items-center gap-3">
             {/* View Selector */}
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700 whitespace-nowrap">View:</span>
+              <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{t('maintenance.view')}:</span>
               <select
                 value={timeWindow}
                 onChange={(e) => setTimeWindow(e.target.value as any)}
                 className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium"
               >
-                <option value="today">Today ({timeWindowStats.today})</option>
-                <option value="week">This Week ({timeWindowStats.week})</option>
-                <option value="2weeks">Next 2 Weeks ({timeWindowStats.twoWeeks})</option>
-                <option value="month">This Month ({timeWindowStats.month})</option>
-                <option value="all">All Tasks ({timeWindowStats.all})</option>
+                <option value="today">{t('maintenance.timeWindow.today')} ({timeWindowStats.today})</option>
+                <option value="week">{t('maintenance.timeWindow.week')} ({timeWindowStats.week})</option>
+                <option value="2weeks">{t('maintenance.timeWindow.twoWeeks')} ({timeWindowStats.twoWeeks})</option>
+                <option value="month">{t('maintenance.timeWindow.month')} ({timeWindowStats.month})</option>
+                <option value="all">{t('maintenance.timeWindow.all')} ({timeWindowStats.all})</option>
               </select>
             </div>
 
@@ -420,10 +422,10 @@ export function MaintenancePage() {
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <span className="text-sm font-medium text-gray-700">
-                Show Completed
+                {t('maintenance.showCompleted')}
                 {!showCompleted && tasks.filter(t => t.status === 'COMPLETED').length > 0 && (
                   <span className="ml-1.5 text-xs text-gray-500">
-                    ({tasks.filter(t => t.status === 'COMPLETED').length} hidden)
+                    ({tasks.filter(t => t.status === 'COMPLETED').length} {t('maintenance.hidden')})
                   </span>
                 )}
               </span>
@@ -438,7 +440,7 @@ export function MaintenancePage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
-                More Filters
+                {t('maintenance.moreFilters')}
                 {(priorityFilter !== 'all' || groupFilter !== 'all' || scheduleFilter !== 'all' || picFilter !== 'all') && (
                   <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-500 text-white rounded-full">●</span>
                 )}
@@ -450,29 +452,29 @@ export function MaintenancePage() {
                   <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-200 z-30 p-4 space-y-3">
                     {/* Priority Filter */}
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Priority</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">{t('maintenance.filters.priority')}</label>
                       <select
                         value={priorityFilter}
                         onChange={(e) => setPriorityFilter(e.target.value)}
                         className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
                       >
-                        <option value="all">All Priorities</option>
-                        <option value="CRITICAL">Critical</option>
-                        <option value="HIGH">High</option>
-                        <option value="NORMAL">Normal</option>
-                        <option value="LOW">Low</option>
+                        <option value="all">{t('maintenance.filters.allPriorities')}</option>
+                        <option value="CRITICAL">{t('maintenance.priority.critical')}</option>
+                        <option value="HIGH">{t('maintenance.priority.high')}</option>
+                        <option value="NORMAL">{t('maintenance.priority.normal')}</option>
+                        <option value="LOW">{t('maintenance.priority.low')}</option>
                       </select>
                     </div>
 
                     {/* Equipment Group Filter */}
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Equipment Group</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">{t('maintenance.filters.equipmentGroup')}</label>
                       <select
                         value={groupFilter}
                         onChange={(e) => setGroupFilter(e.target.value)}
                         className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
                       >
-                        <option value="all">All Groups</option>
+                        <option value="all">{t('maintenance.filters.allGroups')}</option>
                         {uniqueGroups.map(group => (
                           <option key={group} value={group}>{group}</option>
                         ))}
@@ -481,13 +483,13 @@ export function MaintenancePage() {
 
                     {/* Schedule Filter */}
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Schedule Type</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">{t('maintenance.filters.scheduleType')}</label>
                       <select
                         value={scheduleFilter}
                         onChange={(e) => setScheduleFilter(e.target.value)}
                         className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
                       >
-                        <option value="all">All Schedules</option>
+                        <option value="all">{t('maintenance.filters.allSchedules')}</option>
                         {uniqueSchedules.map(schedule => (
                           <option key={schedule} value={schedule}>{schedule}</option>
                         ))}
@@ -496,14 +498,14 @@ export function MaintenancePage() {
 
                     {/* PIC Filter */}
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Person in Charge</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">{t('maintenance.filters.personInCharge')}</label>
                       <select
                         value={picFilter}
                         onChange={(e) => setPicFilter(e.target.value)}
                         className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
                       >
-                        <option value="all">All PICs</option>
-                        <option value="unassigned">Unassigned</option>
+                        <option value="all">{t('maintenance.filters.allPICs')}</option>
+                        <option value="unassigned">{t('maintenance.filters.unassigned')}</option>
                         {crewList.map(crew => (
                           <option key={crew.crewId} value={crew.crewId}>
                             {crew.fullName} ({crew.rank})
@@ -523,7 +525,7 @@ export function MaintenancePage() {
                         }}
                         className="w-full px-3 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                       >
-                        Clear All Filters
+                        {t('maintenance.clearAllFilters')}
                       </button>
                     )}
                   </div>
@@ -540,7 +542,7 @@ export function MaintenancePage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 0v10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
                 </svg>
-                Columns ({visibleColumns.size}/{columnData.length})
+                {t('maintenance.columns.title')} ({visibleColumns.size}/{columnData.length})
               </button>
 
               {isColumnFilterOpen && (
@@ -553,13 +555,13 @@ export function MaintenancePage() {
                           onClick={() => toggleAllColumns(true)}
                           className="flex-1 px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 rounded transition-colors"
                         >
-                          Show All
+                          {t('maintenance.columns.showAll')}
                         </button>
                         <button
                           onClick={() => toggleAllColumns(false)}
                           className="flex-1 px-3 py-1.5 text-xs font-medium bg-gray-50 text-gray-700 hover:bg-gray-100 rounded transition-colors"
                         >
-                          Hide All
+                          {t('maintenance.columns.hideAll')}
                         </button>
                       </div>
                     </div>
@@ -593,7 +595,7 @@ export function MaintenancePage() {
                             <div className="flex items-center gap-2 flex-1">
                               <div className="flex-1">
                                 <div className="text-sm font-medium text-gray-900">{column.title}</div>
-                                <div className="text-xs text-gray-500">{columnTasks.length} tasks</div>
+                                <div className="text-xs text-gray-500">{columnTasks.length} {t('maintenance.tasksCount')}</div>
                               </div>
                             </div>
                           </label>
@@ -608,7 +610,7 @@ export function MaintenancePage() {
             {/* Search */}
             <input
               type="text"
-              placeholder="Search by equipment, task description, or task ID..."
+              placeholder={t('maintenance.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1 px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -622,7 +624,7 @@ export function MaintenancePage() {
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-gray-600 mt-4">Loading maintenance tasks...</p>
+                <p className="text-gray-600 mt-4">{t('maintenance.loadingTasks')}</p>
               </div>
             ) : (
               <KanbanBoard 

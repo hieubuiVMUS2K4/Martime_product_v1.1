@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, Download, Clock, RefreshCw } from 'lucide-react';
-import { addDays, parseISO, differenceInDays } from 'date-fns';
+import { addDays } from 'date-fns';
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { SchedulePreview } from '@/types/pms.types';
 
 type ViewMode = 'day' | 'week' | 'month' | 'quarter';
@@ -25,19 +26,56 @@ interface GanttTask {
   hasNextDue?: boolean;  // Flag to show this is a future scheduled occurrence
 }
 
-const PRIORITY_COLORS = {
+// Light mode colors
+const PRIORITY_COLORS_LIGHT = {
   CRITICAL: { bg: '#FEE2E2', bar: '#EF4444', text: '#991B1B' }, // red
   HIGH: { bg: '#FFEDD5', bar: '#F97316', text: '#9A3412' }, // orange
   MEDIUM: { bg: '#FEF3C7', bar: '#EAB308', text: '#854D0E' }, // yellow
   LOW: { bg: '#DBEAFE', bar: '#3B82F6', text: '#1E40AF' } // blue
 };
 
+// Dark mode colors - more transparent backgrounds for dark mode
+const PRIORITY_COLORS_DARK = {
+  CRITICAL: { bg: 'rgba(239, 68, 68, 0.2)', bar: '#EF4444', text: '#FCA5A5' }, // red
+  HIGH: { bg: 'rgba(249, 115, 22, 0.2)', bar: '#F97316', text: '#FDBA74' }, // orange
+  MEDIUM: { bg: 'rgba(234, 179, 8, 0.2)', bar: '#EAB308', text: '#FDE047' }, // yellow
+  LOW: { bg: 'rgba(59, 130, 246, 0.2)', bar: '#3B82F6', text: '#93C5FD' } // blue
+};
+
+// Keep PRIORITY_COLORS for backward compatibility (legend)
+const PRIORITY_COLORS = PRIORITY_COLORS_LIGHT;
+
 export default function MasterSchedulePage() {
+  const { t } = useTranslationSafe();
   const [tasks, setTasks] = useState<GanttTask[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [isDarkMode, setIsDarkMode] = useState(() => 
+    document.documentElement.classList.contains('dark')
+  );
+
+  // Watch for theme changes using MutationObserver
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          setIsDarkMode(document.documentElement.classList.contains('dark'));
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, { attributes: true });
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Get priority colors based on current theme state
+  const getPriorityColors = useCallback((priority: string) => {
+    const colors = isDarkMode ? PRIORITY_COLORS_DARK : PRIORITY_COLORS_LIGHT;
+    return colors[priority as keyof typeof colors] || colors.LOW;
+  }, [isDarkMode]);
 
   // Initial load
   useEffect(() => {
@@ -311,7 +349,7 @@ export default function MasterSchedulePage() {
   };
 
   const handleExport = () => {
-    alert('Export functionality coming soon!');
+    alert(t('pms.masterSchedule.exportComingSoon'));
   };
 
   if (loading) {
@@ -319,7 +357,7 @@ export default function MasterSchedulePage() {
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading master schedule...</p>
+          <p className="mt-4 text-gray-600">{t('pms.masterSchedule.loading')}</p>
         </div>
       </div>
     );
@@ -335,36 +373,36 @@ export default function MasterSchedulePage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Master Schedule</h1>
-            <p className="text-gray-600 mt-1">
-              Gantt chart overview of all maintenance activities
-              <span className="ml-3 text-xs text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('pms.masterSchedule.title')}</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              {t('pms.masterSchedule.subtitle')}
+              <span className="ml-3 text-xs text-gray-500 dark:text-gray-400">
                 <RefreshCw className="w-3 h-3 inline mr-1" />
-                Auto-refreshes every 2 min · Last: {lastRefresh.toLocaleTimeString()}
+                {t('pms.masterSchedule.autoRefresh', { time: lastRefresh.toLocaleTimeString() })}
               </span>
             </p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={loadScheduleData}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              title="Refresh now"
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              title={t('pms.masterSchedule.refresh')}
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
+              {t('pms.masterSchedule.refresh')}
             </button>
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
             >
               <Download className="w-4 h-4" />
-              Export
+              {t('pms.masterSchedule.export')}
             </button>
           </div>
         </div>
 
         {/* Controls */}
-        <div className="bg-white rounded-lg shadow p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             {/* View Mode */}
             <div className="flex items-center gap-2">
@@ -373,40 +411,40 @@ export default function MasterSchedulePage() {
                 className={`px-4 py-2 rounded-lg text-sm font-medium ${
                   viewMode === 'day'
                     ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
-                Day
+                {t('pms.masterSchedule.day')}
               </button>
               <button
                 onClick={() => setViewMode('week')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium ${
                   viewMode === 'week'
                     ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
-                Week
+                {t('pms.masterSchedule.week')}
               </button>
               <button
                 onClick={() => setViewMode('month')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium ${
                   viewMode === 'month'
                     ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
-                Month
+                {t('pms.masterSchedule.month')}
               </button>
               <button
                 onClick={() => setViewMode('quarter')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium ${
                   viewMode === 'quarter'
                     ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
-                Quarter
+                {t('pms.masterSchedule.quarter')}
               </button>
             </div>
 
@@ -414,12 +452,12 @@ export default function MasterSchedulePage() {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigateDate('prev')}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <div className="text-center min-w-[200px]">
-                <p className="font-semibold text-gray-900">
+                <p className="font-semibold text-gray-900 dark:text-gray-100">
                   {viewMode === 'day' 
                     ? (() => {
                         const endDate = new Date(currentDate);
@@ -448,7 +486,7 @@ export default function MasterSchedulePage() {
               </div>
               <button
                 onClick={() => navigateDate('next')}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -456,50 +494,50 @@ export default function MasterSchedulePage() {
 
             <button
               onClick={() => setCurrentDate(new Date())}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium"
+              className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-sm font-medium"
             >
-              Today
+              {t('pms.masterSchedule.today')}
             </button>
           </div>
         </div>
 
         {/* Legend */}
-        <div className="bg-white rounded-lg shadow p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
           <div className="flex items-center flex-wrap gap-6">
-            <span className="text-sm font-medium text-gray-700">Priority:</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('pms.masterSchedule.priority')}:</span>
             {Object.entries(PRIORITY_COLORS).map(([priority, colors]) => (
               <div key={priority} className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded" style={{ backgroundColor: colors.bar }}></div>
-                <span className="text-sm text-gray-600">{priority}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{priority}</span>
               </div>
             ))}
             <div className="flex items-center gap-2 ml-4">
               <div className="w-4 h-4 bg-blue-600 rounded-full"></div>
-              <span className="text-sm text-gray-600">Current Due Date</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{t('pms.masterSchedule.currentDueDate')}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-purple-600 rounded-full"></div>
-              <span className="text-sm text-gray-600">Next Due Date (Upcoming)</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{t('pms.masterSchedule.nextDueDate')}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-green-600 rounded-full"></div>
-              <span className="text-sm text-gray-600">Start Date</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{t('pms.masterSchedule.startDate')}</span>
             </div>
           </div>
         </div>
 
         {/* Gantt Chart */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             {/* Timeline Header */}
-            <div className="flex border-b-2 border-gray-300">
-              <div className="w-96 flex-shrink-0 bg-gray-50 border-r-2 border-gray-300">
+            <div className="flex border-b-2 border-gray-300 dark:border-gray-600">
+              <div className="w-96 flex-shrink-0 bg-gray-50 dark:bg-gray-700 border-r-2 border-gray-300 dark:border-gray-600">
                 <div className="p-4">
-                  <div className="font-semibold text-gray-900">Task / Equipment Group</div>
-                  <div className="text-xs text-gray-600 mt-1">Schedule Details</div>
+                  <div className="font-semibold text-gray-900 dark:text-gray-100">{t('pms.masterSchedule.taskEquipmentGroup')}</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">{t('pms.masterSchedule.scheduleDetails')}</div>
                 </div>
               </div>
-              <div className="flex-1 min-w-[800px]">
+              <div className="flex-1 min-w-[800px] bg-white dark:bg-gray-800">
                 <div className="flex items-center h-full">
                   {/* For day view, show all days; for other views, show weekly markers */}
                   {(viewMode === 'day' 
@@ -511,17 +549,17 @@ export default function MasterSchedulePage() {
                     return (
                       <div
                         key={idx}
-                        className={`flex-1 border-r border-gray-200 p-2 text-center ${
-                          isToday ? 'bg-blue-50' : 'bg-gray-50'
+                        className={`flex-1 border-r border-gray-200 dark:border-gray-600 p-2 text-center ${
+                          isToday ? 'bg-blue-50 dark:bg-blue-900/30' : 'bg-gray-50 dark:bg-gray-700'
                         }`}
                       >
-                        <div className="text-xs font-semibold text-gray-900">
+                        <div className="text-xs font-semibold text-gray-900 dark:text-gray-100">
                           {viewMode === 'day' 
                             ? day.toLocaleDateString('en-US', { weekday: 'short' })
                             : day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                           }
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
                           {viewMode === 'day'
                             ? day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                             : day.toLocaleDateString('en-US', { weekday: 'short' })
@@ -535,29 +573,39 @@ export default function MasterSchedulePage() {
             </div>
 
             {/* Task Rows */}
-            <div className="relative">
+            <div className="relative bg-white dark:bg-gray-800">
               {tasks.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p>No maintenance tasks scheduled</p>
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  <Calendar className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                  <p>{t('pms.masterSchedule.noTasks')}</p>
                 </div>
               ) : (
                 tasks.map((task, idx) => {
                   const workPeriod = getWorkPeriod(task, days);
                   const duePos = getDatePosition(task.dueDate, days, 'end');
-                  const priorityColors = PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS] || PRIORITY_COLORS.LOW;
+                  const priorityColors = getPriorityColors(task.priority);
                   
                   return (
-                    <div key={task.id} className={`flex hover:bg-blue-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                      {/* Task Info */}
+                    <div key={task.id} className={`flex hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors ${idx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50/50 dark:bg-gray-700/50'}`}>
+                      {/* Task Info - Use priority-based background color */}
                       <div 
-                        className="w-96 flex-shrink-0 border-r-2 border-gray-200 p-4"
+                        className="w-96 flex-shrink-0 border-r-2 border-gray-200 dark:border-gray-600 p-4"
                         style={{ backgroundColor: priorityColors.bg }}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <div className="font-semibold text-gray-900 text-sm">{task.name}</div>
-                            <div className="text-xs text-gray-600 mt-1">{task.groupName}</div>
+                            <div 
+                              className="font-semibold text-sm"
+                              style={{ color: isDarkMode ? '#F3F4F6' : '#111827' }}
+                            >
+                              {task.name}
+                            </div>
+                            <div 
+                              className="text-xs mt-1"
+                              style={{ color: isDarkMode ? '#9CA3AF' : '#4B5563' }}
+                            >
+                              {task.groupName}
+                            </div>
                             <div className="flex items-center gap-3 mt-2">
                               <span
                                 className="px-2 py-0.5 rounded text-xs font-medium"
@@ -569,22 +617,28 @@ export default function MasterSchedulePage() {
                                 {task.priority}
                               </span>
                               {task.isOverdue ? (
-                                <span className="flex items-center gap-1 text-xs text-red-600 font-medium">
+                                <span className="flex items-center gap-1 text-xs font-medium" style={{ color: '#DC2626' }}>
                                   <Clock className="w-3 h-3" />
-                                  OVERDUE
+                                  {t('pms.masterSchedule.overdue')}
                                 </span>
                               ) : (
-                                <span className="text-xs text-gray-600">
-                                  {task.daysUntilDue} days left
+                                <span 
+                                  className="text-xs"
+                                  style={{ color: isDarkMode ? '#9CA3AF' : '#4B5563' }}
+                                >
+                                  {t('pms.masterSchedule.daysLeft', { days: task.daysUntilDue })}
                                 </span>
                               )}
                             </div>
-                            <div className="text-xs text-gray-500 mt-2 space-y-0.5">
-                              <div>Lead time: {task.leadTimeDays}d</div>
+                            <div 
+                              className="text-xs mt-2 space-y-0.5"
+                              style={{ color: isDarkMode ? '#9CA3AF' : '#6B7280' }}
+                            >
+                              <div>{t('pms.masterSchedule.leadTime', { days: task.leadTimeDays })}</div>
                               {formatInterval(task) && <div>{formatInterval(task)}</div>}
                               {task.nextDueDate && (
-                                <div className="text-purple-600 font-medium">
-                                  🔄 Next: {task.nextDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                <div className="text-purple-600 dark:text-purple-400 font-medium">
+                                  🔄 {t('pms.masterSchedule.next', { date: task.nextDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) })}
                                 </div>
                               )}
                             </div>
@@ -593,7 +647,7 @@ export default function MasterSchedulePage() {
                       </div>
 
                       {/* Timeline */}
-                      <div className="flex-1 min-w-[800px] border-b border-gray-200 relative" style={{ minHeight: '90px' }}>
+                      <div className="flex-1 min-w-[800px] border-b border-gray-200 dark:border-gray-600 relative bg-white dark:bg-gray-800" style={{ minHeight: '90px' }}>
                         {/* Today Indicator */}
                         {(() => {
                           const todayPos = getDatePosition(today, days);
@@ -603,8 +657,8 @@ export default function MasterSchedulePage() {
                               style={{ left: `${todayPos}%` }}
                             >
                               <div className="absolute top-0 -translate-x-1/2 -translate-y-full pb-1">
-                                <div className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-1 rounded whitespace-nowrap">
-                                  TODAY
+                                <div className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/50 px-1 rounded whitespace-nowrap">
+                                  {t('pms.masterSchedule.today').toUpperCase()}
                                 </div>
                               </div>
                             </div>
@@ -615,7 +669,7 @@ export default function MasterSchedulePage() {
                         {days.filter((_, idx) => idx % 7 === 0 || idx === 0).map((_, idx, arr) => (
                           <div
                             key={idx}
-                            className="absolute top-0 bottom-0 border-r border-gray-100"
+                            className="absolute top-0 bottom-0 border-r border-gray-100 dark:border-gray-700"
                             style={{ left: `${(idx / arr.length) * 100}%` }}
                           ></div>
                         ))}
@@ -648,8 +702,8 @@ export default function MasterSchedulePage() {
                                   <div className="w-2 h-2 bg-white rounded-full"></div>
                                 </div>
                                 <div className="absolute bottom-full mb-1 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                                  <div className="text-xs font-medium text-gray-900 bg-white px-2 py-1 rounded shadow border border-gray-200">
-                                    Start: {task.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  <div className="text-xs font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 px-2 py-1 rounded shadow border border-gray-200 dark:border-gray-600">
+                                    {t('pms.masterSchedule.start', { date: task.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) })}
                                   </div>
                                 </div>
                               </div>
@@ -668,8 +722,8 @@ export default function MasterSchedulePage() {
                                 <div className="w-2 h-2 bg-white rounded-full"></div>
                               </div>
                               <div className="absolute top-full mt-1 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                                <div className="text-xs font-medium text-gray-900 bg-white px-2 py-1 rounded shadow border-2 border-blue-600">
-                                  Due: {task.dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                <div className="text-xs font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 px-2 py-1 rounded shadow border-2 border-blue-600">
+                                  {t('pms.masterSchedule.due', { date: task.dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) })}
                                 </div>
                               </div>
                             </div>
@@ -689,8 +743,8 @@ export default function MasterSchedulePage() {
                                   <div className="w-2 h-2 bg-white rounded-full"></div>
                                 </div>
                                 <div className="absolute top-full mt-1 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                                  <div className="text-xs font-medium text-purple-900 bg-purple-50 px-2 py-1 rounded shadow border-2 border-purple-600">
-                                    🔄 Next: {task.nextDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  <div className="text-xs font-medium text-purple-900 dark:text-purple-100 bg-purple-50 dark:bg-purple-900 px-2 py-1 rounded shadow border-2 border-purple-600">
+                                    🔄 {t('pms.masterSchedule.next', { date: task.nextDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) })}
                                   </div>
                                 </div>
                               </div>

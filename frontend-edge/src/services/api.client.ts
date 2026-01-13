@@ -31,9 +31,56 @@ export class ApiClient {
       if (!response.ok) {
         // Try to parse error response body for more details
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        let validationErrors: Record<string, string[]> | null = null
+        
         try {
           const errorData = await response.json()
-          if (errorData.error) {
+          
+          // Handle ASP.NET Core ModelState validation errors
+          // Format: { "FieldName": ["Error 1", "Error 2"], ... }
+          // or { "errors": { "FieldName": ["Error 1"], ... }, "title": "...", "status": 400 }
+          if (errorData.errors && typeof errorData.errors === 'object') {
+            validationErrors = errorData.errors
+            const errorMessages: string[] = []
+            Object.entries(errorData.errors).forEach(([field, messages]) => {
+              if (Array.isArray(messages)) {
+                messages.forEach((msg: string) => {
+                  // Make field names more readable
+                  const readableField = field
+                    .replace(/([A-Z])/g, ' $1')
+                    .replace(/^./, str => str.toUpperCase())
+                    .trim()
+                  errorMessages.push(`${readableField}: ${msg}`)
+                })
+              }
+            })
+            errorMessage = errorMessages.length > 0 
+              ? `Validation failed:\n• ${errorMessages.join('\n• ')}`
+              : errorData.title || 'Validation failed'
+          } 
+          // Handle direct validation errors without "errors" wrapper
+          else if (typeof errorData === 'object' && !errorData.error && !errorData.message) {
+            const keys = Object.keys(errorData).filter(k => k !== 'type' && k !== 'title' && k !== 'status' && k !== 'traceId')
+            if (keys.length > 0 && Array.isArray(errorData[keys[0]])) {
+              validationErrors = errorData as Record<string, string[]>
+              const errorMessages: string[] = []
+              keys.forEach(field => {
+                const messages = errorData[field]
+                if (Array.isArray(messages)) {
+                  messages.forEach((msg: string) => {
+                    const readableField = field
+                      .replace(/([A-Z])/g, ' $1')
+                      .replace(/^./, str => str.toUpperCase())
+                      .trim()
+                    errorMessages.push(`${readableField}: ${msg}`)
+                  })
+                }
+              })
+              errorMessage = `Validation failed:\n• ${errorMessages.join('\n• ')}`
+            }
+          }
+          // Handle simple error object
+          else if (errorData.error) {
             errorMessage = errorData.error
           } else if (errorData.message) {
             errorMessage = errorData.message
@@ -46,6 +93,7 @@ export class ApiClient {
         
         const error: any = new Error(errorMessage)
         error.response = { status: response.status, data: { error: errorMessage } }
+        error.validationErrors = validationErrors
         throw error
       }
 

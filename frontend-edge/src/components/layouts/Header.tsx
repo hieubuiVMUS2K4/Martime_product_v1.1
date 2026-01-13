@@ -1,15 +1,18 @@
 import { useMaritimeStore } from '@/stores/maritime.store'
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react'
 import { format } from 'date-fns'
+import { SettingsButton } from '@/components/settings'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
 export function Header() {
   const { isOnline, isSyncing, lastSyncTime } = useMaritimeStore()
+  const { t } = useTranslationSafe()
 
   return (
     <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-6">
       <div className="flex items-center space-x-4">
         <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
-          Vessel Operations
+          {t('header.title')}
         </h1>
       </div>
 
@@ -19,11 +22,11 @@ export function Header() {
           {isSyncing ? (
             <>
               <RefreshCw className="w-4 h-4 animate-spin text-yellow-500" />
-              <span className="text-gray-600 dark:text-gray-300">Syncing...</span>
+              <span className="text-gray-600 dark:text-gray-300">{t('header.syncing')}</span>
             </>
           ) : lastSyncTime ? (
             <span className="text-gray-600 dark:text-gray-300">
-              Last sync: {format(lastSyncTime, 'HH:mm:ss')}
+              {t('header.lastSync', { time: format(lastSyncTime, 'HH:mm:ss') })}
             </span>
           ) : null}
         </div>
@@ -33,15 +36,18 @@ export function Header() {
           {isOnline ? (
             <>
               <Wifi className="w-5 h-5 text-green-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-300">Online</span>
+              <span className="text-sm text-gray-600 dark:text-gray-300">{t('header.online')}</span>
             </>
           ) : (
             <>
               <WifiOff className="w-5 h-5 text-red-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-300">Offline</span>
+              <span className="text-sm text-gray-600 dark:text-gray-300">{t('header.offline')}</span>
             </>
           )}
         </div>
+
+        {/* Settings Button */}
+        <SettingsButton />
 
         {/* Current Time */}
         <div className="text-sm text-gray-600 dark:text-gray-300">

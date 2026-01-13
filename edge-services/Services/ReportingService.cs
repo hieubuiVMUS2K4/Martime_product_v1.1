@@ -25,6 +25,9 @@ public interface IReportingService
     Task<ArrivalReportDto?> GetArrivalReportAsync(Guid reportId);
     Task<BunkerReportDto?> GetBunkerReportAsync(Guid reportId);
     Task<PositionReportDto?> GetPositionReportAsync(Guid reportId);
+    
+    // Generic report access
+    Task<object?> GetReportByIdAsync(Guid reportId);
 
     Task<PaginatedReportResponseDto<ReportSummaryDto>> GetReportsAsync(ReportPaginationDto pagination);
     
@@ -163,11 +166,27 @@ public class ReportingService : IReportingService
                 _context.MaritimeReports.Add(maritimeReport);
                 await _context.SaveChangesAsync(); // Need to get maritimeReport.Id
 
+                // Auto-calculate crew on board if not provided
+                int? crewOnBoard = dto.CrewOnBoard;
+                if (!crewOnBoard.HasValue)
+                {
+                    try
+                    {
+                        crewOnBoard = await _context.CrewMembers.CountAsync(c => c.IsOnboard);
+                    }
+                    catch
+                    {
+                        // Ignore if crew table not available
+                    }
+                }
+
                 // Create noon report (child)
                 var noonReport = new NoonReport
                 {
                     MaritimeReportId = maritimeReport.Id,
                     ReportDate = dto.ReportDate,
+                    
+                    // Position
                     Latitude = dto.Latitude,
                     Longitude = dto.Longitude,
                     CourseOverGround = dto.CourseOverGround,
@@ -208,10 +227,19 @@ public class ReportingService : IReportingService
                     CargoOnBoard = dto.CargoOnBoard,
                     CargoDescription = dto.CargoDescription,
                     
+                    // Crew Status
+                    CrewOnBoard = crewOnBoard,
+                    PassengersOnBoard = dto.PassengersOnBoard,
+                    
+                    // Safety
+                    SafetyDrillsConducted = dto.SafetyDrillsConducted,
+                    SafetyIncidents = dto.SafetyIncidents,
+                    
                     // Remarks
                     OperationalRemarks = dto.OperationalRemarks,
                     MachineryRemarks = dto.MachineryRemarks,
                     CargoRemarks = dto.CargoRemarks,
+                    MaintenanceRemarks = dto.MaintenanceRemarks,
                     
                     CreatedAt = DateTime.UtcNow
                 };
@@ -242,48 +270,223 @@ public class ReportingService : IReportingService
 
     public async Task<NoonReportDto?> GetNoonReportAsync(Guid reportId)
     {
-        var query = from mr in _context.MaritimeReports.AsNoTracking()
-                    join nr in _context.NoonReports.AsNoTracking() on mr.Id equals nr.MaritimeReportId
-                    where mr.Id == reportId && mr.DeletedAt == null  // Exclude soft-deleted reports
-                    select new NoonReportDto
-                    {
-                        Id = nr.Id,
-                        MaritimeReportId = mr.Id,
-                        ReportNumber = mr.ReportNumber,
-                        Status = mr.Status,
-                        ReportDate = nr.ReportDate,
-                        
-                        Latitude = nr.Latitude,
-                        Longitude = nr.Longitude,
-                        CourseOverGround = nr.CourseOverGround,
-                        SpeedOverGround = nr.SpeedOverGround,
-                        DistanceTraveled = nr.DistanceTraveled,
-                        DistanceToGo = nr.DistanceToGo,
-                        EstimatedTimeOfArrival = nr.EstimatedTimeOfArrival,
-                        
-                        WeatherConditions = nr.WeatherConditions,
-                        SeaState = nr.SeaState,
-                        AirTemperature = nr.AirTemperature,
-                        WindSpeed = nr.WindSpeed,
-                        
-                        FuelOilConsumed = nr.FuelOilConsumed,
-                        FuelOilROB = nr.FuelOilROB,
-                        DieselOilROB = nr.DieselOilROB,
-                        
-                        MainEngineRPM = nr.MainEngineRPM,
-                        MainEngineRunningHours = nr.MainEngineRunningHours,
-                        
-                        CargoOnBoard = nr.CargoOnBoard,
-                        
-                        PreparedBy = mr.PreparedBy,
-                        MasterSignature = mr.MasterSignature,
-                        SignedAt = mr.SignedAt,
-                        IsTransmitted = mr.IsTransmitted,
-                        TransmittedAt = mr.TransmittedAt,
-                        CreatedAt = mr.CreatedAt
-                    };
+        // First, get basic noon report data
+        var basicData = await (
+            from maritimeReport in _context.MaritimeReports.AsNoTracking()
+            join noonReport in _context.NoonReports.AsNoTracking() on maritimeReport.Id equals noonReport.MaritimeReportId
+            where maritimeReport.Id == reportId && maritimeReport.DeletedAt == null
+            select new { maritimeReport, noonReport }
+        ).FirstOrDefaultAsync();
 
-        return await query.FirstOrDefaultAsync();
+        if (basicData == null)
+            return null;
+
+        var mr = basicData.maritimeReport;
+        var nr = basicData.noonReport;
+        var reportDate = nr.ReportDate.Date;
+
+        // Build the full DTO with all fields
+        var dto = new NoonReportDto
+        {
+            Id = nr.Id,
+            MaritimeReportId = mr.Id,
+            ReportNumber = mr.ReportNumber,
+            Status = mr.Status,
+            ReportDate = nr.ReportDate,
+            VoyageId = mr.VoyageId,
+            
+            // Position
+            Latitude = nr.Latitude,
+            Longitude = nr.Longitude,
+            CourseOverGround = nr.CourseOverGround,
+            SpeedOverGround = nr.SpeedOverGround,
+            DistanceTraveled = nr.DistanceTraveled,
+            DistanceToGo = nr.DistanceToGo,
+            EstimatedTimeOfArrival = nr.EstimatedTimeOfArrival,
+            
+            // Weather - Full data
+            WeatherConditions = nr.WeatherConditions,
+            SeaState = nr.SeaState,
+            AirTemperature = nr.AirTemperature,
+            SeaTemperature = nr.SeaTemperature,
+            BarometricPressure = nr.BarometricPressure,
+            WindDirection = nr.WindDirection,
+            WindSpeed = nr.WindSpeed,
+            Visibility = nr.Visibility,
+            
+            // Fuel - Full data
+            FuelOilConsumed = nr.FuelOilConsumed,
+            DieselOilConsumed = nr.DieselOilConsumed,
+            LubOilConsumed = nr.LubOilConsumed,
+            FreshWaterConsumed = nr.FreshWaterConsumed,
+            FuelOilROB = nr.FuelOilROB,
+            DieselOilROB = nr.DieselOilROB,
+            LubOilROB = nr.LubOilROB,
+            FreshWaterROB = nr.FreshWaterROB,
+            
+            // Engine - Full data
+            MainEngineRPM = nr.MainEngineRPM,
+            MainEnginePower = nr.MainEnginePower,
+            MainEngineRunningHours = nr.MainEngineRunningHours,
+            AuxEngineRunningHours = nr.AuxEngineRunningHours,
+            
+            // Cargo
+            CargoOnBoard = nr.CargoOnBoard,
+            CargoDescription = nr.CargoDescription,
+            
+            // Remarks
+            OperationalRemarks = nr.OperationalRemarks,
+            MachineryRemarks = nr.MachineryRemarks,
+            CargoRemarks = nr.CargoRemarks,
+            GeneralRemarks = mr.Remarks,
+            
+            // Metadata
+            PreparedBy = mr.PreparedBy,
+            MasterSignature = mr.MasterSignature,
+            SignedAt = mr.SignedAt,
+            IsTransmitted = mr.IsTransmitted,
+            TransmittedAt = mr.TransmittedAt,
+            CreatedAt = mr.CreatedAt,
+            UpdatedAt = mr.UpdatedAt
+        };
+
+        // Get voyage number if linked
+        if (mr.VoyageId.HasValue)
+        {
+            var voyage = await _context.VoyageRecords
+                .Where(v => v.Id == mr.VoyageId.Value)
+                .Select(v => v.VoyageNumber)
+                .FirstOrDefaultAsync();
+            dto.VoyageNumber = voyage;
+        }
+
+        // Aggregate Crew data
+        try
+        {
+            dto.CrewOnBoard = await _context.CrewMembers
+                .CountAsync(c => c.IsOnboard);
+            
+            var thirtyDaysFromNow = DateTime.UtcNow.AddDays(30);
+            
+            // Count certificates expiring soon from CrewCertificates table
+            var onboardCrewIds = await _context.CrewMembers
+                .Where(c => c.IsOnboard)
+                .Select(c => c.Id)
+                .ToListAsync();
+            
+            var certsExpiringSoon = await _context.CrewCertificates
+                .Where(cc => onboardCrewIds.Contains(cc.CrewMemberId) && 
+                             cc.ExpiryDate <= thirtyDaysFromNow)
+                .CountAsync();
+            
+            // Also count passport expiry
+            var passportsExpiringSoon = await _context.CrewMembers
+                .Where(c => c.IsOnboard && c.PassportExpiry.HasValue && c.PassportExpiry.Value <= thirtyDaysFromNow)
+                .CountAsync();
+            
+            dto.CertificatesExpiringSoon = certsExpiringSoon + passportsExpiringSoon;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not aggregate crew data for noon report");
+        }
+
+        // Aggregate Maintenance data
+        try
+        {
+            var yesterday = reportDate.AddDays(-1);
+            var sevenDaysFromNow = reportDate.AddDays(7);
+
+            var maintenanceSummary = new NoonReportMaintenanceSummaryDto
+            {
+                TasksCompletedLast24h = await _context.MaintenanceTasks
+                    .CountAsync(t => t.Status == "COMPLETED" && t.CompletedAt >= yesterday && t.CompletedAt <= reportDate.AddDays(1)),
+                
+                TasksInProgress = await _context.MaintenanceTasks
+                    .CountAsync(t => t.Status == "IN_PROGRESS"),
+                
+                OverdueTasks = await _context.MaintenanceTasks
+                    .CountAsync(t => t.Status == "OVERDUE" || (t.NextDueAt < reportDate && t.Status != "COMPLETED" && t.Status != "CANCELLED")),
+                
+                CriticalTasksDueSoon = await _context.MaintenanceTasks
+                    .CountAsync(t => (t.Priority == "CRITICAL" || t.Priority == "HIGH") && 
+                                    t.NextDueAt <= sevenDaysFromNow && 
+                                    t.Status != "COMPLETED" && t.Status != "CANCELLED"),
+                
+                TotalScheduledToday = await _context.MaintenanceTasks
+                    .CountAsync(t => t.NextDueAt.Date == reportDate && t.Status != "COMPLETED" && t.Status != "CANCELLED"),
+                
+                PendingDeferrals = await _context.MaintenanceTasks
+                    .CountAsync(t => t.HasPendingDeferral)
+            };
+
+            // Get critical maintenance notes
+            var criticalTasks = await _context.MaintenanceTasks
+                .Where(t => t.Priority == "CRITICAL" && t.Status == "OVERDUE")
+                .Take(3)
+                .Select(t => t.TaskDescription)
+                .ToListAsync();
+            
+            if (criticalTasks.Any())
+            {
+                maintenanceSummary.CriticalMaintenanceNotes = string.Join("; ", criticalTasks.Select(t => t.Length > 50 ? t.Substring(0, 47) + "..." : t));
+            }
+
+            dto.MaintenanceSummary = maintenanceSummary;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not aggregate maintenance data for noon report");
+        }
+
+        // Aggregate Alarm data
+        try
+        {
+            var yesterday = reportDate.AddDays(-1);
+
+            var alarmSummary = new NoonReportAlarmSummaryDto
+            {
+                // Active = not acknowledged and not resolved
+                ActiveAlarms = await _context.SafetyAlarms
+                    .CountAsync(a => !a.IsAcknowledged && !a.IsResolved),
+                
+                // Acknowledged but not resolved
+                AcknowledgedAlarms = await _context.SafetyAlarms
+                    .CountAsync(a => a.IsAcknowledged && !a.IsResolved),
+                
+                // Resolved in last 24 hours
+                ResolvedLast24h = await _context.SafetyAlarms
+                    .CountAsync(a => a.IsResolved && a.ResolvedAt >= yesterday),
+                
+                // Critical alarms not resolved
+                CriticalAlarms = await _context.SafetyAlarms
+                    .CountAsync(a => a.Severity == "CRITICAL" && !a.IsResolved),
+                
+                // Warning alarms not resolved
+                WarningAlarms = await _context.SafetyAlarms
+                    .CountAsync(a => a.Severity == "WARNING" && !a.IsResolved)
+            };
+
+            // Get safety notes from recent critical alarms
+            var recentCriticalAlarms = await _context.SafetyAlarms
+                .Where(a => a.Severity == "CRITICAL" && !a.IsResolved)
+                .Take(2)
+                .Select(a => a.Description)
+                .ToListAsync();
+            
+            if (recentCriticalAlarms.Any())
+            {
+                alarmSummary.SafetyNotes = string.Join("; ", recentCriticalAlarms.Select(m => m != null && m.Length > 50 ? m.Substring(0, 47) + "..." : m ?? ""));
+            }
+
+            dto.AlarmSummary = alarmSummary;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not aggregate alarm data for noon report");
+        }
+
+        return dto;
     }
 
     // ============================================================
@@ -806,6 +1009,56 @@ public class ReportingService : IReportingService
                     };
 
         return await query.FirstOrDefaultAsync();
+    }
+
+    // ============================================================
+    // GENERIC REPORT ACCESS
+    // ============================================================
+
+    /// <summary>
+    /// Get any report by ID, auto-detecting the report type
+    /// Returns the appropriate DTO based on report type
+    /// </summary>
+    public async Task<object?> GetReportByIdAsync(Guid reportId)
+    {
+        // First, get the maritime report to determine the type
+        var maritimeReport = await _context.MaritimeReports
+            .AsNoTracking()
+            .FirstOrDefaultAsync(mr => mr.Id == reportId && mr.DeletedAt == null);
+
+        if (maritimeReport == null)
+        {
+            return null;
+        }
+
+        // Get the report type
+        var reportType = await _context.ReportTypes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(rt => rt.Id == maritimeReport.ReportTypeId);
+
+        var typeCode = reportType?.TypeCode ?? "";
+
+        // Based on type, get the specific report
+        return typeCode switch
+        {
+            "NOON" => await GetNoonReportAsync(reportId),
+            "DEPARTURE" => await GetDepartureReportAsync(reportId),
+            "ARRIVAL" => await GetArrivalReportAsync(reportId),
+            "BUNKER" => await GetBunkerReportAsync(reportId),
+            "POSITION" => await GetPositionReportAsync(reportId),
+            _ => new
+            {
+                Id = maritimeReport.Id,
+                ReportNumber = maritimeReport.ReportNumber,
+                ReportType = typeCode,
+                Status = maritimeReport.Status,
+                ReportDateTime = maritimeReport.ReportDateTime,
+                PreparedBy = maritimeReport.PreparedBy,
+                IsTransmitted = maritimeReport.IsTransmitted,
+                CreatedAt = maritimeReport.CreatedAt,
+                Error = $"Unknown report type: {typeCode}"
+            }
+        };
     }
 
     // ============================================================

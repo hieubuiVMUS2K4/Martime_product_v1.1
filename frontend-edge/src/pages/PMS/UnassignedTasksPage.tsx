@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle, Users, Calendar, Wrench } from 'lucide-react';
 import { maritimeService } from '@/services/maritime.service';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { MaintenanceTask, CrewMember } from '@/types/maritime.types';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 
 export default function UnassignedTasksPage() {
+  const { t } = useTranslationSafe();
   const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
   const [crew, setCrew] = useState<CrewMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +40,7 @@ export default function UnassignedTasksPage() {
       setCrew(crewResponse.data || []);
     } catch (error) {
       console.error('Error loading data:', error);
-      toast.error('Failed to load unassigned tasks');
+      toast.error(t('pms.unassigned.failedToLoad'));
     } finally {
       setLoading(false);
     }
@@ -59,13 +61,13 @@ export default function UnassignedTasksPage() {
         throw new Error(error.message || 'Failed to assign task');
       }
 
-      toast.success('Task assigned successfully');
+      toast.success(t('pms.unassigned.taskAssigned'));
       
       // Remove from list
       setTasks(prev => prev.filter(t => t.id !== taskId));
     } catch (error) {
       console.error('Error assigning task:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to assign task');
+      toast.error(error instanceof Error ? error.message : t('pms.unassigned.failedToAssign'));
     } finally {
       setAssigning(null);
     }
@@ -95,7 +97,7 @@ export default function UnassignedTasksPage() {
       <div className="p-6">
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="ml-3 text-gray-600">Loading unassigned tasks...</p>
+          <p className="ml-3 text-gray-600">{t('pms.unassigned.loading')}</p>
         </div>
       </div>
     );
@@ -107,10 +109,10 @@ export default function UnassignedTasksPage() {
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
           <AlertTriangle className="w-8 h-8 text-red-500" />
-          <h1 className="text-2xl font-bold text-gray-900">Unassigned Tasks</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('pms.unassigned.title')}</h1>
         </div>
         <p className="text-gray-600">
-          Tasks requiring crew assignment by Chief Engineer
+          {t('pms.unassigned.subtitle')}
         </p>
       </div>
 
@@ -122,7 +124,7 @@ export default function UnassignedTasksPage() {
               <AlertTriangle className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Total Unassigned</p>
+              <p className="text-sm text-gray-600">{t('pms.unassigned.totalUnassigned')}</p>
               <p className="text-2xl font-bold text-gray-900">{tasks.length}</p>
             </div>
           </div>
@@ -134,7 +136,7 @@ export default function UnassignedTasksPage() {
               <Calendar className="w-5 h-5 text-orange-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Overdue</p>
+              <p className="text-sm text-gray-600">{t('pms.unassigned.overdue')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {tasks.filter(t => t.status === 'OVERDUE').length}
               </p>
@@ -148,7 +150,7 @@ export default function UnassignedTasksPage() {
               <Users className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Available Crew</p>
+              <p className="text-sm text-gray-600">{t('pms.unassigned.availableCrew')}</p>
               <p className="text-2xl font-bold text-gray-900">{crew.length}</p>
             </div>
           </div>
@@ -160,10 +162,10 @@ export default function UnassignedTasksPage() {
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <Wrench className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            All Tasks Assigned!
+            {t('pms.unassigned.allAssigned')}
           </h3>
           <p className="text-gray-600">
-            There are no unassigned maintenance tasks at the moment.
+            {t('pms.unassigned.allAssignedDesc')}
           </p>
         </div>
       ) : (
@@ -195,7 +197,7 @@ export default function UnassignedTasksPage() {
                   <div className="flex items-center gap-4 text-xs text-gray-500">
                     <div className="flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5" />
-                      <span>Due: {format(parseISO(task.nextDueAt), 'dd MMM yyyy')}</span>
+                      <span>{t('pms.unassigned.due', { date: format(parseISO(task.nextDueAt), 'dd MMM yyyy') })}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Wrench className="w-3.5 h-3.5" />
@@ -207,7 +209,7 @@ export default function UnassignedTasksPage() {
                 {/* Assignment Dropdown */}
                 <div className="flex-shrink-0 w-64">
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Assign to Crew
+                    {t('pms.unassigned.assignToCrew')}
                   </label>
                   <select
                     value=""
@@ -215,7 +217,7 @@ export default function UnassignedTasksPage() {
                     disabled={assigning === task.id}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                   >
-                    <option value="">Select crew member...</option>
+                    <option value="">{t('pms.unassigned.selectCrew')}</option>
                     {crew.map((c) => (
                       <option key={c.id} value={c.crewId}>
                         {c.fullName} ({c.rank})

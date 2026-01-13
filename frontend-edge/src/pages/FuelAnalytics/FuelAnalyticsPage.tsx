@@ -18,8 +18,10 @@ import {
 } from 'lucide-react';
 import { fuelAnalyticsService, type DashboardData } from '@/services/fuelAnalyticsService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 
 const FuelAnalyticsPage = () => {
+  const { t } = useTranslationSafe();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +78,7 @@ const FuelAnalyticsPage = () => {
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-gray-900 dark:via-blue-950 dark:to-gray-900">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto"></div>
-          <p className="text-slate-600 dark:text-slate-400 font-medium">Loading Maritime Analytics...</p>
+          <p className="text-slate-600 dark:text-slate-400 font-medium">{t('fuelAnalytics.loading')}</p>
         </div>
       </div>
     );
@@ -87,7 +89,7 @@ const FuelAnalyticsPage = () => {
       <div className="flex items-center justify-center min-h-screen p-4">
         <Alert variant="destructive" className="max-w-md">
           <AlertTriangle className="h-5 w-5" />
-          <AlertDescription className="ml-2">{error || 'No data available'}</AlertDescription>
+          <AlertDescription className="ml-2">{error || t('fuelAnalytics.noData')}</AlertDescription>
         </Alert>
       </div>
     );
@@ -107,18 +109,18 @@ const FuelAnalyticsPage = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">
-                  Fuel Efficiency Analytics
+                  {t('fuelAnalytics.title')}
                 </h1>
                 <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 flex items-center gap-2">
                   <Ship className="h-3.5 w-3.5" />
-                  IMO DCS, EU MRV & CII Compliance Monitoring System
+                  {t('fuelAnalytics.subtitle')}
                 </p>
               </div>
             </div>
             <div className="flex flex-col items-end gap-1.5">
               <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-xs">
                 <CheckCircle2 className="h-3 w-3 mr-1 text-green-600" />
-                System Active
+                {t('fuelAnalytics.systemActive')}
               </Badge>
               <div className="text-xs text-slate-500 dark:text-slate-400">
                 {new Date(dashboardData.generatedAt).toLocaleString('en-GB', {
@@ -149,7 +151,7 @@ const FuelAnalyticsPage = () => {
               </div>
               <div className="flex-1 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-bold text-lg">IMO CII Rating {ciiRating.year}</h3>
+                  <h3 className="font-bold text-lg">{t('fuelAnalytics.ciiRatingYear', { year: ciiRating.year })}</h3>
                   <Badge 
                     variant={getCIIRatingBadgeVariant(ciiRating.rating)}
                     className="text-base px-3 py-0.5 font-bold"
@@ -159,12 +161,12 @@ const FuelAnalyticsPage = () => {
                   {ciiRating.isCompliant ? (
                     <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
                       <CheckCircle2 className="h-5 w-5" />
-                      <span className="text-sm font-medium">Compliant</span>
+                      <span className="text-sm font-medium">{t('fuelAnalytics.compliant')}</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1 text-red-600 dark:text-red-400">
                       <AlertTriangle className="h-5 w-5" />
-                      <span className="text-sm font-medium">Action Required</span>
+                      <span className="text-sm font-medium">{t('fuelAnalytics.actionRequired')}</span>
                     </div>
                   )}
                 </div>

@@ -10,6 +10,9 @@ import '../../core/di/service_locator.dart';
 /// TaskProvider manages task state and operations.
 /// Uses Service Locator for dependency injection to avoid creating
 /// duplicate instances of repositories and services.
+/// 
+/// PERFORMANCE: Uses cached filtered lists to avoid repeated filtering
+/// on every getter access.
 class TaskProvider with ChangeNotifier {
   late final TaskRepository _taskRepository;
   late final NetworkInfo _networkInfo;
@@ -17,6 +20,16 @@ class TaskProvider with ChangeNotifier {
   List<MaintenanceTask> _tasks = [];
   bool _isLoading = false;
   String? _error;
+  
+  // PERFORMANCE: Cached filtered lists - invalidated on task list change
+  List<MaintenanceTask>? _cachedDueTasks;
+  List<MaintenanceTask>? _cachedScheduledTasks;
+  List<MaintenanceTask>? _cachedPendingTasks;
+  List<MaintenanceTask>? _cachedInProgressTasks;
+  List<MaintenanceTask>? _cachedRectifyTasks;
+  List<MaintenanceTask>? _cachedPendingApprovalTasks;
+  List<MaintenanceTask>? _cachedCompletedTasks;
+  List<MaintenanceTask>? _cachedOverdueTasks;
   
   // Checklist state for currently viewed task
   List<TaskChecklistItem> _currentChecklist = [];
@@ -46,34 +59,68 @@ class TaskProvider with ChangeNotifier {
   List<TaskChecklistItem> get currentChecklist => _currentChecklist;
   TaskProgress? get currentProgress => _currentProgress;
   
-  // Tab "Đến hạn" - chỉ hiện tasks có status DUE
-  List<MaintenanceTask> get dueTasks =>
-      _tasks.where((t) => t.isDue).toList();
+  /// PERFORMANCE: Invalidate all cached filtered lists
+  void _invalidateFilterCaches() {
+    _cachedDueTasks = null;
+    _cachedScheduledTasks = null;
+    _cachedPendingTasks = null;
+    _cachedInProgressTasks = null;
+    _cachedRectifyTasks = null;
+    _cachedPendingApprovalTasks = null;
+    _cachedCompletedTasks = null;
+    _cachedOverdueTasks = null;
+  }
   
-  // Scheduled tasks only
-  List<MaintenanceTask> get scheduledTasks =>
-      _tasks.where((t) => t.isScheduled).toList();
+  // Tab "Đến hạn" - chỉ hiện tasks có status DUE (CACHED)
+  List<MaintenanceTask> get dueTasks {
+    _cachedDueTasks ??= _tasks.where((t) => t.isDue).toList();
+    return _cachedDueTasks!;
+  }
   
-  // Alias for backward compatibility with home_screen.dart
-  List<MaintenanceTask> get pendingTasks =>
-      _tasks.where((t) => t.isDue || t.isScheduled || t.isOverdueStatus).toList();
+  // Scheduled tasks only (CACHED)
+  List<MaintenanceTask> get scheduledTasks {
+    _cachedScheduledTasks ??= _tasks.where((t) => t.isScheduled).toList();
+    return _cachedScheduledTasks!;
+  }
   
-  List<MaintenanceTask> get inProgressTasks =>
-      _tasks.where((t) => t.isInProgress).toList();
+  // Alias for backward compatibility with home_screen.dart (CACHED)
+  List<MaintenanceTask> get pendingTasks {
+    _cachedPendingTasks ??= _tasks.where((t) => t.isDue || t.isScheduled || t.isOverdueStatus).toList();
+    return _cachedPendingTasks!;
+  }
+  
+  // In progress tasks (CACHED)
+  List<MaintenanceTask> get inProgressTasks {
+    _cachedInProgressTasks ??= _tasks.where((t) => t.isInProgress).toList();
+    return _cachedInProgressTasks!;
+  }
 
-    List<MaintenanceTask> get rectifyTasks =>
-      _tasks.where((t) => t.isRectify).toList();
+  // Rectify tasks (CACHED)
+  List<MaintenanceTask> get rectifyTasks {
+    _cachedRectifyTasks ??= _tasks.where((t) => t.isRectify).toList();
+    return _cachedRectifyTasks!;
+  }
 
-    List<MaintenanceTask> get pendingApprovalTasks =>
-      _tasks.where((t) => t.isPendingApproval).toList();
+  // Pending approval tasks (CACHED)
+  List<MaintenanceTask> get pendingApprovalTasks {
+    _cachedPendingApprovalTasks ??= _tasks.where((t) => t.isPendingApproval).toList();
+    return _cachedPendingApprovalTasks!;
+  }
   
-  List<MaintenanceTask> get completedTasks =>
-      _tasks.where((t) => t.isCompleted).toList();
+  // Completed tasks (CACHED)
+  List<MaintenanceTask> get completedTasks {
+    _cachedCompletedTasks ??= _tasks.where((t) => t.isCompleted).toList();
+    return _cachedCompletedTasks!;
+  }
   
-  List<MaintenanceTask> get overdueTasks =>
-      _tasks.where((t) => t.isOverdueStatus || (t.isOverdue && !t.isCompleted)).toList();
+  // Overdue tasks (CACHED)
+  List<MaintenanceTask> get overdueTasks {
+    _cachedOverdueTasks ??= _tasks.where((t) => t.isOverdueStatus || (t.isOverdue && !t.isCompleted)).toList();
+    return _cachedOverdueTasks!;
+  }
   
   // Fetch tasks from API/Cache - NO MOCK DATA
+  // PERFORMANCE: Batched notifyListeners to reduce widget rebuilds
   Future<void> fetchMyTasks({bool forceRefresh = false}) async {
     _isLoading = true;
     _error = null;
@@ -84,6 +131,10 @@ class TaskProvider with ChangeNotifier {
     try {
       print('📡 TaskProvider: Fetching from API...');
       _tasks = await _taskRepository.getMyTasks(forceRefresh: forceRefresh);
+      
+      // PERFORMANCE: Invalidate cached filtered lists after fetching new data
+      _invalidateFilterCaches();
+      
       print('✅ TaskProvider: API returned ${_tasks.length} tasks');
       
       // DEBUG: Print task statuses
@@ -97,39 +148,38 @@ class TaskProvider with ChangeNotifier {
       });
       print('📋 DUE tasks: ${dueTasks.length}');
       print('⏰ OVERDUE tasks: ${overdueTasks.length}');
-      
-      _isLoading = false;
-      notifyListeners();
-      print('✅ TaskProvider: fetchMyTasks() completed with ${_tasks.length} tasks');
     } catch (e) {
       print('❌ TaskProvider: Error in fetchMyTasks: $e');
       _error = e.toString();
+      rethrow;
+    } finally {
+      // PERFORMANCE: Single notifyListeners at end regardless of success/failure
       _isLoading = false;
       notifyListeners();
-      rethrow; // Throw error instead of using mock data
+      print('✅ TaskProvider: fetchMyTasks() completed with ${_tasks.length} tasks');
     }
   }
   
-  // Start task
+  // Start task - PERFORMANCE: Batched notifyListeners
   Future<void> startTask(String taskId) async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
     
     try {
       await _taskRepository.startTask(taskId);
       // Refresh tasks after starting
       await fetchMyTasks(forceRefresh: true);
-      _isLoading = false;
-      notifyListeners();
     } catch (e) {
       _error = e.toString();
+      rethrow;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      rethrow;
     }
   }
   
-  // Submit task for approval
+  // Submit task for approval - PERFORMANCE: Batched notifyListeners
   Future<void> submitTask({
     required String taskId,
     double? runningHours,
@@ -138,6 +188,7 @@ class TaskProvider with ChangeNotifier {
     List<String>? photoUrls,
   }) async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
     
     try {
@@ -150,13 +201,12 @@ class TaskProvider with ChangeNotifier {
       );
       // Refresh tasks after completing
       await fetchMyTasks(forceRefresh: true);
-      _isLoading = false;
-      notifyListeners();
     } catch (e) {
       _error = e.toString();
+      rethrow;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      rethrow;
     }
   }
 
@@ -172,6 +222,7 @@ class TaskProvider with ChangeNotifier {
   // ========== NEW: TaskType Checklist Methods ==========
 
   /// Fetch task checklist with execution status
+  /// PERFORMANCE: Batched notifyListeners
   Future<void> fetchTaskChecklist(String taskCode) async {
     _isLoading = true;
     _error = null;
@@ -185,16 +236,14 @@ class TaskProvider with ChangeNotifier {
       
       // Also fetch progress
       // Legacy progress endpoint is not used for new checklist system.
-      
-      _isLoading = false;
-      notifyListeners();
     } catch (e) {
       print('❌ TaskProvider: Error fetching checklist: $e');
       _error = e.toString();
       _currentChecklist = [];
+      rethrow;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      rethrow;
     }
   }
 
@@ -258,42 +307,46 @@ class TaskProvider with ChangeNotifier {
 
   // ========== DEFERRALS ==========
 
+  /// PERFORMANCE: Batched notifyListeners
   Future<void> createDeferralRequest(CreateDeferralRequestDto dto) async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
     try {
       await _taskRepository.createDeferralRequest(dto);
       // Refresh task to show pending deferral status
       await fetchMyTasks(forceRefresh: true);
-      _isLoading = false;
-      notifyListeners();
     } catch (e) {
       _error = e.toString();
+      rethrow;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      rethrow;
     }
   }
 
+  /// PERFORMANCE: Batched notifyListeners
   Future<void> cancelDeferralRequest(String id) async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
     try {
       await _taskRepository.cancelDeferralRequest(id);
       // Refresh task to remove pending deferral status
       await fetchMyTasks(forceRefresh: true);
-      _isLoading = false;
-      notifyListeners();
     } catch (e) {
       _error = e.toString();
+      rethrow;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      rethrow;
     }
   }
 
+  /// PERFORMANCE: Batched notifyListeners
   Future<void> cancelPendingDeferralForTask(String taskId) async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
     try {
       // 1. Find the pending request
@@ -316,14 +369,12 @@ class TaskProvider with ChangeNotifier {
       
       // 3. Refresh task
       await fetchMyTasks(forceRefresh: true);
-      
-      _isLoading = false;
-      notifyListeners();
     } catch (e) {
       _error = e.toString();
+      rethrow;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      rethrow;
     }
   }
 

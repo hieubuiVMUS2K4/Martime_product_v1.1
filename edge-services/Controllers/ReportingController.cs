@@ -282,6 +282,27 @@ public class ReportingController : ControllerBase
     }
 
     // ============================================================
+    // GENERIC REPORT ACCESS
+    // ============================================================
+
+    /// <summary>
+    /// Get any report by ID (auto-detect type)
+    /// Returns report data with type information
+    /// </summary>
+    [HttpGet("{reportId}")]
+    public async Task<IActionResult> GetReportById(Guid reportId)
+    {
+        var report = await _reportingService.GetReportByIdAsync(reportId);
+        
+        if (report == null)
+        {
+            return NotFound(new { error = "Report not found" });
+        }
+
+        return Ok(report);
+    }
+
+    // ============================================================
     // REPORT LISTING & SEARCH
     // ============================================================
 
@@ -550,16 +571,14 @@ public class ReportingController : ControllerBase
     {
         var history = await _reportingService.GetWorkflowHistoryAsync(reportId);
         
-        if (history == null || !history.Any())
-        {
-            return NotFound(new { error = "No workflow history found for this report" });
-        }
+        // Return empty list instead of 404 when no history exists
+        // This is expected for newly created DRAFT reports
 
         return Ok(new
         {
             reportId,
-            totalChanges = history.Count,
-            history
+            totalChanges = history?.Count ?? 0,
+            history = history ?? new List<WorkflowHistoryDto>()
         });
     }
 

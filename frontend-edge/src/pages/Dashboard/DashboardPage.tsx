@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { dashboardService, alarmService, telemetryService } from '@/services/maritime.service'
 import { useMaritimeStore } from '@/stores/maritime.store'
 import type { DashboardStats } from '@/types/maritime.types'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 import { 
   AlertTriangle, 
   Users, 
@@ -19,12 +20,12 @@ import {
 } from 'lucide-react'
 
 export function DashboardPage() {
+  const { t } = useTranslationSafe()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [position, setPosition] = useState<any>(null)
   const [navigation, setNavigation] = useState<any>(null)
   const [engine, setEngine] = useState<any>(null)
-  const [_environmental, setEnvironmental] = useState<any>(null)
   const { setDashboardStats, setActiveAlarms, setCurrentPosition, setCurrentNavigation } = useMaritimeStore()
 
   const loadDashboardData = useCallback(async () => {
@@ -70,7 +71,7 @@ export function DashboardPage() {
       <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading dashboard...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">{t('common.loading')}</p>
         </div>
       </div>
     )
@@ -82,16 +83,16 @@ export function DashboardPage() {
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">
-              Vessel Dashboard
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {t('dashboard.title')}
             </h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Real-time overview of visual operations
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+              {t('dashboard.subtitle') || 'Real-time overview of vessel operations'}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">
-              Quick Report
+            <button className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-600">
+              {t('dashboard.quickActions.newReport')}
             </button>
             <button className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
               Signalk

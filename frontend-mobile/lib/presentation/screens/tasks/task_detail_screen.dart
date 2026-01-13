@@ -50,6 +50,10 @@ class TaskDetailScreen extends StatefulWidget {
 }
 
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
+  // PERFORMANCE: Static DateFormat instances to avoid recreating on every build
+  static final _dateFormat = DateFormat('dd MMM yyyy');
+  static final _dateTimeFormat = DateFormat('dd MMM yyyy HH:mm');
+  
   List<TaskChecklistItem>? _checklistItems;
   List<dynamic>? _statusHistory;
   bool _loadingChecklist = false;
@@ -155,7 +159,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final taskProvider = Provider.of<TaskProvider>(context);
-    final dateFormat = DateFormat('dd MMM yyyy');
+    // PERFORMANCE: Use static cached DateFormat instead of creating new instance
+    final dateFormat = _dateFormat;
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
@@ -402,7 +407,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             Expanded(
               child: _buildInfoItem(
                 label: l10n.type,
-                value: widget.task.taskType.replaceAll('_', ' '),
+                // PERFORMANCE: Use pre-computed taskTypeDisplay instead of replaceAll()
+                value: widget.task.taskTypeDisplay,
                 isSmallScreen: isSmallScreen,
                 color: MaritimeColors.primaryLight,
               ),
@@ -472,7 +478,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      widget.task.nextDueAt != null ? dateFormat.format(DateTime.parse(widget.task.nextDueAt!)) : 'N/A',
+                      // PERFORMANCE: Use cached date getter instead of DateTime.parse()
+                      widget.task.nextDueAtDate != null ? dateFormat.format(widget.task.nextDueAtDate!) : 'N/A',
                       style: TextStyle(
                         fontSize: isSmallScreen ? 13 : 14,
                         fontWeight: FontWeight.w700,
@@ -524,7 +531,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 Expanded(
                   child: _buildInfoItem(
                     label: l10n.lastDone,
-                    value: dateFormat.format(DateTime.parse(widget.task.lastDoneAt!)),
+                    // PERFORMANCE: Use cached date getter instead of DateTime.parse()
+                    value: widget.task.lastDoneAtDate != null 
+                        ? dateFormat.format(widget.task.lastDoneAtDate!) 
+                        : 'N/A',
                     isSmallScreen: isSmallScreen,
                   ),
                 ),
@@ -594,7 +604,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   if (widget.task.completedAt != null)
                     _buildCompactInfoRow(
                       l10n.completedAt,
-                      dateFormat.format(DateTime.parse(widget.task.completedAt!)),
+                      // PERFORMANCE: Use cached date getter instead of DateTime.parse()
+                      widget.task.completedAtDate != null 
+                          ? dateFormat.format(widget.task.completedAtDate!) 
+                          : 'N/A',
                       isSmallScreen,
                     ),
                   if (widget.task.runningHoursAtCompletion != null)
@@ -938,17 +951,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           const SizedBox(height: 16),
         ],
         
-        // Checklist items
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _checklistItems!.length,
-          separatorBuilder: (context, index) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final item = _checklistItems![index];
-            return _buildChecklistItem(item, index + 1);
-          },
-        ),
+        // PERFORMANCE: Use Column instead of ListView.separated with shrinkWrap
+        // This avoids O(n) layout calculation that shrinkWrap causes while preserving UI
+        ...List.generate(_checklistItems!.length, (index) {
+          final item = _checklistItems![index];
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildChecklistItem(item, index + 1),
+              if (index < _checklistItems!.length - 1)
+                const Divider(height: 1),
+            ],
+          );
+        }),
       ],
     );
   }
@@ -986,17 +1001,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           ],
         ),
         const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(2),
-          child: LinearProgressIndicator(
-            value: progress,
-            backgroundColor: MaritimeColors.surface,
-            valueColor: AlwaysStoppedAnimation<Color>(
-              progress == 1.0 
-                  ? MaritimeColors.completed 
-                  : MaritimeColors.primary,
+        // PERFORMANCE: RepaintBoundary prevents progress bar from repainting entire parent subtree
+        RepaintBoundary(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: MaritimeColors.surface,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                progress == 1.0 
+                    ? MaritimeColors.completed 
+                    : MaritimeColors.primary,
+              ),
+              minHeight: 6,
             ),
-            minHeight: 6,
           ),
         ),
       ],
@@ -1755,14 +1773,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildStatusHistory() {
-    final dateFormat = DateFormat('dd MMM yyyy HH:mm');
+    // PERFORMANCE: Use static cached DateTimeFormat
+    final dateFormat = _dateTimeFormat;
     
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _statusHistory!.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 0), // Timeline connects items
-      itemBuilder: (context, index) {
+    // PERFORMANCE: Use Column instead of ListView.separated with shrinkWrap
+    // Status history is typically small (<20 items), so Column is more efficient
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(_statusHistory!.length, (index) {
         final history = _statusHistory![index];
         final isFirst = index == 0;
         final isLast = index == _statusHistory!.length - 1;
@@ -1936,7 +1954,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ],
           ),
         );
-      },
+      }),
     );
   }
 
@@ -2000,6 +2018,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         backgroundColor: Colors.orange,
                       ),
                     );
+                    Navigator.pop(context);
                   }
                 } catch (e) {
                   if (context.mounted) {

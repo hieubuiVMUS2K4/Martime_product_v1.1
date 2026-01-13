@@ -107,7 +107,7 @@ namespace MaritimeEdge.Data.Migrations
                 column: "crew_member_id");
 
             migrationBuilder.CreateIndex(
-                name: "idx_crew_cert_expiry",
+                name: "idx_crew_cert_expiry_date",
                 schema: "public",
                 table: "crew_certificates",
                 column: "expiry_date");

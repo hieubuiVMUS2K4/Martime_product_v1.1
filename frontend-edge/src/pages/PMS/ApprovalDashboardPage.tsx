@@ -14,11 +14,13 @@ import {
   type ApprovalDashboardSummary,
   type VerifyTaskDto
 } from '@/services/maintenance.service';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { MaintenanceTask } from '@/types/maintenance.types';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 
 export default function ApprovalDashboardPage() {
+  const { t } = useTranslationSafe();
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
   const [summary, setSummary] = useState<ApprovalDashboardSummary | null>(null);
@@ -169,7 +171,7 @@ export default function ApprovalDashboardPage() {
       <div className="p-6">
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="ml-3 text-gray-600">Loading tasks...</p>
+          <p className="ml-3 text-gray-600">{t('pms.approval.loading')}</p>
         </div>
       </div>
     );
@@ -187,10 +189,10 @@ export default function ApprovalDashboardPage() {
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <AlertTriangle className="w-8 h-8 text-orange-500" />
-          <h1 className="text-2xl font-bold text-gray-900">Task Approval Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('pms.approval.title')}</h1>
         </div>
         <p className="text-gray-600 ml-14">
-          Review and verify submitted maintenance tasks (C/E Authorization Required)
+          {t('pms.approval.subtitle')}
         </p>
       </div>
 
@@ -202,7 +204,7 @@ export default function ApprovalDashboardPage() {
               <Clock className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Pending Approval</p>
+              <p className="text-sm text-gray-600">{t('pms.approval.pendingApproval')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {summary?.pendingApprovalCount ?? tasks.length}
               </p>
@@ -216,7 +218,7 @@ export default function ApprovalDashboardPage() {
               <RefreshCw className="w-5 h-5 text-pink-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Rectify Tasks</p>
+              <p className="text-sm text-gray-600">{t('pms.approval.rectifyTasks')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {summary?.rectifyTaskCount ?? 0}
               </p>
@@ -234,7 +236,7 @@ export default function ApprovalDashboardPage() {
               <FileText className="w-5 h-5 text-yellow-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Pending Deferrals</p>
+              <p className="text-sm text-gray-600">{t('pms.approval.pendingDeferrals')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {summary?.pendingDeferralCount ?? 0}
               </p>
@@ -248,7 +250,7 @@ export default function ApprovalDashboardPage() {
               <AlertTriangle className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Overdue Tasks</p>
+              <p className="text-sm text-gray-600">{t('pms.approval.overdueTasks')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {summary?.overdueTaskCount ?? 0}
               </p>
@@ -262,7 +264,7 @@ export default function ApprovalDashboardPage() {
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Filters:</span>
+            <span className="text-sm font-medium text-gray-700">{t('pms.approval.filters')}</span>
           </div>
           
           <select
@@ -270,11 +272,11 @@ export default function ApprovalDashboardPage() {
             onChange={(e) => setPriorityFilter(e.target.value)}
             className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
           >
-            <option value="all">All Priorities</option>
-            <option value="CRITICAL">Critical</option>
-            <option value="HIGH">High</option>
-            <option value="NORMAL">Normal</option>
-            <option value="LOW">Low</option>
+            <option value="all">{t('pms.approval.allPriorities')}</option>
+            <option value="CRITICAL">{t('pms.common.critical')}</option>
+            <option value="HIGH">{t('pms.common.high')}</option>
+            <option value="NORMAL">{t('pms.common.normal')}</option>
+            <option value="LOW">{t('pms.common.low')}</option>
           </select>
           
           <select
@@ -282,10 +284,10 @@ export default function ApprovalDashboardPage() {
             onChange={(e) => setDepartmentFilter(e.target.value)}
             className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
           >
-            <option value="all">All Departments</option>
-            <option value="ENGINE">Engine</option>
-            <option value="DECK">Deck</option>
-            <option value="ELECTRICAL">Electrical</option>
+            <option value="all">{t('pms.approval.allDepartments')}</option>
+            <option value="ENGINE">{t('pms.approval.department.engine')}</option>
+            <option value="DECK">{t('pms.approval.department.deck')}</option>
+            <option value="ELECTRICAL">{t('pms.approval.department.electrical')}</option>
           </select>
           
           <button
@@ -293,7 +295,7 @@ export default function ApprovalDashboardPage() {
             className="ml-auto px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200 flex items-center gap-2"
           >
             <RefreshCw className="w-4 h-4" />
-            Refresh
+            {t('pms.approval.refresh')}
           </button>
         </div>
       </div>
@@ -303,10 +305,10 @@ export default function ApprovalDashboardPage() {
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            No Tasks Pending Approval
+            {t('pms.approval.noTasks')}
           </h3>
           <p className="text-gray-600">
-            All submitted tasks have been reviewed
+            {t('pms.approval.noTasksDesc')}
           </p>
         </div>
       ) : (
@@ -314,13 +316,13 @@ export default function ApprovalDashboardPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Task ID</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Equipment</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assigned To</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('pms.approval.table.taskId')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('pms.approval.table.equipment')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('pms.approval.table.description')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('pms.approval.table.priority')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('pms.approval.table.dueDate')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('pms.approval.table.assignedTo')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -352,7 +354,7 @@ export default function ApprovalDashboardPage() {
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-sm text-gray-700">
-                      {task.assignedTo || 'Unassigned'}
+                      {task.assignedTo || t('pms.approval.unassigned')}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -362,14 +364,14 @@ export default function ApprovalDashboardPage() {
                         className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
                       >
                         <CheckCircle className="w-4 h-4" />
-                        Approve
+                        {t('pms.approval.approve')}
                       </button>
                       <button
                         onClick={() => handleRejectClick(task)}
                         className="inline-flex items-center gap-1 px-3 py-1.5 bg-white text-red-600 text-sm font-medium rounded-md border border-red-300 hover:bg-red-50 transition-colors"
                       >
                         <XCircle className="w-4 h-4" />
-                        Reject
+                        {t('pms.approval.reject')}
                       </button>
                     </div>
                   </td>
@@ -382,7 +384,7 @@ export default function ApprovalDashboardPage() {
           {totalPages > 1 && (
             <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
               <div className="text-sm text-gray-700">
-                Page {page} of {totalPages}
+                {t('pms.approval.pagination.page', { current: page, total: totalPages })}
               </div>
               <div className="flex gap-2">
                 <button
@@ -390,14 +392,14 @@ export default function ApprovalDashboardPage() {
                   disabled={page === 1}
                   className="px-3 py-1.5 border border-gray-300 rounded-md text-sm disabled:opacity-50 hover:bg-gray-50"
                 >
-                  Previous
+                  {t('pms.approval.pagination.previous')}
                 </button>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                   className="px-3 py-1.5 border border-gray-300 rounded-md text-sm disabled:opacity-50 hover:bg-gray-50"
                 >
-                  Next
+                  {t('pms.approval.pagination.next')}
                 </button>
               </div>
             </div>
@@ -410,25 +412,25 @@ export default function ApprovalDashboardPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Approve Maintenance Task</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('pms.approval.modal.approveTitle')}</h3>
               
               <p className="text-gray-700 mb-4">
-                Are you sure you want to approve this task?
+                {t('pms.approval.modal.approveConfirm')}
               </p>
               
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <div className="space-y-2 text-sm">
                   <div>
-                    <span className="font-medium">Task ID:</span> {selectedTask.taskId}
+                    <span className="font-medium">{t('pms.approval.table.taskId')}:</span> {selectedTask.taskId}
                   </div>
                   <div>
-                    <span className="font-medium">Equipment:</span> {selectedTask.equipmentName}
+                    <span className="font-medium">{t('pms.approval.table.equipment')}:</span> {selectedTask.equipmentName}
                   </div>
                   <div>
-                    <span className="font-medium">Priority:</span> {selectedTask.priority}
+                    <span className="font-medium">{t('pms.approval.table.priority')}:</span> {selectedTask.priority}
                   </div>
                   <div className="pt-2 border-t border-gray-200">
-                    <span className="font-medium">Description:</span>
+                    <span className="font-medium">{t('pms.approval.table.description')}:</span>
                     <p className="text-gray-600 mt-1">{selectedTask.taskDescription}</p>
                   </div>
                 </div>
@@ -436,18 +438,18 @@ export default function ApprovalDashboardPage() {
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <p className="text-sm text-blue-800">
-                  Task will be marked as COMPLETED and verification recorded
+                  {t('pms.approval.modal.approveInfo')}
                 </p>
               </div>
 
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Approval Notes (Optional)
+                  {t('pms.approval.modal.approvalNotes')}
                 </label>
                 <textarea
                   value={approvalNotes}
                   onChange={(e) => setApprovalNotes(e.target.value)}
-                  placeholder="Add any notes about this approval..."
+                  placeholder={t('pms.approval.modal.approvalNotesPlaceholder')}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 />
@@ -459,7 +461,7 @@ export default function ApprovalDashboardPage() {
                   disabled={actionLoading}
                   className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleApproveConfirm}
@@ -469,12 +471,12 @@ export default function ApprovalDashboardPage() {
                   {actionLoading ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                      Approving...
+                      {t('pms.approval.modal.approving')}
                     </>
                   ) : (
                     <>
                       <CheckCircle className="w-4 h-4" />
-                      Approve Task
+                      {t('pms.approval.modal.approveTask')}
                     </>
                   )}
                 </button>
@@ -489,31 +491,31 @@ export default function ApprovalDashboardPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Reject Maintenance Task</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('pms.approval.modal.rejectTitle')}</h3>
               
               <p className="text-gray-700 mb-4">
-                Please provide a reason for rejecting this task:
+                {t('pms.approval.modal.rejectConfirm')}
               </p>
               
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <div className="space-y-2 text-sm">
                   <div>
-                    <span className="font-medium">Task ID:</span> {selectedTask.taskId}
+                    <span className="font-medium">{t('pms.approval.table.taskId')}:</span> {selectedTask.taskId}
                   </div>
                   <div>
-                    <span className="font-medium">Equipment:</span> {selectedTask.equipmentName}
+                    <span className="font-medium">{t('pms.approval.table.equipment')}:</span> {selectedTask.equipmentName}
                   </div>
                 </div>
               </div>
 
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rejection Reason *
+                  {t('pms.approval.modal.rejectionReason')} *
                 </label>
                 <textarea
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="e.g., Task not necessary at this time, duplicate work, incorrect priority..."
+                  placeholder={t('pms.approval.modal.rejectionPlaceholder')}
                   rows={4}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
                   required
@@ -522,7 +524,7 @@ export default function ApprovalDashboardPage() {
 
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
                 <p className="text-sm text-orange-800">
-                  Task will be moved to RECTIFY status for crew to fix issues
+                  {t('pms.approval.modal.rejectInfo')}
                 </p>
               </div>
 
@@ -532,7 +534,7 @@ export default function ApprovalDashboardPage() {
                   disabled={actionLoading}
                   className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleRejectConfirm}
@@ -542,12 +544,12 @@ export default function ApprovalDashboardPage() {
                   {actionLoading ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                      Rejecting...
+                      {t('pms.approval.modal.rejecting')}
                     </>
                   ) : (
                     <>
                       <XCircle className="w-4 h-4" />
-                      Reject Task
+                      {t('pms.approval.modal.rejectTask')}
                     </>
                   )}
                 </button>

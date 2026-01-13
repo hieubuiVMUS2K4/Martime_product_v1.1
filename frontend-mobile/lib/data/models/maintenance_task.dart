@@ -73,6 +73,10 @@ class MaintenanceTask extends Equatable {
   final String? verifiedBy;
   final String? verificationResult;
   
+  // Optimized: Checklist summary for list view (without loading full items)
+  final int checklistItemsCount;
+  final int checklistCompletedCount;
+  
   const MaintenanceTask({
     required this.id,
     required this.taskId,
@@ -124,6 +128,8 @@ class MaintenanceTask extends Equatable {
     this.verifiedAt,
     this.verifiedBy,
     this.verificationResult,
+    this.checklistItemsCount = 0,
+    this.checklistCompletedCount = 0,
   });
   
   factory MaintenanceTask.fromJson(Map<String, dynamic> json) {
@@ -184,6 +190,9 @@ class MaintenanceTask extends Equatable {
       verifiedAt: json['verifiedAt'],
       verifiedBy: json['verifiedBy'],
       verificationResult: json['verificationResult'],
+      // Optimized checklist summary from API
+      checklistItemsCount: json['checklistItemsCount'] ?? (json['checklistItems'] as List?)?.length ?? 0,
+      checklistCompletedCount: json['checklistCompletedCount'] ?? (json['checklistItems'] as List?)?.where((i) => i['isCompleted'] == true).length ?? 0,
     );
   }
   
@@ -239,18 +248,51 @@ class MaintenanceTask extends Equatable {
       'verifiedAt': verifiedAt,
       'verifiedBy': verifiedBy,
       'verificationResult': verificationResult,
+      'checklistItemsCount': checklistItemsCount,
+      'checklistCompletedCount': checklistCompletedCount,
     };
   }
   
-  // Computed properties - handle nullable nextDueAt
-  int get daysUntilDue {
-    if (nextDueAt == null) return 0;
+  // PERFORMANCE: Parse dates on demand - const class cannot have mutable cache fields
+  // For hot paths, consider using a separate cache layer outside the model
+  DateTime? get _dueDate {
+    if (nextDueAt == null) return null;
     try {
-      final due = DateTime.parse(nextDueAt!);
-      return due.difference(DateTime.now()).inDays;
+      return DateTime.parse(nextDueAt!);
     } catch (e) {
-      return 0;
+      return null;
     }
+  }
+  
+  // Date getters for UI - parse on access
+  DateTime? get lastDoneAtDate {
+    if (lastDoneAt == null) return null;
+    try {
+      return DateTime.parse(lastDoneAt!);
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  DateTime? get completedAtDate {
+    if (completedAt == null) return null;
+    try {
+      return DateTime.parse(completedAt!);
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  DateTime? get nextDueAtDate => _dueDate;
+  
+  // PERFORMANCE: Pre-compute display string
+  String get taskTypeDisplay => taskType.replaceAll('_', ' ');
+  
+  // Computed properties - handle nullable nextDueAt (OPTIMIZED)
+  int get daysUntilDue {
+    final due = _dueDate;
+    if (due == null) return 0;
+    return due.difference(DateTime.now()).inDays;
   }
   
   bool get isOverdue => daysUntilDue < 0;
@@ -332,5 +374,6 @@ class MaintenanceTask extends Equatable {
     equipmentGroupId, equipmentGroupName,
     assignedTo, assignedDepartment,
     requiredSpareParts, sparePartsUsed,
+    checklistItemsCount, checklistCompletedCount,
   ];
 }

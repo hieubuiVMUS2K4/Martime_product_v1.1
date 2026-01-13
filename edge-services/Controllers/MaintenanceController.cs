@@ -325,6 +325,7 @@ public class MaintenanceController : ControllerBase
     /// <summary>
     /// Lấy danh sách task được giao cho crew member cụ thể
     /// Chỉ trả về tasks có AssignedTo chứa crew_id hoặc full_name của crew member
+    /// OPTIMIZED: Không include ChecklistItems và CompletionPhotos để giảm response size
     /// </summary>
     [HttpGet("tasks/my-tasks")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
@@ -340,7 +341,7 @@ public class MaintenanceController : ControllerBase
             if (string.IsNullOrWhiteSpace(crewId) && string.IsNullOrWhiteSpace(assignedTo))
             {
                 _logger.LogWarning("GetMyTasks called without crewId or assignedTo parameter");
-                return Ok(new List<MaintenanceTask>()); // Trả về empty list thay vì tất cả tasks
+                return Ok(new List<object>()); // Trả về empty list thay vì tất cả tasks
             }
 
             // Filter by assignedTo (crew name or ID)
@@ -368,7 +369,7 @@ public class MaintenanceController : ControllerBase
                 {
                     // Crew member không tồn tại, trả về empty list
                     _logger.LogWarning("Crew member not found: {CrewId}", crewId);
-                    return Ok(new List<MaintenanceTask>());
+                    return Ok(new List<object>());
                 }
             }
 
@@ -380,16 +381,97 @@ public class MaintenanceController : ControllerBase
             }
             // If includeCompleted = true, return all statuses (for Dashboard)
 
+            var now = DateTime.UtcNow;
+            var today = now.Date;
+
+            // OPTIMIZED: Select only needed fields, exclude heavy data (photos, full checklist)
+            // Also compute corrected status inline
             var tasks = await query
-                .Include(t => t.ChecklistItems.OrderBy(ci => ci.SequenceOrder))
                 .Include(t => t.EquipmentGroup)
                 .OrderBy(t => t.NextDueAt)
+                .Select(t => new {
+                    t.Id,
+                    t.TaskId,
+                    t.TaskTypeId,
+                    t.EquipmentId,
+                    t.EquipmentName,
+                    t.EquipmentGroupId,
+                    t.EquipmentGroupName,
+                    t.ScheduleId,
+                    t.TaskType,
+                    t.TaskDescription,
+                    t.IntervalHours,
+                    t.IntervalDays,
+                    t.LastDoneAt,
+                    t.NextDueAt,
+                    t.RunningHoursAtLastDone,
+                    t.Priority,
+                    // Compute corrected status based on due date
+                    Status = (t.Status == "SCHEDULED" || t.Status == "DUE" || t.Status == "PENDING" || t.Status == "OVERDUE")
+                        ? (t.NextDueAt.Date < today 
+                            ? "OVERDUE" 
+                            : (t.NextDueAt.Date <= today 
+                                ? "DUE" 
+                                : t.Status))
+                        : t.Status,
+                    t.AssignedTo,
+                    t.AssignedDepartment,
+                    t.HasPendingDeferral,
+                    t.DeferralCount,
+                    t.LastDeferredAt,
+                    t.LastDeferredBy,
+                    t.StartedAt,
+                    t.StartedBy,
+                    t.ActualRunningHours,
+                    t.EstimatedDuration,
+                    t.ActualDuration,
+                    t.ChecklistCompleted,
+                    t.PhotosUploaded,
+                    t.RequiredPhotos,
+                    // EXCLUDE: CompletionPhotos (heavy base64 data) - will be loaded on detail view
+                    t.Notes,
+                    t.RequiredSpareParts,
+                    t.SparePartsUsed,
+                    t.SubmittedAt,
+                    t.SubmittedBy,
+                    t.VerifiedAt,
+                    t.VerifiedBy,
+                    t.VerificationResult,
+                    t.VerificationNotes,
+                    t.RejectionReason,
+                    t.RejectionCount,
+                    t.LastRejectedAt,
+                    t.LastRejectedBy,
+                    t.RejectionHistory,
+                    t.CompletedAt,
+                    t.CompletedBy,
+                    t.CancelledAt,
+                    t.CancelledBy,
+                    t.CancellationReason,
+                    t.IsCms,
+                    t.ApprovedBy,
+                    t.ApprovedAt,
+                    t.IsDeleted,
+                    t.DeletedAt,
+                    t.DeletedBy,
+                    t.DeletionReason,
+                    t.IsSynced,
+                    t.SyncedAt,
+                    t.CreatedAt,
+                    t.UpdatedAt,
+                    t.OriginNode,
+                    t.EquipmentGroup,
+                    // OPTIMIZED: Only include checklist summary, not full items
+                    ChecklistItemsCount = t.ChecklistItems.Count,
+                    ChecklistCompletedCount = t.ChecklistItems.Count(ci => ci.IsCompleted),
+                    // Empty arrays for compatibility - full data loaded on detail view
+                    ChecklistItems = new List<object>(),
+                    DeferralRequests = new List<object>(),
+                    StatusHistory = new List<object>()
+                })
                 .ToListAsync();
 
-            // Auto-correct status based on current time
-            await AutoCorrectTaskStatuses(tasks);
-
-            _logger.LogInformation("Retrieved {Count} tasks for crew: {CrewId}/{AssignedTo}, includeCompleted: {IncludeCompleted}", 
+            _logger.LogInformation("Retrieved {Count} tasks (optimized) for crew: {CrewId}/{AssignedTo}, includeCompleted: {IncludeCompleted}", 
                 tasks.Count, crewId, assignedTo, includeCompleted);
 
             return Ok(tasks);

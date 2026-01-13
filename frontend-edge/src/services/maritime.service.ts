@@ -152,6 +152,7 @@ export class MaritimeService {
   certificates = {
     getAll: () => this.request<Certificate[]>('/certificates'),
     getById: (id: number) => this.request<Certificate>(`/certificates/${id}`),
+    getWithCrewCount: () => this.request<(Certificate & { crewCount: number })[]>('/certificates/with-crew-count'),
     getCrewCertificates: (certificateId: number) => 
       this.request<CrewCertificate[]>(`/certificates/${certificateId}/crew-certificates`),
     getCrewCertificatesByCrewId: (crewId: string) =>

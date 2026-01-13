@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { X, Plus, Minus, RotateCcw } from 'lucide-react'
 import type { MaterialItem } from '@/types/maritime.types'
 import type { StockAdjustmentDto } from '@/services/materialService'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
 interface StockAdjustmentModalProps {
   isOpen: boolean
@@ -16,6 +17,7 @@ export function StockAdjustmentModal({
   onSubmit,
   item,
 }: StockAdjustmentModalProps) {
+  const { t } = useTranslationSafe()
   const [adjustmentType, setAdjustmentType] = useState<'Add' | 'Subtract' | 'Set'>('Add')
   const [quantity, setQuantity] = useState<number>(0)
   const [reason, setReason] = useState<string>('')
@@ -41,7 +43,7 @@ export function StockAdjustmentModal({
       setReason('')
       setAdjustmentType('Add')
     } catch (err: any) {
-      setError(err.message || 'Failed to adjust stock')
+      setError(err.message || t('materials.stock.adjustFailed'))
     } finally {
       setLoading(false)
     }
@@ -73,7 +75,7 @@ export function StockAdjustmentModal({
         <div className="relative w-full max-w-lg bg-white rounded-lg shadow-xl">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-            <h2 className="text-xl font-semibold text-gray-900">Adjust Stock</h2>
+            <h2 className="text-xl font-semibold text-gray-900">{t('materials.stock.adjustStock')}</h2>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -94,12 +96,12 @@ export function StockAdjustmentModal({
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Item</p>
+                  <p className="text-sm text-gray-600">{t('materials.stock.item')}</p>
                   <p className="font-semibold text-gray-900">{item.name}</p>
                   <p className="text-sm text-gray-500">{item.itemCode}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-600">Current Stock</p>
+                  <p className="text-sm text-gray-600">{t('materials.stock.currentStock')}</p>
                   <p className="text-2xl font-bold text-blue-600">
                     {item.onHandQuantity.toFixed(3)}
                   </p>
@@ -111,7 +113,7 @@ export function StockAdjustmentModal({
             {/* Adjustment Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Adjustment Type
+                {t('materials.stock.adjustmentType')}
               </label>
               <div className="grid grid-cols-3 gap-2">
                 <button
@@ -124,7 +126,7 @@ export function StockAdjustmentModal({
                   }`}
                 >
                   <Plus className="w-5 h-5" />
-                  <span className="font-medium">Add</span>
+                  <span className="font-medium">{t('materials.stock.add')}</span>
                 </button>
                 <button
                   type="button"
@@ -136,7 +138,7 @@ export function StockAdjustmentModal({
                   }`}
                 >
                   <Minus className="w-5 h-5" />
-                  <span className="font-medium">Subtract</span>
+                  <span className="font-medium">{t('materials.stock.subtract')}</span>
                 </button>
                 <button
                   type="button"
@@ -148,7 +150,7 @@ export function StockAdjustmentModal({
                   }`}
                 >
                   <RotateCcw className="w-5 h-5" />
-                  <span className="font-medium">Set</span>
+                  <span className="font-medium">{t('materials.stock.set')}</span>
                 </button>
               </div>
             </div>
@@ -156,7 +158,7 @@ export function StockAdjustmentModal({
             {/* Quantity */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Quantity <span className="text-red-500">*</span>
+                {t('materials.stock.quantity')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -166,12 +168,12 @@ export function StockAdjustmentModal({
                 value={quantity}
                 onChange={(e) => setQuantity(Number(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter quantity"
+                placeholder={t('materials.stock.enterQuantity')}
               />
               <p className="text-xs text-gray-500 mt-1">
-                {adjustmentType === 'Add' && `Add ${quantity} ${item.unit} to current stock`}
-                {adjustmentType === 'Subtract' && `Subtract ${quantity} ${item.unit} from current stock`}
-                {adjustmentType === 'Set' && `Set stock to ${quantity} ${item.unit}`}
+                {adjustmentType === 'Add' && t('materials.stock.addDescription', { quantity, unit: item.unit })}
+                {adjustmentType === 'Subtract' && t('materials.stock.subtractDescription', { quantity, unit: item.unit })}
+                {adjustmentType === 'Set' && t('materials.stock.setDescription', { quantity, unit: item.unit })}
               </p>
             </div>
 
@@ -179,14 +181,14 @@ export function StockAdjustmentModal({
             <div className={`border rounded-lg p-4 ${isValid ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">New Stock Level</p>
+                  <p className="text-sm text-gray-600">{t('materials.stock.newStockLevel')}</p>
                   <p className={`text-2xl font-bold ${isValid ? 'text-green-600' : 'text-red-600'}`}>
                     {newQuantity.toFixed(3)} {item.unit}
                   </p>
                 </div>
                 {!isValid && (
                   <div className="text-red-600 text-sm font-medium">
-                    ⚠️ Negative stock not allowed
+                    ⚠️ {t('materials.stock.negativeNotAllowed')}
                   </div>
                 )}
               </div>
@@ -195,7 +197,7 @@ export function StockAdjustmentModal({
             {/* Reason */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Reason
+                {t('materials.stock.reason')}
               </label>
               <textarea
                 rows={3}
@@ -203,7 +205,7 @@ export function StockAdjustmentModal({
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Optional: Reason for adjustment"
+                placeholder={t('materials.stock.reasonPlaceholder')}
               />
             </div>
 
@@ -215,14 +217,14 @@ export function StockAdjustmentModal({
                 disabled={loading}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={loading || !isValid}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Adjusting...' : 'Confirm Adjustment'}
+                {loading ? t('materials.stock.adjusting') : t('materials.stock.confirmAdjustment')}
               </button>
             </div>
           </form>

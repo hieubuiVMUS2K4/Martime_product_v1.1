@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { MainLayout } from './components/layouts/MainLayout'
+import { SettingsDialog } from './components/settings'
 
 // Pages
 import { DashboardPage } from './pages/Dashboard/DashboardPage'
@@ -55,6 +56,9 @@ function App() {
     <>
       {/* Global toast provider (sonner) */}
       <Toaster position="top-right" />
+      
+      {/* Settings Dialog (renders as portal, controlled by zustand store) */}
+      <SettingsDialog />
 
       <Routes>
       <Route path="/" element={<MainLayout />}>

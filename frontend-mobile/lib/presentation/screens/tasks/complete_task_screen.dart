@@ -781,26 +781,6 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Spare Parts Field
-                    Text(
-                      l10n.sparePartsUsed,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _sparePartsController,
-                      decoration: InputDecoration(
-                        hintText: l10n.listSparePartsUsed,
-                        prefixIcon: const Icon(Icons.build),
-                        border: const OutlineInputBorder(),
-                      ),
-                      maxLines: 2,
-                    ),
-
-                    const SizedBox(height: 24),
-
                     // Photos Section
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1557,6 +1537,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
       isScrollControlled: true,
       builder: (ctx) => _MaterialSelectionSheet(
         taskProvider: Provider.of<TaskProvider>(context, listen: false),
+        requiredParts: _requiredSpareParts,
         alreadyUsedParts: _actuallyUsedSpareParts,
         onMaterialSelected: (material) {
           Navigator.pop(ctx);
@@ -1685,11 +1666,13 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
 /// Separate StatefulWidget for material selection to handle its own state
 class _MaterialSelectionSheet extends StatefulWidget {
   final TaskProvider taskProvider;
+  final List<Map<String, dynamic>> requiredParts;
   final List<Map<String, dynamic>> alreadyUsedParts;
   final Function(Map<String, dynamic>) onMaterialSelected;
 
   const _MaterialSelectionSheet({
     required this.taskProvider,
+    required this.requiredParts,
     required this.alreadyUsedParts,
     required this.onMaterialSelected,
   });
@@ -1702,11 +1685,24 @@ class _MaterialSelectionSheetState extends State<_MaterialSelectionSheet> {
   List<Map<String, dynamic>> _materials = [];
   bool _isLoading = true;
   bool _isOffline = false;
+  bool _showRequiredOnly = false;
+  late final Set<String> _requiredCodes;
+  late final Set<String> _requiredNames;
   final _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _requiredCodes = widget.requiredParts
+        .map((p) => (p['materialCode'] ?? '').toString().trim().toLowerCase())
+        .where((c) => c.isNotEmpty)
+        .toSet();
+    _requiredNames = widget.requiredParts
+        .map((p) => (p['materialName'] ?? '').toString().trim().toLowerCase())
+        .where((n) => n.isNotEmpty)
+        .toSet();
+    // UX: Default to Required view when we actually have a required list
+    _showRequiredOnly = widget.requiredParts.isNotEmpty;
     _loadMaterials();
   }
 
@@ -1737,13 +1733,26 @@ class _MaterialSelectionSheetState extends State<_MaterialSelectionSheet> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    bool matchesRequired(Map<String, dynamic> m) {
+      if (_requiredCodes.isEmpty && _requiredNames.isEmpty) return false;
+      final code = (m['itemCode'] ?? '').toString().trim().toLowerCase();
+      final name = (m['name'] ?? '').toString().trim().toLowerCase();
+      return (_requiredCodes.isNotEmpty && _requiredCodes.contains(code)) ||
+          (_requiredNames.isNotEmpty && _requiredNames.contains(name));
+    }
+
     final filtered = _materials.where((m) {
       final query = _searchController.text.toLowerCase();
       if (query.isEmpty) return true;
       final name = (m['name'] ?? '').toString().toLowerCase();
       final code = (m['itemCode'] ?? '').toString().toLowerCase();
       return name.contains(query) || code.contains(query);
+    }).where((m) {
+      if (!_showRequiredOnly) return true;
+      return matchesRequired(m);
     }).toList();
+
+    final hasRequiredList = widget.requiredParts.isNotEmpty;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
@@ -1767,6 +1776,25 @@ class _MaterialSelectionSheetState extends State<_MaterialSelectionSheet> {
                 IconButton(
                   icon: const Icon(Icons.close),
                   onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Required-first toggle
+            Row(
+              children: [
+                ChoiceChip(
+                  label: Text(l10n.required),
+                  selected: _showRequiredOnly,
+                  onSelected: hasRequiredList
+                      ? (_) => setState(() => _showRequiredOnly = true)
+                      : null,
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: Text(l10n.spareParts),
+                  selected: !_showRequiredOnly,
+                  onSelected: (_) => setState(() => _showRequiredOnly = false),
                 ),
               ],
             ),
@@ -1829,13 +1857,24 @@ class _MaterialSelectionSheetState extends State<_MaterialSelectionSheet> {
                             children: [
                               const Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey),
                               const SizedBox(height: 16),
-                              Text(l10n.noMaterialsFound),
-                              const SizedBox(height: 8),
-                              TextButton.icon(
-                                onPressed: _loadMaterials,
-                                icon: const Icon(Icons.refresh),
-                                label: Text(l10n.reload),
+                              Text(
+                                _showRequiredOnly
+                                    ? 'No required materials found in inventory'
+                                    : l10n.noMaterialsFound,
                               ),
+                              const SizedBox(height: 8),
+                              if (_showRequiredOnly)
+                                TextButton.icon(
+                                  onPressed: () => setState(() => _showRequiredOnly = false),
+                                  icon: const Icon(Icons.list),
+                                  label: const Text('Show all materials'),
+                                )
+                              else
+                                TextButton.icon(
+                                  onPressed: _loadMaterials,
+                                  icon: const Icon(Icons.refresh),
+                                  label: Text(l10n.reload),
+                                ),
                             ],
                           ),
                         )

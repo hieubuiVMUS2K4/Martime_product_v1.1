@@ -15,8 +15,8 @@ export function DepartureReportForm() {
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<CreateDepartureReportDto>({
-    departureDateTime: new Date().toISOString(),
-    voyageId: 0,
+    departureDateTime: new Date().toISOString().slice(0, 16), // Format for datetime-local
+    voyageId: undefined, // Optional GUID string
     portName: '',
     draftForward: 0,
     draftAft: 0
@@ -27,10 +27,7 @@ export function DepartureReportForm() {
   };
 
   const validateForm = (): boolean => {
-    if (!formData.voyageId || formData.voyageId === 0) {
-      setError('Voyage ID is required');
-      return false;
-    }
+    // VoyageId is optional - skip validation
     if (!formData.portName?.trim()) {
       setError('Port name is required');
       return false;
@@ -50,7 +47,14 @@ export function DepartureReportForm() {
 
     try {
       setLoading(true);
-      const report = await ReportingService.createDepartureReport(formData);
+      
+      // Clean data - ensure voyageId is valid GUID or null
+      const cleanedData = {
+        ...formData,
+        voyageId: formData.voyageId && formData.voyageId.trim() !== '' ? formData.voyageId : undefined,
+      };
+      
+      const report = await ReportingService.createDepartureReport(cleanedData);
       
       if (!asDraft) {
         await ReportingService.submitReport(report.reportId);
@@ -103,15 +107,14 @@ export function DepartureReportForm() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Voyage ID <span className="text-red-600">*</span>
+                Voyage ID (Optional)
               </label>
               <input
-                type="number"
+                type="text"
                 value={formData.voyageId || ''}
-                onChange={(e) => handleChange('voyageId', parseInt(e.target.value) || 0)}
+                onChange={(e) => handleChange('voyageId', e.target.value || undefined)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                required
-                min="1"
+                placeholder="Leave empty if no voyage"
               />
             </div>
           </div>

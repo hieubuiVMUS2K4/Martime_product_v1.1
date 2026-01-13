@@ -23,12 +23,14 @@ import {
   type DeferralRequest,
   type ReviewDeferralDto
 } from '@/services/maintenance.service';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 
 type DeferralStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'all';
 
 export default function DeferralManagementPage() {
+  const { t } = useTranslationSafe();
   const navigate = useNavigate();
   const [deferrals, setDeferrals] = useState<DeferralRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,7 +149,7 @@ export default function DeferralManagementPage() {
       <div className="p-6">
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="ml-3 text-gray-600">Loading deferral requests...</p>
+          <p className="ml-3 text-gray-600">{t('pms.deferral.loading')}</p>
         </div>
       </div>
     );
@@ -165,15 +167,15 @@ export default function DeferralManagementPage() {
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <Clock className="w-8 h-8 text-yellow-500" />
-          <h1 className="text-2xl font-bold text-gray-900">Deferral Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('pms.deferral.title')}</h1>
           {statusFilter === 'PENDING' && pendingCount > 0 && (
             <span className="ml-2 px-2.5 py-0.5 bg-yellow-100 text-yellow-800 text-sm font-medium rounded-full">
-              {pendingCount} pending
+              {t('pms.deferral.pending', { count: pendingCount })}
             </span>
           )}
         </div>
         <p className="text-gray-600 ml-14">
-          Review and manage maintenance task deferral requests
+          {t('pms.deferral.subtitle')}
         </p>
       </div>
 
@@ -182,7 +184,7 @@ export default function DeferralManagementPage() {
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Status:</span>
+            <span className="text-sm font-medium text-gray-700">{t('pms.deferral.status')}:</span>
           </div>
           
           <div className="flex gap-2">
@@ -199,7 +201,7 @@ export default function DeferralManagementPage() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {status === 'all' ? 'All' : status.charAt(0) + status.slice(1).toLowerCase()}
+                {status === 'all' ? t('pms.deferral.all') : status === 'APPROVED' ? t('pms.deferral.approved') : status === 'REJECTED' ? t('pms.deferral.rejected') : status.charAt(0) + status.slice(1).toLowerCase()}
               </button>
             ))}
           </div>
@@ -209,7 +211,7 @@ export default function DeferralManagementPage() {
             className="ml-auto px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200 flex items-center gap-2"
           >
             <RefreshCw className="w-4 h-4" />
-            Refresh
+            {t('pms.deferral.refresh')}
           </button>
         </div>
       </div>
@@ -219,12 +221,12 @@ export default function DeferralManagementPage() {
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            No Deferral Requests
+            {t('pms.deferral.noDeferrals')}
           </h3>
           <p className="text-gray-600">
             {statusFilter === 'PENDING' 
-              ? 'All deferral requests have been reviewed'
-              : `No ${statusFilter.toLowerCase()} deferral requests found`
+              ? t('pms.deferral.allReviewed')
+              : t('pms.deferral.noStatusDeferrals', { status: statusFilter.toLowerCase() })
             }
           </p>
         </div>
@@ -261,28 +263,28 @@ export default function DeferralManagementPage() {
                   <div className="flex items-center gap-6 text-sm">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Calendar className="w-4 h-4" />
-                      <span>Current Due: {format(parseISO(deferral.currentDueDate), 'dd MMM yyyy')}</span>
+                      <span>{t('pms.deferral.currentDue', { date: format(parseISO(deferral.currentDueDate), 'dd MMM yyyy') })}</span>
                     </div>
                     <div className="flex items-center gap-2 text-amber-600 font-medium">
                       <Calendar className="w-4 h-4" />
-                      <span>Proposed: {format(parseISO(deferral.proposedDueDate), 'dd MMM yyyy')}</span>
+                      <span>{t('pms.deferral.proposed', { date: format(parseISO(deferral.proposedDueDate), 'dd MMM yyyy') })}</span>
                     </div>
                     <div className="text-gray-500">
-                      (+{deferral.deferralDays} days)
+                      {t('pms.deferral.deferralDays', { days: deferral.deferralDays })}
                     </div>
                   </div>
                   
                   {/* Requester & Date */}
                   <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
-                    <span>Requested by: <span className="font-medium text-gray-700">{deferral.requestedByName || deferral.requestedBy}</span></span>
-                    <span>on {format(parseISO(deferral.requestedAt), 'dd MMM yyyy HH:mm')}</span>
+                    <span>{t('pms.deferral.requestedBy', { name: deferral.requestedByName || deferral.requestedBy || 'Unknown' })}</span>
+                    <span>{t('pms.deferral.on', { date: format(parseISO(deferral.requestedAt), 'dd MMM yyyy HH:mm') })}</span>
                   </div>
                   
                   {/* Review Info (if reviewed) */}
                   {deferral.reviewedAt && (
                     <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded">
-                      <span>Reviewed by: <span className="font-medium text-gray-700">{deferral.reviewedByName || deferral.reviewedBy}</span></span>
-                      <span>on {format(parseISO(deferral.reviewedAt), 'dd MMM yyyy HH:mm')}</span>
+                      <span>{t('pms.deferral.reviewedBy', { name: deferral.reviewedByName || deferral.reviewedBy || 'Unknown' })}</span>
+                      <span>{t('pms.deferral.on', { date: format(parseISO(deferral.reviewedAt), 'dd MMM yyyy HH:mm') })}</span>
                       {deferral.reviewNotes && (
                         <span className="flex items-center gap-1 break-words">
                           <FileText className="w-3 h-3 flex-shrink-0" />
@@ -301,14 +303,14 @@ export default function DeferralManagementPage() {
                       className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
                     >
                       <CheckCircle className="w-4 h-4" />
-                      Approve
+                      {t('pms.deferral.approve')}
                     </button>
                     <button
                       onClick={() => handleReviewClick(deferral, 'REJECT')}
                       className="inline-flex items-center gap-1 px-3 py-1.5 bg-white text-red-600 text-sm font-medium rounded-md border border-red-300 hover:bg-red-50 transition-colors"
                     >
                       <XCircle className="w-4 h-4" />
-                      Reject
+                      {t('pms.deferral.reject')}
                     </button>
                   </div>
                 )}
@@ -320,7 +322,7 @@ export default function DeferralManagementPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between py-4">
               <div className="text-sm text-gray-700">
-                Page {page} of {totalPages}
+                {t('pms.deferral.page', { current: page, total: totalPages })}
               </div>
               <div className="flex gap-2">
                 <button
@@ -328,14 +330,14 @@ export default function DeferralManagementPage() {
                   disabled={page === 1}
                   className="px-3 py-1.5 border border-gray-300 rounded-md text-sm disabled:opacity-50 hover:bg-gray-50"
                 >
-                  Previous
+                  {t('pms.deferral.previous')}
                 </button>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                   className="px-3 py-1.5 border border-gray-300 rounded-md text-sm disabled:opacity-50 hover:bg-gray-50"
                 >
-                  Next
+                  {t('pms.deferral.next')}
                 </button>
               </div>
             </div>
@@ -349,28 +351,28 @@ export default function DeferralManagementPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                {reviewAction === 'APPROVE' ? 'Approve' : 'Reject'} Deferral Request
+                {reviewAction === 'APPROVE' ? t('pms.deferral.approveDeferralRequest') : t('pms.deferral.rejectDeferralRequest')}
               </h3>
               
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <div className="space-y-2 text-sm">
                   <div>
-                    <span className="font-medium">Task:</span> {selectedDeferral.taskCode}
+                    <span className="font-medium">{t('pms.deferral.task')}</span> {selectedDeferral.taskCode}
                   </div>
                   <div>
-                    <span className="font-medium">Reason:</span> {selectedDeferral.reason}
+                    <span className="font-medium">{t('pms.deferral.reason')}</span> {selectedDeferral.reason}
                   </div>
                   <div className="pt-2 border-t border-gray-200">
-                    <span className="font-medium">Deferral Period:</span>
+                    <span className="font-medium">{t('pms.deferral.deferralPeriod')}</span>
                     <p className="text-gray-600 mt-1">
-                      {format(parseISO(selectedDeferral.currentDueDate), 'dd MMM yyyy')} → {format(parseISO(selectedDeferral.proposedDueDate), 'dd MMM yyyy')} (+{selectedDeferral.deferralDays} days)
+                      {format(parseISO(selectedDeferral.currentDueDate), 'dd MMM yyyy')} → {format(parseISO(selectedDeferral.proposedDueDate), 'dd MMM yyyy')} (+{selectedDeferral.deferralDays} {t('pms.deferral.deferralDays', { days: '' }).replace('+', '').replace(' ', '')})
                     </p>
                   </div>
                   {selectedDeferral.isCmsItem && (
                     <div className="pt-2 border-t border-gray-200">
                       <span className="inline-flex items-center gap-1 text-blue-700 font-medium">
                         <Shield className="w-4 h-4" />
-                        This is a CMS item - requires Class approval for deferrals &gt; 90 days
+                        {t('pms.deferral.cmsWarning')}
                       </span>
                     </div>
                   )}
@@ -384,22 +386,22 @@ export default function DeferralManagementPage() {
               }`}>
                 <p className={`text-sm ${reviewAction === 'APPROVE' ? 'text-green-800' : 'text-red-800'}`}>
                   {reviewAction === 'APPROVE' 
-                    ? 'Task due date will be updated to the proposed date'
-                    : 'Deferral request will be rejected, task due date remains unchanged'
+                    ? t('pms.deferral.approveNote')
+                    : t('pms.deferral.rejectNote')
                   }
                 </p>
               </div>
 
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Review Notes {reviewAction === 'REJECT' ? '*' : '(Optional)'}
+                  {t('pms.deferral.reviewNotes')} {reviewAction === 'REJECT' ? t('pms.deferral.required') : t('pms.deferral.optional')}
                 </label>
                 <textarea
                   value={reviewNotes}
                   onChange={(e) => setReviewNotes(e.target.value)}
                   placeholder={reviewAction === 'APPROVE' 
-                    ? 'Add any notes about this approval...' 
-                    : 'Please provide reason for rejection...'
+                    ? t('pms.deferral.approvePlaceholder')
+                    : t('pms.deferral.rejectPlaceholder')
                   }
                   rows={3}
                   className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:border-transparent ${
@@ -417,7 +419,7 @@ export default function DeferralManagementPage() {
                   disabled={actionLoading}
                   className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50"
                 >
-                  Cancel
+                  {t('pms.deferral.cancel')}
                 </button>
                 <button
                   onClick={handleReviewConfirm}
@@ -431,7 +433,7 @@ export default function DeferralManagementPage() {
                   {actionLoading ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                      Processing...
+                      {t('pms.deferral.processing')}
                     </>
                   ) : (
                     <>
@@ -440,7 +442,7 @@ export default function DeferralManagementPage() {
                       ) : (
                         <XCircle className="w-4 h-4" />
                       )}
-                      {reviewAction === 'APPROVE' ? 'Approve Deferral' : 'Reject Deferral'}
+                      {reviewAction === 'APPROVE' ? t('pms.deferral.approveDeferral') : t('pms.deferral.rejectDeferral')}
                     </>
                   )}
                 </button>
