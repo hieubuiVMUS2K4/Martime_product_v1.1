@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace MaritimeEdge.Models;
 
@@ -652,17 +653,6 @@ public class CrewMember
     [MaxLength(100)]
     public string? Department { get; set; } // Deck, Engine, Catering, etc.
     
-    [MaxLength(100)]
-    public string? CertificateNumber { get; set; } // STCW Certificate
-    
-    public DateTime? CertificateIssue { get; set; }
-    
-    public DateTime? CertificateExpiry { get; set; }
-    
-    public DateTime? MedicalIssue { get; set; }
-    
-    public DateTime? MedicalExpiry { get; set; }
-    
     [MaxLength(50)]
     public string? Nationality { get; set; }
     
@@ -712,6 +702,102 @@ public class CrewMember
     
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+    
+    // Navigation property
+    [JsonIgnore]
+    public List<CrewCertificate> Certificates { get; set; } = new();
+}
+
+/// <summary>
+/// Certificate Types - Master data về các loại chứng chỉ hàng hải
+/// (STCW, Medical, Safety Training, etc.)
+/// </summary>
+public class Certificate
+{
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int Id { get; set; }
+    
+    [Required]
+    [MaxLength(50)]
+    public string CertificateCode { get; set; } = string.Empty; // STCW_II_2, MEDICAL, BASIC_SAFETY
+    
+    [Required]
+    [MaxLength(200)]
+    public string CertificateName { get; set; } = string.Empty; // Certificate of Competency - Master
+    
+    [MaxLength(50)]
+    public string? Category { get; set; } // COMPETENCY, MEDICAL, PROFICIENCY, SAFETY
+    
+    public int? ValidityPeriodMonths { get; set; } // Thời hạn hiệu lực (tháng): 60, 24
+    
+    public string? Description { get; set; } // Mô tả chi tiết
+    
+    public bool IsMandatory { get; set; } = false; // Bắt buộc hay không?
+    
+    public bool IsActive { get; set; } = true; // Còn sử dụng hay không?
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation property
+    public List<CrewCertificate> CrewCertificates { get; set; } = new();
+}
+
+/// <summary>
+/// Crew Certificates - Chứng chỉ cụ thể của từng thuyền viên
+/// Lưu thông tin chi tiết về certificate thực tế (số, ngày cấp, ngày hết hạn, file scan)
+/// </summary>
+public class CrewCertificate
+{
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int Id { get; set; }
+    
+    // Foreign Keys
+    [Required]
+    public Guid CrewMemberId { get; set; }
+    
+    [Required]
+    public int CertificateId { get; set; }
+    
+    // Certificate Details
+    [Required]
+    [MaxLength(100)]
+    public string CertificateNumber { get; set; } = string.Empty; // Số chứng chỉ thực tế
+    
+    public DateTime IssueDate { get; set; } // Ngày cấp
+    
+    public DateTime ExpiryDate { get; set; } // Ngày hết hạn
+    
+    [MaxLength(200)]
+    public string? IssuingAuthority { get; set; } // Cơ quan cấp
+    
+    // Document File
+    [MaxLength(500)]
+    public string? DocumentFilePath { get; set; } // Đường dẫn file ảnh/PDF scan
+    
+    // Status
+    [MaxLength(20)]
+    public string Status { get; set; } = "VALID"; // VALID, EXPIRED, SUSPENDED
+    
+    // Notes
+    public string? Notes { get; set; } // Ghi chú bổ sung (rank, limitations, endorsement)
+    
+    // Metadata
+    public bool IsSynced { get; set; } = false;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation properties
+    [JsonIgnore]
+    public CrewMember CrewMember { get; set; } = null!;
+    [JsonIgnore]
+    public Certificate Certificate { get; set; } = null!;
 }
 
 /// <summary>

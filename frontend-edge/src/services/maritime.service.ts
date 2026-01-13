@@ -11,6 +11,8 @@ import type {
   AisData,
   VoyageRecord,
   CrewMember,
+  Certificate,
+  CrewCertificate,
   MaintenanceTask,
   CargoOperation,
   WatchkeepingLog,
@@ -144,6 +146,29 @@ export class MaritimeService {
       }),
     getExpiringCertificates: (days: number = 90) =>
       this.request<CrewMember[]>(`/crew/expiring-certificates?days=${days}`),
+  }
+
+  // === CERTIFICATE MANAGEMENT ===
+  certificates = {
+    getAll: () => this.request<Certificate[]>('/certificates'),
+    getById: (id: number) => this.request<Certificate>(`/certificates/${id}`),
+    getCrewCertificates: (certificateId: number) => 
+      this.request<CrewCertificate[]>(`/certificates/${certificateId}/crew-certificates`),
+    getCrewCertificatesByCrewId: (crewId: string) =>
+      this.request<CrewCertificate[]>(`/certificates/crew/${crewId}`),
+    addCrewCertificate: (data: {
+      certificateId: number
+      crewMemberId: string
+      certificateNumber: string
+      issueDate: string
+      expiryDate: string
+      issuingAuthority?: string | null
+      status: string
+      notes?: string | null
+    }) => this.request<{ id: number; message: string }>('/certificates/crew-certificates', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
   }
 
   // === MATERIAL MANAGEMENT (thêm mới) ===

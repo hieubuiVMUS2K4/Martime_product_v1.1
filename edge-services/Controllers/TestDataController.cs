@@ -5,6 +5,8 @@ using MaritimeEdge.Models;
 
 namespace MaritimeEdge.Controllers;
 
+// TEMPORARILY COMMENTED OUT - Need to update for new certificate system
+/*
 [ApiController]
 [Route("api/[controller]")]
 public class TestDataController : ControllerBase
@@ -261,3 +263,4 @@ public class TestDataController : ControllerBase
         }
     }
 }
+*/

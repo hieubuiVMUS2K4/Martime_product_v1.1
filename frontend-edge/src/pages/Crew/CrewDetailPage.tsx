@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
-import { format, differenceInDays, parseISO } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 
 export function CrewDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -27,6 +27,8 @@ export function CrewDetailPage() {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [resettingPassword, setResettingPassword] = useState(false)
+  const [certificates, setCertificates] = useState<any[]>([])
+  const [loadingCertificates, setLoadingCertificates] = useState(false)
 
   useEffect(() => {
     loadCrewDetails()
@@ -40,6 +42,9 @@ export function CrewDetailPage() {
       const crewData = await maritimeService.crew.getById(id)
       setCrew(crewData)
       setEditedCrew(crewData)
+      
+      // Load certificates for this crew member
+      loadCertificates(id)
     } catch (error: any) {
       console.error('❌ Failed to load crew details:', error)
       const errorMessage = error.message || 'Failed to load crew member details'
@@ -47,6 +52,18 @@ export function CrewDetailPage() {
       setCrew(null)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadCertificates = async (crewId: string) => {
+    try {
+      setLoadingCertificates(true)
+      const certs = await maritimeService.certificates.getCrewCertificatesByCrewId(crewId)
+      setCertificates(certs)
+    } catch (error: any) {
+      console.error('❌ Failed to load certificates:', error)
+    } finally {
+      setLoadingCertificates(false)
     }
   }
 
@@ -151,47 +168,6 @@ export function CrewDetailPage() {
     }
   }
 
-  const getCertificateStatus = (expiryDate?: string) => {
-    if (!expiryDate) return { 
-      status: 'Unknown', 
-      color: 'text-gray-500', 
-      bgColor: 'bg-gray-100',
-      icon: AlertCircle,
-      daysLeft: null 
-    }
-    
-    const daysLeft = differenceInDays(parseISO(expiryDate), new Date())
-    
-    if (daysLeft < 0) return { 
-      status: 'EXPIRED', 
-      color: 'text-red-700', 
-      bgColor: 'bg-red-100',
-      icon: AlertCircle,
-      daysLeft 
-    }
-    if (daysLeft <= 30) return { 
-      status: 'CRITICAL', 
-      color: 'text-red-600', 
-      bgColor: 'bg-red-50',
-      icon: AlertCircle,
-      daysLeft 
-    }
-    if (daysLeft <= 90) return { 
-      status: 'WARNING', 
-      color: 'text-yellow-600', 
-      bgColor: 'bg-yellow-50',
-      icon: Clock,
-      daysLeft 
-    }
-    return { 
-      status: 'VALID', 
-      color: 'text-green-700', 
-      bgColor: 'bg-green-100',
-      icon: CheckCircle,
-      daysLeft 
-    }
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -211,8 +187,7 @@ export function CrewDetailPage() {
     )
   }
 
-  const certStatus = getCertificateStatus(crew.certificateExpiry)
-  const medicalStatus = getCertificateStatus(crew.medicalExpiry)
+  // Certificate data now managed separately via crew_certificates table
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -561,35 +536,24 @@ export function CrewDetailPage() {
                   </div>
                 </div>
 
-                {/* Certificate Info Card */}
+                {/* Certificate Info Card - Now managed via crew_certificates table */}
                 <div className="bg-slate-700 rounded-lg p-4 text-white">
                   <p className="text-xs text-slate-400 mb-2">CERTIFICATES</p>
                   <div className="space-y-2">
-                    {crew.certificateNumber && (
-                      <div>
-                        <p className="text-xs text-slate-400">STCW Certificate</p>
-                        <p className="text-sm">{crew.certificateNumber}</p>
-                      </div>
-                    )}
                     {crew.seamanBookNumber && (
-                      <div className="mt-2">
+                      <div>
                         <p className="text-xs text-slate-400">Seaman's Book</p>
                         <p className="text-sm">{crew.seamanBookNumber}</p>
                       </div>
                     )}
-                    {crew.certificateExpiry && (
-                      <div className="mt-2">
-                        <span className={`inline-block px-2 py-0.5 rounded text-xs ${
-                          differenceInDays(parseISO(crew.certificateExpiry), new Date()) > 90 
-                            ? 'bg-green-600' 
-                            : differenceInDays(parseISO(crew.certificateExpiry), new Date()) > 30
-                            ? 'bg-yellow-600'
-                            : 'bg-red-600'
-                        }`}>
-                          Expires: {format(parseISO(crew.certificateExpiry), 'dd MMM yyyy')}
-                        </span>
-                      </div>
-                    )}
+                    <div className="mt-2">
+                      <button
+                        onClick={() => navigate('/crew', { state: { activeTab: 'certificates' } })}
+                        className="text-xs text-blue-300 hover:text-blue-200 underline"
+                      >
+                        View All Certificates →
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -629,129 +593,121 @@ export function CrewDetailPage() {
 
           {/* Right Column - Certificates */}
           <div className="space-y-4">
-            {/* STCW Certificate */}
+            {/* STCW Certificates */}
             <div className="bg-white shadow-sm rounded-lg p-5">
               <div className="flex items-start gap-3 mb-4">
                 <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
                   <Award className="w-6 h-6 text-blue-600" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-gray-900">STCW Certificate</h3>
-                  <p className="text-xs text-gray-500">Standard of Training Certificate</p>
+                  <h3 className="font-bold text-gray-900">Certificates ({certificates.length})</h3>
+                  <p className="text-xs text-gray-500">STCW & Maritime Certificates</p>
                 </div>
               </div>
               
-              <div className={`mb-4 p-3 rounded-lg ${certStatus.status === 'VALID' ? 'bg-green-50' : certStatus.status === 'WARNING' ? 'bg-yellow-50' : 'bg-red-50'}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className={`w-5 h-5 ${certStatus.status === 'VALID' ? 'text-green-600' : certStatus.status === 'WARNING' ? 'text-yellow-600' : 'text-red-600'}`} />
-                    <span className={`font-bold ${certStatus.status === 'VALID' ? 'text-green-700' : certStatus.status === 'WARNING' ? 'text-yellow-700' : 'text-red-700'}`}>{certStatus.status}</span>
-                  </div>
-                  <span className={`text-xs px-2 py-1 rounded ${certStatus.status === 'VALID' ? 'bg-green-100 text-green-700' : certStatus.status === 'WARNING' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>VALID</span>
+              {loadingCertificates ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-xs text-gray-500 mt-2">Loading certificates...</p>
                 </div>
-                <p className={`text-sm ${certStatus.status === 'VALID' ? 'text-green-600' : certStatus.status === 'WARNING' ? 'text-yellow-600' : 'text-red-600'}`}>
-                  {certStatus.daysLeft !== null && certStatus.daysLeft >= 0 ? `${certStatus.daysLeft} days remaining` : 'Expired'}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-center mb-4">
-                <div className="relative w-32 h-32">
-                  <svg className="w-32 h-32 transform -rotate-90">
-                    <circle cx="64" cy="64" r="56" stroke="#e5e7eb" strokeWidth="8" fill="none" />
-                    <circle cx="64" cy="64" r="56" stroke="#10b981" strokeWidth="8" fill="none"
-                      strokeDasharray={`${(certStatus.daysLeft || 0) / 1825 * 351.86} 351.86`} strokeLinecap="round" />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-bold text-gray-900">{certStatus.daysLeft || 1183}</span>
-                    <span className="text-xs text-gray-500">EXPIRY DAYS</span>
-                  </div>
+              ) : certificates.length === 0 ? (
+                <div className="p-3 bg-gray-50 rounded-lg text-center">
+                  <p className="text-sm text-gray-600 mb-2">No certificates found</p>
+                  <button
+                    onClick={() => navigate('/crew', { state: { activeTab: 'certificates' } })}
+                    className="text-sm text-blue-600 hover:text-blue-800 font-semibold underline"
+                  >
+                    View Certificate Management →
+                  </button>
                 </div>
-              </div>
-
-              <div className="space-y-2 text-sm border-t pt-3">
-                <div className={isEditing ? 'p-2 bg-blue-50 rounded border-2 border-blue-300' : ''}>
-                  <p className="text-xs text-gray-500 uppercase mb-1">Certificate Number</p>
-                  {isEditing ? (
-                    <input type="text" value={editedCrew.certificateNumber || ''} onChange={(e) => setEditedCrew({...editedCrew, certificateNumber: e.target.value})} className="w-full px-3 py-2 border-2 border-blue-400 rounded font-semibold focus:outline-none focus:border-blue-600" placeholder="Certificate number" />
-                  ) : (
-                    <p className="font-semibold text-gray-900">{crew.certificateNumber || 'VN-INTER 2019-09546'}</p>
-                  )}
+              ) : (
+                <div className="space-y-3">
+                  {certificates.map((cert: any) => {
+                    const daysLeft = Math.floor((new Date(cert.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                    const isExpired = daysLeft < 0
+                    const isExpiring = daysLeft > 0 && daysLeft <= 90
+                    
+                    return (
+                      <div key={cert.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <p className="font-semibold text-sm text-gray-900">
+                              {cert.certificate?.certificateName || 'Unknown Certificate'}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {cert.certificate?.certificateCode || 'N/A'}
+                            </p>
+                          </div>
+                          {isExpired ? (
+                            <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-semibold flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              Expired
+                            </span>
+                          ) : isExpiring ? (
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-semibold flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              Expiring
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold flex items-center gap-1">
+                              <CheckCircle className="w-3 h-3" />
+                              Valid
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="space-y-1 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Number:</span>
+                            <span className="font-medium text-gray-900">{cert.certificateNumber}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Issue Date:</span>
+                            <span className="font-medium text-gray-900">{format(parseISO(cert.issueDate), 'dd MMM yyyy')}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Expiry Date:</span>
+                            <span className={`font-medium ${isExpired ? 'text-red-600' : isExpiring ? 'text-yellow-600' : 'text-gray-900'}`}>
+                              {format(parseISO(cert.expiryDate), 'dd MMM yyyy')}
+                            </span>
+                          </div>
+                          {cert.issuingAuthority && (
+                            <div className="flex justify-between mt-2 pt-2 border-t border-gray-200">
+                              <span className="text-gray-500">Issued By:</span>
+                              <span className="font-medium text-gray-900 text-right max-w-[150px] truncate">{cert.issuingAuthority}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {isExpired && (
+                          <div className="mt-2 pt-2 border-t border-gray-200">
+                            <p className="text-xs text-red-600 font-medium">
+                              ⚠️ Expired {Math.abs(daysLeft)} days ago
+                            </p>
+                          </div>
+                        )}
+                        {isExpiring && (
+                          <div className="mt-2 pt-2 border-t border-gray-200">
+                            <p className="text-xs text-yellow-600 font-medium">
+                              ⏰ Expires in {daysLeft} days
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                  
+                  <button
+                    onClick={() => navigate('/crew', { state: { activeTab: 'certificates' } })}
+                    className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 font-semibold border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    View All Certificates →
+                  </button>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className={isEditing ? 'p-2 bg-blue-50 rounded border-2 border-blue-300' : ''}>
-                    <p className="text-xs text-gray-500 uppercase mb-1">Issue Date</p>
-                    {isEditing ? (
-                      <input type="date" value={editedCrew.certificateIssue?.split('T')[0] || ''} onChange={(e) => setEditedCrew({...editedCrew, certificateIssue: e.target.value})} className="w-full px-3 py-2 border-2 border-blue-400 rounded font-medium focus:outline-none focus:border-blue-600" />
-                    ) : (
-                      <p className="font-medium text-gray-900">{crew.certificateIssue ? format(parseISO(crew.certificateIssue), 'dd MMM yyyy') : '18 Mar 2019'}</p>
-                    )}
-                  </div>
-                  <div className={isEditing ? 'p-2 bg-blue-50 rounded border-2 border-blue-300' : ''}>
-                    <p className="text-xs text-gray-500 uppercase mb-1">Expiry Date</p>
-                    {isEditing ? (
-                      <input type="date" value={editedCrew.certificateExpiry?.split('T')[0] || ''} onChange={(e) => setEditedCrew({...editedCrew, certificateExpiry: e.target.value})} className="w-full px-3 py-2 border-2 border-blue-400 rounded font-medium focus:outline-none focus:border-blue-600" />
-                    ) : (
-                      <p className="font-medium text-gray-900">{crew.certificateExpiry ? format(parseISO(crew.certificateExpiry), 'dd MMM yyyy') : '18 Mar 2029'}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
 
-            {/* Medical Certificate */}
-            <div className="bg-white shadow-sm rounded-lg p-5">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-gray-900">Medical Certificate</h3>
-                  <p className="text-xs text-gray-500">Seafarer Medical Fitness</p>
-                </div>
-              </div>
-              
-              <div className={`mb-4 p-3 rounded-lg ${medicalStatus.status === 'VALID' ? 'bg-yellow-50' : medicalStatus.status === 'WARNING' ? 'bg-orange-50' : 'bg-red-50'}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className={`w-5 h-5 ${medicalStatus.status === 'VALID' ? 'text-yellow-600' : medicalStatus.status === 'WARNING' ? 'text-orange-600' : 'text-red-600'}`} />
-                    <span className={`font-bold ${medicalStatus.status === 'VALID' ? 'text-yellow-700' : medicalStatus.status === 'WARNING' ? 'text-orange-700' : 'text-red-700'}`}>{medicalStatus.status}</span>
-                  </div>
-                  <span className={`text-xs px-2 py-1 rounded ${medicalStatus.status === 'VALID' ? 'bg-yellow-100 text-yellow-700' : medicalStatus.status === 'WARNING' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>VALID</span>
-                </div>
-                <p className={`text-sm ${medicalStatus.status === 'VALID' ? 'text-yellow-600' : medicalStatus.status === 'WARNING' ? 'text-orange-600' : 'text-red-600'}`}>
-                  {medicalStatus.daysLeft !== null && medicalStatus.daysLeft >= 0 ? `${medicalStatus.daysLeft} days remaining` : 'Expired'}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-center mb-4">
-                <div className="relative w-32 h-32">
-                  <svg className="w-32 h-32 transform -rotate-90">
-                    <circle cx="64" cy="64" r="56" stroke="#e5e7eb" strokeWidth="8" fill="none" />
-                    <circle cx="64" cy="64" r="56" stroke="#f59e0b" strokeWidth="8" fill="none"
-                      strokeDasharray={`${(medicalStatus.daysLeft || 0) / 730 * 351.86} 351.86`} strokeLinecap="round" />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-bold text-gray-900">{medicalStatus.daysLeft || 165}</span>
-                    <span className="text-xs text-gray-500">EXPIRY DAYS</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2 text-sm border-t pt-3">
-                <div>
-                  <p className="text-xs text-gray-500 uppercase mb-1">Certificate Number</p>
-                  <p className="font-semibold text-gray-900">VN-INTER 2019-02566</p>
-                </div>
-                <div className={isEditing ? 'p-2 bg-blue-50 rounded border-2 border-blue-300' : ''}>
-                  <p className="text-xs text-gray-500 uppercase mb-1">Expiry Date</p>
-                  {isEditing ? (
-                    <input type="date" value={editedCrew.medicalExpiry?.split('T')[0] || ''} onChange={(e) => setEditedCrew({...editedCrew, medicalExpiry: e.target.value})} className="w-full px-3 py-2 border-2 border-blue-400 rounded font-medium focus:outline-none focus:border-blue-600" />
-                  ) : (
-                    <p className="font-medium text-gray-900">{crew.medicalExpiry ? format(parseISO(crew.medicalExpiry), 'dd MMM yyyy') : '18 Mar 2029'}</p>
-                  )}
-                </div>
-              </div>
-            </div>
+            {/* Medical Certificate - now managed in Certificate Management page */}
 
             {/* Seaman's Book */}
             <div className="bg-white shadow-sm rounded-lg p-5">

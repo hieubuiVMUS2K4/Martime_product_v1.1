@@ -197,32 +197,33 @@ public class CrewController : ControllerBase
                 return NotFound(new { message = "Crew member not found" });
             }
 
-            // Return certificate information
+            // TODO: Update to use new certificate system (certificates and crew_certificates tables)
             var certificates = new List<object>();
 
-            if (!string.IsNullOrWhiteSpace(crew.CertificateNumber))
-            {
-                certificates.Add(new
-                {
-                    type = "STCW",
-                    number = crew.CertificateNumber,
-                    issueDate = crew.CertificateIssue,
-                    expiryDate = crew.CertificateExpiry,
-                    status = GetCertificateStatus(crew.CertificateExpiry)
-                });
-            }
+            // Old certificate fields removed - need to query crew_certificates table instead
+            // if (!string.IsNullOrWhiteSpace(crew.CertificateNumber))
+            // {
+            //     certificates.Add(new
+            //     {
+            //         type = "STCW",
+            //         number = crew.CertificateNumber,
+            //         issueDate = crew.CertificateIssue,
+            //         expiryDate = crew.CertificateExpiry,
+            //         status = GetCertificateStatus(crew.CertificateExpiry)
+            //     });
+            // }
 
-            if (crew.MedicalExpiry.HasValue)
-            {
-                certificates.Add(new
-                {
-                    type = "Medical",
-                    number = "Medical Certificate",
-                    issueDate = crew.MedicalIssue,
-                    expiryDate = crew.MedicalExpiry,
-                    status = GetCertificateStatus(crew.MedicalExpiry)
-                });
-            }
+            // if (crew.MedicalExpiry.HasValue)
+            // {
+            //     certificates.Add(new
+            //     {
+            //         type = "Medical",
+            //         number = "Medical Certificate",
+            //         issueDate = crew.MedicalIssue,
+            //         expiryDate = crew.MedicalExpiry,
+            //         status = GetCertificateStatus(crew.MedicalExpiry)
+            //     });
+            // }
 
             if (!string.IsNullOrWhiteSpace(crew.PassportNumber))
             {
@@ -307,14 +308,15 @@ public class CrewController : ControllerBase
             // Normalize nullable DateTime fields
             if (crew.DateOfBirth.HasValue)
                 crew.DateOfBirth = DateTime.SpecifyKind(crew.DateOfBirth.Value, DateTimeKind.Utc);
-            if (crew.CertificateIssue.HasValue)
-                crew.CertificateIssue = DateTime.SpecifyKind(crew.CertificateIssue.Value, DateTimeKind.Utc);
-            if (crew.CertificateExpiry.HasValue)
-                crew.CertificateExpiry = DateTime.SpecifyKind(crew.CertificateExpiry.Value, DateTimeKind.Utc);
-            if (crew.MedicalIssue.HasValue)
-                crew.MedicalIssue = DateTime.SpecifyKind(crew.MedicalIssue.Value, DateTimeKind.Utc);
-            if (crew.MedicalExpiry.HasValue)
-                crew.MedicalExpiry = DateTime.SpecifyKind(crew.MedicalExpiry.Value, DateTimeKind.Utc);
+            // Certificate fields removed - use crew_certificates table instead
+            // if (crew.CertificateIssue.HasValue)
+            //     crew.CertificateIssue = DateTime.SpecifyKind(crew.CertificateIssue.Value, DateTimeKind.Utc);
+            // if (crew.CertificateExpiry.HasValue)
+            //     crew.CertificateExpiry = DateTime.SpecifyKind(crew.CertificateExpiry.Value, DateTimeKind.Utc);
+            // if (crew.MedicalIssue.HasValue)
+            //     crew.MedicalIssue = DateTime.SpecifyKind(crew.MedicalIssue.Value, DateTimeKind.Utc);
+            // if (crew.MedicalExpiry.HasValue)
+            //     crew.MedicalExpiry = DateTime.SpecifyKind(crew.MedicalExpiry.Value, DateTimeKind.Utc);
             if (crew.PassportExpiry.HasValue)
                 crew.PassportExpiry = DateTime.SpecifyKind(crew.PassportExpiry.Value, DateTimeKind.Utc);
             if (crew.VisaExpiry.HasValue)
@@ -502,11 +504,12 @@ public class CrewController : ControllerBase
             existing.FullName = crew.FullName;
             existing.Position = crew.Position;
             existing.Rank = crew.Rank;
-            existing.CertificateNumber = crew.CertificateNumber;
-            existing.CertificateIssue = crew.CertificateIssue;
-            existing.CertificateExpiry = crew.CertificateExpiry;
-            existing.MedicalIssue = crew.MedicalIssue;
-            existing.MedicalExpiry = crew.MedicalExpiry;
+            // Certificate fields removed - use crew_certificates table instead
+            // existing.CertificateNumber = crew.CertificateNumber;
+            // existing.CertificateIssue = crew.CertificateIssue;
+            // existing.CertificateExpiry = crew.CertificateExpiry;
+            // existing.MedicalIssue = crew.MedicalIssue;
+            // existing.MedicalExpiry = crew.MedicalExpiry;
             existing.Nationality = crew.Nationality;
             existing.PassportNumber = crew.PassportNumber;
             existing.PassportExpiry = crew.PassportExpiry;
@@ -585,26 +588,27 @@ public class CrewController : ControllerBase
         }
     }
 
-    [HttpGet("expiring-certificates")]
-    public async Task<IActionResult> GetExpiringCertificates([FromQuery] int days = 90)
-    {
-        try
-        {
-            var expiryDate = DateTime.UtcNow.AddDays(days);
-            var crew = await _context.CrewMembers
-                .AsNoTracking()
-                .Where(c => c.IsOnboard && 
-                           (c.CertificateExpiry <= expiryDate || c.MedicalExpiry <= expiryDate))
-                .ToListAsync();
+    // TODO: Update to use new certificate system
+    // [HttpGet("expiring-certificates")]
+    // public async Task<IActionResult> GetExpiringCertificates([FromQuery] int days = 90)
+    // {
+    //     try
+    //     {
+    //         var expiryDate = DateTime.UtcNow.AddDays(days);
+    //         var crew = await _context.CrewMembers
+    //             .AsNoTracking()
+    //             .Where(c => c.IsOnboard && 
+    //                        (c.CertificateExpiry <= expiryDate || c.MedicalExpiry <= expiryDate))
+    //             .ToListAsync();
 
-            return Ok(crew);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting expiring certificates");
-            return StatusCode(500, new { error = "Internal server error" });
-        }
-    }
+    //         return Ok(crew);
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         _logger.LogError(ex, "Error getting expiring certificates");
+    //         return StatusCode(500, new { error = "Internal server error" });
+    //     }
+    // }
 
     /// <summary>
     /// Sync users for all existing crew members that don't have accounts

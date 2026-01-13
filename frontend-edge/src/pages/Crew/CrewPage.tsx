@@ -1,15 +1,16 @@
 import { useEffect, useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Users, UserPlus, Shield, Calendar, AlertTriangle, FileText } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { Users, UserPlus, Shield, Calendar, AlertTriangle, FileText, Award } from 'lucide-react'
 import { CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
-import { format, differenceInDays, parseISO } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { AddCrewModal } from '../../components/crew/AddCrewModal'
 
 type TabType = 'all' | 'onboard' | 'certificates' | 'reports'
 
 export function CrewPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [activeTab, setActiveTab] = useState<TabType>('onboard')
   const [crewMembers, setCrewMembers] = useState<CrewMember[]>([])
   const [filteredCrew, setFilteredCrew] = useState<CrewMember[]>([])
@@ -17,13 +18,31 @@ export function CrewPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterRank, setFilterRank] = useState<string>('all')
   const [showAddModal, setShowAddModal] = useState(false)
+  
+  // Cache for certificate data to avoid reloading
+  const [certificateCache, setCertificateCache] = useState<any[] | null>(null)
+  const [certificateLoading, setCertificateLoading] = useState(false)
 
   // Sorting states
   const [sortType, setSortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>(null)
   const [sortMenu, setSortMenu] = useState<string | null>(null)
 
+  // Handle navigation state to set active tab
   useEffect(() => {
-    loadCrewData()
+    const state = location.state as { activeTab?: TabType }
+    if (state?.activeTab) {
+      setActiveTab(state.activeTab)
+      // Clear the state after using it
+      window.history.replaceState({}, document.title)
+    }
+  }, [location])
+
+  useEffect(() => {
+    if (activeTab === 'certificates') {
+      loadCertificatesWithCache()
+    } else {
+      loadCrewData()
+    }
   }, [activeTab])
 
   useEffect(() => {
@@ -47,6 +66,69 @@ export function CrewPage() {
       console.error('Failed to load crew data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadCertificatesWithCache = async () => {
+    // If already cached, return immediately
+    if (certificateCache !== null) {
+      console.log('✅ Using cached certificate data:', certificateCache.length)
+      return
+    }
+
+    try {
+      setCertificateLoading(true)
+      console.log('🔵 Loading certificates (first time)...')
+      const data = await maritimeService.certificates.getAll()
+      console.log('✅ Loaded certificates:', data.length)
+      
+      // Load crew count for each certificate
+      const statsPromises = data.map(async (cert: any) => {
+        try {
+          console.log(`🔵 Loading crew for certificate ${cert.id} (${cert.certificateName})`)
+          const crewCerts = await maritimeService.certificates.getCrewCertificates(cert.id)
+          console.log(`✅ Certificate ${cert.id}: ${crewCerts.length} crew members`)
+          
+          // Calculate expiry status
+          let validCount = 0
+          let expiringCount = 0
+          let expiredCount = 0
+          
+          crewCerts.forEach((cc: any) => {
+            if (cc.expiryDate) {
+              const daysLeft = Math.floor((new Date(cc.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+              if (daysLeft < 0) expiredCount++
+              else if (daysLeft <= 90) expiringCount++
+              else validCount++
+            }
+          })
+          
+          return {
+            ...cert,
+            totalCrew: crewCerts.length,
+            validCount,
+            expiringCount,
+            expiredCount
+          }
+        } catch (error) {
+          console.error(`❌ Failed to load crew for certificate ${cert.id}:`, error)
+          return {
+            ...cert,
+            totalCrew: 0,
+            validCount: 0,
+            expiringCount: 0,
+            expiredCount: 0
+          }
+        }
+      })
+      
+      const statsData = await Promise.all(statsPromises)
+      console.log('✅ All certificate stats loaded and cached:', statsData)
+      setCertificateCache(statsData)
+    } catch (error) {
+      console.error('❌ Failed to load certificates:', error)
+    } finally {
+      setCertificateLoading(false)
     }
   }
 
@@ -105,20 +187,6 @@ export function CrewPage() {
             : b.crewId.localeCompare(a.crewId);
         });
         break;
-      case 'certificateExpiry':
-        sorted.sort((a, b) => {
-          const aDate = a.certificateExpiry ? new Date(a.certificateExpiry).getTime() : 0;
-          const bDate = b.certificateExpiry ? new Date(b.certificateExpiry).getTime() : 0;
-          return sortType.dir === 'asc' ? aDate - bDate : bDate - aDate;
-        });
-        break;
-      case 'medicalExpiry':
-        sorted.sort((a, b) => {
-          const aDate = a.medicalExpiry ? new Date(a.medicalExpiry).getTime() : 0;
-          const bDate = b.medicalExpiry ? new Date(b.medicalExpiry).getTime() : 0;
-          return sortType.dir === 'asc' ? aDate - bDate : bDate - aDate;
-        });
-        break;
       case 'embarkDate':
         sorted.sort((a, b) => {
           const aDate = a.embarkDate ? new Date(a.embarkDate).getTime() : 0;
@@ -140,17 +208,6 @@ export function CrewPage() {
     }
     return sorted;
   }, [filteredCrew, sortType]);
-
-  const getCertificateStatus = (expiryDate?: string) => {
-    if (!expiryDate) return { status: 'unknown', daysLeft: null, color: 'text-gray-500' }
-    
-    const daysLeft = differenceInDays(parseISO(expiryDate), new Date())
-    
-    if (daysLeft < 0) return { status: 'expired', daysLeft, color: 'text-red-600' }
-    if (daysLeft <= 30) return { status: 'critical', daysLeft, color: 'text-red-500' }
-    if (daysLeft <= 90) return { status: 'warning', daysLeft, color: 'text-yellow-600' }
-    return { status: 'valid', daysLeft, color: 'text-green-600' }
-  }
 
   const uniqueRanks = [...new Set(crewMembers.map(c => c.rank).filter(Boolean))]
 
@@ -192,16 +249,13 @@ export function CrewPage() {
         />
         <StatCard
           icon={<AlertTriangle className="w-6 h-6 text-yellow-600" />}
-          label="Expiring Soon"
-          value={crewMembers.filter(c => {
-            const cert = getCertificateStatus(c.certificateExpiry)
-            return cert.status === 'warning' || cert.status === 'critical'
-          }).length}
+          label="Ratings"
+          value={crewMembers.filter(c => c.rank === 'Rating').length}
         />
         <StatCard
           icon={<Calendar className="w-6 h-6 text-red-600" />}
-          label="Expired Certs"
-          value={crewMembers.filter(c => getCertificateStatus(c.certificateExpiry).status === 'expired').length}
+          label="Engineers"
+          value={crewMembers.filter(c => c.rank === 'Engineer').length}
         />
       </div>
 
@@ -274,7 +328,9 @@ export function CrewPage() {
                   sortType={sortType}
                   setSortType={setSortType}
                   sortMenu={sortMenu}
-                  setSortMenu={setSortMenu}  
+                  setSortMenu={setSortMenu}
+                  certificateCache={certificateCache}
+                  certificateLoading={certificateLoading}
                 />
               ) : activeTab === 'reports' ? (
                 <ReportsView crewMembers={crewMembers} />
@@ -322,17 +378,6 @@ function CrewListView({
 }) {
   const [currentPage, setCurrentPage] = useState(1)
   const ITEMS_PER_PAGE = 10
-
-  const getCertStatus = (expiryDate?: string) => {
-    if (!expiryDate) return { badge: 'Unknown', className: 'bg-gray-100 text-gray-600' }
-    
-    const daysLeft = differenceInDays(parseISO(expiryDate), new Date())
-    
-    if (daysLeft < 0) return { badge: 'EXPIRED', className: 'bg-red-100 text-red-700' }
-    if (daysLeft <= 30) return { badge: `${daysLeft}d Left`, className: 'bg-red-100 text-red-700' }
-    if (daysLeft <= 90) return { badge: `${daysLeft}d Left`, className: 'bg-yellow-100 text-yellow-700' }
-    return { badge: 'Valid', className: 'bg-green-100 text-green-700' }
-  }
 
   const getRankColor = (rank?: string) => {
     switch (rank) {
@@ -448,16 +493,7 @@ function CrewListView({
               )}
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '12%', position:'relative'}}>
-              STCW Cert
-              {setSortType && setSortMenu && (
-                <SortDropdown col="certificateExpiry" options={[{label:'Hết hạn sớm nhất',dir:'asc'},{label:'Hết hạn muộn nhất',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '12%', position:'relative'}}>
-              Medical
-              {setSortType && setSortMenu && (
-                <SortDropdown col="medicalExpiry" options={[{label:'Hết hạn sớm nhất',dir:'asc'},{label:'Hết hạn muộn nhất',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
+              Nationality
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '10%', position:'relative'}}>
               Embark Date
@@ -474,79 +510,57 @@ function CrewListView({
           </tr>
         </thead>
         <tbody className="bg-white">
-          {paginatedCrew.map((crew) => {
-            const certStatus = getCertStatus(crew.certificateExpiry)
-            const medicalStatus = getCertStatus(crew.medicalExpiry)
-            
-            return (
-              <tr 
-                key={crew.id} 
-                onClick={() => onViewCrew(crew.id)}
-                className="hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer transition-colors border-b border-gray-200"
-              >
-                <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white text-center border-r border-gray-200" style={{width: '8%'}}>
-                  <div className="truncate">{crew.crewId}</div>
-                </td>
-                <td className="px-4 py-3 border-r border-gray-200" style={{width: '22%'}}>
-                  <div className="flex items-center">
-                    <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
-                      <span className="text-blue-600 dark:text-blue-300 font-semibold text-xs">
-                        {crew.fullName.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                      </span>
-                    </div>
-                    <div className="ml-2 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{crew.fullName}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{crew.nationality || 'N/A'}</p>
-                    </div>
+          {paginatedCrew.map((crew) => (
+            <tr 
+              key={crew.id} 
+              onClick={() => onViewCrew(crew.id)}
+              className="hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer transition-colors border-b border-gray-200"
+            >
+              <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white text-center border-r border-gray-200" style={{width: '8%'}}>
+                <div className="truncate">{crew.crewId}</div>
+              </td>
+              <td className="px-4 py-3 border-r border-gray-200" style={{width: '22%'}}>
+                <div className="flex items-center">
+                  <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
+                    <span className="text-blue-600 dark:text-blue-300 font-semibold text-xs">
+                      {crew.fullName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    </span>
                   </div>
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-900 text-center border-r border-gray-200" style={{width: '12%'}}>
-                  <div className="truncate">{crew.position}</div>
-                </td>
-                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getRankColor(crew.rank)} truncate`}>
-                    {crew.rank || 'N/A'}
+                  <div className="ml-2 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{crew.fullName}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{crew.nationality || 'N/A'}</p>
+                  </div>
+                </div>
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-900 text-center border-r border-gray-200" style={{width: '12%'}}>
+                <div className="truncate">{crew.position}</div>
+              </td>
+              <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
+                <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getRankColor(crew.rank)} truncate`}>
+                  {crew.rank || 'N/A'}
+                </span>
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-700 text-center border-r border-gray-200" style={{width: '12%'}}>
+                <div className="truncate">{crew.nationality || 'N/A'}</div>
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-500 text-center border-r border-gray-200" style={{width: '10%'}}>
+                <div className="truncate">
+                  {crew.embarkDate ? format(parseISO(crew.embarkDate), 'dd MMM yyyy') : 'N/A'}
+                </div>
+              </td>
+              <td className="px-4 py-3 text-center" style={{width: '16%'}}>
+                {crew.isOnboard ? (
+                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                    Onboard
                   </span>
-                </td>
-                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '12%'}}>
-                  <div className="text-xs flex flex-col items-center">
-                    <span className={`px-2 py-1 rounded-full font-semibold ${certStatus.className} truncate`}>
-                      {certStatus.badge}
-                    </span>
-                    {crew.certificateExpiry && (
-                      <p className="text-gray-500 mt-1 truncate">{format(parseISO(crew.certificateExpiry), 'dd MMM yyyy')}</p>
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '12%'}}>
-                  <div className="text-xs flex flex-col items-center">
-                    <span className={`px-2 py-1 rounded-full font-semibold ${medicalStatus.className} truncate`}>
-                      {medicalStatus.badge}
-                    </span>
-                    {crew.medicalExpiry && (
-                      <p className="text-gray-500 mt-1 truncate">{format(parseISO(crew.medicalExpiry), 'dd MMM yyyy')}</p>
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-500 text-center border-r border-gray-200" style={{width: '10%'}}>
-                  <div className="truncate">
-                    {crew.embarkDate ? format(parseISO(crew.embarkDate), 'dd MMM yyyy') : 'N/A'}
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-center" style={{width: '16%'}}>
-                  {crew.isOnboard ? (
-                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                      Onboard
-                    </span>
-                  ) : (
-                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-                      Ashore
-                    </span>
-                  )}
-                </td>
-              </tr>
-            )
-          })}
+                ) : (
+                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                    Ashore
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
       
@@ -561,74 +575,55 @@ function CrewListView({
   )
 }
 
-// Certificate Monitor View Component
+// Certificate Monitor View Component - Hiển thị danh sách các loại certificate
 function CertificateMonitorView({ 
-  crewMembers, 
   sortType, 
   setSortType, 
   sortMenu, 
-  setSortMenu 
+  setSortMenu,
+  certificateCache,
+  certificateLoading
 }: { 
   crewMembers: CrewMember[];
   sortType?: { col: string; dir: 'asc'|'desc' } | null;
   setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
   sortMenu?: string | null;
   setSortMenu?: (sortMenu: string | null) => void;
+  certificateCache: any[] | null;
+  certificateLoading: boolean;
 }) {
+  const navigate = useNavigate()
   const [currentPage, setCurrentPage] = useState(1)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
   const ITEMS_PER_PAGE = 10
 
-  const getExpiringCrew = () => {
-    return crewMembers
-      .map(crew => {
-        const certDaysLeft = crew.certificateExpiry ? differenceInDays(parseISO(crew.certificateExpiry), new Date()) : null
-        const medicalDaysLeft = crew.medicalExpiry ? differenceInDays(parseISO(crew.medicalExpiry), new Date()) : null
-        
-        const certificates = []
-        if (certDaysLeft !== null) certificates.push({ type: 'STCW', days: certDaysLeft, expiry: crew.certificateExpiry!, number: crew.certificateNumber })
-        if (medicalDaysLeft !== null) certificates.push({ type: 'Medical', days: medicalDaysLeft, expiry: crew.medicalExpiry!, number: null })
-        
-        const expiring = certificates.filter(c => c.days < 90)
-        const expired = certificates.filter(c => c.days < 0)
-        
-        // Sort certificates: expired/expiring first, then valid ones
-        const sortedCertificates = [...certificates].sort((a, b) => {
-          // Expired first
-          if (a.days < 0 && b.days >= 0) return -1
-          if (a.days >= 0 && b.days < 0) return 1
-          // Then expiring soon (< 90 days)
-          if (a.days < 90 && b.days >= 90) return -1
-          if (a.days >= 90 && b.days < 90) return 1
-          // Then by days left (ascending)
-          return a.days - b.days
-        })
-        
-        return {
-          ...crew,
-          certificates: sortedCertificates,
-          totalCerts: certificates.length,
-          expiringCount: expiring.length,
-          expiredCount: expired.length,
-          expiringCerts: expiring,
-        }
-      })
-      .filter(crew => crew.expiringCount > 0)
-      .sort((a, b) => {
-        const aMin = Math.min(...a.certificates.map(c => c.days))
-        const bMin = Math.min(...b.certificates.map(c => c.days))
-        return aMin - bMin
-      })
+  // Use cached data from parent
+  const certificateStats = certificateCache || []
+
+  const getCategoryBadge = (category?: string) => {
+    const colors: Record<string, string> = {
+      COMPETENCY: 'bg-blue-100 text-blue-800 border-blue-300',
+      MEDICAL: 'bg-red-100 text-red-800 border-red-300',
+      PROFICIENCY: 'bg-green-100 text-green-800 border-green-300',
+      SAFETY: 'bg-yellow-100 text-yellow-800 border-yellow-300'
+    }
+    
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${colors[category || ''] || 'bg-gray-100 text-gray-800'}`}>
+        {category || 'OTHER'}
+      </span>
+    )
   }
 
-  const expiringCrew = getExpiringCrew()
+  const handleCertificateClick = (certId: string) => {
+    navigate(`/crew/certificates/${certId}`)
+  }
 
-  const totalPages = Math.ceil(expiringCrew.length / ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(certificateStats.length / ITEMS_PER_PAGE)
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
   const endIndex = startIndex + ITEMS_PER_PAGE
-  const paginatedCrew = expiringCrew.slice(startIndex, endIndex)
+  const paginatedCerts = certificateStats.slice(startIndex, endIndex)
 
-  // SortDropdown component for certificate monitor
+  // SortDropdown component
   function SortDropdown({ col, options, sortType, setSortType, sortMenu, setSortMenu }: {
     col: string;
     options: Array<{ label: string; dir: 'asc'|'desc' }>;
@@ -664,22 +659,29 @@ function CertificateMonitorView({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+    <div className="space-y-4">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-yellow-600" />
-          <h3 className="font-semibold text-yellow-900">Certificate Expiry Alert</h3>
+          <Award className="w-5 h-5 text-blue-600" />
+          <h3 className="font-semibold text-blue-900">Certificate Types Overview</h3>
         </div>
-        <p className="text-sm text-yellow-800 mt-2">
-          {expiringCrew.length} crew member(s) have certificates expiring within 90 days. Ensure timely renewals to maintain STCW compliance.
+        <p className="text-sm text-blue-800 mt-2">
+          Quản lý tất cả các loại chứng chỉ hàng hải. Click vào certificate để xem chi tiết và danh sách crew.
         </p>
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
+      {certificateLoading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-gray-600 mt-4">Loading certificates...</p>
+        </div>
+      ) : (
+        <>
+          {/* Pagination */}
+          {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-600">
-            Showing {startIndex + 1} - {Math.min(endIndex, expiringCrew.length)} of {expiringCrew.length} crew members
+            Showing {startIndex + 1} - {Math.min(endIndex, certificateStats.length)} of {certificateStats.length} certificate types
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -705,226 +707,148 @@ function CertificateMonitorView({
 
       <div className="overflow-x-auto border border-gray-200 rounded-lg">
         <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '5%'}}></th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '20%', position:'relative'}}>
-                Crew Member
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '28%', position:'relative'}}>
+                Certificate Name
                 {setSortType && setSortMenu && (
-                  <SortDropdown col="fullName" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+                  <SortDropdown col="name" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
                 )}
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '15%', position:'relative'}}>
-                Position
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '14%'}}>
+                Code
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '12%'}}>
+                Category
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '10%'}}>
+                Validity
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '10%', position:'relative'}}>
+                Total Crew
                 {setSortType && setSortMenu && (
-                  <SortDropdown col="position" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
+                  <SortDropdown col="totalCrew" options={[{label:'Nhiều nhất',dir:'desc'},{label:'Ít nhất',dir:'asc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
                 )}
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '12%', position:'relative'}}>
-                Rank
-                {setSortType && setSortMenu && (
-                  <SortDropdown col="rank" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-                )}
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '14%'}}>
+                Status
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '12%', position:'relative'}}>
-                Crew ID
-                {setSortType && setSortMenu && (
-                  <SortDropdown col="crewId" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-                )}
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '12%'}}>
+                Action
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '18%'}}>Certificates</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '18%'}}>Status</th>
             </tr>
           </thead>
           <tbody className="bg-white">
-            {paginatedCrew.map((crew) => {
-              const isExpanded = expandedId === crew.id
-              const statusColor = crew.expiredCount > 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
-              
-              const getRankColor = (rank?: string) => {
-                switch (rank) {
-                  case 'Officer':
-                    return 'bg-blue-100 text-blue-700 border-blue-300'
-                  case 'Rating':
-                    return 'bg-purple-100 text-purple-700 border-purple-300'
-                  case 'Senior Officer':
-                    return 'bg-indigo-100 text-indigo-700 border-indigo-300'
-                  case 'Engineer':
-                    return 'bg-orange-100 text-orange-700 border-orange-300'
-                  default:
-                    return 'bg-gray-100 text-gray-700 border-gray-300'
-                }
-              }
-              
-              return (
-                <>
-                  <tr 
-                    key={crew.id}
-                    onClick={() => setExpandedId(isExpanded ? null : crew.id)}
-                    className="hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-200"
-                  >
-                    <td className="px-4 py-3 text-sm text-gray-500 text-center border-r border-gray-200" style={{width: '5%'}}>
-                      <button className="text-gray-400 hover:text-gray-600">
-                        {isExpanded ? '▼' : '▶'}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 border-r border-gray-200" style={{width: '20%'}}>
-                      <div className="text-sm font-medium text-gray-900 truncate">{crew.fullName}</div>
-                    </td>
-                    <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '15%'}}>
-                      <div className="text-sm text-gray-900 truncate">{crew.position}</div>
-                    </td>
-                    <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '12%'}}>
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getRankColor(crew.rank)} truncate`}>
-                        {crew.rank || 'N/A'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '12%'}}>
-                      <div className="text-sm text-gray-500 truncate">{crew.crewId}</div>
-                    </td>
-                    <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '18%'}}>
-                      <div className="flex items-center justify-center gap-2">
-                        <span 
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-700 text-sm font-semibold relative group cursor-help"
-                          title={`Total: ${crew.totalCerts} certificate${crew.totalCerts > 1 ? 's' : ''}`}
-                        >
-                          {crew.totalCerts}
-                          <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-900 text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-gray-200">
-                            Total: {crew.totalCerts} certificate{crew.totalCerts > 1 ? 's' : ''}
-                            <span className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-white"></span>
-                          </span>
+            {paginatedCerts.map((cert) => (
+              <tr
+                key={cert.id}
+                className="hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer transition-colors border-b border-gray-200"
+                onClick={() => handleCertificateClick(cert.id)}
+              >
+                <td className="px-4 py-3 border-r border-gray-200" style={{width: '28%'}}>
+                  <div>
+                    <div className="font-medium text-gray-900 dark:text-white truncate">
+                      {cert.certificateName}
+                      {cert.isMandatory && (
+                        <span className="ml-2 px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
+                          Mandatory
                         </span>
-                        {crew.expiredCount > 0 && (
-                          <span 
-                            className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-100 text-red-700 text-sm font-semibold relative group cursor-help"
-                            title={`${crew.expiredCount} certificate${crew.expiredCount > 1 ? 's' : ''} expired or expiring soon`}
-                          >
-                            {crew.expiredCount}
-                            <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-900 text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-gray-200">
-                              {crew.expiredCount} certificate{crew.expiredCount > 1 ? 's' : ''} expired or expiring soon
-                              <span className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-white"></span>
-                            </span>
-                          </span>
-                        )}
+                      )}
+                    </div>
+                    {cert.description && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
+                        {cert.description}
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-center" style={{width: '18%'}}>
-                      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor} truncate`}>
-                        {crew.expiredCount > 0 ? 'Expired' : 'Expiring Soon'}
-                      </span>
-                    </td>
-                  </tr>
-                  
-                  {/* Expanded Certificate Details */}
-                  {isExpanded && (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-4 bg-gray-50 border-b border-gray-200">
-                        <div className="space-y-4">
-                          <div className={`grid gap-4 ${
-                            crew.certificates.length === 1 ? 'grid-cols-1 md:grid-cols-2' :
-                            crew.certificates.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
-                            crew.certificates.length === 3 ? 'grid-cols-1 md:grid-cols-3' :
-                            crew.certificates.length === 4 ? 'grid-cols-1 md:grid-cols-2' :
-                            crew.certificates.length === 5 ? 'grid-cols-1 md:grid-cols-3' :
-                            crew.certificates.length === 6 ? 'grid-cols-1 md:grid-cols-3' :
-                            crew.certificates.length === 7 ? 'grid-cols-1 md:grid-cols-4' :
-                            crew.certificates.length >= 8 ? 'grid-cols-1 md:grid-cols-4' :
-                            'grid-cols-1 md:grid-cols-2'
-                          }`}>
-                            {crew.certificates.map((cert) => {
-                              const isExpired = cert.days < 0
-                              const isExpiringSoon = cert.days >= 0 && cert.days < 90
-                              
-                              const bgColor = isExpired ? 'bg-red-50 border-red-200' : 
-                                             isExpiringSoon ? 'bg-yellow-50 border-yellow-200' : 
-                                             'bg-green-50 border-green-200'
-                              const textColor = isExpired ? 'text-red-600' : 
-                                               isExpiringSoon ? 'text-yellow-600' : 
-                                               'text-green-600'
-                              
-                              return (
-                                <div key={`${cert.type}-${cert.expiry}`} className={`border rounded-lg p-4 ${bgColor}`}>
-                                  <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-semibold text-gray-900">
-                                      {cert.type === 'STCW' ? 'STCW Certificate' : 'Medical Certificate'}
-                                    </span>
-                                    {cert.type === 'STCW' ? (
-                                      <Shield className="w-5 h-5 text-gray-400" />
-                                    ) : (
-                                      <FileText className="w-5 h-5 text-gray-400" />
-                                    )}
-                                  </div>
-                                  {cert.number && (
-                                    <p className="text-xs text-gray-600 mb-2">Cert #: {cert.number}</p>
-                                  )}
-                                  {!cert.number && cert.type === 'Medical' && (
-                                    <p className="text-xs text-gray-600 mb-2">Medical Fitness</p>
-                                  )}
-                                  <p className={`text-sm font-bold mb-2 ${textColor}`}>
-                                    {isExpired 
-                                      ? `EXPIRED ${Math.abs(cert.days)} days ago` 
-                                      : isExpiringSoon
-                                      ? `Expires in ${cert.days} days`
-                                      : `Valid - ${cert.days} days left`
-                                    }
-                                  </p>
-                                  <p className="text-xs text-gray-500">
-                                    Expiry: {format(parseISO(cert.expiry), 'dd MMM yyyy')}
-                                  </p>
-                                  
-                                  {/* Status Badge */}
-                                  <div className="mt-3">
-                                    {isExpired ? (
-                                      <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">
-                                        EXPIRED
-                                      </span>
-                                    ) : isExpiringSoon ? (
-                                      <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-700">
-                                        EXPIRING SOON
-                                      </span>
-                                    ) : (
-                                      <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700">
-                                        VALID
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                          
-                          <div className="flex justify-end gap-2 mt-4">
-                            <button className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                              Send Reminder
-                            </button>
-                            <button className="px-4 py-2 text-sm font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                              Update Certificate
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </>
-              )
-            })}
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '14%'}}>
+                  <code className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs font-mono text-gray-700 dark:text-gray-300">
+                    {cert.certificateCode}
+                  </code>
+                </td>
+                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '12%'}}>
+                  {getCategoryBadge(cert.category)}
+                </td>
+                <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300 text-sm border-r border-gray-200" style={{width: '10%'}}>
+                  {cert.validityPeriodMonths}m
+                </td>
+                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '10%'}}>
+                  <span className="text-lg font-bold text-gray-900 dark:text-white">{cert.totalCrew}</span>
+                </td>
+                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '14%'}}>
+                  <div className="flex items-center justify-center gap-2 text-xs">
+                    {cert.validCount > 0 && (
+                      <div className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                        <span className="text-green-700 font-medium">{cert.validCount}</span>
+                      </div>
+                    )}
+                    {cert.expiringCount > 0 && (
+                      <div className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                        <span className="text-yellow-700 font-medium">{cert.expiringCount}</span>
+                      </div>
+                    )}
+                    {cert.expiredCount > 0 && (
+                      <div className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                        <span className="text-red-700 font-medium">{cert.expiredCount}</span>
+                      </div>
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-center" style={{width: '12%'}}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleCertificateClick(cert.id)
+                    }}
+                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-xs"
+                  >
+                    View →
+                  </button>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
 
-        {paginatedCrew.length === 0 && expiringCrew.length > 0 && (
+        {paginatedCerts.length === 0 && certificateStats.length > 0 && (
           <div className="text-center py-12">
             <p className="text-gray-500">No items on this page</p>
           </div>
         )}
 
-        {expiringCrew.length === 0 && (
+        {certificateStats.length === 0 && (
           <div className="text-center py-12">
-            <Shield className="w-12 h-12 text-green-500 mx-auto mb-4" />
-            <p className="text-gray-900 font-medium">All Certificates Valid</p>
-            <p className="text-sm text-gray-500 mt-1">No certificates expiring within 90 days</p>
+            <Award className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-900 font-medium">No Certificate Types</p>
+            <p className="text-sm text-gray-500 mt-1">No certificate types available</p>
           </div>
         )}
       </div>
+
+      {/* Legend */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <h4 className="text-sm font-semibold text-gray-900 mb-2">Status Legend:</h4>
+        <div className="flex items-center gap-6 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-green-500"></span>
+            <span className="text-gray-700">Valid (&gt;90 days)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
+            <span className="text-gray-700">Expiring Soon (30-90 days)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-red-500"></span>
+            <span className="text-gray-700">Expired or Critical (&lt;30 days)</span>
+          </div>
+        </div>
+      </div>
+      </>
+      )}
     </div>
   )
 }
@@ -936,21 +860,8 @@ function ReportsView({ crewMembers }: { crewMembers: CrewMember[] }) {
     onboard: crewMembers.filter(c => c.isOnboard).length,
     officers: crewMembers.filter(c => c.rank === 'Officer').length,
     ratings: crewMembers.filter(c => c.rank === 'Rating').length,
-    validCerts: crewMembers.filter(c => {
-      if (!c.certificateExpiry) return false
-      const daysLeft = differenceInDays(parseISO(c.certificateExpiry), new Date())
-      return daysLeft > 90
-    }).length,
-    expiringSoon: crewMembers.filter(c => {
-      if (!c.certificateExpiry) return false
-      const daysLeft = differenceInDays(parseISO(c.certificateExpiry), new Date())
-      return daysLeft > 0 && daysLeft <= 90
-    }).length,
-    expired: crewMembers.filter(c => {
-      if (!c.certificateExpiry) return false
-      const daysLeft = differenceInDays(parseISO(c.certificateExpiry), new Date())
-      return daysLeft < 0
-    }).length,
+    engineers: crewMembers.filter(c => c.rank === 'Engineer').length,
+    seniorOfficers: crewMembers.filter(c => c.rank === 'Senior Officer').length,
   }
 
   return (
@@ -963,19 +874,23 @@ function ReportsView({ crewMembers }: { crewMembers: CrewMember[] }) {
       </div>
 
       <div className="border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">STCW Certificate Status</h3>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-            <p className="text-3xl font-bold text-green-600">{stats.validCerts}</p>
-            <p className="text-sm text-gray-600 mt-1">Valid Certificates</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Crew Distribution by Rank</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+            <p className="text-3xl font-bold text-blue-600">{stats.officers}</p>
+            <p className="text-sm text-gray-600 mt-1">Officers</p>
           </div>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-            <p className="text-3xl font-bold text-yellow-600">{stats.expiringSoon}</p>
-            <p className="text-sm text-gray-600 mt-1">Expiring Soon</p>
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
+            <p className="text-3xl font-bold text-purple-600">{stats.ratings}</p>
+            <p className="text-sm text-gray-600 mt-1">Ratings</p>
           </div>
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-            <p className="text-3xl font-bold text-red-600">{stats.expired}</p>
-            <p className="text-sm text-gray-600 mt-1">Expired</p>
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
+            <p className="text-3xl font-bold text-orange-600">{stats.engineers}</p>
+            <p className="text-sm text-gray-600 mt-1">Engineers</p>
+          </div>
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-center">
+            <p className="text-3xl font-bold text-indigo-600">{stats.seniorOfficers}</p>
+            <p className="text-sm text-gray-600 mt-1">Senior Officers</p>
           </div>
         </div>
       </div>
@@ -985,7 +900,7 @@ function ReportsView({ crewMembers }: { crewMembers: CrewMember[] }) {
           Export Crew List (PDF)
         </button>
         <button className="flex-1 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50">
-          Export Certificate Report (Excel)
+          Export Crew Report (Excel)
         </button>
       </div>
     </div>

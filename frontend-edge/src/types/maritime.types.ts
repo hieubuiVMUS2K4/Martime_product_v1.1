@@ -218,15 +218,6 @@ export interface CrewMember {
   contractEnd?: string
   isOnboard: boolean
   
-  // STCW Certificate
-  certificateNumber?: string
-  certificateIssue?: string
-  certificateExpiry?: string
-  
-  // Medical Certificate
-  medicalIssue?: string
-  medicalExpiry?: string
-  
   // Travel Documents
   passportNumber?: string
   passportExpiry?: string
@@ -241,8 +232,47 @@ export interface CrewMember {
   // Additional
   notes?: string
   
+  // Certificates (new system)
+  certificates?: CrewCertificate[]
+  
   isSynced: boolean
   createdAt: string
+}
+
+// Certificate Types (Master Data)
+export interface Certificate {
+  id: number
+  certificateCode: string // STCW_II_2, MEDICAL, BASIC_SAFETY
+  certificateName: string // Certificate of Competency - Master
+  category?: string // COMPETENCY, MEDICAL, PROFICIENCY, SAFETY
+  validityPeriodMonths?: number
+  description?: string
+  isMandatory: boolean
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// Crew Certificate (actual certificate of crew member)
+export interface CrewCertificate {
+  id: number
+  crewMemberId: string
+  certificateId: number
+  certificateNumber: string // Số chứng chỉ thực tế
+  issueDate: string
+  expiryDate: string
+  issuingAuthority?: string
+  documentFilePath?: string // File path for scanned certificate
+  status: 'VALID' | 'EXPIRED' | 'SUSPENDED'
+  notes?: string
+  isSynced: boolean
+  originNode: string
+  createdAt: string
+  updatedAt: string
+  
+  // Navigation properties (from API)
+  certificate?: Certificate
+  crewMember?: CrewMember
 }
 
 // Task Status - Updated v2.0 (PMS Workflow)

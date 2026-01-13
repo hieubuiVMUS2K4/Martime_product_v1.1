@@ -38,6 +38,8 @@ public class EdgeDbContext : DbContext
 
     // Critical Operational Tables (SOLAS/ISM/MARPOL)
     public DbSet<CrewMember> CrewMembers { get; set; } = null!;
+    public DbSet<Certificate> Certificates { get; set; } = null!;
+    public DbSet<CrewCertificate> CrewCertificates { get; set; } = null!;
     public DbSet<MaintenanceTask> MaintenanceTasks { get; set; } = null!;
     public DbSet<TaskChecklistItem> TaskChecklistItems { get; set; } = null!;
     public DbSet<MaintenanceTaskDetail> MaintenanceTaskDetails { get; set; } = null!;
@@ -467,6 +469,63 @@ public class EdgeDbContext : DbContext
             //     .HasDatabaseName("idx_sync_table_record");
         });
 
+        // ========== CERTIFICATES (Master Data) ==========
+        modelBuilder.Entity<Certificate>(entity =>
+        {
+            entity.ToTable("certificates");
+            
+            entity.HasIndex(e => e.CertificateCode)
+                .IsUnique()
+                .HasDatabaseName("idx_certificate_code_unique");
+            
+            entity.HasIndex(e => e.Category)
+                .HasDatabaseName("idx_certificate_category");
+            
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_certificate_active")
+                .HasFilter("is_active = true");
+        });
+
+        // ========== CREW CERTIFICATES ==========
+        modelBuilder.Entity<CrewCertificate>(entity =>
+        {
+            entity.ToTable("crew_certificates");
+            
+            entity.HasIndex(e => e.CertificateNumber)
+                .IsUnique()
+                .HasDatabaseName("idx_crew_cert_number_unique");
+            
+            entity.HasIndex(e => e.CrewMemberId)
+                .HasDatabaseName("idx_crew_cert_crew_id");
+            
+            entity.HasIndex(e => e.CertificateId)
+                .HasDatabaseName("idx_crew_cert_type_id");
+            
+            entity.HasIndex(e => e.ExpiryDate)
+                .HasDatabaseName("idx_crew_cert_expiry");
+            
+            entity.HasIndex(e => new { e.CrewMemberId, e.ExpiryDate })
+                .HasDatabaseName("idx_crew_cert_crew_expiry");
+            
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("idx_crew_cert_status");
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_crew_cert_synced")
+                .HasFilter("is_synced = false");
+            
+            // Relationships
+            entity.HasOne(e => e.CrewMember)
+                .WithMany(e => e.Certificates)
+                .HasForeignKey(e => e.CrewMemberId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.Certificate)
+                .WithMany(e => e.CrewCertificates)
+                .HasForeignKey(e => e.CertificateId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         // ========== CREW MEMBERS ==========
         modelBuilder.Entity<CrewMember>(entity =>
         {
@@ -482,9 +541,6 @@ public class EdgeDbContext : DbContext
             
             entity.HasIndex(e => e.Position)
                 .HasDatabaseName("idx_crew_position");
-            
-            entity.HasIndex(e => e.CertificateExpiry)
-                .HasDatabaseName("idx_crew_cert_expiry");
             
             entity.HasIndex(e => e.IsSynced)
                 .HasDatabaseName("idx_crew_synced")

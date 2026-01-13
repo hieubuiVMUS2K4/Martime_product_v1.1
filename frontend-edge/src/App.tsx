@@ -9,6 +9,8 @@ import { EnginePage } from './pages/Engine/EnginePage'
 import { AlarmsPage } from './pages/Alarms/AlarmsPage'
 import { CrewPage } from './pages/Crew/CrewPage'
 import { CrewDetailPage } from './pages/Crew/CrewDetailPage'
+import { CertificateManagementPage } from './pages/Crew/CertificateManagementPage'
+import { AddCrewCertificatePage } from './pages/Crew/AddCrewCertificatePage'
 import { MaintenancePage } from './pages/Maintenance/MaintenancePage'
 import { MaintenanceDetailPage } from './pages/Maintenance/MaintenanceDetailPage'
 import { VoyagePage } from './pages/Voyage/VoyagePage'
@@ -62,6 +64,9 @@ function App() {
         <Route path="engine" element={<EnginePage />} />
         <Route path="alarms" element={<AlarmsPage />} />
         <Route path="crew" element={<CrewPage />} />
+        <Route path="crew/certificates" element={<CertificateManagementPage />} />
+        <Route path="crew/certificates/:certificateId" element={<CertificateManagementPage />} />
+        <Route path="crew/certificates/:certificateId/add-crew" element={<AddCrewCertificatePage />} />
         <Route path="pms/maintenance" element={<MaintenancePage />} />
         <Route path="voyage" element={<VoyagePage />} />
         <Route path="compliance" element={<CompliancePage />} />
