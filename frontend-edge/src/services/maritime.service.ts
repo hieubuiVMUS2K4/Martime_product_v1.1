@@ -153,6 +153,20 @@ export class MaritimeService {
     getAll: () => this.request<Certificate[]>('/certificates'),
     getById: (id: number) => this.request<Certificate>(`/certificates/${id}`),
     getWithCrewCount: () => this.request<(Certificate & { crewCount: number })[]>('/certificates/with-crew-count'),
+    create: (data: {
+      certificateCode: string
+      certificateName: string
+      category: string
+      validityPeriodMonths?: number | null
+      description?: string
+      isMandatory: boolean
+      isActive: boolean
+      stcwReference?: string
+      issuingAuthority?: string
+    }) => this.request<{ id: number; certificateCode: string; certificateName: string; message: string }>('/certificates', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
     getCrewCertificates: (certificateId: number) => 
       this.request<CrewCertificate[]>(`/certificates/${certificateId}/crew-certificates`),
     getCrewCertificatesByCrewId: (crewId: string) =>

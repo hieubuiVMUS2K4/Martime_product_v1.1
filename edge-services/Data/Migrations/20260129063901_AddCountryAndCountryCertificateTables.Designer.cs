@@ -3,6 +3,7 @@ using System;
 using MaritimeEdge.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MaritimeEdge.Data.Migrations
 {
     [DbContext(typeof(EdgeDbContext))]
-    partial class EdgeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260129063901_AddCountryAndCountryCertificateTables")]
+    partial class AddCountryAndCountryCertificateTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -823,6 +826,11 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(3)")
                         .HasColumnName("country_code");
 
+                    b.Property<string>("CountryCodeAlpha2")
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)")
+                        .HasColumnName("country_code_alpha2");
+
                     b.Property<string>("CountryName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -847,6 +855,9 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("CountryCode")
                         .IsUnique()
                         .HasDatabaseName("idx_country_code_unique");
+
+                    b.HasIndex("CountryCodeAlpha2")
+                        .HasDatabaseName("idx_country_code_alpha2");
 
                     b.HasIndex("IsActive")
                         .HasDatabaseName("idx_country_active")
@@ -876,6 +887,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<bool>("IsRecognized")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_recognized");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -888,6 +907,10 @@ namespace MaritimeEdge.Data.Migrations
 
                     b.HasIndex("CountryId")
                         .HasDatabaseName("idx_country_cert_country_id");
+
+                    b.HasIndex("IsRecognized")
+                        .HasDatabaseName("idx_country_cert_recognized")
+                        .HasFilter("is_recognized = true");
 
                     b.HasIndex("CountryId", "CertificateId")
                         .IsUnique()

@@ -40,6 +40,8 @@ public class EdgeDbContext : DbContext
     public DbSet<CrewMember> CrewMembers { get; set; } = null!;
     public DbSet<Certificate> Certificates { get; set; } = null!;
     public DbSet<CrewCertificate> CrewCertificates { get; set; } = null!;
+    public DbSet<Country> Countries { get; set; } = null!;
+    public DbSet<CountryCertificate> CountryCertificates { get; set; } = null!;
     public DbSet<MaintenanceTask> MaintenanceTasks { get; set; } = null!;
     public DbSet<TaskChecklistItem> TaskChecklistItems { get; set; } = null!;
     public DbSet<MaintenanceTaskDetail> MaintenanceTaskDetails { get; set; } = null!;
@@ -524,6 +526,47 @@ public class EdgeDbContext : DbContext
                 .WithMany(e => e.CrewCertificates)
                 .HasForeignKey(e => e.CertificateId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ========== COUNTRIES ==========
+        modelBuilder.Entity<Country>(entity =>
+        {
+            entity.ToTable("countries");
+            
+            entity.HasIndex(e => e.CountryCode)
+                .IsUnique()
+                .HasDatabaseName("idx_country_code_unique");
+            
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_country_active")
+                .HasFilter("is_active = true");
+        });
+
+        // ========== COUNTRY CERTIFICATES ==========
+        modelBuilder.Entity<CountryCertificate>(entity =>
+        {
+            entity.ToTable("country_certificates");
+            
+            entity.HasIndex(e => new { e.CountryId, e.CertificateId })
+                .IsUnique()
+                .HasDatabaseName("idx_country_cert_unique");
+            
+            entity.HasIndex(e => e.CountryId)
+                .HasDatabaseName("idx_country_cert_country_id");
+            
+            entity.HasIndex(e => e.CertificateId)
+                .HasDatabaseName("idx_country_cert_certificate_id");
+            
+            // Relationships
+            entity.HasOne(e => e.Country)
+                .WithMany(e => e.CountryCertificates)
+                .HasForeignKey(e => e.CountryId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.Certificate)
+                .WithMany(e => e.CountryCertificates)
+                .HasForeignKey(e => e.CertificateId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ========== CREW MEMBERS ==========

@@ -5,9 +5,10 @@ import { CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { format, parseISO } from 'date-fns'
 import { AddCrewModal } from '../../components/crew/AddCrewModal'
+import { DetailCertificatesModal } from './DetailCertificatesModal'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 
-type TabType = 'all' | 'onboard' | 'certificates' | 'reports'
+type TabType = 'onboard' | 'certificates'
 
 export function CrewPage() {
   const { t } = useTranslationSafe()
@@ -20,6 +21,8 @@ export function CrewPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterRank, setFilterRank] = useState<string>('all')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showCertificateModal, setShowCertificateModal] = useState(false)
+  const [editingCertificate, setEditingCertificate] = useState<any | null>(null)
   
   // Cache for certificate data to avoid reloading
   const [certificateCache, setCertificateCache] = useState<any[] | null>(null)
@@ -27,7 +30,6 @@ export function CrewPage() {
   
   // Cache for crew data to avoid reloading
   const [crewOnboardCache, setCrewOnboardCache] = useState<CrewMember[] | null>(null)
-  const [crewAllCache, setCrewAllCache] = useState<CrewMember[] | null>(null)
 
   // Sorting states
   const [sortType, setSortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>(null)
@@ -58,31 +60,17 @@ export function CrewPage() {
   const loadCrewData = async () => {
     try {
       setLoading(true)
-      let data: CrewMember[]
       
-      if (activeTab === 'onboard') {
-        // Use cache if available
-        if (crewOnboardCache !== null) {
-          console.log('✅ Using cached onboard crew:', crewOnboardCache.length)
-          setCrewMembers(crewOnboardCache)
-          setLoading(false)
-          return
-        }
-        data = await maritimeService.crew.getOnboard()
-        setCrewOnboardCache(data) // Cache for future use
-      } else {
-        // Use cache if available
-        if (crewAllCache !== null) {
-          console.log('✅ Using cached all crew:', crewAllCache.length)
-          setCrewMembers(crewAllCache)
-          setLoading(false)
-          return
-        }
-        const response = await maritimeService.crew.getAll()
-        data = response.data || response as any // Handle both PaginatedResponse and direct array
-        setCrewAllCache(data) // Cache for future use
+      // Use cache if available
+      if (crewOnboardCache !== null) {
+        console.log('✅ Using cached onboard crew:', crewOnboardCache.length)
+        setCrewMembers(crewOnboardCache)
+        setLoading(false)
+        return
       }
       
+      const data = await maritimeService.crew.getOnboard()
+      setCrewOnboardCache(data) // Cache for future use
       setCrewMembers(data)
     } catch (error) {
       console.error('Failed to load crew data:', error)
@@ -202,60 +190,56 @@ export function CrewPage() {
     return sorted;
   }, [filteredCrew, sortType]);
 
-  const uniqueRanks = [...new Set(crewMembers.map(c => c.rank).filter(Boolean))]
-
   const handleAddCrew = async (newCrew: Partial<CrewMember>) => {
     await maritimeService.crew.add(newCrew)
     // Clear cache to force reload with new data
     setCrewOnboardCache(null)
-    setCrewAllCache(null)
     await loadCrewData()
+  }
+
+  const handleAddCertificate = async () => {
+    // Set loading and clear cache
+    setCertificateLoading(true)
+    setCertificateCache(null)
+    
+    // Force reload by calling the load function directly
+    try {
+      console.log('🔵 Reloading certificates after adding new certificate...')
+      
+      const certsWithCount = await maritimeService.certificates.getWithCrewCount()
+      console.log('✅ Reloaded certificates:', certsWithCount.length)
+      
+      const certData = certsWithCount.map((cert: any) => ({
+        ...cert,
+        totalCrew: cert.crewCount || 0,
+        validCount: cert.validCount || 0,
+        expiringCount: cert.expiringCount || 0,
+        expiredCount: cert.expiredCount || 0,
+        statsLoaded: true
+      }))
+      
+      setCertificateCache(certData)
+    } catch (error) {
+      console.error('❌ Failed to reload certificates:', error)
+    } finally {
+      setCertificateLoading(false)
+    }
+  }
+
+  const handleEditCertificate = (certificate: any) => {
+    setEditingCertificate(certificate)
+    setShowCertificateModal(true)
+  }
+
+  const handleCloseCertificateModal = () => {
+    setShowCertificateModal(false)
+    setEditingCertificate(null)
   }
 
   return (
     <div className="h-full w-full overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('crew.title')}</h1>
-          <p className="text-sm text-gray-600 mt-1">{t('crew.subtitle')}</p>
-        </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <UserPlus className="w-5 h-5" />
-          {t('crew.addCrewMember')}
-        </button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard
-          icon={<Users className="w-6 h-6 text-blue-600" />}
-          label={t('crew.stats.crewOnboard')}
-          value={crewMembers.filter(c => c.isOnboard).length}
-          total={crewMembers.length}
-        />
-        <StatCard
-          icon={<Shield className="w-6 h-6 text-green-600" />}
-          label={t('crew.stats.officers')}
-          value={crewMembers.filter(c => c.rank === 'Officer').length}
-        />
-        <StatCard
-          icon={<AlertTriangle className="w-6 h-6 text-yellow-600" />}
-          label={t('crew.stats.ratings')}
-          value={crewMembers.filter(c => c.rank === 'Rating').length}
-        />
-        <StatCard
-          icon={<Calendar className="w-6 h-6 text-red-600" />}
-          label={t('crew.stats.engineers')}
-          value={crewMembers.filter(c => c.rank === 'Engineer').length}
-        />
-      </div>
-
-      {/* Tabs */}
+        {/* Tabs */}
       <div className="bg-white rounded-lg shadow">
         <div className="border-b border-gray-200">
           <nav className="flex -mb-px">
@@ -263,13 +247,7 @@ export function CrewPage() {
               active={activeTab === 'onboard'}
               onClick={() => setActiveTab('onboard')}
               icon={<Users className="w-5 h-5" />}
-              label={t('crew.tabs.onboard')}
-            />
-            <TabButton
-              active={activeTab === 'all'}
-              onClick={() => setActiveTab('all')}
-              icon={<FileText className="w-5 h-5" />}
-              label={t('crew.tabs.all')}
+              label="Crew Members"
             />
             <TabButton
               active={activeTab === 'certificates'}
@@ -277,40 +255,11 @@ export function CrewPage() {
               icon={<Shield className="w-5 h-5" />}
               label={t('crew.tabs.certificates')}
             />
-            <TabButton
-              active={activeTab === 'reports'}
-              onClick={() => setActiveTab('reports')}
-              icon={<FileText className="w-5 h-5" />}
-              label={t('crew.tabs.reports')}
-            />
           </nav>
         </div>
 
-        {/* Filters */}
-        <div className="p-4 border-b border-gray-200 flex items-center gap-4">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Search by name, position, or crew ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <select
-            value={filterRank}
-            onChange={(e) => setFilterRank(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Ranks</option>
-            {uniqueRanks.map(rank => (
-              <option key={rank} value={rank}>{rank}</option>
-            ))}
-          </select>
-        </div>
-
         {/* Content */}
-        <div className="p-6">
+        <div>
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -327,13 +276,14 @@ export function CrewPage() {
                   setSortMenu={setSortMenu}
                   certificateCache={certificateCache}
                   certificateLoading={certificateLoading}
+                  onAddCertificate={() => setShowCertificateModal(true)}
+                  onEditCertificate={handleEditCertificate}
                 />
-              ) : activeTab === 'reports' ? (
-                <ReportsView crewMembers={crewMembers} />
               ) : (
-                <CrewListView 
-                  crewMembers={sortedCrew} 
-                  onViewCrew={(id) => navigate(`/crew/${id}`)} 
+                <SectionedCrewView 
+                  crewMembers={crewMembers} 
+                  onViewCrew={(id) => navigate(`/crew/${id}`)}
+                  onAddCrew={() => setShowAddModal(true)}
                   sortType={sortType}
                   setSortType={setSortType}
                   sortMenu={sortMenu}
@@ -352,6 +302,395 @@ export function CrewPage() {
         onClose={() => setShowAddModal(false)}
         onSave={handleAddCrew}
       />
+
+      {/* Add Certificate Modal */}
+      <DetailCertificatesModal
+        isOpen={showCertificateModal}
+        onClose={handleCloseCertificateModal}
+        onSave={handleAddCertificate}
+        editingCertificate={editingCertificate}
+      />
+    </div>
+  )
+}
+
+// Sectioned Crew View Component - Displays crew in sections like the reference image
+function SectionedCrewView({ 
+  crewMembers, 
+  onViewCrew,
+  onAddCrew,
+  sortType,
+  setSortType,
+  sortMenu,
+  setSortMenu
+}: { 
+  crewMembers: CrewMember[]; 
+  onViewCrew: (id: string) => void;
+  onAddCrew: () => void;
+  sortType?: { col: string; dir: 'asc'|'desc' } | null;
+  setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
+  sortMenu?: string | null;
+  setSortMenu?: (sortMenu: string | null) => void;
+}) {
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; crew: CrewMember } | null>(null)
+  const [selectedCrew, setSelectedCrew] = useState<string | null>(null)
+  
+  // Pagination states for each section
+  const [onboardPage, setOnboardPage] = useState(1)
+  const [tempPage, setTempPage] = useState(1)
+  const [signedOffPage, setSignedOffPage] = useState(1)
+  const ITEMS_PER_PAGE = 15
+
+  // Group crew by status
+  let crewOnBoard = crewMembers.filter(c => c.isOnboard)
+  const crewTemp: CrewMember[] = [] // Placeholder for temp crew
+  let crewSignedOff = crewMembers.filter(c => !c.isOnboard)
+
+  // Apply sorting
+  const applySorting = (crews: CrewMember[]) => {
+    if (!sortType) return crews
+    const sorted = [...crews]
+    switch (sortType.col) {
+      case 'crewId':
+        sorted.sort((a, b) => sortType.dir === 'asc'
+          ? a.crewId.localeCompare(b.crewId)
+          : b.crewId.localeCompare(a.crewId))
+        break
+      case 'fullName':
+        sorted.sort((a, b) => sortType.dir === 'asc' 
+          ? a.fullName.localeCompare(b.fullName) 
+          : b.fullName.localeCompare(a.fullName))
+        break
+      case 'position':
+        sorted.sort((a, b) => sortType.dir === 'asc'
+          ? a.position.localeCompare(b.position)
+          : b.position.localeCompare(a.position))
+        break
+      case 'rank':
+        sorted.sort((a, b) => {
+          const aRank = a.rank || ''
+          const bRank = b.rank || ''
+          return sortType.dir === 'asc' ? aRank.localeCompare(bRank) : bRank.localeCompare(aRank)
+        })
+        break
+      case 'nationality':
+        sorted.sort((a, b) => {
+          const aNat = a.nationality || ''
+          const bNat = b.nationality || ''
+          return sortType.dir === 'asc' ? aNat.localeCompare(bNat) : bNat.localeCompare(aNat)
+        })
+        break
+      case 'embarkDate':
+        sorted.sort((a, b) => {
+          const aDate = a.embarkDate ? new Date(a.embarkDate).getTime() : 0
+          const bDate = b.embarkDate ? new Date(b.embarkDate).getTime() : 0
+          return sortType.dir === 'asc' ? aDate - bDate : bDate - aDate
+        })
+        break
+    }
+    return sorted
+  }
+
+  crewOnBoard = applySorting(crewOnBoard)
+  crewSignedOff = applySorting(crewSignedOff)
+
+  // SortDropdown component
+  function SortDropdown({ col, options }: {
+    col: string;
+    options: Array<{ label: string; dir: 'asc'|'desc' }>;
+  }) {
+    if (!setSortType || !setSortMenu) return null
+    return (
+      <div className="absolute top-1/2 right-2 -translate-y-1/2" style={{zIndex:10}}>
+        <button
+          className="text-gray-400 hover:text-blue-600 text-xs p-1"
+          onClick={e => { e.stopPropagation(); setSortMenu(sortMenu === col ? null : col) }}
+          style={{lineHeight:0}}
+        >
+          ▼
+        </button>
+        {sortMenu === col && (
+          <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded shadow-lg z-50">
+            {options.map(opt => (
+              <button
+                key={opt.label}
+                className={`block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${
+                  sortType?.col === col && sortType?.dir === opt.dir 
+                    ? 'text-blue-600 font-bold' 
+                    : 'text-gray-700'
+                }`}
+                onClick={e => { 
+                  e.stopPropagation(); 
+                  setSortType({col, dir: opt.dir}); 
+                  setSortMenu(null) 
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const handleContextMenu = (e: React.MouseEvent, crew: CrewMember) => {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY, crew })
+    setSelectedCrew(crew.id)
+  }
+
+  const closeContextMenu = () => {
+    setContextMenu(null)
+    setSelectedCrew(null)
+  }
+
+  useEffect(() => {
+    const handleClick = () => closeContextMenu()
+    window.addEventListener('click', handleClick)
+    return () => window.removeEventListener('click', handleClick)
+  }, [])
+
+  const getRankDisplay = (rank?: string) => rank || 'N/A'
+
+  const renderCrewTable = (crews: CrewMember[], sectionTitle: string, count: number, currentPage: number, setPage: (page: number) => void) => {
+    const totalPages = Math.ceil(crews.length / ITEMS_PER_PAGE)
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    const endIndex = startIndex + ITEMS_PER_PAGE
+    const paginatedCrews = crews.slice(startIndex, endIndex)
+    
+    return (
+    <div className="border-b border-gray-200">
+      <div className="bg-gray-50 px-4 py-2 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-700 uppercase">{sectionTitle} ({count})</h3>
+        <button
+          onClick={onAddCrew}
+          className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold"
+          title="Add crew member"
+        >
+          +
+        </button>
+      </div>
+      {crews.length > 0 && (
+        <>
+        <div className="overflow-x-auto">
+        <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
+          <thead className="bg-white border-b-2 border-gray-300">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{width: '10%', position: 'relative'}}>
+                Crew ID
+                <SortDropdown 
+                  col="crewId" 
+                  options={[
+                    {label:'Sắp xếp từ A-Z', dir:'asc'},
+                    {label:'Sắp xếp từ Z-A', dir:'desc'}
+                  ]} 
+                />
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{width: '20%', position: 'relative'}}>
+                Full Name
+                <SortDropdown 
+                  col="fullName" 
+                  options={[
+                    {label:'Sắp xếp từ A-Z', dir:'asc'},
+                    {label:'Sắp xếp từ Z-A', dir:'desc'}
+                  ]} 
+                />
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{width: '18%', position: 'relative'}}>
+                Position
+                <SortDropdown 
+                  col="position" 
+                  options={[
+                    {label:'Sắp xếp từ A-Z', dir:'asc'},
+                    {label:'Sắp xếp từ Z-A', dir:'desc'}
+                  ]} 
+                />
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{width: '12%', position: 'relative'}}>
+                Rank
+                <SortDropdown 
+                  col="rank" 
+                  options={[
+                    {label:'Sắp xếp từ A-Z', dir:'asc'},
+                    {label:'Sắp xếp từ Z-A', dir:'desc'}
+                  ]} 
+                />
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{width: '12%', position: 'relative'}}>
+                Nationality
+                <SortDropdown 
+                  col="nationality" 
+                  options={[
+                    {label:'Sắp xếp từ A-Z', dir:'asc'},
+                    {label:'Sắp xếp từ Z-A', dir:'desc'}
+                  ]} 
+                />
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{width: '15%', position: 'relative'}}>
+                Embark Date
+                <SortDropdown 
+                  col="embarkDate" 
+                  options={[
+                    {label:'Ngày gần nhất', dir:'desc'},
+                    {label:'Ngày xa nhất', dir:'asc'}
+                  ]} 
+                />
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '13%'}}>Status</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white">
+            {paginatedCrews.map((crew) => {
+              return (
+                <tr
+                  key={crew.id}
+                  onContextMenu={(e) => handleContextMenu(e, crew)}
+                  className={`border-b border-gray-100 transition-colors ${
+                    selectedCrew === crew.id ? 'bg-blue-100' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <td className="px-4 py-3 text-sm text-gray-900 font-medium border-r border-gray-200" style={{width: '10%'}}>
+                    <div className="truncate">{crew.crewId}</div>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
+                    <div className="truncate">{crew.fullName}</div>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '18%'}}>
+                    <div className="truncate">{crew.position}</div>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                    <div className="truncate">{getRankDisplay(crew.rank)}</div>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                    <div className="truncate">{crew.nationality || 'N/A'}</div>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '15%'}}>
+                    <div className="truncate">
+                      {crew.embarkDate ? format(parseISO(crew.embarkDate), 'dd MMM yyyy') : '-'}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-sm" style={{width: '13%'}}>
+                    {crew.isOnboard ? (
+                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700">
+                        Onboard
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">
+                        Ashore
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+        </div>
+        
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
+            <div className="text-sm text-gray-600">
+              Showing {startIndex + 1} - {Math.min(endIndex, crews.length)} of {crews.length}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ← Previous
+              </button>
+              <span className="text-sm text-gray-600">
+                Page {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
+        </>
+      )}
+    </div>
+    )
+  }
+
+  return (
+    <div className="relative">
+      {/* Crew On Board Section */}
+      {renderCrewTable(crewOnBoard, 'CREW ON BOARD', crewOnBoard.length, onboardPage, setOnboardPage)}
+      
+      {/* Crew Temp Section */}
+      {renderCrewTable(crewTemp, 'CREW TEMP.', crewTemp.length, tempPage, setTempPage)}
+      
+      {/* Crew Signed Off Section */}
+      {renderCrewTable(crewSignedOff, 'CREW SIGNED OFF', crewSignedOff.length, signedOffPage, setSignedOffPage)}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50"
+          style={{ left: contextMenu.x, top: contextMenu.y, minWidth: '200px' }}
+        >
+          <button
+            onClick={() => {
+              onViewCrew(contextMenu.crew.id)
+              closeContextMenu()
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <span>📄</span> Open details
+          </button>
+          <button
+            onClick={() => {
+              window.open(`/crew/${contextMenu.crew.id}`, '_blank')
+              closeContextMenu()
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <span>🔗</span> Open details in a new tab
+          </button>
+          <div className="border-t border-gray-200 my-1"></div>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <span>⬇️</span> Move to Crew Temp.
+          </button>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <span>⬇️</span> Move to Crew Signed Off
+          </button>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <span>➡️</span> Move to Passengers
+          </button>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <span>➡️</span> Move to Others
+          </button>
+          <div className="border-t border-gray-200 my-1"></div>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <span>⭐</span> Set as primary Master
+          </button>
+          <div className="border-t border-gray-200 my-1"></div>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+          >
+            <span>🗑️</span> Delete
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -578,7 +917,9 @@ function CertificateMonitorView({
   sortMenu, 
   setSortMenu,
   certificateCache,
-  certificateLoading
+  certificateLoading,
+  onAddCertificate,
+  onEditCertificate
 }: { 
   crewMembers: CrewMember[];
   sortType?: { col: string; dir: 'asc'|'desc' } | null;
@@ -587,14 +928,100 @@ function CertificateMonitorView({
   setSortMenu?: (sortMenu: string | null) => void;
   certificateCache: any[] | null;
   certificateLoading: boolean;
+  onAddCertificate: () => void;
+  onEditCertificate: (certificate: any) => void;
 }) {
   const { t } = useTranslationSafe()
   const navigate = useNavigate()
   const [currentPage, setCurrentPage] = useState(1)
-  const ITEMS_PER_PAGE = 10
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; cert: any } | null>(null)
+  const [selectedCert, setSelectedCert] = useState<string | null>(null)
+  const ITEMS_PER_PAGE = 15
 
   // Use cached data from parent
-  const certificateStats = certificateCache || []
+  let certificateStats = certificateCache || []
+
+  // Apply sorting
+  const applySorting = (certs: any[]) => {
+    if (!sortType) return certs
+    const sorted = [...certs]
+    switch (sortType.col) {
+      case 'certificateName':
+        sorted.sort((a, b) => sortType.dir === 'asc'
+          ? a.certificateName.localeCompare(b.certificateName)
+          : b.certificateName.localeCompare(a.certificateName))
+        break
+      case 'certificateCode':
+        sorted.sort((a, b) => sortType.dir === 'asc'
+          ? a.certificateCode.localeCompare(b.certificateCode)
+          : b.certificateCode.localeCompare(a.certificateCode))
+        break
+      case 'category':
+        sorted.sort((a, b) => {
+          const aCat = a.category || ''
+          const bCat = b.category || ''
+          return sortType.dir === 'asc' ? aCat.localeCompare(bCat) : bCat.localeCompare(aCat)
+        })
+        break
+      case 'validity':
+        sorted.sort((a, b) => {
+          const aVal = a.validityPeriodMonths || 0
+          const bVal = b.validityPeriodMonths || 0
+          return sortType.dir === 'asc' ? aVal - bVal : bVal - aVal
+        })
+        break
+      case 'totalCrew':
+        sorted.sort((a, b) => {
+          const aTotal = a.totalCrew || 0
+          const bTotal = b.totalCrew || 0
+          return sortType.dir === 'asc' ? aTotal - bTotal : bTotal - aTotal
+        })
+        break
+    }
+    return sorted
+  }
+
+  certificateStats = applySorting(certificateStats)
+
+  // SortDropdown component
+  function SortDropdown({ col, options }: {
+    col: string;
+    options: Array<{ label: string; dir: 'asc'|'desc' }>;
+  }) {
+    if (!setSortType || !setSortMenu) return null
+    return (
+      <div className="absolute top-1/2 right-2 -translate-y-1/2" style={{zIndex:10}}>
+        <button
+          className="text-gray-400 hover:text-blue-600 text-xs p-1"
+          onClick={e => { e.stopPropagation(); setSortMenu(sortMenu === col ? null : col) }}
+          style={{lineHeight:0}}
+        >
+          ▼
+        </button>
+        {sortMenu === col && (
+          <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded shadow-lg z-50">
+            {options.map(opt => (
+              <button
+                key={opt.label}
+                className={`block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${
+                  sortType?.col === col && sortType?.dir === opt.dir 
+                    ? 'text-blue-600 font-bold' 
+                    : 'text-gray-700'
+                }`}
+                onClick={e => { 
+                  e.stopPropagation(); 
+                  setSortType({col, dir: opt.dir}); 
+                  setSortMenu(null) 
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const getCategoryBadge = (category?: string) => {
     const colors: Record<string, string> = {
@@ -615,123 +1042,101 @@ function CertificateMonitorView({
     navigate(`/crew/certificates/${certId}`)
   }
 
+  const handleContextMenu = (e: React.MouseEvent, cert: any) => {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY, cert })
+    setSelectedCert(cert.id)
+  }
+
+  const closeContextMenu = () => {
+    setContextMenu(null)
+    setSelectedCert(null)
+  }
+
+  useEffect(() => {
+    const handleClick = () => closeContextMenu()
+    window.addEventListener('click', handleClick)
+    return () => window.removeEventListener('click', handleClick)
+  }, [])
+
   const totalPages = Math.ceil(certificateStats.length / ITEMS_PER_PAGE)
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
   const endIndex = startIndex + ITEMS_PER_PAGE
   const paginatedCerts = certificateStats.slice(startIndex, endIndex)
 
-  // SortDropdown component
-  function SortDropdown({ col, options, sortType, setSortType, sortMenu, setSortMenu }: {
-    col: string;
-    options: Array<{ label: string; dir: 'asc'|'desc' }>;
-    sortType: any;
-    setSortType: any;
-    sortMenu: any;
-    setSortMenu: any;
-  }) {
-    return (
-      <div className="absolute top-1/2 right-0 -translate-y-1/2" style={{zIndex:2}}>
-        <button
-          className="text-gray-400 hover:text-blue-600 text-base p-1"
-          onClick={e => { e.stopPropagation(); setSortMenu(sortMenu === col ? null : col) }}
-          style={{lineHeight:0}}
-        >
-          ▼
-        </button>
-        {sortMenu === col && (
-          <div className="absolute right-0 mt-6 w-40 bg-white border border-gray-200 rounded shadow-lg z-20">
-            {options.map(opt => (
-              <button
-                key={opt.label}
-                className={`block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${sortType?.col === col && sortType?.dir === opt.dir ? 'text-blue-600 font-bold' : 'text-gray-700'}`}
-                onClick={e => { e.stopPropagation(); setSortType({col,dir:opt.dir}); setSortMenu(null) }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
   return (
-    <div className="space-y-4">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-center gap-2">
-          <Award className="w-5 h-5 text-blue-600" />
-          <h3 className="font-semibold text-blue-900">Certificate Types Overview</h3>
-        </div>
-        <p className="text-sm text-blue-800 mt-2">
-          Quản lý tất cả các loại chứng chỉ hàng hải. Click vào certificate để xem chi tiết và danh sách crew.
-        </p>
+    <div className="border-b border-gray-200">
+      <div className="bg-gray-50 px-4 py-2 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-700 uppercase">CERTIFICATE TYPES ({certificateStats.length})</h3>
+        <button
+          onClick={onAddCertificate}
+          className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold"
+          title="Add certificate"
+        >
+          +
+        </button>
       </div>
-
-      {certificateLoading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-gray-600 mt-4">Loading certificates...</p>
-        </div>
-      ) : (
+      {certificateStats.length > 0 && (
         <>
-          {/* Pagination */}
-          {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-600">
-            Showing {startIndex + 1} - {Math.min(endIndex, certificateStats.length)} of {certificateStats.length} certificate types
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              ← Previous
-            </button>
-            <span className="text-sm text-gray-600">
-              Page {currentPage} / {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next →
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="overflow-x-auto border border-gray-200 rounded-lg">
+        <div className="overflow-x-auto">
         <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
-          <thead className="bg-gray-50 dark:bg-gray-800">
+          <thead className="bg-white border-b-2 border-gray-300">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '28%', position:'relative'}}>
-                {t('crew.certificateManagement.certificateName')}
-                {setSortType && setSortMenu && (
-                  <SortDropdown col="name" options={[{label:t('crew.certificateManagement.sortAZ'),dir:'asc'},{label:t('crew.certificateManagement.sortZA'),dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-                )}
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{width: '25%', position: 'relative'}}>
+                Certificate Name
+                <SortDropdown 
+                  col="certificateName" 
+                  options={[
+                    {label:'Sắp xếp từ A-Z', dir:'asc'},
+                    {label:'Sắp xếp từ Z-A', dir:'desc'}
+                  ]} 
+                />
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '14%'}}>
-                {t('crew.certificateManagement.code')}
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{width: '15%', position: 'relative'}}>
+                Code
+                <SortDropdown 
+                  col="certificateCode" 
+                  options={[
+                    {label:'Sắp xếp từ A-Z', dir:'asc'},
+                    {label:'Sắp xếp từ Z-A', dir:'desc'}
+                  ]} 
+                />
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '12%'}}>
-                {t('crew.certificateManagement.category')}
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{width: '12%', position: 'relative'}}>
+                Category
+                <SortDropdown 
+                  col="category" 
+                  options={[
+                    {label:'Sắp xếp từ A-Z', dir:'asc'},
+                    {label:'Sắp xếp từ Z-A', dir:'desc'}
+                  ]} 
+                />
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '10%'}}>
-                {t('crew.certificateManagement.validity')}
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{width: '10%', position: 'relative'}}>
+                Validity
+                <SortDropdown 
+                  col="validity" 
+                  options={[
+                    {label:'Thời gian tăng dần', dir:'asc'},
+                    {label:'Thời gian giảm dần', dir:'desc'}
+                  ]} 
+                />
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '10%', position:'relative'}}>
-                {t('crew.certificateManagement.totalCrew')}
-                {setSortType && setSortMenu && (
-                  <SortDropdown col="totalCrew" options={[{label:t('crew.certificateManagement.sortMost'),dir:'desc'},{label:t('crew.certificateManagement.sortLeast'),dir:'asc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-                )}
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{width: '10%', position: 'relative'}}>
+                Total Crew
+                <SortDropdown 
+                  col="totalCrew" 
+                  options={[
+                    {label:'Số lượng tăng dần', dir:'asc'},
+                    {label:'Số lượng giảm dần', dir:'desc'}
+                  ]} 
+                />
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '14%'}}>
-                {t('crew.certificateManagement.status')}
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '16%'}}>
+                Status
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '12%'}}>
-                {t('crew.certificateManagement.action')}
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>
+                Action
               </th>
             </tr>
           </thead>
@@ -739,168 +1144,146 @@ function CertificateMonitorView({
             {paginatedCerts.map((cert) => (
               <tr
                 key={cert.id}
-                className="hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer transition-colors border-b border-gray-200"
-                onClick={() => handleCertificateClick(cert.id)}
+                onContextMenu={(e) => handleContextMenu(e, cert)}
+                className={`border-b border-gray-100 transition-colors ${
+                  selectedCert === cert.id ? 'bg-blue-100' : 'hover:bg-gray-50'
+                }`}
               >
-                <td className="px-4 py-3 border-r border-gray-200" style={{width: '28%'}}>
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-white truncate">
-                      {cert.certificateName}
-                      {cert.isMandatory && (
-                        <span className="ml-2 px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
-                          {t('crew.certificateManagement.mandatory')}
-                        </span>
-                      )}
-                    </div>
-                    {cert.description && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
-                        {cert.description}
-                      </div>
-                    )}
-                  </div>
+                <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '25%'}}>
+                  <div className="truncate">{cert.certificateName}</div>
                 </td>
-                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '14%'}}>
-                  <code className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs font-mono text-gray-700 dark:text-gray-300">
-                    {cert.certificateCode}
-                  </code>
+                <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '15%'}}>
+                  <div className="truncate">{cert.certificateCode}</div>
                 </td>
-                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '12%'}}>
+                <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '12%'}}>
                   {getCategoryBadge(cert.category)}
                 </td>
-                <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300 text-sm border-r border-gray-200" style={{width: '10%'}}>
-                  {cert.validityPeriodMonths}m
+                <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '10%'}}>
+                  <div className="truncate">{cert.validityPeriodMonths}m</div>
                 </td>
-                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '10%'}}>
-                  <span className="text-lg font-bold text-gray-900 dark:text-white">{cert.totalCrew}</span>
+                <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '10%'}}>
+                  <div className="truncate">{cert.totalCrew}</div>
                 </td>
-                <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '14%'}}>
-                  <div className="flex items-center justify-center gap-2 text-xs">
-                    {cert.validCount > 0 && (
-                      <div className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                        <span className="text-green-700 font-medium">{cert.validCount}</span>
-                      </div>
-                    )}
-                    {cert.expiringCount > 0 && (
-                      <div className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                        <span className="text-yellow-700 font-medium">{cert.expiringCount}</span>
-                      </div>
-                    )}
-                    {cert.expiredCount > 0 && (
-                      <div className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                        <span className="text-red-700 font-medium">{cert.expiredCount}</span>
-                      </div>
-                    )}
+                <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '16%'}}>
+                  <div className="truncate">
+                    {cert.validCount > 0 && `✓${cert.validCount} `}
+                    {cert.expiringCount > 0 && `⚠${cert.expiringCount} `}
+                    {cert.expiredCount > 0 && `✗${cert.expiredCount}`}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-center" style={{width: '12%'}}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleCertificateClick(cert.id)
-                    }}
-                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-xs"
-                  >
-                    {t('crew.certificateManagement.view')} →
-                  </button>
+                <td className="px-4 py-3 text-sm" style={{width: '12%'}}>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCertificateClick(cert.id)
+                      }}
+                      className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center"
+                      title="View details"
+                    >
+                      <Award className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        // Handle edit action
+                      }}
+                      className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center"
+                      title="More options"
+                    >
+                      <span className="text-sm font-bold">⋮</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-
-        {paginatedCerts.length === 0 && certificateStats.length > 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">{t('crew.certificateManagement.noItemsOnPage')}</p>
-          </div>
-        )}
-
-        {certificateStats.length === 0 && (
-          <div className="text-center py-12">
-            <Award className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-900 font-medium">{t('crew.certificateManagement.noCertificateTypes')}</p>
-            <p className="text-sm text-gray-500 mt-1">{t('crew.certificateManagement.noCertificateTypesMessage')}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Legend */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h4 className="text-sm font-semibold text-gray-900 mb-2">{t('crew.certificateManagement.statusLegend')}:</h4>
-        <div className="flex items-center gap-6 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-green-500"></span>
-            <span className="text-gray-700">{t('crew.certificateManagement.valid')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
-            <span className="text-gray-700">{t('crew.certificateManagement.expiringSoon')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-red-500"></span>
-            <span className="text-gray-700">{t('crew.certificateManagement.expiredOrCritical')}</span>
-          </div>
         </div>
-      </div>
-      </>
+        
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
+            <div className="text-sm text-gray-600">
+              Showing {startIndex + 1} - {Math.min(endIndex, certificateStats.length)} of {certificateStats.length}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ← Previous
+              </button>
+              <span className="text-sm text-gray-600">
+                Page {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
+        </>
       )}
-    </div>
-  )
-}
 
-// Reports View Component
-function ReportsView({ crewMembers }: { crewMembers: CrewMember[] }) {
-  const { t } = useTranslationSafe()
-  const stats = {
-    totalCrew: crewMembers.length,
-    onboard: crewMembers.filter(c => c.isOnboard).length,
-    officers: crewMembers.filter(c => c.rank === 'Officer').length,
-    ratings: crewMembers.filter(c => c.rank === 'Rating').length,
-    engineers: crewMembers.filter(c => c.rank === 'Engineer').length,
-    seniorOfficers: crewMembers.filter(c => c.rank === 'Senior Officer').length,
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <ReportCard label={t('crew.reports.totalCrew')} value={stats.totalCrew} />
-        <ReportCard label={t('crew.reports.onboard')} value={stats.onboard} />
-        <ReportCard label={t('crew.reports.officers')} value={stats.officers} />
-        <ReportCard label={t('crew.reports.ratings')} value={stats.ratings} />
-      </div>
-
-      <div className="border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('crew.reports.crewDistribution')}</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-            <p className="text-3xl font-bold text-blue-600">{stats.officers}</p>
-            <p className="text-sm text-gray-600 mt-1">{t('crew.reports.officers')}</p>
-          </div>
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
-            <p className="text-3xl font-bold text-purple-600">{stats.ratings}</p>
-            <p className="text-sm text-gray-600 mt-1">{t('crew.reports.ratings')}</p>
-          </div>
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
-            <p className="text-3xl font-bold text-orange-600">{stats.engineers}</p>
-            <p className="text-sm text-gray-600 mt-1">{t('crew.reports.engineers')}</p>
-          </div>
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-center">
-            <p className="text-3xl font-bold text-indigo-600">{stats.seniorOfficers}</p>
-            <p className="text-sm text-gray-600 mt-1">{t('crew.reports.seniorOfficers')}</p>
-          </div>
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50"
+          style={{ left: contextMenu.x, top: contextMenu.y, minWidth: '200px' }}
+        >
+          <button
+            onClick={() => {
+              handleCertificateClick(contextMenu.cert.id)
+              closeContextMenu()
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <span>📄</span> Open details
+          </button>
+          <button
+            onClick={() => {
+              window.open(`/crew/certificates/${contextMenu.cert.id}`, '_blank')
+              closeContextMenu()
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <span>🔗</span> Open details in a new tab
+          </button>
+          <div className="border-t border-gray-200 my-1"></div>
+          <button
+            onClick={() => {
+              onEditCertificate(contextMenu.cert)
+              closeContextMenu()
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <span>✏️</span> Edit certificate
+          </button>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <span>📋</span> Duplicate certificate
+          </button>
+          <div className="border-t border-gray-200 my-1"></div>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <span>{contextMenu.cert.isActive ? '🚫' : '✅'}</span> {contextMenu.cert.isActive ? 'Deactivate' : 'Activate'}
+          </button>
+          <div className="border-t border-gray-200 my-1"></div>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+          >
+            <span>🗑️</span> Delete
+          </button>
         </div>
-      </div>
-
-      <div className="flex gap-4">
-        <button className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-          {t('crew.reports.exportPdf')}
-        </button>
-        <button className="flex-1 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50">
-          {t('crew.reports.exportExcel')}
-        </button>
-      </div>
+      )}
     </div>
   )
 }
@@ -936,14 +1319,5 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
       {icon}
       {label}
     </button>
-  )
-}
-
-function ReportCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <p className="text-sm text-gray-600 mt-1">{label}</p>
-    </div>
   )
 }

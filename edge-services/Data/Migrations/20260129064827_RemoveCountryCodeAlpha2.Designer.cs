@@ -3,6 +3,7 @@ using System;
 using MaritimeEdge.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MaritimeEdge.Data.Migrations
 {
     [DbContext(typeof(EdgeDbContext))]
-    partial class EdgeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260129064827_RemoveCountryCodeAlpha2")]
+    partial class RemoveCountryCodeAlpha2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -876,6 +879,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<bool>("IsRecognized")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_recognized");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -888,6 +899,10 @@ namespace MaritimeEdge.Data.Migrations
 
                     b.HasIndex("CountryId")
                         .HasDatabaseName("idx_country_cert_country_id");
+
+                    b.HasIndex("IsRecognized")
+                        .HasDatabaseName("idx_country_cert_recognized")
+                        .HasFilter("is_recognized = true");
 
                     b.HasIndex("CountryId", "CertificateId")
                         .IsUnique()

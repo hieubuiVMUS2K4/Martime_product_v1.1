@@ -785,8 +785,9 @@ public class Certificate
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     
-    // Navigation property
+    // Navigation properties
     public List<CrewCertificate> CrewCertificates { get; set; } = new();
+    public List<CountryCertificate> CountryCertificates { get; set; } = new();
 }
 
 /// <summary>
@@ -842,6 +843,56 @@ public class CrewCertificate
     [JsonIgnore]
     public CrewMember CrewMember { get; set; } = null!;
     [JsonIgnore]
+    public Certificate Certificate { get; set; } = null!;
+}
+
+/// <summary>
+/// Country - Danh sách các quốc gia
+/// </summary>
+public class Country
+{
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int Id { get; set; }
+    
+    [Required]
+    [MaxLength(3)]
+    public string CountryCode { get; set; } = string.Empty; // ISO 3166-1 alpha-3: USA, GBR, VNM, PHL
+    
+    [Required]
+    [MaxLength(100)]
+    public string CountryName { get; set; } = string.Empty; // United States, United Kingdom, Vietnam
+    
+    public bool IsActive { get; set; } = true;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation property
+    public List<CountryCertificate> CountryCertificates { get; set; } = new();
+}
+
+/// <summary>
+/// Country Certificates - Bảng trung gian (N-N) giữa Country và Certificate
+/// Xác định certificate nào được chấp nhận ở quốc gia nào
+/// </summary>
+public class CountryCertificate
+{
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int Id { get; set; }
+    
+    [Required]
+    public int CountryId { get; set; } // Foreign key to Country
+    
+    [Required]
+    public int CertificateId { get; set; } // Foreign key to Certificate
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation properties
+    public Country Country { get; set; } = null!;
     public Certificate Certificate { get; set; } = null!;
 }
 

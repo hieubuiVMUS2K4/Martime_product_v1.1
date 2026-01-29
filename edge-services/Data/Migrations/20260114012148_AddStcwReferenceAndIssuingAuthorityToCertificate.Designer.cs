@@ -3,6 +3,7 @@ using System;
 using MaritimeEdge.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MaritimeEdge.Data.Migrations
 {
     [DbContext(typeof(EdgeDbContext))]
-    partial class EdgeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260114012148_AddStcwReferenceAndIssuingAuthorityToCertificate")]
+    partial class AddStcwReferenceAndIssuingAuthorityToCertificate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -783,6 +786,16 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_mandatory");
 
+                    b.Property<string>("IssuingAuthority")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("issuing_authority");
+
+                    b.Property<string>("StcwReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("stcw_reference");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -806,94 +819,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasFilter("is_active = true");
 
                     b.ToTable("certificates", "public");
-                });
-
-            modelBuilder.Entity("MaritimeEdge.Models.Country", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CountryCode")
-                        .IsRequired()
-                        .HasMaxLength(3)
-                        .HasColumnType("character varying(3)")
-                        .HasColumnName("country_code");
-
-                    b.Property<string>("CountryName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("country_name");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("p_k_countries");
-
-                    b.HasIndex("CountryCode")
-                        .IsUnique()
-                        .HasDatabaseName("idx_country_code_unique");
-
-                    b.HasIndex("IsActive")
-                        .HasDatabaseName("idx_country_active")
-                        .HasFilter("is_active = true");
-
-                    b.ToTable("countries", "public");
-                });
-
-            modelBuilder.Entity("MaritimeEdge.Models.CountryCertificate", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CertificateId")
-                        .HasColumnType("integer")
-                        .HasColumnName("certificate_id");
-
-                    b.Property<int>("CountryId")
-                        .HasColumnType("integer")
-                        .HasColumnName("country_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("p_k_country_certificates");
-
-                    b.HasIndex("CertificateId")
-                        .HasDatabaseName("idx_country_cert_certificate_id");
-
-                    b.HasIndex("CountryId")
-                        .HasDatabaseName("idx_country_cert_country_id");
-
-                    b.HasIndex("CountryId", "CertificateId")
-                        .IsUnique()
-                        .HasDatabaseName("idx_country_cert_unique");
-
-                    b.ToTable("country_certificates", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.CrewCertificate", b =>
@@ -4149,10 +4074,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int?>("CrewOnBoard")
-                        .HasColumnType("integer")
-                        .HasColumnName("crew_on_board");
-
                     b.Property<double?>("DieselOilConsumed")
                         .HasColumnType("double precision")
                         .HasColumnName("diesel_oil_consumed");
@@ -4222,10 +4143,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("main_engine_running_hours");
 
-                    b.Property<string>("MaintenanceRemarks")
-                        .HasColumnType("text")
-                        .HasColumnName("maintenance_remarks");
-
                     b.Property<Guid>("MaritimeReportId")
                         .HasColumnType("uuid")
                         .HasColumnName("maritime_report_id");
@@ -4234,23 +4151,9 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("operational_remarks");
 
-                    b.Property<int?>("PassengersOnBoard")
-                        .HasColumnType("integer")
-                        .HasColumnName("passengers_on_board");
-
                     b.Property<DateTime>("ReportDate")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("report_date");
-
-                    b.Property<string>("SafetyDrillsConducted")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("safety_drills_conducted");
-
-                    b.Property<string>("SafetyIncidents")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("safety_incidents");
 
                     b.Property<string>("SeaState")
                         .HasMaxLength(20)
@@ -6393,27 +6296,6 @@ namespace MaritimeEdge.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("MaritimeEdge.Models.CountryCertificate", b =>
-                {
-                    b.HasOne("MaritimeEdge.Models.Certificate", "Certificate")
-                        .WithMany("CountryCertificates")
-                        .HasForeignKey("CertificateId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("f_k_country_certificates_certificates_certificate_id");
-
-                    b.HasOne("MaritimeEdge.Models.Country", "Country")
-                        .WithMany("CountryCertificates")
-                        .HasForeignKey("CountryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("f_k_country_certificates_countries_country_id");
-
-                    b.Navigation("Certificate");
-
-                    b.Navigation("Country");
-                });
-
             modelBuilder.Entity("MaritimeEdge.Models.CrewCertificate", b =>
                 {
                     b.HasOne("MaritimeEdge.Models.Certificate", "Certificate")
@@ -6663,14 +6545,7 @@ namespace MaritimeEdge.Data.Migrations
 
             modelBuilder.Entity("MaritimeEdge.Models.Certificate", b =>
                 {
-                    b.Navigation("CountryCertificates");
-
                     b.Navigation("CrewCertificates");
-                });
-
-            modelBuilder.Entity("MaritimeEdge.Models.Country", b =>
-                {
-                    b.Navigation("CountryCertificates");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.CrewMember", b =>

@@ -191,6 +191,96 @@ public class CertificatesController : ControllerBase
         }
     }
 
+    // POST: api/certificates
+    [HttpPost]
+    public async Task<IActionResult> CreateCertificate([FromBody] CreateCertificateRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var certificate = new Certificate
+            {
+                CertificateCode = request.CertificateCode,
+                CertificateName = request.CertificateName,
+                Category = request.Category,
+                ValidityPeriodMonths = request.ValidityPeriodMonths,
+                Description = request.Description,
+                IsMandatory = request.IsMandatory,
+                IsActive = request.IsActive,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.Certificates.Add(certificate);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Certificate {CertificateCode} created with ID {CertificateId}", 
+                certificate.CertificateCode, certificate.Id);
+
+            return Ok(new { 
+                id = certificate.Id,
+                certificateCode = certificate.CertificateCode,
+                certificateName = certificate.CertificateName,
+                message = "Certificate created successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating certificate");
+            return StatusCode(500, new { message = "Error creating certificate", error = ex.Message });
+        }
+    }
+
+    // PUT: api/certificates/{id}
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateCertificate(int id, [FromBody] CreateCertificateRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var certificate = await _context.Certificates.FindAsync(id);
+            if (certificate == null)
+            {
+                return NotFound(new { message = $"Certificate with ID {id} not found" });
+            }
+
+            certificate.CertificateCode = request.CertificateCode;
+            certificate.CertificateName = request.CertificateName;
+            certificate.Category = request.Category;
+            certificate.ValidityPeriodMonths = request.ValidityPeriodMonths;
+            certificate.Description = request.Description;
+            certificate.IsMandatory = request.IsMandatory;
+            certificate.IsActive = request.IsActive;
+            certificate.UpdatedAt = DateTime.UtcNow;
+
+            _context.Certificates.Update(certificate);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Certificate {CertificateCode} updated with ID {CertificateId}", 
+                certificate.CertificateCode, certificate.Id);
+
+            return Ok(new { 
+                id = certificate.Id,
+                certificateCode = certificate.CertificateCode,
+                certificateName = certificate.CertificateName,
+                message = "Certificate updated successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating certificate");
+            return StatusCode(500, new { message = "Error updating certificate", error = ex.Message });
+        }
+    }
+
     // POST: api/certificates/crew-certificates
     [HttpPost("crew-certificates")]
     public async Task<IActionResult> AddCrewCertificate([FromBody] CrewCertificateRequest request)
@@ -263,6 +353,29 @@ public class CertificatesController : ControllerBase
             return StatusCode(500, new { message = "Error adding crew certificate", error = ex.Message });
         }
     }
+}
+
+// DTO for create certificate request
+public class CreateCertificateRequest
+{
+    [Required]
+    [MaxLength(50)]
+    public string CertificateCode { get; set; } = string.Empty;
+    
+    [Required]
+    [MaxLength(200)]
+    public string CertificateName { get; set; } = string.Empty;
+    
+    [MaxLength(50)]
+    public string? Category { get; set; }
+    
+    public int? ValidityPeriodMonths { get; set; }
+    
+    public string? Description { get; set; }
+    
+    public bool IsMandatory { get; set; } = false;
+    
+    public bool IsActive { get; set; } = true;
 }
 
 // DTO for crew certificate request
