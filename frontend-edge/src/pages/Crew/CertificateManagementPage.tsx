@@ -21,6 +21,7 @@ export function CertificateManagementPage() {
   const [certificates, setCertificates] = useState<Certificate[]>([])
   const [selectedCertificate, setSelectedCertificate] = useState<Certificate | null>(null)
   const [crewWithCertificate, setCrewWithCertificate] = useState<(CrewCertificate & { crewMember: CrewMember })[]>([])
+  const [countries, setCountries] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -60,6 +61,40 @@ export function CertificateManagementPage() {
     }
   }
 
+  const loadCountries = async (certificateId: number) => {
+    try {
+      console.log('🔵 Loading countries for certificate:', certificateId)
+      
+      // Step 1: Get country-certificate associations
+      const ccResponse = await fetch(`/api/country-certificates/certificate/${certificateId}`)
+      const ccData = await ccResponse.json()
+      console.log('✅ Country-Certificate data:', ccData)
+      
+      // Step 2: Get all countries
+      const countriesResponse = await fetch('/api/countries')
+      const allCountries = await countriesResponse.json()
+      console.log('✅ All countries:', allCountries)
+      
+      // Step 3: Join data by countryId
+      const mapped = ccData.map((cc: any) => {
+        const countryId = cc.countryId || cc.CountryId
+        const country = allCountries.find((c: any) => (c.id || c.Id) === countryId)
+        
+        return {
+          id: countryId,
+          countryCode: country?.countryCode || country?.CountryCode || '',
+          countryName: country?.countryName || country?.CountryName || `Unknown (ID: ${countryId})`
+        }
+      })
+      
+      console.log('✅ Mapped countries with names:', mapped)
+      setCountries(mapped)
+    } catch (error) {
+      console.error('❌ Failed to load countries:', error)
+      setCountries([])
+    }
+  }
+
   const loadCrewWithCertificate = async (certificateId: number) => {
     try {
       console.log('🔵 Calling API: /api/certificates/' + certificateId + '/crew-certificates')
@@ -89,6 +124,9 @@ export function CertificateManagementPage() {
       console.log('✅ Mapped data:', mapped)
       console.log('📊 Mapped count:', mapped.length)
       setCrewWithCertificate(mapped as any)
+      
+      // Also load countries
+      await loadCountries(certificateId)
     } catch (error: any) {
       console.error('❌ Failed to load crew with certificate:', error)
       console.error('❌ Error type:', error?.constructor?.name)
@@ -137,227 +175,216 @@ export function CertificateManagementPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-            <Award className="w-8 h-8 text-blue-600" />
-            {t('crew.certificateManagement.title')}
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
-            {t('crew.certificateManagement.subtitle')}
-          </p>
+      <div className="bg-white border-b border-gray-200 px-6 py-3">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/crew', { state: { activeTab: 'certificates' } })}
+            className="p-2 hover:bg-gray-100 rounded transition-colors"
+          >
+            <span className="text-xl">←</span>
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
+              <Award className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">
+                {selectedCertificate?.certificateName || t('crew.certificateManagement.title')}
+              </h1>
+              {selectedCertificate && (
+                <p className="text-xs text-gray-500">
+                  {t('crew.certificateManagement.code')}: {selectedCertificate.certificateCode}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
-        
-        <button
-          onClick={() => navigate('/crew', { state: { activeTab: 'certificates' } })}
-          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-        >
-          ← {t('crew.certificateManagement.backToCrewPage')}
-        </button>
       </div>
 
       {/* Main Content - Certificate Details View */}
       {selectedCertificate ? (
-          <div className="space-y-6">
+          <div className="p-4 space-y-3">
             {/* Certificate Info Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Award className="w-8 h-8 text-blue-600" />
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {selectedCertificate.certificateName}
-                      </h2>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        {t('crew.certificateManagement.code')}: <code className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded font-mono">
-                          {selectedCertificate.certificateCode}
-                        </code>
-                      </p>
-                    </div>
-                  </div>
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              {selectedCertificate.description && (
+                <p className="text-sm text-gray-600 mb-3 pb-3 border-b border-gray-200">
+                  {selectedCertificate.description}
+                </p>
+              )}
 
-                  {selectedCertificate.description && (
-                    <p className="text-gray-700 dark:text-gray-300 mb-4">
-                      {selectedCertificate.description}
-                    </p>
-                  )}
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('crew.certificateManagement.category')}</p>
-                      <div className="mt-1">{getCategoryBadge(selectedCertificate.category)}</div>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('crew.certificateManagement.validityPeriod')}</p>
-                      <p className="text-lg font-semibold text-gray-900 dark:text-white mt-1">
-                        {selectedCertificate.validityPeriodMonths ? `${selectedCertificate.validityPeriodMonths} ${t('crew.certificateManagement.months')}` : 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('crew.certificateManagement.mandatory')}</p>
-                      <p className="text-lg font-semibold text-gray-900 dark:text-white mt-1">
-                        {selectedCertificate.isMandatory ? t('crew.certificateManagement.yes') : t('crew.certificateManagement.no')}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('crew.certificateManagement.status')}</p>
-                      <p className="text-lg font-semibold text-gray-900 dark:text-white mt-1">
-                        {selectedCertificate.isActive ? t('crew.certificateManagement.active') : t('crew.certificateManagement.inactive')}
-                      </p>
-                    </div>
-                  </div>
+              <div className="grid grid-cols-4 gap-3 mb-3">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.certificateManagement.category')}</p>
+                  <div>{getCategoryBadge(selectedCertificate.category)}</div>
                 </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.certificateManagement.validityPeriod')}</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {selectedCertificate.validityPeriodMonths ? `${selectedCertificate.validityPeriodMonths} ${t('crew.certificateManagement.months')}` : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.certificateManagement.mandatory')}</p>
+                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                    selectedCertificate.isMandatory 
+                      ? 'bg-red-100 text-red-700' 
+                      : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {selectedCertificate.isMandatory ? t('crew.certificateManagement.yes') : t('crew.certificateManagement.no')}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.certificateManagement.status')}</p>
+                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                    selectedCertificate.isActive 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {selectedCertificate.isActive ? t('crew.certificateManagement.active') : t('crew.certificateManagement.inactive')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Countries List */}
+              <div className="pt-3 border-t border-gray-200">
+                <p className="text-xs text-gray-500 uppercase mb-2">Applicable Countries ({countries.length})</p>
+                {countries.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {countries.map((cc: any, idx: number) => (
+                      <span key={cc.id || idx} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded border border-blue-200">
+                        {cc.countryName}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No countries specified</p>
+                )}
               </div>
             </div>
 
             {/* Crew with This Certificate */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    {t('crew.certificateManagement.crewWithCertificate')} ({crewWithCertificate.length})
-                  </h3>
-                  <button 
-                    onClick={() => navigate(`/crew/certificates/${selectedCertificate.id}/add-crew`)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    {t('crew.certificateManagement.addCertificateToCrew')}
-                  </button>
-                </div>
+            <div className="bg-white rounded-lg border border-gray-200">
+              <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Crew With Certificate ({crewWithCertificate.length})
+                </h3>
+                <button 
+                  onClick={() => navigate(`/crew/certificates/${selectedCertificate.id}/add-crew`)}
+                  className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Certificate
+                </button>
               </div>
 
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
-                  <thead className="bg-gray-50 dark:bg-gray-800">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '22%'}}>
-                        {t('crew.certificateManagement.crewMember')}
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '13%'}}>
-                        {t('crew.certificateManagement.certificateNumber')}
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '11%'}}>
-                        {t('crew.certificateManagement.issueDate')}
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '13%'}}>
-                        {t('crew.certificateManagement.expiryDate')}
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '15%'}}>
-                        {t('crew.certificateManagement.issuingAuthority')}
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300" style={{width: '12%'}}>
-                        {t('crew.certificateManagement.status')}
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '14%'}}>
-                        {t('crew.certificateManagement.actions')}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white">
-                    {crewWithCertificate.map((crewCert) => {
-                      const status = getCertificateStatus(crewCert.expiryDate)
-                      const StatusIcon = status.icon
-                      
-                      return (
-                        <tr
-                          key={crewCert.id}
-                          className="hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer transition-colors border-b border-gray-200"
-                        >
-                          <td className="px-4 py-3 border-r border-gray-200" style={{width: '22%'}}>
-                            <div className="flex items-center">
-                              <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
-                                <span className="text-blue-600 dark:text-blue-300 font-semibold text-xs">
-                                  {crewCert.crewMember.fullName.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                </span>
+              {crewWithCertificate.length === 0 ? (
+                <div className="text-center py-12">
+                  <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-900 font-medium">{t('crew.certificateManagement.noCrew')}</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {t('crew.certificateManagement.noCrewMessage')}
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '15%'}}>
+                          Crew Member
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>
+                          Position
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>
+                          Cert. Number
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>
+                          Issue Date
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>
+                          Expiry Date
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '15%'}}>
+                          Issuing Authority
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white">
+                      {crewWithCertificate.map((crewCert) => {
+                        const status = getCertificateStatus(crewCert.expiryDate)
+                        const StatusIcon = status.icon
+                        const daysLeft = differenceInDays(parseISO(crewCert.expiryDate), new Date())
+                        
+                        return (
+                          <tr
+                            key={crewCert.id}
+                            onClick={() => navigate(`/crew/${crewCert.crewMemberId}`)}
+                            className="border-b border-gray-100 transition-colors hover:bg-gray-50 cursor-pointer"
+                          >
+                            <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '15%'}}>
+                              <div className="truncate font-medium">{crewCert.crewMember.fullName}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">{crewCert.crewMember.position}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '10%'}}>
+                              <code className="text-xs font-mono text-gray-900">
+                                {crewCert.certificateNumber}
+                              </code>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">
+                                {format(parseISO(crewCert.issueDate), 'dd MMM yyyy')}
                               </div>
-                              <div className="ml-2 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                  {crewCert.crewMember.fullName}
-                                </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                  {crewCert.crewMember.position} • {crewCert.crewMember.crewId}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '13%'}}>
-                            <code className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs font-mono text-gray-700 dark:text-gray-300 truncate">
-                              {crewCert.certificateNumber}
-                            </code>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 text-center border-r border-gray-200" style={{width: '11%'}}>
-                            <div className="truncate">
-                              {format(parseISO(crewCert.issueDate), 'dd MMM yyyy')}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '13%'}}>
-                            <div>
-                              <div className="font-medium text-sm text-gray-900 dark:text-white truncate">
+                            </td>
+                            <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="text-gray-900 font-medium truncate">
                                 {format(parseISO(crewCert.expiryDate), 'dd MMM yyyy')}
                               </div>
                               <div className={`text-xs ${status.color} truncate`}>
-                                {differenceInDays(parseISO(crewCert.expiryDate), new Date())} {t('crew.certificateManagement.daysLeft')}
+                                {daysLeft} days left
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 text-center border-r border-gray-200" style={{width: '15%'}}>
-                            <div className="truncate">
-                              {crewCert.issuingAuthority || 'N/A'}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '12%'}}>
-                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${status.bgColor} ${status.color}`}>
-                              <StatusIcon className="w-3 h-3" />
-                              {status.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center" style={{width: '14%'}}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                navigate(`/crew/${crewCert.crewMemberId}`)
-                              }}
-                              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-xs"
-                            >
-                              {t('crew.certificateManagement.viewDetails')} →
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-                
-                {crewWithCertificate.length === 0 && (
-                  <div className="text-center py-12">
-                    <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-900 font-medium">{t('crew.certificateManagement.noCrew')}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      {t('crew.certificateManagement.noCrewMessage')}
-                    </p>
-                  </div>
-                )}
-              </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '15%'}}>
+                              <div className="truncate">
+                                {crewCert.issuingAuthority || 'N/A'}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm" style={{width: '12%'}}>
+                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${status.bgColor} ${status.color}`}>
+                                <StatusIcon className="w-3 h-3" />
+                                {status.status}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
       ) : (
         // No certificate selected
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
-          <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+          <Award className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
             {t('crew.certificateManagement.noCertificateSelected')}
           </h3>
-          <p className="text-gray-500 dark:text-gray-400 mb-6">
+          <p className="text-sm text-gray-500 mb-6">
             {t('crew.certificateManagement.selectCertificateMessage')}
           </p>
           <button
             onClick={() => navigate('/crew', { state: { activeTab: 'certificates' } })}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
           >
             {t('crew.certificateManagement.goToCertificateMonitor')}
           </button>
