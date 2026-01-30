@@ -869,6 +869,7 @@ public class Country
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     
     // Navigation property
+    [JsonIgnore]
     public List<CountryCertificate> CountryCertificates { get; set; } = new();
 }
 
@@ -893,6 +894,7 @@ public class CountryCertificate
     
     // Navigation properties
     public Country Country { get; set; } = null!;
+    [JsonIgnore]
     public Certificate Certificate { get; set; } = null!;
 }
 

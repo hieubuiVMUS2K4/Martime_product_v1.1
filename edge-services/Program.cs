@@ -152,8 +152,8 @@ namespace MaritimeEdge
                 c.RoutePrefix = "swagger";
             });
 
-            app.UseCors("AllowFrontend");
             app.UseRouting();
+            app.UseCors("AllowFrontend");
             app.UseAuthorization();
             app.MapControllers();
 
