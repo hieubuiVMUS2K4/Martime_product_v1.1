@@ -819,6 +819,13 @@ public class CrewCertificate
     [MaxLength(200)]
     public string? IssuingAuthority { get; set; } // Cơ quan cấp
     
+    // Certificate of Competency (CoC)
+    [MaxLength(200)]
+    public string? CertificateOfCompetency { get; set; } // Chứng chỉ năng lực
+    
+    // Country ID - FK to countries table
+    public int? CountryId { get; set; } // Quốc gia cấp chứng chỉ
+    
     // Document File
     [MaxLength(500)]
     public string? DocumentFilePath { get; set; } // Đường dẫn file ảnh/PDF scan
@@ -844,6 +851,8 @@ public class CrewCertificate
     public CrewMember CrewMember { get; set; } = null!;
     [JsonIgnore]
     public Certificate Certificate { get; set; } = null!;
+    [JsonIgnore]
+    public Country? Country { get; set; } // Optional FK to countries table
 }
 
 /// <summary>
@@ -871,6 +880,8 @@ public class Country
     // Navigation property
     [JsonIgnore]
     public List<CountryCertificate> CountryCertificates { get; set; } = new();
+    [JsonIgnore]
+    public List<CrewCertificate> CrewCertificates { get; set; } = new(); // Crew certificates issued by this country
 }
 
 /// <summary>

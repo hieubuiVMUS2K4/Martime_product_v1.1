@@ -13,6 +13,7 @@ import type {
   CrewMember,
   Certificate,
   CrewCertificate,
+  Country,
   MaintenanceTask,
   CargoOperation,
   WatchkeepingLog,
@@ -153,6 +154,7 @@ export class MaritimeService {
     getAll: () => this.request<Certificate[]>('/certificates'),
     getById: (id: number) => this.request<Certificate>(`/certificates/${id}`),
     getWithCrewCount: () => this.request<(Certificate & { crewCount: number })[]>('/certificates/with-crew-count'),
+    getCertificateCountries: (certificateId: number) => this.request<Country[]>(`/certificates/${certificateId}/countries`),
     create: (data: {
       certificateCode: string
       certificateName: string
@@ -178,10 +180,27 @@ export class MaritimeService {
       issueDate: string
       expiryDate: string
       issuingAuthority?: string | null
+      certificateOfCompetency?: string
+      countryId?: number | null
       status: string
       notes?: string | null
     }) => this.request<{ id: number; message: string }>('/certificates/crew-certificates', {
       method: 'POST',
+      body: JSON.stringify(data)
+    }),
+    updateCrewCertificate: (id: number, data: {
+      certificateId: number
+      crewMemberId: string
+      certificateNumber: string
+      issueDate: string
+      expiryDate: string
+      issuingAuthority?: string | null
+      certificateOfCompetency?: string
+      countryId?: number | null
+      status: string
+      notes?: string | null
+    }) => this.request<{ message: string }>(`/certificates/crew-certificates/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(data)
     })
   }
@@ -285,6 +304,12 @@ export class MaritimeService {
       this.request<WatchkeepingLog[]>(`/compliance/watchkeeping?days=${days}`),
     getOilRecordBook: (days: number = 30) =>
       this.request<OilRecordBook[]>(`/compliance/oil-record-book?days=${days}`),
+  }
+
+  // === COUNTRIES MANAGEMENT ===
+  countries = {
+    getAll: () => this.request<Country[]>('/countries'),
+    getById: (id: number) => this.request<Country>(`/countries/${id}`),
   }
 
   sync = {

@@ -23,6 +23,8 @@ export function CertificateManagementPage() {
   const [crewWithCertificate, setCrewWithCertificate] = useState<(CrewCertificate & { crewMember: CrewMember })[]>([])
   const [countries, setCountries] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; crewCert: any } | null>(null)
+  const [selectedRow, setSelectedRow] = useState<number | null>(null)
 
   useEffect(() => {
     console.log('🔷 CertificateManagementPage mounted, loading certificates...')
@@ -110,6 +112,8 @@ export function CertificateManagementPage() {
         issueDate: item.IssueDate || item.issueDate,
         expiryDate: item.ExpiryDate || item.expiryDate,
         issuingAuthority: item.IssuingAuthority || item.issuingAuthority,
+        certificateOfCompetency: item.CertificateOfCompetency || item.certificateOfCompetency,
+        countryId: item.CountryId || item.countryId,
         status: item.Status || item.status,
         notes: item.Notes || item.notes,
         crewMember: item.CrewMember ? {
@@ -119,10 +123,16 @@ export function CertificateManagementPage() {
           rank: item.CrewMember.Rank || item.CrewMember.rank,
           nationality: item.CrewMember.Nationality || item.CrewMember.nationality,
           crewId: item.CrewMember.CrewId || item.CrewMember.crewId
-        } : item.crewMember
+        } : item.crewMember,
+        country: item.Country ? {
+          id: item.Country.Id || item.Country.id,
+          countryCode: item.Country.CountryCode || item.Country.countryCode,
+          countryName: item.Country.CountryName || item.Country.countryName
+        } : item.country
       }))
       console.log('✅ Mapped data:', mapped)
       console.log('📊 Mapped count:', mapped.length)
+      console.log('🔍 First record details:', JSON.stringify(mapped[0], null, 2))
       setCrewWithCertificate(mapped as any)
       
       // Also load countries
@@ -135,6 +145,46 @@ export function CertificateManagementPage() {
       console.error('❌ Full error:', error)
       setCrewWithCertificate([])
     }
+  }
+
+  const handleContextMenu = (e: React.MouseEvent, crewCert: any) => {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY, crewCert })
+    setSelectedRow(crewCert.id)
+  }
+
+  const closeContextMenu = () => {
+    setContextMenu(null)
+    setSelectedRow(null)
+  }
+
+  useEffect(() => {
+    const handleClick = () => closeContextMenu()
+    window.addEventListener('click', handleClick)
+    return () => window.removeEventListener('click', handleClick)
+  }, [])
+
+  const handleEditCertificate = (crewCert: any) => {
+    navigate(`/crew/certificates/${selectedCertificate?.id}/add-crew`, {
+      state: { editingCertificate: crewCert }
+    })
+    closeContextMenu()
+  }
+
+  const handleCreateFlagStateCertificate = (crewCert: any) => {
+    // Create a copy of the certificate with CoC set to Flag State and exclude the original country
+    const flagStateCertificate = {
+      ...crewCert,
+      certificateOfCompetency: 'Flag State',
+      excludeCountryId: crewCert.certificateOfCompetency === 'National' ? crewCert.countryId : null
+    }
+    navigate(`/crew/certificates/${selectedCertificate?.id}/add-crew`, {
+      state: { 
+        editingCertificate: flagStateCertificate,
+        isFlagStateCreation: true
+      }
+    })
+    closeContextMenu()
   }
 
   const getCategoryBadge = (category?: string) => {
@@ -293,25 +343,31 @@ export function CertificateManagementPage() {
                   <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '15%'}}>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>
                           Crew Member
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>
                           Position
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>
+                          CoC
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>
+                          Country
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>
                           Cert. Number
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>
                           Issue Date
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>
                           Expiry Date
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '15%'}}>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>
                           Issuing Authority
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10%'}}>
                           Status
                         </th>
                       </tr>
@@ -325,26 +381,42 @@ export function CertificateManagementPage() {
                         return (
                           <tr
                             key={crewCert.id}
-                            onClick={() => navigate(`/crew/${crewCert.crewMemberId}`)}
-                            className="border-b border-gray-100 transition-colors hover:bg-gray-50 cursor-pointer"
+                            onContextMenu={(e) => handleContextMenu(e, crewCert)}
+                            className={`border-b border-gray-100 transition-colors cursor-pointer ${
+                              selectedRow === crewCert.id ? 'bg-blue-100' : 'hover:bg-gray-50'
+                            }`}
                           >
-                            <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '15%'}}>
+                            <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '12%'}}>
                               <div className="truncate font-medium">{crewCert.crewMember.fullName}</div>
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '10%'}}>
                               <div className="truncate">{crewCert.crewMember.position}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '8%'}}>
+                              {(crewCert as any).certificateOfCompetency ? (
+                                <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                                  (crewCert as any).certificateOfCompetency === 'National' 
+                                    ? 'bg-blue-100 text-blue-800' 
+                                    : 'bg-purple-100 text-purple-800'
+                                }`}>
+                                  {(crewCert as any).certificateOfCompetency}
+                                </span>
+                              ) : '-'}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '10%'}}>
+                              <div className="truncate">{(crewCert as any).country?.countryName || '-'}</div>
                             </td>
                             <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '10%'}}>
                               <code className="text-xs font-mono text-gray-900">
                                 {crewCert.certificateNumber}
                               </code>
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '10%'}}>
                               <div className="truncate">
                                 {format(parseISO(crewCert.issueDate), 'dd MMM yyyy')}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '12%'}}>
+                            <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '10%'}}>
                               <div className="text-gray-900 font-medium truncate">
                                 {format(parseISO(crewCert.expiryDate), 'dd MMM yyyy')}
                               </div>
@@ -352,12 +424,12 @@ export function CertificateManagementPage() {
                                 {daysLeft} days left
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '15%'}}>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
                               <div className="truncate">
                                 {crewCert.issuingAuthority || 'N/A'}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-sm" style={{width: '12%'}}>
+                            <td className="px-4 py-3 text-sm" style={{width: '10%'}}>
                               <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${status.bgColor} ${status.color}`}>
                                 <StatusIcon className="w-3 h-3" />
                                 {status.status}
@@ -387,6 +459,43 @@ export function CertificateManagementPage() {
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
           >
             {t('crew.certificateManagement.goToCertificateMonitor')}
+          </button>
+        </div>
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50"
+          style={{ left: contextMenu.x, top: contextMenu.y, minWidth: '240px' }}
+        >
+          <button
+            onClick={() => handleEditCertificate(contextMenu.crewCert)}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <span>✏️</span> Edit Certificate
+          </button>
+          <button
+            onClick={() => {
+              navigate(`/crew/${contextMenu.crewCert.crewMemberId}`)
+              closeContextMenu()
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <span>👤</span> View Crew Profile
+          </button>
+          <div className="border-t border-gray-200 my-1"></div>
+          <button
+            onClick={() => handleCreateFlagStateCertificate(contextMenu.crewCert)}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <span>🏴</span> Create Flag State Certificate
+          </button>
+          <div className="border-t border-gray-200 my-1"></div>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+          >
+            <span>🗑️</span> Delete Certificate
           </button>
         </div>
       )}

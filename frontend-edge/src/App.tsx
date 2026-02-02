@@ -69,6 +69,7 @@ function App() {
         <Route path="alarms" element={<AlarmsPage />} />
         <Route path="crew" element={<CrewPage />} />
         <Route path="crew/certificates" element={<CertificateManagementPage />} />
+        <Route path="crew/certificates/add" element={<AddCrewCertificatePage />} />
         <Route path="crew/certificates/:certificateId" element={<CertificateManagementPage />} />
         <Route path="crew/certificates/:certificateId/add-crew" element={<AddCrewCertificatePage />} />
         <Route path="pms/maintenance" element={<MaintenancePage />} />

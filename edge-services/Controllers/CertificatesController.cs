@@ -66,7 +66,18 @@ public class CertificatesController : ControllerBase
                     CrewCount = _context.CrewCertificates.Count(cc => cc.CertificateId == c.Id),
                     ValidCount = _context.CrewCertificates.Count(cc => cc.CertificateId == c.Id && cc.ExpiryDate != null && cc.ExpiryDate > warningDate),
                     ExpiringCount = _context.CrewCertificates.Count(cc => cc.CertificateId == c.Id && cc.ExpiryDate != null && cc.ExpiryDate <= warningDate && cc.ExpiryDate > now),
-                    ExpiredCount = _context.CrewCertificates.Count(cc => cc.CertificateId == c.Id && cc.ExpiryDate != null && cc.ExpiryDate <= now)
+                    ExpiredCount = _context.CrewCertificates.Count(cc => cc.CertificateId == c.Id && cc.ExpiryDate != null && cc.ExpiryDate <= now),
+                    Countries = _context.CountryCertificates
+                        .Where(cc => cc.CertificateId == c.Id)
+                        .Select(cc => cc.Country)
+                        .Where(country => country != null && country.IsActive)
+                        .Select(country => new
+                        {
+                            country!.Id,
+                            country.CountryCode,
+                            country.CountryName
+                        })
+                        .ToList()
                 })
                 .OrderBy(c => c.Category)
                 .ThenBy(c => c.CertificateName)
@@ -105,6 +116,30 @@ public class CertificatesController : ControllerBase
         }
     }
 
+    // GET: api/certificates/{id}/countries
+    [HttpGet("{id}/countries")]
+    public async Task<IActionResult> GetCertificateCountries(int id)
+    {
+        try
+        {
+            var countries = await _context.CountryCertificates
+                .AsNoTracking()
+                .Where(cc => cc.CertificateId == id)
+                .Include(cc => cc.Country)
+                .Where(cc => cc.Country != null && cc.Country.IsActive)
+                .Select(cc => cc.Country)
+                .OrderBy(c => c!.CountryName)
+                .ToListAsync();
+
+            return Ok(countries);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching countries for certificate {CertificateId}", id);
+            return StatusCode(500, new { message = "Error fetching countries for certificate", error = ex.Message });
+        }
+    }
+
     // GET: api/certificates/{id}/crew-certificates
     [HttpGet("{id}/crew-certificates")]
     public async Task<IActionResult> GetCrewCertificates(int id)
@@ -114,6 +149,7 @@ public class CertificatesController : ControllerBase
             var crewCertificates = await _context.CrewCertificates
                 .AsNoTracking()
                 .Include(cc => cc.CrewMember)
+                .Include(cc => cc.Country)
                 .Where(cc => cc.CertificateId == id)
                 .OrderBy(cc => cc.CrewMember != null ? cc.CrewMember.FullName : "")
                 .Select(cc => new
@@ -125,6 +161,8 @@ public class CertificatesController : ControllerBase
                     cc.IssueDate,
                     cc.ExpiryDate,
                     cc.IssuingAuthority,
+                    cc.CertificateOfCompetency,
+                    cc.CountryId,
                     cc.Status,
                     cc.Notes,
                     CrewMember = cc.CrewMember == null ? null : new
@@ -135,6 +173,12 @@ public class CertificatesController : ControllerBase
                         cc.CrewMember.Rank,
                         cc.CrewMember.Nationality,
                         cc.CrewMember.CrewId
+                    },
+                    Country = cc.Country == null ? null : new
+                    {
+                        cc.Country.Id,
+                        cc.Country.CountryCode,
+                        cc.Country.CountryName
                     }
                 })
                 .ToListAsync();
@@ -157,6 +201,7 @@ public class CertificatesController : ControllerBase
             var crewCertificates = await _context.CrewCertificates
                 .AsNoTracking()
                 .Include(cc => cc.Certificate)
+                .Include(cc => cc.Country)
                 .Where(cc => cc.CrewMemberId == crewId)
                 .OrderBy(cc => cc.Certificate != null ? cc.Certificate.CertificateName : "")
                 .Select(cc => new
@@ -168,6 +213,8 @@ public class CertificatesController : ControllerBase
                     cc.IssueDate,
                     cc.ExpiryDate,
                     cc.IssuingAuthority,
+                    cc.CertificateOfCompetency,
+                    cc.CountryId,
                     cc.Status,
                     cc.Notes,
                     Certificate = cc.Certificate == null ? null : new
@@ -178,6 +225,12 @@ public class CertificatesController : ControllerBase
                         cc.Certificate.Category,
                         cc.Certificate.ValidityPeriodMonths,
                         cc.Certificate.IsMandatory
+                    },
+                    Country = cc.Country == null ? null : new
+                    {
+                        cc.Country.Id,
+                        cc.Country.CountryCode,
+                        cc.Country.CountryName
                     }
                 })
                 .ToListAsync();
@@ -326,6 +379,8 @@ public class CertificatesController : ControllerBase
                 IssueDate = request.IssueDate,
                 ExpiryDate = request.ExpiryDate,
                 IssuingAuthority = request.IssuingAuthority,
+                CertificateOfCompetency = request.CertificateOfCompetency,
+                CountryId = request.CountryId,
                 Status = request.Status ?? "VALID",
                 Notes = request.Notes,
                 CreatedAt = DateTime.UtcNow,
@@ -353,7 +408,96 @@ public class CertificatesController : ControllerBase
             return StatusCode(500, new { message = "Error adding crew certificate", error = ex.Message });
         }
     }
-}
+
+    // PUT: api/certificates/crew-certificates/{id}
+    [HttpPut("crew-certificates/{id}")]
+    public async Task<IActionResult> UpdateCrewCertificate(int id, [FromBody] CrewCertificateRequest request)
+    {
+        try
+        {
+            var existingCertificate = await _context.CrewCertificates
+                .FirstOrDefaultAsync(cc => cc.Id == id);
+
+            if (existingCertificate == null)
+            {
+                return NotFound(new { message = "Certificate not found" });
+            }
+
+            // Check if certificate number is being changed and if it already exists for this crew member
+            if (existingCertificate.CertificateNumber != request.CertificateNumber)
+            {
+                var duplicateCheck = await _context.CrewCertificates
+                    .AnyAsync(cc => cc.CertificateNumber == request.CertificateNumber 
+                                 && cc.CrewMemberId == request.CrewMemberId 
+                                 && cc.Id != id);
+
+                if (duplicateCheck)
+                {
+                    return BadRequest(new { message = "This certificate number already exists for this crew member" });
+                }
+            }
+
+            // Update fields
+            existingCertificate.CertificateId = request.CertificateId;
+            existingCertificate.CrewMemberId = request.CrewMemberId;
+            existingCertificate.CertificateNumber = request.CertificateNumber;
+            existingCertificate.IssueDate = request.IssueDate;
+            existingCertificate.ExpiryDate = request.ExpiryDate;
+            existingCertificate.IssuingAuthority = request.IssuingAuthority;
+            existingCertificate.CertificateOfCompetency = request.CertificateOfCompetency;
+            existingCertificate.CountryId = request.CountryId;
+            existingCertificate.Status = request.Status ?? "VALID";
+            existingCertificate.Notes = request.Notes;
+            existingCertificate.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Crew certificate {Id} updated successfully", id);
+
+            return Ok(new { message = "Certificate updated successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating crew certificate {Id}", id);
+            return StatusCode(500, new { message = "Error updating crew certificate", error = ex.Message });
+        }
+    }
+    
+    // GET: api/certificates/verify-data-cleared
+    [HttpGet("verify-data-cleared")]
+    public async Task<IActionResult> VerifyDataCleared()
+    {
+        try
+        {
+            var crewCertCount = await _context.CrewCertificates.CountAsync();
+            var countryCertCount = await _context.CountryCertificates.CountAsync();
+            var crewMemberCount = await _context.CrewMembers.CountAsync();
+            var certCount = await _context.Certificates.CountAsync();
+            var countryCount = await _context.Countries.CountAsync();
+            
+            var totalRecords = crewCertCount + countryCertCount + crewMemberCount + certCount + countryCount;
+            
+            return Ok(new
+            {
+                message = totalRecords == 0 ? "✅ Tất cả 5 bảng đã được xóa sạch!" : $"⚠️ Còn {totalRecords} records trong database",
+                isCleared = totalRecords == 0,
+                tables = new
+                {
+                    crew_certificates = crewCertCount,
+                    country_certificates = countryCertCount,
+                    crew_members = crewMemberCount,
+                    certificates = certCount,
+                    countries = countryCount
+                },
+                totalRecords
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error verifying data cleared");
+            return StatusCode(500, new { message = "Error verifying data", error = ex.Message });
+        }
+    }}
 
 // DTO for create certificate request
 public class CreateCertificateRequest
@@ -399,6 +543,11 @@ public class CrewCertificateRequest
     
     [MaxLength(200)]
     public string? IssuingAuthority { get; set; }
+    
+    [MaxLength(200)]
+    public string? CertificateOfCompetency { get; set; }
+    
+    public int? CountryId { get; set; }
     
     [MaxLength(20)]
     public string? Status { get; set; }

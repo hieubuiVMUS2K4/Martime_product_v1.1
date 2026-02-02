@@ -72,7 +72,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
   const loadCountries = async () => {
     try {
       console.log('🔵 Loading countries from API...')
-      const response = await fetch('http://localhost:5001/api/countries')
+      const response = await fetch('/api/countries')
       console.log('📡 Response status:', response.status)
       
       if (!response.ok) {
@@ -91,7 +91,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
   const loadCertificateCountries = async (certificateId: number) => {
     try {
       console.log('🔵 Loading countries for certificate:', certificateId)
-      const response = await fetch(`http://localhost:5001/api/country-certificates/certificate/${certificateId}`)
+      const response = await fetch(`/api/country-certificates/certificate/${certificateId}`)
       
       if (!response.ok) {
         console.warn('⚠️ No countries found for certificate or endpoint not available')
@@ -135,7 +135,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
     }
 
     try {
-      const response = await fetch('http://localhost:5001/api/countries', {
+      const response = await fetch('/api/countries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -177,7 +177,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
 
       if (editingCertificate) {
         // Update existing certificate
-        const response = await fetch(`http://localhost:5001/api/certificates/${editingCertificate.id}`, {
+        const response = await fetch(`/api/certificates/${editingCertificate.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(certificatePayload)
@@ -190,7 +190,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
         certificateId = editingCertificate.id
       } else {
         // Create new certificate
-        const response = await fetch('http://localhost:5001/api/certificates', {
+        const response = await fetch('/api/certificates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(certificatePayload)
@@ -209,7 +209,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
         // Delete existing associations first
         console.log('🔵 Deleting old country associations for certificate:', certificateId)
         try {
-          await fetch(`http://localhost:5001/api/country-certificates/certificate/${certificateId}`, {
+          await fetch(`/api/country-certificates/certificate/${certificateId}`, {
             method: 'DELETE'
           })
           console.log('✅ Old associations deleted')
@@ -227,7 +227,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
         }))
 
         console.log('📤 Sending associations:', countryAssociations)
-        const assocResponse = await fetch('http://localhost:5001/api/country-certificates/batch', {
+        const assocResponse = await fetch('/api/country-certificates/batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(countryAssociations)

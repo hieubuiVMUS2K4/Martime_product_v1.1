@@ -260,6 +260,16 @@ export interface Certificate {
   updatedAt: string
 }
 
+// Country - List of countries (ISO 3166-1)
+export interface Country {
+  id: number
+  countryCode: string // ISO 3166-1 alpha-3: VNM, USA, GBR, PHL
+  countryName: string // Vietnam, United States, United Kingdom
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 // Crew Certificate (actual certificate of crew member)
 export interface CrewCertificate {
   id: number
@@ -269,6 +279,8 @@ export interface CrewCertificate {
   issueDate: string
   expiryDate: string
   issuingAuthority?: string
+  certificateOfCompetency?: string // Chứng chỉ năng lực
+  countryId?: number // Quốc gia cấp chứng chỉ
   documentFilePath?: string // File path for scanned certificate
   status: 'VALID' | 'EXPIRED' | 'SUSPENDED'
   notes?: string
@@ -280,6 +292,7 @@ export interface CrewCertificate {
   // Navigation properties (from API)
   certificate?: Certificate
   crewMember?: CrewMember
+  country?: Country
 }
 
 // Task Status - Updated v2.0 (PMS Workflow)

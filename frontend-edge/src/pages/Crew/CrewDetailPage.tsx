@@ -3,12 +3,17 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft, 
   Trash2,
-  Upload
+  Upload,
+  Download,
+  CheckCircle,
+  XCircle,
+  AlertTriangle
 } from 'lucide-react'
 import { CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
+import { format, differenceInDays, parseISO } from 'date-fns'
 
-type TabType = 'basic-data' | 'certificates'
+type TabType = 'basic-data' | 'documents'
 
 export function CrewDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -21,6 +26,9 @@ export function CrewDetailPage() {
   const [activeTab, setActiveTab] = useState<TabType>('basic-data')
   const [certificates, setCertificates] = useState<any[]>([])
   const [loadingCertificates, setLoadingCertificates] = useState(false)
+  const [isIdentityExpanded, setIsIdentityExpanded] = useState(true)
+  const [isHealthExpanded, setIsHealthExpanded] = useState(true)
+  const [isCertificatesExpanded, setIsCertificatesExpanded] = useState(true)
 
   useEffect(() => {
     loadCrewDetails()
@@ -158,28 +166,28 @@ export function CrewDetailPage() {
               Basic Data
             </button>
             <button
-              onClick={() => setActiveTab('certificates')}
+              onClick={() => setActiveTab('documents')}
               className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'certificates'
+                activeTab === 'documents'
                   ? 'border-blue-600 text-blue-600 bg-blue-50'
                   : 'border-transparent text-gray-600 hover:text-gray-800'
               }`}
             >
-              Certificates
+              Documents
             </button>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-6">
+      <div className="p-3">
         {activeTab === 'basic-data' && (
-          <div className="space-y-6">
+          <div className="space-y-3">
             {/* Main Form */}
             <div className="bg-white rounded-lg shadow-sm p-6">
               <div className="grid grid-cols-12 gap-6">
                 {/* Left Column - Name & Position */}
-                <div className="col-span-3 space-y-4">
+                <div className="col-span-3 space-y-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
                       Last Name
@@ -241,7 +249,7 @@ export function CrewDetailPage() {
                 </div>
 
                 {/* Middle-Left Column - Personal Info */}
-                <div className="col-span-3 space-y-4">
+                <div className="col-span-3 space-y-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
                       First Name
@@ -303,7 +311,7 @@ export function CrewDetailPage() {
                 </div>
 
                 {/* Middle-Right Column - Dates */}
-                <div className="col-span-3 space-y-4">
+                <div className="col-span-3 space-y-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
                       Middle Name
@@ -412,7 +420,7 @@ export function CrewDetailPage() {
             </div>
 
             {/* Travel Documents */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white rounded-lg shadow-sm p-3">
               <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Travel Documents</h3>
               <div className="grid grid-cols-3 gap-4">
                 <div>
@@ -476,7 +484,7 @@ export function CrewDetailPage() {
             </div>
 
             {/* Contact Information */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white rounded-lg shadow-sm p-3">
               <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Contact Information</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -517,99 +525,358 @@ export function CrewDetailPage() {
           </div>
         )}
 
-        {activeTab === 'certificates' && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Certificates</h3>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                + Add Certificate
-              </button>
-            </div>
-            
-            {loadingCertificates ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              </div>
-            ) : certificates && certificates.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Certificate</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Number</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Issue Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expiry Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Issuing Authority</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {certificates.map((cert) => {
-                      const isExpired = cert.expiryDate && new Date(cert.expiryDate) < new Date()
-                      const isExpiringSoon = cert.expiryDate && !isExpired && 
-                        (new Date(cert.expiryDate).getTime() - new Date().getTime()) < (30 * 24 * 60 * 60 * 1000)
-                      
-                      return (
-                        <tr key={cert.id} className="border-b border-gray-200 hover:bg-gray-50">
-                          <td className="px-4 py-3">
-                            <div>
-                              <div className="font-medium text-gray-900">
-                                {cert.certificate?.certificateName || 'Unknown Certificate'}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {cert.certificate?.certificateCode}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{cert.certificateNumber}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">
-                            {cert.issueDate ? new Date(cert.issueDate).toLocaleDateString('en-GB') : '-'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700">
-                            {cert.expiryDate ? new Date(cert.expiryDate).toLocaleDateString('en-GB') : '-'}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-1 text-xs font-medium rounded ${
-                              cert.status === 'VALID' 
-                                ? 'bg-green-100 text-green-800'
-                                : cert.status === 'EXPIRED'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {cert.status}
-                            </span>
-                            {isExpiringSoon && (
-                              <span className="ml-2 px-2 py-1 text-xs font-medium rounded bg-yellow-100 text-yellow-800">
-                                Expiring Soon
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{cert.issuingAuthority || '-'}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <button className="text-blue-600 hover:text-blue-800 text-sm">
-                                Edit
-                              </button>
-                              <button className="text-red-600 hover:text-red-800 text-sm">
-                                Delete
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 mb-4">No certificates found for this crew member</p>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                  + Add First Certificate
+        {activeTab === 'documents' && (
+          <div className="space-y-2">
+            {/* IDENTITY DOCUMENTS Section */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-4 py-3 flex items-center justify-between cursor-pointer" onClick={() => setIsIdentityExpanded(!isIdentityExpanded)}>
+                <h3 className="text-sm font-semibold text-gray-700 uppercase">IDENTITY DOCUMENTS ({[
+                  editedCrew.passportNumber,
+                  editedCrew.visaNumber,
+                  editedCrew.seamanBookNumber,
+                  editedCrew.joinDate
+                ].filter(Boolean).length})</h3>
+                <button className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all">
+                  <span className="text-white text-xs transition-transform" style={{ transform: isIdentityExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
+                    ▼
+                  </span>
                 </button>
               </div>
-            )}
+              {isIdentityExpanded && (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
+                    <thead className="bg-white border-b-2 border-gray-300">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '3%'}}></th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '20%'}}>Name / Type</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>Files</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Number</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Date of Issue</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Place</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Country</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>Exp. Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white">
+                      {/* Passport */}
+                      {editedCrew.passportNumber && (
+                        <tr className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
+                            <button className="text-gray-400 hover:text-gray-600">::</button>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
+                            <div className="flex items-center gap-2">
+                              <span>🔒</span>
+                              <span className="font-medium">Passport</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
+                            <button className="text-blue-600 hover:text-blue-800">
+                              <Download className="w-4 h-4 inline" />
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">{editedCrew.passportNumber}</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">-</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">-</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">{editedCrew.nationality || '-'}</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
+                            <div className="truncate">{editedCrew.passportExpiry ? format(new Date(editedCrew.passportExpiry), 'dd/MM/yyyy') : '-'}</div>
+                          </td>
+                        </tr>
+                      )}
+                      
+                      {/* US Visa */}
+                      {editedCrew.visaNumber && (
+                        <tr className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
+                            <button className="text-gray-400 hover:text-gray-600">::</button>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
+                            <div className="flex items-center gap-2">
+                              <span>🔒</span>
+                              <div>
+                                <div className="font-medium">US Visa</div>
+                                <div className="text-xs text-gray-500">Type: B-1/B-2</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
+                            <button className="text-blue-600 hover:text-blue-800">
+                              <Download className="w-4 h-4 inline" />
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">{editedCrew.visaNumber}</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">-</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">-</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">-</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
+                            <div className="truncate">{editedCrew.visaExpiry ? format(new Date(editedCrew.visaExpiry), 'dd/MM/yyyy') : '-'}</div>
+                          </td>
+                        </tr>
+                      )}
+                      
+                      {/* Seaman's Book - National */}
+                      {editedCrew.seamanBookNumber && (
+                        <tr className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
+                            <button className="text-gray-400 hover:text-gray-600">::</button>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
+                            <div className="flex items-center gap-2">
+                              <span>🔒</span>
+                              <span className="font-medium">(SB) Seaman's Book - National</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
+                            <button className="text-blue-600 hover:text-blue-800">
+                              <Download className="w-4 h-4 inline" />
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">{editedCrew.seamanBookNumber}</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">-</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">-</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">{editedCrew.nationality || '-'}</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
+                            <div className="truncate">-</div>
+                          </td>
+                        </tr>
+                      )}
+                      
+                      {/* Contract of Employment */}
+                      {editedCrew.joinDate && (
+                        <tr className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
+                            <button className="text-gray-400 hover:text-gray-600">::</button>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
+                            <div className="flex items-center gap-2">
+                              <span>🔒</span>
+                              <span className="font-medium">Contract of Employment (COE)</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
+                            <div className="truncate">-</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">-</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">{format(new Date(editedCrew.joinDate), 'dd/MM/yyyy')}</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">-</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                            <div className="truncate">-</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
+                            <div className="truncate">{editedCrew.contractEnd ? format(new Date(editedCrew.contractEnd), 'dd/MM/yyyy') : '-'}</div>
+                          </td>
+                        </tr>
+                      )}
+                      
+                      {[editedCrew.passportNumber, editedCrew.visaNumber, editedCrew.seamanBookNumber, editedCrew.joinDate].filter(Boolean).length === 0 && (
+                        <tr className="border-b border-gray-100">
+                          <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                            No identity documents available
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* HEALTH DOCUMENTS Section */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-4 py-3 flex items-center justify-between cursor-pointer" onClick={() => setIsHealthExpanded(!isHealthExpanded)}>
+                <h3 className="text-sm font-semibold text-gray-700 uppercase">HEALTH DOCUMENTS (0)</h3>
+                <button className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all">
+                  <span className="text-white text-xs transition-transform" style={{ transform: isHealthExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
+                    ▼
+                  </span>
+                </button>
+              </div>
+              {isHealthExpanded && (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
+                    <thead className="bg-white border-b-2 border-gray-300">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '3%'}}></th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '25%'}}>Name</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>Files</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Number</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Date of Issue</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Place</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Country</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>Exp. Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white">
+                      <tr className="border-b border-gray-100">
+                        <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                          No health documents available
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* CERTIFICATES Section */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-4 py-3 flex items-center justify-between cursor-pointer" onClick={() => setIsCertificatesExpanded(!isCertificatesExpanded)}>
+                <h3 className="text-sm font-semibold text-gray-700 uppercase">CERTIFICATES ({certificates.length})</h3>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      navigate(`/crew/certificates/add?crewId=${id}`)
+                    }}
+                    className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
+                    title="Add certificate"
+                  >
+                    +
+                  </button>
+                  <button className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all">
+                    <span className="text-white text-xs transition-transform" style={{ transform: isCertificatesExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
+                      ▼
+                    </span>
+                  </button>
+                </div>
+              </div>
+              {isCertificatesExpanded && (
+                loadingCertificates ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : certificates && certificates.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
+                      <thead className="bg-white border-b-2 border-gray-300">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '15%'}}>Certificate Name</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>CoC</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>Country</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Cert. Number</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>Issue Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>Expiry Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '15%'}}>Issuing Authority</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10%'}}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white">
+                        {certificates.map((cert) => {
+                          const getCertStatus = (expiryDate: string) => {
+                            if (!expiryDate) return { icon: AlertTriangle, status: 'N/A', color: 'text-gray-500', bgColor: 'bg-gray-100' }
+                            const daysLeft = differenceInDays(parseISO(expiryDate), new Date())
+                            if (daysLeft < 0) {
+                              return { icon: XCircle, status: 'Expired', color: 'text-red-600', bgColor: 'bg-red-100' }
+                            } else if (daysLeft < 90) {
+                              return { icon: AlertTriangle, status: 'Expiring', color: 'text-yellow-600', bgColor: 'bg-yellow-100' }
+                            } else {
+                              return { icon: CheckCircle, status: 'Valid', color: 'text-green-600', bgColor: 'bg-green-100' }
+                            }
+                          }
+                          
+                          const status = getCertStatus(cert.expiryDate)
+                          const StatusIcon = status.icon
+                          const daysLeft = cert.expiryDate ? differenceInDays(parseISO(cert.expiryDate), new Date()) : null
+                          
+                          return (
+                            <tr key={cert.id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '15%'}}>
+                                <div className="font-medium text-gray-900 truncate">
+                                  {cert.certificate?.certificateName || cert.certificateName || 'Unknown Certificate'}
+                                </div>
+                                <div className="text-xs text-gray-500 truncate">
+                                  {cert.certificate?.certificateCode || cert.certificateCode || ''}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '8%'}}>
+                                {cert.certificateOfCompetency ? (
+                                  <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                                    cert.certificateOfCompetency === 'National' 
+                                      ? 'bg-blue-100 text-blue-800' 
+                                      : 'bg-purple-100 text-purple-800'
+                                  }`}>
+                                    {cert.certificateOfCompetency}
+                                  </span>
+                                ) : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '10%'}}>
+                                <div className="truncate">{cert.country?.countryName || cert.countryName || '-'}</div>
+                              </td>
+                              <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '12%'}}>
+                                <code className="text-xs font-mono text-gray-900 truncate block">
+                                  {cert.certificateNumber || '-'}
+                                </code>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '10%'}}>
+                                <div className="truncate">
+                                  {cert.issueDate ? format(parseISO(cert.issueDate), 'dd MMM yyyy') : '-'}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '10%'}}>
+                                <div className="text-gray-900 font-medium truncate">
+                                  {cert.expiryDate ? format(parseISO(cert.expiryDate), 'dd MMM yyyy') : '-'}
+                                </div>
+                                {daysLeft !== null && (
+                                  <div className={`text-xs ${status.color} truncate`}>
+                                    {daysLeft} days left
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '15%'}}>
+                                <div className="truncate">
+                                  {cert.issuingAuthority || '-'}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-sm" style={{width: '10%'}}>
+                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${status.bgColor} ${status.color}`}>
+                                  <StatusIcon className="w-3 h-3" />
+                                  {status.status}
+                                </span>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-500 mb-4">No certificates found for this crew member</p>
+                  </div>
+                )
+              )}
+            </div>
           </div>
         )}
       </div>

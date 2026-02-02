@@ -1,22 +1,30 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Award, Calendar, FileText, Building, ArrowLeft, Save, Users } from 'lucide-react'
+import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom'
+import { Award, Calendar, FileText, Building, ArrowLeft, Save, Users, Globe } from 'lucide-react'
 import { maritimeService } from '../../services/maritime.service'
-import { Certificate, CrewMember } from '../../types/maritime.types'
+import { Certificate, CrewMember, Country } from '../../types/maritime.types'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 
 export function AddCrewCertificatePage() {
   const { t } = useTranslationSafe()
   const navigate = useNavigate()
+  const location = useLocation()
   const { certificateId } = useParams<{ certificateId?: string }>()
   const [searchParams] = useSearchParams()
   const crewIdParam = searchParams.get('crewId')
+
+  // Get editing/flag state data from navigation state
+  const editingCertificate = location.state?.editingCertificate
+  const isFlagStateCreation = location.state?.isFlagStateCreation
+  const excludeCountryId = editingCertificate?.excludeCountryId
 
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
   const [certificates, setCertificates] = useState<Certificate[]>([])
   const [crewMembers, setCrewMembers] = useState<CrewMember[]>([])
   const [selectedCertificate, setSelectedCertificate] = useState<Certificate | null>(null)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
   
   const [formData, setFormData] = useState({
     certificateId: certificateId || '',
@@ -25,39 +33,99 @@ export function AddCrewCertificatePage() {
     issueDate: '',
     expiryDate: '',
     issuingAuthority: '',
+    certificateOfCompetency: 'National',
+    countryId: null as number | null,
     status: 'VALID',
     notes: ''
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [countries, setCountries] = useState<Country[]>([])
+  const [loadingCountries, setLoadingCountries] = useState(false)
 
   useEffect(() => {
     loadData()
   }, [])
 
+  // Load editing certificate data if provided
+  useEffect(() => {
+    if (editingCertificate && certificates.length > 0 && crewMembers.length > 0) {
+      console.log('Loading editing certificate:', editingCertificate)
+      setIsEditMode(!isFlagStateCreation) // If flag state creation, not edit mode
+      setEditingId(isFlagStateCreation ? null : editingCertificate.id)
+      
+      // When creating Flag State certificate, append "-FS" to certificate number to avoid duplicate
+      let certificateNumber = editingCertificate.certificateNumber || ''
+      if (isFlagStateCreation && certificateNumber && !certificateNumber.endsWith('-FS')) {
+        certificateNumber = certificateNumber + '-FS'
+      }
+      
+      setFormData({
+        certificateId: editingCertificate.certificateId?.toString() || certificateId || '',
+        crewMemberId: editingCertificate.crewMemberId || crewIdParam || '',
+        certificateNumber: certificateNumber,
+        issueDate: editingCertificate.issueDate?.split('T')[0] || '',
+        expiryDate: editingCertificate.expiryDate?.split('T')[0] || '',
+        issuingAuthority: editingCertificate.issuingAuthority || '',
+        certificateOfCompetency: editingCertificate.certificateOfCompetency || 'Flag State',
+        countryId: isFlagStateCreation ? null : (editingCertificate.countryId || null),
+        status: editingCertificate.status || 'VALID',
+        notes: editingCertificate.notes || ''
+      })
+    }
+  }, [editingCertificate, certificates, crewMembers])
+
   useEffect(() => {
     if (formData.certificateId && certificates.length > 0) {
       const cert = certificates.find(c => c.id === parseInt(formData.certificateId as string))
       setSelectedCertificate(cert || null)
+      
+      // Fetch countries for selected certificate
+      if (cert) {
+        fetchCountriesForCertificate(cert.id)
+      }
     }
   }, [formData.certificateId, certificates])
 
   const loadData = async () => {
     try {
       setLoadingData(true)
-      console.log('🔵 Loading certificates and crew members...')
+      console.log('Loading certificates and crew members...')
       const [certsData, crewData] = await Promise.all([
         maritimeService.certificates.getAll(),
         maritimeService.crew.getAll()
       ])
       const crewArray = (crewData as any).data || crewData
-      console.log('✅ Loaded:', certsData.length, 'certificates,', crewArray.length, 'crew')
+      console.log('Loaded:', certsData.length, 'certificates,', crewArray.length, 'crew')
       setCertificates(certsData)
       setCrewMembers(crewArray)
     } catch (error) {
-      console.error('❌ Failed to load data:', error)
+      console.error('Failed to load data:', error)
     } finally {
       setLoadingData(false)
+    }
+  }
+
+  const fetchCountriesForCertificate = async (certificateId: number) => {
+    try {
+      setLoadingCountries(true)
+      console.log('Fetching countries for certificate ID:', certificateId)
+      const response = await maritimeService.certificates.getCertificateCountries(certificateId)
+      console.log('Countries response:', response)
+      
+      // Filter out the excluded country if creating Flag State certificate
+      let filteredCountries = response || []
+      if (isFlagStateCreation && excludeCountryId) {
+        filteredCountries = filteredCountries.filter((c: Country) => c.id !== excludeCountryId)
+        console.log('Filtered out country ID:', excludeCountryId, 'Remaining:', filteredCountries.length)
+      }
+      
+      setCountries(filteredCountries)
+    } catch (err) {
+      console.error('Failed to fetch countries for certificate:', err)
+      setCountries([])
+    } finally {
+      setLoadingCountries(false)
     }
   }
 
@@ -84,36 +152,46 @@ export function AddCrewCertificatePage() {
     e.preventDefault()
     
     if (!validateForm()) {
-      console.log('❌ Form validation failed:', errors)
+      console.log('Form validation failed:', errors)
       return
     }
 
     try {
       setLoading(true)
-      console.log('🔵 Adding crew certificate:', formData)
       
-      await maritimeService.certificates.addCrewCertificate({
+      const certificateData = {
         certificateId: parseInt(formData.certificateId as string),
         crewMemberId: formData.crewMemberId,
         certificateNumber: formData.certificateNumber,
         issueDate: formData.issueDate,
         expiryDate: formData.expiryDate,
         issuingAuthority: formData.issuingAuthority || null,
+        certificateOfCompetency: formData.certificateOfCompetency,
+        countryId: formData.countryId,
         status: formData.status,
         notes: formData.notes || null
-      })
+      }
       
-      console.log('✅ Certificate added successfully')
+      if (isEditMode && editingId) {
+        console.log('Updating crew certificate:', editingId, certificateData)
+        await maritimeService.certificates.updateCrewCertificate(editingId, certificateData)
+        console.log('Certificate updated successfully')
+      } else {
+        console.log('Adding crew certificate:', certificateData)
+        await maritimeService.certificates.addCrewCertificate(certificateData)
+        console.log('Certificate added successfully')
+      }
       
-      // Navigate back to certificate details page
       if (certificateId) {
         navigate(`/crew/certificates/${certificateId}`)
+      } else if (crewIdParam) {
+        navigate(`/crew/${crewIdParam}`)
       } else {
         navigate('/crew', { state: { activeTab: 'certificates' } })
       }
     } catch (error: any) {
-      console.error('❌ Failed to add certificate:', error)
-      alert(`Failed to add certificate: ${error.message}`)
+      console.error(isEditMode ? 'Failed to update certificate:' : 'Failed to add certificate:', error)
+      alert(`Failed to ${isEditMode ? 'update' : 'add'} certificate: ${error.message}`)
     } finally {
       setLoading(false)
     }
@@ -121,7 +199,13 @@ export function AddCrewCertificatePage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    
+    if (name === 'countryId') {
+      setFormData(prev => ({ ...prev, countryId: value ? parseInt(value) : null }))
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }))
+    }
+    
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
     }
@@ -176,6 +260,8 @@ export function AddCrewCertificatePage() {
   const handleBack = () => {
     if (certificateId) {
       navigate(`/crew/certificates/${certificateId}`)
+    } else if (crewIdParam) {
+      navigate(`/crew/${crewIdParam}`)
     } else {
       navigate('/crew', { state: { activeTab: 'certificates' } })
     }
@@ -193,42 +279,48 @@ export function AddCrewCertificatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-3 py-3">
+        <div className="flex items-center gap-3">
           <button
             onClick={handleBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+            className="p-2 hover:bg-gray-100 rounded transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
-            {t('common.back')}
+            <span className="text-xl">←</span>
           </button>
-          
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-6 shadow-lg">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
-                <Award className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-white">
-                  {t('crew.certificateManagement.addCertificate.title')}
-                </h1>
-                <p className="text-blue-100 mt-1">
-                  {t('crew.certificateManagement.addCertificate.subtitle')}
-                </p>
-              </div>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
+              <Award className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">
+                {isFlagStateCreation 
+                  ? 'CREATE FLAG STATE CERTIFICATE' 
+                  : isEditMode 
+                    ? 'EDIT CERTIFICATE' 
+                  : 'ADD CERTIFICATE TO CREW MEMBER'}
+              </h1>
+              <p className="text-xs text-gray-500">
+                {isFlagStateCreation 
+                  ? 'Create a new Flag State certificate based on existing National certificate' 
+                  : isEditMode 
+                    ? 'Update certificate information' 
+                    : 'Add new certificate to crew member'}
+              </p>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Selected Certificate Info */}
+      <div className="max-w-7xl mx-auto p-3">{/* Selected Certificate Info */}
+
         {selectedCertificate && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
             <div className="flex items-center gap-3">
-              <Award className="w-6 h-6 text-blue-600" />
+              <Award className="w-5 h-5 text-blue-600" />
               <div>
-                <p className="text-sm text-gray-500">{t('crew.certificateManagement.addCertificate.selectedCertificate')}</p>
+                <p className="text-xs text-blue-600 uppercase font-medium">{t('crew.certificateManagement.addCertificate.selectedCertificate')}</p>
                 <p className="font-semibold text-gray-900">{selectedCertificate.certificateName}</p>
                 <p className="text-xs text-gray-600 mt-1">
                   {t('crew.certificateManagement.code')}: {selectedCertificate.certificateCode} • 
@@ -240,196 +332,209 @@ export function AddCrewCertificatePage() {
         )}
 
         {/* Form */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Certificate Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Award className="w-4 h-4 inline mr-2" />
-                {t('crew.certificateManagement.addCertificate.certificateType')} *
-              </label>
-              <select
-                name="certificateId"
-                value={formData.certificateId}
-                onChange={handleCertificateChange}
-                disabled={!!certificateId}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                  errors.certificateId ? 'border-red-500' : 'border-gray-300'
-                } ${certificateId ? 'bg-gray-100' : ''}`}
-              >
-                <option value="">{t('crew.certificateManagement.addCertificate.selectCertificateType')}</option>
-                {certificates.map(cert => (
-                  <option key={cert.id} value={cert.id}>
-                    {cert.certificateName} ({cert.certificateCode})
-                  </option>
-                ))}
-              </select>
-              {errors.certificateId && (
-                <p className="text-red-500 text-sm mt-1">{errors.certificateId}</p>
-              )}
-            </div>
+        <div className="bg-white rounded-lg shadow-sm p-3">
+          <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-12 gap-3">
+              {/* Certificate Type - Full width */}
+              <div className="col-span-12">
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
+                  {t('crew.certificateManagement.addCertificate.certificateType')} *
+                </label>
+                <select 
+                  name="certificateId" 
+                  value={formData.certificateId} 
+                  onChange={handleCertificateChange} 
+                  disabled={!!certificateId} 
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${errors.certificateId ? 'border-red-500' : 'border-gray-300'} ${certificateId ? 'bg-gray-100' : ''}`}
+                >
+                  <option value="">{t('crew.certificateManagement.addCertificate.selectCertificateType')}</option>
+                  {certificates.map(cert => (
+                    <option key={cert.id} value={cert.id}>{cert.certificateName} - {cert.certificateCode}</option>
+                  ))}
+                </select>
+                {errors.certificateId && <p className="text-red-500 text-xs mt-1">{errors.certificateId}</p>}
+              </div>
 
-            {/* Crew Member Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Users className="w-4 h-4 inline mr-2" />
-                {t('crew.certificateManagement.addCertificate.crewMember')} *
-              </label>
-              <select
-                name="crewMemberId"
-                value={formData.crewMemberId}
-                onChange={handleChange}
-                disabled={!!crewIdParam}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                  errors.crewMemberId ? 'border-red-500' : 'border-gray-300'
-                } ${crewIdParam ? 'bg-gray-100' : ''}`}
-              >
-                <option value="">{t('crew.certificateManagement.addCertificate.selectCrewMember')}</option>
-                {crewMembers.map(crew => (
-                  <option key={crew.id} value={crew.id}>
-                    {crew.fullName} - {crew.position} ({crew.crewId})
-                  </option>
-                ))}
-              </select>
-              {errors.crewMemberId && (
-                <p className="text-red-500 text-sm mt-1">{errors.crewMemberId}</p>
-              )}
-            </div>
+              {/* Crew Member - Full width */}
+              <div className="col-span-12">
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
+                  {t('crew.certificateManagement.addCertificate.crewMember')} *
+                </label>
+                <select 
+                  name="crewMemberId" 
+                  value={formData.crewMemberId} 
+                  onChange={handleChange} 
+                  disabled={!!crewIdParam} 
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${errors.crewMemberId ? 'border-red-500' : 'border-gray-300'} ${crewIdParam ? 'bg-gray-100' : ''}`}
+                >
+                  <option value="">{t('crew.certificateManagement.addCertificate.selectCrewMember')}</option>
+                  {crewMembers.map(crew => (
+                    <option key={crew.id} value={crew.id}>{crew.fullName} - {crew.position} - {crew.crewId}</option>
+                  ))}
+                </select>
+                {errors.crewMemberId && <p className="text-red-500 text-xs mt-1">{errors.crewMemberId}</p>}
+              </div>
 
-            {/* Certificate Number */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <FileText className="w-4 h-4 inline mr-2" />
-                {t('crew.certificateManagement.certificateNumber')} *
-              </label>
-              <input
-                type="text"
-                name="certificateNumber"
-                value={formData.certificateNumber}
-                onChange={handleChange}
-                placeholder="e.g., STCW-2023-12345"
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                  errors.certificateNumber ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {errors.certificateNumber && (
-                <p className="text-red-500 text-sm mt-1">{errors.certificateNumber}</p>
-              )}
-            </div>
+              {/* Certificate Number */}
+              <div className="col-span-4">
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
+                  {t('crew.certificateManagement.certificateNumber')} *
+                </label>
+                <input 
+                  type="text" 
+                  name="certificateNumber" 
+                  value={formData.certificateNumber} 
+                  onChange={handleChange} 
+                  placeholder="e.g., STCW-2023-12345" 
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${errors.certificateNumber ? 'border-red-500' : 'border-gray-300'}`} 
+                />
+                {errors.certificateNumber && <p className="text-red-500 text-xs mt-1">{errors.certificateNumber}</p>}
+              </div>
 
-            {/* Date fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Calendar className="w-4 h-4 inline mr-2" />
+              {/* Issue Date */}
+              <div className="col-span-4">
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
                   {t('crew.certificateManagement.issueDate')} *
                 </label>
-                <input
-                  type="date"
-                  name="issueDate"
-                  value={formData.issueDate}
-                  onChange={handleIssueDateChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                    errors.issueDate ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                <input 
+                  type="date" 
+                  name="issueDate" 
+                  value={formData.issueDate} 
+                  onChange={handleIssueDateChange} 
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${errors.issueDate ? 'border-red-500' : 'border-gray-300'}`} 
                 />
-                {errors.issueDate && (
-                  <p className="text-red-500 text-sm mt-1">{errors.issueDate}</p>
-                )}
+                {errors.issueDate && <p className="text-red-500 text-xs mt-1">{errors.issueDate}</p>}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Calendar className="w-4 h-4 inline mr-2" />
+              {/* Expiry Date */}
+              <div className="col-span-4">
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
                   {t('crew.certificateManagement.expiryDate')} *
                 </label>
-                <input
-                  type="date"
-                  name="expiryDate"
-                  value={formData.expiryDate}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                    errors.expiryDate ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                <input 
+                  type="date" 
+                  name="expiryDate" 
+                  value={formData.expiryDate} 
+                  onChange={handleChange} 
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${errors.expiryDate ? 'border-red-500' : 'border-gray-300'}`} 
                 />
-                {errors.expiryDate && (
-                  <p className="text-red-500 text-sm mt-1">{errors.expiryDate}</p>
+                {errors.expiryDate && <p className="text-red-500 text-xs mt-1">{errors.expiryDate}</p>}
+              </div>
+
+              {/* Issuing Authority */}
+              <div className="col-span-4">
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
+                  {t('crew.certificateManagement.issuingAuthority')}
+                </label>
+                <input 
+                  type="text" 
+                  name="issuingAuthority" 
+                  value={formData.issuingAuthority} 
+                  onChange={handleChange} 
+                  placeholder="e.g., Vietnam Maritime Administration" 
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500" 
+                />
+              </div>
+
+              {/* Certificate of Competency */}
+              <div className="col-span-4">
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
+                  Certificate of Competency (CoC)
+                </label>
+                <select 
+                  name="certificateOfCompetency" 
+                  value={formData.certificateOfCompetency} 
+                  onChange={handleChange} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                  disabled={isFlagStateCreation}
+                >
+                  <option value="National" disabled={isFlagStateCreation}>National</option>
+                  <option value="Flag State">Flag State</option>
+                </select>
+                {isFlagStateCreation && (
+                  <p className="mt-1 text-xs text-blue-600">Creating Flag State certificate</p>
                 )}
+              </div>
+
+              {/* Issuing Country */}
+              <div className="col-span-4">
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
+                  Issuing Country
+                </label>
+                <select 
+                  name="countryId" 
+                  value={formData.countryId || ''} 
+                  onChange={handleChange} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500" 
+                  disabled={loadingCountries}
+                >
+                  <option value="">Select country...</option>
+                  {countries.map(country => (
+                    <option key={country.id} value={country.id}>{country.countryName} - {country.countryCode}</option>
+                  ))}
+                </select>
+                {isFlagStateCreation && excludeCountryId && (
+                  <p className="mt-1 text-xs text-gray-500">Original National country excluded</p>
+                )}
+              </div>
+
+              {/* Status */}
+              <div className="col-span-12">
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
+                  {t('crew.certificateManagement.status')}
+                </label>
+                <select 
+                  name="status" 
+                  value={formData.status} 
+                  onChange={handleChange} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                >
+                  <option value="VALID">{t('crew.certificateManagement.addCertificate.statusValid')}</option>
+                  <option value="EXPIRED">{t('crew.certificateManagement.addCertificate.statusExpired')}</option>
+                  <option value="SUSPENDED">{t('crew.certificateManagement.addCertificate.statusSuspended')}</option>
+                  <option value="REVOKED">{t('crew.certificateManagement.addCertificate.statusRevoked')}</option>
+                </select>
+              </div>
+
+              {/* Notes */}
+              <div className="col-span-12">
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
+                  {t('crew.certificateManagement.addCertificate.notes')}
+                </label>
+                <textarea 
+                  name="notes" 
+                  value={formData.notes} 
+                  onChange={handleChange} 
+                  rows={3} 
+                  placeholder={t('crew.certificateManagement.addCertificate.notesPlaceholder')} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500" 
+                />
               </div>
             </div>
 
-            {/* Issuing Authority */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Building className="w-4 h-4 inline mr-2" />
-                {t('crew.certificateManagement.issuingAuthority')}
-              </label>
-              <input
-                type="text"
-                name="issuingAuthority"
-                value={formData.issuingAuthority}
-                onChange={handleChange}
-                placeholder="e.g., Vietnam Maritime Administration"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              />
-            </div>
-
-            {/* Status */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('crew.certificateManagement.status')}
-              </label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              >
-                <option value="VALID">{t('crew.certificateManagement.addCertificate.statusValid')}</option>
-                <option value="EXPIRED">{t('crew.certificateManagement.addCertificate.statusExpired')}</option>
-                <option value="SUSPENDED">{t('crew.certificateManagement.addCertificate.statusSuspended')}</option>
-                <option value="REVOKED">{t('crew.certificateManagement.addCertificate.statusRevoked')}</option>
-              </select>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('crew.certificateManagement.addCertificate.notes')}
-              </label>
-              <textarea
-                name="notes"
-                value={formData.notes}
-                onChange={handleChange}
-                rows={4}
-                placeholder={t('crew.certificateManagement.addCertificate.notesPlaceholder')}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              />
-            </div>
-
-            {/* Form Actions */}
-            <div className="flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={handleBack}
-                className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-4 pt-6 mt-6 border-t border-gray-200">
+              <button 
+                type="button" 
+                onClick={handleBack} 
+                className="px-6 py-2 text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
               >
                 {t('common.cancel')}
               </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+              <button 
+                type="submit" 
+                disabled={loading} 
+                className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {loading ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-                    {t('crew.certificateManagement.addCertificate.saving')}
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    {isEditMode ? 'Updating...' : 'Saving...'}
                   </>
                 ) : (
                   <>
-                    <Save className="w-5 h-5" />
-                    {t('crew.certificateManagement.addCertificate.save')}
+                    <Save className="w-4 h-4" />
+                    {isEditMode ? 'Update Certificate' : isFlagStateCreation ? 'Create Flag State Certificate' : t('crew.certificateManagement.addCertificate.save')}
                   </>
                 )}
               </button>
