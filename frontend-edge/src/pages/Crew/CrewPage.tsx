@@ -1403,10 +1403,10 @@ function CertificateMonitorView({
                   <div className="truncate">{cert.totalCrew}</div>
                 </td>
                 <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '18%'}}>
-                  <div className="truncate">
-                    {cert.validCount > 0 && <span className="text-green-600 font-semibold">✓{cert.validCount} </span>}
-                    {cert.expiringCount > 0 && <span className="text-yellow-600 font-semibold">⚠{cert.expiringCount} </span>}
-                    {cert.expiredCount > 0 && <span className="text-red-600 font-semibold">✗{cert.expiredCount}</span>}
+                  <div className="flex gap-2">
+                    <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">{cert.validCount || 0} Valid</span>
+                    <span className="px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-800">{cert.expiringCount || 0} Expiring</span>
+                    <span className="px-2 py-1 text-xs rounded bg-red-100 text-red-800">{cert.expiredCount || 0} Expired</span>
                   </div>
                 </td>
               </tr>
