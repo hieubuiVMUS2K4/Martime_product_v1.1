@@ -17,6 +17,9 @@ namespace MaritimeEdge.Data.Migrations
             
             // 2. Delete country_certificates (has FK to countries and certificates)
             migrationBuilder.Sql("DELETE FROM country_certificates;");
+
+            // Users may reference crew_members via users.crew_id (FK RESTRICT). Null it out before deleting crew.
+            migrationBuilder.Sql("UPDATE users SET crew_id = NULL WHERE crew_id IS NOT NULL;");
             
             // 3. Delete crew_members
             migrationBuilder.Sql("DELETE FROM crew_members;");

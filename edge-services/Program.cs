@@ -4,7 +4,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MaritimeEdge.Data;
-using MaritimeEdge.Services;
+using MaritimeEdge.Services.Core;
+using MaritimeEdge.Services.Inventory;
+using MaritimeEdge.Services.Maintenance;
+using MaritimeEdge.Services.Reporting;
+using MaritimeEdge.Services.Voyage;
 using MaritimeEdge.Services.Logbooks;
 using MaritimeEdge.Repositories;
 
@@ -63,11 +67,11 @@ namespace MaritimeEdge
             builder.Services.AddScoped<MaintenanceCompletionService>();
 
             // Add Background Services
-            builder.Services.AddHostedService<MaintenanceSchedulerService>();
-            builder.Services.AddHostedService<TelemetrySimulatorService>();
-            builder.Services.AddHostedService<SignalKDataCollectorService>();
-            builder.Services.AddHostedService<DataCleanupService>();
-            builder.Services.AddHostedService<SyncBackgroundWorker>();
+            builder.Services.AddHostedService<MaritimeEdge.Services.Maintenance.MaintenanceSchedulerService>();
+            builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.TelemetrySimulatorService>();
+            builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.SignalKDataCollectorService>();
+            builder.Services.AddHostedService<MaritimeEdge.Services.Core.DataCleanupService>();
+            builder.Services.AddHostedService<MaritimeEdge.Services.Core.SyncBackgroundWorker>();
 
             // Add Controllers
             builder.Services.AddControllers()

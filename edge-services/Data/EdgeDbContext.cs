@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Models;
+using MaritimeEdge.Models.Inventory;
 
 namespace MaritimeEdge.Data;
 
