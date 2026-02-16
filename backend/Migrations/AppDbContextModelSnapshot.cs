@@ -50,9 +50,6 @@ namespace productapi.Migrations
                     b.Property<int?>("EtaMonth")
                         .HasColumnType("integer");
 
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean");
-
                     b.Property<double?>("Latitude")
                         .HasColumnType("double precision");
 
@@ -156,6 +153,272 @@ namespace productapi.Migrations
                     b.ToTable("CrewMembers");
                 });
 
+            modelBuilder.Entity("ProductApi.Models.DrillLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ConductedByCrewId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DrillScheduleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DrillTypeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("DurationMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ExecutionDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<TimeSpan?>("ExecutionTime")
+                        .HasColumnType("interval");
+
+                    b.Property<string>("GeneralRemarks")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LessonsLearned")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("LogCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("NewCrewCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("OverallAssessment")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Participants")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("TotalParticipants")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("VerifiedByCrewId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("VerifiedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConductedByCrewId");
+
+                    b.HasIndex("DrillScheduleId");
+
+                    b.HasIndex("DrillTypeId");
+
+                    b.HasIndex("ExecutionDate");
+
+                    b.HasIndex("LogCode")
+                        .IsUnique();
+
+                    b.HasIndex("VerifiedByCrewId");
+
+                    b.ToTable("DrillLogs");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.DrillSchedule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssignedToCrewId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AssignedToRole")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DrillTypeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ExecutionCount")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsAutoGenerated")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastExecutedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("NextDueDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("OverdueDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ScheduleCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("ScheduledMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ScheduledYear")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("VesselId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedToCrewId");
+
+                    b.HasIndex("DrillTypeId");
+
+                    b.HasIndex("DueDate");
+
+                    b.HasIndex("ScheduleCode")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("VesselId");
+
+                    b.HasIndex("ScheduledYear", "ScheduledMonth");
+
+                    b.ToTable("DrillSchedules");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.DrillType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AssignedToRole")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("DrillCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("DrillName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<int>("FrequencyDays")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FrequencyType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsMandatory")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RegulationPeriod")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("RegulationSource")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("TriggerCondition")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int?>("TriggerWithinDays")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("WarningDaysBefore")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DrillCode")
+                        .IsUnique();
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("Category", "DisplayOrder");
+
+                    b.ToTable("DrillTypes");
+                });
+
             modelBuilder.Entity("ProductApi.Models.EngineData", b =>
                 {
                     b.Property<Guid>("Id")
@@ -175,9 +438,6 @@ namespace productapi.Migrations
 
                     b.Property<double?>("FuelRate")
                         .HasColumnType("double precision");
-
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean");
 
                     b.Property<double?>("LoadPercent")
                         .HasColumnType("double precision");
@@ -202,58 +462,6 @@ namespace productapi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("EngineData");
-                });
-
-            modelBuilder.Entity("ProductApi.Models.EnvironmentalData", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<double?>("AirTemperature")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("BarometricPressure")
-                        .HasColumnType("double precision");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double?>("Humidity")
-                        .HasColumnType("double precision");
-
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("OriginNode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<double?>("SeaTemperature")
-                        .HasColumnType("double precision");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double?>("Visibility")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("WaveHeight")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("WindDirection")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("WindSpeed")
-                        .HasColumnType("double precision");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("EnvironmentalData");
                 });
 
             modelBuilder.Entity("ProductApi.Models.FuelConsumption", b =>
@@ -327,9 +535,6 @@ namespace productapi.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("OriginNode")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -359,17 +564,8 @@ namespace productapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<double?>("ActivePower")
-                        .HasColumnType("double precision");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<double?>("Current")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("Frequency")
-                        .HasColumnType("double precision");
 
                     b.Property<string>("GeneratorId")
                         .IsRequired()
@@ -377,9 +573,6 @@ namespace productapi.Migrations
                         .HasColumnType("character varying(50)");
 
                     b.Property<bool>("IsRunning")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsSynced")
                         .HasColumnType("boolean");
 
                     b.Property<double?>("LoadPercent")
@@ -390,9 +583,6 @@ namespace productapi.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<double?>("PowerFactor")
-                        .HasColumnType("double precision");
-
                     b.Property<double?>("RunningHours")
                         .HasColumnType("double precision");
 
@@ -401,9 +591,6 @@ namespace productapi.Migrations
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<double?>("Voltage")
-                        .HasColumnType("double precision");
 
                     b.HasKey("Id");
 
@@ -453,9 +640,6 @@ namespace productapi.Migrations
 
                     b.Property<string>("DeletedReason")
                         .HasColumnType("text");
-
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsTransmitted")
                         .HasColumnType("boolean");
@@ -511,103 +695,6 @@ namespace productapi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("MaritimeReports");
-                });
-
-            modelBuilder.Entity("ProductApi.Models.NavigationData", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double?>("Depth")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("HeadingMagnetic")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("HeadingTrue")
-                        .HasColumnType("double precision");
-
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("OriginNode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<double?>("Pitch")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("RateOfTurn")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("Roll")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("SpeedThroughWater")
-                        .HasColumnType("double precision");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double?>("WindDirectionRelative")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("WindDirectionTrue")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("WindSpeedRelative")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("WindSpeedTrue")
-                        .HasColumnType("double precision");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("NavigationData");
-                });
-
-            modelBuilder.Entity("ProductApi.Models.NmeaRawData", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<bool>("ChecksumValid")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("DeviceSource")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("RawSentence")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<string>("SentenceType")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("NmeaRawData");
                 });
 
             modelBuilder.Entity("ProductApi.Models.NoonReport", b =>
@@ -791,9 +878,6 @@ namespace productapi.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean");
-
                     b.Property<double>("Latitude")
                         .HasColumnType("double precision");
 
@@ -914,9 +998,6 @@ namespace productapi.Migrations
                     b.Property<bool>("IsResolved")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("Location")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -975,9 +1056,6 @@ namespace productapi.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean");
 
                     b.Property<double>("LevelPercent")
                         .HasColumnType("double precision");
@@ -1209,9 +1287,6 @@ namespace productapi.Migrations
                     b.Property<double?>("FuelConsumed")
                         .HasColumnType("double precision");
 
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("OriginNode")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1242,6 +1317,63 @@ namespace productapi.Migrations
                         .HasForeignKey("VesselId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Vessel");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.DrillLog", b =>
+                {
+                    b.HasOne("ProductApi.Models.CrewMember", "ConductedBy")
+                        .WithMany()
+                        .HasForeignKey("ConductedByCrewId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ProductApi.Models.DrillSchedule", "DrillSchedule")
+                        .WithMany("Logs")
+                        .HasForeignKey("DrillScheduleId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ProductApi.Models.DrillType", "DrillType")
+                        .WithMany("Logs")
+                        .HasForeignKey("DrillTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ProductApi.Models.CrewMember", "VerifiedBy")
+                        .WithMany()
+                        .HasForeignKey("VerifiedByCrewId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ConductedBy");
+
+                    b.Navigation("DrillSchedule");
+
+                    b.Navigation("DrillType");
+
+                    b.Navigation("VerifiedBy");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.DrillSchedule", b =>
+                {
+                    b.HasOne("ProductApi.Models.CrewMember", "AssignedToCrew")
+                        .WithMany()
+                        .HasForeignKey("AssignedToCrewId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ProductApi.Models.DrillType", "DrillType")
+                        .WithMany("Schedules")
+                        .HasForeignKey("DrillTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ProductApi.Models.Vessel", "Vessel")
+                        .WithMany()
+                        .HasForeignKey("VesselId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AssignedToCrew");
+
+                    b.Navigation("DrillType");
 
                     b.Navigation("Vessel");
                 });
@@ -1288,6 +1420,18 @@ namespace productapi.Migrations
                         .IsRequired();
 
                     b.Navigation("Vessel");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.DrillSchedule", b =>
+                {
+                    b.Navigation("Logs");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.DrillType", b =>
+                {
+                    b.Navigation("Logs");
+
+                    b.Navigation("Schedules");
                 });
 
             modelBuilder.Entity("ProductApi.Models.Vessel", b =>

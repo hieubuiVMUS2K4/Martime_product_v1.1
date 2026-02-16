@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Users, UserPlus, Shield, Calendar, AlertTriangle, FileText, Award } from 'lucide-react'
+import { Users, Shield } from 'lucide-react'
 import { CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { format, parseISO } from 'date-fns'
@@ -19,15 +19,15 @@ export function CrewPage() {
   const [crewMembers, setCrewMembers] = useState<CrewMember[]>([])
   const [filteredCrew, setFilteredCrew] = useState<CrewMember[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filterRank, setFilterRank] = useState<string>('all')
+  const [searchQuery] = useState('')
+  const [filterRank] = useState<string>('all')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showCertificateModal, setShowCertificateModal] = useState(false)
   const [editingCertificate, setEditingCertificate] = useState<any | null>(null)
   
   // Cache for certificate data to avoid reloading
   const [certificateCache, setCertificateCache] = useState<any[] | null>(null)
-  const [certificateLoading, setCertificateLoading] = useState(false)
+  const [_certificateLoading, setCertificateLoading] = useState(false)
   
   // Cache for crew data to avoid reloading
   const [crewOnboardCache, setCrewOnboardCache] = useState<CrewMember[] | null>(null)
@@ -319,7 +319,6 @@ export function CrewPage() {
                   sortMenu={sortMenu}
                   setSortMenu={setSortMenu}
                   certificateCache={certificateCache}
-                  certificateLoading={certificateLoading}
                   onAddCertificate={() => setShowCertificateModal(true)}
                   onEditCertificate={handleEditCertificate}
                   selectedCountry={selectedCountry}
@@ -744,221 +743,6 @@ function SectionedCrewView({
   )
 }
 
-// Crew List View Component
-function CrewListView({ 
-  crewMembers, 
-  onViewCrew, 
-  sortType, 
-  setSortType, 
-  sortMenu, 
-  setSortMenu 
-}: { 
-  crewMembers: CrewMember[]; 
-  onViewCrew: (id: string) => void;
-  sortType?: { col: string; dir: 'asc'|'desc' } | null;
-  setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
-  sortMenu?: string | null;
-  setSortMenu?: (sortMenu: string | null) => void;
-}) {
-  const [currentPage, setCurrentPage] = useState(1)
-  const ITEMS_PER_PAGE = 10
-
-  const getRankColor = (rank?: string) => {
-    switch (rank) {
-      case 'Officer':
-        return 'bg-blue-100 text-blue-700 border-blue-300'
-      case 'Rating':
-        return 'bg-purple-100 text-purple-700 border-purple-300'
-      case 'Senior Officer':
-        return 'bg-indigo-100 text-indigo-700 border-indigo-300'
-      case 'Engineer':
-        return 'bg-orange-100 text-orange-700 border-orange-300'
-      default:
-        return 'bg-gray-100 text-gray-700 border-gray-300'
-    }
-  }
-
-  const totalPages = Math.ceil(crewMembers.length / ITEMS_PER_PAGE)
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-  const endIndex = startIndex + ITEMS_PER_PAGE
-  const paginatedCrew = crewMembers.slice(startIndex, endIndex)
-
-  // SortDropdown component
-  function SortDropdown({ col, options, sortType, setSortType, sortMenu, setSortMenu }: {
-    col: string;
-    options: Array<{ label: string; dir: 'asc'|'desc' }>;
-    sortType: any;
-    setSortType: any;
-    sortMenu: any;
-    setSortMenu: any;
-  }) {
-    return (
-      <div className="absolute top-1/2 right-0 -translate-y-1/2" style={{zIndex:2}}>
-        <button
-          className="text-gray-400 hover:text-blue-600 text-base p-1"
-          onClick={e => { e.stopPropagation(); setSortMenu(sortMenu === col ? null : col) }}
-          style={{lineHeight:0}}
-        >
-          ▼
-        </button>
-        {sortMenu === col && (
-          <div className="absolute right-0 mt-6 w-40 bg-white border border-gray-200 rounded shadow-lg z-20">
-            {options.map(opt => (
-              <button
-                key={opt.label}
-                className={`block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${sortType?.col === col && sortType?.dir === opt.dir ? 'text-blue-600 font-bold' : 'text-gray-700'}`}
-                onClick={e => { e.stopPropagation(); setSortType({col,dir:opt.dir}); setSortMenu(null) }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-600">
-            Showing {startIndex + 1} - {Math.min(endIndex, crewMembers.length)} of {crewMembers.length} crew members
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              ← Previous
-            </button>
-            <span className="text-sm text-gray-600">
-              Page {currentPage} / {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next →
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="overflow-x-auto border border-gray-200 rounded-lg">
-      <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
-        <thead className="bg-gray-50 dark:bg-gray-800">
-          <tr>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '8%', position:'relative'}}>
-              Crew ID
-              {setSortType && setSortMenu && (
-                <SortDropdown col="crewId" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '22%', position:'relative'}}>
-              Name
-              {setSortType && setSortMenu && (
-                <SortDropdown col="fullName" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '12%', position:'relative'}}>
-              Position
-              {setSortType && setSortMenu && (
-                <SortDropdown col="position" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '8%', position:'relative'}}>
-              Rank
-              {setSortType && setSortMenu && (
-                <SortDropdown col="rank" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '12%', position:'relative'}}>
-              Nationality
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '10%', position:'relative'}}>
-              Embark Date
-              {setSortType && setSortMenu && (
-                <SortDropdown col="embarkDate" options={[{label:'Ngày gần nhất',dir:'desc'},{label:'Ngày xa nhất',dir:'asc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider relative" style={{width: '16%', position:'relative'}}>
-              Status
-              {setSortType && setSortMenu && (
-                <SortDropdown col="status" options={[{label:'Onboard trước',dir:'desc'},{label:'Ashore trước',dir:'asc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white">
-          {paginatedCrew.map((crew) => (
-            <tr 
-              key={crew.id} 
-              onClick={() => onViewCrew(crew.id)}
-              className="hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer transition-colors border-b border-gray-200"
-            >
-              <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white text-center border-r border-gray-200" style={{width: '8%'}}>
-                <div className="truncate">{crew.crewId}</div>
-              </td>
-              <td className="px-4 py-3 border-r border-gray-200" style={{width: '22%'}}>
-                <div className="flex items-center">
-                  <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
-                    <span className="text-blue-600 dark:text-blue-300 font-semibold text-xs">
-                      {crew.fullName.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                    </span>
-                  </div>
-                  <div className="ml-2 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{crew.fullName}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{crew.nationality || 'N/A'}</p>
-                  </div>
-                </div>
-              </td>
-              <td className="px-4 py-3 text-sm text-gray-900 text-center border-r border-gray-200" style={{width: '12%'}}>
-                <div className="truncate">{crew.position}</div>
-              </td>
-              <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
-                <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getRankColor(crew.rank)} truncate`}>
-                  {crew.rank || 'N/A'}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-sm text-gray-700 text-center border-r border-gray-200" style={{width: '12%'}}>
-                <div className="truncate">{crew.nationality || 'N/A'}</div>
-              </td>
-              <td className="px-4 py-3 text-sm text-gray-500 text-center border-r border-gray-200" style={{width: '10%'}}>
-                <div className="truncate">
-                  {crew.embarkDate ? format(parseISO(crew.embarkDate), 'dd MMM yyyy') : 'N/A'}
-                </div>
-              </td>
-              <td className="px-4 py-3 text-center" style={{width: '16%'}}>
-                {crew.isOnboard ? (
-                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                    Onboard
-                  </span>
-                ) : (
-                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-                    Ashore
-                  </span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      
-      {crewMembers.length === 0 && (
-        <div className="text-center py-12">
-          <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">No crew members found</p>
-        </div>
-      )}
-      </div>
-    </div>
-  )
-}
-
 // Certificate Monitor View Component - Hiển thị danh sách các loại certificate
 function CertificateMonitorView({ 
   crewMembers,
@@ -967,7 +751,6 @@ function CertificateMonitorView({
   sortMenu, 
   setSortMenu,
   certificateCache,
-  certificateLoading,
   onAddCertificate,
   onEditCertificate,
   selectedCountry
@@ -978,12 +761,10 @@ function CertificateMonitorView({
   sortMenu?: string | null;
   setSortMenu?: (sortMenu: string | null) => void;
   certificateCache: any[] | null;
-  certificateLoading: boolean;
   onAddCertificate: () => void;
   onEditCertificate: (certificate: any) => void;
   selectedCountry: string;
 }) {
-  const { t } = useTranslationSafe()
   const navigate = useNavigate()
   const [currentPage, setCurrentPage] = useState(1)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; cert: any } | null>(null)
@@ -1913,23 +1694,6 @@ function CertificateMonitorView({
 }
 
 // Helper Components
-function StatCard({ icon, label, value, total }: { icon: React.ReactNode; label: string; value: number; total?: number }) {
-  return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-sm text-gray-600">{label}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
-            {value}
-            {total && <span className="text-sm text-gray-500 ml-2">/ {total}</span>}
-          </p>
-        </div>
-        <div className="ml-4">{icon}</div>
-      </div>
-    </div>
-  )
-}
-
 function TabButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
   return (
     <button

@@ -26,6 +26,9 @@ import {
   ChevronDown,
   ChevronRight,
   MapPin,
+  Shield,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 
@@ -52,6 +55,13 @@ const getNavigation = (t: (key: string) => string) => [
   { name: t('nav.reporting'), to: '/reporting', icon: ClipboardList },
   { name: t('nav.voyage'), to: '/voyage', icon: Ship },
   { name: t('nav.compliance'), to: '/compliance', icon: FileText },
+  { 
+    name: t('nav.safety'), 
+    icon: Shield, 
+    subItems: [
+      { name: t('nav.drillTraining'), to: '/safety/drills', icon: Calendar },
+    ]
+  },
   { name: t('nav.sync'), to: '/sync', icon: RefreshCw },
 ]
 
@@ -69,6 +79,7 @@ const getLogbooksMenu = (t: (key: string) => string) => [
 export function Sidebar() {
   const location = useLocation()
   const { t } = useTranslationSafe()
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const [logbooksOpen, setLogbooksOpen] = useState(location.pathname.startsWith('/logbooks'))
   const [expandedMenus, setExpandedMenus] = useState<string[]>([t('nav.pms')])
 
@@ -77,6 +88,9 @@ export function Sidebar() {
   const logbooksMenu = getLogbooksMenu(t)
 
   const toggleMenu = (menuName: string) => {
+    if (isCollapsed) {
+      setIsCollapsed(false)
+    }
     setExpandedMenus(prev => 
       prev.includes(menuName) 
         ? prev.filter(m => m !== menuName)
@@ -84,14 +98,25 @@ export function Sidebar() {
     )
   }
 
+  const toggleSidebar = () => {
+    setIsCollapsed(!isCollapsed)
+    // Close all submenus when collapsing
+    if (!isCollapsed) {
+      setExpandedMenus([])
+      setLogbooksOpen(false)
+    }
+  }
+
   return (
-    <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full">
+    <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300`}>
       {/* Logo */}
-      <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-        <Anchor className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-        <span className="ml-2 text-xl font-bold text-gray-800 dark:text-white">
-          {t('nav.edgeDashboard')}
-        </span>
+      <div className={`flex items-center ${isCollapsed ? 'justify-center' : ''} h-16 px-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0`}>
+        <Anchor className="w-8 h-8 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+        {!isCollapsed && (
+          <span className="ml-2 text-xl font-bold text-gray-800 dark:text-white">
+            {t('nav.edgeDashboard')}
+          </span>
+        )}
       </div>
 
       {/* Navigation */}
@@ -101,19 +126,22 @@ export function Sidebar() {
             <div key={item.name}>
               <button
                 onClick={() => toggleMenu(item.name)}
-                className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-4 py-3 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}
+                title={isCollapsed ? item.name : ''}
               >
-                <div className="flex items-center">
-                  <item.icon className="w-5 h-5 mr-3 flex-shrink-0" />
-                  <span>{item.name}</span>
+                <div className={`flex items-center ${isCollapsed ? 'justify-center' : ''}`}>
+                  <item.icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'} flex-shrink-0`} />
+                  {!isCollapsed && <span>{item.name}</span>}
                 </div>
-                {expandedMenus.includes(item.name) ? (
-                  <ChevronDown className="w-4 h-4" />
-                ) : (
-                  <ChevronRight className="w-4 h-4" />
+                {!isCollapsed && (
+                  expandedMenus.includes(item.name) ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
+                  )
                 )}
               </button>
-              {expandedMenus.includes(item.name) && (
+              {expandedMenus.includes(item.name) && !isCollapsed && (
                 <div className="ml-4 mt-1 space-y-1">
                   {item.subItems.map((subItem) => (
                     <NavLink
@@ -143,44 +171,55 @@ export function Sidebar() {
               key={item.to}
               to={item.to!}
               className={({ isActive }) =>
-                `flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                `flex items-center ${isCollapsed ? 'justify-center' : ''} px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-md'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                 }`
               }
+              title={isCollapsed ? item.name : ''}
             >
               {({ isActive }) => (
                 <>
-                  <item.icon className={`w-5 h-5 mr-3 flex-shrink-0 ${isActive ? 'text-white' : ''}`} />
-                  <span className="truncate">{item.name}</span>
+                  <item.icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'} flex-shrink-0 ${isActive ? 'text-white' : ''}`} />
+                  {!isCollapsed && <span className="truncate">{item.name}</span>}
                 </>
               )}
             </NavLink>
           )
         ))}
 
-        {/* Logbooks Menu with Submenu */}
+        {/* Logbooks Section */}
         <div>
           <button
-            onClick={() => setLogbooksOpen(!logbooksOpen)}
-            className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+            onClick={() => {
+              if (isCollapsed) {
+                setIsCollapsed(false)
+              }
+              setLogbooksOpen(!logbooksOpen)
+            }}
+            className={`w-full flex items-center ${isCollapsed ? 'justify-center' : ''} px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
               location.pathname.startsWith('/logbooks')
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
             }`}
+            title={isCollapsed ? t('nav.logbooks') : ''}
           >
-            <FileText className={`w-5 h-5 mr-3 flex-shrink-0 ${location.pathname.startsWith('/logbooks') ? 'text-white' : ''}`} />
-            <span className="truncate flex-1 text-left">{t('nav.logbooks')}</span>
-            {logbooksOpen ? (
-              <ChevronDown className="w-4 h-4 flex-shrink-0" />
-            ) : (
-              <ChevronRight className="w-4 h-4 flex-shrink-0" />
+            <FileText className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'} flex-shrink-0 ${location.pathname.startsWith('/logbooks') ? 'text-white' : ''}`} />
+            {!isCollapsed && (
+              <>
+                <span className="truncate flex-1 text-left">{t('nav.logbooks')}</span>
+                {logbooksOpen ? (
+                  <ChevronDown className="w-4 h-4 flex-shrink-0" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 flex-shrink-0" />
+                )}
+              </>
             )}
           </button>
 
           {/* Submenu */}
-          {logbooksOpen && (
+          {logbooksOpen && !isCollapsed && (
             <div className="ml-4 mt-2 space-y-1 border-l-2 border-gray-300 dark:border-gray-600 pl-2">
               {logbooksMenu.map((item) => (
                 <NavLink
@@ -207,13 +246,33 @@ export function Sidebar() {
         </div>
       </nav>
 
-      {/* Vessel Info */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          <p className="font-semibold text-gray-700 dark:text-gray-300">{t('nav.localVessel')}</p>
-          <p className="mt-1">EDGE_LOCAL</p>
-        </div>
+      {/* Toggle Button */}
+      <div className="p-2 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <button
+          onClick={toggleSidebar}
+          className="w-full flex items-center justify-center p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {isCollapsed ? (
+            <PanelLeftOpen className="w-5 h-5" />
+          ) : (
+            <>
+              <PanelLeftClose className="w-5 h-5 mr-2" />
+              <span className="text-xs">Collapse</span>
+            </>
+          )}
+        </button>
       </div>
+
+      {/* Vessel Info */}
+      {!isCollapsed && (
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="font-semibold text-gray-700 dark:text-gray-300">{t('nav.localVessel')}</p>
+            <p className="mt-1">EDGE_LOCAL</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

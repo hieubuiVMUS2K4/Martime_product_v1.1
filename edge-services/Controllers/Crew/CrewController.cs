@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
+using MaritimeEdgeServer.DTOs.Crew;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -93,12 +94,11 @@ public class CrewController : ControllerBase
         {
             var crew = await _context.CrewMembers
                 .AsNoTracking()
-                .Include(c => c.Certificates)
-                    .ThenInclude(cc => cc.Certificate)
                 .Where(c => c.IsOnboard)
                 .ToListAsync();
 
-            return Ok(crew);
+            var crewDtos = crew.Select(MapToCrewMemberDto).ToList();
+            return Ok(crewDtos);
         }
         catch (Exception ex)
         {
@@ -720,5 +720,52 @@ public class CrewController : ControllerBase
             _logger.LogError(ex, "Error getting crew without users");
             return StatusCode(500, new { error = "Internal server error" });
         }
+    }
+    
+    /// <summary>
+    /// Map CrewMember entity to CrewMemberDto
+    /// </summary>
+    private CrewMemberDto MapToCrewMemberDto(CrewMember crew)
+    {
+        // Parse first name and last name from full name
+        var nameParts = crew.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var firstName = nameParts.Length > 0 ? nameParts[0] : crew.FullName;
+        var lastName = nameParts.Length > 1 ? string.Join(" ", nameParts.Skip(1)) : "";
+        
+        // Determine rank group for frontend filtering
+        // Officers, Deck, Engine, Galley
+        string? rankGroup = null;
+        if (crew.Rank?.Equals("Officer", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            rankGroup = "Officers";
+        }
+        else if (crew.Department?.Equals("Deck", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            rankGroup = "Deck";
+        }
+        else if (crew.Department?.Equals("Engine", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            rankGroup = "Engine";
+        }
+        else if (crew.Department?.Contains("Catering", StringComparison.OrdinalIgnoreCase) == true ||
+                 crew.Department?.Contains("Galley", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            rankGroup = "Galley";
+        }
+        
+        return new CrewMemberDto
+        {
+            Id = crew.Id,
+            FirstName = firstName,
+            LastName = lastName,
+            FullName = crew.FullName,
+            Rank = crew.Position, // Use Position as Rank for display (Master, Chief Officer, etc.)
+            RankGroup = rankGroup,
+            IsOnboard = crew.IsOnboard,
+            Department = crew.Department,
+            Nationality = crew.Nationality,
+            Email = crew.EmailAddress,
+            Phone = crew.PhoneNumber
+        };
     }
 }

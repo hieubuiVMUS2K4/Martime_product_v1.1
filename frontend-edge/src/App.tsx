@@ -51,6 +51,9 @@ import { WatchkeepingPage } from './pages/logbooks/WatchkeepingPage'
 import { VoyageLogPage } from './pages/logbooks/VoyageLogPage'
 import { VoyageLogDetailPage } from './pages/logbooks/VoyageLogDetailPage'
 
+// Safety Pages
+import { DrillTimelinePage } from './pages/Safety/DrillTimelinePage'
+
 function App() {
   return (
     <>
@@ -88,6 +91,9 @@ function App() {
         <Route path="logbooks/watchkeeping" element={<WatchkeepingPage />} />
         <Route path="logbooks/voyage" element={<VoyageLogPage />} />
         <Route path="logbooks/voyage/:id" element={<VoyageLogDetailPage />} />
+        
+        {/* Safety Routes */}
+        <Route path="safety/drills" element={<DrillTimelinePage />} />
 
         {/* PMS Routes */}
         <Route path="pms/assets" element={<AssetsPage />} />
