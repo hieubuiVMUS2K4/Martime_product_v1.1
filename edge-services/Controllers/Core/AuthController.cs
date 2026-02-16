@@ -65,7 +65,7 @@ public class AuthController : ControllerBase
             var role = await _context.Roles.FindAsync(user.RoleId);
             var crew = string.IsNullOrEmpty(user.CrewId) 
                 ? null 
-                : await _context.CrewMembers.FirstOrDefaultAsync(c => c.CrewId == user.CrewId);
+                : await _context.CrewMembers.Include(c => c.Rank).FirstOrDefaultAsync(c => c.CrewId == user.CrewId);
 
             // Cập nhật last login
             user.LastLoginAt = DateTime.UtcNow;
@@ -93,7 +93,7 @@ public class AuthController : ControllerBase
                     roleCode = role?.RoleCode ?? "",
                     crewId = user.CrewId,
                     fullName = crew?.FullName,
-                    position = crew?.Position,
+                    rankName = crew?.Rank?.RankName,
                     isActive = user.IsActive,
                     lastLoginAt = user.LastLoginAt
                 }
@@ -222,6 +222,7 @@ public class AuthController : ControllerBase
         {
             // Kiểm tra crew member tồn tại
             var crewMember = await _context.CrewMembers
+                .Include(c => c.Rank)
                 .FirstOrDefaultAsync(c => c.CrewId == request.CrewId);
 
             if (crewMember == null)
@@ -286,7 +287,7 @@ public class AuthController : ControllerBase
                     roleCode = role.RoleCode,
                     crewId = newUser.CrewId,
                     fullName = crewMember.FullName,
-                    position = crewMember.Position,
+                    rankName = crewMember.Rank?.RankName,
                     isActive = newUser.IsActive
                 }
             });
@@ -313,7 +314,7 @@ public class AuthController : ControllerBase
                     u => u.RoleId,
                     r => r.Id,
                     (u, r) => new { User = u, Role = r })
-                .GroupJoin(_context.CrewMembers,
+                .GroupJoin(_context.CrewMembers.Include(c => c.Rank),
                     ur => ur.User.CrewId,
                     c => c.CrewId,
                     (ur, crew) => new { ur.User, ur.Role, Crew = crew.FirstOrDefault() })
@@ -326,7 +327,7 @@ public class AuthController : ControllerBase
                     roleCode = x.Role.RoleCode,
                     crewId = x.User.CrewId,
                     fullName = x.Crew != null ? x.Crew.FullName : null,
-                    position = x.Crew != null ? x.Crew.Position : null,
+                    rankName = x.Crew != null && x.Crew.Rank != null ? x.Crew.Rank.RankName : null,
                     isActive = x.User.IsActive,
                     lastLoginAt = x.User.LastLoginAt,
                     createdAt = x.User.CreatedAt
@@ -375,7 +376,7 @@ public class AuthController : ControllerBase
                     roleCode = role?.RoleCode ?? "",
                     crewId = user.CrewId,
                     fullName = crew?.FullName,
-                    position = crew?.Position,
+                    rankName = crew?.Rank?.RankName,
                     isActive = user.IsActive,
                     lastLoginAt = user.LastLoginAt,
                     createdAt = user.CreatedAt
@@ -561,8 +562,7 @@ public class AuthController : ControllerBase
                     UserId = crew?.Id.GetHashCode() ?? user.Id,
                     CrewId = user.CrewId ?? "",
                     FullName = crew?.FullName ?? "",
-                    Position = crew?.Position,
-                    Rank = crew?.Rank,
+                    RankName = crew?.Rank?.RankName,
                     Department = crew?.Department,
                     ExpiresIn = 86400
                 });
@@ -571,6 +571,7 @@ public class AuthController : ControllerBase
 
         // Fallback to old behavior (direct crew login with password123)
         var crewMember = await _context.CrewMembers
+            .Include(c => c.Rank)
             .FirstOrDefaultAsync(c => c.CrewId == request.CrewId && c.IsOnboard);            if (crewMember == null || request.Password != "password123")
             {
                 return Unauthorized(new { error = "Invalid credentials" });
@@ -586,8 +587,7 @@ public class AuthController : ControllerBase
                 UserId = crewMember.Id.GetHashCode(),
                 CrewId = crewMember.CrewId,
                 FullName = crewMember.FullName,
-                Position = crewMember.Position,
-                Rank = crewMember.Rank,
+                RankName = crewMember.Rank?.RankName,
                 Department = crewMember.Department,
                 ExpiresIn = 86400
             });
@@ -642,33 +642,14 @@ public class AuthController : ControllerBase
                         roleName = role?.RoleName,
                         crewId = user.CrewId,
                         fullName = crew?.FullName,
-                        position = crew?.Position
+                        rankName = crew?.Rank?.RankName
                     }
                 });
             }
 
-            // Fallback for old crew-based tokens
-            var crewMember = await _context.CrewMembers.FindAsync(userId);
-            if (crewMember == null)
-            {
-                return Unauthorized(new { error = "User not found" });
-            }
-
-            var token = GenerateToken(crewMember.Id.GetHashCode(), crewMember.CrewId);
-            var refresh = GenerateToken(crewMember.Id.GetHashCode(), crewMember.CrewId, isRefresh: true);
-
-            return Ok(new LegacyLoginResponse
-            {
-                AccessToken = token,
-                RefreshToken = refresh,
-                UserId = crewMember.Id.GetHashCode(),
-                CrewId = crewMember.CrewId,
-                FullName = crewMember.FullName,
-                Position = crewMember.Position,
-                Rank = crewMember.Rank,
-                Department = crewMember.Department,
-                ExpiresIn = 86400
-            });
+            // Fallback for old crew-based tokens no longer supported
+            // Users must login again with new authentication system
+            return Unauthorized(new { error = "Token expired or invalid. Please login again." });
         }
         catch (Exception ex)
         {
@@ -759,8 +740,7 @@ public class LegacyLoginResponse
     public long UserId { get; set; }
     public string CrewId { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
-    public string? Position { get; set; }
-    public string? Rank { get; set; }
+    public string? RankName { get; set; }
     public string? Department { get; set; }
     public int ExpiresIn { get; set; }
 }

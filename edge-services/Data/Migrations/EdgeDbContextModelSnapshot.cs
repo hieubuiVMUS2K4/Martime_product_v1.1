@@ -1091,15 +1091,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("origin_node");
 
-                    b.Property<DateTime?>("PassportExpiry")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("passport_expiry");
-
-                    b.Property<string>("PassportNumber")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("passport_number");
-
                     b.Property<string>("PhoneNumber")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
@@ -1111,28 +1102,9 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("position");
 
-                    b.Property<string>("Rank")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("rank");
-
-                    b.Property<string>("SeamanBookNumber")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("seaman_book_number");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
-
-                    b.Property<DateTime?>("VisaExpiry")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("visa_expiry");
-
-                    b.Property<string>("VisaNumber")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("visa_number");
 
                     b.HasKey("Id")
                         .HasName("p_k_crew_members");
@@ -1466,6 +1438,68 @@ namespace MaritimeEdge.Data.Migrations
                         .HasDatabaseName("idx_departure_port");
 
                     b.ToTable("departure_reports", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.EmploymentDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("CountryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("country_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("crew_member_id");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("document_number");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("document_type");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expiry_date");
+
+                    b.Property<string>("FileUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("file_url");
+
+                    b.Property<DateTime?>("IssueDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("issue_date");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_employment_documents");
+
+                    b.HasIndex("CountryId");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.ToTable("employment_documents", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.EngineData", b =>
@@ -2100,163 +2134,6 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("equipment_group_members", "public");
                 });
 
-            modelBuilder.Entity("MaritimeEdge.Models.FuelAnalyticsSummary", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<double>("AuxiliaryFuelMT")
-                        .HasColumnType("decimal(10,3)")
-                        .HasColumnName("auxiliary_fuel_m_t");
-
-                    b.Property<double>("AverageSpeedKnots")
-                        .HasColumnType("decimal(5,2)")
-                        .HasColumnName("average_speed_knots");
-
-                    b.Property<double?>("AvgMainEngineLoad")
-                        .HasColumnType("decimal(5,2)")
-                        .HasColumnName("avg_main_engine_load");
-
-                    b.Property<double?>("AvgMainEngineRPM")
-                        .HasColumnType("decimal(6,2)")
-                        .HasColumnName("avg_main_engine_r_p_m");
-
-                    b.Property<double?>("AvgSeaState")
-                        .HasColumnType("decimal(3,1)")
-                        .HasColumnName("avg_sea_state");
-
-                    b.Property<double?>("AvgWindSpeed")
-                        .HasColumnType("decimal(5,2)")
-                        .HasColumnName("avg_wind_speed");
-
-                    b.Property<double>("BoilerFuelMT")
-                        .HasColumnType("decimal(10,3)")
-                        .HasColumnName("boiler_fuel_m_t");
-
-                    b.Property<double?>("CII")
-                        .HasColumnType("decimal(10,2)")
-                        .HasColumnName("c_i_i");
-
-                    b.Property<string>("CIIRating")
-                        .HasMaxLength(1)
-                        .HasColumnType("character varying(1)")
-                        .HasColumnName("c_i_i_rating");
-
-                    b.Property<double>("CO2EmissionsMT")
-                        .HasColumnType("decimal(12,3)")
-                        .HasColumnName("c_o2_emissions_m_t");
-
-                    b.Property<double?>("CargoWeightMT")
-                        .HasColumnType("decimal(12,3)")
-                        .HasColumnName("cargo_weight_m_t");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int>("DataPointsCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("data_points_count");
-
-                    b.Property<double>("DataQualityScore")
-                        .HasColumnType("decimal(5,2)")
-                        .HasColumnName("data_quality_score");
-
-                    b.Property<double>("DistanceNauticalMiles")
-                        .HasColumnType("decimal(12,2)")
-                        .HasColumnName("distance_nautical_miles");
-
-                    b.Property<double?>("EEOI")
-                        .HasColumnType("decimal(10,2)")
-                        .HasColumnName("e_e_o_i");
-
-                    b.Property<double?>("EstimatedFuelCostUSD")
-                        .HasColumnType("decimal(15,2)")
-                        .HasColumnName("estimated_fuel_cost_u_s_d");
-
-                    b.Property<double>("FuelPerHour")
-                        .HasColumnType("decimal(8,4)")
-                        .HasColumnName("fuel_per_hour");
-
-                    b.Property<double>("FuelPerNauticalMile")
-                        .HasColumnType("decimal(8,4)")
-                        .HasColumnName("fuel_per_nautical_mile");
-
-                    b.Property<double?>("FuelPricePerMT")
-                        .HasColumnType("decimal(10,2)")
-                        .HasColumnName("fuel_price_per_m_t");
-
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_synced");
-
-                    b.Property<double>("MainEngineFuelMT")
-                        .HasColumnType("decimal(10,3)")
-                        .HasColumnName("main_engine_fuel_m_t");
-
-                    b.Property<DateTime>("PeriodEnd")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("period_end");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("period_start");
-
-                    b.Property<string>("PeriodType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("period_type");
-
-                    b.Property<double?>("SFOC")
-                        .HasColumnType("decimal(8,2)")
-                        .HasColumnName("s_f_o_c");
-
-                    b.Property<double>("TimeBerthHours")
-                        .HasColumnType("decimal(10,2)")
-                        .HasColumnName("time_berth_hours");
-
-                    b.Property<double>("TimeUnderwayHours")
-                        .HasColumnType("decimal(10,2)")
-                        .HasColumnName("time_underway_hours");
-
-                    b.Property<double>("TotalFuelConsumedMT")
-                        .HasColumnType("decimal(10,3)")
-                        .HasColumnName("total_fuel_consumed_m_t");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<string>("VoyageId")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("voyage_id");
-
-                    b.HasKey("Id")
-                        .HasName("p_k_fuel_analytics_summaries");
-
-                    b.HasIndex("CIIRating")
-                        .HasDatabaseName("idx_fuel_analytics_cii");
-
-                    b.HasIndex("IsSynced")
-                        .HasDatabaseName("idx_fuel_analytics_synced")
-                        .HasFilter("is_synced = false");
-
-                    b.HasIndex("VoyageId")
-                        .HasDatabaseName("idx_fuel_analytics_voyage");
-
-                    b.HasIndex("PeriodType", "PeriodStart")
-                        .IsDescending(false, true)
-                        .HasDatabaseName("idx_fuel_analytics_period");
-
-                    b.ToTable("fuel_analytics_summaries", "public");
-                });
-
             modelBuilder.Entity("MaritimeEdge.Models.FuelConsumption", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2340,100 +2217,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasDatabaseName("idx_fuel_timestamp");
 
                     b.ToTable("fuel_consumption", "public");
-                });
-
-            modelBuilder.Entity("MaritimeEdge.Models.FuelEfficiencyAlert", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime?>("AcknowledgedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("acknowledged_at");
-
-                    b.Property<string>("AcknowledgedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("acknowledged_by");
-
-                    b.Property<string>("AlertType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("alert_type");
-
-                    b.Property<double>("CurrentValue")
-                        .HasColumnType("decimal(10,3)")
-                        .HasColumnName("current_value");
-
-                    b.Property<double>("DeviationPercent")
-                        .HasColumnType("decimal(6,2)")
-                        .HasColumnName("deviation_percent");
-
-                    b.Property<double>("ExpectedValue")
-                        .HasColumnType("decimal(10,3)")
-                        .HasColumnName("expected_value");
-
-                    b.Property<bool>("IsAcknowledged")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_acknowledged");
-
-                    b.Property<bool>("IsResolved")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_resolved");
-
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_synced");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("message");
-
-                    b.Property<string>("RecommendedAction")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("recommended_action");
-
-                    b.Property<DateTime?>("ResolvedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("resolved_at");
-
-                    b.Property<string>("Severity")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("severity");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("timestamp");
-
-                    b.HasKey("Id")
-                        .HasName("p_k_fuel_efficiency_alerts");
-
-                    b.HasIndex("AlertType")
-                        .HasDatabaseName("idx_fuel_alert_type");
-
-                    b.HasIndex("IsSynced")
-                        .HasDatabaseName("idx_fuel_alert_synced")
-                        .HasFilter("is_synced = false");
-
-                    b.HasIndex("Timestamp")
-                        .IsDescending()
-                        .HasDatabaseName("idx_fuel_alert_timestamp");
-
-                    b.HasIndex("IsResolved", "Severity")
-                        .HasDatabaseName("idx_fuel_alert_unresolved")
-                        .HasFilter("is_resolved = false");
-
-                    b.ToTable("fuel_efficiency_alerts", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.GarbageRecordBook", b =>
@@ -2698,6 +2481,481 @@ namespace MaritimeEdge.Data.Migrations
                         .HasDatabaseName("idx_generator_id_timestamp");
 
                     b.ToTable("generator_data", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.HealthDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("crew_member_id");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("document_number");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("document_type");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expiry_date");
+
+                    b.Property<string>("FileUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("file_url");
+
+                    b.Property<DateTime?>("IssueDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("issue_date");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_health_documents");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.ToTable("health_documents", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.Inventory.FuelAnalyticsSummary", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<double>("AuxiliaryFuelMT")
+                        .HasColumnType("decimal(10,3)")
+                        .HasColumnName("auxiliary_fuel_m_t");
+
+                    b.Property<double>("AverageSpeedKnots")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("average_speed_knots");
+
+                    b.Property<double?>("AvgMainEngineLoad")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("avg_main_engine_load");
+
+                    b.Property<double?>("AvgMainEngineRPM")
+                        .HasColumnType("decimal(6,2)")
+                        .HasColumnName("avg_main_engine_r_p_m");
+
+                    b.Property<double?>("AvgSeaState")
+                        .HasColumnType("decimal(3,1)")
+                        .HasColumnName("avg_sea_state");
+
+                    b.Property<double?>("AvgWindSpeed")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("avg_wind_speed");
+
+                    b.Property<double>("BoilerFuelMT")
+                        .HasColumnType("decimal(10,3)")
+                        .HasColumnName("boiler_fuel_m_t");
+
+                    b.Property<double?>("CII")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("c_i_i");
+
+                    b.Property<string>("CIIRating")
+                        .HasMaxLength(1)
+                        .HasColumnType("character varying(1)")
+                        .HasColumnName("c_i_i_rating");
+
+                    b.Property<double>("CO2EmissionsMT")
+                        .HasColumnType("decimal(12,3)")
+                        .HasColumnName("c_o2_emissions_m_t");
+
+                    b.Property<double?>("CargoWeightMT")
+                        .HasColumnType("decimal(12,3)")
+                        .HasColumnName("cargo_weight_m_t");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DataPointsCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("data_points_count");
+
+                    b.Property<double>("DataQualityScore")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("data_quality_score");
+
+                    b.Property<double>("DistanceNauticalMiles")
+                        .HasColumnType("decimal(12,2)")
+                        .HasColumnName("distance_nautical_miles");
+
+                    b.Property<double?>("EEOI")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("e_e_o_i");
+
+                    b.Property<double?>("EstimatedFuelCostUSD")
+                        .HasColumnType("decimal(15,2)")
+                        .HasColumnName("estimated_fuel_cost_u_s_d");
+
+                    b.Property<double>("FuelPerHour")
+                        .HasColumnType("decimal(8,4)")
+                        .HasColumnName("fuel_per_hour");
+
+                    b.Property<double>("FuelPerNauticalMile")
+                        .HasColumnType("decimal(8,4)")
+                        .HasColumnName("fuel_per_nautical_mile");
+
+                    b.Property<double?>("FuelPricePerMT")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("fuel_price_per_m_t");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<double>("MainEngineFuelMT")
+                        .HasColumnType("decimal(10,3)")
+                        .HasColumnName("main_engine_fuel_m_t");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_end");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_start");
+
+                    b.Property<string>("PeriodType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("period_type");
+
+                    b.Property<double?>("SFOC")
+                        .HasColumnType("decimal(8,2)")
+                        .HasColumnName("s_f_o_c");
+
+                    b.Property<double>("TimeBerthHours")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("time_berth_hours");
+
+                    b.Property<double>("TimeUnderwayHours")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("time_underway_hours");
+
+                    b.Property<double>("TotalFuelConsumedMT")
+                        .HasColumnType("decimal(10,3)")
+                        .HasColumnName("total_fuel_consumed_m_t");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("VoyageId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("voyage_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_fuel_analytics_summaries");
+
+                    b.HasIndex("CIIRating")
+                        .HasDatabaseName("idx_fuel_analytics_cii");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_fuel_analytics_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_fuel_analytics_voyage");
+
+                    b.HasIndex("PeriodType", "PeriodStart")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("idx_fuel_analytics_period");
+
+                    b.ToTable("fuel_analytics_summaries", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.Inventory.FuelEfficiencyAlert", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("AcknowledgedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("acknowledged_at");
+
+                    b.Property<string>("AcknowledgedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("acknowledged_by");
+
+                    b.Property<string>("AlertType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("alert_type");
+
+                    b.Property<double>("CurrentValue")
+                        .HasColumnType("decimal(10,3)")
+                        .HasColumnName("current_value");
+
+                    b.Property<double>("DeviationPercent")
+                        .HasColumnType("decimal(6,2)")
+                        .HasColumnName("deviation_percent");
+
+                    b.Property<double>("ExpectedValue")
+                        .HasColumnType("decimal(10,3)")
+                        .HasColumnName("expected_value");
+
+                    b.Property<bool>("IsAcknowledged")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_acknowledged");
+
+                    b.Property<bool>("IsResolved")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_resolved");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("message");
+
+                    b.Property<string>("RecommendedAction")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("recommended_action");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("severity");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("timestamp");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_fuel_efficiency_alerts");
+
+                    b.HasIndex("AlertType")
+                        .HasDatabaseName("idx_fuel_alert_type");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_fuel_alert_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("Timestamp")
+                        .IsDescending()
+                        .HasDatabaseName("idx_fuel_alert_timestamp");
+
+                    b.HasIndex("IsResolved", "Severity")
+                        .HasDatabaseName("idx_fuel_alert_unresolved")
+                        .HasFilter("is_resolved = false");
+
+                    b.ToTable("fuel_efficiency_alerts", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.Inventory.MaterialReceipt", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ApprovedDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_date");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("ImportFileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("import_file_name");
+
+                    b.Property<string>("ImportSource")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("import_source");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("ReceiptCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("receipt_code");
+
+                    b.Property<DateTime>("ReceiptDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("receipt_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("status");
+
+                    b.Property<decimal?>("TotalAmount")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("total_amount");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_material_receipts");
+
+                    b.ToTable("material_receipts", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.Inventory.MaterialReceiptItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BatchNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("batch_number");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("currency");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expiry_date");
+
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("item_code");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("item_name");
+
+                    b.Property<int?>("LineNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("line_number");
+
+                    b.Property<Guid?>("MaterialItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("material_item_id");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("decimal(18,3)")
+                        .HasColumnName("quantity");
+
+                    b.Property<int>("ReceiptId")
+                        .HasColumnType("integer")
+                        .HasColumnName("receipt_id");
+
+                    b.Property<string>("Specification")
+                        .HasColumnType("text")
+                        .HasColumnName("specification");
+
+                    b.Property<decimal?>("TotalCost")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("total_cost");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("unit");
+
+                    b.Property<decimal?>("UnitCost")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("unit_cost");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_material_receipt_items");
+
+                    b.HasIndex("MaterialItemId");
+
+                    b.HasIndex("ReceiptId");
+
+                    b.ToTable("material_receipt_items", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.MaintenanceHistory", b =>
@@ -3625,174 +3883,6 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("material_items", "public");
                 });
 
-            modelBuilder.Entity("MaritimeEdge.Models.MaterialReceipt", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("ApprovedDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("approved_date");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("CreatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("created_by");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasColumnName("currency");
-
-                    b.Property<string>("ImportFileName")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("import_file_name");
-
-                    b.Property<string>("ImportSource")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("import_source");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text")
-                        .HasColumnName("notes");
-
-                    b.Property<string>("ReceiptCode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("receipt_code");
-
-                    b.Property<DateTime>("ReceiptDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("receipt_date");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("status");
-
-                    b.Property<decimal?>("TotalAmount")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("total_amount");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("p_k_material_receipts");
-
-                    b.ToTable("material_receipts", "public");
-                });
-
-            modelBuilder.Entity("MaritimeEdge.Models.MaterialReceiptItem", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("BatchNumber")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("batch_number");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasColumnName("currency");
-
-                    b.Property<DateTime?>("ExpiryDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expiry_date");
-
-                    b.Property<string>("ItemCode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("item_code");
-
-                    b.Property<string>("ItemName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("item_name");
-
-                    b.Property<int?>("LineNumber")
-                        .HasColumnType("integer")
-                        .HasColumnName("line_number");
-
-                    b.Property<Guid?>("MaterialItemId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("material_item_id");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text")
-                        .HasColumnName("notes");
-
-                    b.Property<decimal>("Quantity")
-                        .HasColumnType("decimal(18,3)")
-                        .HasColumnName("quantity");
-
-                    b.Property<int>("ReceiptId")
-                        .HasColumnType("integer")
-                        .HasColumnName("receipt_id");
-
-                    b.Property<string>("Specification")
-                        .HasColumnType("text")
-                        .HasColumnName("specification");
-
-                    b.Property<decimal?>("TotalCost")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("total_cost");
-
-                    b.Property<string>("Unit")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("unit");
-
-                    b.Property<decimal?>("UnitCost")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("unit_cost");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("p_k_material_receipt_items");
-
-                    b.HasIndex("MaterialItemId");
-
-                    b.HasIndex("ReceiptId");
-
-                    b.ToTable("material_receipt_items", "public");
-                });
-
             modelBuilder.Entity("MaritimeEdge.Models.MonthlySummaryReport", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4598,6 +4688,144 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("position_reports", "public");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.Rank", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("RankCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("rank_code");
+
+                    b.Property<string>("RankName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("rank_name");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ranks");
+
+                    b.ToTable("ranks", "public");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            IsActive = true,
+                            RankCode = "MAST",
+                            RankName = "Master (Captain)"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            IsActive = true,
+                            RankCode = "C/O",
+                            RankName = "Chief Officer"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            IsActive = true,
+                            RankCode = "2/O",
+                            RankName = "Second Officer"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            IsActive = true,
+                            RankCode = "3/O",
+                            RankName = "Third Officer"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            IsActive = true,
+                            RankCode = "C/E",
+                            RankName = "Chief Engineer"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            IsActive = true,
+                            RankCode = "2/E",
+                            RankName = "Second Engineer"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            IsActive = true,
+                            RankCode = "BOSN",
+                            RankName = "Bosun"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            IsActive = true,
+                            RankCode = "AB",
+                            RankName = "Able Seaman"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            IsActive = true,
+                            RankCode = "OILR",
+                            RankName = "Oiler"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            IsActive = true,
+                            RankCode = "COOK",
+                            RankName = "Chief Cook"
+                        });
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.RankCertificate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CertificateId")
+                        .HasColumnType("integer")
+                        .HasColumnName("certificate_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("RankId")
+                        .HasColumnType("integer")
+                        .HasColumnName("rank_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_rank_certificates");
+
+                    b.HasIndex("CertificateId");
+
+                    b.HasIndex("RankId");
+
+                    b.ToTable("rank_certificates", "public");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.ReportAmendment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5255,6 +5483,68 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("schedule_spare_parts", "public");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.SeafarerDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("CountryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("country_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("crew_member_id");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("document_number");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("document_type");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expiry_date");
+
+                    b.Property<string>("FileUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("file_url");
+
+                    b.Property<DateTime?>("IssueDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("issue_date");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_seafarer_documents");
+
+                    b.HasIndex("CountryId");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.ToTable("seafarer_documents", "public");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.SyncQueue", b =>
                 {
                     b.Property<long>("Id")
@@ -5694,6 +5984,68 @@ namespace MaritimeEdge.Data.Migrations
                         .HasDatabaseName("idx_status_history_task_time");
 
                     b.ToTable("task_status_history", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.TravelDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("CountryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("country_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("crew_member_id");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("document_number");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("document_type");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expiry_date");
+
+                    b.Property<string>("FileUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("file_url");
+
+                    b.Property<DateTime?>("IssueDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("issue_date");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_travel_documents");
+
+                    b.HasIndex("CountryId");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.ToTable("travel_documents", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.User", b =>
@@ -6462,6 +6814,25 @@ namespace MaritimeEdge.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.EmploymentDocument", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.Country", "Country")
+                        .WithMany()
+                        .HasForeignKey("CountryId")
+                        .HasConstraintName("f_k_employment_documents_countries_country_id");
+
+                    b.HasOne("MaritimeEdge.Models.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_employment_documents_crew_members_crew_member_id");
+
+                    b.Navigation("Country");
+
+                    b.Navigation("CrewMember");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.EquipmentGroupMember", b =>
                 {
                     b.HasOne("MaritimeEdge.Models.EquipmentAsset", "Asset")
@@ -6481,6 +6852,37 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("Asset");
 
                     b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.HealthDocument", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_health_documents_crew_members_crew_member_id");
+
+                    b.Navigation("CrewMember");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.Inventory.MaterialReceiptItem", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.MaterialItem", "MaterialItem")
+                        .WithMany()
+                        .HasForeignKey("MaterialItemId")
+                        .HasConstraintName("f_k_material_receipt_items__material_items_material_item_id");
+
+                    b.HasOne("MaritimeEdge.Models.Inventory.MaterialReceipt", "Receipt")
+                        .WithMany("ReceiptItems")
+                        .HasForeignKey("ReceiptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_material_receipt_items_material_receipts_receipt_id");
+
+                    b.Navigation("MaterialItem");
+
+                    b.Navigation("Receipt");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.MaintenanceSchedule", b =>
@@ -6542,25 +6944,6 @@ namespace MaritimeEdge.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("MaritimeEdge.Models.MaterialReceiptItem", b =>
-                {
-                    b.HasOne("MaritimeEdge.Models.MaterialItem", "MaterialItem")
-                        .WithMany()
-                        .HasForeignKey("MaterialItemId")
-                        .HasConstraintName("f_k_material_receipt_items_material_items_material_item_id");
-
-                    b.HasOne("MaritimeEdge.Models.MaterialReceipt", "Receipt")
-                        .WithMany("ReceiptItems")
-                        .HasForeignKey("ReceiptId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("f_k_material_receipt_items_material_receipts_receipt_id");
-
-                    b.Navigation("MaterialItem");
-
-                    b.Navigation("Receipt");
-                });
-
             modelBuilder.Entity("MaritimeEdge.Models.NoonReport", b =>
                 {
                     b.HasOne("MaritimeEdge.Models.MaritimeReport", null)
@@ -6577,6 +6960,27 @@ namespace MaritimeEdge.Data.Migrations
                         .HasForeignKey("MaritimeEdge.Models.PositionReport", "MaritimeReportId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.RankCertificate", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.Certificate", "Certificate")
+                        .WithMany()
+                        .HasForeignKey("CertificateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_rank_certificates_certificates_certificate_id");
+
+                    b.HasOne("MaritimeEdge.Models.Rank", "Rank")
+                        .WithMany()
+                        .HasForeignKey("RankId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_rank_certificates_ranks_rank_id");
+
+                    b.Navigation("Certificate");
+
+                    b.Navigation("Rank");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.ReportAttachment", b =>
@@ -6616,6 +7020,25 @@ namespace MaritimeEdge.Data.Migrations
                         .HasConstraintName("f_k_schedule_checklist_templates_maintenance_schedules_schedule~");
 
                     b.Navigation("Schedule");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.SeafarerDocument", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.Country", "Country")
+                        .WithMany()
+                        .HasForeignKey("CountryId")
+                        .HasConstraintName("f_k_seafarer_documents_countries_country_id");
+
+                    b.HasOne("MaritimeEdge.Models.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_seafarer_documents_crew_members_crew_member_id");
+
+                    b.Navigation("Country");
+
+                    b.Navigation("CrewMember");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.TaskChecklistItem", b =>
@@ -6664,6 +7087,25 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("Task");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.TravelDocument", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.Country", "Country")
+                        .WithMany()
+                        .HasForeignKey("CountryId")
+                        .HasConstraintName("f_k_travel_documents_countries_country_id");
+
+                    b.HasOne("MaritimeEdge.Models.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_travel_documents_crew_members_crew_member_id");
+
+                    b.Navigation("Country");
+
+                    b.Navigation("CrewMember");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.User", b =>
                 {
                     b.HasOne("MaritimeEdge.Models.CrewMember", null)
@@ -6698,6 +7140,11 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("Certificates");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.Inventory.MaterialReceipt", b =>
+                {
+                    b.Navigation("ReceiptItems");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.MaintenanceTask", b =>
                 {
                     b.Navigation("ChecklistItems");
@@ -6705,11 +7152,6 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("DeferralRequests");
 
                     b.Navigation("StatusHistory");
-                });
-
-            modelBuilder.Entity("MaritimeEdge.Models.MaterialReceipt", b =>
-                {
-                    b.Navigation("ReceiptItems");
                 });
 #pragma warning restore 612, 618
         }

@@ -237,7 +237,7 @@ public class AuthService
                 u => u.RoleId,
                 r => r.Id,
                 (u, r) => new { User = u, Role = r })
-            .GroupJoin(_context.CrewMembers,
+            .GroupJoin(_context.CrewMembers.Include(c => c.Rank),
                 ur => ur.User.CrewId,
                 c => c.CrewId,
                 (ur, crew) => new { ur.User, ur.Role, Crew = crew.FirstOrDefault() })
@@ -250,7 +250,7 @@ public class AuthService
                 RoleCode = x.Role.RoleCode,
                 CrewId = x.User.CrewId,
                 FullName = x.Crew != null ? x.Crew.FullName : null,
-                Position = x.Crew != null ? x.Crew.Position : null,
+                RankName = x.Crew != null && x.Crew.Rank != null ? x.Crew.Rank.RankName : null,
                 x.User.IsActive,
                 x.User.LastLoginAt,
                 x.User.CreatedAt

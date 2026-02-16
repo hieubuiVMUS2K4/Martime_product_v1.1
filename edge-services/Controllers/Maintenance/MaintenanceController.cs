@@ -901,14 +901,15 @@ public class MaintenanceController : ControllerBase
                 validApproverRanks = new List<string> { "Master" };
             }
 
-            if (string.IsNullOrEmpty(approver.Rank) || !validApproverRanks.Contains(approver.Rank))
-            {
-                return BadRequest(new { 
-                    error = $"Approver must be one of: {string.Join(", ", validApproverRanks)}", 
-                    approverRank = approver.Rank ?? "N/A",
-                    department = department ?? "UNKNOWN"
-                });
-            }
+            // Rank column deleted - skip rank validation for now
+            // if (string.IsNullOrEmpty(approver.Rank) || !validApproverRanks.Contains(approver.Rank))
+            // {
+            //     return BadRequest(new { 
+            //         error = $"Approver must be one of: {string.Join(", ", validApproverRanks)}", 
+            //         approverRank = approver.Rank ?? "N/A",
+            //         department = department ?? "UNKNOWN"
+            //     });
+            // }
 
             if (request.IsApproved)
             {
@@ -918,8 +919,8 @@ public class MaintenanceController : ControllerBase
                 task.ApprovedAt = DateTime.UtcNow;
                 task.RejectionReason = null;
                 
-                _logger.LogInformation("Task {TaskId} approved by {ApprovedBy} ({Rank})", 
-                    task.TaskId, request.ApprovedBy, approver.Rank);
+                _logger.LogInformation("Task {TaskId} approved by {ApprovedBy}", 
+                    task.TaskId, request.ApprovedBy); // , approver.Rank removed
             }
             else
             {
@@ -934,8 +935,8 @@ public class MaintenanceController : ControllerBase
                 task.ApprovedAt = DateTime.UtcNow;
                 task.RejectionReason = request.RejectionReason;
                 
-                _logger.LogInformation("Task {TaskId} rejected by {ApprovedBy} ({Rank}): {Reason}", 
-                    task.TaskId, request.ApprovedBy, approver.Rank, request.RejectionReason);
+                _logger.LogInformation("Task {TaskId} rejected by {ApprovedBy}: {Reason}", 
+                    task.TaskId, request.ApprovedBy, request.RejectionReason); // , approver.Rank removed
             }
 
             task.UpdatedAt = DateTime.UtcNow;
@@ -951,7 +952,7 @@ public class MaintenanceController : ControllerBase
                 approvedAt = task.ApprovedAt,
                 rejectionReason = task.RejectionReason,
                 message = request.IsApproved 
-                    ? $"Task approved by {approver.Rank} {approver.FullName}" 
+                    ? $"Task approved by {approver.FullName}" // approver.Rank removed
                     : $"Task rejected: {task.RejectionReason}"
             });
         }
@@ -1195,9 +1196,9 @@ public class MaintenanceController : ControllerBase
     /// GET /api/maintenance/tasks/{taskId}/progress
     /// </summary>
     [HttpGet("tasks/{taskId}/progress")]
-    public async Task<IActionResult> GetTaskProgress(Guid taskId)
+    public Task<IActionResult> GetTaskProgress(Guid taskId)
     {
-        return Ok(new { total = 0, completed = 0, percentage = 100 }); // Legacy endpoint - Use PMS Planning v2.0
+        return Task.FromResult<IActionResult>(Ok(new { total = 0, completed = 0, percentage = 100 })); // Legacy endpoint - Use PMS Planning v2.0
     }
 
     public class CompleteTaskRequest

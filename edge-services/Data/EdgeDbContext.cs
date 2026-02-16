@@ -42,7 +42,13 @@ public class EdgeDbContext : DbContext
     public DbSet<Certificate> Certificates { get; set; } = null!;
     public DbSet<CrewCertificate> CrewCertificates { get; set; } = null!;
     public DbSet<Country> Countries { get; set; } = null!;
+    public DbSet<Rank> Ranks { get; set; } = null!;
+    public DbSet<RankCertificate> RankCertificates { get; set; } = null!;
     public DbSet<CountryCertificate> CountryCertificates { get; set; } = null!;
+    public DbSet<TravelDocument> TravelDocuments { get; set; } = null!;
+    public DbSet<SeafarerDocument> SeafarerDocuments { get; set; } = null!;
+    public DbSet<EmploymentDocument> EmploymentDocuments { get; set; } = null!;
+    public DbSet<HealthDocument> HealthDocuments { get; set; } = null!;
     public DbSet<MaintenanceTask> MaintenanceTasks { get; set; } = null!;
     public DbSet<TaskChecklistItem> TaskChecklistItems { get; set; } = null!;
     public DbSet<MaintenanceTaskDetail> MaintenanceTaskDetails { get; set; } = null!;
@@ -583,8 +589,8 @@ public class EdgeDbContext : DbContext
                 .HasDatabaseName("idx_crew_onboard")
                 .HasFilter("is_onboard = true");
             
-            entity.HasIndex(e => e.Position)
-                .HasDatabaseName("idx_crew_position");
+            entity.HasIndex(e => e.RankId)
+                .HasDatabaseName("idx_crew_rank_id");
             
             entity.HasIndex(e => e.IsSynced)
                 .HasDatabaseName("idx_crew_synced")
@@ -1499,6 +1505,20 @@ public class EdgeDbContext : DbContext
                 .HasForeignKey(e => e.MaritimeReportId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+        // ========== RANKS SEED DATA ==========
+        modelBuilder.Entity<Rank>().HasData(
+            new Rank { Id = 1, RankCode = "MAST", RankName = "Master (Captain)", IsActive = true },
+            new Rank { Id = 2, RankCode = "C/O", RankName = "Chief Officer", IsActive = true },
+            new Rank { Id = 3, RankCode = "2/O", RankName = "Second Officer", IsActive = true },
+            new Rank { Id = 4, RankCode = "3/O", RankName = "Third Officer", IsActive = true },
+            new Rank { Id = 5, RankCode = "C/E", RankName = "Chief Engineer", IsActive = true },
+            new Rank { Id = 6, RankCode = "2/E", RankName = "Second Engineer", IsActive = true },
+            new Rank { Id = 7, RankCode = "BOSN", RankName = "Bosun", IsActive = true },
+            new Rank { Id = 8, RankCode = "AB", RankName = "Able Seaman", IsActive = true },
+            new Rank { Id = 9, RankCode = "OILR", RankName = "Oiler", IsActive = true },
+            new Rank { Id = 10, RankCode = "COOK", RankName = "Chief Cook", IsActive = true }
+        );
     }
 
     /// <summary>

@@ -8,6 +8,13 @@ interface Country {
   isActive: boolean
 }
 
+interface Rank {
+  id: number
+  rankCode: string
+  rankName: string
+  isActive: boolean
+}
+
 interface DetailCertificatesModalProps {
   isOpen: boolean
   onClose: () => void
@@ -28,6 +35,8 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
   
   const [countries, setCountries] = useState<Country[]>([])
   const [selectedCountries, setSelectedCountries] = useState<number[]>([])
+  const [ranks, setRanks] = useState<Rank[]>([])
+  const [selectedRanks, setSelectedRanks] = useState<number[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showAddCountry, setShowAddCountry] = useState(false)
@@ -35,9 +44,9 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
 
   useEffect(() => {
     if (isOpen) {
-      // Load countries first
-      loadCountries().then(() => {
-        // After countries are loaded, load certificate data if editing
+      // Load countries and ranks first
+      Promise.all([loadCountries(), loadRanks()]).then(() => {
+        // After data is loaded, load certificate data if editing
         if (editingCertificate) {
           console.log('📝 Editing certificate:', editingCertificate)
           setFormData({
@@ -50,8 +59,9 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
             isActive: editingCertificate.isActive !== undefined ? editingCertificate.isActive : true
           })
           
-          // Load selected countries after countries list is loaded
+          // Load selected countries and ranks
           loadCertificateCountries(editingCertificate.id)
+          loadCertificateRanks(editingCertificate.id)
         } else {
           // Reset form for new certificate
           setFormData({
@@ -64,6 +74,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
             isActive: true
           })
           setSelectedCountries([])
+          setSelectedRanks([])
         }
       })
     }
@@ -112,6 +123,49 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
     }
   }
 
+  const loadRanks = async () => {
+    try {
+      console.log('🔵 Loading ranks from API...')
+      const response = await fetch('/api/ranks')
+      console.log('📡 Response status:', response.status)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      console.log('✅ Ranks loaded:', data)
+      setRanks(data)
+    } catch (error) {
+      console.error('❌ Failed to load ranks:', error)
+      setError('Failed to load ranks. Please make sure the backend is running.')
+    }
+  }
+
+  const loadCertificateRanks = async (certificateId: number) => {
+    try {
+      console.log('🔵 Loading ranks for certificate:', certificateId)
+      const response = await fetch(`/api/rank-certificates/certificate/${certificateId}`)
+      
+      if (!response.ok) {
+        console.warn('⚠️ No ranks found for certificate or endpoint not available')
+        return
+      }
+      
+      const data = await response.json()
+      console.log('✅ Certificate ranks loaded:', data)
+      
+      if (Array.isArray(data)) {
+        const rankIds = data.map((rc: any) => rc.rankId)
+        console.log('✅ Selected rank IDs:', rankIds)
+        setSelectedRanks(rankIds)
+      }
+    } catch (error) {
+      console.error('❌ Failed to load certificate ranks:', error)
+      // Don't show error to user, just log it
+    }
+  }
+
   const handleCountryToggle = (countryId: number) => {
     setSelectedCountries(prev =>
       prev.includes(countryId)
@@ -125,6 +179,22 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
       setSelectedCountries([])
     } else {
       setSelectedCountries(countries.map(c => c.id))
+    }
+  }
+
+  const handleRankToggle = (rankId: number) => {
+    setSelectedRanks(prev =>
+      prev.includes(rankId)
+        ? prev.filter(id => id !== rankId)
+        : [...prev, rankId]
+    )
+  }
+
+  const handleSelectAllRanks = () => {
+    if (selectedRanks.length === ranks.length) {
+      setSelectedRanks([])
+    } else {
+      setSelectedRanks(ranks.map(r => r.id))
     }
   }
 
@@ -244,6 +314,46 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
         console.log('ℹ️ No countries selected, skipping associations')
       }
 
+      // Update rank_certificates associations
+      if (editingCertificate) {
+        // Delete existing rank associations first
+        console.log('🔵 Deleting old rank associations for certificate:', certificateId)
+        try {
+          await fetch(`/api/rank-certificates/certificate/${certificateId}`, {
+            method: 'DELETE'
+          })
+          console.log('✅ Old rank associations deleted')
+        } catch (err) {
+          console.warn('⚠️ Could not delete old rank associations, continuing...', err)
+        }
+      }
+
+      // Create new rank associations
+      if (selectedRanks.length > 0) {
+        console.log('🔵 Creating new rank associations:', selectedRanks)
+        const rankAssociations = selectedRanks.map(rankId => ({
+          rankId: rankId,
+          certificateId: certificateId
+        }))
+
+        console.log('📤 Sending rank associations:', rankAssociations)
+        const rankAssocResponse = await fetch('/api/rank-certificates/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(rankAssociations)
+        })
+        
+        if (!rankAssocResponse.ok) {
+          const errorText = await rankAssocResponse.text()
+          console.error('❌ Failed to create rank associations:', errorText)
+          throw new Error('Failed to create rank associations')
+        } else {
+          console.log('✅ Rank associations created successfully')
+        }
+      } else {
+        console.log('ℹ️ No ranks selected, skipping rank associations')
+      }
+
       // Reset form
       setFormData({
         certificateCode: '',
@@ -255,6 +365,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
         isActive: true
       })
       setSelectedCountries([])
+      setSelectedRanks([])
       
       onSave()
       onClose()
@@ -493,6 +604,62 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
             {selectedCountries.length > 0 && (
               <p className="text-xs text-gray-500 mt-2">
                 {selectedCountries.length} {selectedCountries.length === 1 ? 'country' : 'countries'} selected
+              </p>
+            )}
+          </div>
+
+          {/* Ranks Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Required for Ranks
+            </label>
+
+            <div className="border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
+              {ranks.length === 0 ? (
+                <p className="text-sm text-gray-500">Loading ranks...</p>
+              ) : (
+                <>
+                  {/* Select All Checkbox */}
+                  <label className="flex items-center gap-2 cursor-pointer hover:bg-green-50 p-2 rounded mb-3 border-b border-gray-200">
+                    <input
+                      type="checkbox"
+                      checked={selectedRanks.length === ranks.length && ranks.length > 0}
+                      onChange={handleSelectAllRanks}
+                      className="w-4 h-4 text-green-600 rounded focus:ring-2 focus:ring-green-500"
+                    />
+                    <span className="text-sm font-semibold text-green-700">
+                      Select All Ranks ({ranks.length})
+                    </span>
+                  </label>
+
+                  {/* Ranks List */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {ranks.map((rank) => (
+                      <label
+                        key={rank.id}
+                        className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedRanks.includes(rank.id)}
+                          onChange={() => handleRankToggle(rank.id)}
+                          className="w-4 h-4 text-green-600 rounded focus:ring-2 focus:ring-green-500"
+                        />
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded">
+                            {rank.rankCode}
+                          </span>
+                          <span className="text-sm text-gray-700">{rank.rankName}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            {selectedRanks.length > 0 && (
+              <p className="text-xs text-gray-500 mt-2">
+                {selectedRanks.length} {selectedRanks.length === 1 ? 'rank' : 'ranks'} selected
               </p>
             )}
           </div>

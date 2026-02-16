@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, User, Save, AlertCircle } from 'lucide-react'
 import { CrewMember } from '../../types/maritime.types'
+import { maritimeService } from '../../services/maritime.service'
 
 interface AddCrewModalProps {
   isOpen: boolean
@@ -12,16 +13,11 @@ export function AddCrewModal({ isOpen, onClose, onSave }: AddCrewModalProps) {
   const [formData, setFormData] = useState<Partial<CrewMember>>({
     crewId: '',
     fullName: '',
-    position: '',
-    rank: '',
+    rankId: undefined,
     nationality: '',
-    passportNumber: '',
     dateOfBirth: '',
     embarkDate: new Date().toISOString().split('T')[0],
     isOnboard: true,
-    certificateNumber: '',
-    certificateExpiry: '',
-    medicalExpiry: '',
     emailAddress: '',
     phoneNumber: '',
     emergencyContact: '',
@@ -29,6 +25,22 @@ export function AddCrewModal({ isOpen, onClose, onSave }: AddCrewModalProps) {
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
+  const [ranks, setRanks] = useState<any[]>([])
+
+  useEffect(() => {
+    if (isOpen) {
+      loadRanks()
+    }
+  }, [isOpen])
+
+  const loadRanks = async () => {
+    try {
+      const data = await maritimeService.ranks.getAll()
+      setRanks(data)
+    } catch (error) {
+      console.error('Failed to load ranks:', error)
+    }
+  }
 
   if (!isOpen) return null
 
@@ -41,8 +53,8 @@ export function AddCrewModal({ isOpen, onClose, onSave }: AddCrewModalProps) {
     if (!formData.fullName?.trim()) {
       newErrors.fullName = 'Full name is required'
     }
-    if (!formData.position?.trim()) {
-      newErrors.position = 'Position is required'
+    if (!formData.rankId) {
+      newErrors.rankId = 'Rank is required'
     }
     if (!formData.nationality?.trim()) {
       newErrors.nationality = 'Nationality is required'
@@ -91,16 +103,11 @@ export function AddCrewModal({ isOpen, onClose, onSave }: AddCrewModalProps) {
     setFormData({
       crewId: '',
       fullName: '',
-      position: '',
-      rank: '',
+      rankId: undefined,
       nationality: '',
-      passportNumber: '',
       dateOfBirth: '',
       embarkDate: new Date().toISOString().split('T')[0],
       isOnboard: true,
-      certificateNumber: '',
-      certificateExpiry: '',
-      medicalExpiry: '',
       emailAddress: '',
       phoneNumber: '',
       emergencyContact: '',
@@ -109,7 +116,7 @@ export function AddCrewModal({ isOpen, onClose, onSave }: AddCrewModalProps) {
     onClose()
   }
 
-  const handleChange = (field: keyof CrewMember, value: string | boolean) => {
+  const handleChange = (field: keyof CrewMember, value: string | boolean | number | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     // Clear error when user starts typing
     if (errors[field]) {
@@ -195,55 +202,28 @@ export function AddCrewModal({ isOpen, onClose, onSave }: AddCrewModalProps) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Position <span className="text-red-500">*</span>
+                Rank <span className="text-red-500">*</span>
               </label>
               <select
-                value={formData.position}
-                onChange={(e) => handleChange('position', e.target.value)}
+                value={formData.rankId || ''}
+                onChange={(e) => handleChange('rankId', e.target.value ? Number(e.target.value) : undefined)}
                 className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
-                  errors.position ? 'border-red-500' : 'border-gray-300'
+                  errors.rankId ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
-                <option value="">Select position</option>
-                <option value="Master">Master</option>
-                <option value="Chief Officer">Chief Officer</option>
-                <option value="Second Officer">Second Officer</option>
-                <option value="Third Officer">Third Officer</option>
-                <option value="Chief Engineer">Chief Engineer</option>
-                <option value="Second Engineer">Second Engineer</option>
-                <option value="Third Engineer">Third Engineer</option>
-                <option value="Fourth Engineer">Fourth Engineer</option>
-                <option value="Bosun">Bosun</option>
-                <option value="Able Seaman">Able Seaman</option>
-                <option value="Ordinary Seaman">Ordinary Seaman</option>
-                <option value="Oiler">Oiler</option>
-                <option value="Wiper">Wiper</option>
-                <option value="Chief Cook">Chief Cook</option>
-                <option value="Messman">Messman</option>
-                <option value="Cadet">Cadet</option>
+                <option value="">Select rank</option>
+                {ranks.map((rank) => (
+                  <option key={rank.id} value={rank.id}>
+                    {rank.rankName} ({rank.rankCode})
+                  </option>
+                ))}
               </select>
-              {errors.position && (
+              {errors.rankId && (
                 <p className="mt-1 text-sm text-red-500 flex items-center gap-1">
                   <AlertCircle className="w-4 h-4" />
-                  {errors.position}
+                  {errors.rankId}
                 </p>
               )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Rank
-              </label>
-              <select
-                value={formData.rank || ''}
-                onChange={(e) => handleChange('rank', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              >
-                <option value="">Select rank</option>
-                <option value="Officer">Officer</option>
-                <option value="Rating">Rating</option>
-                <option value="Cadet">Cadet</option>
-              </select>
             </div>
 
             <div>
@@ -312,24 +292,11 @@ export function AddCrewModal({ isOpen, onClose, onSave }: AddCrewModalProps) {
               />
             </div>
 
-            {/* Travel Documents */}
+            {/* Employment Details */}
             <div className="md:col-span-2 mt-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Travel Documents
+                Employment Details
               </h3>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Passport Number
-              </label>
-              <input
-                type="text"
-                value={formData.passportNumber}
-                onChange={(e) => handleChange('passportNumber', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                placeholder="e.g., N1234567"
-              />
             </div>
 
             <div>
@@ -340,50 +307,6 @@ export function AddCrewModal({ isOpen, onClose, onSave }: AddCrewModalProps) {
                 type="date"
                 value={formData.embarkDate}
                 onChange={(e) => handleChange('embarkDate', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
-            </div>
-
-            {/* STCW Certificates */}
-            <div className="md:col-span-2 mt-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                STCW Certificates
-              </h3>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Certificate Number
-              </label>
-              <input
-                type="text"
-                value={formData.certificateNumber}
-                onChange={(e) => handleChange('certificateNumber', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                placeholder="e.g., STCW-123456"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Certificate Expiry
-              </label>
-              <input
-                type="date"
-                value={formData.certificateExpiry}
-                onChange={(e) => handleChange('certificateExpiry', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Medical Certificate Expiry
-              </label>
-              <input
-                type="date"
-                value={formData.medicalExpiry}
-                onChange={(e) => handleChange('medicalExpiry', e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>

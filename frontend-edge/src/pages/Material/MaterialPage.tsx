@@ -55,6 +55,12 @@ export function MaterialPage() {
   const [receiptSortType, setReceiptSortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>({ col: 'date', dir: 'desc' });
   const [receiptSortMenu, setReceiptSortMenu] = useState<string | null>(null);
 
+  // Expanded states for collapsible sections
+  const [isItemsExpanded, setIsItemsExpanded] = useState(true);
+  const [isLowStockExpanded, setIsLowStockExpanded] = useState(true);
+  const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(true);
+  const [isReceiptsExpanded, setIsReceiptsExpanded] = useState(true);
+
   useEffect(() => {
     setCurrentPage(1); // Reset page when tab changes
   }, [activeTab]);
@@ -304,34 +310,7 @@ export function MaterialPage() {
 
   return (
     <div className="h-full w-full overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{t('materials.title')}</h1>
-            <p className="text-sm text-gray-600 mt-1">{t('materials.subtitle')}</p>
-          </div>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => {
-                setImportReceiptModalOpen(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              <FileSpreadsheet className="w-5 h-5" /> {t('materials.importReceipt')}
-            </button>
-            <button 
-              onClick={() => {
-                setEditingCategory(null);
-                setCategoryModalOpen(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              <Layers className="w-5 h-5" /> {t('materials.addCategory')}
-            </button>
-          </div>
-        </div>
-
+      <div className="p-3 space-y-4">
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow">
           <div className="border-b border-gray-200">
@@ -343,54 +322,8 @@ export function MaterialPage() {
             </nav>
           </div>
 
-          {/* Filters (Items tab) */}
-          {activeTab === 'items' && (
-            <div className="p-4 border-b border-gray-200 flex items-center gap-4">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={t('materials.searchPlaceholder')}
-                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[180px]"
-              >
-                <option value="all">{t('materials.allCategories')}</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-              <select
-                value={filterUnit}
-                onChange={(e) => setFilterUnit(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[150px]"
-              >
-                <option value="all">{t('materials.allUnits')}</option>
-                {uniqueUnits.map(unit => <option key={unit} value={unit}>{unit}</option>)}
-              </select>
-            </div>
-          )}
-
-          {/* Filters (Categories tab) */}
-          {activeTab === 'categories' && (
-            <div className="p-4 border-b border-gray-200">
-              <div className="relative">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                <input
-                  value={categorySearch}
-                  onChange={(e) => setCategorySearch(e.target.value)}
-                  placeholder={t('materials.categorySearchPlaceholder')}
-                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-          )}
-
           {/* Content */}
-          <div className="p-6">
+          <div>
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -399,104 +332,236 @@ export function MaterialPage() {
             ) : (
               <>
                 {activeTab === 'categories' ? (
-                  <CategoryList 
-                    categories={sortedCategories}
-                    onEdit={(cat) => {
-                      setEditingCategory(cat);
-                      setCategoryModalOpen(true);
-                    }}
-                    onDelete={handleDeleteCategory}
-                    sortType={categorySortType}
-                    setSortType={setCategorySortType}
-                    sortMenu={categorySortMenu}
-                    setSortMenu={setCategorySortMenu}
-                  />
-                ) : activeTab === 'receipts' ? (
-                  <ReceiptList 
-                    receipts={sortedReceipts}
-                    currentPage={currentPage}
-                    itemsPerPage={itemsPerPage}
-                    totalReceipts={totalReceipts}
-                    setCurrentPage={setCurrentPage}
-                    onReceiptClick={(receiptId) => {
-                      setSelectedReceiptId(receiptId);
-                      setReceiptDetailModalOpen(true);
-                    }}
-                    onImportClick={() => setImportReceiptModalOpen(true)}
-                    sortType={receiptSortType}
-                    setSortType={setReceiptSortType}
-                    sortMenu={receiptSortMenu}
-                    setSortMenu={setReceiptSortMenu}
-                  />
-                ) : activeTab === 'low' ? (
-                  <ItemList 
-                    items={lowStock} 
-                    categories={categories} 
-                    highlightLow
-                    onEdit={(item) => {
-                      setEditingItem(item);
-                      setItemModalOpen(true);
-                    }}
-                    onDelete={handleDeleteItem}
-                    onAdjustStock={(item) => {
-                      setAdjustingItem(item);
-                      setStockAdjustmentModalOpen(true);
-                    }}
-                  />
-                ) : (
-                  <div>
-                    {/* Info and Pagination */}
-                    <div className="flex items-center justify-between mb-4">
-                      {/* Left - Display info */}
-                      <div className="text-sm text-gray-600">
-                        {t('materials.showingItems', { start: sortedItems.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1, end: Math.min(currentPage * itemsPerPage, sortedItems.length), total: sortedItems.length })}
-                      </div>
-
-                      {/* Right - Pagination */}
-                      {totalPages > 1 && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            {t('materials.previous')}
-                          </button>
-                          
-                          <span className="text-sm text-gray-600 px-2">
-                            {t('materials.pageOf', { current: currentPage, total: totalPages })}
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-gray-700 uppercase">CATEGORIES ({sortedCategories.length})</h3>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingCategory(null);
+                            setCategoryModalOpen(true);
+                          }}
+                          className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
+                          title="Add category"
+                        >
+                          +
+                        </button>
+                        <button
+                          onClick={() => setIsCategoriesExpanded(!isCategoriesExpanded)}
+                          className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
+                          title={isCategoriesExpanded ? "Collapse section" : "Expand section"}
+                        >
+                          <span className="text-white text-xs transition-transform" style={{ transform: isCategoriesExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
+                            ▼
                           </span>
-
-                          <button
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                            className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            {t('materials.next')}
-                          </button>
-                        </div>
-                      )}
+                        </button>
+                      </div>
                     </div>
-
-                    <ItemList 
-                      items={paginatedItems} 
-                      categories={categories}
-                      onEdit={(item) => {
-                        setEditingItem(item);
-                        setItemModalOpen(true);
-                      }}
-                      onDelete={handleDeleteItem}
-                      onAdjustStock={(item) => {
-                        setAdjustingItem(item);
-                        setStockAdjustmentModalOpen(true);
-                      }}
-                      currentPage={currentPage}
-                      itemsPerPage={itemsPerPage}
-                      sortType={sortType}
-                      setSortType={setSortType}
-                      sortMenu={sortMenu}
-                      setSortMenu={setSortMenu}
-                    />
+                    {isCategoriesExpanded && sortedCategories.length > 0 && (
+                      <>
+                        {/* Filters */}
+                        <div className="p-4 border-b border-gray-200">
+                          <div className="relative">
+                            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                            <input
+                              value={categorySearch}
+                              onChange={(e) => setCategorySearch(e.target.value)}
+                              placeholder={t('materials.categorySearchPlaceholder')}
+                              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+                        <CategoryList 
+                        categories={sortedCategories}
+                        onEdit={(cat) => {
+                          setEditingCategory(cat);
+                          setCategoryModalOpen(true);
+                        }}
+                        onDelete={handleDeleteCategory}
+                        sortType={categorySortType}
+                        setSortType={setCategorySortType}
+                        sortMenu={categorySortMenu}
+                        setSortMenu={setCategorySortMenu}
+                      />
+                      </>
+                    )}
+                  </div>
+                ) : activeTab === 'receipts' ? (
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-gray-700 uppercase">IMPORT RECEIPTS ({totalReceipts})</h3>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setImportReceiptModalOpen(true)}
+                          className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
+                          title="Import receipt"
+                        >
+                          +
+                        </button>
+                        <button
+                          onClick={() => setIsReceiptsExpanded(!isReceiptsExpanded)}
+                          className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
+                          title={isReceiptsExpanded ? "Collapse section" : "Expand section"}
+                        >
+                          <span className="text-white text-xs transition-transform" style={{ transform: isReceiptsExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
+                            ▼
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                    {isReceiptsExpanded && (
+                      <ReceiptList 
+                        receipts={sortedReceipts}
+                        currentPage={currentPage}
+                        itemsPerPage={itemsPerPage}
+                        totalReceipts={totalReceipts}
+                        setCurrentPage={setCurrentPage}
+                        onReceiptClick={(receiptId) => {
+                          setSelectedReceiptId(receiptId);
+                          setReceiptDetailModalOpen(true);
+                        }}
+                        sortType={receiptSortType}
+                        setSortType={setReceiptSortType}
+                        sortMenu={receiptSortMenu}
+                        setSortMenu={setReceiptSortMenu}
+                      />
+                    )}
+                  </div>
+                ) : activeTab === 'low' ? (
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-gray-700 uppercase">LOW STOCK ITEMS ({lowStock.length})</h3>
+                      <button
+                        onClick={() => setIsLowStockExpanded(!isLowStockExpanded)}
+                        className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
+                        title={isLowStockExpanded ? "Collapse section" : "Expand section"}
+                      >
+                        <span className="text-white text-xs transition-transform" style={{ transform: isLowStockExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
+                          ▼
+                        </span>
+                      </button>
+                    </div>
+                    {isLowStockExpanded && lowStock.length > 0 && (
+                      <ItemList 
+                        items={lowStock} 
+                        categories={categories} 
+                        highlightLow
+                        onEdit={(item) => {
+                          setEditingItem(item);
+                          setItemModalOpen(true);
+                        }}
+                        onDelete={handleDeleteItem}
+                        onAdjustStock={(item) => {
+                          setAdjustingItem(item);
+                          setStockAdjustmentModalOpen(true);
+                        }}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-gray-700 uppercase">MATERIAL ITEMS ({sortedItems.length})</h3>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setImportReceiptModalOpen(true)}
+                          className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
+                          title="Import receipt"
+                        >
+                          +
+                        </button>
+                        <button
+                          onClick={() => setIsItemsExpanded(!isItemsExpanded)}
+                          className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
+                          title={isItemsExpanded ? "Collapse section" : "Expand section"}
+                        >
+                          <span className="text-white text-xs transition-transform" style={{ transform: isItemsExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
+                            ▼
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                    {isItemsExpanded && sortedItems.length > 0 && (
+                      <>
+                        {/* Filters */}
+                        <div className="p-4 border-b border-gray-200 flex items-center gap-4">
+                          <div className="relative flex-1">
+                            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                            <input
+                              value={search}
+                              onChange={(e) => setSearch(e.target.value)}
+                              placeholder={t('materials.searchPlaceholder')}
+                              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <select
+                            value={categoryId}
+                            onChange={(e) => setCategoryId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[180px]"
+                          >
+                            <option value="all">{t('materials.allCategories')}</option>
+                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                          <select
+                            value={filterUnit}
+                            onChange={(e) => setFilterUnit(e.target.value)}
+                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[150px]"
+                          >
+                            <option value="all">{t('materials.allUnits')}</option>
+                            {uniqueUnits.map(unit => <option key={unit} value={unit}>{unit}</option>)}
+                          </select>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <ItemList 
+                            items={paginatedItems} 
+                            categories={categories}
+                            onEdit={(item) => {
+                              setEditingItem(item);
+                              setItemModalOpen(true);
+                            }}
+                            onDelete={handleDeleteItem}
+                            onAdjustStock={(item) => {
+                              setAdjustingItem(item);
+                              setStockAdjustmentModalOpen(true);
+                            }}
+                            currentPage={currentPage}
+                            itemsPerPage={itemsPerPage}
+                            sortType={sortType}
+                            setSortType={setSortType}
+                            sortMenu={sortMenu}
+                            setSortMenu={setSortMenu}
+                          />
+                        </div>
+                        
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                          <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
+                            <div className="text-sm text-gray-600">
+                              Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedItems.length)} of {sortedItems.length}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                ← Previous
+                              </button>
+                              <span className="text-sm text-gray-600">
+                                Page {currentPage} / {totalPages}
+                              </span>
+                              <button
+                                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                Next →
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 )}
               </>
@@ -619,37 +684,37 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
   return (
     <div className="overflow-x-auto border border-gray-200 rounded-lg">
       <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
-        <thead className="bg-gray-50">
+        <thead className="bg-white border-b-2 border-gray-300">
           <tr>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '5%'}}>STT</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '22%'}}>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{width: '5%'}}>STT</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{position:'relative', width: '22%'}}>
               Tên vật tư
               {setSortType && setSortMenu && (
                 <SortDropdown col="name" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
               )}
             </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '18%'}}>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{position:'relative', width: '18%'}}>
               Danh mục
               {setSortType && setSortMenu && (
                 <SortDropdown col="category" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
               )}
             </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '6%'}}>Đơn vị</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '8%'}}>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '6%'}}>Đơn vị</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{position:'relative', width: '8%'}}>
               Tồn kho
               {setSortType && setSortMenu && (
                 <SortDropdown col="stock" options={[{label:'Sắp xếp tăng dần',dir:'asc'},{label:'Sắp xếp giảm dần',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
               )}
             </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '12%'}}>Min / Max</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '11%'}}>Mã linh kiện</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '10%'}}>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Min / Max</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '11%'}}>Mã linh kiện</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{position:'relative', width: '10%'}}>
               Đơn giá
               {setSortType && setSortMenu && (
                 <SortDropdown col="unitCost" options={[{label:'Sắp xếp tăng dần',dir:'asc'},{label:'Sắp xếp giảm dần',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
               )}
             </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '11%'}}>Trạng thái</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '11%'}}>Trạng thái</th>
             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '7%'}}>Thao tác</th>
           </tr>
         </thead>
@@ -663,45 +728,45 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
             return (
               <tr 
                 key={it.id} 
-                className={`cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-200 ${highlightLow && low ? 'bg-red-50' : ''}`}
+                className={`cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 ${highlightLow && low ? 'bg-red-50' : ''}`}
                 onClick={(e) => {
                   // Don't trigger if clicking action buttons
                   if ((e.target as HTMLElement).closest('button')) return;
                   onEdit(it);
                 }}
               >
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center border-r border-gray-300" style={{width: '5%'}}>{globalIndex}</td>
-                <td className="px-4 py-3 border-r border-gray-300 overflow-hidden" style={{width: '22%'}}>
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center border-r border-gray-200" style={{width: '5%'}}>{globalIndex}</td>
+                <td className="px-4 py-3 border-r border-gray-200 overflow-hidden" style={{width: '22%'}}>
                   <div className="text-sm font-medium text-gray-900 truncate">{it.name}</div>
                   {it.specification && (
                     <div className="text-xs text-gray-500 mt-1 truncate">{it.specification}</div>
                   )}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300 overflow-hidden" style={{width: '18%'}}>
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-200 overflow-hidden" style={{width: '18%'}}>
                   <div className="flex justify-center">
                     <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 truncate max-w-full inline-block">
                       {getCategoryName(it.categoryId)}
                     </span>
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300 overflow-hidden" style={{width: '6%'}}>
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-200 overflow-hidden" style={{width: '6%'}}>
                   <span className="text-xs truncate">{it.unit}</span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300 overflow-hidden" style={{width: '8%'}}>
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-200 overflow-hidden" style={{width: '8%'}}>
                   <span className={`text-sm font-medium ${low ? 'text-red-600' : over ? 'text-orange-600' : 'text-gray-900'}`}>
                     {it.onHandQuantity.toFixed(2)}
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300 overflow-hidden" style={{width: '12%'}}>
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-200 overflow-hidden" style={{width: '12%'}}>
                   <span className="text-xs text-gray-600 truncate">
                     {it.minStock != null ? it.minStock.toFixed(2) : '-'} / {it.maxStock != null ? it.maxStock.toFixed(2) : '-'}
                   </span>
                 </td>
-                <td className="px-4 py-3 border-r border-gray-300 overflow-hidden" style={{width: '11%'}}>
+                <td className="px-4 py-3 border-r border-gray-200 overflow-hidden" style={{width: '11%'}}>
                   <div className="text-xs font-mono text-gray-700 truncate">{it.partNumber || '-'}</div>
                   {it.barcode && <div className="text-xs text-gray-400 mt-0.5 truncate">🔖 {it.barcode}</div>}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300 overflow-hidden" style={{width: '10%'}}>
+                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-200 overflow-hidden" style={{width: '10%'}}>
                   <div className="flex flex-col items-center">
                     {it.unitCost ? (
                       <>
@@ -713,7 +778,7 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-center border-r border-gray-300 overflow-hidden" style={{width: '11%'}}>
+                <td className="px-4 py-3 text-center border-r border-gray-200 overflow-hidden" style={{width: '11%'}}>
                   <div className="flex flex-wrap gap-1 justify-center">
                     {low && <span className="px-1 py-0.5 text-xs rounded-full bg-red-100 text-red-700 whitespace-nowrap">LOW</span>}
                     {over && <span className="px-1 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700 whitespace-nowrap">OVER</span>}
@@ -763,14 +828,13 @@ function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, o
   );
 }
 
-function ReceiptList({ receipts, currentPage, itemsPerPage, totalReceipts, setCurrentPage, onReceiptClick, onImportClick, sortType, setSortType, sortMenu, setSortMenu }: {
+function ReceiptList({ receipts, currentPage, itemsPerPage, totalReceipts, setCurrentPage, onReceiptClick, sortType, setSortType, sortMenu, setSortMenu }: {
   receipts: MaterialReceiptListDto[];
   currentPage: number;
   itemsPerPage: number;
   totalReceipts: number;
   setCurrentPage: (page: number) => void;
   onReceiptClick: (receiptId: number) => void;
-  onImportClick: () => void;
   sortType?: { col: string; dir: 'asc'|'desc' } | null;
   setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
   sortMenu?: string | null;
@@ -813,72 +877,61 @@ function ReceiptList({ receipts, currentPage, itemsPerPage, totalReceipts, setCu
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Import Receipts History</h3>
-        <button 
-          onClick={onImportClick}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-        >
-          <FileSpreadsheet className="w-4 h-4" />
-          Import New Receipt
-        </button>
-      </div>
-      
       {receipts.length > 0 ? (
         <>
-          <div className="overflow-x-auto bg-white rounded-lg border border-gray-200">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
+              <thead className="bg-white border-b-2 border-gray-300">
                 <tr>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300" style={{width: '8%'}}>STT</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300" style={{width: '18%'}}>Receipt Code</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300 relative" style={{position:'relative', width: '18%'}}>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>STT</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '18%'}}>Receipt Code</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{position:'relative', width: '18%'}}>
                     Receipt Date
                     {setSortType && setSortMenu && (
                       <SortDropdown col="date" options={[{label:'Sớm nhất trước',dir:'asc'},{label:'Muộn nhất trước',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
                     )}
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300 relative" style={{position:'relative', width: '20%'}}>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{position:'relative', width: '20%'}}>
                     Total Amount
                     {setSortType && setSortMenu && (
                       <SortDropdown col="amount" options={[{label:'Từ nhỏ đến lớn',dir:'asc'},{label:'Từ lớn đến nhỏ',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
                     )}
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300 relative" style={{position:'relative', width: '18%'}}>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{position:'relative', width: '18%'}}>
                     Items
                     {setSortType && setSortMenu && (
                       <SortDropdown col="items" options={[{label:'Từ ít đến nhiều',dir:'asc'},{label:'Từ nhiều đến ít',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
                     )}
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase" style={{width: '18%'}}>Status</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '18%'}}>Status</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white">
                 {receipts.map((receipt: MaterialReceiptListDto, idx: number) => (
                   <tr 
                     key={receipt.receiptCode} 
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className="hover:bg-blue-50 cursor-pointer transition-colors border-b border-gray-100"
                     onClick={() => onReceiptClick(receipt.id)}
                   >
-                    <td className="px-4 py-3 text-center border-r border-gray-300">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
-                    <td className="px-4 py-3 text-center border-r border-gray-300">
+                    <td className="px-4 py-3 text-sm text-center text-gray-900 border-r border-gray-200">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
+                    <td className="px-4 py-3 text-sm text-center border-r border-gray-200">
                       <span className="font-medium text-blue-600">{receipt.receiptCode}</span>
                     </td>
-                    <td className="px-4 py-3 text-center border-r border-gray-300">
+                    <td className="px-4 py-3 text-sm text-center text-gray-700 border-r border-gray-200">
                       {new Date(receipt.receiptDate).toLocaleDateString('vi-VN')}
                     </td>
-                    <td className="px-4 py-3 text-center border-r border-gray-300">
+                    <td className="px-4 py-3 text-sm text-center border-r border-gray-200">
                       <span className="font-semibold text-gray-900">
                         {receipt.totalAmount ? receipt.totalAmount.toLocaleString('vi-VN') : '0'} {receipt.currency}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-center border-r border-gray-300">
-                      <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                    <td className="px-4 py-3 text-sm text-center border-r border-gray-200">
+                      <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">
                         {receipt.itemCount} items
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
+                    <td className="px-4 py-3 text-sm text-center">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         receipt.status === 'Completed' ? 'bg-green-100 text-green-700' : 
                         receipt.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 
                         'bg-gray-100 text-gray-700'
@@ -893,41 +946,37 @@ function ReceiptList({ receipts, currentPage, itemsPerPage, totalReceipts, setCu
           </div>
           
           {/* Pagination */}
-          <div className="flex justify-between items-center mt-4">
-            <p className="text-sm text-gray-600">
-              Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalReceipts)} of {totalReceipts} receipts
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <span className="px-3 py-1 border rounded bg-blue-50 text-blue-600 font-medium">
-                {currentPage}
-              </span>
-              <button
-                onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={currentPage * itemsPerPage >= totalReceipts}
-                className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
+          {Math.ceil(totalReceipts / itemsPerPage) > 1 && (
+            <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
+              <div className="text-sm text-gray-600">
+                Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalReceipts)} of {totalReceipts}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ← Previous
+                </button>
+                <span className="text-sm text-gray-600">
+                  Page {currentPage} / {Math.ceil(totalReceipts / itemsPerPage)}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage * itemsPerPage >= totalReceipts}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next →
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </>
       ) : (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+        <div className="text-center py-12">
           <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500 mb-4">No receipts found. Import your first receipt to get started.</p>
-          <button 
-            onClick={onImportClick}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            Import New Receipt
-          </button>
+          <p className="text-gray-500">No receipts found</p>
         </div>
       )}
     </div>

@@ -4,14 +4,17 @@ import {
   ArrowLeft, 
   Trash2,
   Upload,
-  Download,
   CheckCircle,
   XCircle,
-  AlertTriangle
+  AlertTriangle,
+  Eye
 } from 'lucide-react'
 import { CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { format, differenceInDays, parseISO } from 'date-fns'
+import AddDocumentModal from '../../components/crew/AddDocumentModal'
+import AddHealthDocumentModal from '../../components/crew/AddHealthDocumentModal'
+import ImageViewerModal from '../../components/crew/ImageViewerModal'
 
 type TabType = 'basic-data' | 'documents'
 
@@ -26,13 +29,36 @@ export function CrewDetailPage() {
   const [activeTab, setActiveTab] = useState<TabType>('basic-data')
   const [certificates, setCertificates] = useState<any[]>([])
   const [loadingCertificates, setLoadingCertificates] = useState(false)
+  const [travelDocuments, setTravelDocuments] = useState<any[]>([])
+  const [seafarerDocuments, setSeafarerDocuments] = useState<any[]>([])
+  const [employmentDocuments, setEmploymentDocuments] = useState<any[]>([])
+  const [healthDocuments, setHealthDocuments] = useState<any[]>([])
+  const [loadingDocuments, setLoadingDocuments] = useState(false)
   const [isIdentityExpanded, setIsIdentityExpanded] = useState(true)
   const [isHealthExpanded, setIsHealthExpanded] = useState(true)
   const [isCertificatesExpanded, setIsCertificatesExpanded] = useState(true)
+  const [isAddDocumentModalOpen, setIsAddDocumentModalOpen] = useState(false)
+  const [isAddHealthDocumentModalOpen, setIsAddHealthDocumentModalOpen] = useState(false)
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false)
+  const [imageViewerUrl, setImageViewerUrl] = useState<string | null>(null)
+  const [imageViewerDocId, setImageViewerDocId] = useState<string | null>(null)
+  const [imageViewerTargetTable, setImageViewerTargetTable] = useState<string | null>(null)
+  const [uploadingDocId, setUploadingDocId] = useState<string | null>(null)
+  const [ranks, setRanks] = useState<any[]>([])
 
   useEffect(() => {
     loadCrewDetails()
+    loadRanks()
   }, [id])
+  
+  const loadRanks = async () => {
+    try {
+      const data = await maritimeService.ranks.getAll()
+      setRanks(data)
+    } catch (error) {
+      console.error('Failed to load ranks:', error)
+    }
+  }
 
   const loadCrewDetails = async () => {
     if (!id) return
@@ -54,12 +80,76 @@ export function CrewDetailPage() {
       } finally {
         setLoadingCertificates(false)
       }
+      
+      await loadDocuments(id)
     } catch (error: any) {
       console.error('❌ Failed to load crew details:', error)
       setCrew(null)
     } finally {
       setLoading(false)
     }
+  }
+
+  const loadDocuments = async (crewMemberId: string) => {
+    setLoadingDocuments(true)
+    try {
+      const [travel, seafarer, employment, health] = await Promise.all([
+        maritimeService.crew.getTravelDocuments(crewMemberId).catch(() => []),
+        maritimeService.crew.getSeafarerDocuments(crewMemberId).catch(() => []),
+        maritimeService.crew.getEmploymentDocuments(crewMemberId).catch(() => []),
+        maritimeService.crew.getHealthDocuments(crewMemberId).catch(() => [])
+      ])
+      setTravelDocuments(travel)
+      setSeafarerDocuments(seafarer)
+      setEmploymentDocuments(employment)
+      setHealthDocuments(health)
+    } catch (docError) {
+      console.error('❌ Failed to load documents:', docError)
+    } finally {
+      setLoadingDocuments(false)
+    }
+  }
+
+  const handleViewImage = (fileUrl: string, documentId: string, targetTable: string) => {
+    setImageViewerUrl(fileUrl)
+    setImageViewerDocId(documentId)
+    setImageViewerTargetTable(targetTable)
+    setIsImageViewerOpen(true)
+  }
+
+  const handleDocumentFileUpload = async (documentId: string, targetTable: string) => {
+    // Create hidden file input
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      try {
+        setUploadingDocId(documentId)
+        const formData = new FormData()
+        formData.append('targetTable', targetTable)
+        formData.append('file', file)
+
+        await maritimeService.crew.updateDocumentFile(documentId, formData)
+        
+        // Reload documents
+        if (id) {
+          await loadDocuments(id)
+        }
+        
+        alert('✅ File uploaded successfully!')
+      } catch (error: any) {
+        console.error('❌ Failed to upload file:', error)
+        alert(`Error: ${error.message || 'Failed to upload file'}`)
+      } finally {
+        setUploadingDocId(null)
+      }
+    }
+
+    input.click()
   }
 
   const handleSave = async () => {
@@ -77,13 +167,6 @@ export function CrewDetailPage() {
     } finally {
       setSaving(false)
     }
-  }
-
-  const splitFullName = (fullName: string) => {
-    const parts = fullName.trim().split(' ')
-    if (parts.length === 1) return { lastName: parts[0], firstName: '', middleName: '' }
-    if (parts.length === 2) return { lastName: parts[0], firstName: parts[1], middleName: '' }
-    return { lastName: parts[0], firstName: parts[1], middleName: parts.slice(2).join(' ') }
   }
 
   const calculateAge = (dateOfBirth: string | undefined) => {
@@ -117,7 +200,6 @@ export function CrewDetailPage() {
     )
   }
 
-  const nameParts = splitFullName(crew.fullName || '')
   const age = calculateAge(editedCrew.dateOfBirth)
 
   return (
@@ -133,7 +215,7 @@ export function CrewDetailPage() {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <h1 className="text-lg font-semibold text-gray-800">
-              EDIT {crew.fullName.toUpperCase()} - {crew.position?.toUpperCase() || 'CREW'}
+              EDIT {crew.fullName.toUpperCase()} - {crew.rank?.rankName?.toUpperCase() || 'CREW'}
             </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -190,28 +272,31 @@ export function CrewDetailPage() {
                 <div className="col-span-3 space-y-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Last Name
+                      Full Name
                     </label>
                     <input
                       type="text"
-                      value={nameParts.lastName}
-                      onChange={(e) => {
-                        const newFullName = `${e.target.value} ${nameParts.firstName} ${nameParts.middleName}`.trim()
-                        setEditedCrew({ ...editedCrew, fullName: newFullName })
-                      }}
+                      value={editedCrew.fullName || ''}
+                      onChange={(e) => setEditedCrew({ ...editedCrew, fullName: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Position
+                      Rank
                     </label>
-                    <input
-                      type="text"
-                      value={editedCrew.position || ''}
-                      onChange={(e) => setEditedCrew({ ...editedCrew, position: e.target.value })}
+                    <select
+                      value={editedCrew.rankId || ''}
+                      onChange={(e) => setEditedCrew({ ...editedCrew, rankId: e.target.value ? Number(e.target.value) : undefined })}
                       className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                    />
+                    >
+                      <option value="">Select rank</option>
+                      {ranks.map(rank => (
+                        <option key={rank.id} value={rank.id}>
+                          {rank.rankName} ({rank.rankCode})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
@@ -235,6 +320,10 @@ export function CrewDetailPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                     />
                   </div>
+                </div>
+
+                {/* Middle-Left Column - Personal Info */}
+                <div className="col-span-3 space-y-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
                       Age
@@ -244,35 +333,6 @@ export function CrewDetailPage() {
                       value={age}
                       readOnly
                       className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-50"
-                    />
-                  </div>
-                </div>
-
-                {/* Middle-Left Column - Personal Info */}
-                <div className="col-span-3 space-y-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      First Name
-                    </label>
-                    <input
-                      type="text"
-                      value={nameParts.firstName}
-                      onChange={(e) => {
-                        const newFullName = `${nameParts.lastName} ${e.target.value} ${nameParts.middleName}`.trim()
-                        setEditedCrew({ ...editedCrew, fullName: newFullName })
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Rank
-                    </label>
-                    <input
-                      type="text"
-                      value={editedCrew.rank || ''}
-                      onChange={(e) => setEditedCrew({ ...editedCrew, rank: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                     />
                   </div>
                   <div>
@@ -312,20 +372,6 @@ export function CrewDetailPage() {
 
                 {/* Middle-Right Column - Dates */}
                 <div className="col-span-3 space-y-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Middle Name
-                    </label>
-                    <input
-                      type="text"
-                      value={nameParts.middleName}
-                      onChange={(e) => {
-                        const newFullName = `${nameParts.lastName} ${nameParts.firstName} ${e.target.value}`.trim()
-                        setEditedCrew({ ...editedCrew, fullName: newFullName })
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
                       Join Date
@@ -419,70 +465,6 @@ export function CrewDetailPage() {
               </div>
             </div>
 
-            {/* Travel Documents */}
-            <div className="bg-white rounded-lg shadow-sm p-3">
-              <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Travel Documents</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Passport Number
-                  </label>
-                  <input
-                    type="text"
-                    value={editedCrew.passportNumber || ''}
-                    onChange={(e) => setEditedCrew({ ...editedCrew, passportNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Passport Expiry
-                  </label>
-                  <input
-                    type="date"
-                    value={editedCrew.passportExpiry?.split('T')[0] || ''}
-                    onChange={(e) => setEditedCrew({ ...editedCrew, passportExpiry: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Seaman Book Number
-                  </label>
-                  <input
-                    type="text"
-                    value={editedCrew.seamanBookNumber || ''}
-                    onChange={(e) => setEditedCrew({ ...editedCrew, seamanBookNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4 mt-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Visa Number
-                  </label>
-                  <input
-                    type="text"
-                    value={editedCrew.visaNumber || ''}
-                    onChange={(e) => setEditedCrew({ ...editedCrew, visaNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Visa Expiry
-                  </label>
-                  <input
-                    type="date"
-                    value={editedCrew.visaExpiry?.split('T')[0] || ''}
-                    onChange={(e) => setEditedCrew({ ...editedCrew, visaExpiry: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-            </div>
-
             {/* Contact Information */}
             <div className="bg-white rounded-lg shadow-sm p-3">
               <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Contact Information</h3>
@@ -529,242 +511,334 @@ export function CrewDetailPage() {
           <div className="space-y-2">
             {/* IDENTITY DOCUMENTS Section */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 flex items-center justify-between cursor-pointer" onClick={() => setIsIdentityExpanded(!isIdentityExpanded)}>
-                <h3 className="text-sm font-semibold text-gray-700 uppercase">IDENTITY DOCUMENTS ({[
-                  editedCrew.passportNumber,
-                  editedCrew.visaNumber,
-                  editedCrew.seamanBookNumber,
-                  editedCrew.joinDate
-                ].filter(Boolean).length})</h3>
-                <button className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all">
-                  <span className="text-white text-xs transition-transform" style={{ transform: isIdentityExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
-                    ▼
-                  </span>
-                </button>
+              <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase">
+                  IDENTITY DOCUMENTS ({travelDocuments.length + seafarerDocuments.length + employmentDocuments.length})
+                </h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsAddDocumentModalOpen(true)}
+                    className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
+                    title="Add identity document"
+                  >
+                    +
+                  </button>
+                  <button onClick={() => setIsIdentityExpanded(!isIdentityExpanded)} className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all">
+                    <span className="text-white text-xs transition-transform" style={{ transform: isIdentityExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
+                      ▼
+                    </span>
+                  </button>
+                </div>
               </div>
               {isIdentityExpanded && (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
-                    <thead className="bg-white border-b-2 border-gray-300">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '3%'}}></th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '20%'}}>Name / Type</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>Files</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Number</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Date of Issue</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Place</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Country</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>Exp. Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white">
-                      {/* Passport */}
-                      {editedCrew.passportNumber && (
-                        <tr className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
-                            <button className="text-gray-400 hover:text-gray-600">::</button>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
-                            <div className="flex items-center gap-2">
-                              <span>🔒</span>
-                              <span className="font-medium">Passport</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
-                            <button className="text-blue-600 hover:text-blue-800">
-                              <Download className="w-4 h-4 inline" />
-                            </button>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">{editedCrew.passportNumber}</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">-</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">-</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">{editedCrew.nationality || '-'}</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
-                            <div className="truncate">{editedCrew.passportExpiry ? format(new Date(editedCrew.passportExpiry), 'dd/MM/yyyy') : '-'}</div>
-                          </td>
+                loadingDocuments ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
+                      <thead className="bg-white border-b-2 border-gray-300">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '3%'}}></th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '20%'}}>Name</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>Files</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Number</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Date of Issue</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Place</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Country</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>Exp. Date</th>
                         </tr>
-                      )}
-                      
-                      {/* US Visa */}
-                      {editedCrew.visaNumber && (
-                        <tr className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
-                            <button className="text-gray-400 hover:text-gray-600">::</button>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
-                            <div className="flex items-center gap-2">
-                              <span>🔒</span>
-                              <div>
-                                <div className="font-medium">US Visa</div>
-                                <div className="text-xs text-gray-500">Type: B-1/B-2</div>
+                      </thead>
+                      <tbody className="bg-white">
+                        {/* Travel Documents */}
+                        {travelDocuments.map((doc) => (
+                          <tr key={`travel-${doc.id}`} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
+                              <button className="text-gray-400 hover:text-gray-600">::</button>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
+                              <div className="flex items-center gap-2">
+                                <span>🔒</span>
+                                <span className="font-medium">{doc.documentType}</span>
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
-                            <button className="text-blue-600 hover:text-blue-800">
-                              <Download className="w-4 h-4 inline" />
-                            </button>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">{editedCrew.visaNumber}</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">-</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">-</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">-</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
-                            <div className="truncate">{editedCrew.visaExpiry ? format(new Date(editedCrew.visaExpiry), 'dd/MM/yyyy') : '-'}</div>
-                          </td>
-                        </tr>
-                      )}
-                      
-                      {/* Seaman's Book - National */}
-                      {editedCrew.seamanBookNumber && (
-                        <tr className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
-                            <button className="text-gray-400 hover:text-gray-600">::</button>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
-                            <div className="flex items-center gap-2">
-                              <span>🔒</span>
-                              <span className="font-medium">(SB) Seaman's Book - National</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
-                            <button className="text-blue-600 hover:text-blue-800">
-                              <Download className="w-4 h-4 inline" />
-                            </button>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">{editedCrew.seamanBookNumber}</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">-</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">-</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">{editedCrew.nationality || '-'}</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
-                            <div className="truncate">-</div>
-                          </td>
-                        </tr>
-                      )}
-                      
-                      {/* Contract of Employment */}
-                      {editedCrew.joinDate && (
-                        <tr className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
-                            <button className="text-gray-400 hover:text-gray-600">::</button>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
-                            <div className="flex items-center gap-2">
-                              <span>🔒</span>
-                              <span className="font-medium">Contract of Employment (COE)</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
-                            <div className="truncate">-</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">-</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">{format(new Date(editedCrew.joinDate), 'dd/MM/yyyy')}</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">-</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                            <div className="truncate">-</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
-                            <div className="truncate">{editedCrew.contractEnd ? format(new Date(editedCrew.contractEnd), 'dd/MM/yyyy') : '-'}</div>
-                          </td>
-                        </tr>
-                      )}
-                      
-                      {[editedCrew.passportNumber, editedCrew.visaNumber, editedCrew.seamanBookNumber, editedCrew.joinDate].filter(Boolean).length === 0 && (
-                        <tr className="border-b border-gray-100">
-                          <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                            No identity documents available
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                            </td>
+                            <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
+                              <button 
+                                onClick={() => doc.fileUrl ? handleViewImage(doc.fileUrl, doc.id, 'travel_documents') : handleDocumentFileUpload(doc.id, 'travel_documents')}
+                                disabled={uploadingDocId === doc.id}
+                                className={`inline-flex items-center justify-center w-8 h-8 rounded text-white transition-colors ${
+                                  uploadingDocId === doc.id 
+                                    ? 'bg-gray-400 cursor-not-allowed' 
+                                    : doc.fileUrl 
+                                      ? 'bg-blue-500 hover:bg-blue-600' 
+                                      : 'bg-green-500 hover:bg-green-600'
+                                }`}
+                                title={doc.fileUrl ? 'View image' : 'Upload image'}
+                              >
+                                {uploadingDocId === doc.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                ) : doc.fileUrl ? (
+                                  <Eye className="w-4 h-4" />
+                                ) : (
+                                  <Upload className="w-4 h-4" />
+                                )}
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">{doc.documentNumber}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">{doc.issueDate ? format(new Date(doc.issueDate), 'dd/MM/yyyy') : '-'}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">-</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">{doc.country?.name || doc.countryId === 1 ? 'Vietnam' : '-'}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
+                              <div className="truncate">{doc.expiryDate ? format(new Date(doc.expiryDate), 'dd/MM/yyyy') : '-'}</div>
+                            </td>
+                          </tr>
+                        ))}
+                        
+                        {/* Seafarer Documents */}
+                        {seafarerDocuments.map((doc) => (
+                          <tr key={`seafarer-${doc.id}`} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
+                              <button className="text-gray-400 hover:text-gray-600">::</button>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
+                              <div className="flex items-center gap-2">
+                                <span>🔒</span>
+                                <span className="font-medium">{doc.documentType}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
+                              <button 
+                                onClick={() => doc.fileUrl ? handleViewImage(doc.fileUrl, doc.id, 'seafarer_documents') : handleDocumentFileUpload(doc.id, 'seafarer_documents')}
+                                disabled={uploadingDocId === doc.id}
+                                className={`inline-flex items-center justify-center w-8 h-8 rounded text-white transition-colors ${
+                                  uploadingDocId === doc.id 
+                                    ? 'bg-gray-400 cursor-not-allowed' 
+                                    : doc.fileUrl 
+                                      ? 'bg-blue-500 hover:bg-blue-600' 
+                                      : 'bg-green-500 hover:bg-green-600'
+                                }`}
+                                title={doc.fileUrl ? 'View image' : 'Upload image'}
+                              >
+                                {uploadingDocId === doc.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                ) : doc.fileUrl ? (
+                                  <Eye className="w-4 h-4" />
+                                ) : (
+                                  <Upload className="w-4 h-4" />
+                                )}
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">{doc.documentNumber}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">{doc.issueDate ? format(new Date(doc.issueDate), 'dd/MM/yyyy') : '-'}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">-</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">{doc.country?.name || doc.countryId === 1 ? 'Vietnam' : '-'}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
+                              <div className="truncate">{doc.expiryDate ? format(new Date(doc.expiryDate), 'dd/MM/yyyy') : '-'}</div>
+                            </td>
+                          </tr>
+                        ))}
+                        
+                        {/* Employment Documents */}
+                        {employmentDocuments.map((doc) => (
+                          <tr key={`employment-${doc.id}`} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
+                              <button className="text-gray-400 hover:text-gray-600">::</button>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
+                              <div className="flex items-center gap-2">
+                                <span>🔒</span>
+                                <span className="font-medium">{doc.documentType}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
+                              <button 
+                                onClick={() => doc.fileUrl ? handleViewImage(doc.fileUrl, doc.id, 'employment_documents') : handleDocumentFileUpload(doc.id, 'employment_documents')}
+                                disabled={uploadingDocId === doc.id}
+                                className={`inline-flex items-center justify-center w-8 h-8 rounded text-white transition-colors ${
+                                  uploadingDocId === doc.id 
+                                    ? 'bg-gray-400 cursor-not-allowed' 
+                                    : doc.fileUrl 
+                                      ? 'bg-blue-500 hover:bg-blue-600' 
+                                      : 'bg-green-500 hover:bg-green-600'
+                                }`}
+                                title={doc.fileUrl ? 'View image' : 'Upload image'}
+                              >
+                                {uploadingDocId === doc.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                ) : doc.fileUrl ? (
+                                  <Eye className="w-4 h-4" />
+                                ) : (
+                                  <Upload className="w-4 h-4" />
+                                )}
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">{doc.documentNumber}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">{doc.issueDate ? format(new Date(doc.issueDate), 'dd/MM/yyyy') : '-'}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">-</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">{doc.country?.name || doc.countryId === 1 ? 'Vietnam' : '-'}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
+                              <div className="truncate">{doc.expiryDate ? format(new Date(doc.expiryDate), 'dd/MM/yyyy') : '-'}</div>
+                            </td>
+                          </tr>
+                        ))}
+                        
+                        {(travelDocuments.length + seafarerDocuments.length + employmentDocuments.length) === 0 && (
+                          <tr className="border-b border-gray-100">
+                            <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                              No identity documents available
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )
               )}
             </div>
 
             {/* HEALTH DOCUMENTS Section */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 flex items-center justify-between cursor-pointer" onClick={() => setIsHealthExpanded(!isHealthExpanded)}>
-                <h3 className="text-sm font-semibold text-gray-700 uppercase">HEALTH DOCUMENTS (0)</h3>
-                <button className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all">
-                  <span className="text-white text-xs transition-transform" style={{ transform: isHealthExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
-                    ▼
-                  </span>
-                </button>
+              <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase">HEALTH DOCUMENTS ({healthDocuments.length})</h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsAddHealthDocumentModalOpen(true)}
+                    className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
+                    title="Add health document"
+                  >
+                    +
+                  </button>
+                  <button onClick={() => setIsHealthExpanded(!isHealthExpanded)} className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all">
+                    <span className="text-white text-xs transition-transform" style={{ transform: isHealthExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
+                      ▼
+                    </span>
+                  </button>
+                </div>
               </div>
               {isHealthExpanded && (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
-                    <thead className="bg-white border-b-2 border-gray-300">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '3%'}}></th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '25%'}}>Name</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>Files</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Number</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Date of Issue</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Place</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Country</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>Exp. Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white">
-                      <tr className="border-b border-gray-100">
-                        <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                          No health documents available
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                loadingDocuments ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
+                      <thead className="bg-white border-b-2 border-gray-300">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '3%'}}></th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '20%'}}>Name</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>Files</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Number</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Date of Issue</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Place</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Country</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>Exp. Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white">
+                        {healthDocuments.map((doc) => (
+                          <tr key={`health-${doc.id}`} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
+                              <button className="text-gray-400 hover:text-gray-600">::</button>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
+                              <div className="flex items-center gap-2">
+                                <span>🏥</span>
+                                <span className="font-medium">{doc.documentType}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '8%'}}>
+                              <button 
+                                onClick={() => doc.fileUrl ? handleViewImage(doc.fileUrl, doc.id, 'health_documents') : handleDocumentFileUpload(doc.id, 'health_documents')}
+                                disabled={uploadingDocId === doc.id}
+                                className={`inline-flex items-center justify-center w-8 h-8 rounded text-white transition-colors ${
+                                  uploadingDocId === doc.id 
+                                    ? 'bg-gray-400 cursor-not-allowed' 
+                                    : doc.fileUrl 
+                                      ? 'bg-blue-500 hover:bg-blue-600' 
+                                      : 'bg-green-500 hover:bg-green-600'
+                                }`}
+                                title={doc.fileUrl ? 'View image' : 'Upload image'}
+                              >
+                                {uploadingDocId === doc.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                ) : doc.fileUrl ? (
+                                  <Eye className="w-4 h-4" />
+                                ) : (
+                                  <Upload className="w-4 h-4" />
+                                )}
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">{doc.documentNumber}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">{doc.issueDate ? format(new Date(doc.issueDate), 'dd/MM/yyyy') : '-'}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">-</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
+                              <div className="truncate">-</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
+                              <div className="truncate">{doc.expiryDate ? format(new Date(doc.expiryDate), 'dd/MM/yyyy') : '-'}</div>
+                            </td>
+                          </tr>
+                        ))}
+                        
+                        {healthDocuments.length === 0 && (
+                          <tr className="border-b border-gray-100">
+                            <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                              No health documents available
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )
               )}
             </div>
 
             {/* CERTIFICATES Section */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 flex items-center justify-between cursor-pointer" onClick={() => setIsCertificatesExpanded(!isCertificatesExpanded)}>
+              <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-700 uppercase">CERTIFICATES ({certificates.length})</h3>
                 <div className="flex items-center gap-2">
                   <button 
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      navigate(`/crew/certificates/add?crewId=${id}`)
-                    }}
+                    onClick={() => navigate(`/crew/certificates/add?crewId=${id}`)}
                     className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
                     title="Add certificate"
                   >
                     +
                   </button>
-                  <button className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all">
+                  <button onClick={() => setIsCertificatesExpanded(!isCertificatesExpanded)} className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all">
                     <span className="text-white text-xs transition-transform" style={{ transform: isCertificatesExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
                       ▼
                     </span>
@@ -880,6 +954,46 @@ export function CrewDetailPage() {
           </div>
         )}
       </div>
+
+      <AddDocumentModal
+        isOpen={isAddDocumentModalOpen}
+        crewMemberId={id || ''}
+        onClose={() => setIsAddDocumentModalOpen(false)}
+        onSuccess={() => {
+          if (id) {
+            loadDocuments(id)
+          }
+        }}
+      />
+
+      <AddHealthDocumentModal
+        isOpen={isAddHealthDocumentModalOpen}
+        crewMemberId={id || ''}
+        onClose={() => setIsAddHealthDocumentModalOpen(false)}
+        onSuccess={() => {
+          if (id) {
+            loadDocuments(id)
+          }
+        }}
+      />
+
+      <ImageViewerModal
+        isOpen={isImageViewerOpen}
+        imageUrl={imageViewerUrl}
+        documentId={imageViewerDocId || undefined}
+        targetTable={imageViewerTargetTable || undefined}
+        onClose={() => {
+          setIsImageViewerOpen(false)
+          setImageViewerUrl(null)
+          setImageViewerDocId(null)
+          setImageViewerTargetTable(null)
+        }}
+        onFileChanged={() => {
+          if (id) {
+            loadDocuments(id)
+          }
+        }}
+      />
     </div>
   )
 }

@@ -4,6 +4,7 @@ using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace MaritimeEdge.Controllers.Crew;
 
@@ -36,6 +37,7 @@ public class CrewController : ControllerBase
 
             var query = _context.CrewMembers
                 .AsNoTracking()
+                .Include(c => c.Rank)
                 .Include(c => c.Certificates)
                     .ThenInclude(cc => cc.Certificate)
                 .AsQueryable();
@@ -46,7 +48,7 @@ public class CrewController : ControllerBase
                 query = query.Where(c => 
                     c.FullName.Contains(search) || 
                     c.CrewId.Contains(search) ||
-                    c.Position.Contains(search));
+                    (c.Rank != null && (c.Rank.RankName.Contains(search) || c.Rank.RankCode.Contains(search))));
             }
 
             if (isOnboard.HasValue)
@@ -93,6 +95,7 @@ public class CrewController : ControllerBase
         {
             var crew = await _context.CrewMembers
                 .AsNoTracking()
+                .Include(c => c.Rank)
                 .Include(c => c.Certificates)
                     .ThenInclude(cc => cc.Certificate)
                 .Where(c => c.IsOnboard)
@@ -113,6 +116,7 @@ public class CrewController : ControllerBase
         try
         {
             var crew = await _context.CrewMembers
+                .Include(c => c.Rank)
                 .Include(c => c.Certificates)
                     .ThenInclude(cc => cc.Certificate)
                 .FirstOrDefaultAsync(c => c.Id == id);
@@ -234,29 +238,30 @@ public class CrewController : ControllerBase
             //     });
             // }
 
-            if (!string.IsNullOrWhiteSpace(crew.PassportNumber))
-            {
-                certificates.Add(new
-                {
-                    type = "Passport",
-                    number = crew.PassportNumber,
-                    issueDate = (DateTime?)null,
-                    expiryDate = crew.PassportExpiry,
-                    status = GetCertificateStatus(crew.PassportExpiry)
-                });
-            }
+            // Document fields removed - will be managed in separate documents table
+            // if (!string.IsNullOrWhiteSpace(crew.PassportNumber))
+            // {
+            //     certificates.Add(new
+            //     {
+            //         type = "Passport",
+            //         number = crew.PassportNumber,
+            //         issueDate = (DateTime?)null,
+            //         expiryDate = crew.PassportExpiry,
+            //         status = GetCertificateStatus(crew.PassportExpiry)
+            //     });
+            // }
 
-            if (!string.IsNullOrWhiteSpace(crew.VisaNumber))
-            {
-                certificates.Add(new
-                {
-                    type = "Visa",
-                    number = crew.VisaNumber,
-                    issueDate = (DateTime?)null,
-                    expiryDate = crew.VisaExpiry,
-                    status = GetCertificateStatus(crew.VisaExpiry)
-                });
-            }
+            // if (!string.IsNullOrWhiteSpace(crew.VisaNumber))
+            // {
+            //     certificates.Add(new
+            //     {
+            //         type = "Visa",
+            //         number = crew.VisaNumber,
+            //         issueDate = (DateTime?)null,
+            //         expiryDate = crew.VisaExpiry,
+            //         status = GetCertificateStatus(crew.VisaExpiry)
+            //     });
+            // }
 
             return Ok(certificates);
         }
@@ -295,9 +300,9 @@ public class CrewController : ControllerBase
                 return BadRequest(new { error = "Full name is required" });
             }
             
-            if (string.IsNullOrWhiteSpace(crew.Position))
+            if (!crew.RankId.HasValue)
             {
-                return BadRequest(new { error = "Position is required" });
+                return BadRequest(new { error = "Rank is required" });
             }
 
             // Check duplicate Crew ID
@@ -326,10 +331,11 @@ public class CrewController : ControllerBase
             //     crew.MedicalIssue = DateTime.SpecifyKind(crew.MedicalIssue.Value, DateTimeKind.Utc);
             // if (crew.MedicalExpiry.HasValue)
             //     crew.MedicalExpiry = DateTime.SpecifyKind(crew.MedicalExpiry.Value, DateTimeKind.Utc);
-            if (crew.PassportExpiry.HasValue)
-                crew.PassportExpiry = DateTime.SpecifyKind(crew.PassportExpiry.Value, DateTimeKind.Utc);
-            if (crew.VisaExpiry.HasValue)
-                crew.VisaExpiry = DateTime.SpecifyKind(crew.VisaExpiry.Value, DateTimeKind.Utc);
+            // Document fields removed
+            // if (crew.PassportExpiry.HasValue)
+            //     crew.PassportExpiry = DateTime.SpecifyKind(crew.PassportExpiry.Value, DateTimeKind.Utc);
+            // if (crew.VisaExpiry.HasValue)
+            //     crew.VisaExpiry = DateTime.SpecifyKind(crew.VisaExpiry.Value, DateTimeKind.Utc);
             if (crew.JoinDate.HasValue)
                 crew.JoinDate = DateTime.SpecifyKind(crew.JoinDate.Value, DateTimeKind.Utc);
             if (crew.EmbarkDate.HasValue)
@@ -378,8 +384,14 @@ public class CrewController : ControllerBase
                 return;
             }
 
-            // Determine role based on position
-            var roleId = await DetermineRoleIdAsync(crew.Position, crew.Rank);
+            // Determine role based on rank
+            string? rankName = null;
+            if (crew.RankId.HasValue)
+            {
+                var rank = await _context.Ranks.FindAsync(crew.RankId.Value);
+                rankName = rank?.RankName;
+            }
+            var roleId = await DetermineRoleIdAsync(rankName ?? "Crew", null);
 
             // Generate default password from date of birth or use default
             string defaultPassword;
@@ -417,7 +429,7 @@ public class CrewController : ControllerBase
     /// <summary>
     /// Determine appropriate role ID based on crew position
     /// </summary>
-    private async Task<int> DetermineRoleIdAsync(string position, string? rank)
+    private async Task<int> DetermineRoleIdAsync(string position, string? rank = null)
     {
         // Default role ID (CREW)
         var defaultRoleId = 5;
@@ -491,9 +503,9 @@ public class CrewController : ControllerBase
                 return BadRequest(new { error = "Full name is required" });
             }
             
-            if (string.IsNullOrWhiteSpace(crew.Position))
+            if (!crew.RankId.HasValue)
             {
-                return BadRequest(new { error = "Position is required" });
+                return BadRequest(new { error = "Rank is required" });
             }
 
             // Check duplicate Crew ID (if changed)
@@ -511,20 +523,15 @@ public class CrewController : ControllerBase
 
             // Update all properties
             existing.FullName = crew.FullName;
-            existing.Position = crew.Position;
-            existing.Rank = crew.Rank;
-            // Certificate fields removed - use crew_certificates table instead
-            // existing.CertificateNumber = crew.CertificateNumber;
-            // existing.CertificateIssue = crew.CertificateIssue;
-            // existing.CertificateExpiry = crew.CertificateExpiry;
-            // existing.MedicalIssue = crew.MedicalIssue;
-            // existing.MedicalExpiry = crew.MedicalExpiry;
+            existing.RankId = crew.RankId;
+            // Document fields removed - will be managed separately
+            // existing.Rank = crew.Rank;
+            // existing.PassportNumber = crew.PassportNumber;
+            // existing.PassportExpiry = crew.PassportExpiry;
+            // existing.VisaNumber = crew.VisaNumber;
+            // existing.VisaExpiry = crew.VisaExpiry;
+            // existing.SeamanBookNumber = crew.SeamanBookNumber;
             existing.Nationality = crew.Nationality;
-            existing.PassportNumber = crew.PassportNumber;
-            existing.PassportExpiry = crew.PassportExpiry;
-            existing.VisaNumber = crew.VisaNumber;
-            existing.VisaExpiry = crew.VisaExpiry;
-            existing.SeamanBookNumber = crew.SeamanBookNumber;
             existing.DateOfBirth = crew.DateOfBirth;
             existing.JoinDate = crew.JoinDate;
             existing.EmbarkDate = crew.EmbarkDate;
@@ -697,12 +704,13 @@ public class CrewController : ControllerBase
             var crewWithoutUsers = await _context.CrewMembers
                 .AsNoTracking()
                 .Where(c => !existingUserCrewIds.Contains(c.CrewId))
+                .Include(c => c.Rank)
                 .Select(c => new
                 {
                     c.Id,
                     c.CrewId,
                     c.FullName,
-                    c.Position,
+                    RankName = c.Rank != null ? c.Rank.RankName : null,
                     c.Department,
                     c.IsOnboard,
                     HasDateOfBirth = c.DateOfBirth != null
@@ -720,5 +728,412 @@ public class CrewController : ControllerBase
             _logger.LogError(ex, "Error getting crew without users");
             return StatusCode(500, new { error = "Internal server error" });
         }
+    }
+
+    /// <summary>
+    /// Create identity document (travel / seafarer / employment) for a crew member
+    /// POST /api/crew/{id}/identity-documents
+    /// </summary>
+    [HttpPost("{id}/identity-documents")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> CreateIdentityDocument(Guid id, [FromForm] CreateIdentityDocumentDto dto)
+    {
+        try
+        {
+            var crewMember = await _context.CrewMembers.FirstOrDefaultAsync(c => c.Id == id);
+            if (crewMember == null)
+            {
+                return NotFound(new { message = "Crew member not found" });
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.TargetTable))
+            {
+                return BadRequest(new { error = "targetTable is required" });
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.DocumentType))
+            {
+                return BadRequest(new { error = "documentType is required" });
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.DocumentNumber))
+            {
+                return BadRequest(new { error = "documentNumber is required" });
+            }
+
+            var normalizedTarget = dto.TargetTable.Trim().ToLowerInvariant();
+            
+            string? fileUrl = null;
+            if (dto.File != null && dto.File.Length > 0)
+            {
+                fileUrl = await SaveIdentityDocumentFileAsync(id, dto.DocumentType, dto.File, normalizedTarget);
+            }
+            switch (normalizedTarget)
+            {
+                case "travel_documents":
+                {
+                    var entity = new TravelDocument
+                    {
+                        CrewMember = crewMember,
+                        DocumentType = dto.DocumentType.Trim(),
+                        DocumentNumber = dto.DocumentNumber.Trim(),
+                        IssueDate = dto.IssueDate,
+                        ExpiryDate = dto.ExpiryDate,
+                        CountryId = dto.CountryId,
+                        Notes = dto.Notes,
+                        FileUrl = fileUrl,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    _context.TravelDocuments.Add(entity);
+                    await _context.SaveChangesAsync();
+                    return Ok(entity);
+                }
+
+                case "seafarer_documents":
+                {
+                    var entity = new SeafarerDocument
+                    {
+                        CrewMember = crewMember,
+                        DocumentType = dto.DocumentType.Trim(),
+                        DocumentNumber = dto.DocumentNumber.Trim(),
+                        IssueDate = dto.IssueDate,
+                        ExpiryDate = dto.ExpiryDate,
+                        CountryId = dto.CountryId,
+                        Notes = dto.Notes,
+                        FileUrl = fileUrl,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    _context.SeafarerDocuments.Add(entity);
+                    await _context.SaveChangesAsync();
+                    return Ok(entity);
+                }
+
+                case "employment_documents":
+                {
+                    var entity = new EmploymentDocument
+                    {
+                        CrewMember = crewMember,
+                        DocumentType = dto.DocumentType.Trim(),
+                        DocumentNumber = dto.DocumentNumber.Trim(),
+                        IssueDate = dto.IssueDate,
+                        ExpiryDate = dto.ExpiryDate,
+                        CountryId = dto.CountryId,
+                        Notes = dto.Notes,
+                        FileUrl = fileUrl,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    _context.EmploymentDocuments.Add(entity);
+                    await _context.SaveChangesAsync();
+                    return Ok(entity);
+                }
+
+                case "health_documents":
+                {
+                    var entity = new HealthDocument
+                    {
+                        CrewMember = crewMember,
+                        DocumentType = dto.DocumentType.Trim(),
+                        DocumentNumber = dto.DocumentNumber.Trim(),
+                        IssueDate = dto.IssueDate,
+                        ExpiryDate = dto.ExpiryDate,
+                        Notes = dto.Notes,
+                        FileUrl = fileUrl,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    _context.HealthDocuments.Add(entity);
+                    await _context.SaveChangesAsync();
+                    return Ok(entity);
+                }
+
+                default:
+                    return BadRequest(new { error = "targetTable must be one of: travel_documents, seafarer_documents, employment_documents, health_documents" });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating identity document for crew {CrewId}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Update file for an existing identity document
+    /// PUT /api/crew/identity-documents/{documentId}/file
+    /// </summary>
+    [HttpPut("identity-documents/{documentId}/file")]
+    public async Task<IActionResult> UpdateIdentityDocumentFile(Guid documentId, [FromForm] UpdateDocumentFileDto dto)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(dto.TargetTable))
+            {
+                return BadRequest(new { error = "targetTable is required" });
+            }
+
+            if (dto.File == null || dto.File.Length == 0)
+            {
+                return BadRequest(new { error = "file is required" });
+            }
+
+            var normalizedTarget = dto.TargetTable.Trim().ToLowerInvariant();
+            
+            object? document = null;
+            string? oldFileUrl = null;
+
+            switch (normalizedTarget)
+            {
+                case "travel_documents":
+                    {
+                        var entity = await _context.TravelDocuments
+                            .Include(d => d.CrewMember)
+                            .FirstOrDefaultAsync(d => d.Id == documentId);
+                        if (entity == null) return NotFound(new { error = "Document not found" });
+                        
+                        oldFileUrl = entity.FileUrl;
+                        var fileUrl = await SaveIdentityDocumentFileAsync(entity.CrewMember.Id, entity.DocumentType, dto.File, normalizedTarget);
+                        entity.FileUrl = fileUrl;
+                        entity.UpdatedAt = DateTime.UtcNow;
+                        document = entity;
+                        break;
+                    }
+
+                case "seafarer_documents":
+                    {
+                        var entity = await _context.SeafarerDocuments
+                            .Include(d => d.CrewMember)
+                            .FirstOrDefaultAsync(d => d.Id == documentId);
+                        if (entity == null) return NotFound(new { error = "Document not found" });
+                        
+                        oldFileUrl = entity.FileUrl;
+                        var fileUrl = await SaveIdentityDocumentFileAsync(entity.CrewMember.Id, entity.DocumentType, dto.File, normalizedTarget);
+                        entity.FileUrl = fileUrl;
+                        entity.UpdatedAt = DateTime.UtcNow;
+                        document = entity;
+                        break;
+                    }
+
+                case "employment_documents":
+                    {
+                        var entity = await _context.EmploymentDocuments
+                            .Include(d => d.CrewMember)
+                            .FirstOrDefaultAsync(d => d.Id == documentId);
+                        if (entity == null) return NotFound(new { error = "Document not found" });
+                        
+                        oldFileUrl = entity.FileUrl;
+                        var fileUrl = await SaveIdentityDocumentFileAsync(entity.CrewMember.Id, entity.DocumentType, dto.File, normalizedTarget);
+                        entity.FileUrl = fileUrl;
+                        entity.UpdatedAt = DateTime.UtcNow;
+                        document = entity;
+                        break;
+                    }
+
+                case "health_documents":
+                    {
+                        var entity = await _context.HealthDocuments
+                            .Include(d => d.CrewMember)
+                            .FirstOrDefaultAsync(d => d.Id == documentId);
+                        if (entity == null) return NotFound(new { error = "Document not found" });
+                        
+                        oldFileUrl = entity.FileUrl;
+                        var fileUrl = await SaveIdentityDocumentFileAsync(entity.CrewMember.Id, entity.DocumentType, dto.File, normalizedTarget);
+                        entity.FileUrl = fileUrl;
+                        entity.UpdatedAt = DateTime.UtcNow;
+                        document = entity;
+                        break;
+                    }
+
+                default:
+                    return BadRequest(new { error = "targetTable must be one of: travel_documents, seafarer_documents, employment_documents, health_documents" });
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Delete old file if exists
+            if (!string.IsNullOrWhiteSpace(oldFileUrl))
+            {
+                try
+                {
+                    var oldFilePath = Path.Combine(Directory.GetCurrentDirectory(), oldFileUrl.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString()));
+                    if (System.IO.File.Exists(oldFilePath))
+                    {
+                        System.IO.File.Delete(oldFilePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to delete old file: {OldFileUrl}", oldFileUrl);
+                }
+            }
+
+            return Ok(document);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating file for document {DocumentId}", documentId);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Get travel documents for a crew member
+    /// GET /api/crew/{id}/travel-documents
+    /// </summary>
+    [HttpGet("{id}/travel-documents")]
+    public async Task<IActionResult> GetTravelDocuments(Guid id)
+    {
+        try
+        {
+            var documents = await _context.TravelDocuments
+                .AsNoTracking()
+                .Where(d => d.CrewMember.Id == id)
+                .Include(d => d.Country)
+                .OrderBy(d => d.DocumentType)
+                .ToListAsync();
+
+            return Ok(documents);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting travel documents for crew {CrewId}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Get seafarer documents for a crew member
+    /// GET /api/crew/{id}/seafarer-documents
+    /// </summary>
+    [HttpGet("{id}/seafarer-documents")]
+    public async Task<IActionResult> GetSeafarerDocuments(Guid id)
+    {
+        try
+        {
+            var documents = await _context.SeafarerDocuments
+                .AsNoTracking()
+                .Where(d => d.CrewMember.Id == id)
+                .Include(d => d.Country)
+                .OrderBy(d => d.DocumentType)
+                .ToListAsync();
+
+            return Ok(documents);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting seafarer documents for crew {CrewId}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Get employment documents for a crew member
+    /// GET /api/crew/{id}/employment-documents
+    /// </summary>
+    [HttpGet("{id}/employment-documents")]
+    public async Task<IActionResult> GetEmploymentDocuments(Guid id)
+    {
+        try
+        {
+            var documents = await _context.EmploymentDocuments
+                .AsNoTracking()
+                .Where(d => d.CrewMember.Id == id)
+                .Include(d => d.Country)
+                .OrderBy(d => d.DocumentType)
+                .ToListAsync();
+
+            return Ok(documents);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting employment documents for crew {CrewId}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Get health documents for a crew member
+    /// GET /api/crew/{id}/health-documents
+    /// </summary>
+    [HttpGet("{id}/health-documents")]
+    public async Task<IActionResult> GetHealthDocuments(Guid id)
+    {
+        try
+        {
+            var documents = await _context.HealthDocuments
+                .AsNoTracking()
+                .Where(d => d.CrewMember.Id == id)
+                .OrderBy(d => d.DocumentType)
+                .ToListAsync();
+
+            return Ok(documents);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting health documents for crew {CrewId}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    private async Task<string> SaveIdentityDocumentFileAsync(Guid crewMemberId, string documentType, IFormFile file, string targetTable)
+    {
+        // Extract document category from targetTable (e.g., "travel_documents" -> "travel_documents")
+        var documentCategory = targetTable.Trim().ToLowerInvariant();
+        
+        var uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "crew", "documents", documentCategory);
+        Directory.CreateDirectory(uploadsRoot);
+
+        var extension = Path.GetExtension(file.FileName);
+        var sanitizedDocumentType = SanitizeFileNamePart(documentType);
+        var baseFileName = $"{crewMemberId}_{sanitizedDocumentType}";
+        var finalFileName = $"{baseFileName}{extension}";
+        var finalPhysicalPath = Path.Combine(uploadsRoot, finalFileName);
+
+        if (System.IO.File.Exists(finalPhysicalPath))
+        {
+            finalFileName = $"{baseFileName}_{DateTime.UtcNow:yyyyMMddHHmmssfff}{extension}";
+            finalPhysicalPath = Path.Combine(uploadsRoot, finalFileName);
+        }
+
+        await using var stream = new FileStream(finalPhysicalPath, FileMode.Create);
+        await file.CopyToAsync(stream);
+
+        return $"/uploads/crew/documents/{documentCategory}/{finalFileName}";
+    }
+
+    private static string SanitizeFileNamePart(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return "document";
+        }
+
+        var cleaned = Regex.Replace(input.Trim().ToLowerInvariant(), "[^a-z0-9_-]+", "_");
+        cleaned = Regex.Replace(cleaned, "_+", "_").Trim('_');
+        return string.IsNullOrWhiteSpace(cleaned) ? "document" : cleaned;
+    }
+
+    public class CreateIdentityDocumentDto
+    {
+        public string TargetTable { get; set; } = string.Empty;
+        public string DocumentType { get; set; } = string.Empty;
+        public string DocumentNumber { get; set; } = string.Empty;
+        public DateTime? IssueDate { get; set; }
+        public DateTime? ExpiryDate { get; set; }
+        public int? CountryId { get; set; }
+        public string? Notes { get; set; }
+        public IFormFile? File { get; set; }
+    }
+
+    public class UpdateDocumentFileDto
+    {
+        public string TargetTable { get; set; } = string.Empty;
+        public IFormFile File { get; set; } = null!;
     }
 }

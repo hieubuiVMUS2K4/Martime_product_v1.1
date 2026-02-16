@@ -643,31 +643,16 @@ public class CrewMember
     [MaxLength(200)]
     public string FullName { get; set; } = string.Empty;
     
-    [Required]
-    [MaxLength(100)]
-    public string Position { get; set; } = string.Empty; // Captain, Chief Engineer, Deck Officer
-    
-    [MaxLength(50)]
-    public string? Rank { get; set; } // Officer, Rating
+    /// <summary>
+    /// Foreign key to Ranks table - replaces the old Position string field
+    /// </summary>
+    public int? RankId { get; set; }
     
     [MaxLength(100)]
     public string? Department { get; set; } // Deck, Engine, Catering, etc.
     
     [MaxLength(50)]
     public string? Nationality { get; set; }
-    
-    [MaxLength(50)]
-    public string? PassportNumber { get; set; }
-    
-    public DateTime? PassportExpiry { get; set; }
-    
-    [MaxLength(50)]
-    public string? VisaNumber { get; set; }
-    
-    public DateTime? VisaExpiry { get; set; }
-    
-    [MaxLength(100)]
-    public string? SeamanBookNumber { get; set; }
     
     public DateTime? DateOfBirth { get; set; }
     
@@ -703,7 +688,10 @@ public class CrewMember
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
     
-    // Navigation property - new certificate system
+    // Navigation properties
+    [ForeignKey("RankId")]
+    public Rank? Rank { get; set; }
+    
     [JsonIgnore]
     public List<CrewCertificate> Certificates { get; set; } = new();
     
@@ -882,6 +870,202 @@ public class Country
     public List<CountryCertificate> CountryCertificates { get; set; } = new();
     [JsonIgnore]
     public List<CrewCertificate> CrewCertificates { get; set; } = new(); // Crew certificates issued by this country
+}
+
+/// <summary>
+/// Rank - Quản lý cấp bậc trên tàu (Ship Ranks/Positions)
+/// Defines hierarchical positions/ranks aboard the vessel
+/// </summary>
+public class Rank
+{
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int Id { get; set; }
+    
+    [Required]
+    [MaxLength(10)]
+    public string RankCode { get; set; } = string.Empty; // CAPT, C/O, 2/O, 3/O, C/E, 2/E, etc.
+    
+    [Required]
+    [MaxLength(100)]
+    public string RankName { get; set; } = string.Empty; // Captain, Chief Officer, Second Officer
+    
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// Rank Certificates - Liên kết giữa Rank và Certificate
+/// Maps which certificates are required for each rank
+/// </summary>
+public class RankCertificate
+{
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int Id { get; set; }
+    
+    [Required]
+    public int RankId { get; set; }
+    
+    [Required]
+    public int CertificateId { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation properties
+    [ForeignKey("RankId")]
+    public Rank? Rank { get; set; }
+    
+    [ForeignKey("CertificateId")]
+    public Certificate? Certificate { get; set; }
+}
+
+/// <summary>
+/// Travel Documents - Quản lý giấy tờ xuất nhập cảnh của thuyền viên
+/// (Passport, Visa, Residence Permit, etc.)
+/// </summary>
+public class TravelDocument
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    [MaxLength(50)]
+    public string DocumentType { get; set; } = string.Empty; // passport, visa, residence_permit, seaman_book, other
+    
+    [Required]
+    [MaxLength(100)]
+    public string DocumentNumber { get; set; } = string.Empty;
+    
+    public DateTime? IssueDate { get; set; }
+    
+    public DateTime? ExpiryDate { get; set; }
+    
+    public int? CountryId { get; set; } // Foreign key to Country (issuing country)
+    
+    [MaxLength(500)]
+    public string? FileUrl { get; set; } // Path to scanned document
+    
+    public string? Notes { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation properties
+    [JsonIgnore]
+    public CrewMember CrewMember { get; set; } = null!;
+    
+    public Country? Country { get; set; } // Issuing country
+}
+
+/// <summary>
+/// Seafarer Documents - Quản lý giấy tờ hành nghề thuyền viên
+/// (Seaman Book, Certificate of Competency, Endorsement)
+/// </summary>
+public class SeafarerDocument
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    [MaxLength(50)]
+    public string DocumentType { get; set; } = string.Empty; // seaman_book, coc, endorsement
+    
+    [Required]
+    [MaxLength(100)]
+    public string DocumentNumber { get; set; } = string.Empty;
+    
+    public DateTime? IssueDate { get; set; }
+    
+    public DateTime? ExpiryDate { get; set; }
+    
+    public int? CountryId { get; set; } // Foreign key to Country (issuing country)
+    
+    [MaxLength(500)]
+    public string? FileUrl { get; set; } // Path to scanned document
+    
+    public string? Notes { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation properties
+    [JsonIgnore]
+    public CrewMember CrewMember { get; set; } = null!;
+    
+    public Country? Country { get; set; } // Issuing country
+}
+
+/// <summary>
+/// Employment Documents - Quản lý giấy tờ liên quan đến công việc
+/// (Contract, Offer Letter, Appraisal)
+/// </summary>
+public class EmploymentDocument
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    [MaxLength(50)]
+    public string DocumentType { get; set; } = string.Empty; // contract, offer_letter, appraisal
+    
+    [Required]
+    [MaxLength(100)]
+    public string DocumentNumber { get; set; } = string.Empty;
+    
+    public DateTime? IssueDate { get; set; }
+    
+    public DateTime? ExpiryDate { get; set; }
+    
+    public int? CountryId { get; set; } // Foreign key to Country (issuing country)
+    
+    [MaxLength(500)]
+    public string? FileUrl { get; set; } // Path to scanned document
+    
+    public string? Notes { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation properties
+    [JsonIgnore]
+    public CrewMember CrewMember { get; set; } = null!;
+    
+    public Country? Country { get; set; } // Issuing country
+}
+
+/// <summary>
+/// Health Documents - Quản lý giấy tờ y tế
+/// (Medical Certificate, Vaccination Record, Drug Test)
+/// </summary>
+public class HealthDocument
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    [MaxLength(50)]
+    public string DocumentType { get; set; } = string.Empty; // medical, vaccination, drug_test
+    
+    [Required]
+    [MaxLength(100)]
+    public string DocumentNumber { get; set; } = string.Empty;
+    
+    public DateTime? IssueDate { get; set; }
+    
+    public DateTime? ExpiryDate { get; set; }
+    
+    [MaxLength(500)]
+    public string? FileUrl { get; set; } // Path to scanned document
+    
+    public string? Notes { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation properties
+    [JsonIgnore]
+    public CrewMember CrewMember { get; set; } = null!;
 }
 
 /// <summary>

@@ -887,27 +887,27 @@ public class MaintenanceSchedulerService : BackgroundService
                 
                 if (picCrew != null)
                 {
-                    _logger.LogDebug("Group task assigned to PIC crew {CrewId} ({Rank}) via Group override", 
-                        picCrew.CrewId, picCrew.Rank);
+                    _logger.LogDebug("Group task assigned to PIC crew {CrewId} via Group override", 
+                        picCrew.CrewId); // , picCrew.Rank removed
                     return picCrew.CrewId;
                 }
             }
 
-            // Tier 2: PIC role from equipment group (e.g., "2/E" for Engine Room equipment)
-            if (!string.IsNullOrWhiteSpace(group.PicRole))
-            {
-                var picCrew = await departmentCrewQuery
-                    .Where(c => c.Rank == group.PicRole)
-                    .OrderBy(c => c.CrewId) // Stable ordering
-                    .FirstOrDefaultAsync();
-                
-                if (picCrew != null)
-                {
-                    _logger.LogDebug("Group task assigned to PIC role {Rank} ({CrewId}) via Group PIC", 
-                        group.PicRole, picCrew.CrewId);
-                    return picCrew.CrewId;
-                }
-            }
+            // Tier 2: PIC role from equipment group - REMOVED (Rank column deleted)
+            // if (!string.IsNullOrWhiteSpace(group.PicRole))
+            // {
+            //     var picCrew = await departmentCrewQuery
+            //         .Where(c => c.Rank == group.PicRole)
+            //         .OrderBy(c => c.CrewId)
+            //         .FirstOrDefaultAsync();
+            //     
+            //     if (picCrew != null)
+            //     {
+            //         _logger.LogDebug("Group task assigned to PIC role {Rank} ({CrewId}) via Group PIC", 
+            //             group.PicRole, picCrew.CrewId);
+            //         return picCrew.CrewId;
+            //     }
+            // }
 
             // Tier 3: Schedule default assignee (fallback)
             if (!string.IsNullOrWhiteSpace(schedule.AssignedToCrewId))
@@ -971,27 +971,27 @@ public class MaintenanceSchedulerService : BackgroundService
                 
                 if (picCrew != null)
                 {
-                    _logger.LogDebug("Task assigned to PIC crew {CrewId} ({Rank}) via Group override", 
-                        picCrew.CrewId, picCrew.Rank);
+                    _logger.LogDebug("Task assigned to PIC crew {CrewId} via Group override", 
+                        picCrew.CrewId); // , picCrew.Rank removed
                     return picCrew.CrewId;
                 }
             }
 
-            // Tier 2: PIC role from equipment group (e.g., "2/E" for Main Engine)
-            if (!string.IsNullOrWhiteSpace(group.PicRole))
-            {
-                var picCrew = await departmentCrewQuery
-                    .Where(c => c.Rank == group.PicRole)
-                    .OrderBy(c => c.CrewId) // Stable ordering
-                    .FirstOrDefaultAsync();
-                
-                if (picCrew != null)
-                {
-                    _logger.LogDebug("Task assigned to PIC role {Rank} ({CrewId}) via Group PIC", 
-                        group.PicRole, picCrew.CrewId);
-                    return picCrew.CrewId;
-                }
-            }
+            // Tier 2: PIC role from equipment group - REMOVED (Rank column deleted)
+            // if (!string.IsNullOrWhiteSpace(group.PicRole))
+            // {
+            //     var picCrew = await departmentCrewQuery
+            //         .Where(c => c.Rank == group.PicRole)
+            //         .OrderBy(c => c.CrewId)
+            //         .FirstOrDefaultAsync();
+            //     
+            //     if (picCrew != null)
+            //     {
+            //         _logger.LogDebug("Task assigned to PIC role {Rank} ({CrewId}) via Group PIC", 
+            //             group.PicRole, picCrew.CrewId);
+            //         return picCrew.CrewId;
+            //     }
+            // }
 
             // Tier 3: Specific crew ID override from schedule
             if (!string.IsNullOrWhiteSpace(schedule.AssignedToCrewId))
@@ -1006,37 +1006,37 @@ public class MaintenanceSchedulerService : BackgroundService
                 }
             }
 
-            // Tier 4: Role-based assignment from schedule
-            if (!string.IsNullOrWhiteSpace(schedule.AssignedToRole))
-            {
-                var crew = await departmentCrewQuery
-                    .Where(c => c.Rank == schedule.AssignedToRole)
-                    .OrderBy(c => c.CrewId) // Stable ordering
-                    .FirstOrDefaultAsync();
-                
-                if (crew != null)
-                {
-                    _logger.LogDebug("Task assigned to {Rank} ({CrewId}) via Schedule role", 
-                        schedule.AssignedToRole, crew.CrewId);
-                    return crew.CrewId;
-                }
-            }
+            // Tier 4: Role-based assignment from schedule - REMOVED (Rank column deleted)
+            // if (!string.IsNullOrWhiteSpace(schedule.AssignedToRole))
+            // {
+            //     var crew = await departmentCrewQuery
+            //         .Where(c => c.Rank == schedule.AssignedToRole)
+            //         .OrderBy(c => c.CrewId)
+            //         .FirstOrDefaultAsync();
+            //     
+            //     if (crew != null)
+            //     {
+            //         _logger.LogDebug("Task assigned to {Rank} ({CrewId}) via Schedule role", 
+            //             schedule.AssignedToRole, crew.CrewId);
+            //         return crew.CrewId;
+            //     }
+            // }
 
-            // Tier 5: Default executor role from equipment asset
-            if (!string.IsNullOrWhiteSpace(asset.DefaultExecutorRole))
-            {
-                var crew = await departmentCrewQuery
-                    .Where(c => c.Rank == asset.DefaultExecutorRole)
-                    .OrderBy(c => c.CrewId)
-                    .FirstOrDefaultAsync();
-                
-                if (crew != null)
-                {
-                    _logger.LogDebug("Task assigned to {Rank} ({CrewId}) via Asset default role", 
-                        asset.DefaultExecutorRole, crew.CrewId);
-                    return crew.CrewId;
-                }
-            }
+            // Tier 5: Default executor role from equipment asset - REMOVED (Rank column deleted)
+            // if (!string.IsNullOrWhiteSpace(asset.DefaultExecutorRole))
+            // {
+            //     var crew = await departmentCrewQuery
+            //         .Where(c => c.Rank == asset.DefaultExecutorRole)
+            //         .OrderBy(c => c.CrewId)
+            //         .FirstOrDefaultAsync();
+            //     
+            //     if (crew != null)
+            //     {
+            //         _logger.LogDebug("Task assigned to {Rank} ({CrewId}) via Asset default role", 
+            //             asset.DefaultExecutorRole, crew.CrewId);
+            //         return crew.CrewId;
+            //     }
+            // }
 
             // Tier 6: No assignment - leave for Work Planner (2/E, C/O) to assign manually
             _logger.LogDebug("Task left unassigned for manual assignment by Work Planner");

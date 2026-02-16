@@ -203,8 +203,8 @@ export interface CrewMember {
   id: string // Guid
   crewId: string
   fullName: string
-  position: string
-  rank?: string
+  rankId?: number // Foreign key to Ranks table
+  rank?: Rank // Navigation property
   department?: string
   nationality?: string
   dateOfBirth?: string
@@ -268,6 +268,14 @@ export interface Country {
   isActive: boolean
   createdAt: string
   updatedAt: string
+}
+
+// Rank - Ship positions/ranks
+export interface Rank {
+  id: number
+  rankCode: string // Mã cấp bậc: CAPT, C/O, 2/O, etc.
+  rankName: string // Tên cấp bậc: Captain, Chief Officer, etc.
+  isActive: boolean
 }
 
 // Crew Certificate (actual certificate of crew member)

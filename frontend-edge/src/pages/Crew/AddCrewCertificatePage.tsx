@@ -369,7 +369,7 @@ export function AddCrewCertificatePage() {
                 >
                   <option value="">{t('crew.certificateManagement.addCertificate.selectCrewMember')}</option>
                   {crewMembers.map(crew => (
-                    <option key={crew.id} value={crew.id}>{crew.fullName} - {crew.position} - {crew.crewId}</option>
+                    <option key={crew.id} value={crew.id}>{crew.fullName} - {crew.rank?.rankName || '-'} - {crew.crewId}</option>
                   ))}
                 </select>
                 {errors.crewMemberId && <p className="text-red-500 text-xs mt-1">{errors.crewMemberId}</p>}

@@ -169,8 +169,7 @@ public class CertificatesController : ControllerBase
                     {
                         cc.CrewMember.Id,
                         cc.CrewMember.FullName,
-                        cc.CrewMember.Position,
-                        cc.CrewMember.Rank,
+                        RankName = cc.CrewMember.Rank != null ? cc.CrewMember.Rank.RankName : null,
                         cc.CrewMember.Nationality,
                         cc.CrewMember.CrewId
                     },

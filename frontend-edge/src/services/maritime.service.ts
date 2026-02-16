@@ -40,16 +40,22 @@ export class MaritimeService {
 
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const url = this.baseUrl ? `${this.baseUrl}/api${endpoint}` : `/api${endpoint}`
+    const isFormDataBody = options?.body instanceof FormData
     
     try {
+      const headers: Record<string, string> = {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        ...(options?.headers as Record<string, string> | undefined),
+      }
+
+      if (!isFormDataBody) {
+        headers['Content-Type'] = 'application/json'
+      }
+
       const response = await fetch(url, {
         ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          ...options?.headers,
-        },
+        headers,
       })
 
       // Parse response body once
@@ -147,6 +153,24 @@ export class MaritimeService {
       }),
     getExpiringCertificates: (days: number = 90) =>
       this.request<CrewMember[]>(`/crew/expiring-certificates?days=${days}`),
+    getTravelDocuments: (crewMemberId: string) =>
+      this.request<any[]>(`/crew/${crewMemberId}/travel-documents`),
+    createIdentityDocument: (crewMemberId: string, formData: FormData) =>
+      this.request<any>(`/crew/${crewMemberId}/identity-documents`, {
+        method: 'POST',
+        body: formData,
+      }),
+    updateDocumentFile: (documentId: string, formData: FormData) =>
+      this.request<any>(`/crew/identity-documents/${documentId}/file`, {
+        method: 'PUT',
+        body: formData,
+      }),
+    getSeafarerDocuments: (crewMemberId: string) =>
+      this.request<any[]>(`/crew/${crewMemberId}/seafarer-documents`),
+    getEmploymentDocuments: (crewMemberId: string) =>
+      this.request<any[]>(`/crew/${crewMemberId}/employment-documents`),
+    getHealthDocuments: (crewMemberId: string) =>
+      this.request<any[]>(`/crew/${crewMemberId}/health-documents`),
   }
 
   // === CERTIFICATE MANAGEMENT ===
@@ -310,6 +334,35 @@ export class MaritimeService {
   countries = {
     getAll: () => this.request<Country[]>('/countries'),
     getById: (id: number) => this.request<Country>(`/countries/${id}`),
+  }
+
+  // === RANKS MANAGEMENT ===
+  ranks = {
+    getAll: (includeInactive = false) => 
+      this.request<any[]>(`/ranks${includeInactive ? '?includeInactive=true' : ''}`),
+    getById: (id: number) => this.request<any>(`/ranks/${id}`),
+    create: (data: {
+      rankCode: string
+      rankName: string
+      isActive: boolean
+    }) => this.request<{ id: number; rankCode: string; rankName: string; message: string }>('/ranks', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+    update: (id: number, data: {
+      rankCode: string
+      rankName: string
+      isActive: boolean
+    }) => this.request<{ message: string }>(`/ranks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+    delete: (id: number) => this.request<{ message: string }>(`/ranks/${id}`, {
+      method: 'DELETE'
+    }),
+    deletePermanent: (id: number) => this.request<{ message: string }>(`/ranks/${id}/permanent`, {
+      method: 'DELETE'
+    })
   }
 
   sync = {

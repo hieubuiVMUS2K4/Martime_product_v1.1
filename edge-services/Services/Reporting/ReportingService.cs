@@ -380,12 +380,12 @@ public class ReportingService : IReportingService
                              cc.ExpiryDate <= thirtyDaysFromNow)
                 .CountAsync();
             
-            // Also count passport expiry
-            var passportsExpiringSoon = await _context.CrewMembers
-                .Where(c => c.IsOnboard && c.PassportExpiry.HasValue && c.PassportExpiry.Value <= thirtyDaysFromNow)
-                .CountAsync();
+            // Passport expiry removed - will be managed in documents table
+            // var passportsExpiringSoon = await _context.CrewMembers
+            //     .Where(c => c.IsOnboard && c.PassportExpiry.HasValue && c.PassportExpiry.Value <= thirtyDaysFromNow)
+            //     .CountAsync();
             
-            dto.CertificatesExpiringSoon = certsExpiringSoon + passportsExpiringSoon;
+            dto.CertificatesExpiringSoon = certsExpiringSoon; // + passportsExpiringSoon;
         }
         catch (Exception ex)
         {

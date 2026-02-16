@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.FileProviders;
 using MaritimeEdge.Data;
 using MaritimeEdge.Services.Core;
 using MaritimeEdge.Services.Inventory;
@@ -154,6 +155,21 @@ namespace MaritimeEdge
             {
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "Maritime Edge API v1");
                 c.RoutePrefix = "swagger";
+            });
+
+            var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
+            Directory.CreateDirectory(uploadsPath);
+            
+            // Create crew document subdirectories
+            Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "travel_documents"));
+            Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "seafarer_documents"));
+            Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "employment_documents"));
+            Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "health_documents"));
+            
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(uploadsPath),
+                RequestPath = "/uploads"
             });
 
             app.UseRouting();

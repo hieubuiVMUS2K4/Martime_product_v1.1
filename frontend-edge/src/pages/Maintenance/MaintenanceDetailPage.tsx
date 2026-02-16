@@ -482,7 +482,7 @@ export function MaintenanceDetailPage() {
                         <option value="">-- {t('maintenance.detail.selectCrewMember')} --</option>
                         {crewMembers.map((crew) => (
                           <option key={crew.id} value={crew.fullName}>
-                            {crew.fullName} - {crew.position} ({crew.rank})
+                            {crew.fullName} - {crew.rank?.rankName || '-'}
                           </option>
                         ))}
                       </select>

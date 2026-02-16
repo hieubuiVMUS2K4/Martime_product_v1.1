@@ -119,7 +119,7 @@ export function CertificateManagementPage() {
         crewMember: item.CrewMember ? {
           id: item.CrewMember.Id || item.CrewMember.id,
           fullName: item.CrewMember.FullName || item.CrewMember.fullName,
-          position: item.CrewMember.Position || item.CrewMember.position,
+          rankId: item.CrewMember.RankId || item.CrewMember.rankId,
           rank: item.CrewMember.Rank || item.CrewMember.rank,
           nationality: item.CrewMember.Nationality || item.CrewMember.nationality,
           crewId: item.CrewMember.CrewId || item.CrewMember.crewId
@@ -390,7 +390,7 @@ export function CertificateManagementPage() {
                               <div className="truncate font-medium">{crewCert.crewMember.fullName}</div>
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '10%'}}>
-                              <div className="truncate">{crewCert.crewMember.position}</div>
+                              <div className="truncate">{crewCert.crewMember.rank?.rankName || '-'}</div>
                             </td>
                             <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '8%'}}>
                               {(crewCert as any).certificateOfCompetency ? (
