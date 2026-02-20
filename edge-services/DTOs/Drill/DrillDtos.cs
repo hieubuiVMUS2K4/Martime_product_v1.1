@@ -4,6 +4,19 @@ using System.Collections.Generic;
 namespace MaritimeEdge.DTOs.Drill
 {
     /// <summary>
+    /// DTO for Document attachment
+    /// </summary>
+    public class DocumentDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Url { get; set; } = string.Empty;
+        public string? MimeType { get; set; } // application/pdf, image/png, etc.
+        public long? FileSize { get; set; } // bytes
+        public DateTime UploadedAt { get; set; }
+        public string? UploadedBy { get; set; }
+    }
+
+    /// <summary>
     /// DTO for DrillType master data
     /// Used for dropdown lists and drill type selection
     /// </summary>
@@ -90,6 +103,9 @@ namespace MaritimeEdge.DTOs.Drill
         // Participants - list of crew member IDs (only when IsCrewMemberRequired = true)
         public List<Guid>? Participants { get; set; }
         
+        // Documents/Attachments
+        public List<DocumentDto>? Documents { get; set; }
+        
         // Sync fields
         public string OriginNode { get; set; } = string.Empty;
         public bool IsSynced { get; set; }
@@ -140,6 +156,9 @@ namespace MaritimeEdge.DTOs.Drill
         
         // Participants - list of crew member IDs (only when IsCrewMemberRequired = true)
         public List<Guid>? Participants { get; set; }
+        
+        // Documents/Attachments
+        public List<DocumentDto>? Documents { get; set; }
     }
 
     /// <summary>

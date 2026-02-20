@@ -148,6 +148,11 @@ public class DrillSchedule
     // Format: ["guid1", "guid2", "guid3"]
     public string? ParticipantsJson { get; set; }
     
+    // Documents/Attachments - JSON array of document objects
+    // Format: [{"name": "Safety Manual.pdf", "url": "https://...", "uploadedAt": "2026-02-20T10:00:00Z"}]
+    [Column(TypeName = "jsonb")]
+    public string? DocumentsJson { get; set; }
+    
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
