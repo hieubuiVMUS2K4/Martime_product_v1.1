@@ -240,6 +240,33 @@ export interface CrewMember {
   // Additional
   notes?: string
   
+  // BIO-DATA FIELDS (Added 2026-02-25)
+  // Personal Information
+  placeOfBirth?: string
+  idCardNumber?: string
+  maritalStatus?: string // Single, Married, Divorced, Widowed
+  height?: number // cm
+  weight?: number // kg
+  bloodGroup?: string // A+, A-, B+, B-, AB+, AB-, O+, O-
+  clothingSize?: string
+  shoeSize?: string
+  cateringSize?: string
+  isSmoker?: boolean
+  isCovidVaccinated?: boolean
+  photoUrl?: string
+  
+  // Next of Kin Information
+  nextOfKinName?: string
+  nextOfKinRelation?: string // Father, Mother, Spouse, Sibling, Child, Other
+  nextOfKinPhone?: string
+  nextOfKinAddress?: string
+  
+  // Education Information
+  educationInstitution?: string // Vietnam Maritime University
+  educationCourse?: string // Marine Engineering, Nautical Science
+  educationPeriodYears?: number
+  educationGraduationYear?: number
+  
   // Certificates (new system - relation to CrewCertificate[])
   certificates?: CrewCertificate[]
   
@@ -309,6 +336,41 @@ export interface CrewCertificate {
   certificate?: Certificate
   crewMember?: CrewMember
   country?: Country
+}
+
+// Service Record (crew member's sea service history)
+export interface ServiceRecord {
+  id: number
+  crewMemberId: string
+  // Vessel Information
+  vesselName?: string
+  vesselFlag?: string
+  vesselType?: string
+  vesselGrt?: number
+  vesselDwt?: number
+  vesselYearBuilt?: number
+  tradeArea?: string // Coastal, Deep Sea, International
+  // Engine Details
+  mainEngineType?: string
+  mainEnginePowerKw?: number
+  mainEngineMaker?: string
+  boilerType?: string
+  hasExhaustGasScrubber?: boolean
+  ecdis?: string
+  // Employment Details
+  rankAtTime?: string // Rank/Position during this service
+  boardingDate?: string
+  disembarkDate?: string
+  boardingPort?: string
+  disembarkPort?: string
+  totalServiceDays?: number
+  // Metadata
+  isSynced: boolean
+  createdAt: string
+  updatedAt: string
+  originNode: string
+  // Navigation properties
+  crewMember?: CrewMember
 }
 
 // Task Status - Updated v2.0 (PMS Workflow)

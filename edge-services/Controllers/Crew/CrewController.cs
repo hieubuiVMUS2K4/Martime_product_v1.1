@@ -544,6 +544,29 @@ public class CrewController : ControllerBase
             existing.Address = crew.Address;
             existing.Department = crew.Department;
             existing.Notes = crew.Notes;
+            
+            // BIO-DATA fields
+            if (crew.PhotoUrl != null) existing.PhotoUrl = crew.PhotoUrl;
+            if (crew.PlaceOfBirth != null) existing.PlaceOfBirth = crew.PlaceOfBirth;
+            if (crew.IdCardNumber != null) existing.IdCardNumber = crew.IdCardNumber;
+            if (crew.MaritalStatus != null) existing.MaritalStatus = crew.MaritalStatus;
+            if (crew.Height.HasValue) existing.Height = crew.Height;
+            if (crew.Weight.HasValue) existing.Weight = crew.Weight;
+            if (crew.BloodGroup != null) existing.BloodGroup = crew.BloodGroup;
+            if (crew.ClothingSize != null) existing.ClothingSize = crew.ClothingSize;
+            if (crew.ShoeSize != null) existing.ShoeSize = crew.ShoeSize;
+            if (crew.CateringSize != null) existing.CateringSize = crew.CateringSize;
+            existing.IsSmoker = crew.IsSmoker;
+            existing.IsCovidVaccinated = crew.IsCovidVaccinated;
+            if (crew.NextOfKinName != null) existing.NextOfKinName = crew.NextOfKinName;
+            if (crew.NextOfKinRelation != null) existing.NextOfKinRelation = crew.NextOfKinRelation;
+            if (crew.NextOfKinPhone != null) existing.NextOfKinPhone = crew.NextOfKinPhone;
+            if (crew.NextOfKinAddress != null) existing.NextOfKinAddress = crew.NextOfKinAddress;
+            if (crew.EducationInstitution != null) existing.EducationInstitution = crew.EducationInstitution;
+            if (crew.EducationCourse != null) existing.EducationCourse = crew.EducationCourse;
+            if (crew.EducationPeriodYears.HasValue) existing.EducationPeriodYears = crew.EducationPeriodYears;
+            if (crew.EducationGraduationYear.HasValue) existing.EducationGraduationYear = crew.EducationGraduationYear;
+            
             existing.IsSynced = false; // Mark as need sync
 
             await _context.SaveChangesAsync();
@@ -600,6 +623,80 @@ public class CrewController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting crew member {Id}", id);
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// PUT /api/crew/{id}/avatar - Upload avatar photo for crew member
+    /// </summary>
+    [HttpPut("{id}/avatar")]
+    public async Task<IActionResult> UploadCrewAvatar(Guid id, [FromForm] IFormFile file)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { error = "File is required" });
+            }
+
+            // Validate file type
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                return BadRequest(new { error = "Only image files (jpg, jpeg, png, gif) are allowed" });
+            }
+
+            // Validate file size (max 5MB)
+            if (file.Length > 5 * 1024 * 1024)
+            {
+                return BadRequest(new { error = "File size must not exceed 5MB" });
+            }
+
+            var crewMember = await _context.CrewMembers.FindAsync(id);
+            if (crewMember == null)
+            {
+                return NotFound(new { error = "Crew member not found", id });
+            }
+
+            // Save file to uploads/crew/avatars folder
+            var uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "crew", "avatars");
+            Directory.CreateDirectory(uploadsRoot);
+
+            var fileName = $"{id}{extension}";
+            var filePath = Path.Combine(uploadsRoot, fileName);
+
+            // Delete old file if exists
+            if (!string.IsNullOrEmpty(crewMember.PhotoUrl))
+            {
+                var oldFilePath = Path.Combine(Directory.GetCurrentDirectory(), crewMember.PhotoUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (System.IO.File.Exists(oldFilePath))
+                {
+                    System.IO.File.Delete(oldFilePath);
+                }
+            }
+
+            // Save new file
+            await using var stream = new FileStream(filePath, FileMode.Create);
+            await file.CopyToAsync(stream);
+
+            // Update database
+            crewMember.PhotoUrl = $"/uploads/crew/avatars/{fileName}";
+            crewMember.IsSynced = false;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Uploaded avatar for crew member: {Id} - {FullName}", id, crewMember.FullName);
+
+            return Ok(new { 
+                message = "Avatar uploaded successfully", 
+                photoUrl = crewMember.PhotoUrl,
+                crewMember
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading avatar for crew member {Id}", id);
             return StatusCode(500, new { error = "Internal server error", details = ex.Message });
         }
     }

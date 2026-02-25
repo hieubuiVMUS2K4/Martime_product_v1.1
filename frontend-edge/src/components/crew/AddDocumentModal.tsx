@@ -14,12 +14,11 @@ const DOCUMENT_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> 
     { value: 'passport', label: 'Passport' },
     { value: 'visa', label: 'Visa' },
     { value: 'residence_permit', label: 'Residence Permit' },
+    { value: 'seaman_book', label: 'Seaman Book' },
   ],
   seafarer_documents: [
-    { value: 'seaman_book', label: 'Seaman Book' },
     { value: 'sid', label: 'SID (Seafarer Identity Document)' },
     { value: 'coc', label: 'COC (Certificate of Competency)' },
-    { value: 'endorsement', label: 'Endorsement' },
   ],
   employment_documents: [
     { value: 'contract', label: 'Contract' },

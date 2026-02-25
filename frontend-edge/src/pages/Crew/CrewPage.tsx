@@ -999,6 +999,9 @@ function CertificateMonitorView({
   const ITEMS_PER_PAGE = 15
   const [crewCertsPage, setCrewCertsPage] = useState(1)
 
+  // Context menu for crew rows (crew certs section & rank section)
+  const [crewContextMenu, setCrewContextMenu] = useState<{ x: number; y: number; crew: CrewMember } | null>(null)
+
   // Ranks section states
   const [isRankCertsExpanded, setIsRankCertsExpanded] = useState(false)
   const [ranks, setRanks] = useState<any[]>([])
@@ -1182,11 +1185,20 @@ function CertificateMonitorView({
     e.preventDefault()
     setContextMenu({ x: e.clientX, y: e.clientY, cert })
     setSelectedCert(cert.id)
+    setCrewContextMenu(null)
+  }
+
+  const handleCrewContextMenu = (e: React.MouseEvent, crew: CrewMember) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setCrewContextMenu({ x: e.clientX, y: e.clientY, crew })
+    setContextMenu(null)
   }
 
   const closeContextMenu = () => {
     setContextMenu(null)
     setSelectedCert(null)
+    setCrewContextMenu(null)
   }
 
   useEffect(() => {
@@ -1472,7 +1484,7 @@ function CertificateMonitorView({
     }
   }, [isRankCertsExpanded, ranks, crewMembers])
 
-  // Reload cached crew certificates after add/edit actions, even if rank section is collapsed
+  // Reload cached crew certificates AND rank certificates after add/edit actions
   useEffect(() => {
     if (reloadTrigger === 0 || lastReloadTriggerRef.current === reloadTrigger) {
       return
@@ -1486,11 +1498,43 @@ function CertificateMonitorView({
       crewByRank.forEach(crew => crewIdsToReload.add(crew.id))
     }
 
-    if (crewIdsToReload.size === 0) {
-      return
+    // Also reload rank certificates cache for all cached ranks
+    const reloadRankCerts = async () => {
+      const rankIds = Array.from(rankCertsCache.keys())
+      if (rankIds.length > 0) {
+        console.log('🔁 Refreshing rank certificates cache...')
+        const rankEntries = await Promise.all(
+          rankIds.map(async (rankId) => {
+            try {
+              const response = await fetch(`/api/rank-certificates/rank/${rankId}`)
+              if (response.ok) {
+                const data = await response.json()
+                return { rankId, data }
+              }
+              return { rankId, data: rankCertsCache.get(rankId) || [] }
+            } catch {
+              return { rankId, data: rankCertsCache.get(rankId) || [] }
+            }
+          })
+        )
+        setRankCertsCache(prev => {
+          const updated = new Map(prev)
+          rankEntries.forEach(({ rankId, data }) => updated.set(rankId, data))
+          return updated
+        })
+        // If expanded rank is in the list, update rankCertificates state too
+        if (expandedRankId) {
+          const expandedData = rankEntries.find(e => e.rankId === expandedRankId)
+          if (expandedData) {
+            setRankCertificates(expandedData.data)
+          }
+        }
+        console.log('✅ Rank certificates cache refreshed for', rankIds.length, 'ranks')
+      }
     }
 
     const reloadCrewCerts = async () => {
+      if (crewIdsToReload.size === 0) return
       console.log('🔁 Refreshing cached crew certificates after update...')
       const entries = await Promise.all(
         Array.from(crewIdsToReload).map(async (crewId) => {
@@ -1514,8 +1558,9 @@ function CertificateMonitorView({
       console.log('✅ Crew certificate cache refreshed for', crewIdsToReload.size, 'crew members')
     }
 
-    reloadCrewCerts()
-  }, [reloadTrigger, crewCertificatesMap, expandedRankId, crewByRank])
+    // Reload both in parallel
+    Promise.all([reloadCrewCerts(), reloadRankCerts()])
+  }, [reloadTrigger])
 
   const totalPages = Math.ceil(certificateStats.length / ITEMS_PER_PAGE)
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
@@ -1698,6 +1743,7 @@ function CertificateMonitorView({
               <tr
                 key={crew.id}
                 onClick={() => loadCrewCertificates(crew.id)}
+                onContextMenu={(e) => handleCrewContextMenu(e, crew)}
                 className={`border-b border-gray-100 transition-colors cursor-pointer ${
                   expandedCrewId === crew.id ? 'bg-blue-50' : 'hover:bg-gray-50'
                 }`}
@@ -2405,6 +2451,7 @@ function CertificateMonitorView({
                                       {/* Crew Row */}
                                       <div
                                         onClick={() => setExpandedRankCrewId(isExpanded ? null : crew.id)}
+                                        onContextMenu={(e) => handleCrewContextMenu(e, crew)}
                                         className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
                                       >
                                         <div className="flex items-center gap-3 flex-1">
@@ -2508,6 +2555,46 @@ function CertificateMonitorView({
         </>
       )}
     </div>
+
+    {/* Context Menu for Crew Members (used in both crew certs and rank sections) */}
+    {crewContextMenu && (
+      <div
+        className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50"
+        style={{ left: crewContextMenu.x, top: crewContextMenu.y, minWidth: '220px' }}
+      >
+        <div className="px-4 py-2 border-b border-gray-200">
+          <div className="text-sm font-medium text-gray-900">{crewContextMenu.crew.fullName}</div>
+          <div className="text-xs text-gray-500">{crewContextMenu.crew.crewId} • {crewContextMenu.crew.rank?.rankName || '-'}</div>
+        </div>
+        <button
+          onClick={() => {
+            navigate(`/crew/certificates/add?crewId=${crewContextMenu.crew.id}`)
+            closeContextMenu()
+          }}
+          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+        >
+          <span>📜</span> Add Certificate
+        </button>
+        <button
+          onClick={() => {
+            navigate(`/crew/${crewContextMenu.crew.id}`)
+            closeContextMenu()
+          }}
+          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+        >
+          <span>👤</span> View Crew Details
+        </button>
+        <button
+          onClick={() => {
+            window.open(`/crew/${crewContextMenu.crew.id}`, '_blank')
+            closeContextMenu()
+          }}
+          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
+        >
+          <span>🔗</span> Open in New Tab
+        </button>
+      </div>
+    )}
 
     </div>
   )

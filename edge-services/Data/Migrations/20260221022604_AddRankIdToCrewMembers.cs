@@ -10,37 +10,55 @@ namespace MaritimeEdge.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "idx_crew_position",
-                schema: "public",
-                table: "crew_members");
+            // Drop index only if it exists
+            migrationBuilder.Sql(@"
+                DROP INDEX IF EXISTS public.idx_crew_position;
+            ");
 
-            migrationBuilder.DropColumn(
-                name: "position",
-                schema: "public",
-                table: "crew_members");
+            // Drop column only if it exists
+            migrationBuilder.Sql(@"
+                ALTER TABLE public.crew_members 
+                DROP COLUMN IF EXISTS position;
+            ");
 
-            migrationBuilder.AddColumn<int>(
-                name: "rank_id",
-                schema: "public",
-                table: "crew_members",
-                type: "integer",
-                nullable: true);
+            // Add rank_id column if not exists
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'crew_members' 
+                        AND column_name = 'rank_id'
+                    ) THEN
+                        ALTER TABLE public.crew_members 
+                        ADD COLUMN rank_id INTEGER NULL;
+                    END IF;
+                END $$;
+            ");
 
-            migrationBuilder.CreateIndex(
-                name: "idx_crew_rank_id",
-                schema: "public",
-                table: "crew_members",
-                column: "rank_id");
+            // Create index if not exists
+            migrationBuilder.Sql(@"
+                CREATE INDEX IF NOT EXISTS idx_crew_rank_id 
+                ON public.crew_members(rank_id);
+            ");
 
-            migrationBuilder.AddForeignKey(
-                name: "f_k_crew_members__ranks_rank_id",
-                schema: "public",
-                table: "crew_members",
-                column: "rank_id",
-                principalSchema: "public",
-                principalTable: "ranks",
-                principalColumn: "id");
+            // Add foreign key if not exists
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.table_constraints 
+                        WHERE constraint_name = 'f_k_crew_members__ranks_rank_id'
+                        AND table_name = 'crew_members'
+                    ) THEN
+                        ALTER TABLE public.crew_members 
+                        ADD CONSTRAINT f_k_crew_members__ranks_rank_id 
+                        FOREIGN KEY (rank_id) 
+                        REFERENCES public.ranks(id);
+                    END IF;
+                END $$;
+            ");
         }
 
         /// <inheritdoc />

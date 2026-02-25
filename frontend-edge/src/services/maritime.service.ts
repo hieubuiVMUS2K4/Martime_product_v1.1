@@ -23,6 +23,7 @@ import type {
   MaterialCategory,
   MaterialItem,
   PaginatedResponse,
+  ServiceRecord,
 } from '@/types/maritime.types'
 
 // ============================================================
@@ -171,6 +172,13 @@ export class MaritimeService {
       this.request<any[]>(`/crew/${crewMemberId}/employment-documents`),
     getHealthDocuments: (crewMemberId: string) =>
       this.request<any[]>(`/crew/${crewMemberId}/health-documents`),
+    getServiceRecords: (crewMemberId: string) =>
+      this.request<ServiceRecord[]>(`/crew/${crewMemberId}/service-records`),
+    uploadAvatar: (crewMemberId: string, formData: FormData) =>
+      this.request<any>(`/crew/${crewMemberId}/avatar`, {
+        method: 'PUT',
+        body: formData,
+      }),
   }
 
   // === CERTIFICATE MANAGEMENT ===
@@ -226,7 +234,12 @@ export class MaritimeService {
     }) => this.request<{ message: string }>(`/certificates/crew-certificates/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
-    })
+    }),
+    uploadCertificateFile: (crewCertificateId: number, formData: FormData) =>
+      this.request<{ message: string; documentFilePath: string }>(`/certificates/crew-certificates/${crewCertificateId}/file`, {
+        method: 'PUT',
+        body: formData,
+      }),
   }
 
   // === MATERIAL MANAGEMENT (thêm mới) ===

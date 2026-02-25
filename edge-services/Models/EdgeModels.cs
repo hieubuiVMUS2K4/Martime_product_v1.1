@@ -923,6 +923,67 @@ public class CrewMember
     [MaxLength(500)]
     public string? Address { get; set; }
     
+    // ============================================
+    // BIO-DATA FIELDS (Added 2026-02-25)
+    // ============================================
+    
+    // Personal Information
+    [MaxLength(200)]
+    public string? PlaceOfBirth { get; set; }
+    
+    [MaxLength(50)]
+    public string? IdCardNumber { get; set; }
+    
+    [MaxLength(20)]
+    public string? MaritalStatus { get; set; } // Single, Married, Divorced, Widowed
+    
+    public int? Height { get; set; } // cm
+    
+    public decimal? Weight { get; set; } // kg
+    
+    [MaxLength(5)]
+    public string? BloodGroup { get; set; } // A, B, AB, O, A+, A-, B+, B-, AB+, AB-, O+, O-
+    
+    [MaxLength(10)]
+    public string? ClothingSize { get; set; }
+    
+    [MaxLength(10)]
+    public string? ShoeSize { get; set; }
+    
+    [MaxLength(10)]
+    public string? CateringSize { get; set; }
+    
+    public bool? IsSmoker { get; set; }
+    
+    public bool? IsCovidVaccinated { get; set; }
+    
+    [MaxLength(500)]
+    public string? PhotoUrl { get; set; }
+    
+    // Next of Kin Information
+    [MaxLength(200)]
+    public string? NextOfKinName { get; set; }
+    
+    [MaxLength(50)]
+    public string? NextOfKinRelation { get; set; } // Father, Mother, Spouse, Sibling, Child
+    
+    [MaxLength(50)]
+    public string? NextOfKinPhone { get; set; }
+    
+    [MaxLength(500)]
+    public string? NextOfKinAddress { get; set; }
+    
+    // Education Information
+    [MaxLength(300)]
+    public string? EducationInstitution { get; set; } // Vietnam Maritime University
+    
+    [MaxLength(200)]
+    public string? EducationCourse { get; set; } // Engine, Deck, Nautical Science
+    
+    public int? EducationPeriodYears { get; set; }
+    
+    public int? EducationGraduationYear { get; set; }
+    
     public string? Notes { get; set; }
     
     public bool IsSynced { get; set; } = false;
@@ -1310,6 +1371,99 @@ public class HealthDocument
     
     // Navigation properties
     [JsonIgnore]
+    public CrewMember CrewMember { get; set; } = null!;
+}
+
+/// <summary>
+/// Service Records - Lịch sử làm việc trên các tàu
+/// (Sea Service Records as shown in BIO-DATA form section 7)
+/// Tracks complete employment history on vessels
+/// </summary>
+public class ServiceRecord
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    // Foreign Key
+    [Required]
+    public Guid CrewMemberId { get; set; }
+    
+    // Vessel General Information
+    [Required]
+    [MaxLength(200)]
+    public string VesselName { get; set; } = string.Empty;
+    
+    [MaxLength(50)]
+    public string? VesselFlag { get; set; } // Panama, Singapore, etc.
+    
+    [MaxLength(50)]
+    public string? VesselType { get; set; } // BULK, TANKER, CONTAINER, etc.
+    
+    public decimal? VesselGrt { get; set; } // Gross Register Tonnage
+    
+    public decimal? VesselDwt { get; set; } // Deadweight Tonnage
+    
+    public int? VesselYearBuilt { get; set; }
+    
+    [MaxLength(100)]
+    public string? TradeArea { get; set; } // V/V (Voyage/Voyage), Worldwide, Regional
+    
+    // Main Engine Details
+    [MaxLength(100)]
+    public string? MainEngineType { get; set; }
+    
+    public int? MainEnginePowerKw { get; set; }
+    
+    [MaxLength(100)]
+    public string? MainEngineMaker { get; set; }
+    
+    // Boiler & Scrubber
+    [MaxLength(100)]
+    public string? BoilerType { get; set; }
+    
+    public bool? HasExhaustGasScrubber { get; set; }
+    
+    [MaxLength(100)]
+    public string? Ecdis { get; set; } // Electronic Chart Display and Information System
+    
+    // Employment Information
+    [MaxLength(100)]
+    public string? RankAtTime { get; set; } // Rank during this service (from Rank.RankName)
+    
+    [Required]
+    public DateTime BoardingDate { get; set; } // Embark date
+    
+    public DateTime? DisembarkDate { get; set; } // Disembark date (null if still onboard)
+    
+    [MaxLength(5)]
+    public string? BoardingPortCode { get; set; } // UN/LOCODE
+    
+    [MaxLength(150)]
+    public string? BoardingPortName { get; set; }
+    
+    [MaxLength(5)]
+    public string? DisembarkPortCode { get; set; } // UN/LOCODE
+    
+    [MaxLength(150)]
+    public string? DisembarkPortName { get; set; }
+    
+    // Additional Details
+    public string? BoardingRecords { get; set; } // JSON or text: multiple boarding/disembarking within same vessel
+    
+    public string? Notes { get; set; }
+    
+    // Metadata
+    public bool IsSynced { get; set; } = false;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation properties
+    [JsonIgnore]
+    [ForeignKey("CrewMemberId")]
     public CrewMember CrewMember { get; set; } = null!;
 }
 
