@@ -15,6 +15,7 @@ import { AddCrewCertificatePage } from './pages/Crew/AddCrewCertificatePage'
 import { MaintenancePage } from './pages/Maintenance/MaintenancePage'
 import { MaintenanceDetailPage } from './pages/Maintenance/MaintenanceDetailPage'
 import { VoyagePage } from './pages/Voyage/VoyagePage'
+import { PortManagementPage } from './pages/Voyage/PortManagementPage'
 import { CompliancePage } from './pages/Compliance/CompliancePage'
 import { SyncPage } from './pages/Sync/SyncPage'
 import { MaterialPage } from './pages/Material/MaterialPage'
@@ -46,10 +47,12 @@ import { DeckLogPage } from './pages/logbooks/DeckLogPage'
 import { EngineLogPage } from './pages/logbooks/EngineLogPage'
 import { OilRecordPage } from './pages/logbooks/OilRecordPage'
 import { GarbageRecordPage } from './pages/logbooks/GarbageRecordPage'
+import { GarbageManagementPage } from './pages/logbooks/GarbageManagementPage'
 import { BallastWaterPage } from './pages/logbooks/BallastWaterPage'
 import { WatchkeepingPage } from './pages/logbooks/WatchkeepingPage'
 import { VoyageLogPage } from './pages/logbooks/VoyageLogPage'
 import { VoyageLogDetailPage } from './pages/logbooks/VoyageLogDetailPage'
+import { AbstractLogPage } from './pages/logbooks/AbstractLogPage'
 
 function App() {
   return (
@@ -74,6 +77,7 @@ function App() {
         <Route path="crew/certificates/:certificateId/add-crew" element={<AddCrewCertificatePage />} />
         <Route path="pms/maintenance" element={<MaintenancePage />} />
         <Route path="voyage" element={<VoyagePage />} />
+        <Route path="ports" element={<PortManagementPage />} />
         <Route path="compliance" element={<CompliancePage />} />
         <Route path="sync" element={<SyncPage />} />
         <Route path="materials" element={<MaterialPage />} />
@@ -83,11 +87,14 @@ function App() {
         <Route path="logbooks/deck" element={<DeckLogPage />} />
         <Route path="logbooks/engine" element={<EngineLogPage />} />
         <Route path="logbooks/oil" element={<OilRecordPage />} />
-        <Route path="logbooks/garbage" element={<GarbageRecordPage />} />
+        <Route path="logbooks/garbage" element={<GarbageManagementPage />} />
+        <Route path="logbooks/garbage-old" element={<GarbageRecordPage />} />
         <Route path="logbooks/ballast" element={<BallastWaterPage />} />
         <Route path="logbooks/watchkeeping" element={<WatchkeepingPage />} />
         <Route path="logbooks/voyage" element={<VoyageLogPage />} />
         <Route path="logbooks/voyage/:id" element={<VoyageLogDetailPage />} />
+        <Route path="logbooks/abstract" element={<AbstractLogPage />} />
+        <Route path="logbooks/abstract/:id" element={<AbstractLogPage />} />
 
         {/* PMS Routes */}
         <Route path="pms/assets" element={<AssetsPage />} />

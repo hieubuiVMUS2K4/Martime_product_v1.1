@@ -7,16 +7,21 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
-  Eye
+  Eye,
+  Ship,
+  MapPin,
+  Calendar
 } from 'lucide-react'
 import { CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
+import { voyageMgmtService } from '../../services/voyage.service'
+import type { VoyageCrewAssignment } from '../../types/voyage.types'
 import { format, differenceInDays, parseISO } from 'date-fns'
 import AddDocumentModal from '../../components/crew/AddDocumentModal'
 import AddHealthDocumentModal from '../../components/crew/AddHealthDocumentModal'
 import ImageViewerModal from '../../components/crew/ImageViewerModal'
 
-type TabType = 'basic-data' | 'documents'
+type TabType = 'basic-data' | 'documents' | 'voyage-history'
 
 export function CrewDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -45,6 +50,8 @@ export function CrewDetailPage() {
   const [imageViewerTargetTable, setImageViewerTargetTable] = useState<string | null>(null)
   const [uploadingDocId, setUploadingDocId] = useState<string | null>(null)
   const [ranks, setRanks] = useState<any[]>([])
+  const [voyageHistory, setVoyageHistory] = useState<VoyageCrewAssignment[]>([])
+  const [loadingVoyageHistory, setLoadingVoyageHistory] = useState(false)
 
   useEffect(() => {
     loadCrewDetails()
@@ -256,6 +263,29 @@ export function CrewDetailPage() {
               }`}
             >
               Documents
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('voyage-history')
+                if (id && voyageHistory.length === 0) {
+                  setLoadingVoyageHistory(true)
+                  voyageMgmtService.crewAssignments.getCrewHistory(id)
+                    .then(setVoyageHistory)
+                    .catch(() => {})
+                    .finally(() => setLoadingVoyageHistory(false))
+                }
+              }}
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                activeTab === 'voyage-history'
+                  ? 'border-blue-600 text-blue-600 bg-blue-50'
+                  : 'border-transparent text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <Ship className="w-4 h-4" />
+              Voyage History
+              {voyageHistory.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-xs bg-gray-200 text-gray-600">{voyageHistory.length}</span>
+              )}
             </button>
           </div>
         </div>
@@ -951,6 +981,118 @@ export function CrewDetailPage() {
                 )
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'voyage-history' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Ship className="w-5 h-5 text-blue-600" />
+                <h3 className="text-lg font-semibold text-gray-800">Voyage Assignment History</h3>
+              </div>
+              <span className="text-sm text-gray-500">{voyageHistory.length} voyage(s)</span>
+            </div>
+
+            {loadingVoyageHistory ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-gray-500">Loading voyage history...</span>
+              </div>
+            ) : voyageHistory.length === 0 ? (
+              <div className="text-center py-16">
+                <Ship className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 font-medium">No voyage assignments found</p>
+                <p className="text-gray-400 text-sm mt-1">This crew member has not been assigned to any voyages yet.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Voyage</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Role / Rank</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Embarkation</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Disembarkation</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Duration</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {voyageHistory.map((assignment) => {
+                      const statusColors: Record<string, string> = {
+                        'ASSIGNED': 'bg-yellow-100 text-yellow-700',
+                        'ONBOARD': 'bg-green-100 text-green-700',
+                        'DISEMBARKED': 'bg-gray-100 text-gray-700',
+                        'CANCELLED': 'bg-red-100 text-red-700',
+                      }
+                      const days = assignment.embarkDate && assignment.disembarkDate
+                        ? differenceInDays(parseISO(assignment.disembarkDate), parseISO(assignment.embarkDate))
+                        : assignment.embarkDate
+                          ? differenceInDays(new Date(), parseISO(assignment.embarkDate))
+                          : null
+                      return (
+                        <tr key={assignment.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-800">{assignment.voyageNumber || assignment.remarks || '-'}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-sm text-gray-800">{assignment.role || '-'}</div>
+                            <div className="text-xs text-gray-500">{assignment.rankName || '-'}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1">
+                              <MapPin className="w-3.5 h-3.5 text-green-500" />
+                              <span className="text-sm text-gray-800">{assignment.embarkPortName || assignment.embarkPortCode || '-'}</span>
+                            </div>
+                            {assignment.embarkDate && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                                <span className="text-xs text-gray-500">
+                                  {format(parseISO(assignment.embarkDate), 'dd MMM yyyy')}
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {assignment.disembarkPortName || assignment.disembarkPortCode ? (
+                              <>
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="w-3.5 h-3.5 text-red-500" />
+                                  <span className="text-sm text-gray-800">{assignment.disembarkPortName || assignment.disembarkPortCode}</span>
+                                </div>
+                                {assignment.disembarkDate && (
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                                    <span className="text-xs text-gray-500">
+                                      {format(parseISO(assignment.disembarkDate), 'dd MMM yyyy')}
+                                    </span>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-sm text-gray-400">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {days !== null ? (
+                              <span className="text-sm text-gray-700 font-medium">{days} day{days !== 1 ? 's' : ''}</span>
+                            ) : (
+                              <span className="text-sm text-gray-400">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${statusColors[assignment.status] || 'bg-gray-100 text-gray-600'}`}>
+                              {assignment.status}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>

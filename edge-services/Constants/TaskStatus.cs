@@ -63,8 +63,56 @@ public static class AlarmSeverity
 /// </summary>
 public static class VoyageStatus
 {
-    public const string PLANNED = "PLANNED";
+    public const string PLANNING = "PLANNING";
     public const string UNDERWAY = "UNDERWAY";
     public const string COMPLETED = "COMPLETED";
     public const string CANCELLED = "CANCELLED";
+
+    /// <summary>
+    /// Valid status transitions matrix.
+    /// Key = current status, Value = list of allowed next statuses.
+    /// PLANNING → UNDERWAY, CANCELLED
+    /// UNDERWAY → COMPLETED, CANCELLED
+    /// COMPLETED → (final state, no transitions)
+    /// CANCELLED → PLANNING (reopen only)
+    /// </summary>
+    public static readonly Dictionary<string, string[]> ValidTransitions = new()
+    {
+        { PLANNING, new[] { UNDERWAY, CANCELLED } },
+        { UNDERWAY, new[] { COMPLETED, CANCELLED } },
+        { COMPLETED, Array.Empty<string>() },
+        { CANCELLED, new[] { PLANNING } },
+    };
+
+    /// <summary>
+    /// Statuses that allow full editing (CRUD on voyage, port calls, crew)
+    /// </summary>
+    public static readonly HashSet<string> EditableStatuses = new() { PLANNING };
+
+    /// <summary>
+    /// Statuses that allow limited editing (performance data, port call times, crew status changes)
+    /// </summary>
+    public static readonly HashSet<string> LimitedEditStatuses = new() { UNDERWAY };
+
+    /// <summary>
+    /// Statuses that are read-only (no modifications except status change via valid transition)
+    /// </summary>
+    public static readonly HashSet<string> ReadOnlyStatuses = new() { COMPLETED, CANCELLED };
+
+    /// <summary>
+    /// Check if a status transition is valid
+    /// </summary>
+    public static bool IsValidTransition(string from, string to)
+    {
+        if (from == to) return true; // no-op is always valid
+        return ValidTransitions.TryGetValue(from, out var allowed) && allowed.Contains(to);
+    }
+
+    /// <summary>
+    /// Check if a voyage with the given status allows general modifications
+    /// </summary>
+    public static bool AllowsModification(string status)
+    {
+        return EditableStatuses.Contains(status) || LimitedEditStatuses.Contains(status);
+    }
 }

@@ -247,7 +247,7 @@ export function AddGroupModal({ isOpen, onClose, onSuccess, embedded = false }: 
           <option value="">Select crew member...</option>
           {filteredCrew.map(crew => (
             <option key={crew.crewId} value={crew.crewId}>
-              {crew.fullName} ({crew.rank}) - {crew.crewId}
+              {crew.fullName} ({typeof crew.rank === 'object' ? crew.rank?.rankName : crew.rank}) - {crew.crewId}
             </option>
           ))}
         </select>

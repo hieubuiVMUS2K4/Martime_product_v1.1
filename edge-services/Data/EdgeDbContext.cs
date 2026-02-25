@@ -60,6 +60,8 @@ public class EdgeDbContext : DbContext
     public DbSet<DeckLogBook> DeckLogBooks { get; set; } = null!;
     public DbSet<EngineLogBook> EngineLogBooks { get; set; } = null!;
     public DbSet<GarbageRecordBook> GarbageRecordBooks { get; set; } = null!;
+    public DbSet<GarbageRecordPartI> GarbageRecordPartIs { get; set; } = null!;
+    public DbSet<GarbageRecordPartII> GarbageRecordPartIIs { get; set; } = null!;
     public DbSet<BallastWaterRecordBook> BallastWaterRecordBooks { get; set; } = null!;
 
     // Inventory & Materials
@@ -107,6 +109,16 @@ public class EdgeDbContext : DbContext
 
     // Voyage Log - Nhật ký Hành trình (SOLAS Chapter V)
     public DbSet<VoyageLogEntry> VoyageLogEntries { get; set; } = null!;
+
+    // Voyage Context - Port Master Data, Port Calls, Crew Assignments (FAL/MLC/SOLAS)
+    public DbSet<Port> Ports { get; set; } = null!;
+    public DbSet<PortCall> PortCalls { get; set; } = null!;
+    public DbSet<VoyageCrewAssignment> VoyageCrewAssignments { get; set; } = null!;
+
+    // Abstract Log - Nhật ký vắn tắt (Voyage Performance Summary)
+    public DbSet<AbstractLogVoyage> AbstractLogVoyages { get; set; } = null!;
+    public DbSet<AbstractLogLeg> AbstractLogLegs { get; set; } = null!;
+    public DbSet<AbstractLogDailyEntry> AbstractLogDailyEntries { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -456,6 +468,165 @@ public class EdgeDbContext : DbContext
             entity.HasIndex(e => e.IsSynced)
                 .HasDatabaseName("idx_voyage_synced")
                 .HasFilter("is_synced = false");
+            
+            entity.HasIndex(e => e.VesselIMO)
+                .HasDatabaseName("idx_voyage_vessel_imo");
+            
+            entity.HasIndex(e => e.DeparturePortCode)
+                .HasDatabaseName("idx_voyage_dep_port_code");
+            
+            entity.HasIndex(e => e.ArrivalPortCode)
+                .HasDatabaseName("idx_voyage_arr_port_code");
+            
+            // Relationships
+            entity.HasMany(e => e.PortCalls)
+                .WithOne(e => e.Voyage)
+                .HasForeignKey(e => e.VoyageId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasMany(e => e.CrewAssignments)
+                .WithOne(e => e.Voyage)
+                .HasForeignKey(e => e.VoyageId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasMany(e => e.LogEntries)
+                .WithOne(e => e.Voyage)
+                .HasForeignKey(e => e.VoyageId)
+                .OnDelete(DeleteBehavior.SetNull);
+            
+            entity.HasMany(e => e.CargoOperations)
+                .WithOne()
+                .HasForeignKey(e => e.VoyageId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ========== PORT MASTER DATA ==========
+        modelBuilder.Entity<Port>(entity =>
+        {
+            entity.ToTable("ports");
+            
+            entity.HasIndex(e => e.PortCode)
+                .IsUnique()
+                .HasDatabaseName("idx_port_code_unique");
+            
+            entity.HasIndex(e => e.CountryCode)
+                .HasDatabaseName("idx_port_country_code");
+            
+            entity.HasIndex(e => e.PortName)
+                .HasDatabaseName("idx_port_name");
+            
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_port_active");
+        });
+
+        // ========== PORT CALLS ==========
+        modelBuilder.Entity<PortCall>(entity =>
+        {
+            entity.ToTable("port_calls");
+            
+            entity.Property(e => e.DraftFore).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.DraftAft).HasColumnType("decimal(5,2)");
+            
+            entity.HasIndex(e => new { e.VoyageId, e.Sequence })
+                .IsUnique()
+                .HasDatabaseName("idx_port_call_voyage_seq");
+            
+            entity.HasIndex(e => e.PortCode)
+                .HasDatabaseName("idx_port_call_port_code");
+            
+            entity.HasIndex(e => e.CallType)
+                .HasDatabaseName("idx_port_call_type");
+            
+            entity.HasIndex(e => e.ArrivalTime)
+                .HasDatabaseName("idx_port_call_arrival");
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_port_call_synced")
+                .HasFilter("is_synced = false");
+            
+            entity.HasOne(e => e.Port)
+                .WithMany()
+                .HasForeignKey(e => e.PortId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ========== VOYAGE CREW ASSIGNMENTS ==========
+        modelBuilder.Entity<VoyageCrewAssignment>(entity =>
+        {
+            entity.ToTable("voyage_crew_assignments");
+            
+            entity.HasIndex(e => new { e.VoyageId, e.CrewMemberId })
+                .IsUnique()
+                .HasDatabaseName("idx_vca_voyage_crew_unique");
+            
+            entity.HasIndex(e => e.CrewMemberId)
+                .HasDatabaseName("idx_vca_crew_member");
+            
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("idx_vca_status");
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_vca_synced")
+                .HasFilter("is_synced = false");
+            
+            entity.HasOne(e => e.CrewMember)
+                .WithMany()
+                .HasForeignKey(e => e.CrewMemberId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.Rank)
+                .WithMany()
+                .HasForeignKey(e => e.RankId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ========== ABSTRACT LOG ==========
+        modelBuilder.Entity<AbstractLogVoyage>(entity =>
+        {
+            entity.ToTable("abstract_log_voyages");
+
+            entity.HasIndex(e => e.VoyageId)
+                .IsUnique()
+                .HasDatabaseName("idx_alv_voyage_unique");
+
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("idx_alv_status");
+
+            entity.HasOne(e => e.Voyage)
+                .WithMany()
+                .HasForeignKey(e => e.VoyageId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AbstractLogLeg>(entity =>
+        {
+            entity.ToTable("abstract_log_legs");
+
+            entity.HasIndex(e => new { e.AbstractLogVoyageId, e.Sequence })
+                .IsUnique()
+                .HasDatabaseName("idx_all_voyage_leg_unique");
+
+            entity.HasOne(e => e.AbstractLogVoyage)
+                .WithMany(v => v.Legs)
+                .HasForeignKey(e => e.AbstractLogVoyageId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AbstractLogDailyEntry>(entity =>
+        {
+            entity.ToTable("abstract_log_daily_entries");
+
+            entity.HasIndex(e => new { e.AbstractLogLegId, e.EntryDate })
+                .IsUnique()
+                .HasDatabaseName("idx_alde_leg_date_unique");
+
+            entity.HasIndex(e => e.AbstractLogLegId)
+                .HasDatabaseName("idx_alde_leg");
+
+            entity.HasOne(e => e.AbstractLogLeg)
+                .WithMany(l => l.DailyEntries)
+                .HasForeignKey(e => e.AbstractLogLegId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ========== SYNC QUEUE ==========
@@ -1019,6 +1190,48 @@ public class EdgeDbContext : DbContext
             
             entity.HasIndex(e => e.IsSynced)
                 .HasDatabaseName("idx_garbage_synced")
+                .HasFilter("is_synced = false");
+        });
+
+        // ========== GARBAGE RECORD PART I ==========
+        modelBuilder.Entity<GarbageRecordPartI>(entity =>
+        {
+            entity.ToTable("garbage_record_part_i");
+            
+            entity.Property(e => e.DischargeLatitude).HasColumnType("decimal(10,7)");
+            entity.Property(e => e.DischargeLongitude).HasColumnType("decimal(10,7)");
+            
+            entity.HasIndex(e => e.OperationDate)
+                .HasDatabaseName("idx_garbage_part_i_date")
+                .IsDescending();
+            
+            entity.HasIndex(e => e.Category)
+                .HasDatabaseName("idx_garbage_part_i_category");
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_garbage_part_i_synced")
+                .HasFilter("is_synced = false");
+        });
+
+        // ========== GARBAGE RECORD PART II ==========
+        modelBuilder.Entity<GarbageRecordPartII>(entity =>
+        {
+            entity.ToTable("garbage_record_part_ii");
+            
+            entity.Property(e => e.StartLatitude).HasColumnType("decimal(10,7)");
+            entity.Property(e => e.StartLongitude).HasColumnType("decimal(10,7)");
+            entity.Property(e => e.EndLatitude).HasColumnType("decimal(10,7)");
+            entity.Property(e => e.EndLongitude).HasColumnType("decimal(10,7)");
+            
+            entity.HasIndex(e => e.OperationDate)
+                .HasDatabaseName("idx_garbage_part_ii_date")
+                .IsDescending();
+            
+            entity.HasIndex(e => e.Category)
+                .HasDatabaseName("idx_garbage_part_ii_category");
+            
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_garbage_part_ii_synced")
                 .HasFilter("is_synced = false");
         });
 

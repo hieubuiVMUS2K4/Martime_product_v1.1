@@ -498,7 +498,200 @@ public class SafetyAlarm
 }
 
 /// <summary>
+/// Port Master Data - UN/LOCODE standard (ISO 3166 + location code)
+/// Reference: https://unece.org/trade/cefact/unlocode-code-list-country-and-territory
+/// </summary>
+public class Port
+{
+    [Key]
+    public int Id { get; set; }
+    
+    /// <summary>
+    /// UN/LOCODE (5 chars), e.g., "VNSGN", "SGSIN", "CNSHA"
+    /// </summary>
+    [Required]
+    [MaxLength(5)]
+    public string PortCode { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Full port name, e.g., "Ho Chi Minh City", "Singapore"
+    /// </summary>
+    [Required]
+    [MaxLength(150)]
+    public string PortName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Country name
+    /// </summary>
+    [MaxLength(100)]
+    public string? Country { get; set; }
+    
+    /// <summary>
+    /// ISO 3166-1 alpha-2 country code, e.g., "VN", "SG"
+    /// </summary>
+    [MaxLength(2)]
+    public string? CountryCode { get; set; }
+    
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    
+    /// <summary>
+    /// IANA time zone, e.g., "Asia/Ho_Chi_Minh"
+    /// </summary>
+    [MaxLength(50)]
+    public string? TimeZone { get; set; }
+    
+    public bool IsActive { get; set; } = true;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Port Call - Each port stop during a voyage (FAL Convention, SOLAS V/28)
+/// Tracks arrival/departure at each port in sequence
+/// </summary>
+public class PortCall
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>FK to VoyageRecord</summary>
+    public Guid VoyageId { get; set; }
+    
+    /// <summary>Optional FK to Port master data</summary>
+    public int? PortId { get; set; }
+    
+    /// <summary>UN/LOCODE - stored for offline/flexibility</summary>
+    [MaxLength(5)]
+    public string? PortCode { get; set; }
+    
+    /// <summary>Port name - stored for offline/flexibility</summary>
+    [Required]
+    [MaxLength(150)]
+    public string PortName { get; set; } = string.Empty;
+    
+    [MaxLength(100)]
+    public string? Country { get; set; }
+    
+    /// <summary>DEPARTURE, ARRIVAL, TRANSIT, BUNKERING, DRYDOCK</summary>
+    [Required]
+    [MaxLength(20)]
+    public string CallType { get; set; } = "ARRIVAL";
+    
+    /// <summary>Sequence order in the voyage (1, 2, 3...)</summary>
+    public int Sequence { get; set; }
+    
+    public DateTime? ArrivalTime { get; set; }
+    public DateTime? DepartureTime { get; set; }
+    
+    [MaxLength(50)]
+    public string? BerthNumber { get; set; }
+    
+    public DateTime? PilotOnBoard { get; set; }
+    public DateTime? PilotOffBoard { get; set; }
+    
+    /// <summary>Draft fore in meters</summary>
+    public double? DraftFore { get; set; }
+    
+    /// <summary>Draft aft in meters</summary>
+    public double? DraftAft { get; set; }
+    
+    /// <summary>Whether cargo operations completed at this port</summary>
+    public bool CargoOpsCompleted { get; set; } = false;
+    
+    [MaxLength(500)]
+    public string? Remarks { get; set; }
+    
+    public bool IsSynced { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+    
+    // Navigation properties
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+    
+    [ForeignKey("PortId")]
+    public virtual Port? Port { get; set; }
+}
+
+/// <summary>
+/// Voyage Crew Assignment - Links crew members to voyages (FAL Form 5, MLC 2006)
+/// Tracks embark/disembark per voyage for sea service records
+/// </summary>
+public class VoyageCrewAssignment
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    /// <summary>FK to VoyageRecord</summary>
+    public Guid VoyageId { get; set; }
+    
+    /// <summary>FK to CrewMember</summary>
+    public Guid CrewMemberId { get; set; }
+    
+    /// <summary>Rank at time of voyage (snapshot)</summary>
+    public int? RankId { get; set; }
+    
+    /// <summary>REGULAR, SUPERNUMERARY, OBSERVER, TRAINEE, RIDER</summary>
+    [MaxLength(20)]
+    public string Role { get; set; } = "REGULAR";
+    
+    /// <summary>Port where crew embarked (UN/LOCODE)</summary>
+    [MaxLength(5)]
+    public string? EmbarkPortCode { get; set; }
+    
+    [MaxLength(150)]
+    public string? EmbarkPortName { get; set; }
+    
+    public DateTime? EmbarkDate { get; set; }
+    
+    /// <summary>Port where crew disembarked (UN/LOCODE)</summary>
+    [MaxLength(5)]
+    public string? DisembarkPortCode { get; set; }
+    
+    [MaxLength(150)]
+    public string? DisembarkPortName { get; set; }
+    
+    public DateTime? DisembarkDate { get; set; }
+    
+    /// <summary>Watch schedule: 0000-0400, 0400-0800, 0800-1200, etc.</summary>
+    [MaxLength(20)]
+    public string? WatchSchedule { get; set; }
+    
+    /// <summary>ASSIGNED, ONBOARD, DISEMBARKED, CANCELLED</summary>
+    [MaxLength(20)]
+    public string Status { get; set; } = "ASSIGNED";
+    
+    [MaxLength(500)]
+    public string? Remarks { get; set; }
+    
+    public bool IsSynced { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+    
+    // Navigation properties
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+    
+    [ForeignKey("CrewMemberId")]
+    public virtual CrewMember? CrewMember { get; set; }
+    
+    [ForeignKey("RankId")]
+    public virtual Rank? Rank { get; set; }
+}
+
+/// <summary>
 /// Voyage records for reporting
+/// Extended with vessel context (FAL Convention) and navigation properties
 /// </summary>
 public class VoyageRecord
 {
@@ -509,15 +702,53 @@ public class VoyageRecord
     [MaxLength(50)]
     public string VoyageNumber { get; set; } = string.Empty;
     
+    // === Vessel Info Snapshot (FAL Convention) ===
+    
+    /// <summary>IMO Number (7 digits)</summary>
+    [MaxLength(10)]
+    public string? VesselIMO { get; set; }
+    
+    /// <summary>Vessel name at time of voyage</summary>
+    [MaxLength(100)]
+    public string? VesselName { get; set; }
+    
+    /// <summary>Flag state / nationality of ship</summary>
+    [MaxLength(50)]
+    public string? VesselFlag { get; set; }
+    
+    /// <summary>Call sign</summary>
+    [MaxLength(20)]
+    public string? CallSign { get; set; }
+    
+    // === Port Info (backward compatible + UN/LOCODE) ===
+    
     [MaxLength(50)]
     public string? DeparturePort { get; set; }
+    
+    /// <summary>UN/LOCODE of departure port</summary>
+    [MaxLength(5)]
+    public string? DeparturePortCode { get; set; }
     
     public DateTime? DepartureTime { get; set; }
     
     [MaxLength(50)]
     public string? ArrivalPort { get; set; }
     
+    /// <summary>UN/LOCODE of arrival port</summary>
+    [MaxLength(5)]
+    public string? ArrivalPortCode { get; set; }
+    
     public DateTime? ArrivalTime { get; set; }
+    
+    /// <summary>Previous port visited (UN/LOCODE)</summary>
+    [MaxLength(5)]
+    public string? PreviousPortCode { get; set; }
+    
+    /// <summary>Previous port name</summary>
+    [MaxLength(100)]
+    public string? PreviousPortName { get; set; }
+    
+    // === Cargo & Performance ===
     
     [MaxLength(100)]
     public string? CargoType { get; set; }
@@ -531,7 +762,7 @@ public class VoyageRecord
     public double? AverageSpeed { get; set; } // Knots
     
     [MaxLength(20)]
-    public string VoyageStatus { get; set; } = "PLANNING"; // PLANNING, UNDERWAY, COMPLETED
+    public string VoyageStatus { get; set; } = "PLANNING"; // PLANNING, UNDERWAY, COMPLETED, CANCELLED
     
     public bool IsSynced { get; set; } = false;
     
@@ -540,6 +771,20 @@ public class VoyageRecord
     
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+    
+    // === Navigation Properties ===
+    
+    [JsonIgnore]
+    public virtual List<PortCall> PortCalls { get; set; } = new();
+    
+    [JsonIgnore]
+    public virtual List<VoyageCrewAssignment> CrewAssignments { get; set; } = new();
+    
+    [JsonIgnore]
+    public virtual List<VoyageLogEntry> LogEntries { get; set; } = new();
+    
+    [JsonIgnore]
+    public virtual List<CargoOperation> CargoOperations { get; set; } = new();
 }
 
 /// <summary>
@@ -2293,6 +2538,226 @@ public class GarbageRecordBook
     public string OriginNode { get; set; } = "SHIP_01";
 
     // Soft Delete Support
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; }
+}
+
+/// <summary>
+/// Garbage Record Book Part I (MARPOL Annex V)
+/// Regular garbage categories A-I (excluding cargo residues J-K)
+/// </summary>
+public class GarbageRecordPartI
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    public DateTime OperationDate { get; set; }
+    
+    [Required]
+    public TimeSpan OperationTime { get; set; }
+    
+    /// <summary>
+    /// Stop time for the operation (optional)
+    /// </summary>
+    public TimeSpan? OperationEndTime { get; set; }
+    
+    /// <summary>
+    /// Garbage category (A-I only):
+    /// A - Plastics
+    /// B - Food wastes
+    /// C - Domestic wastes (paper, rags, glass, etc.)
+    /// D - Cooking oil
+    /// E - Incinerator ashes
+    /// F - Operational wastes
+    /// G - Cargo residues (non-HME) - cleaned
+    /// H - Cargo residues (HME) - cleaned
+    /// I - Animal carcasses
+    /// </summary>
+    [Required]
+    [MaxLength(5)]
+    public string Category { get; set; } = string.Empty;
+    
+    [Required]
+    public string Description { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Estimated amount discharged into sea (m³)
+    /// Only allowed for specific categories per MARPOL
+    /// </summary>
+    public double? EstimatedAmountDischargedToSea { get; set; }
+    
+    /// <summary>
+    /// Estimated amount discharged to reception facilities (m³)
+    /// </summary>
+    public double? EstimatedAmountToReceptionFacilities { get; set; }
+    
+    /// <summary>
+    /// Estimated amount incinerated (m³)
+    /// </summary>
+    public double? EstimatedAmountIncinerated { get; set; }
+    
+    // Position for discharge to sea
+    public double? DischargeLatitude { get; set; }
+    public double? DischargeLongitude { get; set; }
+    
+    // Port/Reception facility details
+    [MaxLength(100)]
+    public string? PortName { get; set; }
+    
+    [MaxLength(200)]
+    public string? ReceptionFacilityName { get; set; }
+    
+    [MaxLength(100)]
+    public string? ReceiptNumber { get; set; }
+    
+    // Incineration details
+    public DateTime? IncinerationStartTime { get; set; }
+    public DateTime? IncinerationEndTime { get; set; }
+    
+    [MaxLength(200)]
+    public string? IncineratorDetails { get; set; }
+    
+    // Exceptional/Accidental discharge
+    [MaxLength(500)]
+    public string? ExceptionalDischargeReason { get; set; }
+    
+    /// <summary>
+    /// Water depth at discharge location (meters)
+    /// Required for exceptional discharge documentation
+    /// </summary>
+    public double? WaterDepth { get; set; }
+    
+    public string? Remarks { get; set; }
+    
+    // Officer and signature
+    [Required]
+    [MaxLength(100)]
+    public string OfficerInCharge { get; set; } = string.Empty;
+    
+    [MaxLength(100)]
+    public string? MasterSignature { get; set; }
+    
+    public DateTime? SignedAt { get; set; }
+    
+    // Sync metadata
+    public bool IsSynced { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+    
+    // Soft Delete
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; }
+}
+
+/// <summary>
+/// Garbage Record Book Part II (MARPOL Annex V)
+/// Cargo residues categories J-K only
+/// </summary>
+public class GarbageRecordPartII
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    [Required]
+    public DateTime OperationDate { get; set; }
+    
+    [Required]
+    public TimeSpan OperationTime { get; set; }
+    
+    /// <summary>
+    /// Stop time for the operation (optional)
+    /// </summary>
+    public TimeSpan? OperationEndTime { get; set; }
+    
+    /// <summary>
+    /// Cargo residues category (J or K only):
+    /// J - Cargo residues (non-HME) in wash water
+    /// K - Cargo residues (HME) - STRICTLY PROHIBITED TO DISCHARGE TO SEA
+    /// </summary>
+    [Required]
+    [MaxLength(5)]
+    public string Category { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Position at start of discharge
+    /// </summary>
+    [Required]
+    public double StartLatitude { get; set; }
+    
+    [Required]
+    public double StartLongitude { get; set; }
+    
+    /// <summary>
+    /// Position at end of discharge
+    /// </summary>
+    [Required]
+    public double EndLatitude { get; set; }
+    
+    [Required]
+    public double EndLongitude { get; set; }
+    
+    /// <summary>
+    /// Estimated amount discharged into sea (m³)
+    /// Only for Category J (non-HME)
+    /// Category K (HME) MUST NOT discharge to sea
+    /// </summary>
+    public double? EstimatedAmountDischargedToSea { get; set; }
+    
+    /// <summary>
+    /// Estimated amount discharged to reception facilities (m³)
+    /// Mandatory for Category K (HME)
+    /// </summary>
+    public double? EstimatedAmountToReceptionFacilities { get; set; }
+    
+    // Port/Reception facility details
+    [MaxLength(100)]
+    public string? PortName { get; set; }
+    
+    [MaxLength(200)]
+    public string? ReceptionFacilityName { get; set; }
+    
+    [MaxLength(100)]
+    public string? ReceiptNumber { get; set; }
+    
+    /// <summary>
+    /// Cargo description and hold numbers washed
+    /// </summary>
+    [Required]
+    public string CargoDescription { get; set; } = string.Empty;
+    
+    [Required]
+    [MaxLength(200)]
+    public string HoldNumbersWashed { get; set; } = string.Empty;
+    
+    public string? Remarks { get; set; }
+    
+    // Officer and signature
+    [Required]
+    [MaxLength(100)]
+    public string OfficerInCharge { get; set; } = string.Empty;
+    
+    [MaxLength(100)]
+    public string? MasterSignature { get; set; }
+    
+    public DateTime? SignedAt { get; set; }
+    
+    // Sync metadata
+    public bool IsSynced { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+    
+    // Soft Delete
     public bool IsDeleted { get; set; } = false;
     public DateTime? DeletedAt { get; set; }
     [MaxLength(100)]
@@ -4352,6 +4817,290 @@ public class VoyageLogEntry
     
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+    
+    // Navigation property
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
 }
 
+// =============================================
+// ABSTRACT LOG — Nhật ký vắn tắt (Voyage Performance Summary)
+// =============================================
 
+/// <summary>
+/// Abstract Log header — one per voyage (Sheet SUM).
+/// Contains admin info, time summary, fuel reconciliation.
+/// </summary>
+public class AbstractLogVoyage
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    /// <summary>FK → VoyageRecord</summary>
+    public Guid VoyageId { get; set; }
+
+    // ── Admin & Vessel ──
+    [MaxLength(50)]
+    public string VoyageNumber { get; set; } = string.Empty;
+    [MaxLength(200)]
+    public string ShipName { get; set; } = string.Empty;
+    [MaxLength(20)]
+    public string? IMONumber { get; set; }
+    [MaxLength(200)]
+    public string? MasterName { get; set; }
+    [MaxLength(200)]
+    public string? ChiefEngineerName { get; set; }
+    public DateTime? ReportDate { get; set; }
+    public DateTime? DateOfLastDocking { get; set; }
+    [MaxLength(50)]
+    public string? PropellerPitch { get; set; }
+
+    // ── Time Summary ──
+    public DateTime? CommencementTime { get; set; }
+    public DateTime? CompletionTime { get; set; }
+    /// <summary>Grand total in hours</summary>
+    public double? GrandTotalHours { get; set; }
+
+    // ── Fuel ROB Reconciliation (Statement of FO, LO & FW) ──
+    // FO
+    public double? FoRobPrevious { get; set; }
+    public double? FoReceived { get; set; }
+    public double? FoConsumedTotal { get; set; }
+    public double? FoRobCurrent { get; set; }
+    // DO
+    public double? DoRobPrevious { get; set; }
+    public double? DoReceived { get; set; }
+    public double? DoConsumedTotal { get; set; }
+    public double? DoRobCurrent { get; set; }
+    // Cylinder Oil
+    public double? CylOilRobPrevious { get; set; }
+    public double? CylOilReceived { get; set; }
+    public double? CylOilConsumed { get; set; }
+    public double? CylOilRobCurrent { get; set; }
+    // System Oil
+    public double? SysOilRobPrevious { get; set; }
+    public double? SysOilReceived { get; set; }
+    public double? SysOilConsumed { get; set; }
+    public double? SysOilRobCurrent { get; set; }
+    // Generator Oil
+    public double? GenOilRobPrevious { get; set; }
+    public double? GenOilReceived { get; set; }
+    public double? GenOilConsumed { get; set; }
+    public double? GenOilRobCurrent { get; set; }
+    // Fresh Water
+    public double? FwRobPrevious { get; set; }
+    public double? FwProduced { get; set; }
+    public double? FwConsumed { get; set; }
+    public double? FwRobCurrent { get; set; }
+
+    // ── Remarks ──
+    public string? Remarks { get; set; }
+
+    // ── Signature ──
+    [MaxLength(200)]
+    public string? MasterSignature { get; set; }
+    public DateTime? MasterSignedAt { get; set; }
+    [MaxLength(200)]
+    public string? ChiefEngineerSignature { get; set; }
+    public DateTime? ChiefEngineerSignedAt { get; set; }
+
+    // ── Status ──
+    [MaxLength(20)]
+    public string Status { get; set; } = "DRAFT"; // DRAFT, FINALIZED
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    // Navigation
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+    public virtual ICollection<AbstractLogLeg> Legs { get; set; } = new List<AbstractLogLeg>();
+}
+
+/// <summary>
+/// Abstract Log leg — one per direction (Sheet OUT / HOME).
+/// Contains departure/arrival info, totals for the leg.
+/// </summary>
+public class AbstractLogLeg
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid AbstractLogVoyageId { get; set; }
+
+    /// <summary>Leg number (1, 2, 3, …) — sequential within the voyage</summary>
+    public int LegNumber { get; set; } = 1;
+    public int Sequence { get; set; } = 1;
+
+    /// <summary>Optional leg label, e.g. "Hai Phong → Singapore"</summary>
+    [MaxLength(200)]
+    public string? LegLabel { get; set; }
+
+    // ── Departure ──
+    [MaxLength(200)]
+    public string? DeparturePort { get; set; }
+    public DateTime? DepartureTime { get; set; }
+    public double? DepartureDraftFore { get; set; }
+    public double? DepartureDraftAft { get; set; }
+    public double? DepartureDraftMean { get; set; }
+
+    // ── Arrival ──
+    [MaxLength(200)]
+    public string? ArrivalPort { get; set; }
+    public DateTime? ArrivalTime { get; set; }
+    public double? ArrivalDraftFore { get; set; }
+    public double? ArrivalDraftAft { get; set; }
+    public double? ArrivalDraftMean { get; set; }
+
+    // ── Hours Totals ──
+    public double? HoursPropelling { get; set; }
+    public double? HoursUnderWay { get; set; }
+    public double? HoursDrifting { get; set; }
+    public double? HoursAnchor { get; set; }
+    public double? HoursPort { get; set; }
+
+    // ── Distance Totals ──
+    public double? DistanceProp { get; set; }
+    public double? DistanceLog { get; set; }
+    public double? DistanceOG { get; set; }
+
+    // ── Speed Averages ──
+    public double? SpeedLog { get; set; }
+    public double? SpeedOG { get; set; }
+
+    // ── Cargo ──
+    [MaxLength(200)]
+    public string? CargoType { get; set; }
+    public double? CargoQuantity { get; set; }
+    /// <summary>LADEN, BALLAST, PART_LADEN</summary>
+    [MaxLength(20)]
+    public string? LoadCondition { get; set; }
+
+    // ── Performance ──
+    public double? SlipPercent { get; set; }
+    public double? ShaftRevolutions { get; set; }
+
+    // ── Leg FOC Totals (by equipment × fuel type) ──
+    // M/E
+    public double? MeFocHsfo { get; set; }
+    public double? MeFocVlsfo { get; set; }
+    public double? MeFocLsmgo { get; set; }
+    // D/E
+    public double? DeFocHsfo { get; set; }
+    public double? DeFocVlsfo { get; set; }
+    public double? DeFocLsmgo { get; set; }
+    // Boiler
+    public double? BoilerFocHsfo { get; set; }
+    public double? BoilerFocVlsfo { get; set; }
+    public double? BoilerFocLsmgo { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    // Navigation
+    [ForeignKey("AbstractLogVoyageId")]
+    [JsonIgnore]
+    public virtual AbstractLogVoyage? AbstractLogVoyage { get; set; }
+    public virtual ICollection<AbstractLogDailyEntry> DailyEntries { get; set; } = new List<AbstractLogDailyEntry>();
+}
+
+/// <summary>
+/// Abstract Log daily entry — one row per day per leg.
+/// Contains noon position, weather, time breakdown, distance, FOC matrix.
+/// </summary>
+public class AbstractLogDailyEntry
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid AbstractLogLegId { get; set; }
+    public int DayNumber { get; set; } = 1;
+
+    // ── Date & Position ──
+    public DateTime EntryDate { get; set; }
+    public double? NoonLatitude { get; set; }
+    public double? NoonLongitude { get; set; }
+
+    // ── Wind ──
+    [MaxLength(20)]
+    public string? WindDirectionTrue { get; set; }
+    [MaxLength(20)]
+    public string? WindDirectionRelative { get; set; }
+    public int? WindForceBeaufort { get; set; }
+    [MaxLength(20)]
+    public string? SeaState { get; set; }
+
+    // ── Hours Breakdown ──
+    public double? HoursUnderWay { get; set; }
+    public double? HoursPropelling { get; set; }
+    public double? HoursDrifting { get; set; }
+    public double? HoursAnchor { get; set; }
+    public double? HoursPort { get; set; }
+    /// <summary>Time zone change: positive = advance, negative = retard</summary>
+    public double? TimeZoneChange { get; set; }
+
+    // ── Distance ──
+    public double? DistanceEngine { get; set; }
+    public double? DistanceLog { get; set; }
+    public double? DistanceOG { get; set; }
+
+    // ── Speed ──
+    public double? SpeedLog { get; set; }
+    public double? SpeedOG { get; set; }
+
+    // ── Performance ──
+    public double? SlipPercent { get; set; }
+    public double? AvgRPM { get; set; }
+
+    // ── FOC During Propelling (H.P) ──
+    public double? HpMeHsfo { get; set; }
+    public double? HpMeVlsfo { get; set; }
+    public double? HpMeLsmgo { get; set; }
+    public double? HpDeHsfo { get; set; }
+    public double? HpDeVlsfo { get; set; }
+    public double? HpDeLsmgo { get; set; }
+    public double? HpBoilerHsfo { get; set; }
+    public double? HpBoilerVlsfo { get; set; }
+    public double? HpBoilerLsmgo { get; set; }
+
+    // ── FOC During Detention/Drifting ──
+    public double? DtMeHsfo { get; set; }
+    public double? DtMeVlsfo { get; set; }
+    public double? DtMeLsmgo { get; set; }
+    public double? DtDeHsfo { get; set; }
+    public double? DtDeVlsfo { get; set; }
+    public double? DtDeLsmgo { get; set; }
+    public double? DtBoilerHsfo { get; set; }
+    public double? DtBoilerVlsfo { get; set; }
+    public double? DtBoilerLsmgo { get; set; }
+
+    // ── FOC In Port ──
+    public double? PortMeHsfo { get; set; }
+    public double? PortMeVlsfo { get; set; }
+    public double? PortMeLsmgo { get; set; }
+    public double? PortDeHsfo { get; set; }
+    public double? PortDeVlsfo { get; set; }
+    public double? PortDeLsmgo { get; set; }
+    public double? PortBoilerHsfo { get; set; }
+    public double? PortBoilerVlsfo { get; set; }
+    public double? PortBoilerLsmgo { get; set; }
+
+    // ── Lub Oil & Fresh Water (daily) ──
+    public double? CylOilConsumed { get; set; }
+    public double? SysOilConsumed { get; set; }
+    public double? FwProduced { get; set; }
+    public double? FwConsumed { get; set; }
+
+    // ── Remarks ──
+    public string? Remarks { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    // Navigation
+    [ForeignKey("AbstractLogLegId")]
+    [JsonIgnore]
+    public virtual AbstractLogLeg? AbstractLogLeg { get; set; }
+}

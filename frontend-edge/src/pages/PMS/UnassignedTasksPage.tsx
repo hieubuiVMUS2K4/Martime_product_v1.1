@@ -220,7 +220,7 @@ export default function UnassignedTasksPage() {
                     <option value="">{t('pms.unassigned.selectCrew')}</option>
                     {crew.map((c) => (
                       <option key={c.id} value={c.crewId}>
-                        {c.fullName} ({c.rank})
+                        {c.fullName} ({typeof c.rank === 'object' ? c.rank?.rankName : c.rank})
                       </option>
                     ))}
                   </select>

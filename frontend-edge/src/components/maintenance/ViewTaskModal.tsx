@@ -62,7 +62,8 @@ function getCrewDisplay(crewId: string | undefined, crewList?: CrewMember[]): st
   const crew = crewList?.find(c => c.crewId === crewId);
   if (crew) {
     if (crew.rank) {
-      return `${crew.fullName} (${crew.rank})`;
+      const rankLabel = typeof crew.rank === 'object' ? crew.rank?.rankName : crew.rank;
+      return `${crew.fullName} (${rankLabel})`;
     }
     return crew.fullName;
   }

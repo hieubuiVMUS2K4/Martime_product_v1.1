@@ -508,7 +508,7 @@ export function MaintenancePage() {
                         <option value="unassigned">{t('maintenance.filters.unassigned')}</option>
                         {crewList.map(crew => (
                           <option key={crew.crewId} value={crew.crewId}>
-                            {crew.fullName} ({crew.rank})
+                            {crew.fullName} ({typeof crew.rank === 'object' ? crew.rank?.rankName : crew.rank})
                           </option>
                         ))}
                       </select>

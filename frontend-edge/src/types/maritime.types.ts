@@ -179,18 +179,26 @@ export interface AisData {
 }
 
 export interface VoyageRecord {
-  id: number
+  id: string   // Guid
   voyageNumber: string
+  vesselIMO?: string
+  vesselName?: string
+  vesselFlag?: string
+  callSign?: string
   departurePort?: string
+  departurePortCode?: string
   departureTime?: string
   arrivalPort?: string
+  arrivalPortCode?: string
   arrivalTime?: string
+  previousPortCode?: string
+  previousPortName?: string
   cargoType?: string
   cargoWeight?: number
   distanceTraveled?: number
   fuelConsumed?: number
   averageSpeed?: number
-  voyageStatus: 'PLANNING' | 'UNDERWAY' | 'COMPLETED'
+  voyageStatus: string
   isSynced: boolean
   createdAt: string
 }

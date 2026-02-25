@@ -288,7 +288,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onT
                     <option value="">-- Unassigned --</option>
                     {crewMembers.map(crew => (
                       <option key={crew.id} value={crew.fullName}>
-                        {crew.fullName} - {crew.rank}
+                        {crew.fullName} - {typeof crew.rank === 'object' ? crew.rank?.rankName : crew.rank}
                       </option>
                     ))}
                   </select>

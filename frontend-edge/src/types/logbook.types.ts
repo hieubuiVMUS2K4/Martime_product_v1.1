@@ -242,6 +242,71 @@ export interface GarbageRecordResponseDto extends CreateGarbageRecordDto {
   originNode: string;
 }
 
+// Garbage Record Part I (Categories A-I)
+export interface CreateGarbagePartIDto {
+  operationDate: string;
+  operationTime: string; // HH:mm format
+  operationEndTime?: string; // HH:mm format
+  category: string; // A-I only
+  description: string;
+  estimatedAmountDischargedToSea?: number;
+  estimatedAmountToReceptionFacilities?: number;
+  estimatedAmountIncinerated?: number;
+  dischargeLatitude?: number;
+  dischargeLongitude?: number;
+  portName?: string;
+  receptionFacilityName?: string;
+  receiptNumber?: string;
+  incinerationStartTime?: string;
+  incinerationEndTime?: string;
+  incineratorDetails?: string;
+  exceptionalDischargeReason?: string;
+  waterDepth?: number;
+  remarks?: string;
+  officerInCharge: string;
+}
+
+export interface GarbagePartIResponseDto extends CreateGarbagePartIDto {
+  id: string;
+  masterSignature?: string;
+  signedAt?: string;
+  isSynced: boolean;
+  createdAt: string;
+  updatedAt: string;
+  originNode: string;
+}
+
+// Garbage Record Part II (Categories J-K - Cargo Residues)
+export interface CreateGarbagePartIIDto {
+  operationDate: string;
+  operationTime: string; // HH:mm format
+  operationEndTime?: string; // HH:mm format
+  category: string; // J or K only
+  startLatitude: number;
+  startLongitude: number;
+  endLatitude: number;
+  endLongitude: number;
+  estimatedAmountDischargedToSea?: number;
+  estimatedAmountToReceptionFacilities?: number;
+  portName?: string;
+  receptionFacilityName?: string;
+  receiptNumber?: string;
+  cargoDescription: string;
+  holdNumbersWashed: string;
+  remarks?: string;
+  officerInCharge: string;
+}
+
+export interface GarbagePartIIResponseDto extends CreateGarbagePartIIDto {
+  id: string;
+  masterSignature?: string;
+  signedAt?: string;
+  isSynced: boolean;
+  createdAt: string;
+  updatedAt: string;
+  originNode: string;
+}
+
 // Ballast Water Record
 export interface CreateBallastWaterRecordDto {
   operationDateTime: string;

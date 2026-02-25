@@ -314,7 +314,7 @@ export class MaritimeService {
   voyage = {
     getCurrent: () => this.request<VoyageRecord>('/voyages/current'),
     getAll: () => this.request<VoyageRecord[]>('/voyages'),
-    getById: (id: number) => this.request<VoyageRecord>(`/voyages/${id}`),
+    getById: (id: string) => this.request<VoyageRecord>(`/voyages/${id}`),
   }
 
   cargo = {
@@ -488,10 +488,10 @@ export const maintenanceService = {
 export const voyageService = {
   getCurrentVoyage: () => apiClient.get<VoyageRecord>('/voyages/current'),
   getAllVoyages: () => apiClient.get<VoyageRecord[]>('/voyages'),
-  getVoyageById: (id: number) => apiClient.get<VoyageRecord>(`/voyages/${id}`),
+  getVoyageById: (id: string) => apiClient.get<VoyageRecord>(`/voyages/${id}`),
   createVoyage: (voyage: Partial<VoyageRecord>) =>
     apiClient.post<VoyageRecord>('/voyages', voyage),
-  updateVoyage: (id: number, voyage: Partial<VoyageRecord>) =>
+  updateVoyage: (id: string, voyage: Partial<VoyageRecord>) =>
     apiClient.put<VoyageRecord>(`/voyages/${id}`, voyage),
 }
 

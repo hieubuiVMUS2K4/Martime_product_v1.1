@@ -277,10 +277,10 @@ export const KanbanCard = memo(function KanbanCard({
                     e.stopPropagation()
                     setShowAssignDropdown(!showAssignDropdown)
                   }}
-                  title={`${crewList.find(c => c.crewId === task.assignedTo)?.fullName || ''} (${crewList.find(c => c.crewId === task.assignedTo)?.rank || ''}) - Click to change`}
+                  title={`${crewList.find(c => c.crewId === task.assignedTo)?.fullName || ''} (${(() => { const r = crewList.find(c => c.crewId === task.assignedTo)?.rank; return r ? (typeof r === 'object' ? r.rankName : r) : ''; })()}) - Click to change`}
                 >
                   <span className="truncate">
-                    {crewList.find(c => c.crewId === task.assignedTo)?.fullName || task.assignedTo} ({crewList.find(c => c.crewId === task.assignedTo)?.rank || ''})
+                    {crewList.find(c => c.crewId === task.assignedTo)?.fullName || task.assignedTo} ({(() => { const r = crewList.find(c => c.crewId === task.assignedTo)?.rank; return r ? (typeof r === 'object' ? r.rankName : r) : ''; })()})
                   </span>
                   <ChevronDown className="w-3 h-3 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
@@ -288,9 +288,9 @@ export const KanbanCard = memo(function KanbanCard({
                 <div className="absolute left-0 top-0 bottom-0 bg-white overflow-hidden whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 w-full flex items-center pointer-events-none">
                   <div className="inline-block text-[11px] text-indigo-600 font-medium">
                     <span className="inline-block animate-marquee">
-                      {crewList.find(c => c.crewId === task.assignedTo)?.fullName} ({crewList.find(c => c.crewId === task.assignedTo)?.rank})
+                      {crewList.find(c => c.crewId === task.assignedTo)?.fullName} ({(() => { const r = crewList.find(c => c.crewId === task.assignedTo)?.rank; return r ? (typeof r === 'object' ? r.rankName : r) : ''; })()})
                       &nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;
-                      {crewList.find(c => c.crewId === task.assignedTo)?.fullName} ({crewList.find(c => c.crewId === task.assignedTo)?.rank})
+                      {crewList.find(c => c.crewId === task.assignedTo)?.fullName} ({(() => { const r = crewList.find(c => c.crewId === task.assignedTo)?.rank; return r ? (typeof r === 'object' ? r.rankName : r) : ''; })()})
                     </span>
                   </div>
                 </div>
@@ -327,7 +327,7 @@ export const KanbanCard = memo(function KanbanCard({
                             crew.crewId === task.assignedTo ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700'
                           }`}
                         >
-                          {crew.fullName} ({crew.rank})
+                          {crew.fullName} ({typeof crew.rank === 'object' ? crew.rank?.rankName : crew.rank})
                         </button>
                       ))}
                     </div>
@@ -345,7 +345,7 @@ export const KanbanCard = memo(function KanbanCard({
                 <option value="">Select crew...</option>
                 {crewList.map((crew) => (
                   <option key={crew.id} value={crew.crewId}>
-                    {crew.fullName} ({crew.rank})
+                    {crew.fullName} ({typeof crew.rank === 'object' ? crew.rank?.rankName : crew.rank})
                   </option>
                 ))}
               </select>

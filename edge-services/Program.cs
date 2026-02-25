@@ -11,6 +11,7 @@ using MaritimeEdge.Services.Maintenance;
 using MaritimeEdge.Services.Reporting;
 using MaritimeEdge.Services.Voyage;
 using MaritimeEdge.Services.Logbooks;
+using MaritimeEdge.Services.AbstractLog;
 using MaritimeEdge.Repositories;
 
 namespace MaritimeEdge
@@ -55,10 +56,18 @@ namespace MaritimeEdge
             builder.Services.AddScoped<IDeckLogbookService, DeckLogbookService>();
             builder.Services.AddScoped<IEngineLogbookService, EngineLogbookService>();
             builder.Services.AddScoped<IGarbageRecordService, GarbageRecordService>();
+            builder.Services.AddScoped<IGarbagePartIService, GarbagePartIService>();
+            builder.Services.AddScoped<IGarbagePartIIService, GarbagePartIIService>();
             builder.Services.AddScoped<IBallastWaterService, BallastWaterService>();
             builder.Services.AddScoped<IOilRecordService, OilRecordService>();
             builder.Services.AddScoped<IVoyageLogService, VoyageLogService>();
             builder.Services.AddScoped<MaterialReceiptService>();
+
+            // Add Voyage Management Service
+            builder.Services.AddScoped<IVoyageManagementService, VoyageManagementService>();
+
+            // Add Abstract Log Service
+            builder.Services.AddScoped<IAbstractLogService, AbstractLogService>();
 
             // Add PMS Repositories
             builder.Services.AddScoped<IEquipmentAssetRepository, EquipmentAssetRepository>();

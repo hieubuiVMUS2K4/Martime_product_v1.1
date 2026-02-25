@@ -12,6 +12,10 @@ import {
   WatchkeepingLogResponseDto,
   CreateGarbageRecordDto,
   GarbageRecordResponseDto,
+  CreateGarbagePartIDto,
+  GarbagePartIResponseDto,
+  CreateGarbagePartIIDto,
+  GarbagePartIIResponseDto,
   CreateBallastWaterRecordDto,
   BallastWaterRecordResponseDto,
   SignLogbookDto,
@@ -115,6 +119,56 @@ class LogbookService {
 
   async signGarbageEntry(id: string, data: SignLogbookDto) {
     return await apiClient.post(`/logbooks/garbage/${id}/sign`, {
+      masterSignature: data.signature,
+      signedAt: data.signedAt
+    });
+  }
+
+  // Garbage Record Part I
+  async getGarbagePartIEntries(params: LogbookPaginationDto) {
+    const queryString = this.buildQueryString(params);
+    return await apiClient.get<PaginatedLogbookResponse<GarbagePartIResponseDto>>(`/logbooks/garbage/part-i?${queryString}`);
+  }
+
+  async createGarbagePartIEntry(data: CreateGarbagePartIDto) {
+    return await apiClient.post<GarbagePartIResponseDto>('/logbooks/garbage/part-i', data);
+  }
+
+  async updateGarbagePartIEntry(id: string, data: CreateGarbagePartIDto) {
+    return await apiClient.put<GarbagePartIResponseDto>(`/logbooks/garbage/part-i/${id}`, data);
+  }
+
+  async deleteGarbagePartIEntry(id: string) {
+    return await apiClient.delete(`/logbooks/garbage/part-i/${id}`);
+  }
+
+  async signGarbagePartIEntry(id: string, data: SignLogbookDto) {
+    return await apiClient.post(`/logbooks/garbage/part-i/${id}/sign`, {
+      masterSignature: data.signature,
+      signedAt: data.signedAt
+    });
+  }
+
+  // Garbage Record Part II
+  async getGarbagePartIIEntries(params: LogbookPaginationDto) {
+    const queryString = this.buildQueryString(params);
+    return await apiClient.get<PaginatedLogbookResponse<GarbagePartIIResponseDto>>(`/logbooks/garbage/part-ii?${queryString}`);
+  }
+
+  async createGarbagePartIIEntry(data: CreateGarbagePartIIDto) {
+    return await apiClient.post<GarbagePartIIResponseDto>('/logbooks/garbage/part-ii', data);
+  }
+
+  async updateGarbagePartIIEntry(id: string, data: CreateGarbagePartIIDto) {
+    return await apiClient.put<GarbagePartIIResponseDto>(`/logbooks/garbage/part-ii/${id}`, data);
+  }
+
+  async deleteGarbagePartIIEntry(id: string) {
+    return await apiClient.delete(`/logbooks/garbage/part-ii/${id}`);
+  }
+
+  async signGarbagePartIIEntry(id: string, data: SignLogbookDto) {
+    return await apiClient.post(`/logbooks/garbage/part-ii/${id}/sign`, {
       masterSignature: data.signature,
       signedAt: data.signedAt
     });

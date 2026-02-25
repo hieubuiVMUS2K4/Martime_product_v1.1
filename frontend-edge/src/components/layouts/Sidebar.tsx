@@ -51,6 +51,7 @@ const getNavigation = (t: (key: string) => string) => [
   { name: t('nav.materials'), to: '/materials', icon: Boxes },
   { name: t('nav.reporting'), to: '/reporting', icon: ClipboardList },
   { name: t('nav.voyage'), to: '/voyage', icon: Ship },
+  { name: t('nav.ports') || 'Ports', to: '/ports', icon: MapPin },
   { name: t('nav.compliance'), to: '/compliance', icon: FileText },
   { name: t('nav.sync'), to: '/sync', icon: RefreshCw },
 ]
@@ -64,6 +65,7 @@ const getLogbooksMenu = (t: (key: string) => string) => [
   { name: t('nav.garbageRecord'), to: '/logbooks/garbage', icon: Trash2 },
   { name: t('nav.ballastWater'), to: '/logbooks/ballast', icon: Waves },
   { name: t('nav.watchkeeping'), to: '/logbooks/watchkeeping', icon: Clock },
+  { name: t('nav.abstractLog') || 'Abstract Log', to: '/logbooks/abstract', icon: FileText },
 ]
 
 export function Sidebar() {
