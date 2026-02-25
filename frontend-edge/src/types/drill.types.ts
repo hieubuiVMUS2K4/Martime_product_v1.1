@@ -120,11 +120,27 @@ export interface DrillSchedule {
   // Participants - array of crew member IDs (when isCrewMemberRequired = true)
   participants?: string[];
   
+  // Documents/Attachments
+  documents?: DocumentAttachment[];
+  
   vesselId?: string;
   originNode?: string; // "EDGE" or "SHORE"
   isSynced: boolean;
   createdAt: string;
   updatedAt?: string;
+}
+
+// ============================================================
+// Document Attachment Type
+// ============================================================
+
+export interface DocumentAttachment {
+  name: string;
+  url: string;
+  mimeType?: string; // 'application/pdf', 'image/png', etc.
+  fileSize?: number; // bytes
+  uploadedAt: string; // ISO date
+  uploadedBy?: string;
 }
 
 // ============================================================
@@ -223,6 +239,9 @@ export interface CreateUpdateDrillScheduleDto {
   
   // Participants - array of crew member IDs (only when isCrewMemberRequired = true)
   participants?: string[];
+  
+  // Documents/Attachments
+  documents?: DocumentAttachment[];
 }
 
 /**

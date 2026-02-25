@@ -21,6 +21,7 @@ import {
 } from '@/services/drill.service';
 import { DRILL_CATEGORY_NAMES } from '@/types/drill.types';
 import { getOnboardCrew, type CrewMember } from '@/services/crew.service';
+import { DocumentUploadZone } from './DocumentUploadZone';
 
 interface DrillEditModalProps {
   isOpen: boolean;
@@ -36,16 +37,16 @@ export function DrillEditModal({ isOpen, onClose, scheduleId, onSave }: DrillEdi
   const [crewList, setCrewList] = useState<CrewMember[]>([]);
   const [loadingCrew, setLoadingCrew] = useState(false);
   
-  // Form state (matching Ảnh 3 fields)
-  const [formData, setFormData] = useState<CreateUpdateDrillScheduleDto>({
+  // Initial form state
+  const getInitialFormData = (): CreateUpdateDrillScheduleDto => ({
     drillTypeId: '',
     description: '',
     category: 'STATION_DRILLS',
-    isInterval: true, // Type: Interval (checked) vs One-time
+    isInterval: true,
     intervalValue: 1,
     intervalUnit: 'months',
     startDate: new Date().toISOString(),
-    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // +30 days
+    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     beforeDueDays: 7,
     hasNoExpiry: false,
     isFixedInterval: true,
@@ -55,7 +56,23 @@ export function DrillEditModal({ isOpen, onClose, scheduleId, onSave }: DrillEdi
     isMandatorySignOnEvaluation: false,
     instructionContent: '',
     remarks: '',
+    participants: [],
+    documents: [], // Reset documents to empty array
   });
+  
+  // Form state
+  const [formData, setFormData] = useState<CreateUpdateDrillScheduleDto>(getInitialFormData());
+  
+  /**
+   * Reset form when modal opens in create mode or when modal closes
+   */
+  useEffect(() => {
+    if (isOpen && !scheduleId) {
+      // Create mode: Reset to initial state
+      setFormData(getInitialFormData());
+      setActiveTab('datacard');
+    }
+  }, [isOpen, scheduleId]);
   
   /**
    * Load drill types for category dropdown
@@ -107,6 +124,7 @@ export function DrillEditModal({ isOpen, onClose, scheduleId, onSave }: DrillEdi
           instructionContent: schedule.instructionContent ?? '', // Load from schedule, not drillType
           remarks: schedule.remarks ?? '',
           participants: schedule.participants ?? [], // Load selected crew
+          documents: schedule.documents ?? [], // Load attached documents
         });
       } catch (error) {
         console.error('Failed to load schedule:', error);
@@ -144,6 +162,15 @@ export function DrillEditModal({ isOpen, onClose, scheduleId, onSave }: DrillEdi
       loadCrew();
     }
   }, [isOpen, activeTab]);
+  
+  /**
+   * Handle modal close - reset form to prevent data leakage
+   */
+  const handleClose = () => {
+    setFormData(getInitialFormData());
+    setActiveTab('datacard');
+    onClose();
+  };
   
   /**
    * Handle form submission (Save button)
@@ -184,7 +211,7 @@ export function DrillEditModal({ isOpen, onClose, scheduleId, onSave }: DrillEdi
       }
       
       onSave(); // Trigger parent refresh
-      onClose(); // Close modal
+      handleClose(); // Close modal and reset form
       
     } catch (error: any) {
       console.error('Failed to save drill schedule:', error);
@@ -238,7 +265,7 @@ export function DrillEditModal({ isOpen, onClose, scheduleId, onSave }: DrillEdi
             {scheduleId ? 'Edit Drill' : 'Add New Drill'}
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition"
           >
             <X className="w-5 h-5 text-gray-500" />
@@ -577,8 +604,31 @@ export function DrillEditModal({ isOpen, onClose, scheduleId, onSave }: DrillEdi
               )}
               
               {activeTab === 'documents' && (
-                <div className="text-center py-8 text-gray-500">
-                  Document management coming soon
+                <div>
+                  <div className="mb-4">
+                    <h3 className="text-base font-semibold text-gray-900 mb-2">
+                      Drill Documents
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Upload safety procedures, checklists, photos, or evidence documents for this drill.
+                      These will be available for quick preview from the timeline.
+                    </p>
+                  </div>
+                  
+                  {/* Professional Document Upload Zone */}
+                  <DocumentUploadZone
+                    documents={formData.documents || []}
+                    onChange={(docs) => setFormData(prev => ({ ...prev, documents: docs }))}
+                    maxFileSize={10 * 1024 * 1024} // 10MB
+                    acceptedFileTypes={[
+                      'application/pdf',
+                      'image/jpeg',
+                      'image/jpg',
+                      'image/png',
+                      'image/webp',
+                      'image/gif'
+                    ]}
+                  />
                 </div>
               )}
               
@@ -762,7 +812,7 @@ export function DrillEditModal({ isOpen, onClose, scheduleId, onSave }: DrillEdi
         {/* Footer - Action buttons */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             disabled={loading}
             className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
           >

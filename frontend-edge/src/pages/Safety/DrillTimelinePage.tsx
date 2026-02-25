@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { ChevronRight, ChevronDown, Plus, Filter, Calendar, RefreshCw, Download, Trash2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Filter, Calendar, RefreshCw, Download, Trash2, Search, X, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import type { 
   DrillTimelineGroupDto, 
@@ -17,6 +17,7 @@ import type {
 import { getDrillTimeline, getTimelineBarColor, calculateBarPosition, bulkDeleteDrillSchedules } from '@/services/drill.service';
 import { DRILL_CATEGORY_NAMES } from '@/types/drill.types';
 import { DrillEditModal } from '@/components/drill/DrillEditModal';
+import { DocumentPreviewModal } from '@/components/drill/DocumentPreviewModal';
 
 // Month labels for timeline header (Jan 2025 - Dec 2025 visible in Ảnh 2)
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -31,6 +32,14 @@ export function DrillTimelinePage() {
   const [expandedCategories, setExpandedCategories] = useState<Set<DrillCategory>>(new Set());
   const [selectedSchedules, setSelectedSchedules] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Transformative Search (Marad style)
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Document preview modal
+  const [showDocPreview, setShowDocPreview] = useState(false);
+  const [previewSchedule, setPreviewSchedule] = useState<DrillSchedule | null>(null);
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -133,6 +142,19 @@ export function DrillTimelinePage() {
   };
   
   /**
+   * Handle document preview (quick view without opening Edit Modal)
+   */
+  const handleDocumentPreview = (schedule: DrillSchedule, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent schedule click event
+    if (schedule.documents && schedule.documents.length > 0) {
+      setPreviewSchedule(schedule);
+      setShowDocPreview(true);
+    } else {
+      toast.info('No documents attached to this drill');
+    }
+  };
+  
+  /**
    * Handle Add Drill button click
    */
   const handleAddDrill = () => {
@@ -192,6 +214,26 @@ export function DrillTimelinePage() {
     setDeleteReason('');
   };
   
+  /**
+   * Filter timeline data by search query
+   */
+  const filteredTimelineData = useMemo(() => {
+    if (!searchQuery.trim()) return timelineData;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return timelineData
+      .map(group => ({
+        ...group,
+        schedules: group.schedules.filter(schedule => 
+          schedule.drillName?.toLowerCase().includes(query) ||
+          schedule.scheduleCode?.toLowerCase().includes(query) ||
+          schedule.drillType?.drillCode?.toLowerCase().includes(query) ||
+          schedule.drillType?.drillName?.toLowerCase().includes(query)
+        )
+      }))
+      .filter(group => group.schedules.length > 0); // Only show categories with matching drills
+  }, [timelineData, searchQuery]);
+
   /**
    * Calculate bar style for Gantt chart
    */
@@ -357,9 +399,41 @@ export function DrillTimelinePage() {
           <div className="flex flex-col h-full overflow-hidden">
             {/* Header Row - Fixed */}
             <div className="flex bg-white border-b sticky top-0 z-10">
-              {/* Left header */}
+              {/* Left header - Transformative Search */}
               <div className="w-96 px-4 py-3 border-r flex-shrink-0">
-                <h3 className="text-sm font-semibold text-gray-500">CATEGORIES</h3>
+                {searchMode ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search drills..."
+                      autoFocus
+                      className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={() => {
+                        setSearchMode(false);
+                        setSearchQuery('');
+                      }}
+                      className="p-1 hover:bg-gray-100 rounded transition"
+                      title="Close search"
+                    >
+                      <X className="w-4 h-4 text-gray-500" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-500">CATEGORIES</h3>
+                    <button
+                      onClick={() => setSearchMode(true)}
+                      className="p-1 hover:bg-gray-100 rounded transition"
+                      title="Search drills"
+                    >
+                      <Search className="w-4 h-4 text-gray-500" />
+                    </button>
+                  </div>
+                )}
               </div>
               
               {/* Month headers */}
@@ -382,7 +456,7 @@ export function DrillTimelinePage() {
             {/* Scrollable Content */}
             <div className="flex-1 overflow-auto">
               <div className="flex flex-col">
-                {timelineData.map((group) => (
+                {filteredTimelineData.map((group) => (
                   <div key={group.category}>
                     {/* Category Header Row */}
                     <div className="flex border-b bg-gray-50 hover:bg-gray-100 transition">
@@ -437,6 +511,18 @@ export function DrillTimelinePage() {
                               }}
                               className="w-4 h-4 text-blue-600 flex-shrink-0"
                             />
+                            
+                            {/* PDF icon - clickable for quick preview (only show if documents uploaded) */}
+                            {schedule.documents && schedule.documents.length > 0 && (
+                              <button
+                                onClick={(e) => handleDocumentPreview(schedule, e)}
+                                className="p-0.5 hover:bg-red-50 rounded transition flex-shrink-0 group"
+                                title={`View ${schedule.documents.length} document${schedule.documents.length > 1 ? 's' : ''}`}
+                              >
+                                <FileText className="w-3.5 h-3.5 text-red-600 group-hover:text-red-700" />
+                              </button>
+                            )}
+                            
                             <span 
                               className="flex-1 text-sm text-gray-700 truncate cursor-pointer hover:text-blue-600"
                               title={schedule.drillName ?? schedule.scheduleCode}
@@ -468,14 +554,24 @@ export function DrillTimelinePage() {
                               ))}
                             </div>
                             
-                            {/* Timeline bar */}
+                            {/* Timeline bar - Slender Marad style */}
                             <div
-                              className="absolute top-2 h-8 rounded-md shadow-sm flex items-center px-3 text-white text-xs font-semibold cursor-pointer"
+                              className="absolute top-1/2 -translate-y-1/2 h-6 rounded-full shadow-md flex items-center px-2 cursor-pointer group hover:shadow-lg transition-all"
                               style={getBarStyle(schedule)}
                               title={`${schedule.drillName}\nStatus: ${schedule.status}\nDue: ${new Date(schedule.dueDate).toLocaleDateString()}`}
                               onClick={() => handleScheduleClick(schedule)}
                             >
-                              <span className="truncate">{schedule.timelineLabel}</span>
+                              {/* Time label */}
+                              <span className="text-white text-[10px] font-semibold truncate mr-1">
+                                {schedule.timelineLabel}
+                              </span>
+                              
+                              {/* Overdue indicator */}
+                              {schedule.status === 'OVERDUE' && (
+                                <span className="ml-auto bg-white/20 px-1.5 py-0.5 rounded text-[9px] font-bold text-white whitespace-nowrap">
+                                  Overdue
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -484,11 +580,13 @@ export function DrillTimelinePage() {
                   </div>
                 ))}
                 
-                {timelineData.length === 0 && (
+                {filteredTimelineData.length === 0 && (
                   <div className="flex items-center justify-center h-64">
                     <div className="text-center">
                       <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                      <p className="text-gray-500">No drills scheduled for this period</p>
+                      <p className="text-gray-500">
+                        {searchQuery ? `No drills found matching "${searchQuery}"` : 'No drills scheduled for this period'}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -504,6 +602,17 @@ export function DrillTimelinePage() {
         onClose={() => setIsModalOpen(false)}
         scheduleId={editingScheduleId}
         onSave={handleModalSave}
+      />
+      
+      {/* Document Preview Modal - Quick view without editing */}
+      <DocumentPreviewModal
+        isOpen={showDocPreview}
+        onClose={() => {
+          setShowDocPreview(false);
+          setPreviewSchedule(null);
+        }}
+        documents={previewSchedule?.documents || []}
+        drillName={previewSchedule?.drillName || previewSchedule?.scheduleCode || 'Unknown Drill'}
       />
       
       {/* Delete Confirmation Dialog */}
