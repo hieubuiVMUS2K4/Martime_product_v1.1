@@ -175,14 +175,30 @@ namespace MaritimeEdge
             Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "employment_documents"));
             Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "health_documents"));
             
+            // Enable CORS for ALL requests
+            app.UseCors("AllowFrontend");
+            
+            // Configure static files with CORS headers explicitly
             app.UseStaticFiles(new StaticFileOptions
             {
                 FileProvider = new PhysicalFileProvider(uploadsPath),
-                RequestPath = "/uploads"
+                RequestPath = "/uploads",
+                OnPrepareResponse = ctx =>
+                {
+                    // Add CORS headers to static file responses
+                    var origin = ctx.Context.Request.Headers["Origin"].ToString();
+                    if (!string.IsNullOrEmpty(origin) && 
+                        (origin.StartsWith("http://localhost:") || 
+                         origin.StartsWith("http://192.168.") ||
+                         origin.StartsWith("http://172.")))
+                    {
+                        ctx.Context.Response.Headers.Add("Access-Control-Allow-Origin", origin);
+                        ctx.Context.Response.Headers.Add("Access-Control-Allow-Credentials", "true");
+                    }
+                }
             });
 
             app.UseRouting();
-            app.UseCors("AllowFrontend");
             app.UseAuthorization();
             app.MapControllers();
 

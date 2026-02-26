@@ -49,6 +49,7 @@ public class EdgeDbContext : DbContext
     public DbSet<SeafarerDocument> SeafarerDocuments { get; set; } = null!;
     public DbSet<EmploymentDocument> EmploymentDocuments { get; set; } = null!;
     public DbSet<HealthDocument> HealthDocuments { get; set; } = null!;
+    public DbSet<ServiceRecord> ServiceRecords { get; set; } = null!;
     public DbSet<MaintenanceTask> MaintenanceTasks { get; set; } = null!;
     public DbSet<TaskChecklistItem> TaskChecklistItems { get; set; } = null!;
     public DbSet<MaintenanceTaskDetail> MaintenanceTaskDetails { get; set; } = null!;

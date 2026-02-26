@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom'
-import { Award, Save } from 'lucide-react'
+import { Award, Calendar, FileText, Building, ArrowLeft, Save, Users, Globe, Upload, Trash2, Image } from 'lucide-react'
 import { maritimeService } from '../../services/maritime.service'
 import { Certificate, CrewMember, Country } from '../../types/maritime.types'
 import { useTranslationSafe } from '@/contexts/I18nContext'
@@ -42,6 +42,12 @@ export function AddCrewCertificatePage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [countries, setCountries] = useState<Country[]>([])
   const [loadingCountries, setLoadingCountries] = useState(false)
+
+  // Certificate image upload states
+  const [certificateFile, setCertificateFile] = useState<File | null>(null)
+  const [certificatePreview, setCertificatePreview] = useState<string | null>(null)
+  const [, setUploadingFile] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadData()
@@ -176,10 +182,20 @@ export function AddCrewCertificatePage() {
         console.log('Updating crew certificate:', editingId, certificateData)
         await maritimeService.certificates.updateCrewCertificate(editingId, certificateData)
         console.log('Certificate updated successfully')
+        
+        // Upload file if selected
+        if (certificateFile) {
+          await uploadCertificateImage(editingId)
+        }
       } else {
         console.log('Adding crew certificate:', certificateData)
-        await maritimeService.certificates.addCrewCertificate(certificateData)
-        console.log('Certificate added successfully')
+        const result = await maritimeService.certificates.addCrewCertificate(certificateData)
+        console.log('Certificate added successfully, id:', result.id)
+        
+        // Upload file if selected
+        if (certificateFile && result.id) {
+          await uploadCertificateImage(result.id)
+        }
       }
       
       if (certificateId) {
@@ -264,6 +280,63 @@ export function AddCrewCertificatePage() {
       navigate(`/crew/${crewIdParam}`)
     } else {
       navigate('/crew', { state: { activeTab: 'certificates' } })
+    }
+  }
+
+  const uploadCertificateImage = async (certId: number) => {
+    if (!certificateFile) return
+    try {
+      setUploadingFile(true)
+      const formData = new FormData()
+      formData.append('file', certificateFile)
+      await maritimeService.certificates.uploadCertificateFile(certId, formData)
+      console.log('Certificate file uploaded successfully')
+    } catch (error: any) {
+      console.error('Failed to upload certificate file:', error)
+      // Don't block navigation, just warn
+      alert(`Certificate saved but file upload failed: ${error.message}`)
+    } finally {
+      setUploadingFile(false)
+    }
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size must not exceed 10MB')
+      return
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf']
+    if (!allowedTypes.includes(file.type)) {
+      alert('Only image files (JPG, PNG, GIF) and PDF are allowed')
+      return
+    }
+
+    setCertificateFile(file)
+
+    // Generate preview for images
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setCertificatePreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    } else {
+      // For PDF, show a generic icon
+      setCertificatePreview(null)
+    }
+  }
+
+  const handleRemoveFile = () => {
+    setCertificateFile(null)
+    setCertificatePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
     }
   }
 
@@ -494,6 +567,75 @@ export function AddCrewCertificatePage() {
                   <option value="SUSPENDED">{t('crew.certificateManagement.addCertificate.statusSuspended')}</option>
                   <option value="REVOKED">{t('crew.certificateManagement.addCertificate.statusRevoked')}</option>
                 </select>
+              </div>
+
+              {/* Certificate Image Upload */}
+              <div className="col-span-12">
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
+                  Certificate Image / Scan
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  
+                  {certificateFile ? (
+                    <div className="flex items-start gap-4">
+                      {/* Preview */}
+                      <div className="flex-shrink-0">
+                        {certificatePreview ? (
+                          <img
+                            src={certificatePreview}
+                            alt="Certificate preview"
+                            className="w-40 h-28 object-cover rounded border border-gray-200"
+                          />
+                        ) : (
+                          <div className="w-40 h-28 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
+                            <FileText className="w-10 h-10 text-gray-400" />
+                            <span className="text-xs text-gray-500 ml-1">PDF</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* File info */}
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-900">{certificateFile.name}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {(certificateFile.size / 1024).toFixed(1)} KB • {certificateFile.type}
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1"
+                          >
+                            <Upload className="w-3 h-3" /> Change
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleRemoveFile}
+                            className="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3 h-3" /> Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-center cursor-pointer hover:bg-gray-50 rounded py-4 transition-colors"
+                    >
+                      <Image className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600">Click to upload certificate image</p>
+                      <p className="text-xs text-gray-400 mt-1">JPG, PNG, GIF or PDF • Max 10MB</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Notes */}

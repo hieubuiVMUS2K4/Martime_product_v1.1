@@ -496,7 +496,82 @@ public class CertificatesController : ControllerBase
             _logger.LogError(ex, "Error verifying data cleared");
             return StatusCode(500, new { message = "Error verifying data", error = ex.Message });
         }
-    }}
+    }
+
+    /// <summary>
+    /// PUT: api/certificates/crew-certificates/{id}/file - Upload certificate document image
+    /// </summary>
+    [HttpPut("crew-certificates/{id}/file")]
+    public async Task<IActionResult> UploadCertificateFile(int id, [FromForm] IFormFile file)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { error = "File is required" });
+            }
+
+            // Validate file type
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".pdf" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                return BadRequest(new { error = "Only image files (jpg, jpeg, png, gif) and PDF are allowed" });
+            }
+
+            // Validate file size (max 10MB)
+            if (file.Length > 10 * 1024 * 1024)
+            {
+                return BadRequest(new { error = "File size must not exceed 10MB" });
+            }
+
+            var crewCertificate = await _context.CrewCertificates.FindAsync(id);
+            if (crewCertificate == null)
+            {
+                return NotFound(new { error = "Crew certificate not found", id });
+            }
+
+            // Save file to uploads/crew/certificates folder
+            var uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "crew", "certificates");
+            Directory.CreateDirectory(uploadsRoot);
+
+            var fileName = $"cert_{id}_{DateTime.UtcNow:yyyyMMddHHmmss}{extension}";
+            var filePath = Path.Combine(uploadsRoot, fileName);
+
+            // Delete old file if exists
+            if (!string.IsNullOrEmpty(crewCertificate.DocumentFilePath))
+            {
+                var oldFilePath = Path.Combine(Directory.GetCurrentDirectory(), crewCertificate.DocumentFilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (System.IO.File.Exists(oldFilePath))
+                {
+                    System.IO.File.Delete(oldFilePath);
+                }
+            }
+
+            // Save new file
+            await using var stream = new FileStream(filePath, FileMode.Create);
+            await file.CopyToAsync(stream);
+
+            // Update database
+            crewCertificate.DocumentFilePath = $"/uploads/crew/certificates/{fileName}";
+            crewCertificate.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Uploaded certificate file for crew certificate: {Id}", id);
+
+            return Ok(new
+            {
+                message = "Certificate file uploaded successfully",
+                documentFilePath = crewCertificate.DocumentFilePath
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading certificate file for {Id}", id);
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
+}
 
 // DTO for create certificate request
 public class CreateCertificateRequest
