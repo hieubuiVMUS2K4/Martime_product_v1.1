@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
-import { maritimeService } from '../../services/maritime.service'
 
 interface Country {
   id: number

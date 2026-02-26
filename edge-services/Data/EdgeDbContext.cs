@@ -120,6 +120,11 @@ public class EdgeDbContext : DbContext
     public DbSet<AbstractLogLeg> AbstractLogLegs { get; set; } = null!;
     public DbSet<AbstractLogDailyEntry> AbstractLogDailyEntries { get; set; } = null!;
 
+    // Drill Training Management (SOLAS/ISPS Compliance)
+    public DbSet<DrillType> DrillTypes { get; set; } = null!;
+    public DbSet<DrillSchedule> DrillSchedules { get; set; } = null!;
+    public DbSet<DrillLog> DrillLogs { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -1732,6 +1737,68 @@ public class EdgeDbContext : DbContext
             new Rank { Id = 9, RankCode = "OILR", RankName = "Oiler", IsActive = true },
             new Rank { Id = 10, RankCode = "COOK", RankName = "Chief Cook", IsActive = true }
         );
+
+        // ===================================================================
+        // Configure Drill Training Management (SOLAS/ISPS Compliance)
+        // ===================================================================
+
+        // Configure DrillType
+        modelBuilder.Entity<DrillType>(entity =>
+        {
+            entity.HasIndex(dt => dt.DrillCode).IsUnique();
+            entity.HasIndex(dt => new { dt.Category, dt.DisplayOrder });
+            entity.HasIndex(dt => dt.IsActive);
+            entity.HasIndex(dt => dt.FrequencyType);
+        });
+
+        // Configure DrillSchedule
+        modelBuilder.Entity<DrillSchedule>(entity =>
+        {
+            entity.HasOne(ds => ds.DrillType)
+                .WithMany(dt => dt.Schedules)
+                .HasForeignKey(ds => ds.DrillTypeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(ds => ds.AssignedToCrew)
+                .WithMany()
+                .HasForeignKey(ds => ds.AssignedToCrewId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(ds => ds.DueDate);
+            entity.HasIndex(ds => ds.Status);
+            entity.HasIndex(ds => new { ds.ScheduledYear, ds.ScheduledMonth });
+            entity.HasIndex(ds => ds.ScheduleCode).IsUnique();
+            entity.HasIndex(ds => ds.VesselId);
+        });
+
+        // Configure DrillLog
+        modelBuilder.Entity<DrillLog>(entity =>
+        {
+            entity.HasOne(dl => dl.DrillSchedule)
+                .WithMany(ds => ds.Logs)
+                .HasForeignKey(dl => dl.DrillScheduleId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(dl => dl.DrillType)
+                .WithMany(dt => dt.Logs)
+                .HasForeignKey(dl => dl.DrillTypeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(dl => dl.ConductedBy)
+                .WithMany()
+                .HasForeignKey(dl => dl.ConductedByCrewId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(dl => dl.VerifiedBy)
+                .WithMany()
+                .HasForeignKey(dl => dl.VerifiedByCrewId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(dl => dl.ExecutionDate);
+            entity.HasIndex(dl => dl.DrillTypeId);
+            entity.HasIndex(dl => dl.LogCode).IsUnique();
+            entity.HasIndex(dl => dl.IsLocked);
+        });
     }
 
     /// <summary>
@@ -1944,7 +2011,8 @@ public class EdgeDbContext : DbContext
                 syncItem.Payload = System.Text.Json.JsonSerializer.Serialize(entry.Entity, new System.Text.Json.JsonSerializerOptions 
                 { 
                     WriteIndented = false,
-                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                    ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
                 });
             }
             else if (entry.State == EntityState.Modified)

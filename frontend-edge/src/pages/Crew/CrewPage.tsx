@@ -19,8 +19,8 @@ export function CrewPage() {
   const [crewMembers, setCrewMembers] = useState<CrewMember[]>([])
   const [filteredCrew, setFilteredCrew] = useState<CrewMember[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filterRank, setFilterRank] = useState<string>('all')
+  const [searchQuery] = useState('')
+  const [filterRank] = useState<string>('all')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showCertificateModal, setShowCertificateModal] = useState(false)
   const [editingCertificate, setEditingCertificate] = useState<any | null>(null)
@@ -28,7 +28,7 @@ export function CrewPage() {
   
   // Cache for certificate data to avoid reloading
   const [certificateCache, setCertificateCache] = useState<any[] | null>(null)
-  const [certificateLoading, setCertificateLoading] = useState(false)
+  const [_certificateLoading, setCertificateLoading] = useState(false)
   
   // Cache for crew data to avoid reloading
   const [crewOnboardCache, setCrewOnboardCache] = useState<CrewMember[] | null>(null)
@@ -342,7 +342,6 @@ export function CrewPage() {
                   sortMenu={sortMenu}
                   setSortMenu={setSortMenu}
                   certificateCache={certificateCache}
-                  certificateLoading={certificateLoading}
                   onAddCertificate={() => setShowCertificateModal(true)}
                   onEditCertificate={handleEditCertificate}
                   selectedCountry={selectedCountry}
@@ -967,7 +966,6 @@ function CertificateMonitorView({
   sortMenu, 
   setSortMenu,
   certificateCache,
-  certificateLoading,
   onAddCertificate,
   onEditCertificate,
   selectedCountry,
@@ -979,13 +977,11 @@ function CertificateMonitorView({
   sortMenu?: string | null;
   setSortMenu?: (sortMenu: string | null) => void;
   certificateCache: any[] | null;
-  certificateLoading: boolean;
   onAddCertificate: () => void;
   onEditCertificate: (certificate: any) => void;
   selectedCountry: string;
   reloadTrigger: number;
 }) {
-  const { t } = useTranslationSafe()
   const navigate = useNavigate()
   const [currentPage, setCurrentPage] = useState(1)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; cert: any } | null>(null)
@@ -2514,23 +2510,6 @@ function CertificateMonitorView({
 }
 
 // Helper Components
-function StatCard({ icon, label, value, total }: { icon: React.ReactNode; label: string; value: number; total?: number }) {
-  return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-sm text-gray-600">{label}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
-            {value}
-            {total && <span className="text-sm text-gray-500 ml-2">/ {total}</span>}
-          </p>
-        </div>
-        <div className="ml-4">{icon}</div>
-      </div>
-    </div>
-  )
-}
-
 function TabButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
   return (
     <button

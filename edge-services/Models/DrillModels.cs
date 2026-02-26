@@ -1,0 +1,273 @@
+using System;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace MaritimeEdge.Models;
+
+/// <summary>
+/// Master data for drill types (SOLAS/ISPS compliance)
+/// Maps to "Name & Source" column in Excel
+/// </summary>
+public class DrillType
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    [MaxLength(100)]
+    public string DrillCode { get; set; } = null!; // ABANDON_SHIP_MONTHLY, FIRE_DRILL_MONTHLY
+
+    [Required]
+    [MaxLength(300)]
+    public string DrillName { get; set; } = null!; // "Abandon ship drill (SOLAS III 19.3.2 & 19.3.4.1)"
+
+    [MaxLength(300)]
+    public string? DrillNameLocal { get; set; } // Vietnamese translation
+
+    [Required]
+    [MaxLength(50)]
+    public string Category { get; set; } = null!; // STATION_DRILLS, EXERCISES, EDUCATION, TRAINING, CHECKS, ISPS
+
+    [MaxLength(500)]
+    public string? RegulationSource { get; set; } // "SOLAS III 19.3.2 / SOLAS III 19.3.4 / except 19.3.4.1 & 5"
+
+    [MaxLength(255)]
+    public string? RegulationPeriod { get; set; } // "At least once every month"
+
+    // Frequency settings (from "Implementation Period" column)
+    [Required]
+    [MaxLength(50)]
+    public string FrequencyType { get; set; } = null!; // MONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL, FIVE_YEARS, ON_EVENT
+
+    public int? FrequencyDays { get; set; } // 30 (monthly), 90 (quarterly), 180 (semi-annual), 365 (annual), 1825 (5 years)
+
+    // Trigger settings (for *1 special rules)
+    [MaxLength(50)]
+    public string? TriggerCondition { get; set; } // ON_DEPARTURE, ON_CREW_CHANGE, ROUTINE
+
+    public int? TriggerWithinDays { get; set; } // 1 (within 24h), 14 (within 2 weeks), etc.
+
+    // Alert settings (from "Before due" field in Ảnh 3)
+    public int WarningDaysBefore { get; set; } = 7; // Alert 7 days before due date
+
+    // Assignment
+    [MaxLength(50)]
+    public string? AssignedToRole { get; set; } // MASTER, CHIEF_OFFICER, CHIEF_ENGINEER
+
+    // Rich text content (from "Data card" tab in Ảnh 3)
+    [Column(TypeName = "text")]
+    public string? InstructionContent { get; set; } // HTML/Markdown format
+
+    // Checkboxes from Ảnh 3
+    public bool IsFixedInterval { get; set; } = true; // "Fixed intervals" checkbox
+    public bool IsDocumentRequired { get; set; } = false; // "Document is required"
+    public bool IsSecureHistory { get; set; } = false; // "Secure history"
+    public bool IsCrewMemberRequired { get; set; } = false; // "Crew Member Required"
+    public bool IsMandatorySignOnEvaluation { get; set; } = false; // "Mandatory sign on evaluation"
+    public bool HasNoExpiry { get; set; } = false; // "No expiry" checkbox
+
+    // Metadata
+    public bool IsMandatory { get; set; } = true;
+    public int DisplayOrder { get; set; } = 0; // For tree view ordering in Ảnh 2
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    // Navigation properties
+    public ICollection<DrillSchedule> Schedules { get; set; } = new List<DrillSchedule>();
+    public ICollection<DrillLog> Logs { get; set; } = new List<DrillLog>();
+}
+
+/// <summary>
+/// Drill schedules - represents timeline bars in Ảnh 2
+/// Auto-generated from DrillType frequency rules
+/// </summary>
+public class DrillSchedule
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid DrillTypeId { get; set; }
+
+    public Guid? VesselId { get; set; } // NULL = applies to current vessel
+
+    [MaxLength(100)]
+    public string? ScheduleCode { get; set; } // DS-2026-02-FIRE-001
+
+    // Schedule timing (from Ảnh 3 form fields)
+    public int ScheduledMonth { get; set; } // 1-12
+    public int ScheduledYear { get; set; } // 2026
+
+    [Required]
+    public DateTime StartDate { get; set; } // "Start date" field in Ảnh 3
+
+    [Required]
+    public DateTime DueDate { get; set; } // "Due date" field in Ảnh 3
+
+    [Required]
+    public DateTime OverdueDate { get; set; } // DueDate + grace period (usually DueDate + 0 days)
+
+    // Status mapping to colors in Ảnh 2
+    [Required]
+    [MaxLength(50)]
+    public string Status { get; set; } = "SCHEDULED"; // SCHEDULED, DUE, OVERDUE, COMPLETED, CANCELLED
+
+    // Assignment
+    public Guid? AssignedToCrewId { get; set; }
+
+    [MaxLength(50)]
+    public string? AssignedToRole { get; set; }
+
+    // Execution tracking
+    public DateTime? LastExecutedDate { get; set; }
+    public DateTime? NextDueDate { get; set; }
+    public int ExecutionCount { get; set; } = 0;
+
+    // Labels shown on timeline bars (Ảnh 2: "2 w", "3 m", "6 m", "-2 d", "6 d")
+    [MaxLength(20)]
+    public string? TimelineLabel { get; set; } // Calculated: "2w" (2 weeks away), "3m" (3 months), "-2d" (2 days overdue)
+
+    // Metadata
+    public bool IsAutoGenerated { get; set; } = true;
+    public string? Remarks { get; set; }
+    
+    // Rich text content from "Data card" tab (Ảnh 3)
+    // Each schedule can have its own instruction content, separate from drill type template
+    public string? InstructionContent { get; set; }
+    
+    // Options from Ảnh 3 modal - each schedule can override drill type defaults
+    public bool IsFixedInterval { get; set; } = true;
+    public bool IsDocumentRequired { get; set; } = false;
+    public bool IsSecureHistory { get; set; } = false;
+    public bool IsCrewMemberRequired { get; set; } = false;
+    public bool IsMandatorySignOnEvaluation { get; set; } = false;
+    
+    // Participants - JSON array of crew member GUIDs
+    // Only used when IsCrewMemberRequired = true
+    // Format: ["guid1", "guid2", "guid3"]
+    public string? ParticipantsJson { get; set; }
+    
+    // Documents/Attachments - JSON array of document objects
+    // Format: [{"name": "Safety Manual.pdf", "url": "https://...", "uploadedAt": "2026-02-20T10:00:00Z"}]
+    [Column(TypeName = "jsonb")]
+    public string? DocumentsJson { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    // Soft Delete (Audit Trail for Maritime Compliance)
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(100)]
+    public string? DeletedBy { get; set; } // Username or user ID who deleted
+    [MaxLength(500)]
+    public string? DeleteReason { get; set; } // Optional reason for deletion
+
+    // Sync
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "EDGE"; // EDGE or SHORE
+
+    public bool IsSynced { get; set; } = false;
+
+    // Navigation properties
+    [ForeignKey("DrillTypeId")]
+    public DrillType DrillType { get; set; } = null!;
+
+    [ForeignKey("AssignedToCrewId")]
+    public CrewMember? AssignedToCrew { get; set; }
+
+    public ICollection<DrillLog> Logs { get; set; } = new List<DrillLog>();
+}
+
+/// <summary>
+/// Drill execution logs - records when drill is completed
+/// Triggered when user clicks "Save" in Ảnh 3 modal
+/// </summary>
+public class DrillLog
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid? DrillScheduleId { get; set; }
+
+    [Required]
+    public Guid DrillTypeId { get; set; }
+
+    [MaxLength(50)]
+    public string? LogCode { get; set; } // DL-2026-02-15-FIRE-001
+
+    // Execution information
+    [Required]
+    public DateTime ExecutionDate { get; set; }
+
+    public TimeSpan? ExecutionTime { get; set; } // Time of day (e.g., 14:30)
+
+    public TimeSpan? Duration { get; set; } // How long the drill took
+
+    [MaxLength(100)]
+    public string? Location { get; set; } // "Engine Room", "Main Deck", etc.
+
+    [MaxLength(255)]
+    public string? WeatherCondition { get; set; } // Sea state, wind, etc.
+
+    // Results
+    [MaxLength(50)]
+    public string Result { get; set; } = "PASS"; // PASS, FAIL, PARTIAL
+
+    [MaxLength(50)]
+    public string? OverallAssessment { get; set; } // EXCELLENT, GOOD, SATISFACTORY, NEEDS_IMPROVEMENT
+
+    // Participants (stored as JSON)
+    [Column(TypeName = "jsonb")]
+    public string? Participants { get; set; } // [{"crew_id": "xxx", "name": "John Doe", "role": "Team Leader", "performance": "Good"}]
+
+    public int TotalParticipants { get; set; } = 0;
+    public int NewCrewCount { get; set; } = 0; // For tracking *1 rule (25% crew turnover trigger)
+
+    // Observations and remarks
+    [MaxLength(2000)]
+    public string? Findings { get; set; } // Issues discovered during drill
+
+    [MaxLength(2000)]
+    public string? CorrectiveActions { get; set; } // Actions to address findings
+
+    [MaxLength(2000)]
+    public string? GeneralRemarks { get; set; } // Additional comments
+
+    [MaxLength(2000)]
+    public string? LessonsLearned { get; set; } // Key takeaways
+
+    // Approval workflow (from Ảnh 3: "EVERY DRILL REPORT NEEDS TO BE APPROVED BY THE MASTER")
+    public Guid? ConductedByCrewId { get; set; } // Officer who led the drill
+    public Guid? VerifiedByCrewId { get; set; } // Master who approved
+    public DateTime? VerifiedDate { get; set; }
+    public bool IsLocked { get; set; } = false; // Cannot edit after Master approval
+
+    // Attachments
+    [Column(TypeName = "jsonb")]
+    public string? AttachmentUrls { get; set; } // ["https://...", "https://..."]
+
+    // Metadata
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    // Sync
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "EDGE";
+
+    public bool IsSynced { get; set; } = false;
+
+    // Navigation properties
+    [ForeignKey("DrillScheduleId")]
+    public DrillSchedule? DrillSchedule { get; set; }
+
+    [ForeignKey("DrillTypeId")]
+    public DrillType DrillType { get; set; } = null!;
+
+    [ForeignKey("ConductedByCrewId")]
+    public CrewMember? ConductedBy { get; set; }
+
+    [ForeignKey("VerifiedByCrewId")]
+    public CrewMember? VerifiedBy { get; set; }
+}

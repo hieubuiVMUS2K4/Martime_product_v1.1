@@ -82,7 +82,9 @@
     "scheduleConfig": "Cấu hình lịch",
     "masterSchedule": "Lịch tổng",
     "edgeDashboard": "Bảng điều khiển",
-    "localVessel": "Tàu địa phương"
+    "localVessel": "Tàu địa phương",
+    "safety": "An toàn & Diễn tập",
+    "drillTraining": "Diễn tập"
   },
   "header": {
     "title": "Vận hành tàu",

@@ -82,7 +82,9 @@
     "scheduleConfig": "Schedule Config",
     "masterSchedule": "Master Schedule",
     "edgeDashboard": "Edge Dashboard",
-    "localVessel": "Local Vessel"
+    "localVessel": "Local Vessel",
+    "safety": "Safety & Drills",
+    "drillTraining": "Drill Training"
   },
   "header": {
     "title": "Vessel Operations",

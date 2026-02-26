@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom'
-import { Award, Calendar, FileText, Building, ArrowLeft, Save, Users, Globe } from 'lucide-react'
+import { Award, Save } from 'lucide-react'
 import { maritimeService } from '../../services/maritime.service'
 import { Certificate, CrewMember, Country } from '../../types/maritime.types'
 import { useTranslationSafe } from '@/contexts/I18nContext'
