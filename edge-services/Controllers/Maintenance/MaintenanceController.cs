@@ -507,7 +507,7 @@ public class MaintenanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting task {Id}", id);
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -684,7 +684,7 @@ public class MaintenanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating task {Id}", id);
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -765,7 +765,7 @@ public class MaintenanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating task status {Id}", id);
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -832,7 +832,7 @@ public class MaintenanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error assigning task {Id}", id);
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -959,7 +959,7 @@ public class MaintenanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error approving/rejecting task {Id}", id);
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -1080,7 +1080,7 @@ public class MaintenanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting task {Id}", id);
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -1120,7 +1120,7 @@ public class MaintenanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error starting task {Id}", id);
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 

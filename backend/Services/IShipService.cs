@@ -4,7 +4,7 @@ namespace ProductApi.Services
 {
     public interface IShipService
     {
-        IEnumerable<ShipDto> GetAll();
-        ShipDto Create(ShipDto dto);
+        Task<IEnumerable<ShipDto>> GetAllAsync();
+        Task<ShipDto> CreateAsync(ShipDto dto);
     }
 }

@@ -240,17 +240,20 @@ namespace MaritimeEdge.Services.Logbooks
                     return (false, "Cannot update a signed entry.");
                 }
 
+                // Required fields - always update
                 entry.EntryDate = dto.EntryDate;
                 entry.OperationCode = dto.OperationCode;
                 entry.OperationDescription = dto.OperationDescription;
-                entry.LocationLat = dto.LocationLat;
-                entry.LocationLon = dto.LocationLon;
-                entry.Quantity = dto.Quantity;
-                entry.QuantityUnit = dto.QuantityUnit;
-                entry.TankFrom = dto.TankFrom;
-                entry.TankTo = dto.TankTo;
                 entry.OfficerInCharge = dto.OfficerInCharge;
-                entry.Remarks = dto.Remarks;
+
+                // Nullable fields - only update if provided
+                if (dto.LocationLat.HasValue) entry.LocationLat = dto.LocationLat;
+                if (dto.LocationLon.HasValue) entry.LocationLon = dto.LocationLon;
+                if (dto.Quantity.HasValue) entry.Quantity = dto.Quantity;
+                if (dto.QuantityUnit != null) entry.QuantityUnit = dto.QuantityUnit;
+                if (dto.TankFrom != null) entry.TankFrom = dto.TankFrom;
+                if (dto.TankTo != null) entry.TankTo = dto.TankTo;
+                if (dto.Remarks != null) entry.Remarks = dto.Remarks;
                 
                 entry.UpdatedAt = DateTime.UtcNow;
                 entry.IsSynced = false;

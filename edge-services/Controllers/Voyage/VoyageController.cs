@@ -147,7 +147,7 @@ public class VoyageController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return BadRequest(new { error = "An internal error occurred." });
         }
         catch (Exception ex)
         {
@@ -170,7 +170,7 @@ public class VoyageController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return BadRequest(new { error = "An internal error occurred." });
         }
         catch (Exception ex)
         {
@@ -213,7 +213,7 @@ public class VoyageController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return BadRequest(new { error = "An internal error occurred." });
         }
         catch (Exception ex)
         {
@@ -236,7 +236,7 @@ public class VoyageController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return BadRequest(new { error = "An internal error occurred." });
         }
         catch (Exception ex)
         {
@@ -259,7 +259,7 @@ public class VoyageController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return BadRequest(new { error = "An internal error occurred." });
         }
         catch (Exception ex)
         {
@@ -302,7 +302,7 @@ public class VoyageController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return Conflict(new { error = ex.Message });
+            return Conflict(new { error = "An internal error occurred." });
         }
         catch (Exception ex)
         {
@@ -325,7 +325,7 @@ public class VoyageController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return BadRequest(new { error = "An internal error occurred." });
         }
         catch (Exception ex)
         {
@@ -348,7 +348,7 @@ public class VoyageController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return BadRequest(new { error = "An internal error occurred." });
         }
         catch (Exception ex)
         {
@@ -371,7 +371,7 @@ public class VoyageController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return BadRequest(new { error = "An internal error occurred." });
         }
         catch (Exception ex)
         {

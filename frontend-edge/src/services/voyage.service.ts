@@ -19,6 +19,7 @@ import type {
   UpdateCargoOperationDto,
 } from '@/types/voyage.types'
 import type { PaginatedResponse, VoyageRecord } from '@/types/maritime.types'
+import { getAuthToken } from './api.client'
 
 // ============================================================
 // VOYAGE MANAGEMENT SERVICE
@@ -33,6 +34,12 @@ class VoyageManagementService {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-cache',
       ...(options?.headers as Record<string, string> | undefined),
+    }
+
+    // Inject auth token for audit trail (user identity in backend)
+    const token = getAuthToken()
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
     }
 
     const response = await fetch(url, { ...options, headers })

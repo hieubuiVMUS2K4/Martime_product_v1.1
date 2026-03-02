@@ -62,8 +62,17 @@ public class CountriesController : ControllerBase
                 return BadRequest();
             }
 
-            country.UpdatedAt = DateTime.UtcNow;
-            _context.Entry(country).State = EntityState.Modified;
+            var existing = await _context.Countries.FindAsync(id);
+            if (existing == null)
+            {
+                return NotFound();
+            }
+
+            // Only update fields that are provided
+            if (country.CountryName != null) existing.CountryName = country.CountryName;
+            if (country.CountryCode != null) existing.CountryCode = country.CountryCode;
+            existing.IsActive = country.IsActive;
+            existing.UpdatedAt = DateTime.UtcNow;
 
             try
             {

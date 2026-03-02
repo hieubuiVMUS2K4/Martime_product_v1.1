@@ -3,7 +3,7 @@
  * API Client for IMO/SOLAS/MARPOL Compliant Reporting System
  */
 
-import { apiClient } from './api.client';
+import { apiClient, getAuthToken } from './api.client';
 import type {
   // Report Types
   ReportType,
@@ -290,9 +290,13 @@ export class ReportingService {
 
   static async softDeleteReport(reportId: string, reason: string): Promise<void> {
     // Note: DELETE with body - need custom implementation
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const token = getAuthToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
     await fetch(`${BASE_URL}/${reportId}`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ reason })
     });
   }

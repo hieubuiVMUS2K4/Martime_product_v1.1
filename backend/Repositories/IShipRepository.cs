@@ -4,7 +4,7 @@ namespace ProductApi.Services
 {
     public interface IShipRepository
     {
-        IEnumerable<Ship> GetAll();
-        Ship Add(Ship ship);
+        Task<IEnumerable<Ship>> GetAllAsync();
+        Task<Ship> AddAsync(Ship ship);
     }
 }

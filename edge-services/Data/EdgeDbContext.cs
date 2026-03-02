@@ -78,6 +78,11 @@ public class EdgeDbContext : DbContext
     // Authentication & Authorization
     public DbSet<Role> Roles { get; set; } = null!;
     public DbSet<User> Users { get; set; } = null!;
+    public DbSet<UserSession> UserSessions { get; set; } = null!;
+    public DbSet<LoginAttempt> LoginAttempts { get; set; } = null!;
+
+    // System Logging (ISM Code / IMO MSC.428)
+    public DbSet<SystemLog> SystemLogs { get; set; } = null!;
 
     // Maritime Reporting System (IMO/SOLAS/MARPOL Compliance)
     public DbSet<ReportType> ReportTypes { get; set; } = null!;
@@ -125,6 +130,19 @@ public class EdgeDbContext : DbContext
     public DbSet<DrillType> DrillTypes { get; set; } = null!;
     public DbSet<DrillSchedule> DrillSchedules { get; set; } = null!;
     public DbSet<DrillLog> DrillLogs { get; set; } = null!;
+
+    // Ship's Data - Quản lý thông tin tàu (IMO, SOLAS, MARPOL)
+    public DbSet<ShipData> ShipData { get; set; } = null!;
+    public DbSet<ShipMainEngine> ShipMainEngines { get; set; } = null!;
+    public DbSet<ShipAuxiliaryEngine> ShipAuxiliaryEngines { get; set; } = null!;
+    public DbSet<ShipPropeller> ShipPropellers { get; set; } = null!;
+    public DbSet<ShipBowthruster> ShipBowthrusters { get; set; } = null!;
+    public DbSet<ShipSternthruster> ShipSternthrusters { get; set; } = null!;
+    public DbSet<ShipRudder> ShipRudders { get; set; } = null!;
+    public DbSet<ShipShaftGenerator> ShipShaftGenerators { get; set; } = null!;
+    public DbSet<ShipBoiler> ShipBoilers { get; set; } = null!;
+    public DbSet<ShipLoadLine> ShipLoadLines { get; set; } = null!;
+    public DbSet<ShipPilotCardData> ShipPilotCardData { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -633,6 +651,149 @@ public class EdgeDbContext : DbContext
                 .WithMany(l => l.DailyEntries)
                 .HasForeignKey(e => e.AbstractLogLegId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========== SHIP'S DATA MODULE ==========
+        modelBuilder.Entity<ShipData>(entity =>
+        {
+            entity.ToTable("ship_data");
+
+            entity.HasIndex(e => e.ImoNumber)
+                .IsUnique()
+                .HasDatabaseName("idx_ship_data_imo_unique");
+
+            entity.HasIndex(e => e.ShipName)
+                .HasDatabaseName("idx_ship_data_name");
+        });
+
+        modelBuilder.Entity<ShipMainEngine>(entity =>
+        {
+            entity.ToTable("ship_main_engines");
+
+            entity.HasOne(e => e.ShipData)
+                .WithMany(s => s.MainEngines)
+                .HasForeignKey(e => e.ShipDataId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ShipDataId)
+                .HasDatabaseName("idx_ship_me_ship_data");
+        });
+
+        modelBuilder.Entity<ShipAuxiliaryEngine>(entity =>
+        {
+            entity.ToTable("ship_auxiliary_engines");
+
+            entity.HasOne(e => e.ShipData)
+                .WithMany(s => s.AuxiliaryEngines)
+                .HasForeignKey(e => e.ShipDataId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ShipDataId)
+                .HasDatabaseName("idx_ship_ae_ship_data");
+        });
+
+        modelBuilder.Entity<ShipPropeller>(entity =>
+        {
+            entity.ToTable("ship_propellers");
+
+            entity.HasOne(e => e.ShipData)
+                .WithMany(s => s.Propellers)
+                .HasForeignKey(e => e.ShipDataId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ShipDataId)
+                .HasDatabaseName("idx_ship_prop_ship_data");
+        });
+
+        modelBuilder.Entity<ShipBowthruster>(entity =>
+        {
+            entity.ToTable("ship_bowthrusters");
+
+            entity.HasOne(e => e.ShipData)
+                .WithMany(s => s.Bowthrusters)
+                .HasForeignKey(e => e.ShipDataId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ShipDataId)
+                .HasDatabaseName("idx_ship_bt_ship_data");
+        });
+
+        modelBuilder.Entity<ShipSternthruster>(entity =>
+        {
+            entity.ToTable("ship_sternthrusters");
+
+            entity.HasOne(e => e.ShipData)
+                .WithMany(s => s.Sternthrusters)
+                .HasForeignKey(e => e.ShipDataId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ShipDataId)
+                .HasDatabaseName("idx_ship_st_ship_data");
+        });
+
+        modelBuilder.Entity<ShipRudder>(entity =>
+        {
+            entity.ToTable("ship_rudders");
+
+            entity.HasOne(e => e.ShipData)
+                .WithMany(s => s.Rudders)
+                .HasForeignKey(e => e.ShipDataId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ShipDataId)
+                .HasDatabaseName("idx_ship_rud_ship_data");
+        });
+
+        modelBuilder.Entity<ShipShaftGenerator>(entity =>
+        {
+            entity.ToTable("ship_shaft_generators");
+
+            entity.HasOne(e => e.ShipData)
+                .WithMany(s => s.ShaftGenerators)
+                .HasForeignKey(e => e.ShipDataId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ShipDataId)
+                .HasDatabaseName("idx_ship_sg_ship_data");
+        });
+
+        modelBuilder.Entity<ShipBoiler>(entity =>
+        {
+            entity.ToTable("ship_boilers");
+
+            entity.HasOne(e => e.ShipData)
+                .WithMany(s => s.Boilers)
+                .HasForeignKey(e => e.ShipDataId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ShipDataId)
+                .HasDatabaseName("idx_ship_boil_ship_data");
+        });
+
+        modelBuilder.Entity<ShipLoadLine>(entity =>
+        {
+            entity.ToTable("ship_load_lines");
+
+            entity.HasOne(e => e.ShipData)
+                .WithMany(s => s.LoadLines)
+                .HasForeignKey(e => e.ShipDataId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ShipDataId)
+                .HasDatabaseName("idx_ship_ll_ship_data");
+        });
+
+        modelBuilder.Entity<ShipPilotCardData>(entity =>
+        {
+            entity.ToTable("ship_pilot_card_data");
+
+            entity.HasOne(e => e.ShipData)
+                .WithMany(s => s.PilotCardData)
+                .HasForeignKey(e => e.ShipDataId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ShipDataId)
+                .HasDatabaseName("idx_ship_pcd_ship_data");
         });
 
         // ========== SYNC QUEUE ==========
@@ -1475,7 +1636,7 @@ public class EdgeDbContext : DbContext
                 .HasFilter("is_active = true");
 
             // Foreign key relationship with Role
-            entity.HasOne<Role>()
+            entity.HasOne(u => u.Role)
                 .WithMany()
                 .HasForeignKey(e => e.RoleId)
                 .OnDelete(DeleteBehavior.Restrict);
@@ -1486,6 +1647,94 @@ public class EdgeDbContext : DbContext
                 .HasForeignKey(e => e.CrewId)
                 .HasPrincipalKey(c => c.CrewId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ========== USER SESSIONS (ISPS/ISM Compliant) ==========
+        modelBuilder.Entity<UserSession>(entity =>
+        {
+            entity.ToTable("user_sessions");
+
+            entity.HasIndex(e => e.AccessToken)
+                .IsUnique()
+                .HasDatabaseName("idx_session_access_token");
+
+            entity.HasIndex(e => e.RefreshToken)
+                .IsUnique()
+                .HasDatabaseName("idx_session_refresh_token");
+
+            entity.HasIndex(e => e.UserId)
+                .HasDatabaseName("idx_session_user_id");
+
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_session_active")
+                .HasFilter("is_active = true");
+
+            entity.HasIndex(e => new { e.IsActive, e.AccessTokenExpiresAt })
+                .HasDatabaseName("idx_session_active_expiry");
+
+            entity.HasIndex(e => e.LoginAt)
+                .HasDatabaseName("idx_session_login_at")
+                .IsDescending();
+
+            // FK to User
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========== SYSTEM LOG (ISM Code / IMO MSC.428) ==========
+        modelBuilder.Entity<SystemLog>(entity =>
+        {
+            entity.ToTable("system_logs");
+
+            entity.HasIndex(e => e.Timestamp)
+                .HasDatabaseName("idx_syslog_timestamp")
+                .IsDescending();
+
+            entity.HasIndex(e => e.Category)
+                .HasDatabaseName("idx_syslog_category");
+
+            entity.HasIndex(e => e.Action)
+                .HasDatabaseName("idx_syslog_action");
+
+            entity.HasIndex(e => e.Level)
+                .HasDatabaseName("idx_syslog_level");
+
+            entity.HasIndex(e => e.UserId)
+                .HasDatabaseName("idx_syslog_user_id");
+
+            entity.HasIndex(e => new { e.Category, e.Timestamp })
+                .HasDatabaseName("idx_syslog_category_timestamp");
+
+            entity.HasIndex(e => new { e.UserId, e.Category, e.Timestamp })
+                .HasDatabaseName("idx_syslog_user_category_time");
+
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_syslog_synced")
+                .HasFilter("is_synced = false");
+
+            entity.HasIndex(e => e.SessionId)
+                .HasDatabaseName("idx_syslog_session_id");
+        });
+
+        // ========== LOGIN ATTEMPTS (Brute Force Protection) ==========
+        modelBuilder.Entity<LoginAttempt>(entity =>
+        {
+            entity.ToTable("login_attempts");
+
+            entity.HasIndex(e => e.Username)
+                .HasDatabaseName("idx_login_attempt_username");
+
+            entity.HasIndex(e => e.AttemptedAt)
+                .HasDatabaseName("idx_login_attempt_time")
+                .IsDescending();
+
+            entity.HasIndex(e => new { e.Username, e.AttemptedAt })
+                .HasDatabaseName("idx_login_attempt_user_time");
+
+            entity.HasIndex(e => e.IpAddress)
+                .HasDatabaseName("idx_login_attempt_ip");
         });
 
         // ========== MARITIME REPORTING SYSTEM ==========
@@ -1812,7 +2061,7 @@ public class EdgeDbContext : DbContext
     }
 
     /// <summary>
-    /// Cleanup old data based on retention policy
+    /// Cleanup old data based on retention policy — uses ExecuteDeleteAsync for efficiency
     /// </summary>
     public async Task CleanupOldDataAsync(Dictionary<string, int> retentionDays)
     {
@@ -1824,74 +2073,96 @@ public class EdgeDbContext : DbContext
         // Position Data
         if (cutoffDates.TryGetValue("PositionData", out var positionCutoff))
         {
-            var oldPositions = await PositionData
+            await PositionData
                 .Where(p => p.Timestamp < positionCutoff && p.IsSynced)
-                .ToListAsync();
-            PositionData.RemoveRange(oldPositions);
+                .ExecuteDeleteAsync();
         }
 
         // AIS Data
         if (cutoffDates.TryGetValue("AisData", out var aisCutoff))
         {
-            var oldAis = await AisData
+            await AisData
                 .Where(a => a.Timestamp < aisCutoff && a.IsSynced)
-                .ToListAsync();
-            AisData.RemoveRange(oldAis);
+                .ExecuteDeleteAsync();
         }
 
         // Engine Data
         if (cutoffDates.TryGetValue("EngineData", out var engineCutoff))
         {
-            var oldEngine = await EngineData
+            await EngineData
                 .Where(e => e.Timestamp < engineCutoff && e.IsSynced)
-                .ToListAsync();
-            EngineData.RemoveRange(oldEngine);
+                .ExecuteDeleteAsync();
         }
 
         // Environmental Data
         if (cutoffDates.TryGetValue("EnvironmentalData", out var envCutoff))
         {
-            var oldEnv = await EnvironmentalData
+            await EnvironmentalData
                 .Where(e => e.Timestamp < envCutoff && e.IsSynced)
-                .ToListAsync();
-            EnvironmentalData.RemoveRange(oldEnv);
+                .ExecuteDeleteAsync();
         }
 
         // NMEA Raw Data (keep only recent for debugging)
-        var nmeaCutoff = DateTime.UtcNow.AddDays(-1); // Keep only 1 day
-        var oldNmea = await NmeaRawData
+        var nmeaCutoff = DateTime.UtcNow.AddDays(-1);
+        await NmeaRawData
             .Where(n => n.Timestamp < nmeaCutoff && n.IsSynced)
-            .ToListAsync();
-        NmeaRawData.RemoveRange(oldNmea);
+            .ExecuteDeleteAsync();
 
         // Synced queue items older than 7 days
         var syncQueueCutoff = DateTime.UtcNow.AddDays(-7);
-        var oldSyncQueue = await SyncQueue
+        await SyncQueue
             .Where(s => s.SyncedAt != null && s.SyncedAt < syncQueueCutoff)
-            .ToListAsync();
-        SyncQueue.RemoveRange(oldSyncQueue);
-
-        await SaveChangesAsync();
+            .ExecuteDeleteAsync();
     }
 
     /// <summary>
-    /// Get unsynchronized records count
+    /// Get unsynchronized records count — executes via raw SQL in a single query
     /// </summary>
     public async Task<Dictionary<string, int>> GetUnsyncedCountsAsync()
     {
-        var counts = new Dictionary<string, int>
+        var sql = @"
+            SELECT 
+                (SELECT COUNT(*) FROM position_data WHERE is_synced = false) AS position_data,
+                (SELECT COUNT(*) FROM ais_data WHERE is_synced = false) AS ais_data,
+                (SELECT COUNT(*) FROM navigation_data WHERE is_synced = false) AS navigation_data,
+                (SELECT COUNT(*) FROM engine_data WHERE is_synced = false) AS engine_data,
+                (SELECT COUNT(*) FROM generator_data WHERE is_synced = false) AS generator_data,
+                (SELECT COUNT(*) FROM tank_levels WHERE is_synced = false) AS tank_levels,
+                (SELECT COUNT(*) FROM fuel_consumption WHERE is_synced = false) AS fuel_consumption,
+                (SELECT COUNT(*) FROM environmental_data WHERE is_synced = false) AS environmental_data,
+                (SELECT COUNT(*) FROM safety_alarms WHERE is_synced = false) AS safety_alarms,
+                (SELECT COUNT(*) FROM voyage_records WHERE is_synced = false) AS voyage_records
+        ";
+
+        var counts = new Dictionary<string, int>();
+        
+        using var command = Database.GetDbConnection().CreateCommand();
+        command.CommandText = sql;
+        
+        var wasOpen = command.Connection!.State == System.Data.ConnectionState.Open;
+        if (!wasOpen) await command.Connection.OpenAsync();
+        
+        try
         {
-            ["PositionData"] = await PositionData.CountAsync(p => !p.IsSynced),
-            ["AisData"] = await AisData.CountAsync(a => !a.IsSynced),
-            ["NavigationData"] = await NavigationData.CountAsync(n => !n.IsSynced),
-            ["EngineData"] = await EngineData.CountAsync(e => !e.IsSynced),
-            ["GeneratorData"] = await GeneratorData.CountAsync(g => !g.IsSynced),
-            ["TankLevels"] = await TankLevels.CountAsync(t => !t.IsSynced),
-            ["FuelConsumption"] = await FuelConsumption.CountAsync(f => !f.IsSynced),
-            ["EnvironmentalData"] = await EnvironmentalData.CountAsync(e => !e.IsSynced),
-            ["SafetyAlarms"] = await SafetyAlarms.CountAsync(s => !s.IsSynced),
-            ["VoyageRecords"] = await VoyageRecords.CountAsync(v => !v.IsSynced)
-        };
+            using var reader = await command.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                counts["PositionData"] = reader.GetInt32(reader.GetOrdinal("position_data"));
+                counts["AisData"] = reader.GetInt32(reader.GetOrdinal("ais_data"));
+                counts["NavigationData"] = reader.GetInt32(reader.GetOrdinal("navigation_data"));
+                counts["EngineData"] = reader.GetInt32(reader.GetOrdinal("engine_data"));
+                counts["GeneratorData"] = reader.GetInt32(reader.GetOrdinal("generator_data"));
+                counts["TankLevels"] = reader.GetInt32(reader.GetOrdinal("tank_levels"));
+                counts["FuelConsumption"] = reader.GetInt32(reader.GetOrdinal("fuel_consumption"));
+                counts["EnvironmentalData"] = reader.GetInt32(reader.GetOrdinal("environmental_data"));
+                counts["SafetyAlarms"] = reader.GetInt32(reader.GetOrdinal("safety_alarms"));
+                counts["VoyageRecords"] = reader.GetInt32(reader.GetOrdinal("voyage_records"));
+            }
+        }
+        finally
+        {
+            if (!wasOpen) await command.Connection.CloseAsync();
+        }
 
         return counts;
     }

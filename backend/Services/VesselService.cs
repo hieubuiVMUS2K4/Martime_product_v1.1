@@ -33,8 +33,10 @@ namespace ProductApi.Services
         public async Task<IEnumerable<VesselDto>> GetAllVesselsAsync()
         {
             var vessels = await _context.Vessels
+                .AsNoTracking()
                 .Include(v => v.Positions.OrderByDescending(p => p.Timestamp).Take(1))
                 .Include(v => v.Alerts.Where(a => !a.IsAcknowledged))
+                .AsSplitQuery()
                 .ToListAsync();
 
             return vessels.Select(MapToDto);
@@ -43,10 +45,12 @@ namespace ProductApi.Services
         public async Task<VesselDto?> GetVesselByIdAsync(Guid id)
         {
             var vessel = await _context.Vessels
-                .Include(v => v.Positions.OrderByDescending(p => p.Timestamp))
-                .Include(v => v.FuelRecords.OrderByDescending(f => f.ReportDate))
-                .Include(v => v.PortCalls.OrderByDescending(p => p.ArrivalTime))
+                .AsNoTracking()
+                .Include(v => v.Positions.OrderByDescending(p => p.Timestamp).Take(100))
+                .Include(v => v.FuelRecords.OrderByDescending(f => f.ReportDate).Take(100))
+                .Include(v => v.PortCalls.OrderByDescending(p => p.ArrivalTime).Take(50))
                 .Include(v => v.Alerts.Where(a => !a.IsAcknowledged))
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(v => v.Id == id);
 
             return vessel != null ? MapToDto(vessel) : null;
@@ -55,6 +59,7 @@ namespace ProductApi.Services
         public async Task<VesselDto?> GetVesselByIMOAsync(string imo)
         {
             var vessel = await _context.Vessels
+                .AsNoTracking()
                 .Include(v => v.Positions.OrderByDescending(p => p.Timestamp).Take(1))
                 .FirstOrDefaultAsync(v => v.IMO == imo);
 
@@ -148,6 +153,7 @@ namespace ProductApi.Services
         public async Task<IEnumerable<VesselPositionDto>> GetVesselPositionsAsync(Guid vesselId, DateTime? fromDate = null)
         {
             var query = _context.VesselPositions
+                .AsNoTracking()
                 .Where(vp => vp.VesselId == vesselId);
 
             if (fromDate.HasValue)
@@ -206,6 +212,7 @@ namespace ProductApi.Services
         public async Task<IEnumerable<FuelConsumptionDto>> GetVesselFuelRecordsAsync(Guid vesselId, DateTime? fromDate = null)
         {
             var query = _context.FuelConsumptions
+                .AsNoTracking()
                 .Where(fc => fc.VesselId == vesselId);
 
             if (fromDate.HasValue)
@@ -215,6 +222,7 @@ namespace ProductApi.Services
 
             var fuelRecords = await query
                 .OrderByDescending(fc => fc.ReportDate)
+                .Take(500) // Limit results
                 .ToListAsync();
 
             return fuelRecords.Select(f => new FuelConsumptionDto

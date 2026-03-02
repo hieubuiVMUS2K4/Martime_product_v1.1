@@ -151,7 +151,7 @@ public class MaterialController : ControllerBase
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "DB error creating category");
-            return StatusCode(500, new { error = "Database error", details = ex.InnerException?.Message ?? ex.Message });
+            return StatusCode(500, new { error = "Database error" });
         }
         catch (Exception ex)
         {
@@ -195,11 +195,14 @@ public class MaterialController : ControllerBase
                     return BadRequest(new { error = "Cannot set parent category: circular reference detected" });
             }
 
+            // Update required fields
             cat.CategoryCode = dto.CategoryCode;
             cat.Name = dto.Name;
-            cat.Description = dto.Description;
-            cat.ParentCategoryId = dto.ParentCategoryId;
             cat.IsActive = dto.IsActive;
+
+            // Update nullable fields - only if provided
+            if (dto.Description != null) cat.Description = dto.Description;
+            cat.ParentCategoryId = dto.ParentCategoryId; // Allow setting to null
             cat.IsSynced = false;
 
             await _context.SaveChangesAsync();
@@ -208,7 +211,7 @@ public class MaterialController : ControllerBase
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "DB error updating category {Id}", id);
-            return StatusCode(500, new { error = "Database error", details = ex.InnerException?.Message ?? ex.Message });
+            return StatusCode(500, new { error = "Database error" });
         }
         catch (Exception ex)
         {
@@ -244,7 +247,7 @@ public class MaterialController : ControllerBase
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "DB error deleting category {Id}", id);
-            return StatusCode(500, new { error = "Database error", details = ex.InnerException?.Message ?? ex.Message });
+            return StatusCode(500, new { error = "Database error" });
         }
         catch (Exception ex)
         {
@@ -485,7 +488,7 @@ public class MaterialController : ControllerBase
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "DB error creating item");
-            return StatusCode(500, new { error = "Database error", details = ex.InnerException?.Message ?? ex.Message });
+            return StatusCode(500, new { error = "Database error" });
         }
         catch (Exception ex)
         {
@@ -520,29 +523,31 @@ public class MaterialController : ControllerBase
             if (dto.MinStock.HasValue && dto.MaxStock.HasValue && dto.MinStock > dto.MaxStock)
                 return BadRequest(new { error = "MinStock cannot be greater than MaxStock" });
 
-            // Map fields
+            // Update required fields
             item.ItemCode = dto.ItemCode;
             item.Name = dto.Name;
             item.CategoryId = dto.CategoryId;
-            item.Specification = dto.Specification;
             item.Unit = dto.Unit;
             item.OnHandQuantity = dto.OnHandQuantity;
-            item.MinStock = dto.MinStock;
-            item.MaxStock = dto.MaxStock;
-            item.ReorderLevel = dto.ReorderLevel;
-            item.ReorderQuantity = dto.ReorderQuantity;
-            item.Location = dto.Location;
-            item.Manufacturer = dto.Manufacturer;
-            item.Supplier = dto.Supplier;
-            item.PartNumber = dto.PartNumber;
-            item.Barcode = dto.Barcode;
             item.BatchTracked = dto.BatchTracked;
             item.SerialTracked = dto.SerialTracked;
             item.ExpiryRequired = dto.ExpiryRequired;
-            item.UnitCost = dto.UnitCost;
-            item.Currency = dto.Currency;
-            item.Notes = dto.Notes;
             item.IsActive = dto.IsActive;
+
+            // Update nullable fields - only if provided
+            if (dto.Specification != null) item.Specification = dto.Specification;
+            if (dto.MinStock.HasValue) item.MinStock = dto.MinStock;
+            if (dto.MaxStock.HasValue) item.MaxStock = dto.MaxStock;
+            if (dto.ReorderLevel.HasValue) item.ReorderLevel = dto.ReorderLevel;
+            if (dto.ReorderQuantity.HasValue) item.ReorderQuantity = dto.ReorderQuantity;
+            if (dto.Location != null) item.Location = dto.Location;
+            if (dto.Manufacturer != null) item.Manufacturer = dto.Manufacturer;
+            if (dto.Supplier != null) item.Supplier = dto.Supplier;
+            if (dto.PartNumber != null) item.PartNumber = dto.PartNumber;
+            if (dto.Barcode != null) item.Barcode = dto.Barcode;
+            if (dto.UnitCost.HasValue) item.UnitCost = dto.UnitCost;
+            if (dto.Currency != null) item.Currency = dto.Currency;
+            if (dto.Notes != null) item.Notes = dto.Notes;
             item.IsSynced = false;
 
             await _context.SaveChangesAsync();
@@ -556,7 +561,7 @@ public class MaterialController : ControllerBase
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "DB error updating item {Id}", id);
-            return StatusCode(500, new { error = "Database error", details = ex.InnerException?.Message ?? ex.Message });
+            return StatusCode(500, new { error = "Database error" });
         }
         catch (Exception ex)
         {
@@ -606,7 +611,7 @@ public class MaterialController : ControllerBase
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "DB error deleting item {Id}", id);
-            return StatusCode(500, new { error = "Database error", details = ex.InnerException?.Message ?? ex.Message });
+            return StatusCode(500, new { error = "Database error" });
         }
         catch (Exception ex)
         {
@@ -661,7 +666,7 @@ public class MaterialController : ControllerBase
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "DB error adjusting stock for item {ItemId}", dto.ItemId);
-            return StatusCode(500, new { error = "Database error", details = ex.InnerException?.Message ?? ex.Message });
+            return StatusCode(500, new { error = "Database error" });
         }
         catch (Exception ex)
         {

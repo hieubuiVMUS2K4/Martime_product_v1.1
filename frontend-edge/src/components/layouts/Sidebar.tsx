@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
+import { useAuthStore } from '@/stores/auth.store'
 import {
   LayoutDashboard,
   Navigation,
@@ -53,6 +54,7 @@ const getNavigation = (t: (key: string) => string) => [
   },
   { name: t('nav.materials'), to: '/materials', icon: Boxes },
   { name: t('nav.reporting'), to: '/reporting', icon: ClipboardList },
+  { name: t('nav.shipData') || 'Ship Data', to: '/ship-data', icon: Anchor },
   { name: t('nav.voyage'), to: '/voyage', icon: Ship },
   { name: t('nav.ports') || 'Ports', to: '/ports', icon: MapPin },
   { name: t('nav.compliance'), to: '/compliance', icon: FileText },
@@ -63,6 +65,7 @@ const getNavigation = (t: (key: string) => string) => [
       { name: t('nav.drillTraining'), to: '/safety/drills', icon: Calendar },
     ]
   },
+  { name: t('nav.auditLog') || 'Audit Log', to: '/audit-log', icon: Shield, roles: ['ADMIN', 'CAPTAIN'] },
   { name: t('nav.sync'), to: '/sync', icon: RefreshCw },
 ]
 
@@ -84,9 +87,15 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [logbooksOpen, setLogbooksOpen] = useState(location.pathname.startsWith('/logbooks'))
   const [expandedMenus, setExpandedMenus] = useState<string[]>([t('nav.pms')])
+  const userRoleCode = useAuthStore(s => s.user?.roleCode?.toUpperCase())
 
-  // Get translated navigation items
-  const navigation = getNavigation(t)
+  // Get translated navigation items, filtered by user role
+  const navigation = useMemo(() => {
+    return getNavigation(t).filter(item => {
+      if (!('roles' in item) || !item.roles) return true
+      return userRoleCode && (item.roles as string[]).includes(userRoleCode)
+    })
+  }, [t, userRoleCode])
   const logbooksMenu = getLogbooksMenu(t)
 
   const toggleMenu = (menuName: string) => {

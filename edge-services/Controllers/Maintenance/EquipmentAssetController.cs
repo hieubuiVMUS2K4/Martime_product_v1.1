@@ -141,18 +141,20 @@ public class EquipmentAssetController : ControllerBase
             if (asset == null)
                 return NotFound(new { error = "Equipment asset not found" });
 
-            // Update fields
+            // Update required fields
             asset.AssetName = dto.AssetName;
-            asset.Manufacturer = dto.Manufacturer;
-            asset.Model = dto.Model;
-            asset.SerialNumber = dto.SerialNumber;
-            asset.EquipmentGroupId = dto.EquipmentGroupId;
-            asset.Location = dto.Location;
             asset.Criticality = dto.Criticality;
             asset.Status = dto.Status;
-            asset.TechnicalSpecs = dto.TechnicalSpecs;
-            asset.Notes = dto.Notes;
             asset.IsActive = dto.IsActive;
+
+            // Update nullable fields - only if provided
+            if (dto.Manufacturer != null) asset.Manufacturer = dto.Manufacturer;
+            if (dto.Model != null) asset.Model = dto.Model;
+            if (dto.SerialNumber != null) asset.SerialNumber = dto.SerialNumber;
+            if (dto.EquipmentGroupId.HasValue) asset.EquipmentGroupId = dto.EquipmentGroupId;
+            if (dto.Location != null) asset.Location = dto.Location;
+            if (dto.TechnicalSpecs != null) asset.TechnicalSpecs = dto.TechnicalSpecs;
+            if (dto.Notes != null) asset.Notes = dto.Notes;
             
             // Update running hours if provided
             if (dto.CurrentRunningHours.HasValue)

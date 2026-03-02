@@ -51,7 +51,7 @@ public class SignalKTestController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching SignalK data");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -82,7 +82,7 @@ public class SignalKTestController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching navigation data");
-            return StatusCode(500, new { error = ex.Message });
+            return StatusCode(500, new { error = "An internal error occurred." });
         }
     }
 
@@ -113,7 +113,7 @@ public class SignalKTestController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching environment data");
-            return StatusCode(500, new { error = ex.Message });
+            return StatusCode(500, new { error = "An internal error occurred." });
         }
     }
 
@@ -144,7 +144,7 @@ public class SignalKTestController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching propulsion data");
-            return StatusCode(500, new { error = ex.Message });
+            return StatusCode(500, new { error = "An internal error occurred." });
         }
     }
 
@@ -175,7 +175,7 @@ public class SignalKTestController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching electrical data");
-            return StatusCode(500, new { error = ex.Message });
+            return StatusCode(500, new { error = "An internal error occurred." });
         }
     }
 
@@ -203,7 +203,7 @@ public class SignalKTestController : ControllerBase
             return Ok(new
             {
                 status = "unhealthy",
-                error = ex.Message,
+                error = "An internal error occurred.",
                 timestamp = DateTime.UtcNow
             });
         }

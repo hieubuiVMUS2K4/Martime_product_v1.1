@@ -291,6 +291,7 @@ namespace MaritimeEdge.Services.Logbooks
                     return (false, "Cannot update a signed entry.");
                 }
 
+                // Required fields - always update
                 entry.OperationDateTime = dto.OperationDateTime;
                 entry.OperationCode = dto.OperationCode;
                 entry.OperationDescription = dto.OperationDescription;
@@ -299,25 +300,27 @@ namespace MaritimeEdge.Services.Logbooks
                 entry.StartLatitude = dto.StartLatitude;
                 entry.StartLongitude = dto.StartLongitude;
                 entry.StartDateTime = dto.StartDateTime;
-                entry.EndLatitude = dto.EndLatitude;
-                entry.EndLongitude = dto.EndLongitude;
-                entry.EndDateTime = dto.EndDateTime;
-                entry.WaterDepth = dto.WaterDepth;
-                entry.DistanceFromLand = dto.DistanceFromLand;
-                entry.ExchangeVolumePercentage = dto.ExchangeVolumePercentage;
-                entry.ExchangeMethod = dto.ExchangeMethod;
-                entry.TreatmentSystemUsed = dto.TreatmentSystemUsed;
-                entry.TreatmentSystemType = dto.TreatmentSystemType;
-                entry.TreatmentSuccessful = dto.TreatmentSuccessful;
-                entry.TreatmentDetails = dto.TreatmentDetails;
-                entry.ExceptionalCircumstances = dto.ExceptionalCircumstances;
-                entry.SalinityBeforeExchange = dto.SalinityBeforeExchange;
-                entry.SalinityAfterExchange = dto.SalinityAfterExchange;
-                entry.PortName = dto.PortName;
-                entry.ReceptionFacility = dto.ReceptionFacility;
-                entry.ReceiptNumber = dto.ReceiptNumber;
                 entry.OfficerInCharge = dto.OfficerInCharge;
-                entry.Remarks = dto.Remarks;
+
+                // Nullable fields - only update if provided
+                if (dto.EndLatitude.HasValue) entry.EndLatitude = dto.EndLatitude;
+                if (dto.EndLongitude.HasValue) entry.EndLongitude = dto.EndLongitude;
+                if (dto.EndDateTime.HasValue) entry.EndDateTime = dto.EndDateTime;
+                if (dto.WaterDepth.HasValue) entry.WaterDepth = dto.WaterDepth;
+                if (dto.DistanceFromLand.HasValue) entry.DistanceFromLand = dto.DistanceFromLand;
+                if (dto.ExchangeVolumePercentage.HasValue) entry.ExchangeVolumePercentage = dto.ExchangeVolumePercentage;
+                if (dto.ExchangeMethod != null) entry.ExchangeMethod = dto.ExchangeMethod;
+                if (dto.TreatmentSystemUsed.HasValue) entry.TreatmentSystemUsed = dto.TreatmentSystemUsed;
+                if (dto.TreatmentSystemType != null) entry.TreatmentSystemType = dto.TreatmentSystemType;
+                if (dto.TreatmentSuccessful.HasValue) entry.TreatmentSuccessful = dto.TreatmentSuccessful;
+                if (dto.TreatmentDetails != null) entry.TreatmentDetails = dto.TreatmentDetails;
+                if (dto.ExceptionalCircumstances != null) entry.ExceptionalCircumstances = dto.ExceptionalCircumstances;
+                if (dto.SalinityBeforeExchange.HasValue) entry.SalinityBeforeExchange = dto.SalinityBeforeExchange;
+                if (dto.SalinityAfterExchange.HasValue) entry.SalinityAfterExchange = dto.SalinityAfterExchange;
+                if (dto.PortName != null) entry.PortName = dto.PortName;
+                if (dto.ReceptionFacility != null) entry.ReceptionFacility = dto.ReceptionFacility;
+                if (dto.ReceiptNumber != null) entry.ReceiptNumber = dto.ReceiptNumber;
+                if (dto.Remarks != null) entry.Remarks = dto.Remarks;
                 
                 entry.UpdatedAt = DateTime.UtcNow;
                 entry.IsSynced = false;

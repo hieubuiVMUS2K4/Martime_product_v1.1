@@ -1,5 +1,6 @@
 using ProductApi.Data;
 using ProductApi.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace ProductApi.Services
 {
@@ -11,15 +12,15 @@ namespace ProductApi.Services
             _db = db;
         }
 
-        public IEnumerable<Ship> GetAll()
+        public async Task<IEnumerable<Ship>> GetAllAsync()
         {
-            return _db.Ships.ToList();
+            return await _db.Ships.AsNoTracking().ToListAsync();
         }
 
-        public Ship Add(Ship ship)
+        public async Task<Ship> AddAsync(Ship ship)
         {
             _db.Ships.Add(ship);
-            _db.SaveChanges();
+            await _db.SaveChangesAsync();
             return ship;
         }
     }

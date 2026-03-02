@@ -71,7 +71,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting dashboard stats");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 }

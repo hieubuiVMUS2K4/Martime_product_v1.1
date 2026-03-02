@@ -39,8 +39,6 @@ public class CrewController : ControllerBase
             var query = _context.CrewMembers
                 .AsNoTracking()
                 .Include(c => c.Rank)
-                .Include(c => c.Certificates)
-                    .ThenInclude(cc => cc.Certificate)
                 .AsQueryable();
 
             // Apply filters
@@ -61,16 +59,18 @@ public class CrewController : ControllerBase
             var totalCount = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
-            // Get paginated data
+            // Get paginated data - use DTO projection to avoid over-fetching
             var crew = await query
                 .OrderBy(c => c.FullName)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
+            var crewDtos = crew.Select(MapToCrewMemberDto).ToList();
+
             return Ok(new
             {
-                data = crew,
+                data = crewDtos,
                 pagination = new
                 {
                     currentPage = page,
@@ -97,9 +97,8 @@ public class CrewController : ControllerBase
             var crew = await _context.CrewMembers
                 .AsNoTracking()
                 .Include(c => c.Rank)
-                .Include(c => c.Certificates)
-                    .ThenInclude(cc => cc.Certificate)
                 .Where(c => c.IsOnboard)
+                .OrderBy(c => c.FullName)
                 .ToListAsync();
 
             var crewDtos = crew.Select(MapToCrewMemberDto).ToList();
@@ -118,16 +117,15 @@ public class CrewController : ControllerBase
         try
         {
             var crew = await _context.CrewMembers
+                .AsNoTracking()
                 .Include(c => c.Rank)
-                .Include(c => c.Certificates)
-                    .ThenInclude(cc => cc.Certificate)
                 .FirstOrDefaultAsync(c => c.Id == id);
             if (crew == null)
             {
                 return NotFound(new { message = "Crew member not found" });
             }
 
-            return Ok(crew);
+            return Ok(MapToCrewMemberDto(crew));
         }
         catch (Exception ex)
         {
@@ -189,7 +187,7 @@ public class CrewController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting crew profile");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -360,12 +358,12 @@ public class CrewController : ControllerBase
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "Database error adding crew member");
-            return StatusCode(500, new { error = "Database error", details = ex.InnerException?.Message ?? ex.Message });
+            return StatusCode(500, new { error = "Database error" });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error adding crew member");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -395,7 +393,7 @@ public class CrewController : ControllerBase
             }
             var roleId = await DetermineRoleIdAsync(rankName ?? "Crew", null);
 
-            // Generate default password from date of birth or use default
+            // Generate default password from date of birth or use random
             string defaultPassword;
             if (crew.DateOfBirth.HasValue)
             {
@@ -403,7 +401,7 @@ public class CrewController : ControllerBase
             }
             else
             {
-                defaultPassword = "123456"; // Default password if no DOB
+                defaultPassword = Convert.ToBase64String(RandomNumberGenerator.GetBytes(6)).Substring(0, 8);
             }
 
             var newUser = new User
@@ -523,29 +521,22 @@ public class CrewController : ControllerBase
                 existing.CrewId = crew.CrewId;
             }
 
-            // Update all properties
+            // Update all properties - use null guards to avoid overwriting with empty values
             existing.FullName = crew.FullName;
             existing.RankId = crew.RankId;
-            // Document fields removed - will be managed separately
-            // existing.Rank = crew.Rank;
-            // existing.PassportNumber = crew.PassportNumber;
-            // existing.PassportExpiry = crew.PassportExpiry;
-            // existing.VisaNumber = crew.VisaNumber;
-            // existing.VisaExpiry = crew.VisaExpiry;
-            // existing.SeamanBookNumber = crew.SeamanBookNumber;
-            existing.Nationality = crew.Nationality;
-            existing.DateOfBirth = crew.DateOfBirth;
-            existing.JoinDate = crew.JoinDate;
-            existing.EmbarkDate = crew.EmbarkDate;
-            existing.ContractEnd = crew.ContractEnd;
-            existing.DisembarkDate = crew.DisembarkDate;
+            if (crew.Nationality != null) existing.Nationality = crew.Nationality;
+            if (crew.DateOfBirth.HasValue) existing.DateOfBirth = crew.DateOfBirth;
+            if (crew.JoinDate.HasValue) existing.JoinDate = crew.JoinDate;
+            if (crew.EmbarkDate.HasValue) existing.EmbarkDate = crew.EmbarkDate;
+            if (crew.ContractEnd.HasValue) existing.ContractEnd = crew.ContractEnd;
+            if (crew.DisembarkDate.HasValue) existing.DisembarkDate = crew.DisembarkDate;
             existing.IsOnboard = crew.IsOnboard;
-            existing.EmergencyContact = crew.EmergencyContact;
-            existing.EmailAddress = crew.EmailAddress;
-            existing.PhoneNumber = crew.PhoneNumber;
-            existing.Address = crew.Address;
-            existing.Department = crew.Department;
-            existing.Notes = crew.Notes;
+            if (crew.EmergencyContact != null) existing.EmergencyContact = crew.EmergencyContact;
+            if (crew.EmailAddress != null) existing.EmailAddress = crew.EmailAddress;
+            if (crew.PhoneNumber != null) existing.PhoneNumber = crew.PhoneNumber;
+            if (crew.Address != null) existing.Address = crew.Address;
+            if (crew.Department != null) existing.Department = crew.Department;
+            if (crew.Notes != null) existing.Notes = crew.Notes;
             
             // BIO-DATA fields
             if (crew.PhotoUrl != null) existing.PhotoUrl = crew.PhotoUrl;
@@ -570,12 +561,16 @@ public class CrewController : ControllerBase
             if (crew.EducationGraduationYear.HasValue) existing.EducationGraduationYear = crew.EducationGraduationYear;
             
             existing.IsSynced = false; // Mark as need sync
+            existing.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
+            // Reload with Rank navigation property for complete response
+            await _context.Entry(existing).Reference(c => c.Rank).LoadAsync();
+
             _logger.LogInformation("Updated crew member: {Id} - {FullName}", id, crew.FullName);
 
-            return Ok(existing);
+            return Ok(MapToCrewMemberDto(existing));
         }
         catch (DbUpdateConcurrencyException ex)
         {
@@ -585,12 +580,12 @@ public class CrewController : ControllerBase
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "Database error updating crew member {Id}", id);
-            return StatusCode(500, new { error = "Database error", details = ex.InnerException?.Message ?? ex.Message });
+            return StatusCode(500, new { error = "Database error" });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating crew member {Id}", id);
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -620,12 +615,12 @@ public class CrewController : ControllerBase
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "Database error deleting crew member {Id}", id);
-            return StatusCode(500, new { error = "Database error", details = ex.InnerException?.Message ?? ex.Message });
+            return StatusCode(500, new { error = "Database error" });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting crew member {Id}", id);
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -699,7 +694,7 @@ public class CrewController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error uploading avatar for crew member {Id}", id);
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -762,7 +757,8 @@ public class CrewController : ControllerBase
                 }
                 catch (Exception ex)
                 {
-                    errors.Add($"{crew.CrewId}: {ex.Message}");
+                    _logger.LogError(ex, "Error syncing user for crew {CrewId}", crew.CrewId);
+                    errors.Add($"{crew.CrewId}: Failed to create user");
                 }
             }
 
@@ -782,7 +778,7 @@ public class CrewController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error syncing users for crew");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -1249,7 +1245,7 @@ public class CrewController : ControllerBase
         // Determine rank group for frontend filtering
         // Officers, Deck, Engine, Galley
         string? rankGroup = null;
-        if (crew.Rank?.Equals("Officer", StringComparison.OrdinalIgnoreCase) == true)
+        if (crew.Rank?.RankName?.Contains("Officer", StringComparison.OrdinalIgnoreCase) == true)
         {
             rankGroup = "Officers";
         }
@@ -1270,16 +1266,70 @@ public class CrewController : ControllerBase
         return new CrewMemberDto
         {
             Id = crew.Id,
+            CrewId = crew.CrewId,
             FirstName = firstName,
             LastName = lastName,
             FullName = crew.FullName,
-            Rank = crew.Position, // Use Position as Rank for display (Master, Chief Officer, etc.)
+            Rank = crew.Rank != null ? new MaritimeEdgeServer.DTOs.Crew.RankDto
+            {
+                Id = crew.Rank.Id,
+                RankCode = crew.Rank.RankCode,
+                RankName = crew.Rank.RankName,
+                IsActive = crew.Rank.IsActive
+            } : null,
+            RankId = crew.RankId,
             RankGroup = rankGroup,
             IsOnboard = crew.IsOnboard,
             Department = crew.Department,
             Nationality = crew.Nationality,
             Email = crew.EmailAddress,
-            Phone = crew.PhoneNumber
+            Phone = crew.PhoneNumber,
+            EmbarkDate = crew.EmbarkDate,
+            DisembarkDate = crew.DisembarkDate,
+            ContractEnd = crew.ContractEnd,
+            JoinDate = crew.JoinDate,
+            CertificateNumber = crew.CertificateNumber,
+            CertificateIssue = crew.CertificateIssue,
+            CertificateExpiry = crew.CertificateExpiry,
+            MedicalIssue = crew.MedicalIssue,
+            MedicalExpiry = crew.MedicalExpiry,
+
+            // Personal / BIO-DATA fields
+            DateOfBirth = crew.DateOfBirth,
+            PhotoUrl = crew.PhotoUrl,
+            PlaceOfBirth = crew.PlaceOfBirth,
+            IdCardNumber = crew.IdCardNumber,
+            MaritalStatus = crew.MaritalStatus,
+            Height = crew.Height,
+            Weight = crew.Weight,
+            BloodGroup = crew.BloodGroup,
+            ClothingSize = crew.ClothingSize,
+            ShoeSize = crew.ShoeSize,
+            CateringSize = crew.CateringSize,
+            IsSmoker = crew.IsSmoker,
+            IsCovidVaccinated = crew.IsCovidVaccinated,
+
+            // Contact & Emergency
+            EmergencyContact = crew.EmergencyContact,
+            Address = crew.Address,
+
+            // Next of Kin
+            NextOfKinName = crew.NextOfKinName,
+            NextOfKinRelation = crew.NextOfKinRelation,
+            NextOfKinPhone = crew.NextOfKinPhone,
+            NextOfKinAddress = crew.NextOfKinAddress,
+
+            // Education
+            EducationInstitution = crew.EducationInstitution,
+            EducationCourse = crew.EducationCourse,
+            EducationPeriodYears = crew.EducationPeriodYears,
+            EducationGraduationYear = crew.EducationGraduationYear,
+
+            // Additional
+            Notes = crew.Notes,
+            IsSynced = crew.IsSynced,
+            CreatedAt = crew.CreatedAt,
+            UpdatedAt = crew.UpdatedAt,
         };
     }
 }

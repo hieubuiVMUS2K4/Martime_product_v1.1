@@ -3,6 +3,7 @@ import { Wifi, WifiOff, RefreshCw } from 'lucide-react'
 import { format } from 'date-fns'
 import { SettingsButton } from '@/components/settings'
 import { useTranslationSafe } from '@/contexts/I18nContext'
+import { UserMenu } from './UserMenu'
 
 export function Header() {
   const { isOnline, isSyncing, lastSyncTime } = useMaritimeStore()
@@ -52,6 +53,11 @@ export function Header() {
         {/* Current Time */}
         <div className="text-sm text-gray-600 dark:text-gray-300">
           {format(new Date(), 'dd MMM yyyy HH:mm')}
+        </div>
+
+        {/* User Menu / Logout */}
+        <div className="border-l border-gray-200 dark:border-gray-700 pl-4 ml-1">
+          <UserMenu />
         </div>
       </div>
     </header>

@@ -241,7 +241,7 @@ public class TestDataController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error seeding crew data");
-            return StatusCode(500, new { error = "Failed to seed data", details = ex.Message });
+            return StatusCode(500, new { error = "Failed to seed data" });
         }
     }
 
@@ -259,7 +259,7 @@ public class TestDataController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error clearing crew data");
-            return StatusCode(500, new { error = "Failed to clear data", details = ex.Message });
+            return StatusCode(500, new { error = "Failed to clear data" });
         }
     }
 }

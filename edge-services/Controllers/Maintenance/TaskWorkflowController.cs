@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using MaritimeEdge.DTOs;
+using MaritimeEdge.Services.Core;
 using MaritimeEdge.Services.Maintenance;
 using System.Text.Json;
 using MTaskStatus = MaritimeEdge.Constants.TaskStatus;
@@ -40,7 +41,7 @@ public class TaskWorkflowController : ControllerBase
         
         try
         {
-            var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
+            var userId = HttpContext.GetUsername() ?? "SYSTEM";
             var deviceType = Request.Headers["X-Device-Type"].FirstOrDefault() ?? "MOBILE";
 
             var task = await _context.MaintenanceTasks
@@ -135,7 +136,7 @@ public class TaskWorkflowController : ControllerBase
     {
         try
         {
-            var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
+            var userId = HttpContext.GetUsername() ?? "SYSTEM";
             var deviceType = Request.Headers["X-Device-Type"].FirstOrDefault() ?? "MOBILE";
 
             var task = await _context.MaintenanceTasks
@@ -259,7 +260,7 @@ public class TaskWorkflowController : ControllerBase
     {
         try
         {
-            var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
+            var userId = HttpContext.GetUsername() ?? "SYSTEM";
             var deviceType = Request.Headers["X-Device-Type"].FirstOrDefault() ?? "WEB";
 
             var task = await _context.MaintenanceTasks
@@ -837,7 +838,7 @@ public class TaskWorkflowController : ControllerBase
     {
         try
         {
-            var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
+            var userId = HttpContext.GetUsername() ?? "SYSTEM";
             var deviceType = Request.Headers["X-Device-Type"].FirstOrDefault() ?? "WEB";
 
             if (dto.TaskIds == null || !dto.TaskIds.Any())
@@ -934,7 +935,7 @@ public class TaskWorkflowController : ControllerBase
                     results.Add(new { 
                         taskId = task.TaskId, 
                         success = false, 
-                        error = ex.Message 
+                        error = "An internal error occurred." 
                     });
                     failCount++;
                 }

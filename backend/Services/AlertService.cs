@@ -55,6 +55,7 @@ namespace ProductApi.Services
         public async Task<IEnumerable<VesselAlertDto>> GetVesselAlertsAsync(Guid vesselId, bool? acknowledged = null)
         {
             var query = _context.VesselAlerts
+                .AsNoTracking()
                 .Where(va => va.VesselId == vesselId);
 
             if (acknowledged.HasValue)
@@ -72,6 +73,7 @@ namespace ProductApi.Services
         public async Task<IEnumerable<VesselAlertDto>> GetAllAlertsAsync(string? severity = null, bool? acknowledged = null)
         {
             var query = _context.VesselAlerts
+                .AsNoTracking()
                 .Include(va => va.Vessel)
                 .AsQueryable();
 
@@ -230,37 +232,48 @@ namespace ProductApi.Services
             var timeoutThreshold = DateTime.UtcNow.AddHours(-2); // 2 hours without position update
             
             var vesselsWithoutRecentPosition = await _context.Vessels
+                .AsNoTracking()
                 .Where(v => v.IsActive)
                 .Where(v => !v.Positions.Any() || v.Positions.Max(p => p.Timestamp) < timeoutThreshold)
                 .ToListAsync();
 
+            if (!vesselsWithoutRecentPosition.Any()) return;
+
+            // Batch: get all vessel IDs that already have recent timeout alerts
+            var vesselIds = vesselsWithoutRecentPosition.Select(v => v.Id).ToList();
+            var sixHoursAgo = DateTime.UtcNow.AddHours(-6);
+            var vesselsWithExistingAlerts = await _context.VesselAlerts
+                .AsNoTracking()
+                .Where(va => vesselIds.Contains(va.VesselId))
+                .Where(va => va.AlertType == "POSITION_TIMEOUT")
+                .Where(va => va.Timestamp > sixHoursAgo)
+                .Select(va => va.VesselId)
+                .Distinct()
+                .ToListAsync();
+
+            // Batch: get last positions for all vessels at once
+            var lastPositions = await _context.VesselPositions
+                .AsNoTracking()
+                .Where(vp => vesselIds.Contains(vp.VesselId))
+                .GroupBy(vp => vp.VesselId)
+                .Select(g => new { VesselId = g.Key, LastTimestamp = g.Max(vp => vp.Timestamp) })
+                .ToListAsync();
+            var lastPositionMap = lastPositions.ToDictionary(lp => lp.VesselId, lp => lp.LastTimestamp);
+
             foreach (var vessel in vesselsWithoutRecentPosition)
             {
-                var lastPosition = await _context.VesselPositions
-                    .Where(vp => vp.VesselId == vessel.Id)
-                    .OrderByDescending(vp => vp.Timestamp)
-                    .FirstOrDefaultAsync();
+                if (vesselsWithExistingAlerts.Contains(vessel.Id)) continue;
 
-                var lastUpdate = lastPosition?.Timestamp ?? vessel.BuildDate;
+                var lastUpdate = lastPositionMap.GetValueOrDefault(vessel.Id, vessel.BuildDate);
                 var hoursWithoutUpdate = (DateTime.UtcNow - lastUpdate).TotalHours;
 
-                // Check if we already have a recent timeout alert
-                var existingAlert = await _context.VesselAlerts
-                    .Where(va => va.VesselId == vessel.Id)
-                    .Where(va => va.AlertType == "POSITION_TIMEOUT")
-                    .Where(va => va.Timestamp > DateTime.UtcNow.AddHours(-6))
-                    .AnyAsync();
-
-                if (!existingAlert)
+                await CreateAlertAsync(vessel.Id, new CreateVesselAlertDto
                 {
-                    await CreateAlertAsync(vessel.Id, new CreateVesselAlertDto
-                    {
-                        AlertType = "POSITION_TIMEOUT",
-                        Message = $"No position update received for {hoursWithoutUpdate:F1} hours",
-                        Severity = hoursWithoutUpdate > 12 ? "CRITICAL" : "WARNING",
-                        Data = JsonSerializer.Serialize(new { HoursWithoutUpdate = hoursWithoutUpdate, LastUpdate = lastUpdate })
-                    });
-                }
+                    AlertType = "POSITION_TIMEOUT",
+                    Message = $"No position update received for {hoursWithoutUpdate:F1} hours",
+                    Severity = hoursWithoutUpdate > 12 ? "CRITICAL" : "WARNING",
+                    Data = JsonSerializer.Serialize(new { HoursWithoutUpdate = hoursWithoutUpdate, LastUpdate = lastUpdate })
+                });
             }
         }
 
@@ -269,24 +282,35 @@ namespace ProductApi.Services
             var thirtyDaysFromNow = DateTime.UtcNow.AddDays(30);
             
             var expiringCertificates = await _context.Certificates
+                .AsNoTracking()
                 .Include(c => c.Vessel)
                 .Where(c => c.IsValid)
                 .Where(c => c.ExpiryDate <= thirtyDaysFromNow)
+                .ToListAsync();
+
+            if (!expiringCertificates.Any()) return;
+
+            // Batch: check existing alerts for all vessel+certificate combinations
+            var vesselIds = expiringCertificates.Select(c => c.VesselId).Distinct().ToList();
+            var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
+            var existingCertAlerts = await _context.VesselAlerts
+                .AsNoTracking()
+                .Where(va => vesselIds.Contains(va.VesselId))
+                .Where(va => va.AlertType == "CERTIFICATE_EXPIRY")
+                .Where(va => va.Timestamp > sevenDaysAgo)
+                .Select(va => new { va.VesselId, va.Data })
                 .ToListAsync();
 
             foreach (var cert in expiringCertificates)
             {
                 var daysUntilExpiry = (cert.ExpiryDate - DateTime.UtcNow).Days;
                 
-                // Check if we already have a recent expiration alert for this certificate
-                var existingAlert = await _context.VesselAlerts
-                    .Where(va => va.VesselId == cert.VesselId)
-                    .Where(va => va.AlertType == "CERTIFICATE_EXPIRY")
-                    .Where(va => va.Data.Contains(cert.CertificateNumber))
-                    .Where(va => va.Timestamp > DateTime.UtcNow.AddDays(-7))
-                    .AnyAsync();
+                // Check if alert already exists for this certificate
+                var hasExisting = existingCertAlerts.Any(a => 
+                    a.VesselId == cert.VesselId && 
+                    a.Data != null && a.Data.Contains(cert.CertificateNumber));
 
-                if (!existingAlert)
+                if (!hasExisting)
                 {
                     var severity = daysUntilExpiry switch
                     {
@@ -320,10 +344,26 @@ namespace ProductApi.Services
             var recentThreshold = DateTime.UtcNow.AddDays(-7);
             
             var vesselsWithRecentFuelData = await _context.Vessels
+                .AsNoTracking()
                 .Where(v => v.IsActive)
                 .Where(v => v.FuelRecords.Any(fr => fr.ReportDate >= recentThreshold))
                 .Include(v => v.FuelRecords.Where(fr => fr.ReportDate >= recentThreshold))
                 .ToListAsync();
+
+            if (!vesselsWithRecentFuelData.Any()) return;
+
+            // Batch: pre-load existing fuel efficiency alerts for all vessels
+            var vesselIds = vesselsWithRecentFuelData.Select(v => v.Id).ToList();
+            var threeDaysAgo = DateTime.UtcNow.AddDays(-3);
+            var existingFuelAlertVesselIds = await _context.VesselAlerts
+                .AsNoTracking()
+                .Where(va => vesselIds.Contains(va.VesselId))
+                .Where(va => va.AlertType == "FUEL_EFFICIENCY")
+                .Where(va => va.Timestamp > threeDaysAgo)
+                .Select(va => va.VesselId)
+                .Distinct()
+                .ToListAsync();
+            var existingFuelAlertSet = new HashSet<Guid>(existingFuelAlertVesselIds);
 
             foreach (var vessel in vesselsWithRecentFuelData)
             {
@@ -336,14 +376,7 @@ namespace ProductApi.Services
                 // Check for significant efficiency degradation (>20% worse than recent average)
                 if (latestEfficiency > avgEfficiency * 1.2)
                 {
-                    // Check if we already have a recent fuel efficiency alert
-                    var existingAlert = await _context.VesselAlerts
-                        .Where(va => va.VesselId == vessel.Id)
-                        .Where(va => va.AlertType == "FUEL_EFFICIENCY")
-                        .Where(va => va.Timestamp > DateTime.UtcNow.AddDays(-3))
-                        .AnyAsync();
-
-                    if (!existingAlert)
+                    if (!existingFuelAlertSet.Contains(vessel.Id))
                     {
                         await CreateAlertAsync(vessel.Id, new CreateVesselAlertDto
                         {

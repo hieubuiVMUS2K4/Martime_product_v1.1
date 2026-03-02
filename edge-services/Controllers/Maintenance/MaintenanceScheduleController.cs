@@ -594,17 +594,19 @@ public class MaintenanceScheduleController : ControllerBase
                 dto.EstimatedDurationHours,
                 effectiveIntervalDays);
 
-            // Update schedule fields
+            // Update schedule required fields
             schedule.ScheduleCode = dto.ScheduleCode;
             schedule.EquipmentGroupId = dto.EquipmentGroupId;
             schedule.ScheduleName = dto.ScheduleName;
             schedule.IntervalType = dto.IntervalType;
-            schedule.IntervalHours = dto.IntervalHours;
-            schedule.IntervalDays = dto.IntervalDays;
             schedule.DaysBeforeDue = validatedDaysBeforeDue; // Use validated value
             schedule.Priority = dto.Priority;
-            schedule.EstimatedDurationHours = dto.EstimatedDurationHours;
             schedule.AutoGenerate = dto.AutoGenerate;
+
+            // Update nullable fields - only if provided
+            if (dto.IntervalHours.HasValue) schedule.IntervalHours = dto.IntervalHours;
+            if (dto.IntervalDays.HasValue) schedule.IntervalDays = dto.IntervalDays;
+            if (dto.EstimatedDurationHours.HasValue) schedule.EstimatedDurationHours = dto.EstimatedDurationHours;
             schedule.UpdatedAt = DateTime.UtcNow;
 
             // Recalculate next due date
@@ -1018,6 +1020,6 @@ public class MaintenanceScheduleController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fixing past due dates");
-            return StatusCode(500, new { error = ex.Message });
+            return StatusCode(500, new { error = "An internal error occurred." });
         }
     }}

@@ -1,26 +1,42 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
-using MaritimeEdge.Services;
 using MaritimeEdge.DTOs;
-using System.Security.Cryptography;
-using System.Text;
+using MaritimeEdge.Services.Core;
 
 namespace MaritimeEdge.Controllers.Core;
 
 /// <summary>
 /// Authentication & Authorization Controller
-/// Quản lý đăng nhập và phân quyền với bảng User và Role
+/// Chuẩn hàng hải ISPS/ISM/IMO MSC.428
+/// 
+/// Features:
+/// - Login/Logout với session tracking  
+/// - Token refresh
+/// - Password management (change, reset)
+/// - User/Role CRUD
+/// - Session management (active sessions, revoke)
+/// - System log query
+/// - Legacy mobile support
 /// </summary>
 [ApiController]
 [Route("api/auth")]
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class AuthController : ControllerBase
 {
+    private readonly IAuthService _authService;
+    private readonly ISystemLogService _systemLog;
     private readonly EdgeDbContext _context;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(EdgeDbContext context, ILogger<AuthController> logger)
+    public AuthController(
+        IAuthService authService,
+        ISystemLogService systemLog,
+        EdgeDbContext context,
+        ILogger<AuthController> logger)
     {
+        _authService = authService;
+        _systemLog = systemLog;
         _context = context;
         _logger = logger;
     }
@@ -30,181 +46,124 @@ public class AuthController : ControllerBase
     // ========================================
 
     /// <summary>
-    /// Đăng nhập với username và password
+    /// Đăng nhập
     /// POST /api/auth/login
     /// </summary>
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
+    public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        try
+        var ipAddress = GetClientIpAddress();
+        var userAgent = Request.Headers["User-Agent"].FirstOrDefault();
+
+        var result = await _authService.LoginAsync(request, ipAddress, userAgent);
+
+        if (!result.Success)
         {
-            if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
-            {
-                return BadRequest(new { success = false, message = "Username và password không được để trống" });
-            }
-
-            // Tìm user
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Username == request.Username && u.IsActive);
-
-            if (user == null)
-            {
-                _logger.LogWarning("Login failed: Username not found: {Username}", request.Username);
-                return Ok(new { success = false, message = "Tên đăng nhập không tồn tại hoặc tài khoản đã bị khóa" });
-            }
-
-            // Kiểm tra password
-            var hashedPassword = HashPassword(request.Password);
-            if (user.PasswordHash != hashedPassword)
-            {
-                _logger.LogWarning("Login failed: Invalid password for user: {Username}", request.Username);
-                return Ok(new { success = false, message = "Mật khẩu không đúng" });
-            }
-
-            // Lấy thông tin role và crew
-            var role = await _context.Roles.FindAsync(user.RoleId);
-            var crew = string.IsNullOrEmpty(user.CrewId) 
-                ? null 
-                : await _context.CrewMembers.Include(c => c.Rank).FirstOrDefaultAsync(c => c.CrewId == user.CrewId);
-
-            // Cập nhật last login
-            user.LastLoginAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            // Generate token
-            var accessToken = GenerateToken(user.Id, user.Username);
-            var refreshToken = GenerateToken(user.Id, user.Username, isRefresh: true);
-
-            _logger.LogInformation("Login successful: {Username} - Role: {RoleName}", user.Username, role?.RoleName);
-
-            return Ok(new
-            {
-                success = true,
-                message = "Đăng nhập thành công",
-                accessToken,
-                refreshToken,
-                expiresIn = 86400, // 24 hours
-                user = new
-                {
-                    id = user.Id,
-                    username = user.Username,
-                    roleId = user.RoleId,
-                    roleName = role?.RoleName ?? "",
-                    roleCode = role?.RoleCode ?? "",
-                    crewId = user.CrewId,
-                    fullName = crew?.FullName,
-                    rankName = crew?.Rank?.RankName,
-                    isActive = user.IsActive,
-                    lastLoginAt = user.LastLoginAt
-                }
-            });
+            return Unauthorized(result);
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during login");
-            return StatusCode(500, new { success = false, message = "Lỗi server: " + ex.Message });
-        }
+
+        return Ok(result);
     }
+
+    /// <summary>
+    /// Đăng xuất - Kết thúc session, ghi audit trail
+    /// POST /api/auth/logout
+    /// </summary>
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout([FromBody] LogoutRequest? request = null)
+    {
+        var accessToken = request?.AccessToken ?? GetBearerToken();
+
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return Ok(new LogoutResponse { Success = true, Message = "Không có session hoạt động" });
+        }
+
+        var result = await _authService.LogoutAsync(accessToken, request?.Reason);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Refresh access token
+    /// POST /api/auth/refresh
+    /// </summary>
+    [HttpPost("refresh")]
+    public async Task<IActionResult> RefreshToken([FromBody] TokenRefreshRequest request)
+    {
+        var ipAddress = GetClientIpAddress();
+        var result = await _authService.RefreshTokenAsync(request.RefreshToken, ipAddress);
+
+        if (!result.Success)
+        {
+            return Unauthorized(new { success = false, message = result.Message });
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Validate current session (middleware helper)
+    /// GET /api/auth/validate
+    /// </summary>
+    [HttpGet("validate")]
+    public async Task<IActionResult> ValidateSession()
+    {
+        var accessToken = GetBearerToken();
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return Unauthorized(new { isValid = false, message = "Không có access token" });
+        }
+
+        var result = await _authService.ValidateSessionAsync(accessToken);
+
+        if (!result.IsValid)
+        {
+            return Unauthorized(new { isValid = false, message = result.Message });
+        }
+
+        // Update activity timestamp
+        await _authService.UpdateSessionActivityAsync(accessToken);
+
+        return Ok(result);
+    }
+
+    // ========================================
+    // PASSWORD MANAGEMENT APIs
+    // ========================================
 
     /// <summary>
     /// Đổi mật khẩu
     /// POST /api/auth/change-password
     /// </summary>
     [HttpPost("change-password")]
-    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto request)
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
     {
-        try
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
         {
-            if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
-            {
-                return Ok(new { success = false, message = "Mật khẩu mới phải có ít nhất 6 ký tự" });
-            }
-
-            if (request.NewPassword != request.ConfirmPassword)
-            {
-                return Ok(new { success = false, message = "Mật khẩu xác nhận không khớp" });
-            }
-
-            var user = await _context.Users.FindAsync(request.UserId);
-            if (user == null)
-            {
-                return Ok(new { success = false, message = "Người dùng không tồn tại" });
-            }
-
-            // Kiểm tra password cũ
-            var oldHashedPassword = HashPassword(request.OldPassword);
-            if (user.PasswordHash != oldHashedPassword)
-            {
-                return Ok(new { success = false, message = "Mật khẩu cũ không đúng" });
-            }
-
-            // Cập nhật password mới
-            user.PasswordHash = HashPassword(request.NewPassword);
-            user.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Password changed for user: {Username}", user.Username);
-
-            return Ok(new { success = true, message = "Đổi mật khẩu thành công" });
+            return Ok(new { success = false, message = "Mật khẩu mới phải có ít nhất 6 ký tự" });
         }
-        catch (Exception ex)
+
+        if (request.NewPassword != request.ConfirmPassword)
         {
-            _logger.LogError(ex, "Error during password change");
-            return StatusCode(500, new { success = false, message = "Lỗi server: " + ex.Message });
+            return Ok(new { success = false, message = "Mật khẩu xác nhận không khớp" });
         }
+
+        var (success, message) = await _authService.ChangePasswordAsync(request.UserId, request.OldPassword, request.NewPassword);
+        return Ok(new { success, message });
     }
 
     /// <summary>
-    /// Reset mật khẩu về mặc định (từ ngày sinh)
+    /// Reset mật khẩu về mặc định (từ ngày sinh) - Admin only
     /// POST /api/auth/reset-password
     /// </summary>
     [HttpPost("reset-password")]
-    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDto request)
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
-        try
-        {
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Username == request.Username);
+        if (!HttpContext.HasRole("ADMIN", "CAPTAIN"))
+            return StatusCode(403, new { success = false, message = "Chỉ Admin/Captain mới có quyền reset mật khẩu" });
 
-            if (user == null)
-            {
-                return Ok(new { success = false, message = "Người dùng không tồn tại" });
-            }
-
-            if (string.IsNullOrEmpty(user.CrewId))
-            {
-                return Ok(new { success = false, message = "Không thể reset password cho user này (không có crew_id)" });
-            }
-
-            // Lấy thông tin crew member
-            var crewMember = await _context.CrewMembers
-                .FirstOrDefaultAsync(c => c.CrewId == user.CrewId);
-
-            if (crewMember == null || !crewMember.DateOfBirth.HasValue)
-            {
-                return Ok(new { success = false, message = "Không tìm thấy ngày sinh của thuyền viên" });
-            }
-
-            // Tạo password mặc định từ ngày sinh (format: ddMMyyyy)
-            var defaultPassword = crewMember.DateOfBirth.Value.ToString("ddMMyyyy");
-            user.PasswordHash = HashPassword(defaultPassword);
-            user.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Password reset for user: {Username}", user.Username);
-
-            return Ok(new
-            {
-                success = true,
-                message = "Reset mật khẩu thành công",
-                defaultPassword
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during password reset");
-            return StatusCode(500, new { success = false, message = "Lỗi server: " + ex.Message });
-        }
+        var result = await _authService.ResetPasswordAsync(request.Username);
+        return Ok(result);
     }
 
     // ========================================
@@ -212,91 +171,17 @@ public class AuthController : ControllerBase
     // ========================================
 
     /// <summary>
-    /// Tạo user cho crew member
+    /// Tạo user cho crew member - Admin only
     /// POST /api/auth/create-user
     /// </summary>
     [HttpPost("create-user")]
-    public async Task<IActionResult> CreateUser([FromBody] CreateUserRequestDto request)
+    public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
     {
-        try
-        {
-            // Kiểm tra crew member tồn tại
-            var crewMember = await _context.CrewMembers
-                .Include(c => c.Rank)
-                .FirstOrDefaultAsync(c => c.CrewId == request.CrewId);
+        if (!HttpContext.HasRole("ADMIN", "CAPTAIN"))
+            return StatusCode(403, new { success = false, message = "Chỉ Admin/Captain mới có quyền tạo user" });
 
-            if (crewMember == null)
-            {
-                return Ok(new { success = false, message = "Không tìm thấy thuyền viên với mã này" });
-            }
-
-            // Kiểm tra user đã tồn tại chưa
-            var existingUser = await _context.Users
-                .FirstOrDefaultAsync(u => u.Username == request.CrewId);
-
-            if (existingUser != null)
-            {
-                return Ok(new { success = false, message = "User đã tồn tại cho crew member này" });
-            }
-
-            // Kiểm tra role tồn tại
-            var role = await _context.Roles.FindAsync(request.RoleId);
-            if (role == null)
-            {
-                return Ok(new { success = false, message = "Role không tồn tại" });
-            }
-
-            // Tạo password mặc định
-            string defaultPassword;
-            if (crewMember.DateOfBirth.HasValue)
-            {
-                defaultPassword = crewMember.DateOfBirth.Value.ToString("ddMMyyyy");
-            }
-            else
-            {
-                defaultPassword = "123456";
-            }
-
-            // Tạo user mới
-            var newUser = new MaritimeEdge.Models.User
-            {
-                Username = request.CrewId,
-                PasswordHash = HashPassword(defaultPassword),
-                RoleId = request.RoleId,
-                CrewId = request.CrewId,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _context.Users.Add(newUser);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("User created: {Username} - Role: {RoleName}", newUser.Username, role.RoleName);
-
-            return Ok(new
-            {
-                success = true,
-                message = $"Tạo user thành công. Password mặc định: {defaultPassword}",
-                defaultPassword,
-                user = new
-                {
-                    id = newUser.Id,
-                    username = newUser.Username,
-                    roleId = newUser.RoleId,
-                    roleName = role.RoleName,
-                    roleCode = role.RoleCode,
-                    crewId = newUser.CrewId,
-                    fullName = crewMember.FullName,
-                    rankName = crewMember.Rank?.RankName,
-                    isActive = newUser.IsActive
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during user creation");
-            return StatusCode(500, new { success = false, message = "Lỗi server: " + ex.Message });
-        }
+        var result = await _authService.CreateUserForCrewAsync(request.CrewId, request.RoleId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -306,42 +191,8 @@ public class AuthController : ControllerBase
     [HttpGet("users")]
     public async Task<IActionResult> GetAllUsers()
     {
-        try
-        {
-            var users = await _context.Users
-                .AsNoTracking()
-                .Join(_context.Roles,
-                    u => u.RoleId,
-                    r => r.Id,
-                    (u, r) => new { User = u, Role = r })
-                .GroupJoin(_context.CrewMembers.Include(c => c.Rank),
-                    ur => ur.User.CrewId,
-                    c => c.CrewId,
-                    (ur, crew) => new { ur.User, ur.Role, Crew = crew.FirstOrDefault() })
-                .Select(x => new
-                {
-                    id = x.User.Id,
-                    username = x.User.Username,
-                    roleId = x.User.RoleId,
-                    roleName = x.Role.RoleName,
-                    roleCode = x.Role.RoleCode,
-                    crewId = x.User.CrewId,
-                    fullName = x.Crew != null ? x.Crew.FullName : null,
-                    rankName = x.Crew != null && x.Crew.Rank != null ? x.Crew.Rank.RankName : null,
-                    isActive = x.User.IsActive,
-                    lastLoginAt = x.User.LastLoginAt,
-                    createdAt = x.User.CreatedAt
-                })
-                .OrderBy(x => x.username)
-                .ToListAsync();
-
-            return Ok(new { success = true, users });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting users");
-            return StatusCode(500, new { success = false, message = "Lỗi server: " + ex.Message });
-        }
+        var users = await _authService.GetAllUsersAsync();
+        return Ok(new { success = true, users });
     }
 
     /// <summary>
@@ -351,114 +202,43 @@ public class AuthController : ControllerBase
     [HttpGet("users/{id}")]
     public async Task<IActionResult> GetUser(long id)
     {
-        try
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
-            {
-                return NotFound(new { success = false, message = "Không tìm thấy user" });
-            }
+        var user = await _authService.GetUserByIdAsync(id);
+        if (user == null)
+            return NotFound(new { success = false, message = "Không tìm thấy user" });
 
-            var role = await _context.Roles.FindAsync(user.RoleId);
-            var crew = string.IsNullOrEmpty(user.CrewId) 
-                ? null 
-                : await _context.CrewMembers.AsNoTracking().FirstOrDefaultAsync(c => c.CrewId == user.CrewId);
-
-            return Ok(new
-            {
-                success = true,
-                user = new
-                {
-                    id = user.Id,
-                    username = user.Username,
-                    roleId = user.RoleId,
-                    roleName = role?.RoleName ?? "",
-                    roleCode = role?.RoleCode ?? "",
-                    crewId = user.CrewId,
-                    fullName = crew?.FullName,
-                    rankName = crew?.Rank?.RankName,
-                    isActive = user.IsActive,
-                    lastLoginAt = user.LastLoginAt,
-                    createdAt = user.CreatedAt
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting user");
-            return StatusCode(500, new { success = false, message = "Lỗi server: " + ex.Message });
-        }
+        return Ok(new { success = true, user });
     }
 
     /// <summary>
-    /// Vô hiệu hóa/kích hoạt user
+    /// Kích hoạt / vô hiệu hóa user - Admin only
     /// PUT /api/auth/users/{id}/toggle-active
     /// </summary>
     [HttpPut("users/{id}/toggle-active")]
     public async Task<IActionResult> ToggleUserActive(long id)
     {
-        try
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
-            {
-                return NotFound(new { success = false, message = "Người dùng không tồn tại" });
-            }
+        if (!HttpContext.HasRole("ADMIN"))
+            return StatusCode(403, new { success = false, message = "Chỉ Admin mới có quyền thay đổi trạng thái user" });
 
-            user.IsActive = !user.IsActive;
-            user.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            var status = user.IsActive ? "kích hoạt" : "vô hiệu hóa";
-            _logger.LogInformation("User {Status}: {Username}", status, user.Username);
-
-            return Ok(new { success = true, message = $"Đã {status} tài khoản thành công" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error toggling user active status");
-            return StatusCode(500, new { success = false, message = "Lỗi server: " + ex.Message });
-        }
+        var (success, message) = await _authService.ToggleUserActiveAsync(id);
+        return Ok(new { success, message });
     }
 
     /// <summary>
-    /// Cập nhật role của user
+    /// Cập nhật role - Admin only
     /// PUT /api/auth/users/{id}/role
     /// </summary>
     [HttpPut("users/{id}/role")]
-    public async Task<IActionResult> UpdateUserRole(long id, [FromBody] UpdateUserRoleRequestDto request)
+    public async Task<IActionResult> UpdateUserRole(long id, [FromBody] UpdateUserRoleDto request)
     {
-        try
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
-            {
-                return NotFound(new { success = false, message = "Không tìm thấy user" });
-            }
+        if (!HttpContext.HasRole("ADMIN"))
+            return StatusCode(403, new { success = false, message = "Chỉ Admin mới có quyền thay đổi role" });
 
-            var role = await _context.Roles.FindAsync(request.RoleId);
-            if (role == null)
-            {
-                return BadRequest(new { success = false, message = "Role không tồn tại" });
-            }
-
-            user.RoleId = request.RoleId;
-            user.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("User role updated: {Username} -> {RoleName}", user.Username, role.RoleName);
-
-            return Ok(new { success = true, message = "Cập nhật role thành công" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating user role");
-            return StatusCode(500, new { success = false, message = "Lỗi server: " + ex.Message });
-        }
+        var (success, message) = await _authService.UpdateUserRoleAsync(id, request.RoleId);
+        return Ok(new { success, message });
     }
 
     // ========================================
-    // ROLE MANAGEMENT APIs
+    // ROLE APIs
     // ========================================
 
     /// <summary>
@@ -468,25 +248,130 @@ public class AuthController : ControllerBase
     [HttpGet("roles")]
     public async Task<IActionResult> GetAllRoles()
     {
-        try
-        {
-            var roles = await _context.Roles
-                .AsNoTracking()
-                .Where(r => r.IsActive)
-                .OrderBy(r => r.Id)
-                .ToListAsync();
+        var roles = await _authService.GetAllRolesAsync();
+        return Ok(new { success = true, roles });
+    }
 
-            return Ok(new { success = true, roles });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting roles");
-            return StatusCode(500, new { success = false, message = "Lỗi server: " + ex.Message });
-        }
+    // ========================================
+    // SESSION MANAGEMENT APIs
+    // ========================================
+
+    /// <summary>
+    /// Lấy danh sách sessions đang hoạt động
+    /// GET /api/auth/sessions/active
+    /// </summary>
+    [HttpGet("sessions/active")]
+    public async Task<IActionResult> GetActiveSessions()
+    {
+        var sessions = await _authService.GetActiveSessionsAsync();
+        return Ok(new { success = true, sessions, count = sessions.Count });
     }
 
     /// <summary>
-    /// Kiểm tra health của auth system
+    /// Lấy session history của user
+    /// GET /api/auth/users/{userId}/sessions
+    /// </summary>
+    [HttpGet("users/{userId}/sessions")]
+    public async Task<IActionResult> GetUserSessions(long userId)
+    {
+        var sessions = await _authService.GetUserSessionsAsync(userId);
+        return Ok(new { success = true, sessions });
+    }
+
+    /// <summary>
+    /// Admin: Buộc đăng xuất 1 session
+    /// DELETE /api/auth/sessions/{sessionId}
+    /// </summary>
+    [HttpDelete("sessions/{sessionId}")]
+    public async Task<IActionResult> RevokeSession(Guid sessionId, [FromQuery] string? reason = null)
+    {
+        if (!HttpContext.HasRole("ADMIN", "CAPTAIN"))
+            return StatusCode(403, new { success = false, message = "Chỉ Admin/Captain mới có quyền revoke session" });
+
+        var (success, message) = await _authService.RevokeSessionAsync(sessionId, reason ?? "ADMIN_REVOKE");
+        return Ok(new { success, message });
+    }
+
+    /// <summary>
+    /// Admin: Buộc đăng xuất tất cả sessions của user
+    /// DELETE /api/auth/users/{userId}/sessions
+    /// </summary>
+    [HttpDelete("users/{userId}/sessions")]
+    public async Task<IActionResult> RevokeAllUserSessions(long userId, [FromQuery] string? reason = null)
+    {
+        if (!HttpContext.HasRole("ADMIN", "CAPTAIN"))
+            return StatusCode(403, new { success = false, message = "Chỉ Admin/Captain mới có quyền revoke sessions" });
+
+        var (success, message) = await _authService.RevokeAllUserSessionsAsync(userId, reason ?? "ADMIN_REVOKE");
+        return Ok(new { success, message });
+    }
+
+    // ========================================
+    // SYSTEM LOG APIs (Foundation)
+    // ========================================
+
+    /// <summary>
+    /// Lấy system logs
+    /// GET /api/auth/logs
+    /// </summary>
+    [HttpGet("logs")]
+    public async Task<IActionResult> GetLogs(
+        [FromQuery] string? category = null,
+        [FromQuery] string? action = null,
+        [FromQuery] string? level = null,
+        [FromQuery] long? userId = null,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null,
+        [FromQuery] int limit = 100)
+    {
+        var logs = await _systemLog.GetLogsAsync(category, action, level, userId, from, to, limit);
+        return Ok(new { success = true, logs, count = logs.Count });
+    }
+
+    /// <summary>
+    /// Lấy login history của user
+    /// GET /api/auth/users/{userId}/login-history
+    /// </summary>
+    [HttpGet("users/{userId}/login-history")]
+    public async Task<IActionResult> GetLoginHistory(long userId, [FromQuery] int limit = 20)
+    {
+        var history = await _systemLog.GetLoginHistoryAsync(userId, limit);
+        return Ok(new { success = true, history });
+    }
+
+    /// <summary>
+    /// Lấy security events
+    /// GET /api/auth/security-events
+    /// </summary>
+    [HttpGet("security-events")]
+    public async Task<IActionResult> GetSecurityEvents(
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null,
+        [FromQuery] int limit = 50)
+    {
+        var events = await _systemLog.GetSecurityEventsAsync(from, to, limit);
+        return Ok(new { success = true, events, count = events.Count });
+    }
+
+    /// <summary>
+    /// Lấy thống kê log theo category
+    /// GET /api/auth/logs/stats
+    /// </summary>
+    [HttpGet("logs/stats")]
+    public async Task<IActionResult> GetLogStats(
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null)
+    {
+        var stats = await _systemLog.GetLogCountByCategoryAsync(from, to);
+        return Ok(new { success = true, stats });
+    }
+
+    // ========================================
+    // HEALTH CHECK
+    // ========================================
+
+    /// <summary>
+    /// Health check
     /// GET /api/auth/health
     /// </summary>
     [HttpGet("health")]
@@ -497,6 +382,7 @@ public class AuthController : ControllerBase
             var roleCount = await _context.Roles.CountAsync();
             var userCount = await _context.Users.CountAsync();
             var activeUserCount = await _context.Users.CountAsync(u => u.IsActive);
+            var activeSessionCount = await _context.UserSessions.CountAsync(s => s.IsActive);
 
             return Ok(new
             {
@@ -506,24 +392,25 @@ public class AuthController : ControllerBase
                 {
                     totalRoles = roleCount,
                     totalUsers = userCount,
-                    activeUsers = activeUserCount
+                    activeUsers = activeUserCount,
+                    activeSessions = activeSessionCount
                 }
             });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error checking auth health");
-            return StatusCode(500, new { success = false, message = "Lỗi server: " + ex.Message });
+            return StatusCode(500, new { success = false, message = "Auth system error" });
         }
     }
 
     // ========================================
-    // LEGACY SUPPORT (for mobile app)
+    // LEGACY SUPPORT (mobile app backward compatibility)
     // ========================================
 
     /// <summary>
-    /// Legacy login endpoint (for backward compatibility with mobile app)
-    /// Uses CrewId as username
+    /// Legacy login endpoint - delegates to the new auth system
+    /// POST /api/auth/login-legacy
     /// </summary>
     [HttpPost("login-legacy")]
     public async Task<IActionResult> LoginLegacy([FromBody] LegacyLoginRequest request)
@@ -535,62 +422,33 @@ public class AuthController : ControllerBase
                 return BadRequest(new { error = "Crew ID and password are required" });
             }
 
-            // Try to find user by CrewId
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.CrewId == request.CrewId && u.IsActive);
-
-            if (user != null)
+            // Delegate to new login system - no fallback to hardcoded password
+            var loginRequest = new LoginRequest
             {
-                // Check password
-                var hashedPassword = HashPassword(request.Password);
-                if (user.PasswordHash == hashedPassword)
-                {
-                    var role = await _context.Roles.FindAsync(user.RoleId);
-                    var crew = await _context.CrewMembers.AsNoTracking().FirstOrDefaultAsync(c => c.CrewId == user.CrewId);
+                Username = request.CrewId,
+                Password = request.Password,
+                DeviceType = "MOBILE"
+            };
 
-                    var accessToken = GenerateToken(user.Id, user.Username);
-                    var refreshToken = GenerateToken(user.Id, user.Username, isRefresh: true);
+            var ipAddress = GetClientIpAddress();
+            var userAgent = Request.Headers["User-Agent"].FirstOrDefault();
+            var loginResult = await _authService.LoginAsync(loginRequest, ipAddress, userAgent);
 
-
-                user.LastLoginAt = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
-
+            if (loginResult.Success && loginResult.User != null)
+            {
                 return Ok(new LegacyLoginResponse
                 {
-                    AccessToken = accessToken,
-                    RefreshToken = refreshToken,
-                    UserId = crew?.Id.GetHashCode() ?? user.Id,
-                    CrewId = user.CrewId ?? "",
-                    FullName = crew?.FullName ?? "",
-                    RankName = crew?.Rank?.RankName,
-                    Department = crew?.Department,
-                    ExpiresIn = 86400
+                    AccessToken = loginResult.AccessToken ?? "",
+                    RefreshToken = loginResult.RefreshToken ?? "",
+                    UserId = loginResult.User.Id,
+                    CrewId = loginResult.User.CrewId ?? "",
+                    FullName = loginResult.User.FullName ?? "",
+                    RankName = loginResult.User.RankName,
+                    ExpiresIn = loginResult.ExpiresIn
                 });
             }
-        }
 
-        // Fallback to old behavior (direct crew login with password123)
-        var crewMember = await _context.CrewMembers
-            .Include(c => c.Rank)
-            .FirstOrDefaultAsync(c => c.CrewId == request.CrewId && c.IsOnboard);            if (crewMember == null || request.Password != "password123")
-            {
-                return Unauthorized(new { error = "Invalid credentials" });
-            }
-
-            var token = GenerateToken(crewMember.Id.GetHashCode(), crewMember.CrewId);
-            var refresh = GenerateToken(crewMember.Id.GetHashCode(), crewMember.CrewId, isRefresh: true);
-
-            return Ok(new LegacyLoginResponse
-            {
-                AccessToken = token,
-                RefreshToken = refresh,
-                UserId = crewMember.Id.GetHashCode(),
-                CrewId = crewMember.CrewId,
-                FullName = crewMember.FullName,
-                RankName = crewMember.Rank?.RankName,
-                Department = crewMember.Department,
-                ExpiresIn = 86400
-            });
+            return Unauthorized(new { error = "Invalid credentials" });
         }
         catch (Exception ex)
         {
@@ -599,125 +457,40 @@ public class AuthController : ControllerBase
         }
     }
 
-    [HttpPost("refresh")]
-    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(request.RefreshToken))
-            {
-                return BadRequest(new { error = "Refresh token is required" });
-            }
-
-            var parts = request.RefreshToken.Split('_');
-            if (parts.Length < 3)
-            {
-                return Unauthorized(new { error = "Invalid refresh token" });
-            }
-
-            var userId = long.Parse(parts[1]);
-            
-            // Try to find in users table first
-            var user = await _context.Users.FindAsync(userId);
-            if (user != null && user.IsActive)
-            {
-                var role = await _context.Roles.FindAsync(user.RoleId);
-                var crew = string.IsNullOrEmpty(user.CrewId)
-                    ? null
-                    : await _context.CrewMembers.FirstOrDefaultAsync(c => c.CrewId == user.CrewId);
-
-                var accessToken = GenerateToken(user.Id, user.Username);
-                var refreshToken = GenerateToken(user.Id, user.Username, isRefresh: true);
-
-                return Ok(new
-                {
-                    accessToken,
-                    refreshToken,
-                    expiresIn = 86400,
-                    user = new
-                    {
-                        id = user.Id,
-                        username = user.Username,
-                        roleId = user.RoleId,
-                        roleName = role?.RoleName,
-                        crewId = user.CrewId,
-                        fullName = crew?.FullName,
-                        rankName = crew?.Rank?.RankName
-                    }
-                });
-            }
-
-            // Fallback for old crew-based tokens no longer supported
-            // Users must login again with new authentication system
-            return Unauthorized(new { error = "Token expired or invalid. Please login again." });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error refreshing token");
-            return StatusCode(500, new { error = "Internal server error" });
-        }
-    }
-
-    [HttpPost("logout")]
-    public IActionResult Logout()
-    {
-        _logger.LogInformation("Logout requested");
-        return Ok(new { message = "Logged out successfully" });
-    }
-
     // ========================================
-    // HELPER METHODS
+    // HELPERS
     // ========================================
 
-    private string HashPassword(string password)
+    private string? GetClientIpAddress()
     {
-        using (var sha256 = SHA256.Create())
+        // Check X-Forwarded-For header first (proxy/load balancer)
+        var forwardedFor = Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(forwardedFor))
         {
-            var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            return Convert.ToBase64String(hashedBytes);
+            return forwardedFor.Split(',').FirstOrDefault()?.Trim();
         }
+
+        return HttpContext.Connection.RemoteIpAddress?.ToString();
     }
 
-    private string GenerateToken(long userId, string identifier, bool isRefresh = false)
+    private string? GetBearerToken()
     {
-        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var tokenType = isRefresh ? "refresh" : "access";
-        var random = Guid.NewGuid().ToString("N").Substring(0, 8);
-        
-        return $"{tokenType}_{userId}_{identifier}_{timestamp}_{random}";
+        var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            return authHeader.Substring("Bearer ".Length).Trim();
+        }
+
+        // Also check query parameter (for WebSocket/SSE connections)
+        return Request.Query["token"].FirstOrDefault();
     }
 }
 
 // ========================================
-// DTOs
+// Controller-level DTOs (backward compatibility)
 // ========================================
 
-public class LoginRequestDto
-{
-    public string Username { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
-}
-
-public class ChangePasswordRequestDto
-{
-    public long UserId { get; set; }
-    public string OldPassword { get; set; } = string.Empty;
-    public string NewPassword { get; set; } = string.Empty;
-    public string ConfirmPassword { get; set; } = string.Empty;
-}
-
-public class ResetPasswordRequestDto
-{
-    public string Username { get; set; } = string.Empty;
-}
-
-public class CreateUserRequestDto
-{
-    public string CrewId { get; set; } = string.Empty;
-    public int RoleId { get; set; }
-}
-
-public class UpdateUserRoleRequestDto
+public class UpdateUserRoleDto
 {
     public int RoleId { get; set; }
 }
@@ -726,11 +499,6 @@ public class LegacyLoginRequest
 {
     public string CrewId { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
-}
-
-public class RefreshTokenRequest
-{
-    public string RefreshToken { get; set; } = string.Empty;
 }
 
 public class LegacyLoginResponse

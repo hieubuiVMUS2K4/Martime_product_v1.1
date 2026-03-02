@@ -4,13 +4,17 @@
 -- =====================================================
 
 -- ==================== CLEAR ALL DATA ====================
--- Delete in reverse dependency order
+-- Delete in reverse dependency order (including all FK references to crew_members)
 DELETE FROM service_records;
 DELETE FROM health_documents;
 DELETE FROM employment_documents;
 DELETE FROM seafarer_documents;
 DELETE FROM travel_documents;
 DELETE FROM crew_certificates;
+DELETE FROM drill_logs;
+DELETE FROM drill_schedules;
+DELETE FROM voyage_crew_assignments;
+UPDATE users SET crew_id = NULL WHERE crew_id IS NOT NULL;
 DELETE FROM rank_certificates;
 DELETE FROM country_certificates;
 DELETE FROM crew_members;

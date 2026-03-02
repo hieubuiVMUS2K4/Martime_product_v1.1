@@ -11,15 +11,16 @@ namespace ProductApi.Services
             _repo = repo;
         }
 
-        public IEnumerable<ShipDto> GetAll()
+        public async Task<IEnumerable<ShipDto>> GetAllAsync()
         {
-            return _repo.GetAll().Select(s => new ShipDto { Id = s.Id, Name = s.Name, IMO = s.IMO, Capacity = s.Capacity });
+            var ships = await _repo.GetAllAsync();
+            return ships.Select(s => new ShipDto { Id = s.Id, Name = s.Name, IMO = s.IMO, Capacity = s.Capacity });
         }
 
-        public ShipDto Create(ShipDto dto)
+        public async Task<ShipDto> CreateAsync(ShipDto dto)
         {
             var ship = new Ship { Id = Guid.NewGuid(), Name = dto.Name, IMO = dto.IMO, Capacity = dto.Capacity };
-            var created = _repo.Add(ship);
+            var created = await _repo.AddAsync(ship);
             return new ShipDto { Id = created.Id, Name = created.Name, IMO = created.IMO, Capacity = created.Capacity };
         }
     }

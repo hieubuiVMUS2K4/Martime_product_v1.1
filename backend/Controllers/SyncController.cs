@@ -42,7 +42,7 @@ public class SyncController : ControllerBase
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, $"Failed to sync item {item.Id} ({item.TableName})");
-                    results.Add(new SyncResultDto { Id = item.Id, Success = false, Error = ex.Message });
+                    results.Add(new SyncResultDto { Id = item.Id, Success = false, Error = "Sync failed" });
                 }
             }
 

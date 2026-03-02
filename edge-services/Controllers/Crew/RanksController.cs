@@ -115,15 +115,24 @@ public class RanksController : ControllerBase
         try
         {
             // Check for duplicate rank code (excluding current rank)
-            var existingRank = await _context.Ranks
+            var duplicateRank = await _context.Ranks
                 .FirstOrDefaultAsync(r => r.Id != id && r.RankCode.ToLower() == rank.RankCode.ToLower());
             
-            if (existingRank != null)
+            if (duplicateRank != null)
             {
                 return BadRequest(new { error = "Rank code already exists" });
             }
 
-            _context.Entry(rank).State = EntityState.Modified;
+            var existing = await _context.Ranks.FindAsync(id);
+            if (existing == null)
+            {
+                return NotFound(new { error = "Rank not found" });
+            }
+
+            // Only update provided fields
+            if (rank.RankCode != null) existing.RankCode = rank.RankCode;
+            if (rank.RankName != null) existing.RankName = rank.RankName;
+            existing.IsActive = rank.IsActive;
 
             await _context.SaveChangesAsync();
 

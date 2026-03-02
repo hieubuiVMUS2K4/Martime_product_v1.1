@@ -84,7 +84,8 @@ public class MaintenanceScheduleRepository : IMaintenanceScheduleRepository
     {
         schedule.UpdatedAt = DateTime.UtcNow;
         
-        _context.MaintenanceSchedules.Update(schedule);
+        // No need to call _context.MaintenanceSchedules.Update(schedule)
+        // Entity is already tracked by EF Core change tracker - only modified columns will be updated
         await _context.SaveChangesAsync();
         
         return schedule;

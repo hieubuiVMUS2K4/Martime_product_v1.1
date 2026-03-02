@@ -264,24 +264,29 @@ namespace MaritimeEdge.Services.Logbooks
                     return (false, "Cannot update a signed entry.");
                 }
 
+                // Required fields - always update
                 entry.OperationDateTime = dto.OperationDateTime;
                 entry.OperationCode = dto.OperationCode;
                 entry.GarbageCategory = dto.GarbageCategory;
                 entry.Description = dto.Description;
                 entry.Quantity = dto.Quantity;
-                entry.QuantityUnit = dto.QuantityUnit;
-                entry.Latitude = dto.Latitude;
-                entry.Longitude = dto.Longitude;
-                entry.PortName = dto.PortName;
-                entry.ReceptionFacility = dto.ReceptionFacility;
-                entry.ReceiptNumber = dto.ReceiptNumber;
-                entry.IncinerationStartTime = dto.IncinerationStartTime;
-                entry.IncinerationEndTime = dto.IncinerationEndTime;
-                entry.IncineratorDetails = dto.IncineratorDetails;
-                entry.AccidentalDischargeReason = dto.AccidentalDischargeReason;
-                entry.AccidentalDischargeMeasures = dto.AccidentalDischargeMeasures;
                 entry.OfficerInCharge = dto.OfficerInCharge;
-                entry.Remarks = dto.Remarks;
+
+                // Non-required fields with defaults
+                entry.QuantityUnit = dto.QuantityUnit;
+
+                // Nullable fields - only update if provided
+                if (dto.Latitude.HasValue) entry.Latitude = dto.Latitude;
+                if (dto.Longitude.HasValue) entry.Longitude = dto.Longitude;
+                if (dto.PortName != null) entry.PortName = dto.PortName;
+                if (dto.ReceptionFacility != null) entry.ReceptionFacility = dto.ReceptionFacility;
+                if (dto.ReceiptNumber != null) entry.ReceiptNumber = dto.ReceiptNumber;
+                if (dto.IncinerationStartTime.HasValue) entry.IncinerationStartTime = dto.IncinerationStartTime;
+                if (dto.IncinerationEndTime.HasValue) entry.IncinerationEndTime = dto.IncinerationEndTime;
+                if (dto.IncineratorDetails != null) entry.IncineratorDetails = dto.IncineratorDetails;
+                if (dto.AccidentalDischargeReason != null) entry.AccidentalDischargeReason = dto.AccidentalDischargeReason;
+                if (dto.AccidentalDischargeMeasures != null) entry.AccidentalDischargeMeasures = dto.AccidentalDischargeMeasures;
+                if (dto.Remarks != null) entry.Remarks = dto.Remarks;
                 
                 entry.UpdatedAt = DateTime.UtcNow;
                 entry.IsSynced = false;

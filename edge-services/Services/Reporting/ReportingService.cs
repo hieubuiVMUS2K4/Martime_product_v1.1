@@ -1455,30 +1455,32 @@ public class ReportingService : IReportingService
                 return (false, "Noon report data not found");
             }
 
-            // Update noon report fields
+            // Update noon report required fields
             noonReport.ReportDate = dto.ReportDate;
-            noonReport.Latitude = dto.Latitude;
-            noonReport.Longitude = dto.Longitude;
-            noonReport.CourseOverGround = dto.CourseOverGround;
-            noonReport.SpeedOverGround = dto.SpeedOverGround;
-            noonReport.WeatherConditions = dto.WeatherConditions;
-            noonReport.WindDirection = dto.WindDirection;
-            noonReport.WindSpeed = dto.WindSpeed;
-            noonReport.SeaState = dto.SeaState;
-            noonReport.Visibility = dto.Visibility;
-            noonReport.AirTemperature = dto.AirTemperature;
-            noonReport.SeaTemperature = dto.SeaTemperature;
-            noonReport.BarometricPressure = dto.BarometricPressure;
-            noonReport.DistanceTraveled = dto.DistanceTraveled;
-            noonReport.DistanceToGo = dto.DistanceToGo;
-            noonReport.FuelOilROB = dto.FuelOilROB;
-            noonReport.DieselOilROB = dto.DieselOilROB;
-            noonReport.FuelOilConsumed = dto.FuelOilConsumed;
-            noonReport.DieselOilConsumed = dto.DieselOilConsumed;
-            noonReport.MainEngineRunningHours = dto.MainEngineRunningHours;
-            noonReport.AuxEngineRunningHours = dto.AuxEngineRunningHours;
-            noonReport.CargoOnBoard = dto.CargoOnBoard;
-            noonReport.OperationalRemarks = dto.GeneralRemarks; // Map to OperationalRemarks
+
+            // Update noon report nullable fields - only if provided
+            if (dto.Latitude.HasValue) noonReport.Latitude = dto.Latitude;
+            if (dto.Longitude.HasValue) noonReport.Longitude = dto.Longitude;
+            if (dto.CourseOverGround.HasValue) noonReport.CourseOverGround = dto.CourseOverGround;
+            if (dto.SpeedOverGround.HasValue) noonReport.SpeedOverGround = dto.SpeedOverGround;
+            if (dto.WeatherConditions != null) noonReport.WeatherConditions = dto.WeatherConditions;
+            if (dto.WindDirection != null) noonReport.WindDirection = dto.WindDirection;
+            if (dto.WindSpeed.HasValue) noonReport.WindSpeed = dto.WindSpeed;
+            if (dto.SeaState != null) noonReport.SeaState = dto.SeaState;
+            if (dto.Visibility != null) noonReport.Visibility = dto.Visibility;
+            if (dto.AirTemperature.HasValue) noonReport.AirTemperature = dto.AirTemperature;
+            if (dto.SeaTemperature.HasValue) noonReport.SeaTemperature = dto.SeaTemperature;
+            if (dto.BarometricPressure.HasValue) noonReport.BarometricPressure = dto.BarometricPressure;
+            if (dto.DistanceTraveled.HasValue) noonReport.DistanceTraveled = dto.DistanceTraveled;
+            if (dto.DistanceToGo.HasValue) noonReport.DistanceToGo = dto.DistanceToGo;
+            if (dto.FuelOilROB.HasValue) noonReport.FuelOilROB = dto.FuelOilROB;
+            if (dto.DieselOilROB.HasValue) noonReport.DieselOilROB = dto.DieselOilROB;
+            if (dto.FuelOilConsumed.HasValue) noonReport.FuelOilConsumed = dto.FuelOilConsumed;
+            if (dto.DieselOilConsumed.HasValue) noonReport.DieselOilConsumed = dto.DieselOilConsumed;
+            if (dto.MainEngineRunningHours != null) noonReport.MainEngineRunningHours = dto.MainEngineRunningHours;
+            if (dto.AuxEngineRunningHours != null) noonReport.AuxEngineRunningHours = dto.AuxEngineRunningHours;
+            if (dto.CargoOnBoard.HasValue) noonReport.CargoOnBoard = dto.CargoOnBoard;
+            if (dto.GeneralRemarks != null) noonReport.OperationalRemarks = dto.GeneralRemarks;
 
             // Update maritime report fields
             maritimeReport.ReportDateTime = dto.ReportDate;

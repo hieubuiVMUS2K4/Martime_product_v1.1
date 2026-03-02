@@ -80,7 +80,8 @@ public class EquipmentAssetRepository : IEquipmentAssetRepository
     {
         asset.UpdatedAt = DateTime.UtcNow;
         
-        _context.EquipmentAssets.Update(asset);
+        // No need to call _context.EquipmentAssets.Update(asset)
+        // Entity is already tracked by EF Core change tracker - only modified columns will be updated
         await _context.SaveChangesAsync();
         
         return asset;

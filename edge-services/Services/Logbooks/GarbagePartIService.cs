@@ -342,27 +342,29 @@ namespace MaritimeEdge.Services.Logbooks
                     }
                 }
 
-                // Update fields
+                // Required fields - always update
                 entry.OperationDate = dto.OperationDate.Date;
                 entry.OperationTime = dto.OperationTime;
-                entry.OperationEndTime = dto.OperationEndTime;
                 entry.Category = dto.Category.ToUpper();
                 entry.Description = dto.Description;
-                entry.EstimatedAmountDischargedToSea = dto.EstimatedAmountDischargedToSea;
-                entry.EstimatedAmountToReceptionFacilities = dto.EstimatedAmountToReceptionFacilities;
-                entry.EstimatedAmountIncinerated = dto.EstimatedAmountIncinerated;
-                entry.DischargeLatitude = dto.DischargeLatitude;
-                entry.DischargeLongitude = dto.DischargeLongitude;
-                entry.PortName = dto.PortName;
-                entry.ReceptionFacilityName = dto.ReceptionFacilityName;
-                entry.ReceiptNumber = dto.ReceiptNumber;
-                entry.IncinerationStartTime = dto.IncinerationStartTime;
-                entry.IncinerationEndTime = dto.IncinerationEndTime;
-                entry.IncineratorDetails = dto.IncineratorDetails;
-                entry.ExceptionalDischargeReason = dto.ExceptionalDischargeReason;
-                entry.WaterDepth = dto.WaterDepth;
-                entry.Remarks = dto.Remarks;
                 entry.OfficerInCharge = dto.OfficerInCharge;
+
+                // Nullable fields - only update if provided
+                if (dto.OperationEndTime.HasValue) entry.OperationEndTime = dto.OperationEndTime;
+                if (dto.EstimatedAmountDischargedToSea.HasValue) entry.EstimatedAmountDischargedToSea = dto.EstimatedAmountDischargedToSea;
+                if (dto.EstimatedAmountToReceptionFacilities.HasValue) entry.EstimatedAmountToReceptionFacilities = dto.EstimatedAmountToReceptionFacilities;
+                if (dto.EstimatedAmountIncinerated.HasValue) entry.EstimatedAmountIncinerated = dto.EstimatedAmountIncinerated;
+                if (dto.DischargeLatitude.HasValue) entry.DischargeLatitude = dto.DischargeLatitude;
+                if (dto.DischargeLongitude.HasValue) entry.DischargeLongitude = dto.DischargeLongitude;
+                if (dto.PortName != null) entry.PortName = dto.PortName;
+                if (dto.ReceptionFacilityName != null) entry.ReceptionFacilityName = dto.ReceptionFacilityName;
+                if (dto.ReceiptNumber != null) entry.ReceiptNumber = dto.ReceiptNumber;
+                if (dto.IncinerationStartTime.HasValue) entry.IncinerationStartTime = dto.IncinerationStartTime;
+                if (dto.IncinerationEndTime.HasValue) entry.IncinerationEndTime = dto.IncinerationEndTime;
+                if (dto.IncineratorDetails != null) entry.IncineratorDetails = dto.IncineratorDetails;
+                if (dto.ExceptionalDischargeReason != null) entry.ExceptionalDischargeReason = dto.ExceptionalDischargeReason;
+                if (dto.WaterDepth.HasValue) entry.WaterDepth = dto.WaterDepth;
+                if (dto.Remarks != null) entry.Remarks = dto.Remarks;
                 entry.UpdatedAt = DateTime.UtcNow;
                 entry.IsSynced = false;
 

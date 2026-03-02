@@ -1,4 +1,4 @@
-import { apiClient } from './api.client'
+import { apiClient, getAuthToken } from './api.client'
 import type {
   PositionData,
   NavigationData,
@@ -48,6 +48,12 @@ export class MaritimeService {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         ...(options?.headers as Record<string, string> | undefined),
+      }
+
+      // Inject auth token for audit trail (user identity in backend)
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
 
       if (!isFormDataBody) {
@@ -205,6 +211,8 @@ export class MaritimeService {
       this.request<CrewCertificate[]>(`/certificates/${certificateId}/crew-certificates`),
     getCrewCertificatesByCrewId: (crewId: string) =>
       this.request<CrewCertificate[]>(`/certificates/crew/${crewId}`),
+    getCrewCertificatesBulk: (crewIds: string[]) =>
+      this.request<Record<string, CrewCertificate[]>>(`/certificates/crew/bulk?crewIds=${crewIds.join(',')}`),
     addCrewCertificate: (data: {
       certificateId: number
       crewMemberId: string
@@ -556,4 +564,87 @@ export const syncService = {
 
 export const dashboardService = {
   getStats: () => apiClient.get<DashboardStats>('/dashboard/stats'),
+}
+
+// ============================================================
+// AUDIT LOG (ISM Code Chapter 12 / IMO MSC.428)
+// ============================================================
+
+export interface AuditLogEntry {
+  id: number
+  timestamp: string
+  category: string
+  action: string
+  level: string
+  message?: string
+  userId?: number
+  username?: string
+  ipAddress?: string
+  entityType?: string
+  entityId?: string
+  oldValues?: string
+  newValues?: string
+  result?: string
+  durationMs?: number
+}
+
+export interface AuditLogResponse {
+  success: boolean
+  data: AuditLogEntry[]
+  totalCount: number
+  totalPages: number
+  currentPage: number
+  pageSize: number
+}
+
+export interface AuditLogStats {
+  success: boolean
+  totalCount: number
+  period: { from: string; to: string }
+  byCategory: { category: string; count: number }[]
+  byAction: { action: string; count: number }[]
+  byLevel: { level: string; count: number }[]
+  topUsers: { username: string; count: number }[]
+  topEntities: { entityType: string; count: number }[]
+}
+
+export const auditLogService = {
+  getLogs: (params?: {
+    page?: number
+    pageSize?: number
+    category?: string
+    action?: string
+    level?: string
+    entityType?: string
+    username?: string
+    search?: string
+    from?: string
+    to?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          searchParams.append(key, String(value))
+        }
+      })
+    }
+    const qs = searchParams.toString()
+    return apiClient.get<AuditLogResponse>(`/audit-logs${qs ? `?${qs}` : ''}`)
+  },
+  getStats: (from?: string, to?: string) => {
+    const params = new URLSearchParams()
+    if (from) params.append('from', from)
+    if (to) params.append('to', to)
+    const qs = params.toString()
+    return apiClient.get<AuditLogStats>(`/audit-logs/stats${qs ? `?${qs}` : ''}`)
+  },
+  getEntityTypes: () =>
+    apiClient.get<{ success: boolean; entityTypes: string[] }>('/audit-logs/entity-types'),
+  getById: (id: number) =>
+    apiClient.get<{ success: boolean; data: AuditLogEntry }>(`/audit-logs/${id}`),
+  cleanup: (retentionDays: number = 90) =>
+    apiClient.post<{ success: boolean; message: string; deletedCount: number }>(
+      `/audit-logs/cleanup?retentionDays=${retentionDays}`, {}
+    ),
 }

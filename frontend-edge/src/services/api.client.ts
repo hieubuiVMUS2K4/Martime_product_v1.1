@@ -1,5 +1,27 @@
 import { API_CONFIG } from '@/config/app.config'
 
+// ─── Auth Token Provider ──────────────────────────────────
+// Lazy import to avoid circular dependency with auth.store
+type TokenProvider = () => string | null
+type LogoutHandler = () => void
+
+let _getToken: TokenProvider | null = null
+let _onUnauthorized: LogoutHandler | null = null
+
+/** Register auth token provider (called from auth store init) */
+export function registerAuthProvider(
+  getToken: TokenProvider,
+  onUnauthorized: LogoutHandler
+) {
+  _getToken = getToken
+  _onUnauthorized = onUnauthorized
+}
+
+/** Get current auth token (used by other service modules to inject Bearer header) */
+export function getAuthToken(): string | null {
+  return _getToken?.() ?? null
+}
+
 export class ApiClient {
   private baseURL: string
   private timeout: number
@@ -16,12 +38,20 @@ export class ApiClient {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), this.timeout)
 
+    // Inject auth token if available
+    const authHeaders: Record<string, string> = {}
+    const token = _getToken?.()
+    if (token) {
+      authHeaders['Authorization'] = `Bearer ${token}`
+    }
+
     try {
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         ...options,
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders,
           ...options.headers,
         },
       })
@@ -29,6 +59,17 @@ export class ApiClient {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
+        // Handle 401 Unauthorized - auto logout
+        // IMPORTANT: Skip 401 handling for auth endpoints to prevent infinite loops
+        // (e.g., /auth/validate returns 401 when session expired, store handles refresh)
+        const isAuthEndpoint = endpoint.startsWith('/auth/')
+        if (response.status === 401 && _onUnauthorized && !isAuthEndpoint) {
+          _onUnauthorized()
+          const error: any = new Error('Session expired. Please log in again.')
+          error.response = { status: 401, data: { error: 'Unauthorized' } }
+          throw error
+        }
+
         // Try to parse error response body for more details
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`
         let validationErrors: Record<string, string[]> | null = null

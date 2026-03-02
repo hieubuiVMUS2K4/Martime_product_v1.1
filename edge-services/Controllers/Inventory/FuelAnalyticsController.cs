@@ -58,7 +58,7 @@ public class FuelAnalyticsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error calculating fuel efficiency");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -84,7 +84,7 @@ public class FuelAnalyticsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting consumption trend");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -124,7 +124,7 @@ public class FuelAnalyticsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error comparing efficiency");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -150,7 +150,7 @@ public class FuelAnalyticsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error predicting fuel consumption");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -177,7 +177,7 @@ public class FuelAnalyticsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting CII rating");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -206,7 +206,7 @@ public class FuelAnalyticsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting monthly comparison");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -229,7 +229,7 @@ public class FuelAnalyticsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting weekly summary");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -252,7 +252,7 @@ public class FuelAnalyticsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting monthly summary");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 
@@ -332,7 +332,7 @@ public class FuelAnalyticsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting dashboard data");
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 }

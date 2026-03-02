@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using MaritimeEdge.DTOs;
+using MaritimeEdge.Services.Core;
 using System.Text.Json;
 using MTaskStatus = MaritimeEdge.Constants.TaskStatus;
 
@@ -35,8 +36,8 @@ public class DeferralRequestController : ControllerBase
             _logger.LogInformation("ProposedDueDate: {Date}", dto.ProposedDueDate);
             _logger.LogInformation("Attachments count: {Count}", dto.Attachments?.Count ?? 0);
             
-            // Get user ID from header (set by mobile app or frontend)
-            var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
+            // Get authenticated user from session middleware
+            var userId = HttpContext.GetUsername() ?? "SYSTEM";
             var deviceType = Request.Headers["X-Device-Type"].FirstOrDefault() ?? "WEB";
 
             // Validate task exists and is in valid status
@@ -149,8 +150,7 @@ public class DeferralRequestController : ControllerBase
                 {
                     _logger.LogError(ex, "Failed to serialize attachments");
                     return StatusCode(500, new {
-                        error = "Failed to process attachments",
-                        message = ex.Message
+                        error = "Failed to process attachments"
                     });
                 }
             }
@@ -217,16 +217,9 @@ public class DeferralRequestController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Error creating deferral request - Exception: {Message}", ex.Message);
-            _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
-            if (ex.InnerException != null)
-            {
-                _logger.LogError("Inner exception: {InnerMessage}", ex.InnerException.Message);
-            }
+            _logger.LogError(ex, "Error creating deferral request");
             return StatusCode(500, new { 
-                error = "Internal server error",
-                message = ex.Message,
-                type = ex.GetType().Name
+                error = "Internal server error"
             });
         }
     }
@@ -419,7 +412,7 @@ public class DeferralRequestController : ControllerBase
     {
         try
         {
-            var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
+            var userId = HttpContext.GetUsername() ?? "SYSTEM";
             var deviceType = Request.Headers["X-Device-Type"].FirstOrDefault() ?? "WEB";
 
             var deferral = await _context.TaskDeferralRequests
@@ -550,7 +543,7 @@ public class DeferralRequestController : ControllerBase
     {
         try
         {
-            var userId = Request.Headers["X-User-Id"].FirstOrDefault() ?? "SYSTEM";
+            var userId = HttpContext.GetUsername() ?? "SYSTEM";
 
             var deferral = await _context.TaskDeferralRequests
                 .Include(d => d.Task)

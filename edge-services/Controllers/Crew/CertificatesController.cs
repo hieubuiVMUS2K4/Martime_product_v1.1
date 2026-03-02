@@ -37,7 +37,7 @@ public class CertificatesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching certificates");
-            return StatusCode(500, new { message = "Error fetching certificates", error = ex.Message });
+            return StatusCode(500, new { message = "Error fetching certificates" });
         }
     }
 
@@ -48,7 +48,21 @@ public class CertificatesController : ControllerBase
         try
         {
             var now = DateTime.UtcNow;
-            var warningDate = now.AddDays(90); // 90 days warning threshold
+            var warningDate = now.AddDays(90);
+
+            // Pre-aggregate crew certificate stats in a single query
+            var certStats = await _context.CrewCertificates
+                .AsNoTracking()
+                .GroupBy(cc => cc.CertificateId)
+                .Select(g => new
+                {
+                    CertificateId = g.Key,
+                    CrewCount = g.Count(),
+                    ValidCount = g.Count(cc => cc.ExpiryDate != null && cc.ExpiryDate > warningDate),
+                    ExpiringCount = g.Count(cc => cc.ExpiryDate != null && cc.ExpiryDate <= warningDate && cc.ExpiryDate > now),
+                    ExpiredCount = g.Count(cc => cc.ExpiryDate != null && cc.ExpiryDate <= now)
+                })
+                .ToDictionaryAsync(x => x.CertificateId);
 
             var certificates = await _context.Certificates
                 .AsNoTracking()
@@ -63,10 +77,6 @@ public class CertificatesController : ControllerBase
                     c.IsMandatory,
                     c.Description,
                     c.IsActive,
-                    CrewCount = _context.CrewCertificates.Count(cc => cc.CertificateId == c.Id),
-                    ValidCount = _context.CrewCertificates.Count(cc => cc.CertificateId == c.Id && cc.ExpiryDate != null && cc.ExpiryDate > warningDate),
-                    ExpiringCount = _context.CrewCertificates.Count(cc => cc.CertificateId == c.Id && cc.ExpiryDate != null && cc.ExpiryDate <= warningDate && cc.ExpiryDate > now),
-                    ExpiredCount = _context.CrewCertificates.Count(cc => cc.CertificateId == c.Id && cc.ExpiryDate != null && cc.ExpiryDate <= now),
                     Countries = _context.CountryCertificates
                         .Where(cc => cc.CertificateId == c.Id)
                         .Select(cc => cc.Country)
@@ -83,12 +93,33 @@ public class CertificatesController : ControllerBase
                 .ThenBy(c => c.CertificateName)
                 .ToListAsync();
 
-            return Ok(certificates);
+            var result = certificates.Select(c =>
+            {
+                certStats.TryGetValue(c.Id, out var stats);
+                return new
+                {
+                    c.Id,
+                    c.CertificateCode,
+                    c.CertificateName,
+                    c.Category,
+                    c.ValidityPeriodMonths,
+                    c.IsMandatory,
+                    c.Description,
+                    c.IsActive,
+                    CrewCount = stats?.CrewCount ?? 0,
+                    ValidCount = stats?.ValidCount ?? 0,
+                    ExpiringCount = stats?.ExpiringCount ?? 0,
+                    ExpiredCount = stats?.ExpiredCount ?? 0,
+                    c.Countries
+                };
+            });
+
+            return Ok(result);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching certificates with crew count");
-            return StatusCode(500, new { message = "Error fetching certificates with crew count", error = ex.Message });
+            return StatusCode(500, new { message = "Error fetching certificates with crew count" });
         }
     }
 
@@ -112,7 +143,7 @@ public class CertificatesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching certificate {CertificateId}", id);
-            return StatusCode(500, new { message = "Error fetching certificate", error = ex.Message });
+            return StatusCode(500, new { message = "Error fetching certificate" });
         }
     }
 
@@ -136,7 +167,7 @@ public class CertificatesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching countries for certificate {CertificateId}", id);
-            return StatusCode(500, new { message = "Error fetching countries for certificate", error = ex.Message });
+            return StatusCode(500, new { message = "Error fetching countries for certificate" });
         }
     }
 
@@ -187,7 +218,7 @@ public class CertificatesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching crew certificates for certificate {CertificateId}", id);
-            return StatusCode(500, new { message = "Error fetching crew certificates", error = ex.Message });
+            return StatusCode(500, new { message = "Error fetching crew certificates" });
         }
     }
 
@@ -239,7 +270,75 @@ public class CertificatesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching certificates for crew {CrewId}", crewId);
-            return StatusCode(500, new { message = "Error fetching crew certificates", error = ex.Message });
+            return StatusCode(500, new { message = "Error fetching crew certificates" });
+        }
+    }
+
+    // GET: api/certificates/crew/bulk?crewIds=id1,id2,...
+    [HttpGet("crew/bulk")]
+    public async Task<IActionResult> GetCrewCertificatesBulk([FromQuery] string crewIds)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(crewIds))
+                return BadRequest(new { message = "crewIds parameter is required" });
+
+            var idList = crewIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(id => id.Trim())
+                .Where(id => Guid.TryParse(id, out _))
+                .Select(Guid.Parse)
+                .ToList();
+
+            if (idList.Count == 0)
+                return BadRequest(new { message = "No valid crew IDs provided" });
+
+            var crewCertificates = await _context.CrewCertificates
+                .AsNoTracking()
+                .Where(cc => idList.Contains(cc.CrewMemberId))
+                .OrderBy(cc => cc.CrewMemberId)
+                .ThenBy(cc => cc.Certificate != null ? cc.Certificate.CertificateName : "")
+                .Select(cc => new
+                {
+                    cc.Id,
+                    cc.CertificateId,
+                    cc.CrewMemberId,
+                    cc.CertificateNumber,
+                    cc.IssueDate,
+                    cc.ExpiryDate,
+                    cc.IssuingAuthority,
+                    cc.CertificateOfCompetency,
+                    cc.CountryId,
+                    cc.Status,
+                    cc.Notes,
+                    Certificate = cc.Certificate == null ? null : new
+                    {
+                        cc.Certificate.Id,
+                        cc.Certificate.CertificateCode,
+                        cc.Certificate.CertificateName,
+                        cc.Certificate.Category,
+                        cc.Certificate.ValidityPeriodMonths,
+                        cc.Certificate.IsMandatory
+                    },
+                    Country = cc.Country == null ? null : new
+                    {
+                        cc.Country.Id,
+                        cc.Country.CountryCode,
+                        cc.Country.CountryName
+                    }
+                })
+                .ToListAsync();
+
+            // Group by crewMemberId for easy frontend consumption
+            var grouped = crewCertificates
+                .GroupBy(cc => cc.CrewMemberId)
+                .ToDictionary(g => g.Key.ToString(), g => g.ToList());
+
+            return Ok(grouped);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching bulk crew certificates");
+            return StatusCode(500, new { message = "Error fetching bulk crew certificates" });
         }
     }
 
@@ -283,7 +382,7 @@ public class CertificatesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating certificate");
-            return StatusCode(500, new { message = "Error creating certificate", error = ex.Message });
+            return StatusCode(500, new { message = "Error creating certificate" });
         }
     }
 
@@ -306,14 +405,13 @@ public class CertificatesController : ControllerBase
 
             certificate.CertificateCode = request.CertificateCode;
             certificate.CertificateName = request.CertificateName;
-            certificate.Category = request.Category;
-            certificate.ValidityPeriodMonths = request.ValidityPeriodMonths;
-            certificate.Description = request.Description;
+            if (request.Category != null) certificate.Category = request.Category;
+            if (request.ValidityPeriodMonths.HasValue) certificate.ValidityPeriodMonths = request.ValidityPeriodMonths;
+            if (request.Description != null) certificate.Description = request.Description;
             certificate.IsMandatory = request.IsMandatory;
             certificate.IsActive = request.IsActive;
             certificate.UpdatedAt = DateTime.UtcNow;
 
-            _context.Certificates.Update(certificate);
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Certificate {CertificateCode} updated with ID {CertificateId}", 
@@ -329,7 +427,7 @@ public class CertificatesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating certificate");
-            return StatusCode(500, new { message = "Error updating certificate", error = ex.Message });
+            return StatusCode(500, new { message = "Error updating certificate" });
         }
     }
 
@@ -404,7 +502,7 @@ public class CertificatesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error adding crew certificate");
-            return StatusCode(500, new { message = "Error adding crew certificate", error = ex.Message });
+            return StatusCode(500, new { message = "Error adding crew certificate" });
         }
     }
 
@@ -436,17 +534,17 @@ public class CertificatesController : ControllerBase
                 }
             }
 
-            // Update fields
-            existingCertificate.CertificateId = request.CertificateId;
-            existingCertificate.CrewMemberId = request.CrewMemberId;
-            existingCertificate.CertificateNumber = request.CertificateNumber;
-            existingCertificate.IssueDate = request.IssueDate;
-            existingCertificate.ExpiryDate = request.ExpiryDate;
-            existingCertificate.IssuingAuthority = request.IssuingAuthority;
-            existingCertificate.CertificateOfCompetency = request.CertificateOfCompetency;
-            existingCertificate.CountryId = request.CountryId;
-            existingCertificate.Status = request.Status ?? "VALID";
-            existingCertificate.Notes = request.Notes;
+            // Update fields - only update if provided
+            if (request.CertificateId > 0) existingCertificate.CertificateId = request.CertificateId;
+            if (request.CrewMemberId != Guid.Empty) existingCertificate.CrewMemberId = request.CrewMemberId;
+            if (request.CertificateNumber != null) existingCertificate.CertificateNumber = request.CertificateNumber;
+            if (request.IssueDate != default) existingCertificate.IssueDate = request.IssueDate;
+            if (request.ExpiryDate != default) existingCertificate.ExpiryDate = request.ExpiryDate;
+            if (request.IssuingAuthority != null) existingCertificate.IssuingAuthority = request.IssuingAuthority;
+            if (request.CertificateOfCompetency != null) existingCertificate.CertificateOfCompetency = request.CertificateOfCompetency;
+            if (request.CountryId.HasValue) existingCertificate.CountryId = request.CountryId;
+            if (request.Status != null) existingCertificate.Status = request.Status;
+            if (request.Notes != null) existingCertificate.Notes = request.Notes;
             existingCertificate.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -458,7 +556,7 @@ public class CertificatesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating crew certificate {Id}", id);
-            return StatusCode(500, new { message = "Error updating crew certificate", error = ex.Message });
+            return StatusCode(500, new { message = "Error updating crew certificate" });
         }
     }
     
@@ -494,7 +592,7 @@ public class CertificatesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error verifying data cleared");
-            return StatusCode(500, new { message = "Error verifying data", error = ex.Message });
+            return StatusCode(500, new { message = "Error verifying data" });
         }
     }
 
@@ -568,7 +666,7 @@ public class CertificatesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error uploading certificate file for {Id}", id);
-            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 }

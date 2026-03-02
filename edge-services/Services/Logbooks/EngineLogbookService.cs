@@ -315,40 +315,43 @@ namespace MaritimeEdge.Services.Logbooks
                     return (false, "Cannot update a signed entry.");
                 }
 
+                // Required fields - always update
                 entry.LogDateTime = dto.LogDateTime;
                 entry.WatchPeriod = dto.WatchPeriod;
                 entry.EngineerOnWatch = dto.EngineerOnWatch;
-                entry.MainEngineStatus = dto.MainEngineStatus;
-                entry.MainEngineRPM = dto.MainEngineRPM;
-                entry.MainEngineLoad = dto.MainEngineLoad;
-                entry.MainEngineCoolantTemp = dto.MainEngineCoolantTemp;
-                entry.MainEngineExhaustTemp = dto.MainEngineExhaustTemp;
-                entry.MainEngineLubeOilPressure = dto.MainEngineLubeOilPressure;
-                entry.MainEngineLubeOilTemp = dto.MainEngineLubeOilTemp;
-                entry.MainEngineRunningHours = dto.MainEngineRunningHours;
-                entry.FuelOilConsumedME = dto.FuelOilConsumedME;
-                entry.FuelOilConsumedAE = dto.FuelOilConsumedAE;
-                entry.FuelOilConsumedBoiler = dto.FuelOilConsumedBoiler;
-                entry.LubeOilConsumed = dto.LubeOilConsumed;
-                entry.FuelUnit = dto.FuelUnit;
-                entry.AuxEngine1Running = dto.AuxEngine1Running;
-                entry.AuxEngine1RunningHours = dto.AuxEngine1RunningHours;
-                entry.AuxEngine1Load = dto.AuxEngine1Load;
-                entry.AuxEngine2Running = dto.AuxEngine2Running;
-                entry.AuxEngine2RunningHours = dto.AuxEngine2RunningHours;
-                entry.AuxEngine2Load = dto.AuxEngine2Load;
-                entry.AuxEngine3Running = dto.AuxEngine3Running;
-                entry.AuxEngine3RunningHours = dto.AuxEngine3RunningHours;
-                entry.AuxEngine3Load = dto.AuxEngine3Load;
-                entry.BoilerInOperation = dto.BoilerInOperation;
-                entry.BoilerPressure = dto.BoilerPressure;
-                entry.BoilerWaterLevel = dto.BoilerWaterLevel;
-                entry.FuelOilROB = dto.FuelOilROB;
-                entry.FuelOilTransfers = dto.FuelOilTransfers;
+
+                // Nullable fields - only update if provided
+                if (dto.MainEngineStatus != null) entry.MainEngineStatus = dto.MainEngineStatus;
+                if (dto.MainEngineRPM.HasValue) entry.MainEngineRPM = dto.MainEngineRPM;
+                if (dto.MainEngineLoad.HasValue) entry.MainEngineLoad = dto.MainEngineLoad;
+                if (dto.MainEngineCoolantTemp.HasValue) entry.MainEngineCoolantTemp = dto.MainEngineCoolantTemp;
+                if (dto.MainEngineExhaustTemp.HasValue) entry.MainEngineExhaustTemp = dto.MainEngineExhaustTemp;
+                if (dto.MainEngineLubeOilPressure.HasValue) entry.MainEngineLubeOilPressure = dto.MainEngineLubeOilPressure;
+                if (dto.MainEngineLubeOilTemp.HasValue) entry.MainEngineLubeOilTemp = dto.MainEngineLubeOilTemp;
+                if (dto.MainEngineRunningHours.HasValue) entry.MainEngineRunningHours = dto.MainEngineRunningHours;
+                if (dto.FuelOilConsumedME.HasValue) entry.FuelOilConsumedME = dto.FuelOilConsumedME;
+                if (dto.FuelOilConsumedAE.HasValue) entry.FuelOilConsumedAE = dto.FuelOilConsumedAE;
+                if (dto.FuelOilConsumedBoiler.HasValue) entry.FuelOilConsumedBoiler = dto.FuelOilConsumedBoiler;
+                if (dto.LubeOilConsumed.HasValue) entry.LubeOilConsumed = dto.LubeOilConsumed;
+                if (dto.FuelUnit != null) entry.FuelUnit = dto.FuelUnit;
+                if (dto.AuxEngine1Running.HasValue) entry.AuxEngine1Running = dto.AuxEngine1Running;
+                if (dto.AuxEngine1RunningHours.HasValue) entry.AuxEngine1RunningHours = dto.AuxEngine1RunningHours;
+                if (dto.AuxEngine1Load.HasValue) entry.AuxEngine1Load = dto.AuxEngine1Load;
+                if (dto.AuxEngine2Running.HasValue) entry.AuxEngine2Running = dto.AuxEngine2Running;
+                if (dto.AuxEngine2RunningHours.HasValue) entry.AuxEngine2RunningHours = dto.AuxEngine2RunningHours;
+                if (dto.AuxEngine2Load.HasValue) entry.AuxEngine2Load = dto.AuxEngine2Load;
+                if (dto.AuxEngine3Running.HasValue) entry.AuxEngine3Running = dto.AuxEngine3Running;
+                if (dto.AuxEngine3RunningHours.HasValue) entry.AuxEngine3RunningHours = dto.AuxEngine3RunningHours;
+                if (dto.AuxEngine3Load.HasValue) entry.AuxEngine3Load = dto.AuxEngine3Load;
+                if (dto.BoilerInOperation.HasValue) entry.BoilerInOperation = dto.BoilerInOperation;
+                if (dto.BoilerPressure.HasValue) entry.BoilerPressure = dto.BoilerPressure;
+                if (dto.BoilerWaterLevel.HasValue) entry.BoilerWaterLevel = dto.BoilerWaterLevel;
+                if (dto.FuelOilROB.HasValue) entry.FuelOilROB = dto.FuelOilROB;
+                if (dto.FuelOilTransfers != null) entry.FuelOilTransfers = dto.FuelOilTransfers;
                 entry.HasAlarms = dto.HasAlarms;
-                entry.AlarmsDescription = dto.AlarmsDescription;
-                entry.MaintenanceActivities = dto.MaintenanceActivities;
-                entry.Remarks = dto.Remarks;
+                if (dto.AlarmsDescription != null) entry.AlarmsDescription = dto.AlarmsDescription;
+                if (dto.MaintenanceActivities != null) entry.MaintenanceActivities = dto.MaintenanceActivities;
+                if (dto.Remarks != null) entry.Remarks = dto.Remarks;
                 
                 entry.UpdatedAt = DateTime.UtcNow;
                 entry.IsSynced = false;

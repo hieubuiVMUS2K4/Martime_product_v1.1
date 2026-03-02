@@ -1,7 +1,17 @@
 import axios from 'axios';
 import type { EquipmentAsset, CreateEquipmentAssetDto } from '@/types/pms.types';
+import { getAuthToken } from './api.client';
 
 const API_BASE_URL = '/api';
+
+// Inject auth token into all axios requests (for audit trail)
+axios.interceptors.request.use((config) => {
+  const token = getAuthToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 export const equipmentAssetService = {
   async getAll(category?: string): Promise<EquipmentAsset[]> {

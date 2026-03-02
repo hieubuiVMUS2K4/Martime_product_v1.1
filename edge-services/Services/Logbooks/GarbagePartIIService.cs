@@ -311,24 +311,26 @@ namespace MaritimeEdge.Services.Logbooks
                     return (false, validationError);
                 }
 
-                // Update fields
+                // Required fields - always update
                 entry.OperationDate = dto.OperationDate.Date;
                 entry.OperationTime = dto.OperationTime;
-                entry.OperationEndTime = dto.OperationEndTime;
                 entry.Category = dto.Category.ToUpper();
                 entry.StartLatitude = dto.StartLatitude;
                 entry.StartLongitude = dto.StartLongitude;
                 entry.EndLatitude = dto.EndLatitude;
                 entry.EndLongitude = dto.EndLongitude;
-                entry.EstimatedAmountDischargedToSea = dto.EstimatedAmountDischargedToSea;
-                entry.EstimatedAmountToReceptionFacilities = dto.EstimatedAmountToReceptionFacilities;
-                entry.PortName = dto.PortName;
-                entry.ReceptionFacilityName = dto.ReceptionFacilityName;
-                entry.ReceiptNumber = dto.ReceiptNumber;
                 entry.CargoDescription = dto.CargoDescription;
                 entry.HoldNumbersWashed = dto.HoldNumbersWashed;
-                entry.Remarks = dto.Remarks;
                 entry.OfficerInCharge = dto.OfficerInCharge;
+
+                // Nullable fields - only update if provided
+                if (dto.OperationEndTime.HasValue) entry.OperationEndTime = dto.OperationEndTime;
+                if (dto.EstimatedAmountDischargedToSea.HasValue) entry.EstimatedAmountDischargedToSea = dto.EstimatedAmountDischargedToSea;
+                if (dto.EstimatedAmountToReceptionFacilities.HasValue) entry.EstimatedAmountToReceptionFacilities = dto.EstimatedAmountToReceptionFacilities;
+                if (dto.PortName != null) entry.PortName = dto.PortName;
+                if (dto.ReceptionFacilityName != null) entry.ReceptionFacilityName = dto.ReceptionFacilityName;
+                if (dto.ReceiptNumber != null) entry.ReceiptNumber = dto.ReceiptNumber;
+                if (dto.Remarks != null) entry.Remarks = dto.Remarks;
                 entry.UpdatedAt = DateTime.UtcNow;
                 entry.IsSynced = false;
 

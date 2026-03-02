@@ -60,7 +60,7 @@ public class MaterialReceiptsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error previewing import");
-            return StatusCode(500, new { message = "Error previewing import", error = ex.Message });
+            return StatusCode(500, new { message = "Error previewing import" });
         }
     }
 
@@ -98,7 +98,7 @@ public class MaterialReceiptsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error importing receipt");
-            return StatusCode(500, new { message = "Error importing receipt", error = ex.Message });
+            return StatusCode(500, new { message = "Error importing receipt" });
         }
     }
 
@@ -120,7 +120,7 @@ public class MaterialReceiptsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting receipts");
-            return StatusCode(500, new { message = "Error getting receipts", error = ex.Message });
+            return StatusCode(500, new { message = "Error getting receipts" });
         }
     }
 
@@ -150,7 +150,7 @@ public class MaterialReceiptsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Error getting receipt {id}");
-            return StatusCode(500, new { message = "Error getting receipt", error = ex.Message });
+            return StatusCode(500, new { message = "Error getting receipt" });
         }
     }
 
@@ -173,7 +173,7 @@ public class MaterialReceiptsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting receipt stats");
-            return StatusCode(500, new { message = "Error getting stats", error = ex.Message });
+            return StatusCode(500, new { message = "Error getting stats" });
         }
     }
 }

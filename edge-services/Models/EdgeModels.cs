@@ -3184,7 +3184,13 @@ public class User
     
     [Required]
     [MaxLength(255)]
-    public string PasswordHash { get; set; } = string.Empty; // Password đã hash (mặc định từ ngày sinh)
+    public string PasswordHash { get; set; } = string.Empty; // Password đã hash PBKDF2
+    
+    /// <summary>
+    /// Salt dùng cho PBKDF2 hashing (Base64 encoded)
+    /// </summary>
+    [MaxLength(255)]
+    public string? PasswordSalt { get; set; }
     
     [Required]
     public int RoleId { get; set; } // Tham chiếu sang bảng Role
@@ -3194,11 +3200,36 @@ public class User
     
     public bool IsActive { get; set; } = true;
     
+    /// <summary>
+    /// Số lần đăng nhập thất bại liên tiếp (reset khi login thành công)
+    /// </summary>
+    public int FailedLoginAttempts { get; set; } = 0;
+    
+    /// <summary>
+    /// Tài khoản bị khóa đến thời điểm (null = không bị khóa)
+    /// Theo NIST SP 800-63B: lockout sau 5 lần thất bại
+    /// </summary>
+    public DateTime? LockoutUntil { get; set; }
+    
+    /// <summary>
+    /// Bắt buộc đổi mật khẩu lần đăng nhập tiếp theo
+    /// (Khi admin reset password hoặc lần đầu đăng nhập)
+    /// </summary>
+    public bool MustChangePassword { get; set; } = true;
+    
+    /// <summary>
+    /// Thời điểm đổi mật khẩu gần nhất
+    /// </summary>
+    public DateTime? PasswordChangedAt { get; set; }
+    
     public DateTime? LastLoginAt { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
     public DateTime? UpdatedAt { get; set; }
+
+    // Navigation property
+    public Role? Role { get; set; }
 }
 
 // ============================================================

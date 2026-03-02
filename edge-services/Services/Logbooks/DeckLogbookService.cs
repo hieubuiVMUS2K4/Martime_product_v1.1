@@ -294,34 +294,37 @@ namespace MaritimeEdge.Services.Logbooks
                     return (false, "Cannot update a signed entry.");
                 }
 
+                // Required fields - always update
                 entry.LogDateTime = dto.LogDateTime;
                 entry.WatchPeriod = dto.WatchPeriod;
                 entry.OfficerOnWatch = dto.OfficerOnWatch;
                 entry.EntryType = dto.EntryType;
                 entry.Description = dto.Description;
-                entry.Latitude = dto.Latitude;
-                entry.Longitude = dto.Longitude;
-                entry.CourseOverGround = dto.CourseOverGround;
-                entry.SpeedOverGround = dto.SpeedOverGround;
-                entry.Heading = dto.Heading;
-                entry.WindDirection = dto.WindDirection;
-                entry.WindSpeed = dto.WindSpeed;
-                entry.SeaState = dto.SeaState;
-                entry.Visibility = dto.Visibility;
-                entry.BarometricPressure = dto.BarometricPressure;
-                entry.AirTemperature = dto.AirTemperature;
-                entry.SeaTemperature = dto.SeaTemperature;
-                entry.DrillType = dto.DrillType;
-                entry.DrillSuccessful = dto.DrillSuccessful;
-                entry.CrewOnBoard = dto.CrewOnBoard;
-                entry.CrewChanges = dto.CrewChanges;
-                entry.PortName = dto.PortName;
-                entry.PortArrivalTime = dto.PortArrivalTime;
-                entry.PortDepartureTime = dto.PortDepartureTime;
-                entry.PilotName = dto.PilotName;
-                entry.PilotOnBoard = dto.PilotOnBoard;
-                entry.PilotOffBoard = dto.PilotOffBoard;
-                entry.Remarks = dto.Remarks;
+
+                // Nullable fields - only update if provided
+                if (dto.Latitude.HasValue) entry.Latitude = dto.Latitude;
+                if (dto.Longitude.HasValue) entry.Longitude = dto.Longitude;
+                if (dto.CourseOverGround.HasValue) entry.CourseOverGround = dto.CourseOverGround;
+                if (dto.SpeedOverGround.HasValue) entry.SpeedOverGround = dto.SpeedOverGround;
+                if (dto.Heading.HasValue) entry.Heading = dto.Heading;
+                if (dto.WindDirection != null) entry.WindDirection = dto.WindDirection;
+                if (dto.WindSpeed.HasValue) entry.WindSpeed = dto.WindSpeed;
+                if (dto.SeaState != null) entry.SeaState = dto.SeaState;
+                if (dto.Visibility != null) entry.Visibility = dto.Visibility;
+                if (dto.BarometricPressure.HasValue) entry.BarometricPressure = dto.BarometricPressure;
+                if (dto.AirTemperature.HasValue) entry.AirTemperature = dto.AirTemperature;
+                if (dto.SeaTemperature.HasValue) entry.SeaTemperature = dto.SeaTemperature;
+                if (dto.DrillType != null) entry.DrillType = dto.DrillType;
+                if (dto.DrillSuccessful.HasValue) entry.DrillSuccessful = dto.DrillSuccessful;
+                if (dto.CrewOnBoard.HasValue) entry.CrewOnBoard = dto.CrewOnBoard;
+                if (dto.CrewChanges != null) entry.CrewChanges = dto.CrewChanges;
+                if (dto.PortName != null) entry.PortName = dto.PortName;
+                if (dto.PortArrivalTime.HasValue) entry.PortArrivalTime = dto.PortArrivalTime;
+                if (dto.PortDepartureTime.HasValue) entry.PortDepartureTime = dto.PortDepartureTime;
+                if (dto.PilotName != null) entry.PilotName = dto.PilotName;
+                if (dto.PilotOnBoard.HasValue) entry.PilotOnBoard = dto.PilotOnBoard;
+                if (dto.PilotOffBoard.HasValue) entry.PilotOffBoard = dto.PilotOffBoard;
+                if (dto.Remarks != null) entry.Remarks = dto.Remarks;
                 
                 entry.UpdatedAt = DateTime.UtcNow;
                 entry.IsSynced = false;

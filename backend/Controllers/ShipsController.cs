@@ -17,17 +17,17 @@ namespace ProductApi.Controllers
         }
 
         [HttpGet]
-        public ActionResult<IEnumerable<ShipDto>> Get()
+        public async Task<ActionResult<IEnumerable<ShipDto>>> Get()
         {
-            var ships = _shipService.GetAll();
+            var ships = await _shipService.GetAllAsync();
             return Ok(ships);
         }
 
         [HttpPost]
         [Authorize]
-        public ActionResult<ShipDto> Create(ShipDto dto)
+        public async Task<ActionResult<ShipDto>> Create(ShipDto dto)
         {
-            var created = _shipService.Create(dto);
+            var created = await _shipService.CreateAsync(dto);
             return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
         }
     }

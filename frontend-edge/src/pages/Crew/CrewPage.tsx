@@ -1265,21 +1265,13 @@ function CertificateMonitorView({
       return crewByRankCache.get(rankId)!
     }
 
-    try {
-      // Load all crew members
-      const allCrew = await maritimeService.crew.getAll()
-      
-      // Filter crew members with selected rank
-      const crewWithRank = allCrew.data.filter((crew: CrewMember) => crew.rankId === rankId)
-      
-      // Cache the result
-      setCrewByRankCache(prev => new Map(prev).set(rankId, crewWithRank))
-      
-      return crewWithRank
-    } catch (error) {
-      console.error('Failed to load crew by rank:', error)
-      return []
-    }
+    // Filter from already-loaded crewMembers instead of a new API call
+    const crewWithRank = crewMembers.filter((crew: CrewMember) => crew.rankId === rankId && crew.isOnboard)
+    
+    // Cache the result
+    setCrewByRankCache(prev => new Map(prev).set(rankId, crewWithRank))
+    
+    return crewWithRank
   }
 
   const handleRankClick = async (rankId: number) => {
@@ -1308,28 +1300,23 @@ function CertificateMonitorView({
       setRankCertificates(rankCerts)
       setCrewByRank(crewList)
 
-      // Load certificates for each crew member
-      const certDataMap = new Map<string, CrewCertificate[]>()
-      await Promise.all(
-        crewList.map(async (crew) => {
-          try {
-            const certs = await maritimeService.certificates.getCrewCertificatesByCrewId(crew.id)
-            console.log(`   📋 ${crew.fullName}:`, certs.map(c => ({ certId: c.certificateId, status: c.status, num: c.certificateNumber })))
-            certDataMap.set(crew.id, certs)
-          } catch (error) {
-            console.error(`Failed to load certificates for crew ${crew.crewId}:`, error)
-            certDataMap.set(crew.id, [])
-          }
-        })
-      )
-      setCrewCertificatesMap(prev => {
-        const updated = new Map(prev)
-        certDataMap.forEach((value, key) => {
-          updated.set(key, value)
-        })
-        return updated
-      })
-      console.log('✅ All certificates loaded for rank')
+      // Bulk load certificates for all crew in this rank
+      const crewIds = crewList.map(c => c.id)
+      if (crewIds.length > 0) {
+        try {
+          const grouped = await maritimeService.certificates.getCrewCertificatesBulk(crewIds)
+          setCrewCertificatesMap(prev => {
+            const updated = new Map(prev)
+            crewIds.forEach(crewId => {
+              updated.set(crewId, grouped[crewId] || [])
+            })
+            return updated
+          })
+          console.log('✅ All certificates loaded for rank (bulk)')
+        } catch (error) {
+          console.error('Failed to bulk load certificates for rank:', error)
+        }
+      }
     } catch (error) {
       console.error('Failed to load rank data:', error)
     } finally {
@@ -1440,17 +1427,30 @@ function CertificateMonitorView({
     }
   }
 
-  // Load all crew certificates when section is expanded
+  // Load all crew certificates when section is expanded - BULK load
   useEffect(() => {
     if (isCrewCertsExpanded && crewMembers.length > 0) {
       const onboardCrew = crewMembers.filter(c => c.isOnboard)
-      onboardCrew.forEach(crew => {
-        if (!hasCrewCertificatesLoaded(crew.id)) {
-          preloadCrewCertificates(crew.id)
-        }
-      })
+      const unloadedIds = onboardCrew
+        .filter(crew => !hasCrewCertificatesLoaded(crew.id))
+        .map(crew => crew.id)
+      
+      if (unloadedIds.length > 0) {
+        // Single bulk API call instead of N individual calls
+        maritimeService.certificates.getCrewCertificatesBulk(unloadedIds)
+          .then(grouped => {
+            setCrewCertificatesMap(prev => {
+              const updated = new Map(prev)
+              unloadedIds.forEach(crewId => {
+                updated.set(crewId, grouped[crewId] || [])
+              })
+              return updated
+            })
+          })
+          .catch(err => console.error('Failed to bulk load crew certificates:', err))
+      }
     }
-  }, [isCrewCertsExpanded, crewMembers, crewCertificatesMap])
+  }, [isCrewCertsExpanded, crewMembers])
 
   // Preload rank certificates and crew counts when section is expanded
   useEffect(() => {
@@ -1530,28 +1530,22 @@ function CertificateMonitorView({
     }
 
     const reloadCrewCerts = async () => {
-      if (crewIdsToReload.size === 0) return
-      console.log('🔁 Refreshing cached crew certificates after update...')
-      const entries = await Promise.all(
-        Array.from(crewIdsToReload).map(async (crewId) => {
-          try {
-            const certs = await maritimeService.certificates.getCrewCertificatesByCrewId(crewId)
-            return { crewId, certs }
-          } catch (error) {
-            console.error(`Failed to reload certificates for crew ${crewId}:`, error)
-            return { crewId, certs: crewCertificatesMap.get(crewId) || [] }
-          }
+      const idsArray = Array.from(crewIdsToReload)
+      if (idsArray.length === 0) return
+      console.log('🔁 Refreshing cached crew certificates after update (bulk)...')
+      try {
+        const grouped = await maritimeService.certificates.getCrewCertificatesBulk(idsArray)
+        setCrewCertificatesMap(prev => {
+          const updated = new Map(prev)
+          idsArray.forEach(crewId => {
+            updated.set(crewId, grouped[crewId] || [])
+          })
+          return updated
         })
-      )
-
-      setCrewCertificatesMap(prev => {
-        const updated = new Map(prev)
-        entries.forEach(({ crewId, certs }) => {
-          updated.set(crewId, certs)
-        })
-        return updated
-      })
-      console.log('✅ Crew certificate cache refreshed for', crewIdsToReload.size, 'crew members')
+        console.log('✅ Crew certificate cache refreshed for', idsArray.length, 'crew members (bulk)')
+      } catch (error) {
+        console.error('Failed to bulk reload crew certificates:', error)
+      }
     }
 
     // Reload both in parallel

@@ -352,7 +352,8 @@ namespace ProductApi.Controllers
                     }
                     catch (Exception ex)
                     {
-                        errors.Add($"Position at {position.Timestamp}: {ex.Message}");
+                        _logger.LogError(ex, "Error adding position at {Timestamp} for vessel {VesselId}", position.Timestamp, id);
+                        errors.Add($"Position at {position.Timestamp}: Processing failed");
                     }
                 }
 

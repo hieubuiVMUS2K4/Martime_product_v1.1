@@ -114,7 +114,8 @@ public class MaintenanceCompletionService
                     // TODO: Create low stock alert notification
                 }
 
-                _context.MaterialItems.Update(materialItem);
+                // Entity is already tracked - no need for explicit Update()
+                // _context.MaterialItems.Update(materialItem);
             }
 
             // 4. Update task status
@@ -139,7 +140,8 @@ public class MaintenanceCompletionService
                 }));
             }
 
-            _context.MaintenanceTasks.Update(task);
+            // Entity is already tracked - no need for explicit Update()
+            // _context.MaintenanceTasks.Update(task);
 
             // 5. Create maintenance history record
             if (schedule != null)

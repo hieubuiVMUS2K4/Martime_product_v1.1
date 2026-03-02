@@ -80,7 +80,7 @@ namespace MaritimeEdge.Controllers.Safety
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching drill types");
-                return StatusCode(500, new { message = "Error fetching drill types", error = ex.Message });
+                return StatusCode(500, new { message = "Error fetching drill types" });
             }
         }
 
@@ -130,7 +130,7 @@ namespace MaritimeEdge.Controllers.Safety
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching drill type {DrillTypeId}", id);
-                return StatusCode(500, new { message = "Error fetching drill type", error = ex.Message });
+                return StatusCode(500, new { message = "Error fetching drill type" });
             }
         }
 
@@ -213,7 +213,7 @@ namespace MaritimeEdge.Controllers.Safety
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching drill timeline");
-                return StatusCode(500, new { message = "Error fetching timeline", error = ex.Message });
+                return StatusCode(500, new { message = "Error fetching timeline" });
             }
         }
 
@@ -263,7 +263,7 @@ namespace MaritimeEdge.Controllers.Safety
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching drill schedules");
-                return StatusCode(500, new { message = "Error fetching schedules", error = ex.Message });
+                return StatusCode(500, new { message = "Error fetching schedules" });
             }
         }
 
@@ -292,7 +292,7 @@ namespace MaritimeEdge.Controllers.Safety
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching drill schedule {ScheduleId}", id);
-                return StatusCode(500, new { message = "Error fetching schedule", error = ex.Message });
+                return StatusCode(500, new { message = "Error fetching schedule" });
             }
         }
 
@@ -381,7 +381,7 @@ namespace MaritimeEdge.Controllers.Safety
             {
                 _logger.LogError(ex, "Error creating drill schedule. DrillTypeId: {DrillTypeId}, StartDate: {StartDate}, DueDate: {DueDate}", 
                     dto.DrillTypeId, dto.StartDate, dto.DueDate);
-                return StatusCode(500, new { message = "Error creating schedule", error = ex.Message, innerError = ex.InnerException?.Message });
+                return StatusCode(500, new { message = "Error creating schedule" });
             }
         }
 
@@ -398,21 +398,23 @@ namespace MaritimeEdge.Controllers.Safety
                 if (schedule == null)
                     return NotFound(new { message = "Schedule not found" });
 
-                // Update fields from modal
+                // Update required fields from modal
                 schedule.StartDate = dto.StartDate;
                 schedule.DueDate = dto.DueDate;
                 schedule.OverdueDate = dto.DueDate; // Or calculate grace period
                 schedule.ScheduledMonth = dto.StartDate.Month;
                 schedule.ScheduledYear = dto.StartDate.Year;
-                schedule.AssignedToCrewId = dto.AssignedToCrewId;
-                schedule.AssignedToRole = dto.AssignedToRole;
-                schedule.Remarks = dto.Remarks;
-                schedule.InstructionContent = dto.InstructionContent;
                 schedule.IsFixedInterval = dto.IsFixedInterval;
                 schedule.IsDocumentRequired = dto.IsDocumentRequired;
                 schedule.IsSecureHistory = dto.IsSecureHistory;
                 schedule.IsCrewMemberRequired = dto.IsCrewMemberRequired;
                 schedule.IsMandatorySignOnEvaluation = dto.IsMandatorySignOnEvaluation;
+
+                // Update nullable fields - only if provided
+                if (dto.AssignedToCrewId.HasValue) schedule.AssignedToCrewId = dto.AssignedToCrewId;
+                if (dto.AssignedToRole != null) schedule.AssignedToRole = dto.AssignedToRole;
+                if (dto.Remarks != null) schedule.Remarks = dto.Remarks;
+                if (dto.InstructionContent != null) schedule.InstructionContent = dto.InstructionContent;
                 schedule.ParticipantsJson = dto.Participants != null && dto.Participants.Count > 0 
                     ? JsonSerializer.Serialize(dto.Participants) 
                     : null;
@@ -429,7 +431,7 @@ namespace MaritimeEdge.Controllers.Safety
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating drill schedule {ScheduleId}", id);
-                return StatusCode(500, new { message = "Error updating schedule", error = ex.Message });
+                return StatusCode(500, new { message = "Error updating schedule" });
             }
         }
 
@@ -487,7 +489,7 @@ namespace MaritimeEdge.Controllers.Safety
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting drill schedule {ScheduleId}", id);
-                return StatusCode(500, new { message = "Error deleting schedule", error = ex.Message });
+                return StatusCode(500, new { message = "Error deleting schedule" });
             }
         }
 
@@ -552,7 +554,7 @@ namespace MaritimeEdge.Controllers.Safety
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error bulk deleting drill schedules");
-                return StatusCode(500, new { message = "Error bulk deleting schedules", error = ex.Message });
+                return StatusCode(500, new { message = "Error bulk deleting schedules" });
             }
         }
 
@@ -638,7 +640,7 @@ namespace MaritimeEdge.Controllers.Safety
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating drill log");
-                return StatusCode(500, new { message = "Error creating drill log", error = ex.Message });
+                return StatusCode(500, new { message = "Error creating drill log" });
             }
         }
 
@@ -666,7 +668,7 @@ namespace MaritimeEdge.Controllers.Safety
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching drill log {LogId}", id);
-                return StatusCode(500, new { message = "Error fetching drill log", error = ex.Message });
+                return StatusCode(500, new { message = "Error fetching drill log" });
             }
         }
 
@@ -707,7 +709,7 @@ namespace MaritimeEdge.Controllers.Safety
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error approving drill log {LogId}", id);
-                return StatusCode(500, new { message = "Error approving drill log", error = ex.Message });
+                return StatusCode(500, new { message = "Error approving drill log" });
             }
         }
 
@@ -786,7 +788,7 @@ namespace MaritimeEdge.Controllers.Safety
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching drill statistics");
-                return StatusCode(500, new { message = "Error fetching statistics", error = ex.Message });
+                return StatusCode(500, new { message = "Error fetching statistics" });
             }
         }
 

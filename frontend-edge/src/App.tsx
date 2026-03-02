@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { MainLayout } from './components/layouts/MainLayout'
 import { SettingsDialog } from './components/settings'
+import { AuthGuard } from './components/auth/AuthGuard'
+import { LoginPage } from './pages/Auth/LoginPage'
 
 // Pages
 import { DashboardPage } from './pages/Dashboard/DashboardPage'
@@ -42,6 +44,9 @@ import { ArrivalReportForm } from './pages/Reporting/ArrivalReportForm'
 import { BunkerReportForm } from './pages/Reporting/BunkerReportForm'
 import { PositionReportForm } from './pages/Reporting/PositionReportForm'
 
+// Ship Data
+import { ShipDataPage } from './pages/ShipData/ShipDataPage'
+
 // Logbook Pages
 import { DeckLogPage } from './pages/logbooks/DeckLogPage'
 import { EngineLogPage } from './pages/logbooks/EngineLogPage'
@@ -57,6 +62,9 @@ import { AbstractLogPage } from './pages/logbooks/AbstractLogPage'
 // Safety Pages
 import { DrillTimelinePage } from './pages/Safety/DrillTimelinePage'
 
+// System Pages
+import { AuditLogPage } from './pages/AuditLog/AuditLogPage'
+
 function App() {
   return (
     <>
@@ -67,7 +75,11 @@ function App() {
       <SettingsDialog />
 
       <Routes>
-      <Route path="/" element={<MainLayout />}>
+      {/* Public: Login Page */}
+      <Route path="/login" element={<LoginPage />} />
+
+      {/* Protected: All app routes wrapped with AuthGuard */}
+      <Route path="/" element={<AuthGuard><MainLayout /></AuthGuard>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="navigation" element={<NavigationPage />} />
@@ -81,6 +93,7 @@ function App() {
         <Route path="pms/maintenance" element={<MaintenancePage />} />
         <Route path="voyage" element={<VoyagePage />} />
         <Route path="ports" element={<PortManagementPage />} />
+        <Route path="ship-data" element={<ShipDataPage />} />
         <Route path="compliance" element={<CompliancePage />} />
         <Route path="sync" element={<SyncPage />} />
         <Route path="materials" element={<MaterialPage />} />
@@ -114,6 +127,9 @@ function App() {
         <Route path="pms/work-planning" element={<WorkPlanningPage />} />
         
         {/* Reporting Routes */}
+        {/* System Routes */}
+        <Route path="audit-log" element={<AuditLogPage />} />
+
         <Route path="reporting" element={<ReportingDashboard />} />
         <Route path="reporting/reports" element={<ReportsPage />} />
         <Route path="reporting/reports/:id" element={<ReportDetailPage />} />
@@ -125,9 +141,12 @@ function App() {
         <Route path="reporting/position/new" element={<PositionReportForm />} />
       </Route>
       
-      {/* Full-screen pages outside MainLayout */}
-      <Route path="/crew/:id" element={<CrewDetailPage />} />
-      <Route path="/pms/maintenance/:id" element={<MaintenanceDetailPage />} />
+      {/* Full-screen pages outside MainLayout (still protected) */}
+      <Route path="/crew/:id" element={<AuthGuard><CrewDetailPage /></AuthGuard>} />
+      <Route path="/pms/maintenance/:id" element={<AuthGuard><MaintenanceDetailPage /></AuthGuard>} />
+
+      {/* Catch-all: redirect unknown routes to dashboard */}
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </>
   )

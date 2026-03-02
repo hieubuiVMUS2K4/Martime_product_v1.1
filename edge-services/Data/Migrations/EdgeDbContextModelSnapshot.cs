@@ -2169,68 +2169,6 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("departure_reports", "public");
                 });
 
-            modelBuilder.Entity("MaritimeEdge.Models.EmploymentDocument", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<int?>("CountryId")
-                        .HasColumnType("integer")
-                        .HasColumnName("country_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid>("CrewMemberId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("crew_member_id");
-
-                    b.Property<string>("DocumentNumber")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("document_number");
-
-                    b.Property<string>("DocumentType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("document_type");
-
-                    b.Property<DateTime?>("ExpiryDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expiry_date");
-
-                    b.Property<string>("FileUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("file_url");
-
-                    b.Property<DateTime?>("IssueDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("issue_date");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text")
-                        .HasColumnName("notes");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("p_k_employment_documents");
-
-                    b.HasIndex("CountryId");
-
-                    b.HasIndex("CrewMemberId");
-
-                    b.ToTable("employment_documents", "public");
-                });
-
             modelBuilder.Entity("MaritimeEdge.Models.DrillLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2673,6 +2611,68 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("Category", "DisplayOrder");
 
                     b.ToTable("drill_types", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.EmploymentDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("CountryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("country_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("crew_member_id");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("document_number");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("document_type");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expiry_date");
+
+                    b.Property<string>("FileUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("file_url");
+
+                    b.Property<DateTime?>("IssueDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("issue_date");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_employment_documents");
+
+                    b.HasIndex("CountryId");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.ToTable("employment_documents", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.EngineData", b =>
@@ -4425,6 +4425,58 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("ReceiptId");
 
                     b.ToTable("material_receipt_items", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.LoginAttempt", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("AttemptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("attempted_at");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("failure_reason");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<bool>("IsSuccessful")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_successful");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("username");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_login_attempts");
+
+                    b.HasIndex("AttemptedAt")
+                        .IsDescending()
+                        .HasDatabaseName("idx_login_attempt_time");
+
+                    b.HasIndex("IpAddress")
+                        .HasDatabaseName("idx_login_attempt_ip");
+
+                    b.HasIndex("Username")
+                        .HasDatabaseName("idx_login_attempt_username");
+
+                    b.HasIndex("Username", "AttemptedAt")
+                        .HasDatabaseName("idx_login_attempt_user_time");
+
+                    b.ToTable("login_attempts", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.MaintenanceHistory", b =>
@@ -7350,6 +7402,1629 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("service_records", "public");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.ShipAuxiliaryEngine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AeFuelGrade")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("ae_fuel_grade");
+
+                    b.Property<double?>("AePowerKW")
+                        .HasColumnType("double precision")
+                        .HasColumnName("ae_power_k_w");
+
+                    b.Property<string>("AeType")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("ae_type");
+
+                    b.Property<Guid>("ShipDataId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ship_data_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ship_auxiliary_engines");
+
+                    b.HasIndex("ShipDataId")
+                        .HasDatabaseName("idx_ship_ae_ship_data");
+
+                    b.ToTable("ship_auxiliary_engines", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipBoiler", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BoilerType")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("boiler_type");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("model");
+
+                    b.Property<Guid>("ShipDataId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ship_data_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ship_boilers");
+
+                    b.HasIndex("ShipDataId")
+                        .HasDatabaseName("idx_ship_boil_ship_data");
+
+                    b.ToTable("ship_boilers", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipBowthruster", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double?>("PowerKW")
+                        .HasColumnType("double precision")
+                        .HasColumnName("power_k_w");
+
+                    b.Property<Guid>("ShipDataId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ship_data_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ship_bowthrusters");
+
+                    b.HasIndex("ShipDataId")
+                        .HasDatabaseName("idx_ship_bt_ship_data");
+
+                    b.ToTable("ship_bowthrusters", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipData", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double?>("AirdraftReductionMastFouled")
+                        .HasColumnType("double precision")
+                        .HasColumnName("airdraft_reduction_mast_fouled");
+
+                    b.Property<bool>("Ais")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ais");
+
+                    b.Property<int?>("AnchorChainPort")
+                        .HasColumnType("integer")
+                        .HasColumnName("anchor_chain_port");
+
+                    b.Property<int?>("AnchorChainStarboard")
+                        .HasColumnType("integer")
+                        .HasColumnName("anchor_chain_starboard");
+
+                    b.Property<int?>("AnchorChainStern")
+                        .HasColumnType("integer")
+                        .HasColumnName("anchor_chain_stern");
+
+                    b.Property<bool>("AnchorChainSternNA")
+                        .HasColumnType("boolean")
+                        .HasColumnName("anchor_chain_stern_n_a");
+
+                    b.Property<int?>("AzimuthEngAftCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("azimuth_eng_aft_count");
+
+                    b.Property<double?>("AzimuthEngAftMaxPowerKW")
+                        .HasColumnType("double precision")
+                        .HasColumnName("azimuth_eng_aft_max_power_k_w");
+
+                    b.Property<int?>("AzimuthEngFwdCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("azimuth_eng_fwd_count");
+
+                    b.Property<double?>("AzimuthEngFwdMaxPowerKW")
+                        .HasColumnType("double precision")
+                        .HasColumnName("azimuth_eng_fwd_max_power_k_w");
+
+                    b.Property<double?>("BalesCbm")
+                        .HasColumnType("double precision")
+                        .HasColumnName("bales_cbm");
+
+                    b.Property<double?>("BallastWaterCbm")
+                        .HasColumnType("double precision")
+                        .HasColumnName("ballast_water_cbm");
+
+                    b.Property<string>("BareboatChartererCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("bareboat_charterer_city");
+
+                    b.Property<string>("BareboatChartererContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("bareboat_charterer_contact_person");
+
+                    b.Property<string>("BareboatChartererCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("bareboat_charterer_country");
+
+                    b.Property<string>("BareboatChartererEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("bareboat_charterer_email");
+
+                    b.Property<string>("BareboatChartererFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("bareboat_charterer_fax");
+
+                    b.Property<string>("BareboatChartererName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("bareboat_charterer_name");
+
+                    b.Property<string>("BareboatChartererPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("bareboat_charterer_phone");
+
+                    b.Property<string>("BareboatChartererStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("bareboat_charterer_street");
+
+                    b.Property<string>("BareboatChartererTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("bareboat_charterer_tlx");
+
+                    b.Property<string>("BareboatChartererZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("bareboat_charterer_zip");
+
+                    b.Property<double?>("BilgeWaterCbm")
+                        .HasColumnType("double precision")
+                        .HasColumnName("bilge_water_cbm");
+
+                    b.Property<double?>("BlockCoefficient")
+                        .HasColumnType("double precision")
+                        .HasColumnName("block_coefficient");
+
+                    b.Property<bool>("BlockCoefficientNA")
+                        .HasColumnType("boolean")
+                        .HasColumnName("block_coefficient_n_a");
+
+                    b.Property<double?>("BowToBulbousBow")
+                        .HasColumnType("double precision")
+                        .HasColumnName("bow_to_bulbous_bow");
+
+                    b.Property<double?>("BowToManifold")
+                        .HasColumnType("double precision")
+                        .HasColumnName("bow_to_manifold");
+
+                    b.Property<bool>("BowthrusterNA")
+                        .HasColumnType("boolean")
+                        .HasColumnName("bowthruster_n_a");
+
+                    b.Property<double?>("BreadthMoulded")
+                        .HasColumnType("double precision")
+                        .HasColumnName("breadth_moulded");
+
+                    b.Property<double?>("BridgeToAft")
+                        .HasColumnType("double precision")
+                        .HasColumnName("bridge_to_aft");
+
+                    b.Property<double?>("BridgeToBow")
+                        .HasColumnType("double precision")
+                        .HasColumnName("bridge_to_bow");
+
+                    b.Property<string>("CallSign")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("call_sign");
+
+                    b.Property<string>("ChartererCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("charterer_city");
+
+                    b.Property<string>("ChartererContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("charterer_contact_person");
+
+                    b.Property<string>("ChartererCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("charterer_country");
+
+                    b.Property<string>("ChartererEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("charterer_email");
+
+                    b.Property<string>("ChartererFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("charterer_fax");
+
+                    b.Property<string>("ChartererName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("charterer_name");
+
+                    b.Property<string>("ChartererPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("charterer_phone");
+
+                    b.Property<string>("ChartererStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("charterer_street");
+
+                    b.Property<string>("ChartererTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("charterer_tlx");
+
+                    b.Property<string>("ChartererZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("charterer_zip");
+
+                    b.Property<string>("ClassNotation")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("class_notation");
+
+                    b.Property<string>("ClassRegisterNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("class_register_number");
+
+                    b.Property<string>("ClassSocietyCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("class_society_city");
+
+                    b.Property<string>("ClassSocietyContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("class_society_contact_person");
+
+                    b.Property<string>("ClassSocietyCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("class_society_country");
+
+                    b.Property<string>("ClassSocietyEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("class_society_email");
+
+                    b.Property<string>("ClassSocietyFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("class_society_fax");
+
+                    b.Property<string>("ClassSocietyName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("class_society_name");
+
+                    b.Property<string>("ClassSocietyPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("class_society_phone");
+
+                    b.Property<string>("ClassSocietyStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("class_society_street");
+
+                    b.Property<string>("ClassSocietyTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("class_society_tlx");
+
+                    b.Property<string>("ClassSocietyZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("class_society_zip");
+
+                    b.Property<string>("CompanyImoNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("company_imo_number");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CsoCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("cso_city");
+
+                    b.Property<string>("CsoCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("cso_country");
+
+                    b.Property<string>("CsoEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("cso_email");
+
+                    b.Property<string>("CsoFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("cso_fax");
+
+                    b.Property<string>("CsoFirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("cso_first_name");
+
+                    b.Property<string>("CsoLastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("cso_last_name");
+
+                    b.Property<string>("CsoPhone24h")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("cso_phone24h");
+
+                    b.Property<string>("CsoStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("cso_street");
+
+                    b.Property<string>("CsoTitle")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("cso_title");
+
+                    b.Property<string>("CsoTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("cso_tlx");
+
+                    b.Property<string>("CsoZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("cso_zip");
+
+                    b.Property<double?>("DDistance")
+                        .HasColumnType("double precision")
+                        .HasColumnName("d_distance");
+
+                    b.Property<DateTime?>("DateOfRegistry")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("date_of_registry");
+
+                    b.Property<double?>("DeckToManifold")
+                        .HasColumnType("double precision")
+                        .HasColumnName("deck_to_manifold");
+
+                    b.Property<double?>("DepthMoulded")
+                        .HasColumnType("double precision")
+                        .HasColumnName("depth_moulded");
+
+                    b.Property<string>("DpaCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("dpa_city");
+
+                    b.Property<string>("DpaCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("dpa_country");
+
+                    b.Property<string>("DpaEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("dpa_email");
+
+                    b.Property<string>("DpaFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("dpa_fax");
+
+                    b.Property<string>("DpaFirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("dpa_first_name");
+
+                    b.Property<string>("DpaLastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("dpa_last_name");
+
+                    b.Property<string>("DpaPhone24h")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("dpa_phone24h");
+
+                    b.Property<string>("DpaStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("dpa_street");
+
+                    b.Property<string>("DpaTitle")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("dpa_title");
+
+                    b.Property<string>("DpaTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("dpa_tlx");
+
+                    b.Property<string>("DpaZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("dpa_zip");
+
+                    b.Property<double?>("DraftFullBallast")
+                        .HasColumnType("double precision")
+                        .HasColumnName("draft_full_ballast");
+
+                    b.Property<double?>("DraftMoulded")
+                        .HasColumnType("double precision")
+                        .HasColumnName("draft_moulded");
+
+                    b.Property<double?>("DraftScantling")
+                        .HasColumnType("double precision")
+                        .HasColumnName("draft_scantling");
+
+                    b.Property<bool>("DscHF")
+                        .HasColumnType("boolean")
+                        .HasColumnName("dsc_h_f");
+
+                    b.Property<bool>("DscMF")
+                        .HasColumnType("boolean")
+                        .HasColumnName("dsc_m_f");
+
+                    b.Property<bool>("DscVHF")
+                        .HasColumnType("boolean")
+                        .HasColumnName("dsc_v_h_f");
+
+                    b.Property<string>("EmailAddress1")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("email_address1");
+
+                    b.Property<string>("EmailAddress2")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("email_address2");
+
+                    b.Property<string>("EpirbFrequency")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("epirb_frequency");
+
+                    b.Property<string>("EpirbMaker")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("epirb_maker");
+
+                    b.Property<string>("EpirbModel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("epirb_model");
+
+                    b.Property<string>("EpirbNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("epirb_number");
+
+                    b.Property<string>("EpirbOperatingSystem")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("epirb_operating_system");
+
+                    b.Property<string>("Flag")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("flag");
+
+                    b.Property<string>("FlagStateCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("flag_state_city");
+
+                    b.Property<string>("FlagStateContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("flag_state_contact_person");
+
+                    b.Property<string>("FlagStateCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("flag_state_country");
+
+                    b.Property<string>("FlagStateEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("flag_state_email");
+
+                    b.Property<string>("FlagStateFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("flag_state_fax");
+
+                    b.Property<string>("FlagStateName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("flag_state_name");
+
+                    b.Property<string>("FlagStatePhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("flag_state_phone");
+
+                    b.Property<string>("FlagStateStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("flag_state_street");
+
+                    b.Property<string>("FlagStateTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("flag_state_tlx");
+
+                    b.Property<string>("FlagStateZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("flag_state_zip");
+
+                    b.Property<double?>("FreshWaterAllowanceFwa")
+                        .HasColumnType("double precision")
+                        .HasColumnName("fresh_water_allowance_fwa");
+
+                    b.Property<double?>("FreshWaterCbm")
+                        .HasColumnType("double precision")
+                        .HasColumnName("fresh_water_cbm");
+
+                    b.Property<double?>("GrainCbm")
+                        .HasColumnType("double precision")
+                        .HasColumnName("grain_cbm");
+
+                    b.Property<double?>("GrossTonnageInternational")
+                        .HasColumnType("double precision")
+                        .HasColumnName("gross_tonnage_international");
+
+                    b.Property<double?>("GrossTonnagePanamaCanal")
+                        .HasColumnType("double precision")
+                        .HasColumnName("gross_tonnage_panama_canal");
+
+                    b.Property<double?>("GrossTonnageSuezCanal")
+                        .HasColumnType("double precision")
+                        .HasColumnName("gross_tonnage_suez_canal");
+
+                    b.Property<string>("GsmPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("gsm_phone");
+
+                    b.Property<double?>("HMaxAirdraft")
+                        .HasColumnType("double precision")
+                        .HasColumnName("h_max_airdraft");
+
+                    b.Property<string>("HarbourGeneratorMaker")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("harbour_generator_maker");
+
+                    b.Property<double?>("HarbourGeneratorMaxPowerKW")
+                        .HasColumnType("double precision")
+                        .HasColumnName("harbour_generator_max_power_k_w");
+
+                    b.Property<double?>("HfoCbm")
+                        .HasColumnType("double precision")
+                        .HasColumnName("hfo_cbm");
+
+                    b.Property<string>("HmClubCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("hm_club_city");
+
+                    b.Property<string>("HmClubContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("hm_club_contact_person");
+
+                    b.Property<string>("HmClubCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("hm_club_country");
+
+                    b.Property<string>("HmClubEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("hm_club_email");
+
+                    b.Property<string>("HmClubFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("hm_club_fax");
+
+                    b.Property<string>("HmClubName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("hm_club_name");
+
+                    b.Property<string>("HmClubPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("hm_club_phone");
+
+                    b.Property<string>("HmClubStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("hm_club_street");
+
+                    b.Property<string>("HmClubTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("hm_club_tlx");
+
+                    b.Property<string>("HmClubZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("hm_club_zip");
+
+                    b.Property<string>("ImoNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("imo_number");
+
+                    b.Property<string>("InmarsatFax1")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("inmarsat_fax1");
+
+                    b.Property<string>("InmarsatFax2")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("inmarsat_fax2");
+
+                    b.Property<string>("InmarsatPhone1")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("inmarsat_phone1");
+
+                    b.Property<string>("InmarsatPhone2")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("inmarsat_phone2");
+
+                    b.Property<string>("InmarsatTelex1")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("inmarsat_telex1");
+
+                    b.Property<string>("InmarsatTelex2")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("inmarsat_telex2");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<DateTime?>("KeelLaidDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("keel_laid_date");
+
+                    b.Property<double?>("Lbp")
+                        .HasColumnType("double precision")
+                        .HasColumnName("lbp");
+
+                    b.Property<double?>("LightShip")
+                        .HasColumnType("double precision")
+                        .HasColumnName("light_ship");
+
+                    b.Property<double?>("Loa")
+                        .HasColumnType("double precision")
+                        .HasColumnName("loa");
+
+                    b.Property<double?>("LubOilCbm")
+                        .HasColumnType("double precision")
+                        .HasColumnName("lub_oil_cbm");
+
+                    b.Property<string>("ManagingOwnerCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("managing_owner_city");
+
+                    b.Property<string>("ManagingOwnerContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("managing_owner_contact_person");
+
+                    b.Property<string>("ManagingOwnerCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("managing_owner_country");
+
+                    b.Property<string>("ManagingOwnerEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("managing_owner_email");
+
+                    b.Property<string>("ManagingOwnerFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("managing_owner_fax");
+
+                    b.Property<string>("ManagingOwnerName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("managing_owner_name");
+
+                    b.Property<string>("ManagingOwnerPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("managing_owner_phone");
+
+                    b.Property<string>("ManagingOwnerStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("managing_owner_street");
+
+                    b.Property<string>("ManagingOwnerTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("managing_owner_tlx");
+
+                    b.Property<string>("ManagingOwnerZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("managing_owner_zip");
+
+                    b.Property<double?>("ManifoldToBridge")
+                        .HasColumnType("double precision")
+                        .HasColumnName("manifold_to_bridge");
+
+                    b.Property<double?>("ManifoldToKeel")
+                        .HasColumnType("double precision")
+                        .HasColumnName("manifold_to_keel");
+
+                    b.Property<double?>("ManifoldToWaterlineBallast")
+                        .HasColumnType("double precision")
+                        .HasColumnName("manifold_to_waterline_ballast");
+
+                    b.Property<double?>("ManifoldToWaterlineLoaded")
+                        .HasColumnType("double precision")
+                        .HasColumnName("manifold_to_waterline_loaded");
+
+                    b.Property<double?>("MaxAllowablePressurePsi")
+                        .HasColumnType("double precision")
+                        .HasColumnName("max_allowable_pressure_psi");
+
+                    b.Property<double?>("MaxLoadingRateShip")
+                        .HasColumnType("double precision")
+                        .HasColumnName("max_loading_rate_ship");
+
+                    b.Property<int?>("MaxPassengersAllowedOB")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_passengers_allowed_o_b");
+
+                    b.Property<int?>("MaxPersonsAllowedOB")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_persons_allowed_o_b");
+
+                    b.Property<double?>("MdoCbm")
+                        .HasColumnType("double precision")
+                        .HasColumnName("mdo_cbm");
+
+                    b.Property<string>("MmsiNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("mmsi_number");
+
+                    b.Property<bool>("Navtex")
+                        .HasColumnType("boolean")
+                        .HasColumnName("navtex");
+
+                    b.Property<double?>("NettTonnageInternational")
+                        .HasColumnType("double precision")
+                        .HasColumnName("nett_tonnage_international");
+
+                    b.Property<double?>("NettTonnagePanamaCanal")
+                        .HasColumnType("double precision")
+                        .HasColumnName("nett_tonnage_panama_canal");
+
+                    b.Property<double?>("NettTonnageSuezCanal")
+                        .HasColumnType("double precision")
+                        .HasColumnName("nett_tonnage_suez_canal");
+
+                    b.Property<int?>("NoOfBallastTanks")
+                        .HasColumnType("integer")
+                        .HasColumnName("no_of_ballast_tanks");
+
+                    b.Property<int?>("NoOfCargoHolds")
+                        .HasColumnType("integer")
+                        .HasColumnName("no_of_cargo_holds");
+
+                    b.Property<int?>("NoOfCrewSafeManning")
+                        .HasColumnType("integer")
+                        .HasColumnName("no_of_crew_safe_manning");
+
+                    b.Property<int?>("NoOfHatches")
+                        .HasColumnType("integer")
+                        .HasColumnName("no_of_hatches");
+
+                    b.Property<int?>("NumberOfLines")
+                        .HasColumnType("integer")
+                        .HasColumnName("number_of_lines");
+
+                    b.Property<string>("OfficialNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("official_number");
+
+                    b.Property<string>("OperatorCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("operator_city");
+
+                    b.Property<string>("OperatorContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("operator_contact_person");
+
+                    b.Property<string>("OperatorCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("operator_country");
+
+                    b.Property<string>("OperatorEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("operator_email");
+
+                    b.Property<string>("OperatorFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("operator_fax");
+
+                    b.Property<string>("OperatorName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("operator_name");
+
+                    b.Property<string>("OperatorPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("operator_phone");
+
+                    b.Property<string>("OperatorStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("operator_street");
+
+                    b.Property<string>("OperatorTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("operator_tlx");
+
+                    b.Property<string>("OperatorZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("operator_zip");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<string>("OtherRadioEquipment")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("other_radio_equipment");
+
+                    b.Property<string>("OwnerImoNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("owner_imo_number");
+
+                    b.Property<string>("PanamaCanalIdNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("panama_canal_id_number");
+
+                    b.Property<double?>("ParallelBodyBallast")
+                        .HasColumnType("double precision")
+                        .HasColumnName("parallel_body_ballast");
+
+                    b.Property<double?>("ParallelBodyLoaded")
+                        .HasColumnType("double precision")
+                        .HasColumnName("parallel_body_loaded");
+
+                    b.Property<string>("PiClubCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("pi_club_city");
+
+                    b.Property<string>("PiClubContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("pi_club_contact_person");
+
+                    b.Property<string>("PiClubCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("pi_club_country");
+
+                    b.Property<string>("PiClubEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("pi_club_email");
+
+                    b.Property<string>("PiClubFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("pi_club_fax");
+
+                    b.Property<string>("PiClubName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("pi_club_name");
+
+                    b.Property<string>("PiClubPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("pi_club_phone");
+
+                    b.Property<string>("PiClubStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("pi_club_street");
+
+                    b.Property<string>("PiClubTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("pi_club_tlx");
+
+                    b.Property<string>("PiClubZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("pi_club_zip");
+
+                    b.Property<string>("PortOfRegistry")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("port_of_registry");
+
+                    b.Property<string>("PreviousFlag")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("previous_flag");
+
+                    b.Property<string>("PreviousName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("previous_name");
+
+                    b.Property<string>("QiPanamaCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("qi_panama_city");
+
+                    b.Property<string>("QiPanamaCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("qi_panama_country");
+
+                    b.Property<string>("QiPanamaEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("qi_panama_email");
+
+                    b.Property<string>("QiPanamaFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("qi_panama_fax");
+
+                    b.Property<string>("QiPanamaFirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("qi_panama_first_name");
+
+                    b.Property<string>("QiPanamaLastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("qi_panama_last_name");
+
+                    b.Property<string>("QiPanamaPhone24h")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("qi_panama_phone24h");
+
+                    b.Property<string>("QiPanamaStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("qi_panama_street");
+
+                    b.Property<string>("QiPanamaTitle")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("qi_panama_title");
+
+                    b.Property<string>("QiPanamaTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("qi_panama_tlx");
+
+                    b.Property<string>("QiPanamaZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("qi_panama_zip");
+
+                    b.Property<string>("QiUsaCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("qi_usa_city");
+
+                    b.Property<string>("QiUsaCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("qi_usa_country");
+
+                    b.Property<string>("QiUsaEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("qi_usa_email");
+
+                    b.Property<string>("QiUsaFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("qi_usa_fax");
+
+                    b.Property<string>("QiUsaFirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("qi_usa_first_name");
+
+                    b.Property<string>("QiUsaLastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("qi_usa_last_name");
+
+                    b.Property<string>("QiUsaPhone24h")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("qi_usa_phone24h");
+
+                    b.Property<string>("QiUsaStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("qi_usa_street");
+
+                    b.Property<string>("QiUsaTitle")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("qi_usa_title");
+
+                    b.Property<string>("QiUsaTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("qi_usa_tlx");
+
+                    b.Property<string>("QiUsaZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("qi_usa_zip");
+
+                    b.Property<bool>("RadiotelegraphHF")
+                        .HasColumnType("boolean")
+                        .HasColumnName("radiotelegraph_h_f");
+
+                    b.Property<bool>("RadiotelegraphMF")
+                        .HasColumnType("boolean")
+                        .HasColumnName("radiotelegraph_m_f");
+
+                    b.Property<bool>("RadiotelegraphVHF")
+                        .HasColumnType("boolean")
+                        .HasColumnName("radiotelegraph_v_h_f");
+
+                    b.Property<bool>("RadiotelephoneHF")
+                        .HasColumnType("boolean")
+                        .HasColumnName("radiotelephone_h_f");
+
+                    b.Property<bool>("RadiotelephoneMF")
+                        .HasColumnType("boolean")
+                        .HasColumnName("radiotelephone_m_f");
+
+                    b.Property<bool>("RadiotelephoneVHF")
+                        .HasColumnType("boolean")
+                        .HasColumnName("radiotelephone_v_h_f");
+
+                    b.Property<bool>("Radiotelex")
+                        .HasColumnType("boolean")
+                        .HasColumnName("radiotelex");
+
+                    b.Property<bool>("SartTransponder")
+                        .HasColumnType("boolean")
+                        .HasColumnName("sart_transponder");
+
+                    b.Property<bool>("SeaAreaA1")
+                        .HasColumnType("boolean")
+                        .HasColumnName("sea_area_a1");
+
+                    b.Property<bool>("SeaAreaA2")
+                        .HasColumnType("boolean")
+                        .HasColumnName("sea_area_a2");
+
+                    b.Property<bool>("SeaAreaA3")
+                        .HasColumnType("boolean")
+                        .HasColumnName("sea_area_a3");
+
+                    b.Property<bool>("SeaAreaA4")
+                        .HasColumnType("boolean")
+                        .HasColumnName("sea_area_a4");
+
+                    b.Property<double?>("ServiceSpeedKts")
+                        .HasColumnType("double precision")
+                        .HasColumnName("service_speed_kts");
+
+                    b.Property<double?>("SewageCbm")
+                        .HasColumnType("double precision")
+                        .HasColumnName("sewage_cbm");
+
+                    b.Property<bool>("ShaftGeneratorNA")
+                        .HasColumnType("boolean")
+                        .HasColumnName("shaft_generator_n_a");
+
+                    b.Property<string>("ShipName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("ship_name");
+
+                    b.Property<string>("ShipownerCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("shipowner_city");
+
+                    b.Property<string>("ShipownerContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("shipowner_contact_person");
+
+                    b.Property<string>("ShipownerCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("shipowner_country");
+
+                    b.Property<string>("ShipownerEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("shipowner_email");
+
+                    b.Property<string>("ShipownerFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("shipowner_fax");
+
+                    b.Property<string>("ShipownerName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("shipowner_name");
+
+                    b.Property<string>("ShipownerPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("shipowner_phone");
+
+                    b.Property<string>("ShipownerStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("shipowner_street");
+
+                    b.Property<string>("ShipownerTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("shipowner_tlx");
+
+                    b.Property<string>("ShipownerZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("shipowner_zip");
+
+                    b.Property<double?>("ShipsideToManifold")
+                        .HasColumnType("double precision")
+                        .HasColumnName("shipside_to_manifold");
+
+                    b.Property<string>("ShipyardCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("shipyard_country");
+
+                    b.Property<string>("ShipyardName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("shipyard_name");
+
+                    b.Property<double?>("SludgeCbm")
+                        .HasColumnType("double precision")
+                        .HasColumnName("sludge_cbm");
+
+                    b.Property<double?>("SternToManifold")
+                        .HasColumnType("double precision")
+                        .HasColumnName("stern_to_manifold");
+
+                    b.Property<bool>("SternthrusterNA")
+                        .HasColumnType("boolean")
+                        .HasColumnName("sternthruster_n_a");
+
+                    b.Property<string>("SuezCanalIdNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("suez_canal_id_number");
+
+                    b.Property<int?>("TeuOnDeck")
+                        .HasColumnType("integer")
+                        .HasColumnName("teu_on_deck");
+
+                    b.Property<int?>("TeuTotal")
+                        .HasColumnType("integer")
+                        .HasColumnName("teu_total");
+
+                    b.Property<int?>("TeuUnderDeck")
+                        .HasColumnType("integer")
+                        .HasColumnName("teu_under_deck");
+
+                    b.Property<double?>("TpcAtSummerDraft")
+                        .HasColumnType("double precision")
+                        .HasColumnName("tpc_at_summer_draft");
+
+                    b.Property<string>("TypeOfVessel")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("type_of_vessel");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("VentingSystemShip")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("venting_system_ship");
+
+                    b.Property<string>("VrpNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("vrp_number");
+
+                    b.Property<string>("VrpType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("vrp_type");
+
+                    b.Property<string>("YardNo")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("yard_no");
+
+                    b.Property<int?>("YearBuilt")
+                        .HasColumnType("integer")
+                        .HasColumnName("year_built");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ship_data");
+
+                    b.HasIndex("ImoNumber")
+                        .IsUnique()
+                        .HasDatabaseName("idx_ship_data_imo_unique");
+
+                    b.HasIndex("ShipName")
+                        .HasDatabaseName("idx_ship_data_name");
+
+                    b.ToTable("ship_data", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipLoadLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double?>("DeadweightMt")
+                        .HasColumnType("double precision")
+                        .HasColumnName("deadweight_mt");
+
+                    b.Property<double?>("DisplacementMt")
+                        .HasColumnType("double precision")
+                        .HasColumnName("displacement_mt");
+
+                    b.Property<double?>("DraftM")
+                        .HasColumnType("double precision")
+                        .HasColumnName("draft_m");
+
+                    b.Property<double?>("FreeboardM")
+                        .HasColumnType("double precision")
+                        .HasColumnName("freeboard_m");
+
+                    b.Property<string>("LoadLineType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("load_line_type");
+
+                    b.Property<Guid>("ShipDataId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ship_data_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ship_load_lines");
+
+                    b.HasIndex("ShipDataId")
+                        .HasDatabaseName("idx_ship_ll_ship_data");
+
+                    b.ToTable("ship_load_lines", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipMainEngine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double?>("McrKW")
+                        .HasColumnType("double precision")
+                        .HasColumnName("mcr_k_w");
+
+                    b.Property<string>("MeFuelGrade")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("me_fuel_grade");
+
+                    b.Property<double?>("MePowerKW")
+                        .HasColumnType("double precision")
+                        .HasColumnName("me_power_k_w");
+
+                    b.Property<string>("MeType")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("me_type");
+
+                    b.Property<Guid>("ShipDataId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ship_data_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ship_main_engines");
+
+                    b.HasIndex("ShipDataId")
+                        .HasDatabaseName("idx_ship_me_ship_data");
+
+                    b.ToTable("ship_main_engines", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipPilotCardData", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("EngineOrder")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("engine_order");
+
+                    b.Property<double?>("MainEngineRPM")
+                        .HasColumnType("double precision")
+                        .HasColumnName("main_engine_r_p_m");
+
+                    b.Property<Guid>("ShipDataId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ship_data_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<double?>("SpeedBallastKts")
+                        .HasColumnType("double precision")
+                        .HasColumnName("speed_ballast_kts");
+
+                    b.Property<double?>("SpeedLoadedKts")
+                        .HasColumnType("double precision")
+                        .HasColumnName("speed_loaded_kts");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ship_pilot_card_data");
+
+                    b.HasIndex("ShipDataId")
+                        .HasDatabaseName("idx_ship_pcd_ship_data");
+
+                    b.ToTable("ship_pilot_card_data", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipPropeller", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double?>("DiameterMm")
+                        .HasColumnType("double precision")
+                        .HasColumnName("diameter_mm");
+
+                    b.Property<int?>("NumberOfBlades")
+                        .HasColumnType("integer")
+                        .HasColumnName("number_of_blades");
+
+                    b.Property<double?>("PitchRatio")
+                        .HasColumnType("double precision")
+                        .HasColumnName("pitch_ratio");
+
+                    b.Property<double?>("PropellerPitchGeometricMm")
+                        .HasColumnType("double precision")
+                        .HasColumnName("propeller_pitch_geometric_mm");
+
+                    b.Property<string>("PropellerType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("propeller_type");
+
+                    b.Property<string>("Rotation")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("rotation");
+
+                    b.Property<Guid>("ShipDataId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ship_data_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ship_propellers");
+
+                    b.HasIndex("ShipDataId")
+                        .HasDatabaseName("idx_ship_prop_ship_data");
+
+                    b.ToTable("ship_propellers", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipRudder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("RudderType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("rudder_type");
+
+                    b.Property<Guid>("ShipDataId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ship_data_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ship_rudders");
+
+                    b.HasIndex("ShipDataId")
+                        .HasDatabaseName("idx_ship_rud_ship_data");
+
+                    b.ToTable("ship_rudders", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipShaftGenerator", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double?>("MaxPowerKW")
+                        .HasColumnType("double precision")
+                        .HasColumnName("max_power_k_w");
+
+                    b.Property<Guid>("ShipDataId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ship_data_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ship_shaft_generators");
+
+                    b.HasIndex("ShipDataId")
+                        .HasDatabaseName("idx_ship_sg_ship_data");
+
+                    b.ToTable("ship_shaft_generators", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipSternthruster", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double?>("PowerKW")
+                        .HasColumnType("double precision")
+                        .HasColumnName("power_k_w");
+
+                    b.Property<Guid>("ShipDataId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ship_data_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ship_sternthrusters");
+
+                    b.HasIndex("ShipDataId")
+                        .HasDatabaseName("idx_ship_st_ship_data");
+
+                    b.ToTable("ship_sternthrusters", "public");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.SyncQueue", b =>
                 {
                     b.Property<long>("Id")
@@ -7423,6 +9098,138 @@ namespace MaritimeEdge.Data.Migrations
                         .HasFilter("synced_at IS NULL");
 
                     b.ToTable("sync_queue", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.SystemLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("action");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("category");
+
+                    b.Property<int?>("DurationMs")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_ms");
+
+                    b.Property<string>("EntityId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("level");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("message");
+
+                    b.Property<string>("NewValues")
+                        .HasColumnType("text")
+                        .HasColumnName("new_values");
+
+                    b.Property<string>("OldValues")
+                        .HasColumnType("text")
+                        .HasColumnName("old_values");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("result");
+
+                    b.Property<Guid?>("SessionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("session_id");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("timestamp");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("user_agent");
+
+                    b.Property<long?>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("Username")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("username");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_system_logs");
+
+                    b.HasIndex("Action")
+                        .HasDatabaseName("idx_syslog_action");
+
+                    b.HasIndex("Category")
+                        .HasDatabaseName("idx_syslog_category");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_syslog_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("Level")
+                        .HasDatabaseName("idx_syslog_level");
+
+                    b.HasIndex("SessionId")
+                        .HasDatabaseName("idx_syslog_session_id");
+
+                    b.HasIndex("Timestamp")
+                        .IsDescending()
+                        .HasDatabaseName("idx_syslog_timestamp");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("idx_syslog_user_id");
+
+                    b.HasIndex("Category", "Timestamp")
+                        .HasDatabaseName("idx_syslog_category_timestamp");
+
+                    b.HasIndex("UserId", "Category", "Timestamp")
+                        .HasDatabaseName("idx_syslog_user_category_time");
+
+                    b.ToTable("system_logs", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.TankLevel", b =>
@@ -7871,6 +9678,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("crew_id");
 
+                    b.Property<int>("FailedLoginAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("failed_login_attempts");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
@@ -7879,11 +9690,28 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_login_at");
 
+                    b.Property<DateTime?>("LockoutUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lockout_until");
+
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("boolean")
+                        .HasColumnName("must_change_password");
+
+                    b.Property<DateTime?>("PasswordChangedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("password_changed_at");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("password_hash");
+
+                    b.Property<string>("PasswordSalt")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("password_salt");
 
                     b.Property<int>("RoleId")
                         .HasColumnType("integer")
@@ -7917,6 +9745,102 @@ namespace MaritimeEdge.Data.Migrations
                         .HasDatabaseName("idx_user_username_unique");
 
                     b.ToTable("users", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.UserSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccessToken")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("access_token");
+
+                    b.Property<DateTime>("AccessTokenExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("access_token_expires_at");
+
+                    b.Property<string>("DeviceType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("device_type");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTime>("LastActivityAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_activity_at");
+
+                    b.Property<DateTime>("LoginAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("login_at");
+
+                    b.Property<DateTime?>("LogoutAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("logout_at");
+
+                    b.Property<string>("RefreshToken")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("refresh_token");
+
+                    b.Property<DateTime>("RefreshTokenExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("refresh_token_expires_at");
+
+                    b.Property<string>("TerminationReason")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("termination_reason");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("user_agent");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_user_sessions");
+
+                    b.HasIndex("AccessToken")
+                        .IsUnique()
+                        .HasDatabaseName("idx_session_access_token");
+
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("idx_session_active")
+                        .HasFilter("is_active = true");
+
+                    b.HasIndex("LoginAt")
+                        .IsDescending()
+                        .HasDatabaseName("idx_session_login_at");
+
+                    b.HasIndex("RefreshToken")
+                        .IsUnique()
+                        .HasDatabaseName("idx_session_refresh_token");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("idx_session_user_id");
+
+                    b.HasIndex("IsActive", "AccessTokenExpiresAt")
+                        .HasDatabaseName("idx_session_active_expiry");
+
+                    b.ToTable("user_sessions", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.VoyageCrewAssignment", b =>
@@ -8832,25 +10756,6 @@ namespace MaritimeEdge.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("MaritimeEdge.Models.EmploymentDocument", b =>
-                {
-                    b.HasOne("MaritimeEdge.Models.Country", "Country")
-                        .WithMany()
-                        .HasForeignKey("CountryId")
-                        .HasConstraintName("f_k_employment_documents_countries_country_id");
-
-                    b.HasOne("MaritimeEdge.Models.CrewMember", "CrewMember")
-                        .WithMany()
-                        .HasForeignKey("CrewMemberId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("f_k_employment_documents_crew_members_crew_member_id");
-
-                    b.Navigation("Country");
-
-                    b.Navigation("CrewMember");
-                });
-
             modelBuilder.Entity("MaritimeEdge.Models.DrillLog", b =>
                 {
                     b.HasOne("MaritimeEdge.Models.CrewMember", "ConductedBy")
@@ -8905,6 +10810,25 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("AssignedToCrew");
 
                     b.Navigation("DrillType");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.EmploymentDocument", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.Country", "Country")
+                        .WithMany()
+                        .HasForeignKey("CountryId")
+                        .HasConstraintName("f_k_employment_documents_countries_country_id");
+
+                    b.HasOne("MaritimeEdge.Models.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_employment_documents_crew_members_crew_member_id");
+
+                    b.Navigation("Country");
+
+                    b.Navigation("CrewMember");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.EquipmentGroupMember", b =>
@@ -9147,6 +11071,126 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("CrewMember");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.ShipAuxiliaryEngine", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.ShipData", "ShipData")
+                        .WithMany("AuxiliaryEngines")
+                        .HasForeignKey("ShipDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ship_auxiliary_engines__ship_data_ship_data_id");
+
+                    b.Navigation("ShipData");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipBoiler", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.ShipData", "ShipData")
+                        .WithMany("Boilers")
+                        .HasForeignKey("ShipDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ship_boilers__ship_data_ship_data_id");
+
+                    b.Navigation("ShipData");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipBowthruster", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.ShipData", "ShipData")
+                        .WithMany("Bowthrusters")
+                        .HasForeignKey("ShipDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ship_bowthrusters__ship_data_ship_data_id");
+
+                    b.Navigation("ShipData");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipLoadLine", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.ShipData", "ShipData")
+                        .WithMany("LoadLines")
+                        .HasForeignKey("ShipDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ship_load_lines_ship_data_ship_data_id");
+
+                    b.Navigation("ShipData");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipMainEngine", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.ShipData", "ShipData")
+                        .WithMany("MainEngines")
+                        .HasForeignKey("ShipDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ship_main_engines_ship_data_ship_data_id");
+
+                    b.Navigation("ShipData");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipPilotCardData", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.ShipData", "ShipData")
+                        .WithMany("PilotCardData")
+                        .HasForeignKey("ShipDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ship_pilot_card_data_ship_data_ship_data_id");
+
+                    b.Navigation("ShipData");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipPropeller", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.ShipData", "ShipData")
+                        .WithMany("Propellers")
+                        .HasForeignKey("ShipDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ship_propellers_ship_data_ship_data_id");
+
+                    b.Navigation("ShipData");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipRudder", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.ShipData", "ShipData")
+                        .WithMany("Rudders")
+                        .HasForeignKey("ShipDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ship_rudders_ship_data_ship_data_id");
+
+                    b.Navigation("ShipData");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipShaftGenerator", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.ShipData", "ShipData")
+                        .WithMany("ShaftGenerators")
+                        .HasForeignKey("ShipDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ship_shaft_generators_ship_data_ship_data_id");
+
+                    b.Navigation("ShipData");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipSternthruster", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.ShipData", "ShipData")
+                        .WithMany("Sternthrusters")
+                        .HasForeignKey("ShipDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ship_sternthrusters_ship_data_ship_data_id");
+
+                    b.Navigation("ShipData");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.TaskChecklistItem", b =>
                 {
                     b.HasOne("MaritimeEdge.Models.EquipmentAsset", "Asset")
@@ -9224,6 +11268,15 @@ namespace MaritimeEdge.Data.Migrations
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.UserSession", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
@@ -9320,6 +11373,29 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("DeferralRequests");
 
                     b.Navigation("StatusHistory");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ShipData", b =>
+                {
+                    b.Navigation("AuxiliaryEngines");
+
+                    b.Navigation("Boilers");
+
+                    b.Navigation("Bowthrusters");
+
+                    b.Navigation("LoadLines");
+
+                    b.Navigation("MainEngines");
+
+                    b.Navigation("PilotCardData");
+
+                    b.Navigation("Propellers");
+
+                    b.Navigation("Rudders");
+
+                    b.Navigation("ShaftGenerators");
+
+                    b.Navigation("Sternthrusters");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.VoyageRecord", b =>

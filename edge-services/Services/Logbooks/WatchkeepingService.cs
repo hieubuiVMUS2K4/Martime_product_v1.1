@@ -252,21 +252,24 @@ namespace MaritimeEdge.Services.Logbooks
                     return (false, "Cannot update a signed entry.");
                 }
 
+                // Required fields - always update
                 entry.WatchDate = dto.WatchDate;
                 entry.WatchPeriod = dto.WatchPeriod;
                 entry.WatchType = dto.WatchType;
                 entry.OfficerOnWatch = dto.OfficerOnWatch;
-                entry.Lookout = dto.Lookout;
-                entry.WeatherConditions = dto.WeatherConditions;
-                entry.SeaState = dto.SeaState;
-                entry.Visibility = dto.Visibility;
-                entry.CourseLogged = dto.CourseLogged;
-                entry.SpeedLogged = dto.SpeedLogged;
-                entry.PositionLat = dto.PositionLat;
-                entry.PositionLon = dto.PositionLon;
-                entry.DistanceRun = dto.DistanceRun;
-                entry.EngineStatus = dto.EngineStatus;
-                entry.NotableEvents = dto.NotableEvents;
+
+                // Nullable fields - only update if provided
+                if (dto.Lookout != null) entry.Lookout = dto.Lookout;
+                if (dto.WeatherConditions != null) entry.WeatherConditions = dto.WeatherConditions;
+                if (dto.SeaState != null) entry.SeaState = dto.SeaState;
+                if (dto.Visibility != null) entry.Visibility = dto.Visibility;
+                if (dto.CourseLogged.HasValue) entry.CourseLogged = dto.CourseLogged;
+                if (dto.SpeedLogged.HasValue) entry.SpeedLogged = dto.SpeedLogged;
+                if (dto.PositionLat.HasValue) entry.PositionLat = dto.PositionLat;
+                if (dto.PositionLon.HasValue) entry.PositionLon = dto.PositionLon;
+                if (dto.DistanceRun.HasValue) entry.DistanceRun = dto.DistanceRun;
+                if (dto.EngineStatus != null) entry.EngineStatus = dto.EngineStatus;
+                if (dto.NotableEvents != null) entry.NotableEvents = dto.NotableEvents;
                 
                 entry.UpdatedAt = DateTime.UtcNow;
                 entry.IsSynced = false;

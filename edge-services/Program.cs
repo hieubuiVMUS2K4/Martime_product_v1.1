@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.FileProviders;
+using System.Threading.RateLimiting;
 using MaritimeEdge.Data;
 using MaritimeEdge.Services.Core;
 using MaritimeEdge.Services.Inventory;
@@ -12,6 +13,7 @@ using MaritimeEdge.Services.Reporting;
 using MaritimeEdge.Services.Voyage;
 using MaritimeEdge.Services.Logbooks;
 using MaritimeEdge.Services.AbstractLog;
+using MaritimeEdge.Services;
 using MaritimeEdge.Repositories;
 
 namespace MaritimeEdge
@@ -32,8 +34,13 @@ namespace MaritimeEdge
             // Add services to the container
             var connectionString = builder.Configuration.GetValue<string>("Database:ConnectionString");
             
-            builder.Services.AddDbContext<EdgeDbContext>(options =>
+            // HTTP context accessor for audit interceptor
+            builder.Services.AddHttpContextAccessor();
+            builder.Services.AddScoped<AuditInterceptor>();
+
+            builder.Services.AddDbContext<EdgeDbContext>((sp, options) =>
                 options.UseNpgsql(connectionString)
+                       .AddInterceptors(sp.GetRequiredService<AuditInterceptor>())
             );
 
             // Add HttpClient for SignalK
@@ -63,6 +70,10 @@ namespace MaritimeEdge
             builder.Services.AddScoped<IVoyageLogService, VoyageLogService>();
             builder.Services.AddScoped<MaterialReceiptService>();
 
+            // Add Authentication & System Log Services (ISPS/ISM/IMO MSC.428)
+            builder.Services.AddScoped<ISystemLogService, SystemLogService>();
+            builder.Services.AddScoped<IAuthService, AuthService>();
+
             // Add Voyage Management Service
             builder.Services.AddScoped<IVoyageManagementService, VoyageManagementService>();
 
@@ -75,6 +86,10 @@ namespace MaritimeEdge
 
             // Add PMS Services
             builder.Services.AddScoped<MaintenanceCompletionService>();
+
+            // Add Ship Data Services
+            builder.Services.AddScoped<IShipDataRepository, ShipDataRepository>();
+            builder.Services.AddScoped<IShipDataService, ShipDataService>();
 
             // Add Background Services
             builder.Services.AddHostedService<MaritimeEdge.Services.Maintenance.MaintenanceSchedulerService>();
@@ -127,6 +142,36 @@ namespace MaritimeEdge
                 c.SwaggerDoc("v1", new() { Title = "Maritime Edge API", Version = "v1" });
             });
 
+            // Add Rate Limiting
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = 429;
+                
+                // Global fixed window: 100 requests per minute per IP
+                options.AddPolicy("fixed", httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 100,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            QueueLimit = 5
+                        }));
+                
+                // Strict limiter for auth endpoints: 10 requests per minute per IP
+                options.AddPolicy("auth", httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 10,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            QueueLimit = 0
+                        }));
+            });
+
             var app = builder.Build();
 
             // Initialize database with migrations
@@ -159,12 +204,20 @@ namespace MaritimeEdge
             }
 
             // Configure the HTTP request pipeline
-            app.UseSwagger();
-            app.UseSwaggerUI(c =>
+            
+            // Global exception handler — MUST be first in pipeline
+            app.UseMiddleware<GlobalExceptionMiddleware>();
+
+            // Swagger only in Development
+            if (app.Environment.IsDevelopment())
             {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Maritime Edge API v1");
-                c.RoutePrefix = "swagger";
-            });
+                app.UseSwagger();
+                app.UseSwaggerUI(c =>
+                {
+                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Maritime Edge API v1");
+                    c.RoutePrefix = "swagger";
+                });
+            }
 
             var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
             Directory.CreateDirectory(uploadsPath);
@@ -199,6 +252,15 @@ namespace MaritimeEdge
             });
 
             app.UseRouting();
+
+            // Rate limiting
+            app.UseRateLimiter();
+
+            // Session-based auth middleware - resolves Bearer token → user identity
+            // MUST be before UseAuthorization so HttpContext.Items are populated
+            // for AuditInterceptor and controller authorization checks
+            app.UseMiddleware<SessionAuthMiddleware>();
+
             app.UseAuthorization();
             app.MapControllers();
 

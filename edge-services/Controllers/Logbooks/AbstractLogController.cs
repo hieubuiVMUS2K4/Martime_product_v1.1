@@ -50,7 +50,7 @@ public class AbstractLogController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return BadRequest(new { error = "An internal error occurred." });
         }
     }
 
@@ -121,7 +121,7 @@ public class AbstractLogController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return BadRequest(new { error = "An internal error occurred." });
         }
     }
 
@@ -156,7 +156,7 @@ public class AbstractLogController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return BadRequest(new { error = "An internal error occurred." });
         }
         catch (Microsoft.EntityFrameworkCore.DbUpdateException)
         {
