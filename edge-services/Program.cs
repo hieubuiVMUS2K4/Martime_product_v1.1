@@ -50,6 +50,17 @@ namespace MaritimeEdge
                 client.DefaultRequestHeaders.Add("User-Agent", "MaritimeEdge/1.0");
             });
 
+            // Add HttpClient for Shore API sync
+            builder.Services.AddHttpClient("ShoreAPI", client =>
+            {
+                var timeout = builder.Configuration.GetValue("ShoreAPI:Timeout", 30);
+                client.Timeout = TimeSpan.FromSeconds(timeout);
+                client.DefaultRequestHeaders.Add("User-Agent", "MaritimeEdge/1.0");
+                var apiKey = builder.Configuration["ShoreAPI:ApiKey"];
+                if (!string.IsNullOrEmpty(apiKey) && apiKey != "your-api-key-here")
+                    client.DefaultRequestHeaders.Add("X-API-Key", apiKey);
+            });
+
             // Add Memory Cache for performance optimization
             builder.Services.AddMemoryCache();
 
@@ -59,6 +70,7 @@ namespace MaritimeEdge
             builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<IAggregateReportService, AggregateReportService>();
             builder.Services.AddScoped<ISyncService, SyncService>();
+            builder.Services.AddScoped<ISyncConflictHandler, SyncConflictHandler>();
             builder.Services.AddScoped<IWatchkeepingService, WatchkeepingService>();
             builder.Services.AddScoped<IDeckLogbookService, DeckLogbookService>();
             builder.Services.AddScoped<IEngineLogbookService, EngineLogbookService>();

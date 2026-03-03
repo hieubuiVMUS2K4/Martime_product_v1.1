@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
-using MaritimeEdgeServer.DTOs.Crew;
+// Crew DTOs are now globally available via shared library re-exports
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -1270,7 +1270,7 @@ public class CrewController : ControllerBase
             FirstName = firstName,
             LastName = lastName,
             FullName = crew.FullName,
-            Rank = crew.Rank != null ? new MaritimeEdgeServer.DTOs.Crew.RankDto
+            Rank = crew.Rank != null ? new RankDto
             {
                 Id = crew.Rank.Id,
                 RankCode = crew.Rank.RankCode,

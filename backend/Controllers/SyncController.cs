@@ -2,30 +2,52 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProductApi.Data;
 using ProductApi.Models;
+using ProductApi.Services.Sync;
 using System.Text.Json;
 
 namespace ProductApi.Controllers;
 
+/// <summary>
+/// Shore Sync Controller — receives data pushed from Edge (ship) and serves pull requests.
+/// Phase 3: Extended to handle crew, certificates, documents, and all syncable entities.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class SyncController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly ISyncInboxService _syncInbox;
+    private readonly ISyncOutboxService _syncOutbox;
     private readonly ILogger<SyncController> _logger;
 
-    public SyncController(AppDbContext context, ILogger<SyncController> logger)
+    public SyncController(
+        AppDbContext context,
+        ISyncInboxService syncInbox,
+        ISyncOutboxService syncOutbox,
+        ILogger<SyncController> logger)
     {
         _context = context;
+        _syncInbox = syncInbox;
+        _syncOutbox = syncOutbox;
         _logger = logger;
     }
 
+    /// <summary>
+    /// POST /api/sync — Edge → Shore push. Receives batch of sync items from a ship.
+    /// </summary>
     [HttpPost]
-    public async Task<IActionResult> Sync([FromBody] List<SyncQueueItemDto> items)
+    public async Task<IActionResult> Sync([FromBody] List<Maritime.Shared.DTOs.Sync.SyncQueueItemDto> items)
     {
         if (items == null || items.Count == 0)
             return Ok(new { message = "No items to sync" });
 
-        _logger.LogInformation($"Received {items.Count} items for sync.");
+        // Limit batch size to prevent abuse
+        const int maxBatchSize = 5000;
+        if (items.Count > maxBatchSize)
+            return BadRequest(new { error = $"Batch size {items.Count} exceeds maximum of {maxBatchSize}" });
+
+        var originNode = items.FirstOrDefault()?.OriginNode ?? "UNKNOWN";
+        _logger.LogInformation("Received {Count} sync items from {Node}", items.Count, originNode);
 
         var results = new List<SyncResultDto>();
 
@@ -36,144 +58,126 @@ public class SyncController : ControllerBase
             {
                 try
                 {
-                    await ProcessItemAsync(item);
-                    results.Add(new SyncResultDto { Id = item.Id, Success = true });
+                    await _syncInbox.ProcessIncomingAsync(item);
+                    results.Add(new SyncResultDto { Id = 0, Success = true });
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"Failed to sync item {item.Id} ({item.TableName})");
-                    results.Add(new SyncResultDto { Id = item.Id, Success = false, Error = "Sync failed" });
+                    _logger.LogError(ex, "Failed to sync item {Table}/{Key} from {Node}",
+                        item.TableName, item.RecordKey, item.OriginNode);
+                    results.Add(new SyncResultDto { Id = 0, Success = false, Error = ex.Message });
                 }
             }
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+
+            _logger.LogInformation("Sync batch complete: {Success}/{Total} succeeded",
+                results.Count(r => r.Success), results.Count);
         }
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            _logger.LogError(ex, "Transaction failed during sync");
-            return StatusCode(500, "Sync transaction failed");
+            _logger.LogError(ex, "Transaction failed during sync from {Node}", originNode);
+            return StatusCode(500, new { error = "Sync transaction failed" });
         }
 
         return Ok(results);
     }
 
-    private async Task ProcessItemAsync(SyncQueueItemDto item)
+    /// <summary>
+    /// GET /api/sync/pull — Shore → Edge pull. Returns pending outbox items for a specific node.
+    /// Cursor-based pagination for bandwidth efficiency.
+    /// </summary>
+    [HttpGet("pull")]
+    public async Task<IActionResult> Pull(
+        [FromQuery] string nodeId,
+        [FromQuery] DateTime? since = null,
+        [FromQuery] string? cursor = null,
+        [FromQuery] int pageSize = 50)
     {
-        switch (item.TableName)
+        try
         {
-            case "position_data":
-                await SyncEntityAsync<PositionData>(item);
-                break;
-            case "engine_data":
-                await SyncEntityAsync<EngineData>(item);
-                break;
-            case "maritime_report":
-                await SyncEntityAsync<MaritimeReport>(item);
-                break;
-            case "noon_report":
-                await SyncEntityAsync<NoonReport>(item);
-                break;
-            // Add other cases as needed
-            default:
-                _logger.LogWarning($"Unknown table name: {item.TableName}");
-                break;
+            if (string.IsNullOrEmpty(nodeId))
+                return BadRequest(new { error = "nodeId is required" });
+
+            var response = await _syncOutbox.GetPendingItemsAsync(nodeId, since, cursor, pageSize);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during pull for node {NodeId}", nodeId);
+            return StatusCode(500, new { error = "Pull failed" });
         }
     }
 
-    private async Task SyncEntityAsync<T>(SyncQueueItemDto item) where T : class
+    /// <summary>
+    /// POST /api/sync/acknowledge — Edge acknowledges receipt of pulled items.
+    /// </summary>
+    [HttpPost("acknowledge")]
+    public async Task<IActionResult> Acknowledge([FromBody] Maritime.Shared.DTOs.Sync.SyncAcknowledgeDto ack)
     {
-        var dbSet = _context.Set<T>();
-        
-        // Deserialize payload
-        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-        
-        if (item.ActionType == "CREATE")
+        try
         {
-            var entity = JsonSerializer.Deserialize<T>(item.Payload, options);
-            if (entity != null)
-            {
-                // Check if exists to avoid duplicates (idempotency)
-                var idProperty = typeof(T).GetProperty("Id");
-                if (idProperty != null)
-                {
-                    var idValue = idProperty.GetValue(entity);
-                    var existing = await dbSet.FindAsync(idValue);
-                    if (existing == null)
-                    {
-                        await dbSet.AddAsync(entity);
-                    }
-                    else
-                    {
-                        // Update existing if it's a create but already there (retry scenario)
-                        _context.Entry(existing).CurrentValues.SetValues(entity);
-                    }
-                }
-            }
+            if (string.IsNullOrEmpty(ack.NodeId))
+                return BadRequest(new { error = "nodeId is required" });
+            if (ack.ItemIds == null || ack.ItemIds.Count == 0)
+                return BadRequest(new { error = "itemIds cannot be empty" });
+
+            await _syncOutbox.AcknowledgeDeliveryAsync(ack.NodeId, ack.ItemIds);
+            return Ok(new { message = $"Acknowledged {ack.ItemIds.Count} items" });
         }
-        else if (item.ActionType == "UPDATE")
+        catch (Exception ex)
         {
-            // For Delta Sync, we need to fetch the existing entity and apply changes
-            // This requires the RecordKey (ID)
-            // Assuming RecordKey is the ID
-            
-            // This part is tricky with generic T and string RecordKey. 
-            // For simplicity in this prototype, we assume ID is Guid.
-            if (Guid.TryParse(item.RecordKey, out var guidId))
-            {
-                var existing = await dbSet.FindAsync(guidId);
-                if (existing != null)
-                {
-                    // Deserialize partial update to a Dictionary or JsonElement
-                    var patchData = JsonSerializer.Deserialize<Dictionary<string, object>>(item.Payload, options);
-                    if (patchData != null)
-                    {
-                        var entry = _context.Entry(existing);
-                        foreach (var kvp in patchData)
-                        {
-                            var property = entry.Metadata.FindProperty(kvp.Key);
-                            if (property != null && !property.IsKey())
-                            {
-                                // Need to handle type conversion safely
-                                // This is a simplified version. In production, use a robust patcher.
-                                try 
-                                {
-                                    var targetType = property.ClrType;
-                                    var value = Convert.ChangeType(kvp.Value.ToString(), targetType);
-                                    property.PropertyInfo?.SetValue(existing, value);
-                                }
-                                catch
-                                {
-                                    // Ignore conversion errors for now
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        else if (item.ActionType == "DELETE")
-        {
-             if (Guid.TryParse(item.RecordKey, out var guidId))
-             {
-                 var existing = await dbSet.FindAsync(guidId);
-                 if (existing != null)
-                 {
-                     dbSet.Remove(existing);
-                 }
-             }
+            _logger.LogError(ex, "Error acknowledging items for node {NodeId}", ack.NodeId);
+            return StatusCode(500, new { error = "Acknowledge failed" });
         }
     }
-}
 
-public class SyncQueueItemDto
-{
-    public long Id { get; set; }
-    public string TableName { get; set; } = string.Empty;
-    public string RecordKey { get; set; } = string.Empty;
-    public string ActionType { get; set; } = "CREATE"; // CREATE, UPDATE, DELETE
-    public string Payload { get; set; } = "{}";
+    /// <summary>
+    /// GET /api/sync/status — Get sync overview for all connected nodes/ships.
+    /// </summary>
+    [HttpGet("status")]
+    public async Task<IActionResult> GetSyncStatus()
+    {
+        try
+        {
+            // Pending outbox items per node
+            var outboxStats = await _context.SyncOutbox
+                .Where(o => o.DeliveredAt == null)
+                .GroupBy(o => o.TargetNode)
+                .Select(g => new { Node = g.Key, Pending = g.Count() })
+                .ToListAsync();
+
+            // Recent sync logs
+            var recentLogs = await _context.SyncLogs
+                .OrderByDescending(l => l.ProcessedAt)
+                .Take(20)
+                .Select(l => new
+                {
+                    l.Direction,
+                    l.OriginNode,
+                    l.TableName,
+                    l.RecordKey,
+                    l.ActionType,
+                    l.Status,
+                    l.ProcessedAt
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                outboxStats,
+                recentLogs,
+                serverTime = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting sync status");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
 }
 
 public class SyncResultDto

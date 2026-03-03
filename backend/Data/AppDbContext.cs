@@ -20,7 +20,7 @@ namespace ProductApi.Data
         public DbSet<FuelConsumption> FuelConsumptions { get; set; } = null!;
         public DbSet<PortCall> PortCalls { get; set; } = null!;
         public DbSet<VesselAlert> VesselAlerts { get; set; } = null!;
-        public DbSet<Certificate> Certificates { get; set; } = null!;
+        public DbSet<VesselCertificate> VesselCertificates { get; set; } = null!;
 
         // Edge Sync Models (Optimized for Shore - Essential Data Only)
         // REMOVED: NmeaRawData (debug only), NavigationData (realtime only), EnvironmentalData (in NoonReport)
@@ -35,6 +35,29 @@ namespace ProductApi.Data
         public DbSet<ReportType> ReportTypes { get; set; } = null!;
         public DbSet<MaritimeReport> MaritimeReports { get; set; } = null!;
         public DbSet<NoonReport> NoonReports { get; set; } = null!;
+
+        // ============================================================
+        // CREW MANAGEMENT (Maritime.Shared models via SharedTypeAliases)
+        // ============================================================
+        public DbSet<Certificate> CrewCertificateTypes { get; set; } = null!;
+        public DbSet<CrewCertificate> CrewCertificates { get; set; } = null!;
+        public DbSet<Country> Countries { get; set; } = null!;
+        public DbSet<Rank> Ranks { get; set; } = null!;
+        public DbSet<RankCertificate> RankCertificates { get; set; } = null!;
+        public DbSet<CountryCertificate> CountryCertificates { get; set; } = null!;
+        public DbSet<ServiceRecord> ServiceRecords { get; set; } = null!;
+
+        // Crew Documents
+        public DbSet<TravelDocument> TravelDocuments { get; set; } = null!;
+        public DbSet<SeafarerDocument> SeafarerDocuments { get; set; } = null!;
+        public DbSet<EmploymentDocument> EmploymentDocuments { get; set; } = null!;
+        public DbSet<HealthDocument> HealthDocuments { get; set; } = null!;
+
+        // ============================================================
+        // SYNC INFRASTRUCTURE
+        // ============================================================
+        public DbSet<SyncOutbox> SyncOutbox { get; set; } = null!;
+        public DbSet<SyncLog> SyncLogs { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -104,9 +127,10 @@ namespace ProductApi.Data
                 entity.HasIndex(va => va.IsAcknowledged);
             });
 
-            // Configure Certificate
-            modelBuilder.Entity<Certificate>(entity =>
+            // Configure VesselCertificate (renamed from Certificate to avoid conflict with shared crew Certificate)
+            modelBuilder.Entity<VesselCertificate>(entity =>
             {
+                entity.ToTable("Certificates"); // Keep the same table name for backward compatibility
                 entity.HasOne(c => c.Vessel)
                     .WithMany()
                     .HasForeignKey(c => c.VesselId)
@@ -114,6 +138,215 @@ namespace ProductApi.Data
 
                 entity.HasIndex(c => new { c.VesselId, c.ExpiryDate });
                 entity.HasIndex(c => c.CertificateNumber).IsUnique();
+            });
+
+            // ============================================================
+            // CREW MANAGEMENT ENTITY CONFIGURATIONS
+            // ============================================================
+            
+            // Configure CrewMember
+            modelBuilder.Entity<CrewMember>(entity =>
+            {
+                entity.ToTable("crew_members");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewId).IsUnique();
+                entity.HasIndex(e => e.FullName);
+                entity.HasIndex(e => e.IsOnboard);
+                entity.HasIndex(e => e.IsSynced);
+                
+                entity.HasOne(e => e.Rank)
+                    .WithMany()
+                    .HasForeignKey(e => e.RankId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.Property(e => e.Weight).HasPrecision(5, 2);
+            });
+
+            // Configure Certificate (Crew Certificate Types)
+            modelBuilder.Entity<Certificate>(entity =>
+            {
+                entity.ToTable("certificates");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CertificateCode).IsUnique();
+            });
+
+            // Configure CrewCertificate
+            modelBuilder.Entity<CrewCertificate>(entity =>
+            {
+                entity.ToTable("crew_certificates");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.CrewMemberId, e.CertificateId });
+                entity.HasIndex(e => e.ExpiryDate);
+                entity.HasIndex(e => e.IsSynced);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany(c => c.Certificates)
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Certificate)
+                    .WithMany(c => c.CrewCertificates)
+                    .HasForeignKey(e => e.CertificateId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Country)
+                    .WithMany(c => c.CrewCertificates)
+                    .HasForeignKey(e => e.CountryId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // Configure Country
+            modelBuilder.Entity<Country>(entity =>
+            {
+                entity.ToTable("countries");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CountryCode).IsUnique();
+            });
+
+            // Configure Rank
+            modelBuilder.Entity<Rank>(entity =>
+            {
+                entity.ToTable("ranks");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.RankCode).IsUnique();
+            });
+
+            // Configure RankCertificate
+            modelBuilder.Entity<RankCertificate>(entity =>
+            {
+                entity.ToTable("rank_certificates");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.RankId, e.CertificateId }).IsUnique();
+
+                entity.HasOne(e => e.Rank)
+                    .WithMany()
+                    .HasForeignKey(e => e.RankId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Certificate)
+                    .WithMany()
+                    .HasForeignKey(e => e.CertificateId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure CountryCertificate
+            modelBuilder.Entity<CountryCertificate>(entity =>
+            {
+                entity.ToTable("country_certificates");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.CountryId, e.CertificateId }).IsUnique();
+
+                entity.HasOne(e => e.Country)
+                    .WithMany(c => c.CountryCertificates)
+                    .HasForeignKey(e => e.CountryId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Certificate)
+                    .WithMany(c => c.CountryCertificates)
+                    .HasForeignKey(e => e.CertificateId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure ServiceRecord
+            modelBuilder.Entity<ServiceRecord>(entity =>
+            {
+                entity.ToTable("service_records");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewMemberId);
+                entity.HasIndex(e => e.IsSynced);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany()
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.Property(e => e.VesselGrt).HasPrecision(12, 2);
+                entity.Property(e => e.VesselDwt).HasPrecision(12, 2);
+            });
+
+            // Configure TravelDocument
+            modelBuilder.Entity<TravelDocument>(entity =>
+            {
+                entity.ToTable("travel_documents");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewMemberId);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany(c => c.TravelDocuments)
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Country)
+                    .WithMany()
+                    .HasForeignKey(e => e.CountryId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // Configure SeafarerDocument
+            modelBuilder.Entity<SeafarerDocument>(entity =>
+            {
+                entity.ToTable("seafarer_documents");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewMemberId);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany(c => c.SeafarerDocuments)
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Country)
+                    .WithMany()
+                    .HasForeignKey(e => e.CountryId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // Configure EmploymentDocument
+            modelBuilder.Entity<EmploymentDocument>(entity =>
+            {
+                entity.ToTable("employment_documents");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewMemberId);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany(c => c.EmploymentDocuments)
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Country)
+                    .WithMany()
+                    .HasForeignKey(e => e.CountryId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // Configure HealthDocument
+            modelBuilder.Entity<HealthDocument>(entity =>
+            {
+                entity.ToTable("health_documents");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewMemberId);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany(c => c.HealthDocuments)
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure SyncOutbox (shore → ship)
+            modelBuilder.Entity<SyncOutbox>(entity =>
+            {
+                entity.ToTable("sync_outbox");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.DeliveredAt);
+                entity.HasIndex(e => new { e.TableName, e.RecordKey });
+            });
+
+            // Configure SyncLog
+            modelBuilder.Entity<SyncLog>(entity =>
+            {
+                entity.ToTable("sync_logs");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.ProcessedAt);
+                entity.HasIndex(e => e.OriginNode);
             });
         }
     }

@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Text.Json;
 using ProductApi.Data;
 using ProductApi.Services;
 
@@ -66,6 +68,15 @@ builder.Services.AddScoped<IVesselService, VesselService>();
 builder.Services.AddScoped<IAlertService, AlertService>();
 builder.Services.AddScoped<ITelemetryService, TelemetryService>();
 
+// Register crew management services (Phase 2)
+builder.Services.AddScoped<ProductApi.Services.Crew.ICrewService, ProductApi.Services.Crew.CrewService>();
+builder.Services.AddScoped<ProductApi.Services.Crew.ICertificateService, ProductApi.Services.Crew.CertificateService>();
+
+// Register sync services (Phase 3)
+builder.Services.AddScoped<ProductApi.Services.Sync.ISyncInboxService, ProductApi.Services.Sync.SyncInboxService>();
+builder.Services.AddScoped<ProductApi.Services.Sync.ISyncOutboxService, ProductApi.Services.Sync.SyncOutboxService>();
+builder.Services.AddScoped<ProductApi.Services.Sync.IConflictResolverService, ProductApi.Services.Sync.ConflictResolverService>();
+
 // Add background service for automatic alerts
 builder.Services.AddHostedService<AlertBackgroundService>();
 
@@ -98,6 +109,41 @@ using (var scope = app.Services.CreateScope())
 
 app.UseSwagger();
 app.UseSwaggerUI();
+
+// Global exception handling middleware
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        context.Response.ContentType = "application/json";
+        var exceptionFeature = context.Features.Get<IExceptionHandlerFeature>();
+        var exception = exceptionFeature?.Error;
+
+        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+        logger.LogError(exception, "Unhandled exception on {Method} {Path}", 
+            context.Request.Method, context.Request.Path);
+
+        var (statusCode, message) = exception switch
+        {
+            ArgumentNullException => (StatusCodes.Status400BadRequest, "Missing required parameter"),
+            ArgumentException => (StatusCodes.Status400BadRequest, "Invalid parameter"),
+            KeyNotFoundException => (StatusCodes.Status404NotFound, "Resource not found"),
+            UnauthorizedAccessException => (StatusCodes.Status403Forbidden, "Access denied"),
+            InvalidOperationException => (StatusCodes.Status409Conflict, "Operation conflict"),
+            OperationCanceledException => (StatusCodes.Status408RequestTimeout, "Request timed out"),
+            DbUpdateException => (StatusCodes.Status409Conflict, "Database constraint violation"),
+            _ => (StatusCodes.Status500InternalServerError, "An internal error occurred")
+        };
+
+        context.Response.StatusCode = statusCode;
+        await context.Response.WriteAsync(JsonSerializer.Serialize(new
+        {
+            error = message,
+            status = statusCode,
+            traceId = context.TraceIdentifier
+        }));
+    });
+});
 
 app.UseCors("AllowWebMobile");
 app.UseAuthentication();

@@ -80,7 +80,11 @@ namespace ProductApi.Models
         public Vessel Vessel { get; set; } = null!;
     }
 
-    public class Certificate
+    /// <summary>
+    /// Vessel Certificate - SOLAS/ISM/MARPOL vessel-level certificates.
+    /// Renamed from Certificate to avoid conflict with shared crew Certificate.
+    /// </summary>
+    public class VesselCertificate
     {
         public Guid Id { get; set; }
         public Guid VesselId { get; set; }

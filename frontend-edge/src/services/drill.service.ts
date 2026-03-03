@@ -6,6 +6,7 @@
 
 import axios from 'axios';
 import { API_CONFIG } from '@/config/app.config';
+import { getAuthToken } from './api.client';
 import type {
   DrillType,
   DrillSchedule,
@@ -22,6 +23,15 @@ import type {
 const api = axios.create({
   baseURL: API_CONFIG.BASE_URL,
   timeout: API_CONFIG.TIMEOUT
+});
+
+// Inject auth token into all requests
+api.interceptors.request.use((config) => {
+  const token = getAuthToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 const BASE_URL = '/drill';

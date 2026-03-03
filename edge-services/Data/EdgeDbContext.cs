@@ -2335,6 +2335,16 @@ public class EdgeDbContext : DbContext
             type == typeof(EngineData)) 
             return SyncPriority.Operational;
 
+        // P2.5: Crew data — important for shore HR sync
+        if (type == typeof(Maritime.Shared.Models.Crew.CrewMember) ||
+            type == typeof(Maritime.Shared.Models.Crew.CrewCertificate) ||
+            type == typeof(Maritime.Shared.Models.Crew.ServiceRecord) ||
+            type == typeof(Maritime.Shared.Models.Documents.TravelDocument) ||
+            type == typeof(Maritime.Shared.Models.Documents.SeafarerDocument) ||
+            type == typeof(Maritime.Shared.Models.Documents.EmploymentDocument) ||
+            type == typeof(Maritime.Shared.Models.Documents.HealthDocument))
+            return SyncPriority.Operational;
+
         // P3: Logs & Inventory (Default)
         return SyncPriority.Low;
     }

@@ -1,0 +1,295 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Maritime.Shared.DTOs.Crew;
+using ProductApi.Services.Crew;
+
+namespace ProductApi.Controllers.Crew;
+
+/// <summary>
+/// Shore Crew Management Controller.
+/// Multi-ship crew overview with full CRUD.
+/// </summary>
+[ApiController]
+[Route("api/crew")]
+[Authorize]
+public class CrewController : ControllerBase
+{
+    private readonly ICrewService _crewService;
+    private readonly ILogger<CrewController> _logger;
+
+    public CrewController(ICrewService crewService, ILogger<CrewController> logger)
+    {
+        _crewService = crewService;
+        _logger = logger;
+    }
+
+    // ============================================================
+    // CREW MEMBER ENDPOINTS
+    // ============================================================
+
+    /// <summary>
+    /// GET /api/crew — Paginated crew list with search/filter.
+    /// Shore-specific: supports shipId and pool filters.
+    /// </summary>
+    [HttpGet]
+    [AllowAnonymous] // TODO: Require auth after frontend integration
+    public async Task<IActionResult> GetAllCrew(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] string? search = null,
+        [FromQuery] bool? isOnboard = null,
+        [FromQuery] Guid? shipId = null,
+        [FromQuery] bool? pool = null)
+    {
+        try
+        {
+            var (data, totalCount, totalPages) = await _crewService.GetAllCrewAsync(
+                page, pageSize, search, isOnboard, shipId, pool);
+
+            return Ok(new
+            {
+                data,
+                pagination = new
+                {
+                    currentPage = page,
+                    pageSize,
+                    totalCount,
+                    totalPages,
+                    hasNextPage = page < totalPages,
+                    hasPreviousPage = page > 1
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting crew list");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>GET /api/crew/{id} — Get crew member by ID.</summary>
+    [HttpGet("{id:guid}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetCrew(Guid id)
+    {
+        try
+        {
+            var crew = await _crewService.GetCrewByIdAsync(id);
+            if (crew == null) return NotFound(new { error = "Crew member not found" });
+            return Ok(crew);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting crew {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>GET /api/crew/{id}/detail — Get detailed crew info (certs, docs).</summary>
+    [HttpGet("{id:guid}/detail")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetCrewDetail(Guid id)
+    {
+        try
+        {
+            var crew = await _crewService.GetCrewDetailAsync(id);
+            if (crew == null) return NotFound(new { error = "Crew member not found" });
+            return Ok(crew);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting crew detail {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>POST /api/crew — Create a new crew member.</summary>
+    [HttpPost]
+    [AllowAnonymous]
+    public async Task<IActionResult> CreateCrew([FromBody] CreateCrewRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.CrewId) || string.IsNullOrWhiteSpace(request.FullName))
+                return BadRequest(new { error = "CrewId and FullName are required" });
+
+            var crew = await _crewService.CreateCrewAsync(request);
+            return CreatedAtAction(nameof(GetCrew), new { id = crew.Id }, crew);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating crew");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>PUT /api/crew/{id} — Update an existing crew member.</summary>
+    [HttpPut("{id:guid}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> UpdateCrew(Guid id, [FromBody] UpdateCrewRequest request)
+    {
+        try
+        {
+            var crew = await _crewService.UpdateCrewAsync(id, request);
+            if (crew == null) return NotFound(new { error = "Crew member not found" });
+            return Ok(crew);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating crew {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>DELETE /api/crew/{id} — Delete a crew member.</summary>
+    [HttpDelete("{id:guid}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> DeleteCrew(Guid id)
+    {
+        try
+        {
+            var result = await _crewService.DeleteCrewAsync(id);
+            if (!result) return NotFound(new { error = "Crew member not found" });
+            return Ok(new { message = "Crew member deleted" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting crew {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    // ============================================================
+    // CREW DOCUMENTS ENDPOINTS
+    // ============================================================
+
+    /// <summary>GET /api/crew/{id}/documents/{category} — Get documents by category.</summary>
+    [HttpGet("{id:guid}/documents/{category}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetCrewDocuments(Guid id, string category)
+    {
+        try
+        {
+            var docs = await _crewService.GetCrewDocumentsAsync(id, category);
+            return Ok(docs);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting documents for crew {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>POST /api/crew/{id}/documents — Add a document to crew member.</summary>
+    [HttpPost("{id:guid}/documents")]
+    [AllowAnonymous]
+    public async Task<IActionResult> AddCrewDocument(Guid id, [FromBody] CreateIdentityDocumentDto request)
+    {
+        try
+        {
+            var doc = await _crewService.AddCrewDocumentAsync(id, request);
+            return Created($"/api/crew/{id}/documents/{request.Category}", doc);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding document for crew {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>DELETE /api/crew/{crewId}/documents/{category}/{documentId}</summary>
+    [HttpDelete("{crewId:guid}/documents/{category}/{documentId:guid}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> DeleteCrewDocument(Guid crewId, string category, Guid documentId)
+    {
+        try
+        {
+            var result = await _crewService.DeleteCrewDocumentAsync(crewId, documentId, category);
+            if (!result) return NotFound(new { error = "Document not found" });
+            return Ok(new { message = "Document deleted" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting document {DocId} for crew {CrewId}", documentId, crewId);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    // ============================================================
+    // SERVICE RECORDS ENDPOINTS
+    // ============================================================
+
+    /// <summary>GET /api/crew/{id}/service-records — Get sea service history.</summary>
+    [HttpGet("{id:guid}/service-records")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetServiceRecords(Guid id)
+    {
+        try
+        {
+            var records = await _crewService.GetServiceRecordsAsync(id);
+            return Ok(records);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting service records for crew {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>POST /api/crew/{id}/service-records — Add a service record.</summary>
+    [HttpPost("{id:guid}/service-records")]
+    [AllowAnonymous]
+    public async Task<IActionResult> AddServiceRecord(Guid id, [FromBody] CreateServiceRecordRequest request)
+    {
+        try
+        {
+            var record = await _crewService.AddServiceRecordAsync(id, request);
+            return Created($"/api/crew/{id}/service-records", record);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding service record for crew {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>PUT /api/crew/{id}/service-records/{recordId}</summary>
+    [HttpPut("{id:guid}/service-records/{recordId:guid}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> UpdateServiceRecord(Guid id, Guid recordId, [FromBody] CreateServiceRecordRequest request)
+    {
+        try
+        {
+            var record = await _crewService.UpdateServiceRecordAsync(recordId, request);
+            if (record == null) return NotFound(new { error = "Service record not found" });
+            return Ok(record);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating service record {RecordId}", recordId);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>DELETE /api/crew/{id}/service-records/{recordId}</summary>
+    [HttpDelete("{id:guid}/service-records/{recordId:guid}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> DeleteServiceRecord(Guid id, Guid recordId)
+    {
+        try
+        {
+            var result = await _crewService.DeleteServiceRecordAsync(recordId);
+            if (!result) return NotFound(new { error = "Service record not found" });
+            return Ok(new { message = "Service record deleted" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting service record {RecordId}", recordId);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+}

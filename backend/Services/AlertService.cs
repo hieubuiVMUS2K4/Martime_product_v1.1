@@ -281,7 +281,7 @@ namespace ProductApi.Services
         {
             var thirtyDaysFromNow = DateTime.UtcNow.AddDays(30);
             
-            var expiringCertificates = await _context.Certificates
+            var expiringCertificates = await _context.VesselCertificates
                 .AsNoTracking()
                 .Include(c => c.Vessel)
                 .Where(c => c.IsValid)

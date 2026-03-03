@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 
 namespace MaritimeEdge.Services.Core;
 
@@ -8,17 +9,25 @@ public class SyncBackgroundWorker : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<SyncBackgroundWorker> _logger;
-    private readonly TimeSpan _interval = TimeSpan.FromSeconds(60); // Run every minute
+    private readonly IConfiguration _configuration;
 
-    public SyncBackgroundWorker(IServiceProvider serviceProvider, ILogger<SyncBackgroundWorker> logger)
+    public SyncBackgroundWorker(
+        IServiceProvider serviceProvider, 
+        ILogger<SyncBackgroundWorker> logger,
+        IConfiguration configuration)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
+        _configuration = configuration;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Sync Background Worker started.");
+
+        var pushInterval = TimeSpan.FromSeconds(_configuration.GetValue("Sync:HighPriorityInterval", 60));
+        var pullInterval = TimeSpan.FromSeconds(_configuration.GetValue("Sync:SyncInterval", 300));
+        var lastPull = DateTime.MinValue;
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -27,7 +36,16 @@ public class SyncBackgroundWorker : BackgroundService
                 using (var scope = _serviceProvider.CreateScope())
                 {
                     var syncService = scope.ServiceProvider.GetRequiredService<ISyncService>();
+
+                    // Push: Edge → Shore (every push interval)
                     await syncService.ExecuteSyncAsync(stoppingToken);
+
+                    // Pull: Shore → Edge (every pull interval)
+                    if (DateTime.UtcNow - lastPull >= pullInterval)
+                    {
+                        await syncService.PullFromShoreAsync(stoppingToken);
+                        lastPull = DateTime.UtcNow;
+                    }
                 }
             }
             catch (Exception ex)
@@ -35,8 +53,8 @@ public class SyncBackgroundWorker : BackgroundService
                 _logger.LogError(ex, "Error occurred during sync execution.");
             }
 
-            // Wait for next cycle
-            await Task.Delay(_interval, stoppingToken);
+            // Wait for next push cycle
+            await Task.Delay(pushInterval, stoppingToken);
         }
 
         _logger.LogInformation("Sync Background Worker stopping.");

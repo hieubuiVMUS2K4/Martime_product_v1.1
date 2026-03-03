@@ -1,4 +1,4 @@
 export { DashboardPage } from './Dashboard';
 export { CategoryManagementPage } from './CategoryManagement';
-export { CrewManagementPage } from './CrewManagement';
+export { CrewManagementPage, CrewListPage, CrewDetailPage, CertificateMonitorPage } from './CrewManagement';
 export { MasterSchedulePage } from './PMS';
