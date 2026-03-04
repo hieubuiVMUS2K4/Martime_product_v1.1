@@ -12,15 +12,44 @@ Hệ thống quản lý hạm đội tàu **chuyên nghiệp và toàn diện**,
 
 ---
 
+## � **CẤU TRÚC DỰ ÁN (ĐÃ TÁI TỔ CHỨC)**
+
+Dự án được tách thành **2 product độc lập** để dễ quản lý và deploy riêng biệt:
+
+```
+📦 Martime_product_v1.1/
+│
+├── 🏢 shore_product/           → SHORE SYSTEM (Cloud/Trên bờ)
+│   ├── backend/                → Shore Backend API (.NET 8)     → Port 5000
+│   ├── frontend/               → Fleet Dashboard (React 19)     → Port 3000
+│   ├── shared/                 → Shared library (Maritime.Shared)
+│   ├── docker-compose.yml      → Shore Docker Compose
+│   ├── shore.sln               → Shore Solution
+│   └── README.md               → Hướng dẫn Shore
+│
+├── 🚢 edge_product/            → EDGE SYSTEM (Ship/Trên tàu)
+│   ├── edge-services/          → Edge Backend API (.NET 8)      → Port 5001
+│   ├── frontend-edge/          → Ship Dashboard (React 19)      → Port 3002
+│   ├── frontend-mobile/        → Mobile App (Flutter)
+│   ├── shared/                 → Shared library (Maritime.Shared)
+│   ├── edge.sln                → Edge Solution
+│   └── README.md               → Hướng dẫn Edge
+│
+├── 📚 docs/                    → Tài liệu chung cho cả hệ thống
+├── 🔧 scripts/                 → Scripts tiện ích (backup/export cả 2 DB)
+├── ⚙️  configs/                 → Cấu hình chung
+└── 📋 product.sln              → Root solution (tham chiếu cả 2)
+```
+
+---
+
 ## 🚀 **KHỞI ĐỘNG NHANH**
 
-> **📘 LẦN ĐẦU CLONE DỰ ÁN?** Đọc file này trước: **[GETTING_STARTED.md](GETTING_STARTED.md)** - Hướng dẫn chi tiết từng bước!
-
-> **⚡ ĐÃ SETUP RỒI?** Xem: [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md) - Khởi động nhanh
-
-### **⚡ 3 Bước Khởi Động Edge System:**
+### **🚢 Edge System (Trên tàu):**
 
 ```powershell
+cd edge_product
+
 # 1. Khởi động Database
 cd edge-services
 docker compose up -d edge-postgres edge-pgadmin
@@ -34,12 +63,23 @@ npm install
 npm run dev
 ```
 
-**✅ Truy cập:**
-- Frontend Dashboard: http://localhost:3002
-- Backend API Swagger: http://localhost:5001/swagger
-- Database Admin: http://localhost:5050
+### **🏢 Shore System (Trên bờ):**
 
-**🎉 Dữ liệu giả lập tự động cập nhật mỗi 5 giây!**
+```powershell
+cd shore_product
+
+# Docker (all-in-one)
+docker compose up -d
+
+# Hoặc manual:
+cd backend && dotnet run --urls "http://localhost:5000"
+cd frontend && npm install && npm run dev
+```
+
+**✅ Truy cập:**
+- Shore Dashboard: http://localhost:3000 | Shore API: http://localhost:5000/swagger
+- Edge Dashboard: http://localhost:3002 | Edge API: http://localhost:5001/swagger
+- pgAdmin: http://localhost:5050
 
 ---
 
@@ -47,10 +87,11 @@ npm run dev
 
 Dự án gồm **2 hệ thống độc lập**:
 
-### **🚢 EDGE SYSTEM** (Ship-based / Trên tàu)
+### **🚢 EDGE SYSTEM** (Ship-based / Trên tàu) → `edge_product/`
 ```
 📁 edge-services/          → Backend API (.NET 8)     → Port 5001
 📁 frontend-edge/          → Dashboard (React 19)     → Port 3002
+📁 frontend-mobile/        → Mobile App (Flutter)
 🗄️ PostgreSQL              → Maritime Edge DB         → Port 5433
 ```
 **Tính năng:**
@@ -60,7 +101,7 @@ Dự án gồm **2 hệ thống độc lập**:
 - ✅ Hoạt động offline-first với sync queue
 - ✅ 18 bảng database đã migrate sẵn
 
-### **� CLOUD SYSTEM** (Shore-based / Trên bờ)
+### **🏢 CLOUD SYSTEM** (Shore-based / Trên bờ) → `shore_product/`
 ```
 📁 backend/                → Backend API (.NET 8)     → Port 5000
 📁 frontend/               → Fleet Dashboard (React)  → Port 3000

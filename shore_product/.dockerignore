@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/bin
+**/obj
+.git
+docs/
+scripts/
+database-backups/
+*.md
+*.ps1
+*.bat
+*.sql
+*.csv

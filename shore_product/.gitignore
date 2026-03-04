@@ -1,0 +1,107 @@
+# ========================================
+# SHORE PRODUCT - GITIGNORE
+# ========================================
+
+# ====================
+# ENVIRONMENT & SECRETS
+# ====================
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# ====================
+# IDE & EDITORS
+# ====================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.history/
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+.idea/
+*.iml
+
+# ====================
+# OPERATING SYSTEM
+# ====================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+._*
+*~
+
+# ====================
+# NODE.JS / NPM
+# ====================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+package-lock.json
+
+# ====================
+# .NET / C#
+# ====================
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.cache
+.vs/
+[Dd]ebug/
+[Rr]elease/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+*.nupkg
+*.snupkg
+
+# ====================
+# REACT / VITE
+# ====================
+dist/
+dist-ssr/
+*.local
+.cache/
+
+# ====================
+# DOCKER
+# ====================
+docker-compose.override.yml
+.docker/
+
+# ====================
+# DATABASES & LOGS
+# ====================
+*.db
+*.sqlite
+*.log
+*.sql.backup
+*.dump
+*.tmp
+*.temp
+
+# ====================
+# BACKUP FILES
+# ====================
+*.bak
+*.backup
+*.old
+
+# ====================
+# TEST & COVERAGE
+# ====================
+coverage/
+*.coverage
+.nyc_output/

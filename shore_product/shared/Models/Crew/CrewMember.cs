@@ -1,0 +1,188 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
+using Maritime.Shared.Interfaces;
+using Maritime.Shared.Models.Documents;
+
+namespace Maritime.Shared.Models.Crew;
+
+/// <summary>
+/// Crew Members Management (SOLAS Chapter V, STCW, MLC 2006)
+/// Shared between Edge and Shore — single source of truth for the crew entity schema.
+/// </summary>
+public class CrewMember : ISyncableEntity
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    [MaxLength(50)]
+    public string CrewId { get; set; } = string.Empty;
+
+    [Required]
+    [MaxLength(200)]
+    public string FullName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Foreign key to Ranks table
+    /// </summary>
+    public int? RankId { get; set; }
+
+    [MaxLength(100)]
+    public string? Department { get; set; }
+
+    [MaxLength(50)]
+    public string? Nationality { get; set; }
+
+    public DateTime? DateOfBirth { get; set; }
+
+    public DateTime? JoinDate { get; set; }
+
+    public DateTime? EmbarkDate { get; set; }
+
+    public DateTime? DisembarkDate { get; set; }
+
+    public DateTime? ContractEnd { get; set; }
+
+    public bool IsOnboard { get; set; } = true;
+
+    [MaxLength(500)]
+    public string? EmergencyContact { get; set; }
+
+    [MaxLength(200)]
+    public string? EmailAddress { get; set; }
+
+    [MaxLength(50)]
+    public string? PhoneNumber { get; set; }
+
+    [MaxLength(500)]
+    public string? Address { get; set; }
+
+    // ============================================
+    // BIO-DATA FIELDS (STCW/MLC compliant)
+    // ============================================
+
+    [MaxLength(200)]
+    public string? PlaceOfBirth { get; set; }
+
+    [MaxLength(50)]
+    public string? IdCardNumber { get; set; }
+
+    [MaxLength(20)]
+    public string? MaritalStatus { get; set; }
+
+    public int? Height { get; set; }
+
+    public decimal? Weight { get; set; }
+
+    [MaxLength(5)]
+    public string? BloodGroup { get; set; }
+
+    [MaxLength(10)]
+    public string? ClothingSize { get; set; }
+
+    [MaxLength(10)]
+    public string? ShoeSize { get; set; }
+
+    [MaxLength(10)]
+    public string? CateringSize { get; set; }
+
+    public bool? IsSmoker { get; set; }
+
+    public bool? IsCovidVaccinated { get; set; }
+
+    [MaxLength(500)]
+    public string? PhotoUrl { get; set; }
+
+    // Next of Kin
+    [MaxLength(200)]
+    public string? NextOfKinName { get; set; }
+
+    [MaxLength(50)]
+    public string? NextOfKinRelation { get; set; }
+
+    [MaxLength(50)]
+    public string? NextOfKinPhone { get; set; }
+
+    [MaxLength(500)]
+    public string? NextOfKinAddress { get; set; }
+
+    // Education
+    [MaxLength(300)]
+    public string? EducationInstitution { get; set; }
+
+    [MaxLength(200)]
+    public string? EducationCourse { get; set; }
+
+    public int? EducationPeriodYears { get; set; }
+
+    public int? EducationGraduationYear { get; set; }
+
+    public string? Notes { get; set; }
+
+    // ============================================
+    // ISyncableEntity implementation
+    // ============================================
+    public bool IsSynced { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHORE";
+
+    public long SyncVersion { get; set; } = 0;
+
+    // ============================================
+    // Navigation properties
+    // ============================================
+    [ForeignKey("RankId")]
+    public Rank? Rank { get; set; }
+
+    [JsonIgnore]
+    public List<CrewCertificate> Certificates { get; set; } = new();
+
+    [JsonIgnore]
+    public List<TravelDocument> TravelDocuments { get; set; } = new();
+
+    [JsonIgnore]
+    public List<SeafarerDocument> SeafarerDocuments { get; set; } = new();
+
+    [JsonIgnore]
+    public List<EmploymentDocument> EmploymentDocuments { get; set; } = new();
+
+    [JsonIgnore]
+    public List<HealthDocument> HealthDocuments { get; set; } = new();
+
+    [JsonIgnore]
+    public List<ServiceRecord> ServiceRecords { get; set; } = new();
+
+    // ============================================
+    // Legacy computed properties for backward compatibility
+    // NOT stored in DB — computed from Certificates navigation collection
+    // ============================================
+
+    [NotMapped]
+    public string? CertificateNumber => Certificates?
+        .FirstOrDefault(c => c.Certificate?.Category == "COMPETENCY" || c.Certificate?.CertificateCode?.StartsWith("STCW") == true)?
+        .CertificateNumber;
+
+    [NotMapped]
+    public DateTime? CertificateExpiry => Certificates?
+        .FirstOrDefault(c => c.Certificate?.Category == "COMPETENCY" || c.Certificate?.CertificateCode?.StartsWith("STCW") == true)?
+        .ExpiryDate;
+
+    [NotMapped]
+    public DateTime? CertificateIssue => Certificates?
+        .FirstOrDefault(c => c.Certificate?.Category == "COMPETENCY" || c.Certificate?.CertificateCode?.StartsWith("STCW") == true)?
+        .IssueDate;
+
+    [NotMapped]
+    public DateTime? MedicalExpiry => Certificates?
+        .FirstOrDefault(c => c.Certificate?.Category == "MEDICAL" || c.Certificate?.CertificateCode == "MEDICAL")?
+        .ExpiryDate;
+
+    [NotMapped]
+    public DateTime? MedicalIssue => Certificates?
+        .FirstOrDefault(c => c.Certificate?.Category == "MEDICAL" || c.Certificate?.CertificateCode == "MEDICAL")?
+        .IssueDate;
+}
