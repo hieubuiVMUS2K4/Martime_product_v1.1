@@ -350,6 +350,50 @@ public class CertificateService : ICertificateService
         };
     }
 
+    public async Task<List<FleetComplianceDto>> GetFleetComplianceAsync()
+    {
+        var crewMembers = await _context.CrewMembers
+            .AsNoTracking()
+            .Include(c => c.Rank)
+            .Where(c => c.IsOnboard)
+            .ToListAsync();
+
+        var result = new List<FleetComplianceDto>();
+
+        foreach (var crew in crewMembers)
+        {
+            try
+            {
+                var compliance = await GetCrewComplianceAsync(crew.Id);
+                result.Add(new FleetComplianceDto
+                {
+                    CrewMemberId = crew.Id,
+                    CrewMemberName = crew.FullName,
+                    RankName = crew.Rank?.RankName,
+                    TotalRequired = compliance.TotalRequired,
+                    TotalHeld = compliance.TotalValid + compliance.TotalExpiring,
+                    CompliancePercentage = compliance.TotalRequired > 0
+                        ? Math.Round((double)(compliance.TotalValid + compliance.TotalExpiring) / compliance.TotalRequired * 100, 1)
+                        : 100,
+                    MissingCertificates = compliance.Items
+                        .Where(i => i.Status == "MISSING")
+                        .Select(i => i.CertificateName)
+                        .ToList(),
+                    ExpiringCertificates = compliance.Items
+                        .Where(i => i.Status == CertificateStatus.EXPIRING_SOON)
+                        .Select(i => i.CertificateName)
+                        .ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error getting compliance for crew {CrewId}", crew.Id);
+            }
+        }
+
+        return result;
+    }
+
     // ============================================================
     // MAPPING HELPERS
     // ============================================================

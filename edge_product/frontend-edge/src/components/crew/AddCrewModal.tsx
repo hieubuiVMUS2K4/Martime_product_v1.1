@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { toast } from 'react-toastify'
 import { X, User, Save, AlertCircle, Heart, GraduationCap, Phone, Briefcase } from 'lucide-react'
 import { CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
@@ -111,9 +112,9 @@ export function AddCrewModal({ isOpen, onClose, onSave }: AddCrewModalProps) {
       if (error.status === 409) {
         setErrors({ crewId: errorMessage })
       } else if (error.status === 400) {
-        alert(`Validation Error: ${errorMessage}`)
+        toast.error(`Validation Error: ${errorMessage}`)
       } else {
-        alert(`Error: ${errorMessage}${errorDetails ? '\n\nDetails: ' + errorDetails : ''}`)
+        toast.error(`${errorMessage}${errorDetails ? ' - ' + errorDetails : ''}`)
       }
     } finally {
       setSaving(false)

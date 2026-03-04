@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { toast } from 'react-toastify'
 import { useParams, useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft, 
@@ -21,6 +22,7 @@ import { format, differenceInDays, parseISO } from 'date-fns'
 import AddDocumentModal from '../../components/crew/AddDocumentModal'
 import AddHealthDocumentModal from '../../components/crew/AddHealthDocumentModal'
 import ImageViewerModal from '../../components/crew/ImageViewerModal'
+import { AddCrewCertificateModal } from './AddCrewCertificateModal'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 
@@ -52,6 +54,7 @@ export function CrewDetailPage() {
   const [imageViewerDocId, setImageViewerDocId] = useState<string | null>(null)
   const [imageViewerTargetTable, setImageViewerTargetTable] = useState<string | null>(null)
   const [uploadingDocId, setUploadingDocId] = useState<string | null>(null)
+  const [uploadingCertId, setUploadingCertId] = useState<number | null>(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null)
   const [pendingAvatarPreview, setPendingAvatarPreview] = useState<string | null>(null)
@@ -60,6 +63,7 @@ export function CrewDetailPage() {
   const [loadingVoyageHistory, setLoadingVoyageHistory] = useState(false)
   const [serviceRecords, setServiceRecords] = useState<ServiceRecord[]>([])
   const [loadingServiceRecords, setLoadingServiceRecords] = useState(false)
+  const [showAddCertModal, setShowAddCertModal] = useState(false)
 
   useEffect(() => {
     loadCrewDetails()
@@ -132,6 +136,57 @@ export function CrewDetailPage() {
     setIsImageViewerOpen(true)
   }
 
+  // State to track if the image viewer is showing a certificate (for custom upload handler)
+  const [viewingCertificateId, setViewingCertificateId] = useState<number | null>(null)
+
+  const handleViewCertificateImage = (fileUrl: string, certId: number) => {
+    setImageViewerUrl(fileUrl)
+    setImageViewerDocId(String(certId))
+    setViewingCertificateId(certId)
+    setImageViewerTargetTable(null)
+    setIsImageViewerOpen(true)
+  }
+
+  const handleCertificateUploadHandler = async (documentId: string, formData: FormData) => {
+    const certId = parseInt(documentId)
+    const result = await maritimeService.certificates.uploadCertificateFile(certId, formData)
+    return result
+  }
+
+  const handleCertificateFileUpload = async (certId: number) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.jpg,.jpeg,.png,.gif,.pdf'
+    
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      try {
+        setUploadingCertId(certId)
+        const formData = new FormData()
+        formData.append('file', file)
+
+        await maritimeService.certificates.uploadCertificateFile(certId, formData)
+        
+        // Reload certificates
+        if (id) {
+          const certs = await maritimeService.certificates.getCrewCertificatesByCrewId(id)
+          setCertificates(certs)
+        }
+        
+        toast.success('File uploaded successfully!')
+      } catch (error: any) {
+        console.error('❌ Failed to upload certificate file:', error)
+        toast.error(error.message || 'Failed to upload file')
+      } finally {
+        setUploadingCertId(null)
+      }
+    }
+
+    input.click()
+  }
+
   const handleDocumentFileUpload = async (documentId: string, targetTable: string) => {
     // Create hidden file input
     const input = document.createElement('input')
@@ -155,10 +210,10 @@ export function CrewDetailPage() {
           await loadDocuments(id)
         }
         
-        alert('✅ File uploaded successfully!')
+        toast.success('File uploaded successfully!')
       } catch (error: any) {
         console.error('❌ Failed to upload file:', error)
-        alert(`Error: ${error.message || 'Failed to upload file'}`)
+        toast.error(error.message || 'Failed to upload file')
       } finally {
         setUploadingDocId(null)
       }
@@ -180,14 +235,14 @@ export function CrewDetailPage() {
 
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size must not exceed 5MB')
+        toast.warning('File size must not exceed 5MB')
         return
       }
 
       // Validate file type
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
       if (!allowedTypes.includes(file.type)) {
-        alert('Only image files (JPG, PNG, GIF) are allowed')
+        toast.warning('Only image files (JPG, PNG, GIF) are allowed')
         return
       }
 
@@ -223,10 +278,10 @@ export function CrewDetailPage() {
       setPendingAvatarFile(null)
       setPendingAvatarPreview(null)
       
-      alert('✅ Avatar uploaded successfully!')
+      toast.success('Avatar uploaded successfully!')
     } catch (error: any) {
       console.error('❌ Failed to upload avatar:', error)
-      alert(`Error: ${error.message || 'Failed to upload avatar'}`)
+      toast.error(error.message || 'Failed to upload avatar')
     } finally {
       setUploadingAvatar(false)
     }
@@ -252,10 +307,10 @@ export function CrewDetailPage() {
       setCrew(updated)
       setEditedCrew(updated)
       
-      alert('✅ Avatar deleted successfully!')
+      toast.success('Avatar deleted successfully!')
     } catch (error: any) {
       console.error('❌ Failed to delete avatar:', error)
-      alert(`Error: ${error.message || 'Failed to delete avatar'}`)
+      toast.error(error.message || 'Failed to delete avatar')
     } finally {
       setUploadingAvatar(false)
     }
@@ -705,10 +760,10 @@ export function CrewDetailPage() {
       // Save PDF
       doc.save(`BIO-DATA_${crew.crewId || crew.fullName}_${format(new Date(), 'yyyyMMdd')}.pdf`)
       
-      alert('PDF exported successfully!')
+      toast.success('PDF exported successfully!')
     } catch (error: any) {
       console.error('Failed to export PDF:', error)
-      alert(`Error: ${error.message || 'Failed to export PDF'}`)
+      toast.error(error.message || 'Failed to export PDF')
     }
   }
 
@@ -970,10 +1025,10 @@ export function CrewDetailPage() {
       link.click()
       URL.revokeObjectURL(url)
       
-      alert('✅ Excel exported successfully!')
+      toast.success('Excel exported successfully!')
     } catch (error: any) {
       console.error('❌ Failed to export Excel:', error)
-      alert(`Error: ${error.message || 'Failed to export Excel'}`)
+      toast.error(error.message || 'Failed to export Excel')
     }
   }
 
@@ -985,10 +1040,10 @@ export function CrewDetailPage() {
       const updated = await maritimeService.crew.update(crew.id, editedCrew)
       setCrew(updated)
       setEditedCrew(updated)
-      alert('✅ Crew member updated successfully!')
+      toast.success('Crew member updated successfully!')
     } catch (error: any) {
       console.error('❌ Failed to save crew:', error)
-      alert(`Error: ${error.message || 'Failed to update crew member'}`)
+      toast.error(error.message || 'Failed to update crew member')
     } finally {
       setSaving(false)
     }
@@ -2022,7 +2077,7 @@ export function CrewDetailPage() {
                 <h3 className="text-sm font-semibold text-gray-700 uppercase">CERTIFICATES ({certificates.length})</h3>
                 <div className="flex items-center gap-2">
                   <button 
-                    onClick={() => navigate(`/crew/certificates/add?crewId=${id}`)}
+                    onClick={() => setShowAddCertModal(true)}
                     className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
                     title="Add certificate"
                   >
@@ -2046,12 +2101,13 @@ export function CrewDetailPage() {
                       <thead className="bg-white border-b-2 border-gray-300">
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '15%'}}>Certificate Name</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>CoC</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>Country</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Cert. Number</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>Issue Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>Expiry Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '15%'}}>Issuing Authority</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '6%'}}>Files</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '7%'}}>CoC</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '9%'}}>Country</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '11%'}}>Cert. Number</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '9%'}}>Issue Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '9%'}}>Expiry Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '14%'}}>Issuing Authority</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10%'}}>Status</th>
                         </tr>
                       </thead>
@@ -2083,7 +2139,29 @@ export function CrewDetailPage() {
                                   {cert.certificate?.certificateCode || cert.certificateCode || ''}
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '8%'}}>
+                              <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '6%'}}>
+                                <button 
+                                  onClick={() => cert.documentFilePath ? handleViewCertificateImage(cert.documentFilePath, cert.id) : handleCertificateFileUpload(cert.id)}
+                                  disabled={uploadingCertId === cert.id}
+                                  className={`inline-flex items-center justify-center w-8 h-8 rounded text-white transition-colors ${
+                                    uploadingCertId === cert.id 
+                                      ? 'bg-gray-400 cursor-not-allowed' 
+                                      : cert.documentFilePath 
+                                        ? 'bg-blue-500 hover:bg-blue-600' 
+                                        : 'bg-green-500 hover:bg-green-600'
+                                  }`}
+                                  title={cert.documentFilePath ? 'View file' : 'Upload file'}
+                                >
+                                  {uploadingCertId === cert.id ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                  ) : cert.documentFilePath ? (
+                                    <Eye className="w-4 h-4" />
+                                  ) : (
+                                    <Upload className="w-4 h-4" />
+                                  )}
+                                </button>
+                              </td>
+                              <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '7%'}}>
                                 {cert.certificateOfCompetency ? (
                                   <span className={`px-2 py-0.5 text-xs font-medium rounded ${
                                     cert.certificateOfCompetency === 'National' 
@@ -2094,20 +2172,20 @@ export function CrewDetailPage() {
                                   </span>
                                 ) : '-'}
                               </td>
-                              <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '10%'}}>
+                              <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '9%'}}>
                                 <div className="truncate">{cert.country?.countryName || cert.countryName || '-'}</div>
                               </td>
-                              <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '12%'}}>
+                              <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '11%'}}>
                                 <code className="text-xs font-mono text-gray-900 truncate block">
                                   {cert.certificateNumber || '-'}
                                 </code>
                               </td>
-                              <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '10%'}}>
+                              <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '9%'}}>
                                 <div className="truncate">
                                   {cert.issueDate ? format(parseISO(cert.issueDate), 'dd MMM yyyy') : '-'}
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '10%'}}>
+                              <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '9%'}}>
                                 <div className="text-gray-900 font-medium truncate">
                                   {cert.expiryDate ? format(parseISO(cert.expiryDate), 'dd MMM yyyy') : '-'}
                                 </div>
@@ -2117,7 +2195,7 @@ export function CrewDetailPage() {
                                   </div>
                                 )}
                               </td>
-                              <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '15%'}}>
+                              <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '14%'}}>
                                 <div className="truncate">
                                   {cert.issuingAuthority || '-'}
                                 </div>
@@ -2397,17 +2475,41 @@ export function CrewDetailPage() {
         imageUrl={imageViewerUrl}
         documentId={imageViewerDocId || undefined}
         targetTable={imageViewerTargetTable || undefined}
+        customUploadHandler={viewingCertificateId ? handleCertificateUploadHandler : undefined}
         onClose={() => {
           setIsImageViewerOpen(false)
           setImageViewerUrl(null)
           setImageViewerDocId(null)
           setImageViewerTargetTable(null)
+          setViewingCertificateId(null)
         }}
         onFileChanged={() => {
           if (id) {
             loadDocuments(id)
+            // Also reload certificates if we were viewing a certificate image
+            if (viewingCertificateId) {
+              maritimeService.certificates.getCrewCertificatesByCrewId(id)
+                .then(certs => setCertificates(certs))
+                .catch(() => {})
+            }
           }
         }}
+      />
+
+      <AddCrewCertificateModal
+        isOpen={showAddCertModal}
+        onClose={() => setShowAddCertModal(false)}
+        onSave={() => {
+          if (id) {
+            // Reload certificates
+            setLoadingCertificates(true)
+            maritimeService.certificates.getCrewCertificatesByCrewId(id)
+              .then(certs => setCertificates(certs))
+              .catch(() => setCertificates([]))
+              .finally(() => setLoadingCertificates(false))
+          }
+        }}
+        crewId={id}
       />
     </div>
   )

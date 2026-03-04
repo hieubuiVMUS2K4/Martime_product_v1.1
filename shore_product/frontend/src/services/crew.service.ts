@@ -157,12 +157,24 @@ export const certificateApi = {
   // --- Fleet Queries ---
 
   /** Get expiring certificates across fleet */
-  getExpiring: (days = 90): Promise<CrewCertificate[]> =>
-    request(`${BASE}/certificates/expiring?days=${days}`),
+  getExpiring: async (days = 90): Promise<CrewCertificate[]> => {
+    const res = await request<{ data: CrewCertificate[] } | CrewCertificate[]>(`${BASE}/certificates/expiring?days=${days}`);
+    // Backend wraps response in { data: [...] }, unwrap if needed
+    if (res && !Array.isArray(res) && Array.isArray((res as any).data)) {
+      return (res as any).data;
+    }
+    return Array.isArray(res) ? res : [];
+  },
 
-  /** Get compliance report */
-  getCompliance: (): Promise<ComplianceReport[]> =>
-    request(`${BASE}/certificates/compliance`),
+  /** Get fleet compliance report */
+  getCompliance: async (): Promise<ComplianceReport[]> => {
+    try {
+      return await request<ComplianceReport[]>(`${BASE}/certificates/compliance`);
+    } catch {
+      // Fleet-wide compliance endpoint may not exist yet
+      return [];
+    }
+  },
 };
 
 // ============================================================

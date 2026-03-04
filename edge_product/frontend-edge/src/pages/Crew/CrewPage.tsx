@@ -1,12 +1,14 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Users, Shield } from 'lucide-react'
+import { Users, Shield, FileText, ExternalLink, ArrowDownCircle, ArrowRightCircle, Star, Trash2, Pencil, Copy, XCircle, CheckCircle, Award, User } from 'lucide-react'
 import { CrewMember, CrewCertificate } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
+import { getAuthToken } from '../../services/api.client'
 import { format, parseISO } from 'date-fns'
 import { AddCrewModal } from '../../components/crew/AddCrewModal'
 import { DetailCertificatesModal } from './DetailCertificatesModal'
+import { AddCrewCertificateModal } from './AddCrewCertificateModal'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 
 type TabType = 'onboard' | 'certificates'
@@ -34,7 +36,7 @@ export function CrewPage() {
   const [crewOnboardCache, setCrewOnboardCache] = useState<CrewMember[] | null>(null)
 
   // Sorting states
-  const [sortType, setSortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>(null)
+  const [sortType, setSortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>({ col: 'crewId', dir: 'asc' })
   const [sortMenu, setSortMenu] = useState<string | null>(null)
 
   // Country filter states
@@ -346,6 +348,10 @@ export function CrewPage() {
                   onEditCertificate={handleEditCertificate}
                   selectedCountry={selectedCountry}
                   reloadTrigger={certificateReloadTrigger}
+                  onCertificateAdded={() => {
+                    setCertificateReloadTrigger(prev => prev + 1)
+                    setCertificateCache(null)
+                  }}
                 />
               ) : (
                 <SectionedCrewView 
@@ -704,49 +710,42 @@ function SectionedCrewView({
             }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <span>📄</span> Open details
+            <FileText className="w-4 h-4 text-gray-500" /> Open details
           </button>
           <button
             onClick={() => {
-              window.open(`/crew/${contextMenu.crew.id}`, '_blank')
+              window.open(`/crew/${contextMenu.crew.id}/standalone`, '_blank')
               closeContextMenu()
             }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <span>🔗</span> Open details in a new tab
+            <ExternalLink className="w-4 h-4 text-gray-500" /> Open details in a new tab
           </button>
           <div className="border-t border-gray-200 my-1"></div>
           <button
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <span>⬇️</span> Move to Crew Temp.
+            <ArrowDownCircle className="w-4 h-4 text-gray-500" /> Move to Crew Temp.
           </button>
           <button
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <span>⬇️</span> Move to Crew Signed Off
+            <ArrowDownCircle className="w-4 h-4 text-gray-500" /> Move to Crew Signed Off
           </button>
           <button
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <span>➡️</span> Move to Passengers
+            <ArrowRightCircle className="w-4 h-4 text-gray-500" /> Move to Passengers
           </button>
           <button
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <span>➡️</span> Move to Others
+            <ArrowRightCircle className="w-4 h-4 text-gray-500" /> Move to Others
           </button>
-          <div className="border-t border-gray-200 my-1"></div>
-          <button
-            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
-          >
-            <span>⭐</span> Set as primary Master
-          </button>
-          <div className="border-t border-gray-200 my-1"></div>
           <button
             className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
-            <span>🗑️</span> Delete
+            <Trash2 className="w-4 h-4" /> Delete
           </button>
         </div>
       )}
@@ -969,7 +968,8 @@ function CertificateMonitorView({
   onAddCertificate,
   onEditCertificate,
   selectedCountry,
-  reloadTrigger
+  reloadTrigger,
+  onCertificateAdded
 }: { 
   crewMembers: CrewMember[];
   sortType?: { col: string; dir: 'asc'|'desc' } | null;
@@ -981,8 +981,22 @@ function CertificateMonitorView({
   onEditCertificate: (certificate: any) => void;
   selectedCountry: string;
   reloadTrigger: number;
+  onCertificateAdded: () => void;
 }) {
   const navigate = useNavigate()
+
+  // Helper to inject auth headers into fetch calls
+  const authFetch = (url: string, options?: RequestInit): Promise<Response> => {
+    const token = getAuthToken()
+    const headers: Record<string, string> = {
+      ...(options?.headers as Record<string, string> || {}),
+    }
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+    return fetch(url, { ...options, headers })
+  }
+
   const [currentPage, setCurrentPage] = useState(1)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; cert: any } | null>(null)
   const [selectedCert, setSelectedCert] = useState<string | null>(null)
@@ -997,6 +1011,10 @@ function CertificateMonitorView({
 
   // Context menu for crew rows (crew certs section & rank section)
   const [crewContextMenu, setCrewContextMenu] = useState<{ x: number; y: number; crew: CrewMember } | null>(null)
+
+  // Add Crew Certificate Modal state
+  const [showAddCrewCertModal, setShowAddCrewCertModal] = useState(false)
+  const [addCertCrewId, setAddCertCrewId] = useState<string | undefined>(undefined)
 
   // Ranks section states
   const [isRankCertsExpanded, setIsRankCertsExpanded] = useState(false)
@@ -1245,7 +1263,7 @@ function CertificateMonitorView({
     }
 
     try {
-      const response = await fetch(`/api/rank-certificates/rank/${rankId}`)
+      const response = await authFetch(`/api/rank-certificates/rank/${rankId}`)
       if (response.ok) {
         const data = await response.json()
         // Cache the result
@@ -1379,7 +1397,7 @@ function CertificateMonitorView({
     if (!expandedRankId) return
     
     try {
-      const response = await fetch('/api/rank-certificates/batch', {
+      const response = await authFetch('/api/rank-certificates/batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify([{ rankId: expandedRankId, certificateId }])
@@ -1387,7 +1405,7 @@ function CertificateMonitorView({
 
       if (response.ok) {
         // Force reload from API to get fresh data
-        const apiResponse = await fetch(`/api/rank-certificates/rank/${expandedRankId}`)
+        const apiResponse = await authFetch(`/api/rank-certificates/rank/${expandedRankId}`)
         if (apiResponse.ok) {
           const newRankCerts = await apiResponse.json()
           // Update both cache and state immediately
@@ -1407,13 +1425,13 @@ function CertificateMonitorView({
     if (!confirm('Are you sure you want to remove this certificate requirement?')) return
 
     try {
-      const response = await fetch(`/api/rank-certificates/${rankCertificateId}`, {
+      const response = await authFetch(`/api/rank-certificates/${rankCertificateId}`, {
         method: 'DELETE'
       })
 
       if (response.ok) {
         // Force reload from API to get fresh data
-        const apiResponse = await fetch(`/api/rank-certificates/rank/${expandedRankId}`)
+        const apiResponse = await authFetch(`/api/rank-certificates/rank/${expandedRankId}`)
         if (apiResponse.ok) {
           const newRankCerts = await apiResponse.json()
           // Update both cache and state immediately
@@ -1460,7 +1478,7 @@ function CertificateMonitorView({
         // Load rank certificates if not cached
         if (!rankCertsCache.has(rank.id)) {
           try {
-            const response = await fetch(`/api/rank-certificates/rank/${rank.id}`)
+            const response = await authFetch(`/api/rank-certificates/rank/${rank.id}`)
             if (response.ok) {
               const data = await response.json()
               setRankCertsCache(prev => new Map(prev).set(rank.id, data))
@@ -1502,7 +1520,7 @@ function CertificateMonitorView({
         const rankEntries = await Promise.all(
           rankIds.map(async (rankId) => {
             try {
-              const response = await fetch(`/api/rank-certificates/rank/${rankId}`)
+              const response = await authFetch(`/api/rank-certificates/rank/${rankId}`)
               if (response.ok) {
                 const data = await response.json()
                 return { rankId, data }
@@ -2071,7 +2089,7 @@ function CertificateMonitorView({
             }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <span>📄</span> Open details
+            <FileText className="w-4 h-4 text-gray-500" /> Open details
           </button>
           <button
             onClick={() => {
@@ -2080,7 +2098,7 @@ function CertificateMonitorView({
             }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <span>🔗</span> Open details in a new tab
+            <ExternalLink className="w-4 h-4 text-gray-500" /> Open details in a new tab
           </button>
           <div className="border-t border-gray-200 my-1"></div>
           <button
@@ -2090,24 +2108,24 @@ function CertificateMonitorView({
             }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <span>✏️</span> Edit certificate
+            <Pencil className="w-4 h-4 text-gray-500" /> Edit certificate
           </button>
           <button
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <span>📋</span> Duplicate certificate
+            <Copy className="w-4 h-4 text-gray-500" /> Duplicate certificate
           </button>
           <div className="border-t border-gray-200 my-1"></div>
           <button
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <span>{contextMenu.cert.isActive ? '🚫' : '✅'}</span> {contextMenu.cert.isActive ? 'Deactivate' : 'Activate'}
+            {contextMenu.cert.isActive ? <XCircle className="w-4 h-4 text-gray-500" /> : <CheckCircle className="w-4 h-4 text-green-500" />} {contextMenu.cert.isActive ? 'Deactivate' : 'Activate'}
           </button>
           <div className="border-t border-gray-200 my-1"></div>
           <button
             className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
-            <span>🗑️</span> Delete
+            <Trash2 className="w-4 h-4" /> Delete
           </button>
         </div>
       )}
@@ -2558,12 +2576,13 @@ function CertificateMonitorView({
         </div>
         <button
           onClick={() => {
-            navigate(`/crew/certificates/add?crewId=${crewContextMenu.crew.id}`)
+            setAddCertCrewId(crewContextMenu.crew.id)
+            setShowAddCrewCertModal(true)
             closeContextMenu()
           }}
           className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
         >
-          <span>📜</span> Add Certificate
+          <Award className="w-4 h-4 text-blue-500" /> Add Certificate
         </button>
         <button
           onClick={() => {
@@ -2572,19 +2591,32 @@ function CertificateMonitorView({
           }}
           className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
         >
-          <span>👤</span> View Crew Details
+          <User className="w-4 h-4 text-gray-500" /> View Crew Details
         </button>
         <button
           onClick={() => {
-            window.open(`/crew/${crewContextMenu.crew.id}`, '_blank')
+            window.open(`/crew/${crewContextMenu.crew.id}/standalone`, '_blank')
             closeContextMenu()
           }}
           className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
         >
-          <span>🔗</span> Open in New Tab
+          <ExternalLink className="w-4 h-4 text-gray-500" /> Open in New Tab
         </button>
       </div>
     )}
+
+    {/* Add Crew Certificate Modal */}
+    <AddCrewCertificateModal
+      isOpen={showAddCrewCertModal}
+      onClose={() => {
+        setShowAddCrewCertModal(false)
+        setAddCertCrewId(undefined)
+      }}
+      onSave={() => {
+        onCertificateAdded()
+      }}
+      crewId={addCertCrewId}
+    />
 
     </div>
   )
