@@ -281,6 +281,11 @@
 
 .vp-cell-num { text-align: right; font-variant-numeric: tabular-nums; }
 .vp-cell-pos { min-width: 160px; }
+.vp-cell-crew { text-align: center; white-space: nowrap; }
+.vp-crew-stat { display: inline-flex; align-items: baseline; gap: 1px; font-variant-numeric: tabular-nums; }
+.vp-crew-onboard { font-weight: 600; color: var(--color-primary, #2563eb); font-size: 0.9rem; }
+.vp-crew-sep { color: var(--color-text-secondary, #6b7280); font-size: 0.8rem; }
+.vp-crew-total { color: var(--color-text-secondary, #6b7280); font-size: 0.85rem; }
 
 .vp-pos {
   display: flex;

@@ -6,6 +6,7 @@ using Maritime.Shared.Models.Sync;
 using Maritime.Shared.Models.Crew;
 using Maritime.Shared.Models.Documents;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ProductApi.Services.Sync;
 
@@ -40,12 +41,73 @@ public class SyncInboxService : ISyncInboxService
     private readonly IConflictResolverService _conflictResolver;
     private readonly ILogger<SyncInboxService> _logger;
 
+    /// <summary>
+    /// Converts all DateTime/DateTimeOffset values to UTC when deserializing,
+    /// preventing Npgsql "Cannot write DateTime with Kind=Local" errors.
+    /// </summary>
+    private sealed class UtcDateTimeConverter : JsonConverter<DateTime>
+    {
+        public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var dt = reader.GetDateTime();
+            return dt.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(dt, DateTimeKind.Utc)
+                : dt.ToUniversalTime();
+        }
+        public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+            => writer.WriteStringValue(value.ToUniversalTime().ToString("O"));
+    }
+
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new UtcDateTimeConverter() }
     };
+
+    /// <summary>
+    /// Converts a JSON string with snake_case keys to camelCase keys so that
+    /// System.Text.Json's PropertyNameCaseInsensitive can match them to
+    /// PascalCase C# properties (e.g. "full_name" → "fullName" → FullName).
+    /// </summary>
+    private static string NormalizePayloadToCamelCase(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var dict = new Dictionary<string, object?>();
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                // Convert snake_case → camelCase
+                var camelKey = System.Text.RegularExpressions.Regex.Replace(
+                    prop.Name, "_([a-z])", m => m.Groups[1].Value.ToUpperInvariant());
+                dict[camelKey] = prop.Value.ValueKind == JsonValueKind.Null
+                    ? null
+                    : prop.Value.GetRawText();
+            }
+            // Re-serialize keeping raw values to avoid double-encoding
+            var sb = new System.Text.StringBuilder("{");
+            bool first = true;
+            using var doc2 = JsonDocument.Parse(json);
+            foreach (var prop in doc2.RootElement.EnumerateObject())
+            {
+                var camelKey = System.Text.RegularExpressions.Regex.Replace(
+                    prop.Name, "_([a-z])", m => m.Groups[1].Value.ToUpperInvariant());
+                if (!first) sb.Append(',');
+                sb.Append(JsonSerializer.Serialize(camelKey));
+                sb.Append(':');
+                sb.Append(prop.Value.GetRawText());
+                first = false;
+            }
+            sb.Append('}');
+            return sb.ToString();
+        }
+        catch
+        {
+            return json; // Return original if parsing fails
+        }
+    }
 
     // Maps edge table names (snake_case) to entity types
     private static readonly Dictionary<string, Type> _tableEntityMap = new(StringComparer.OrdinalIgnoreCase)
@@ -90,6 +152,18 @@ public class SyncInboxService : ISyncInboxService
     public async Task<(int Succeeded, int Failed)> ProcessBatchAsync(List<SyncQueueItemDto> items)
     {
         int succeeded = 0, failed = 0;
+
+        // Auto-register any vessel whose IMO is not yet in the Vessels table.
+        // This happens the first time a new ship pushes data to shore.
+        var distinctOrigins = items
+            .Where(i => !string.IsNullOrWhiteSpace(i.OriginNode))
+            .Select(i => i.OriginNode)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var imo in distinctOrigins)
+        {
+            await AutoRegisterVesselAsync(imo);
+        }
 
         // Group by table for more efficient processing
         var grouped = items.GroupBy(i => i.TableName);
@@ -243,7 +317,8 @@ public class SyncInboxService : ISyncInboxService
         // Strip navigation-property objects/arrays from the payload before deserializing.
         // Edge serializes full entity graphs (including Rank, Certificates, Documents nav props)
         // which cannot be deserialized into the shore's EF entity types directly.
-        var cleanPayload = StripNavigationProperties(item.Payload);
+        // Also normalize snake_case keys to camelCase so PropertyNameCaseInsensitive can match PascalCase properties.
+        var cleanPayload = NormalizePayloadToCamelCase(StripNavigationProperties(item.Payload));
         var entity = JsonSerializer.Deserialize(cleanPayload, entityType, _jsonOptions);
         if (entity == null) throw new InvalidOperationException("Failed to deserialize CREATE payload");
 
@@ -290,12 +365,12 @@ public class SyncInboxService : ISyncInboxService
         }
 
         // Deserialize as full entity for conflict resolution
-        // Strip nav props first to avoid deserialization failures (e.g. Rank nested in CrewMember)
+        // Strip nav props and normalize snake_case → camelCase first
         object? incomingEntity = null;
         try
         {
-            var cleanPayload = StripNavigationProperties(item.Payload);
-            incomingEntity = JsonSerializer.Deserialize(cleanPayload, entityType, _jsonOptions);
+            var cleanPayload2 = NormalizePayloadToCamelCase(StripNavigationProperties(item.Payload));
+            incomingEntity = JsonSerializer.Deserialize(cleanPayload2, entityType, _jsonOptions);
         }
         catch (JsonException)
         {
@@ -309,7 +384,21 @@ public class SyncInboxService : ISyncInboxService
             var resolution = _conflictResolver.Resolve(item.TableName, existing, incomingEntity, item.OriginNode);
             if (resolution.ShouldApply)
             {
-                _context.Entry(existing).CurrentValues.SetValues(resolution.ResolvedEntity!);
+                // If ResolvedEntity IS existing (conflict resolver mutated it in-place),
+                // EF is already tracking the changes — no need for SetValues.
+                // If it is a different object, copy non-key values over.
+                if (!ReferenceEquals(resolution.ResolvedEntity, existing))
+                {
+                    var entry2 = _context.Entry(existing);
+                    foreach (var prop in entry2.Metadata.GetProperties())
+                    {
+                        if (prop.IsKey()) continue; // never overwrite PK
+                        var resolved = resolution.ResolvedEntity!;
+                        var inVal = prop.PropertyInfo?.GetValue(resolved);
+                        if (inVal != null)
+                            prop.PropertyInfo?.SetValue(existing, inVal);
+                    }
+                }
                 UpdateSyncMetadata(existing, item);
             }
             else
@@ -326,13 +415,22 @@ public class SyncInboxService : ISyncInboxService
         var entry = _context.Entry(existing);
         foreach (var kvp in patchData)
         {
-            var property = entry.Metadata.FindProperty(kvp.Key);
+            // Try EF metadata lookup (PascalCase), then try case-insensitive CLR property search
+            var property = entry.Metadata.FindProperty(kvp.Key)
+                        ?? entry.Metadata.GetProperties()
+                               .FirstOrDefault(p => string.Equals(p.Name, kvp.Key, StringComparison.OrdinalIgnoreCase)
+                                                   || string.Equals(
+                                                           System.Text.RegularExpressions.Regex.Replace(p.Name, "([A-Z])", "_$1").TrimStart('_').ToLower(),
+                                                           kvp.Key, StringComparison.OrdinalIgnoreCase));
             if (property == null || property.IsKey()) continue;
 
             try
             {
                 var targetType = property.ClrType;
                 var value = ConvertJsonElement(kvp.Value, targetType);
+                // Skip null and empty strings — don't overwrite good data with blanks
+                if (value == null) continue;
+                if (value is string sv && sv.Length == 0) continue;
                 property.PropertyInfo?.SetValue(existing, value);
             }
             catch (Exception ex)
@@ -495,6 +593,43 @@ public class SyncInboxService : ISyncInboxService
     /// Edge fields (snake_case/camelCase) differ from shore Vessel model.
     /// Performs UPSERT by IMO number.
     /// </summary>
+    // ============================================================
+    // VESSEL AUTO-REGISTRATION
+    // ============================================================
+
+    /// <summary>
+    /// When a new Edge node pushes for the first time, its IMO may not exist
+    /// in the Vessels table yet. This creates a minimal placeholder record so
+    /// that VesselDetailPage, crew filter, and sync-log filter all work correctly
+    /// immediately. A full vessel record will be created/updated later when the
+    /// edge sends a ship_data sync item.
+    /// </summary>
+    private async Task AutoRegisterVesselAsync(string imo)
+    {
+        if (string.IsNullOrWhiteSpace(imo)) return;
+
+        var exists = await _context.Vessels.AnyAsync(v => v.IMO == imo);
+        if (exists) return;
+
+        var vessel = new ProductApi.Models.Vessel
+        {
+            Id        = Guid.NewGuid(),
+            IMO       = imo,
+            Name      = $"Vessel {imo}",   // placeholder — overwritten by ship_data sync
+            CallSign  = string.Empty,
+            VesselType = "Unknown",
+            Flag      = string.Empty,
+            IsActive  = true,
+            BuildDate = DateTime.UtcNow,
+        };
+
+        await _context.Vessels.AddAsync(vessel);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Auto-registered new vessel IMO={IMO} (placeholder — will be updated by ship_data sync)", imo);
+    }
+
     private async Task ProcessShipDataAsync(SyncQueueItemDto item)
     {
         if (string.IsNullOrWhiteSpace(item.Payload))

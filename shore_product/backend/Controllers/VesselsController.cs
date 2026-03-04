@@ -43,6 +43,62 @@ namespace ProductApi.Controllers
         }
 
         /// <summary>
+        /// Get per-vessel crew/report statistics for the fleet overview.
+        /// Returns a dictionary keyed by vessel IMO.
+        /// </summary>
+        [HttpGet("fleet-summary")]
+        public async Task<IActionResult> GetFleetSummary()
+        {
+            try
+            {
+                var vessels = await _context.Vessels.AsNoTracking().ToListAsync();
+                var imos = vessels.Select(v => v.IMO).ToList();
+
+                // Crew counts grouped by OriginNode (= IMO)
+                var crewTotals = await _context.CrewMembers
+                    .Where(c => imos.Contains(c.OriginNode))
+                    .GroupBy(c => c.OriginNode)
+                    .Select(g => new { Imo = g.Key, Total = g.Count(), Onboard = g.Count(c => c.IsOnboard) })
+                    .ToListAsync();
+
+                // Last sync per IMO
+                var lastSyncs = await _context.SyncLogs
+                    .Where(s => imos.Contains(s.OriginNode) && s.Status == "SUCCESS")
+                    .GroupBy(s => s.OriginNode)
+                    .Select(g => new { Imo = g.Key, LastSync = g.Max(s => s.ProcessedAt) })
+                    .ToListAsync();
+
+                // Reports count per IMO
+                var reportCounts = await _context.MaritimeReports
+                    .Where(r => imos.Contains(r.OriginNode))
+                    .GroupBy(r => r.OriginNode)
+                    .Select(g => new { Imo = g.Key, Total = g.Count() })
+                    .ToListAsync();
+
+                var crewDict   = crewTotals.ToDictionary(x => x.Imo);
+                var syncDict   = lastSyncs.ToDictionary(x => x.Imo);
+                var reportDict = reportCounts.ToDictionary(x => x.Imo);
+
+                var summary = vessels.Select(v => new
+                {
+                    VesselId     = v.Id,
+                    Imo          = v.IMO,
+                    CrewTotal    = crewDict.TryGetValue(v.IMO, out var c)  ? c.Total    : 0,
+                    CrewOnboard  = crewDict.TryGetValue(v.IMO, out var c2) ? c2.Onboard : 0,
+                    ReportsTotal = reportDict.TryGetValue(v.IMO, out var r) ? r.Total    : 0,
+                    LastSyncAt   = syncDict.TryGetValue(v.IMO, out var s)  ? s.LastSync : (DateTime?)null,
+                });
+
+                return Ok(summary);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calculating fleet summary");
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
         /// Get vessel by ID with complete details
         /// </summary>
         [HttpGet("{id:guid}")]

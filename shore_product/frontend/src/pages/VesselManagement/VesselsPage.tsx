@@ -41,6 +41,15 @@ interface SyncNode {
   isOnline: boolean;
 }
 
+interface VesselSummary {
+  vesselId: string;
+  imo: string;
+  crewTotal: number;
+  crewOnboard: number;
+  reportsTotal: number;
+  lastSyncAt?: string;
+}
+
 interface VesselFormData {
   imo: string;
   name: string;
@@ -100,6 +109,7 @@ export const VesselsPage: React.FC = () => {
   const navigate = useNavigate();
   const [vessels, setVessels] = useState<Vessel[]>([]); 
   const [syncNodes, setSyncNodes] = useState<SyncNode[]>([]);
+  const [summaries, setSummaries] = useState<Record<string, VesselSummary>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -121,15 +131,22 @@ export const VesselsPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     try {
       setError(null);
-      const [vesselsData, syncData] = await Promise.allSettled([
+      const [vesselsData, syncData, summaryData] = await Promise.allSettled([
         apiRequest<Vessel[]>(`${BASE}/vessels`),
         apiRequest<{ nodes: SyncNode[] }>(`${BASE}/sync/status`),
+        apiRequest<VesselSummary[]>(`${BASE}/vessels/fleet-summary`),
       ]);
 
       if (vesselsData.status === 'fulfilled') setVessels(vesselsData.value ?? []);
       else throw new Error(vesselsData.reason?.message ?? 'Không thể tải danh sách tàu');
 
       if (syncData.status === 'fulfilled') setSyncNodes(syncData.value?.nodes ?? []);
+
+      if (summaryData.status === 'fulfilled') {
+        const byImo: Record<string, VesselSummary> = {};
+        for (const s of summaryData.value ?? []) byImo[s.imo] = s;
+        setSummaries(byImo);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lỗi không xác định');
     } finally {
@@ -371,6 +388,7 @@ export const VesselsPage: React.FC = () => {
               <th>Cờ</th>
               <th>DWT (tấn)</th>
               <th>Năm đóng</th>
+              <th>Thuyền viên</th>
               <th>Vị trí cuối</th>
               <th>Sync</th>
               <th>Cảnh báo</th>
@@ -381,7 +399,7 @@ export const VesselsPage: React.FC = () => {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={11} className="vp-empty">
+                <td colSpan={12} className="vp-empty">
                   <Ship size={32} className="vp-empty-icon" />
                   <p>Không tìm thấy tàu nào</p>
                 </td>
@@ -404,6 +422,15 @@ export const VesselsPage: React.FC = () => {
                   <td>{v.flag || '—'}</td>
                   <td className="vp-cell-num">{v.deadWeight ? v.deadWeight.toLocaleString('vi-VN') : '—'}</td>
                   <td className="vp-cell-num">{buildYear(v.buildDate)}</td>
+                  <td className="vp-cell-crew">
+                    {summaries[v.imo] ? (
+                      <span className="vp-crew-stat">
+                        <span className="vp-crew-onboard">{summaries[v.imo].crewOnboard}</span>
+                        <span className="vp-crew-sep">/</span>
+                        <span className="vp-crew-total">{summaries[v.imo].crewTotal}</span>
+                      </span>
+                    ) : <span className="vp-no-pos">—</span>}
+                  </td>
                   <td className="vp-cell-pos">
                     {v.lastPosition ? (
                       <span className="vp-pos">

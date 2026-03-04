@@ -54,13 +54,12 @@ public class ConflictResolverService : IConflictResolverService
 {
     private readonly ILogger<ConflictResolverService> _logger;
 
-    // Properties where Shore is authoritative (overrides edge changes)
+    // Properties where Shore is authoritative (overrides edge changes).
+    // NOTE: Keep this list minimal — only fields that Shore HR admins own.
+    // Crew personal data (FullName, DOB etc.) is created & edited on the ship (edge),
+    // so those fields must NOT be listed here.
     private static readonly HashSet<string> _shoreAuthoritativeCrewProps = new(StringComparer.OrdinalIgnoreCase)
     {
-        "FullName", "FirstName", "LastName", "MiddleName",
-        "DateOfBirth", "Nationality", "CrewId",
-        "NextOfKinName", "NextOfKinRelationship", "NextOfKinPhone", "NextOfKinAddress",
-        "PlaceOfBirth", "Gender", "MaritalStatus",
         "SocialInsuranceNumber", "TaxIdNumber"
     };
 
@@ -148,16 +147,28 @@ public class ConflictResolverService : IConflictResolverService
 
     private ConflictResolution ResolveCrewMemberConflict(object existing, object incoming, string originNode)
     {
-        // Merge fields: Shore-authoritative fields from shore, Edge-authoritative from edge
+        // Merge fields: Shore-authoritative fields from shore, Edge-authoritative from edge.
+        // For shore-authoritative fields coming from edge: allow if edge record is NEWER
+        // (edge user edited it more recently than any shore modification).
         var existingType = existing.GetType();
         var properties = existingType.GetProperties();
+
+        // Compare timestamps to determine which side made the most recent change
+        var existingUpdated = GetUpdatedAt(existing);
+        var incomingUpdated = GetUpdatedAt(incoming);
+        bool incomingIsNewer = !existingUpdated.HasValue
+                               || !incomingUpdated.HasValue
+                               || incomingUpdated.Value > existingUpdated.Value;
 
         foreach (var prop in properties)
         {
             if (prop.GetSetMethod() == null) continue; // Skip read-only
-            
+
             var incomingValue = prop.GetValue(incoming);
-            if (incomingValue == null) continue; // Don't overwrite with null
+            // Skip null or empty string — empty string means the field was not set
+            // (often happens when snake_case payload can't be mapped to PascalCase properties)
+            if (incomingValue == null) continue;
+            if (incomingValue is string s && s.Length == 0) continue;
 
             bool shouldApply;
 
@@ -168,8 +179,16 @@ public class ConflictResolverService : IConflictResolverService
             }
             else
             {
-                // Edge pushing → apply edge-authoritative fields, skip shore-authoritative
-                shouldApply = !_shoreAuthoritativeCrewProps.Contains(prop.Name);
+                // Edge pushing:
+                // • Edge-authoritative fields (IsOnboard, EmbarkDate…) → always apply
+                // • Shore-authoritative fields (FullName, DOB…) → apply only if edge is newer
+                // • All other fields → always apply from edge
+                if (_edgeAuthoritativeCrewProps.Contains(prop.Name))
+                    shouldApply = true;
+                else if (_shoreAuthoritativeCrewProps.Contains(prop.Name))
+                    shouldApply = incomingIsNewer; // Edge wins when it has the latest edit
+                else
+                    shouldApply = true;
             }
 
             if (shouldApply)
