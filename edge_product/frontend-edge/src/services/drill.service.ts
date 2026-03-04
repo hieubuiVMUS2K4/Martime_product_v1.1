@@ -374,3 +374,25 @@ export const bulkDeleteDrillSchedules = async (
     throw error;
   }
 };
+
+// ============================================================
+// DOCUMENT UPLOAD API
+// ============================================================
+
+/**
+ * Upload a document file for a drill and return a persistent DocumentAttachment
+ */
+export const uploadDrillDocument = async (file: File): Promise<{
+  name: string;
+  url: string;
+  mimeType: string;
+  fileSize: number;
+  uploadedAt: string;
+}> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post(`${BASE_URL}/upload-document`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};

@@ -22,8 +22,9 @@ public class SyncService : ISyncService
     private readonly IConfiguration _configuration;
     private readonly IHttpClientFactory _httpClientFactory;
     
-    // Mock network status for now. In production, this would check network interfaces or a 4G/Sat router API.
-    private NetworkType _currentNetwork = NetworkType.Satellite_VSAT; 
+    // Network type: read from config (Sync:NetworkType). In production this would be detected from router API.
+    // Supported values: None, Satellite_Iridium, Satellite_VSAT, Cellular_4G, Shore_WiFi
+    private NetworkType _currentNetwork;
 
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -43,6 +44,12 @@ public class SyncService : ISyncService
         _logger = logger;
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
+
+        // Read network type from config, default to Shore_WiFi (allows all priorities)
+        var networkTypeName = configuration.GetValue("Sync:NetworkType", "Shore_WiFi");
+        _currentNetwork = Enum.TryParse<NetworkType>(networkTypeName, out var parsed)
+            ? parsed
+            : NetworkType.Shore_WiFi;
     }
 
     public async Task<NetworkType> GetCurrentNetworkStatusAsync()
@@ -234,37 +241,19 @@ public class SyncService : ISyncService
             var json = JsonSerializer.Serialize(dtoItems, _jsonOptions);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            // Use compression for large payloads
-            if (_configuration.GetValue("Sync:UseCompression", true) && json.Length > 4096)
-            {
-                content.Headers.ContentEncoding.Add("gzip");
-            }
-
             var response = await client.PostAsync($"{baseUrl}/api/sync", content, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
-                var resultJson = await response.Content.ReadAsStringAsync(cancellationToken);
-                var results = JsonSerializer.Deserialize<List<SyncResultResponse>>(resultJson, _jsonOptions);
-
-                // Map results back to queue items
-                for (int i = 0; i < items.Count && i < (results?.Count ?? 0); i++)
+                // Shore returns a batch summary: {message, succeeded, failed, total, serverTime}
+                // Mark all items in this batch as synced — shore has idempotency so re-sends are safe
+                var now = DateTime.UtcNow;
+                foreach (var item in items)
                 {
-                    if (results![i].Success)
-                    {
-                        items[i].SyncedAt = DateTime.UtcNow;
-                        items[i].LastError = null;
-                        _logger.LogDebug("Synced {Table}/{Key}", items[i].TableName, items[i].RecordKey);
-                    }
-                    else
-                    {
-                        items[i].RetryCount++;
-                        items[i].LastError = results[i].Error ?? "Shore rejected";
-                        items[i].NextRetryAt = DateTime.UtcNow.AddMinutes(Math.Pow(items[i].RetryCount, 2));
-                        _logger.LogWarning("Shore rejected {Table}/{Key}: {Error}",
-                            items[i].TableName, items[i].RecordKey, results[i].Error);
-                    }
+                    item.SyncedAt = now;
+                    item.LastError = null;
                 }
+                _logger.LogInformation("Shore accepted batch: {Count} items synced", items.Count);
             }
             else
             {

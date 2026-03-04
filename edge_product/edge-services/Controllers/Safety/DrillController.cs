@@ -967,5 +967,54 @@ namespace MaritimeEdge.Controllers.Safety
         }
 
         #endregion
+
+        #region Document Upload
+
+        /// <summary>
+        /// POST /api/drill/upload-document
+        /// Upload a document file for a drill schedule and return a persistent URL
+        /// </summary>
+        [HttpPost("upload-document")]
+        public async Task<IActionResult> UploadDrillDocument([FromForm] IFormFile file)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                    return BadRequest(new { error = "File is required" });
+
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf" };
+                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+                if (!allowedExtensions.Contains(extension))
+                    return BadRequest(new { error = "Only PDF and image files (jpg, jpeg, png, webp, gif) are allowed" });
+
+                if (file.Length > 10 * 1024 * 1024)
+                    return BadRequest(new { error = "File size must not exceed 10MB" });
+
+                var uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "drill", "documents");
+                Directory.CreateDirectory(uploadsRoot);
+
+                var fileName = $"drill_{DateTime.UtcNow:yyyyMMddHHmmssfff}{extension}";
+                var filePath = Path.Combine(uploadsRoot, fileName);
+
+                await using var stream = new FileStream(filePath, FileMode.Create);
+                await file.CopyToAsync(stream);
+
+                return Ok(new
+                {
+                    name = file.FileName,
+                    url = $"/uploads/drill/documents/{fileName}",
+                    mimeType = file.ContentType,
+                    fileSize = file.Length,
+                    uploadedAt = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading drill document");
+                return StatusCode(500, new { error = "Internal server error" });
+            }
+        }
+
+        #endregion
     }
 }

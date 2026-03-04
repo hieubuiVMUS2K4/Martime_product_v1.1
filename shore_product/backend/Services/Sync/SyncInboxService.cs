@@ -94,8 +94,34 @@ public class SyncInboxService : ISyncInboxService
         // Group by table for more efficient processing
         var grouped = items.GroupBy(i => i.TableName);
 
+
         foreach (var group in grouped)
         {
+            // ── Special handler: ship_data → Vessels table (field mapping required) ──
+            if (group.Key.Equals("ship_data", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var item in group)
+                {
+                    try
+                    {
+                        if (await IsAlreadyProcessedAsync(item.TableName, item.RecordKey, item.SyncVersion))
+                        { succeeded++; continue; }
+
+                        await ProcessShipDataAsync(item);
+                        await RecordProcessedAsync(item);
+                        await _context.SaveChangesAsync();
+                        succeeded++;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "ship_data sync failed for key {Key}", item.RecordKey);
+                        _context.ChangeTracker.Clear();
+                        failed++;
+                    }
+                }
+                continue;
+            }
+
             if (!_tableEntityMap.TryGetValue(group.Key, out var entityType))
             {
                 _logger.LogWarning("Unknown table in batch: {Table}, skipping {Count} items", group.Key, group.Count());
@@ -121,11 +147,17 @@ public class SyncInboxService : ISyncInboxService
                     // Record idempotency key
                     await RecordProcessedAsync(item);
 
+                    // Save each item individually so a single constraint violation
+                    // does NOT roll back the entire batch.
+                    await _context.SaveChangesAsync();
+
                     succeeded++;
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Batch item failed: {Table}/{Key}", item.TableName, item.RecordKey);
+                    // Clear any partially-tracked state so the next item starts clean.
+                    _context.ChangeTracker.Clear();
                     failed++;
                 }
             }
@@ -208,7 +240,11 @@ public class SyncInboxService : ISyncInboxService
         if (string.IsNullOrWhiteSpace(item.Payload))
             throw new InvalidOperationException($"CREATE payload is null/empty for {item.TableName}/{item.RecordKey}");
 
-        var entity = JsonSerializer.Deserialize(item.Payload, entityType, _jsonOptions);
+        // Strip navigation-property objects/arrays from the payload before deserializing.
+        // Edge serializes full entity graphs (including Rank, Certificates, Documents nav props)
+        // which cannot be deserialized into the shore's EF entity types directly.
+        var cleanPayload = StripNavigationProperties(item.Payload);
+        var entity = JsonSerializer.Deserialize(cleanPayload, entityType, _jsonOptions);
         if (entity == null) throw new InvalidOperationException("Failed to deserialize CREATE payload");
 
         // Check if already exists (idempotency — edge may retry)
@@ -229,6 +265,10 @@ public class SyncInboxService : ISyncInboxService
 
         // Set sync metadata
         UpdateSyncMetadata(entity, item);
+
+        // Resolve any orphaned FK references (e.g. RankId pointing to a rank not yet on shore)
+        await ResolveOrphanedForeignKeysAsync(entityType, entity);
+
         await _context.AddAsync(entity);
 
         _logger.LogDebug("Created {Table}/{Key} from {Node}", 
@@ -250,10 +290,12 @@ public class SyncInboxService : ISyncInboxService
         }
 
         // Deserialize as full entity for conflict resolution
+        // Strip nav props first to avoid deserialization failures (e.g. Rank nested in CrewMember)
         object? incomingEntity = null;
         try
         {
-            incomingEntity = JsonSerializer.Deserialize(item.Payload, entityType, _jsonOptions);
+            var cleanPayload = StripNavigationProperties(item.Payload);
+            incomingEntity = JsonSerializer.Deserialize(cleanPayload, entityType, _jsonOptions);
         }
         catch (JsonException)
         {
@@ -376,6 +418,165 @@ public class SyncInboxService : ISyncInboxService
             ProcessedAt = DateTime.UtcNow
         };
         await _context.SyncLogs.AddAsync(log);
+    }
+
+    // ============================================================
+    // FK ORPHAN RESOLUTION — prevents FK violations on INSERT
+    // ============================================================
+
+    /// <summary>
+    /// For entities that reference master data (e.g. CrewMember.RankId → Ranks),
+    /// nulls out any FK values that don't resolve on shore.
+    /// Prevents FK constraint violations when master data hasn't synced to shore yet.
+    /// </summary>
+    private async Task ResolveOrphanedForeignKeysAsync(Type entityType, object entity)
+    {
+        if (entityType == typeof(CrewMember))
+        {
+            var crew = (CrewMember)entity;
+            if (crew.RankId.HasValue)
+            {
+                var rankExists = await _context.Set<Rank>().AnyAsync(r => r.Id == crew.RankId.Value);
+                if (!rankExists)
+                {
+                    _logger.LogWarning(
+                        "CrewMember {CrewId}: RankId {RankId} not found on shore — setting to null to avoid FK violation",
+                        crew.CrewId, crew.RankId);
+                    crew.RankId = null;
+                }
+            }
+        }
+        // Future: add similar checks for other entities with FK references to master data
+        // e.g. CrewCertificate → Certificates, ServiceRecord → Vessels, etc.
+    }
+
+    // ============================================================
+    // PAYLOAD PRE-PROCESSING
+    // ============================================================
+
+    /// <summary>
+    /// Strips navigation-property objects and collections from a JSON payload, leaving only
+    /// scalar values (string, number, boolean, null). This prevents EF entity graph objects
+    /// (e.g. $.Rank embedded inside a CrewMember payload) from breaking System.Text.Json
+    /// deserialization into the EF entity type.
+    /// </summary>
+    private static string StripNavigationProperties(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return json;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return json;
+
+            var scalars = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                // Keep primitive values and nulls; skip embedded objects and arrays
+                if (prop.Value.ValueKind != JsonValueKind.Object &&
+                    prop.Value.ValueKind != JsonValueKind.Array)
+                {
+                    scalars[prop.Name] = prop.Value;
+                }
+            }
+            return JsonSerializer.Serialize(scalars);
+        }
+        catch
+        {
+            return json; // Fallback: return original payload unchanged
+        }
+    }
+
+    // ============================================================
+    // SHIP DATA → VESSELS: custom field mapping handler
+    // ============================================================
+
+    /// <summary>
+    /// Maps edge ShipData payload to shore Vessels table.
+    /// Edge fields (snake_case/camelCase) differ from shore Vessel model.
+    /// Performs UPSERT by IMO number.
+    /// </summary>
+    private async Task ProcessShipDataAsync(SyncQueueItemDto item)
+    {
+        if (string.IsNullOrWhiteSpace(item.Payload))
+        {
+            _logger.LogWarning("ship_data payload empty for key {Key}", item.RecordKey);
+            await LogSyncOperation(item, "FAILED", "Empty payload");
+            return;
+        }
+
+        using var doc = System.Text.Json.JsonDocument.Parse(item.Payload);
+        var root = doc.RootElement;
+
+        string GetStr(params string[] keys)
+        {
+            foreach (var k in keys)
+                if (root.TryGetProperty(k, out var el) && el.ValueKind == JsonValueKind.String)
+                    return el.GetString() ?? "";
+            return "";
+        }
+
+        double GetDbl(params string[] keys)
+        {
+            foreach (var k in keys)
+                if (root.TryGetProperty(k, out var el) &&
+                    (el.ValueKind == JsonValueKind.Number) && el.TryGetDouble(out var d))
+                    return d;
+            return 0;
+        }
+
+        int GetInt(params string[] keys)
+        {
+            foreach (var k in keys)
+                if (root.TryGetProperty(k, out var el) &&
+                    el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out var i))
+                    return i;
+            return 0;
+        }
+
+        var imo       = GetStr("imoNumber", "ImoNumber", "imo_number");
+        var name      = GetStr("shipName",  "ShipName",  "ship_name");
+        var callSign  = GetStr("callSign",  "CallSign",  "call_sign");
+        var type      = GetStr("typeOfVessel", "TypeOfVessel", "type_of_vessel");
+        var flag      = GetStr("flag",      "Flag");
+        var gt        = GetDbl("grossTonnageInternational", "GrossTonnageInternational", "gross_tonnage_international");
+        var dwt       = GetDbl("deadweightMt", "DeadweightMt", "deadweight_mt");
+        var yearBuilt = GetInt("yearBuilt", "YearBuilt", "year_built");
+
+        if (string.IsNullOrWhiteSpace(imo))
+        {
+            _logger.LogWarning("ship_data missing IMO for key {Key}", item.RecordKey);
+            await LogSyncOperation(item, "FAILED", "Missing IMO");
+            return;
+        }
+
+        var buildDate = yearBuilt > 1900
+            ? new DateTime(yearBuilt, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            : DateTime.UtcNow;
+
+        // Upsert: find by IMO or create new
+        var existing = await _context.Vessels.FirstOrDefaultAsync(v => v.IMO == imo);
+        if (existing == null)
+        {
+            existing = new ProductApi.Models.Vessel { Id = Guid.NewGuid() };
+            await _context.Vessels.AddAsync(existing);
+            _logger.LogInformation("Creating Vessel from ship_data: {Name} IMO={IMO}", name, imo);
+        }
+        else
+        {
+            _logger.LogInformation("Updating Vessel from ship_data: {Name} IMO={IMO}", name, imo);
+        }
+
+        existing.IMO        = imo;
+        existing.Name       = string.IsNullOrWhiteSpace(name) ? existing.Name : name;
+        existing.CallSign   = string.IsNullOrWhiteSpace(callSign) ? existing.CallSign : callSign;
+        existing.VesselType = string.IsNullOrWhiteSpace(type) ? existing.VesselType : type;
+        existing.Flag       = string.IsNullOrWhiteSpace(flag) ? existing.Flag : flag;
+        if (gt  > 0) existing.GrossTonnage = gt;
+        if (dwt > 0) existing.DeadWeight   = dwt;
+        if (yearBuilt > 1900) existing.BuildDate = buildDate;
+        existing.IsActive = true;
+
+        await LogSyncOperation(item, "SUCCESS");
     }
 
     private static object? ConvertJsonElement(JsonElement element, Type targetType)

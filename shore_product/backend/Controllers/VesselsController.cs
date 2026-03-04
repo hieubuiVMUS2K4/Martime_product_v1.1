@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ProductApi.Data;
 using ProductApi.Services;
 using ProductApi.DTOs;
 
@@ -12,12 +14,14 @@ namespace ProductApi.Controllers
         private readonly IVesselService _vesselService;
         private readonly IAlertService _alertService;
         private readonly ILogger<VesselsController> _logger;
+        private readonly AppDbContext _context;
 
-        public VesselsController(IVesselService vesselService, IAlertService alertService, ILogger<VesselsController> logger)
+        public VesselsController(IVesselService vesselService, IAlertService alertService, ILogger<VesselsController> logger, AppDbContext context)
         {
             _vesselService = vesselService;
             _alertService = alertService;
             _logger = logger;
+            _context = context;
         }
 
         /// <summary>
@@ -430,6 +434,175 @@ namespace ProductApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error calculating metrics for vessel {VesselId}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Get crew members currently onboard a vessel (filtered by vessel IMO via OriginNode)
+        /// </summary>
+        [HttpGet("{id:guid}/crew")]
+        public async Task<IActionResult> GetVesselCrew(
+            Guid id,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50,
+            [FromQuery] string? search = null,
+            [FromQuery] bool? isOnboard = null)
+        {
+            try
+            {
+                var vessel = await _vesselService.GetVesselByIdAsync(id);
+                if (vessel == null) return NotFound($"Vessel with ID {id} not found");
+
+                var query = _context.CrewMembers
+                    .Include(c => c.Rank)
+                    .AsQueryable()
+                    .Where(c => c.OriginNode == vessel.IMO);
+
+                if (isOnboard.HasValue)
+                    query = query.Where(c => c.IsOnboard == isOnboard.Value);
+
+                if (!string.IsNullOrWhiteSpace(search))
+                    query = query.Where(c => c.FullName.Contains(search) || c.CrewId.Contains(search));
+
+                var total = await query.CountAsync();
+                var data = await query
+                    .OrderBy(c => c.FullName)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(c => new
+                    {
+                        c.Id,
+                        c.CrewId,
+                        c.FullName,
+                        c.RankId,
+                        RankName = c.Rank != null ? c.Rank.RankName : null,
+                        RankCode = c.Rank != null ? c.Rank.RankCode : null,
+                        c.Department,
+                        c.Nationality,
+                        c.DateOfBirth,
+                        c.JoinDate,
+                        c.EmbarkDate,
+                        c.DisembarkDate,
+                        c.ContractEnd,
+                        c.IsOnboard,
+                        c.EmergencyContact,
+                        c.EmailAddress,
+                        c.PhoneNumber,
+                        c.PhotoUrl,
+                        c.MaritalStatus,
+                        c.BloodGroup,
+                        c.CertificateNumber,
+                        c.CertificateExpiry,
+                        c.MedicalExpiry,
+                        c.OriginNode,
+                        c.CreatedAt,
+                        c.UpdatedAt
+                    })
+                    .ToListAsync();
+
+                return Ok(new { data, total, page, pageSize });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving crew for vessel {VesselId}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Get maritime reports submitted from a vessel (filtered by vessel IMO via OriginNode)
+        /// </summary>
+        [HttpGet("{id:guid}/reports")]
+        public async Task<IActionResult> GetVesselReports(
+            Guid id,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string? status = null)
+        {
+            try
+            {
+                var vessel = await _vesselService.GetVesselByIdAsync(id);
+                if (vessel == null) return NotFound($"Vessel with ID {id} not found");
+
+                var query = _context.MaritimeReports.AsQueryable()
+                    .Where(r => r.OriginNode == vessel.IMO);
+
+                if (!string.IsNullOrWhiteSpace(status))
+                    query = query.Where(r => r.Status == status);
+
+                var total = await query.CountAsync();
+                var data = await query
+                    .OrderByDescending(r => r.ReportDateTime)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(r => new
+                    {
+                        r.Id,
+                        r.ReportNumber,
+                        r.ReportTypeId,
+                        r.ReportDateTime,
+                        r.Status,
+                        r.PreparedBy,
+                        r.IsTransmitted,
+                        r.TransmittedAt,
+                        r.Remarks,
+                        r.OriginNode,
+                        r.CreatedAt
+                    })
+                    .ToListAsync();
+
+                return Ok(new { data, total, page, pageSize });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving reports for vessel {VesselId}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Get sync logs for a specific vessel (filtered by vessel IMO via OriginNode)
+        /// </summary>
+        [HttpGet("{id:guid}/sync-logs")]
+        public async Task<IActionResult> GetVesselSyncLogs(
+            Guid id,
+            [FromQuery] int take = 100,
+            [FromQuery] string? status = null,
+            [FromQuery] string? tableName = null)
+        {
+            try
+            {
+                var vessel = await _vesselService.GetVesselByIdAsync(id);
+                if (vessel == null) return NotFound($"Vessel with ID {id} not found");
+
+                var query = _context.SyncLogs.AsQueryable()
+                    .Where(l => l.OriginNode == vessel.IMO);
+
+                if (!string.IsNullOrWhiteSpace(status))
+                    query = query.Where(l => l.Status == status);
+
+                if (!string.IsNullOrWhiteSpace(tableName))
+                    query = query.Where(l => l.TableName == tableName);
+
+                var logs = await query
+                    .OrderByDescending(l => l.ProcessedAt)
+                    .Take(take)
+                    .ToListAsync();
+
+                var stats = new
+                {
+                    Total = await _context.SyncLogs.CountAsync(l => l.OriginNode == vessel.IMO),
+                    Success = await _context.SyncLogs.CountAsync(l => l.OriginNode == vessel.IMO && l.Status == "SUCCESS"),
+                    Failed = await _context.SyncLogs.CountAsync(l => l.OriginNode == vessel.IMO && l.Status == "FAILED"),
+                    Conflict = await _context.SyncLogs.CountAsync(l => l.OriginNode == vessel.IMO && l.Status == "CONFLICT")
+                };
+
+                return Ok(new { logs, stats });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving sync logs for vessel {VesselId}", id);
                 return StatusCode(500, "Internal server error");
             }
         }

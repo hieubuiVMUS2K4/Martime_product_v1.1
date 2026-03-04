@@ -555,7 +555,8 @@ export const syncService = {
     lastSyncAt?: string
     isOnline: boolean
   }>('/sync/status'),
-  triggerSync: () => apiClient.post('/sync/trigger', {}),
+  triggerSync: () => apiClient.post<{ message: string; totalSynced: number; pendingRecords: number }>('/sync/trigger', {}),
+  resetErrors: () => apiClient.post<{ message: string }>('/sync/reset-errors', {}),
 }
 
 // ============================================================

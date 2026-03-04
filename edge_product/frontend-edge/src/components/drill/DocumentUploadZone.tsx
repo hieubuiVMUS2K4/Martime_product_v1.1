@@ -8,6 +8,11 @@ import { useCallback, useState } from 'react';
 import { Upload, FileText, Image as ImageIcon, X, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { DocumentAttachment } from '@/types/drill.types';
+import { uploadDrillDocument } from '@/services/drill.service';
+import { API_CONFIG } from '@/config/app.config';
+
+// Server root URL (strip trailing /api if present)
+const SERVER_ROOT = API_CONFIG.BASE_URL.replace(/\/api\/?$/, '');
 
 interface DocumentUploadZoneProps {
   documents: DocumentAttachment[];
@@ -43,43 +48,23 @@ export function DocumentUploadZone({
   };
 
   /**
-   * Simulate file upload to server
-   * TODO: Replace with actual API call
+   * Upload file to server and return persistent DocumentAttachment
    */
   const uploadFile = async (file: File): Promise<DocumentAttachment> => {
-    // Add to uploading queue
-    setUploadingFiles(prev => [...prev, { name: file.name, progress: 0 }]);
-
-    // Simulate upload progress
-    return new Promise((resolve) => {
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 10;
-        setUploadingFiles(prev =>
-          prev.map(f => f.name === file.name ? { ...f, progress } : f)
-        );
-
-        if (progress >= 100) {
-          clearInterval(interval);
-          
-          // Remove from uploading queue
-          setUploadingFiles(prev => prev.filter(f => f.name !== file.name));
-
-          // Create document object
-          // TODO: Replace with actual uploaded URL from server
-          const doc: DocumentAttachment = {
-            name: file.name,
-            url: URL.createObjectURL(file), // Temp URL for preview
-            mimeType: file.type,
-            fileSize: file.size,
-            uploadedAt: new Date().toISOString(),
-            uploadedBy: 'Current User' // TODO: Get from auth context
-          };
-
-          resolve(doc);
-        }
-      }, 200);
-    });
+    setUploadingFiles(prev => [...prev, { name: file.name, progress: 50 }]);
+    try {
+      const result = await uploadDrillDocument(file);
+      return {
+        name: result.name,
+        url: `${SERVER_ROOT}${result.url}`,
+        mimeType: result.mimeType,
+        fileSize: result.fileSize,
+        uploadedAt: result.uploadedAt,
+        uploadedBy: 'Current User'
+      };
+    } finally {
+      setUploadingFiles(prev => prev.filter(f => f.name !== file.name));
+    }
   };
 
   /**

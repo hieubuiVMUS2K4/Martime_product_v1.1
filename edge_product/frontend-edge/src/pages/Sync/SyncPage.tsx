@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   RefreshCw, Cloud, Clock, AlertTriangle,
   CheckCircle2, XCircle, Loader2, Database, ArrowUpDown,
-  Wifi, WifiOff, Send, ChevronDown, ChevronUp
+  Wifi, WifiOff, Send, ChevronDown, ChevronUp, RotateCcw
 } from 'lucide-react'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 import { syncService } from '@/services/maritime.service'
@@ -26,6 +26,8 @@ export function SyncPage() {
   const [autoSync, setAutoSync] = useState(SYNC_CONFIG.AUTO_SYNC_ENABLED)
   const [showQueue, setShowQueue] = useState(true)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const [resetting, setResetting] = useState(false)
+  const [syncResult, setSyncResult] = useState<{ totalSynced: number; pendingRecords: number } | null>(null)
 
   const fetchData = useCallback(async () => {
     try {
@@ -58,16 +60,31 @@ export function SyncPage() {
   const handleTriggerSync = async () => {
     setSyncing(true)
     setError(null)
+    setSyncResult(null)
     try {
-      await syncService.triggerSync()
-      // Wait a moment then refresh
-      setTimeout(async () => {
-        await fetchData()
-        setSyncing(false)
-      }, 2000)
+      const result = await syncService.triggerSync()
+      setSyncResult({ totalSynced: result.totalSynced, pendingRecords: result.pendingRecords })
+      // Update count immediately from response, then refresh full queue list
+      setStatus(prev => prev ? { ...prev, pendingRecords: result.pendingRecords } : null)
+      await fetchData()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync trigger failed')
+    } finally {
       setSyncing(false)
+    }
+  }
+
+  const handleResetErrors = async () => {
+    setResetting(true)
+    setError(null)
+    try {
+      const result = await syncService.resetErrors()
+      await fetchData()
+      alert(result.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Reset failed')
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -169,6 +186,19 @@ export function SyncPage() {
               Làm mới
             </button>
 
+            {/* Reset Errors button - only show when there are failed items */}
+            {failedItems.length > 0 && (
+              <button
+                onClick={handleResetErrors}
+                disabled={resetting}
+                title="Reset retry count để thử lại các bản ghi lỗi"
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors text-sm"
+              >
+                {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                Reset lỗi ({failedItems.filter(q => q.retryCount >= q.maxRetries).length})
+              </button>
+            )}
+
             {/* Sync trigger */}
             <button
               onClick={handleTriggerSync}
@@ -184,6 +214,20 @@ export function SyncPage() {
             </button>
           </div>
         </div>
+
+        {/* Success banner */}
+        {syncResult && !syncing && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+            <span className="text-emerald-700 text-sm">
+              Đồng bộ hoàn tất — đã gửi <strong>{syncResult.totalSynced.toLocaleString()}</strong> bản ghi,
+              còn lại <strong>{syncResult.pendingRecords.toLocaleString()}</strong> chờ xử lý
+            </span>
+            <button onClick={() => setSyncResult(null)} className="ml-auto text-emerald-500 hover:text-emerald-700">
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Error banner */}
         {error && (

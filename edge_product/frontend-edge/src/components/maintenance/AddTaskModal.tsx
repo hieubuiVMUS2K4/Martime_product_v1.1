@@ -11,7 +11,7 @@ interface CrewMember {
   id: number
   crewId: string
   fullName: string
-  rank: string
+  rank?: string | { rankName?: string }
 }
 
 interface TaskType {

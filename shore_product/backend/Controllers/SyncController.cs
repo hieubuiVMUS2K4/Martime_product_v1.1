@@ -56,10 +56,9 @@ public class SyncController : ControllerBase
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
-            // Use batch processing with idempotency
+            // Use batch processing with idempotency (each item saved individually)
             var (succeeded, failed) = await _syncInbox.ProcessBatchAsync(items);
 
-            await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
             // Update node tracker (non-transactional, best-effort)

@@ -8,7 +8,7 @@ import { reviewDeferralRequest, type ReviewDeferralDto } from '@/services/mainte
 interface CrewMember {
   crewId: string;
   fullName: string;
-  rank?: string;
+  rank?: string | { rankName?: string };
 }
 
 interface MaterialInfo {

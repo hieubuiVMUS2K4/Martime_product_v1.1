@@ -378,6 +378,7 @@ export const GarbageManagementPage: React.FC = () => {
 
     try {
       const signData = {
+        signature: masterSignature.trim(),
         masterSignature: masterSignature.trim(),
         signedAt: new Date().toISOString()
       };
@@ -445,9 +446,6 @@ export const GarbageManagementPage: React.FC = () => {
       officerInCharge: 'Chief Officer'
     });
   };
-
-  const selectedPartICategory = PART_I_CATEGORIES.find(c => c.code === partIForm.category);
-  const selectedPartIICategory = PART_II_CATEGORIES.find(c => c.code === partIIForm.category);
 
   return (
     <LogbookGrid

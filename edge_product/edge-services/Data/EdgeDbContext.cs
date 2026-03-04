@@ -2245,6 +2245,12 @@ public class EdgeDbContext : DbContext
             // 1. Skip SyncQueue itself to avoid infinite recursion
             if (entry.Entity is SyncQueue) continue;
 
+            // 2. Skip real-time telemetry that shore does not store
+            //    (NavigationData and EnvironmentalData models were intentionally
+            //    removed from the shore backend — syncing them only causes failures)
+            if (entry.Entity is NavigationData || entry.Entity is EnvironmentalData || entry.Entity is SystemLog)
+                continue;
+
             // 2. Check if entity is syncable (has IsSynced property)
             var entityType = entry.Entity.GetType();
             var isSyncedProp = entityType.GetProperty("IsSynced");

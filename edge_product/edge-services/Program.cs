@@ -239,6 +239,9 @@ namespace MaritimeEdge
             Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "seafarer_documents"));
             Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "employment_documents"));
             Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "health_documents"));
+
+            // Create drill document subdirectories
+            Directory.CreateDirectory(Path.Combine(uploadsPath, "drill", "documents"));
             
             // Enable CORS for ALL requests
             app.UseCors("AllowFrontend");

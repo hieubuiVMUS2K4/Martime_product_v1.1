@@ -879,7 +879,6 @@ function CrewAssignmentsTab({ detail, onRefresh, voyageStatus }: { detail: Voyag
   const canEdit = isVoyageEditable(voyageStatus)
   const canAssignNew = isVoyageEditable(voyageStatus) // can add new crew
   const canRemove = isVoyageFullyEditable(voyageStatus) // only PLANNING
-  const isUnderway = LIMITED_EDIT_STATUSES.has(voyageStatus) // limited edits
 
   useEffect(() => {
     maritimeService.crew.getOnboard().then(setCrewList).catch(() => {})

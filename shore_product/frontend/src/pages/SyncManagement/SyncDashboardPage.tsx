@@ -45,16 +45,16 @@ export const SyncDashboardPage: React.FC = () => {
   );
 
   const nodeCount = useMemo(() =>
-    data?.outboxStats?.length ?? 0,
+    data?.nodes?.filter(n => n.isOnline).length ?? 0,
     [data]
   );
 
   const recentSuccess = useMemo(() =>
-    data?.recentLogs?.filter(l => l.status === 'Success' || l.status === 'Applied').length ?? 0,
+    data?.recentLogs?.filter(l => ['SUCCESS', 'APPLIED', 'Success', 'Applied'].includes(l.status)).length ?? 0,
     [data]
   );
   const recentFailed = useMemo(() =>
-    data?.recentLogs?.filter(l => l.status === 'Failed' || l.status === 'Error').length ?? 0,
+    data?.recentLogs?.filter(l => ['FAILED', 'ERROR', 'CONFLICT', 'Failed', 'Error', 'Conflict'].includes(l.status)).length ?? 0,
     [data]
   );
 
@@ -70,8 +70,9 @@ export const SyncDashboardPage: React.FC = () => {
       : <ArrowUpRight size={14} className="log-icon log-icon--out" />;
 
   const getStatusBadge = (status: string) => {
-    const cls = ['Success', 'Applied'].includes(status) ? 'log-ok'
-      : ['Failed', 'Error'].includes(status) ? 'log-err'
+    const s = status?.toUpperCase() ?? '';
+    const cls = ['SUCCESS', 'APPLIED'].includes(s) ? 'log-ok'
+      : ['FAILED', 'ERROR'].includes(s) ? 'log-err'
       : 'log-warn';
     return <span className={`log-status ${cls}`}>{status}</span>;
   };
