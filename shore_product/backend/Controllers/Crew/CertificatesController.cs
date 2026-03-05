@@ -231,6 +231,23 @@ public class CertificatesController : ControllerBase
         }
     }
 
+    /// <summary>GET /api/certificates/compliance — Fleet-wide compliance report.</summary>
+    [HttpGet("compliance")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetFleetCompliance()
+    {
+        try
+        {
+            var report = await _certService.GetFleetComplianceAsync();
+            return Ok(report);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting fleet compliance");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
     /// <summary>GET /api/certificates/compliance/{crewId} — STCW compliance for crew.</summary>
     [HttpGet("compliance/{crewId:guid}")]
     [AllowAnonymous]

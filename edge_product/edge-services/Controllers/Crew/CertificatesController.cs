@@ -194,6 +194,7 @@ public class CertificatesController : ControllerBase
                     cc.IssuingAuthority,
                     cc.CertificateOfCompetency,
                     cc.CountryId,
+                    cc.DocumentFilePath,
                     cc.Status,
                     cc.Notes,
                     CrewMember = cc.CrewMember == null ? null : new
@@ -245,6 +246,7 @@ public class CertificatesController : ControllerBase
                     cc.IssuingAuthority,
                     cc.CertificateOfCompetency,
                     cc.CountryId,
+                    cc.DocumentFilePath,
                     cc.Status,
                     cc.Notes,
                     Certificate = cc.Certificate == null ? null : new
@@ -308,6 +310,7 @@ public class CertificatesController : ControllerBase
                     cc.IssuingAuthority,
                     cc.CertificateOfCompetency,
                     cc.CountryId,
+                    cc.DocumentFilePath,
                     cc.Status,
                     cc.Notes,
                     Certificate = cc.Certificate == null ? null : new

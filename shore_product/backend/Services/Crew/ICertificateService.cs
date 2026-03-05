@@ -55,6 +55,24 @@ public interface ICertificateService
 
     /// <summary>Get STCW compliance status for a crew member (all required certs).</summary>
     Task<ComplianceStatusDto> GetCrewComplianceAsync(Guid crewMemberId);
+
+    /// <summary>Get fleet-wide compliance report for all active crew members.</summary>
+    Task<List<FleetComplianceDto>> GetFleetComplianceAsync();
+}
+
+/// <summary>
+/// Fleet-wide compliance report item per crew member
+/// </summary>
+public class FleetComplianceDto
+{
+    public Guid CrewMemberId { get; set; }
+    public string CrewMemberName { get; set; } = string.Empty;
+    public string? RankName { get; set; }
+    public int TotalRequired { get; set; }
+    public int TotalHeld { get; set; }
+    public double CompliancePercentage { get; set; }
+    public List<string> MissingCertificates { get; set; } = new();
+    public List<string> ExpiringCertificates { get; set; } = new();
 }
 
 /// <summary>

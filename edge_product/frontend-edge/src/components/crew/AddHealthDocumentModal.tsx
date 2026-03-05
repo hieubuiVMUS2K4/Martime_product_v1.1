@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'react-toastify'
 import { maritimeService } from '../../services/maritime.service'
 
 type AddHealthDocumentModalProps = {
@@ -31,7 +32,7 @@ export default function AddHealthDocumentModal({ isOpen, crewMemberId, onClose, 
     e.preventDefault()
 
     if (!documentType || !documentNumber) {
-      alert('Please fill in all required fields')
+      toast.warning('Please fill in all required fields')
       return
     }
 
@@ -58,10 +59,10 @@ export default function AddHealthDocumentModal({ isOpen, crewMemberId, onClose, 
       
       onSuccess()
       onClose()
-      alert('✅ Health document added successfully!')
+      toast.success('Health document added successfully!')
     } catch (error: any) {
       console.error('Failed to add health document:', error)
-      alert(`Error: ${error.message || 'Failed to add health document'}`)
+      toast.error(error.message || 'Failed to add health document')
     } finally {
       setLoading(false)
     }

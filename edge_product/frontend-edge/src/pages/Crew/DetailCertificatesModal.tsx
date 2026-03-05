@@ -1,5 +1,18 @@
 import { useState, useEffect } from 'react'
 import { X, Plus } from 'lucide-react'
+import { getAuthToken } from '../../services/api.client'
+
+// Helper to inject auth headers into fetch calls
+const authFetch = (url: string, options?: RequestInit): Promise<Response> => {
+  const token = getAuthToken()
+  const headers: Record<string, string> = {
+    ...(options?.headers as Record<string, string> || {}),
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  return fetch(url, { ...options, headers })
+}
 
 interface Country {
   id: number
@@ -83,7 +96,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
   const loadCountries = async () => {
     try {
       console.log('🔵 Loading countries from API...')
-      const response = await fetch('/api/countries')
+      const response = await authFetch('/api/countries')
       console.log('📡 Response status:', response.status)
       
       if (!response.ok) {
@@ -102,7 +115,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
   const loadCertificateCountries = async (certificateId: number) => {
     try {
       console.log('🔵 Loading countries for certificate:', certificateId)
-      const response = await fetch(`/api/country-certificates/certificate/${certificateId}`)
+      const response = await authFetch(`/api/country-certificates/certificate/${certificateId}`)
       
       if (!response.ok) {
         console.warn('⚠️ No countries found for certificate or endpoint not available')
@@ -126,7 +139,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
   const loadRanks = async () => {
     try {
       console.log('🔵 Loading ranks from API...')
-      const response = await fetch('/api/ranks')
+      const response = await authFetch('/api/ranks')
       console.log('📡 Response status:', response.status)
       
       if (!response.ok) {
@@ -145,7 +158,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
   const loadCertificateRanks = async (certificateId: number) => {
     try {
       console.log('🔵 Loading ranks for certificate:', certificateId)
-      const response = await fetch(`/api/rank-certificates/certificate/${certificateId}`)
+      const response = await authFetch(`/api/rank-certificates/certificate/${certificateId}`)
       
       if (!response.ok) {
         console.warn('⚠️ No ranks found for certificate or endpoint not available')
@@ -205,7 +218,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
     }
 
     try {
-      const response = await fetch('/api/countries', {
+      const response = await authFetch('/api/countries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -247,7 +260,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
 
       if (editingCertificate) {
         // Update existing certificate
-        const response = await fetch(`/api/certificates/${editingCertificate.id}`, {
+        const response = await authFetch(`/api/certificates/${editingCertificate.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(certificatePayload)
@@ -260,7 +273,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
         certificateId = editingCertificate.id
       } else {
         // Create new certificate
-        const response = await fetch('/api/certificates', {
+        const response = await authFetch('/api/certificates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(certificatePayload)
@@ -279,7 +292,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
         // Delete existing associations first
         console.log('🔵 Deleting old country associations for certificate:', certificateId)
         try {
-          await fetch(`/api/country-certificates/certificate/${certificateId}`, {
+          await authFetch(`/api/country-certificates/certificate/${certificateId}`, {
             method: 'DELETE'
           })
           console.log('✅ Old associations deleted')
@@ -297,7 +310,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
         }))
 
         console.log('📤 Sending associations:', countryAssociations)
-        const assocResponse = await fetch('/api/country-certificates/batch', {
+        const assocResponse = await authFetch('/api/country-certificates/batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(countryAssociations)
@@ -319,7 +332,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
         // Delete existing rank associations first
         console.log('🔵 Deleting old rank associations for certificate:', certificateId)
         try {
-          await fetch(`/api/rank-certificates/certificate/${certificateId}`, {
+          await authFetch(`/api/rank-certificates/certificate/${certificateId}`, {
             method: 'DELETE'
           })
           console.log('✅ Old rank associations deleted')
@@ -337,7 +350,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
         }))
 
         console.log('📤 Sending rank associations:', rankAssociations)
-        const rankAssocResponse = await fetch('/api/rank-certificates/batch', {
+        const rankAssocResponse = await authFetch('/api/rank-certificates/batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(rankAssociations)

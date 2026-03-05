@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { toast } from 'react-toastify'
 import { X } from 'lucide-react'
 import { maritimeService } from '@/services/maritime.service'
 import type { Country } from '@/types/maritime.types'
@@ -107,7 +108,7 @@ export default function AddDocumentModal({ isOpen, crewMemberId, onClose, onSucc
 
     if (!crewMemberId) return
     if (!form.documentType.trim() || !form.documentNumber.trim()) {
-      alert('Document Type và Document Number là bắt buộc')
+      toast.warning('Document Type và Document Number là bắt buộc')
       return
     }
 
@@ -127,12 +128,12 @@ export default function AddDocumentModal({ isOpen, crewMemberId, onClose, onSucc
 
       await maritimeService.crew.createIdentityDocument(crewMemberId, payload)
 
-      alert('✅ Added document successfully')
+      toast.success('Added document successfully')
       onSuccess?.()
       resetAndClose()
     } catch (error: any) {
       console.error('❌ Failed to add document:', error)
-      alert(`Error: ${error.message || 'Failed to add document'}`)
+      toast.error(error.message || 'Failed to add document')
     } finally {
       setSubmitting(false)
     }

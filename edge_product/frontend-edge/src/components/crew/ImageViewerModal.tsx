@@ -1,5 +1,6 @@
 import { X, Upload } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { toast } from 'react-toastify'
 import { maritimeService } from '../../services/maritime.service'
 
 type ImageViewerModalProps = {
@@ -9,9 +10,10 @@ type ImageViewerModalProps = {
   targetTable?: string
   onClose: () => void
   onFileChanged?: () => void
+  customUploadHandler?: (documentId: string, formData: FormData) => Promise<any>
 }
 
-export default function ImageViewerModal({ isOpen, imageUrl, documentId, targetTable, onClose, onFileChanged }: ImageViewerModalProps) {
+export default function ImageViewerModal({ isOpen, imageUrl, documentId, targetTable, onClose, onFileChanged, customUploadHandler }: ImageViewerModalProps) {
   const [uploading, setUploading] = useState(false)
   const [currentImageUrl, setCurrentImageUrl] = useState(imageUrl)
   const [previewFile, setPreviewFile] = useState<File | null>(null)
@@ -45,19 +47,28 @@ export default function ImageViewerModal({ isOpen, imageUrl, documentId, targetT
   }
 
   const handleConfirmChange = async () => {
-    if (!previewFile || !documentId || !targetTable) return
+    if (!previewFile || !documentId) return
+    if (!customUploadHandler && !targetTable) return
 
     try {
       setUploading(true)
       const formData = new FormData()
-      formData.append('targetTable', targetTable)
       formData.append('file', previewFile)
+      if (targetTable) {
+        formData.append('targetTable', targetTable)
+      }
 
-      const result = await maritimeService.crew.updateDocumentFile(documentId, formData)
+      let result: any
+      if (customUploadHandler) {
+        result = await customUploadHandler(documentId, formData)
+      } else {
+        result = await maritimeService.crew.updateDocumentFile(documentId, formData)
+      }
       
       // Update local image URL with cache busting
-      if (result.fileUrl) {
-        setCurrentImageUrl(`${result.fileUrl}?t=${Date.now()}`)
+      const newUrl = result.fileUrl || result.documentFilePath
+      if (newUrl) {
+        setCurrentImageUrl(`${newUrl}?t=${Date.now()}`)
       }
       
       // Clear preview
@@ -72,10 +83,10 @@ export default function ImageViewerModal({ isOpen, imageUrl, documentId, targetT
         onFileChanged()
       }
       
-      alert('✅ Image changed successfully!')
+      toast.success('Image changed successfully!')
     } catch (error: any) {
       console.error('❌ Failed to change image:', error)
-      alert(`Error: ${error.message || 'Failed to change image'}`)
+      toast.error(error.message || 'Failed to change image')
     } finally {
       setUploading(false)
     }
@@ -125,7 +136,7 @@ export default function ImageViewerModal({ isOpen, imageUrl, documentId, targetT
         
         <div className="p-4 border-t border-gray-200 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            {documentId && targetTable && !previewFile && (
+            {documentId && (targetTable || customUploadHandler) && !previewFile && (
               <button
                 onClick={handleSelectImage}
                 disabled={uploading}

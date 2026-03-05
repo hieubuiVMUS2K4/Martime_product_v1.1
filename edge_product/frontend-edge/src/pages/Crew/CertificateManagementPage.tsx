@@ -8,10 +8,15 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  Pencil,
+  User,
+  Flag,
+  Trash2,
 } from 'lucide-react'
 import { Certificate, CrewCertificate, CrewMember } from '../../types/maritime.types'
 import { format, differenceInDays, parseISO } from 'date-fns'
 import { maritimeService } from '../../services/maritime.service'
+import { AddCrewCertificateModal } from './AddCrewCertificateModal'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 
 export function CertificateManagementPage() {
@@ -25,6 +30,11 @@ export function CertificateManagementPage() {
   const [loading, setLoading] = useState(true)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; crewCert: any } | null>(null)
   const [selectedRow, setSelectedRow] = useState<number | null>(null)
+
+  // Add Crew Certificate Modal state
+  const [showAddCertModal, setShowAddCertModal] = useState(false)
+  const [modalEditingCert, setModalEditingCert] = useState<any>(undefined)
+  const [modalIsFlagState, setModalIsFlagState] = useState(false)
 
   useEffect(() => {
     console.log('🔷 CertificateManagementPage mounted, loading certificates...')
@@ -165,25 +175,21 @@ export function CertificateManagementPage() {
   }, [])
 
   const handleEditCertificate = (crewCert: any) => {
-    navigate(`/crew/certificates/${selectedCertificate?.id}/add-crew`, {
-      state: { editingCertificate: crewCert }
-    })
+    setModalEditingCert(crewCert)
+    setModalIsFlagState(false)
+    setShowAddCertModal(true)
     closeContextMenu()
   }
 
   const handleCreateFlagStateCertificate = (crewCert: any) => {
-    // Create a copy of the certificate with CoC set to Flag State and exclude the original country
     const flagStateCertificate = {
       ...crewCert,
       certificateOfCompetency: 'Flag State',
       excludeCountryId: crewCert.certificateOfCompetency === 'National' ? crewCert.countryId : null
     }
-    navigate(`/crew/certificates/${selectedCertificate?.id}/add-crew`, {
-      state: { 
-        editingCertificate: flagStateCertificate,
-        isFlagStateCreation: true
-      }
-    })
+    setModalEditingCert(flagStateCertificate)
+    setModalIsFlagState(true)
+    setShowAddCertModal(true)
     closeContextMenu()
   }
 
@@ -322,7 +328,11 @@ export function CertificateManagementPage() {
                   Crew With Certificate ({crewWithCertificate.length})
                 </h3>
                 <button 
-                  onClick={() => navigate(`/crew/certificates/${selectedCertificate.id}/add-crew`)}
+                  onClick={() => {
+                    setModalEditingCert(undefined)
+                    setModalIsFlagState(false)
+                    setShowAddCertModal(true)
+                  }}
                   className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -473,7 +483,7 @@ export function CertificateManagementPage() {
             onClick={() => handleEditCertificate(contextMenu.crewCert)}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <span>✏️</span> Edit Certificate
+            <Pencil className="w-4 h-4 text-gray-500" /> Edit Certificate
           </button>
           <button
             onClick={() => {
@@ -482,23 +492,41 @@ export function CertificateManagementPage() {
             }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <span>👤</span> View Crew Profile
+            <User className="w-4 h-4 text-gray-500" /> View Crew Profile
           </button>
           <div className="border-t border-gray-200 my-1"></div>
           <button
             onClick={() => handleCreateFlagStateCertificate(contextMenu.crewCert)}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <span>🏴</span> Create Flag State Certificate
+            <Flag className="w-4 h-4 text-gray-500" /> Create Flag State Certificate
           </button>
           <div className="border-t border-gray-200 my-1"></div>
           <button
             className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
-            <span>🗑️</span> Delete Certificate
+            <Trash2 className="w-4 h-4" /> Delete Certificate
           </button>
         </div>
       )}
+
+      {/* Add/Edit Crew Certificate Modal */}
+      <AddCrewCertificateModal
+        isOpen={showAddCertModal}
+        onClose={() => {
+          setShowAddCertModal(false)
+          setModalEditingCert(undefined)
+          setModalIsFlagState(false)
+        }}
+        onSave={() => {
+          if (selectedCertificate) {
+            loadCrewWithCertificate(selectedCertificate.id)
+          }
+        }}
+        certificateId={selectedCertificate?.id?.toString()}
+        editingCertificate={modalEditingCert}
+        isFlagStateCreation={modalIsFlagState}
+      />
     </div>
   )
 }

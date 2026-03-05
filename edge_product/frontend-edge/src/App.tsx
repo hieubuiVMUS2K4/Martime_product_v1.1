@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 import { MainLayout } from './components/layouts/MainLayout'
 import { SettingsDialog } from './components/settings'
 import { AuthGuard } from './components/auth/AuthGuard'
@@ -13,7 +15,6 @@ import { AlarmsPage } from './pages/Alarms/AlarmsPage'
 import { CrewPage } from './pages/Crew/CrewPage'
 import { CrewDetailPage } from './pages/Crew/CrewDetailPage'
 import { CertificateManagementPage } from './pages/Crew/CertificateManagementPage'
-import { AddCrewCertificatePage } from './pages/Crew/AddCrewCertificatePage'
 import { MaintenancePage } from './pages/Maintenance/MaintenancePage'
 import { MaintenanceDetailPage } from './pages/Maintenance/MaintenanceDetailPage'
 import { VoyagePage } from './pages/Voyage/VoyagePage'
@@ -70,6 +71,7 @@ function App() {
     <>
       {/* Global toast provider (sonner) */}
       <Toaster position="top-right" />
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick pauseOnHover theme="colored" />
       
       {/* Settings Dialog (renders as portal, controlled by zustand store) */}
       <SettingsDialog />
@@ -86,10 +88,9 @@ function App() {
         <Route path="engine" element={<EnginePage />} />
         <Route path="alarms" element={<AlarmsPage />} />
         <Route path="crew" element={<CrewPage />} />
+        <Route path="crew/:id" element={<CrewDetailPage />} />
         <Route path="crew/certificates" element={<CertificateManagementPage />} />
-        <Route path="crew/certificates/add" element={<AddCrewCertificatePage />} />
         <Route path="crew/certificates/:certificateId" element={<CertificateManagementPage />} />
-        <Route path="crew/certificates/:certificateId/add-crew" element={<AddCrewCertificatePage />} />
         <Route path="pms/maintenance" element={<MaintenancePage />} />
         <Route path="voyage" element={<VoyagePage />} />
         <Route path="ports" element={<PortManagementPage />} />
@@ -142,7 +143,7 @@ function App() {
       </Route>
       
       {/* Full-screen pages outside MainLayout (still protected) */}
-      <Route path="/crew/:id" element={<AuthGuard><CrewDetailPage /></AuthGuard>} />
+      <Route path="/crew/:id/standalone" element={<AuthGuard><CrewDetailPage /></AuthGuard>} />
       <Route path="/pms/maintenance/:id" element={<AuthGuard><MaintenanceDetailPage /></AuthGuard>} />
 
       {/* Catch-all: redirect unknown routes to dashboard */}
