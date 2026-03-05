@@ -21,10 +21,17 @@ export interface SyncLogEntry {
   processedAt: string;
 }
 
+export interface NodeInfo {
+  id: string;
+  name: string;
+  isOnline: boolean;
+}
+
 export interface SyncStatusResponse {
   outboxStats: SyncOutboxStat[];
   recentLogs: SyncLogEntry[];
   serverTime: string;
+  nodes?: NodeInfo[];
 }
 
 export interface SyncHealthCheck {

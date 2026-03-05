@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Users, Shield, FileText, ExternalLink, ArrowDownCircle, ArrowRightCircle, Star, Trash2, Pencil, Copy, XCircle, CheckCircle, Award, User } from 'lucide-react'
+import { Users, Shield, FileText, ExternalLink, ArrowDownCircle, ArrowRightCircle, Trash2, Pencil, Copy, XCircle, CheckCircle, Award, User } from 'lucide-react'
 import { CrewMember, CrewCertificate } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { getAuthToken } from '../../services/api.client'
