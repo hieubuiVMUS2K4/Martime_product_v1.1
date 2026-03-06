@@ -1803,39 +1803,994 @@ namespace productapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<double?>("AirdraftReductionMastFouled")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("Ais")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("AnchorChainPort")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("AnchorChainStarboard")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("AnchorChainStern")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("AnchorChainSternNA")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("AzimuthEngAftCount")
+                        .HasColumnType("integer");
+
+                    b.Property<double?>("AzimuthEngAftMaxPowerKW")
+                        .HasColumnType("double precision");
+
+                    b.Property<int?>("AzimuthEngFwdCount")
+                        .HasColumnType("integer");
+
+                    b.Property<double?>("AzimuthEngFwdMaxPowerKW")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("BalesCbm")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("BallastWaterCbm")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("BareboatChartererCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("BareboatChartererContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("BareboatChartererCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("BareboatChartererEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("BareboatChartererFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("BareboatChartererName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("BareboatChartererPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("BareboatChartererStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("BareboatChartererTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("BareboatChartererZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<double?>("BilgeWaterCbm")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("BlockCoefficient")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("BlockCoefficientNA")
+                        .HasColumnType("boolean");
+
+                    b.Property<double?>("BowToBulbousBow")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("BowToManifold")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("BowthrusterNA")
+                        .HasColumnType("boolean");
+
+                    b.Property<double?>("BreadthMoulded")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("BridgeToAft")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("BridgeToBow")
+                        .HasColumnType("double precision");
+
                     b.Property<DateTime>("BuildDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("CallSign")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("ChartererCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ChartererContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ChartererCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ChartererEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ChartererFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ChartererName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("ChartererPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ChartererStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("ChartererTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ChartererZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("ClassNotation")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ClassRegisterNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ClassSocietyCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ClassSocietyContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ClassSocietyCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ClassSocietyEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ClassSocietyFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ClassSocietyName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("ClassSocietyPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ClassSocietyStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("ClassSocietyTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ClassSocietyZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("CompanyImoNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CsoCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CsoCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CsoEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("CsoFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("CsoFirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CsoLastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CsoPhone24h")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("CsoStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("CsoTitle")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("CsoTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("CsoZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<double?>("DDistance")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("DateOfRegistry")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<double>("DeadWeight")
                         .HasPrecision(10, 2)
                         .HasColumnType("double precision");
 
+                    b.Property<double?>("DeckToManifold")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DepthMoulded")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("DpaCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("DpaCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("DpaEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("DpaFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("DpaFirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("DpaLastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("DpaPhone24h")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("DpaStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("DpaTitle")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("DpaTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("DpaZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<double?>("DraftFullBallast")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DraftMoulded")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DraftScantling")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("DscHF")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("DscMF")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("DscVHF")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("EmailAddress1")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("EmailAddress2")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("EpirbFrequency")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("EpirbMaker")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("EpirbModel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("EpirbNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("EpirbOperatingSystem")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("FieldOwnership")
+                        .HasColumnType("text");
+
                     b.Property<string>("Flag")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FlagStateCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FlagStateContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("FlagStateCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FlagStateEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("FlagStateFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("FlagStateName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("FlagStatePhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("FlagStateStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("FlagStateTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("FlagStateZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<double?>("FreshWaterAllowanceFwa")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("FreshWaterCbm")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("GrainCbm")
+                        .HasColumnType("double precision");
 
                     b.Property<double>("GrossTonnage")
                         .HasPrecision(10, 2)
                         .HasColumnType("double precision");
 
+                    b.Property<double?>("GrossTonnageInternational")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("GrossTonnagePanamaCanal")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("GrossTonnageSuezCanal")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("GsmPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<double?>("HMaxAirdraft")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("HarbourGeneratorMaker")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<double?>("HarbourGeneratorMaxPowerKW")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("HfoCbm")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("HmClubCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("HmClubContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("HmClubCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("HmClubEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("HmClubFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("HmClubName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("HmClubPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("HmClubStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("HmClubTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("HmClubZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("IMO")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("InmarsatFax1")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("InmarsatFax2")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("InmarsatPhone1")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("InmarsatPhone2")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("InmarsatTelex1")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("InmarsatTelex2")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTime?>("KeelLaidDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastEdgeSyncAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastShoreSyncAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("Lbp")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("LightShip")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("Loa")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("LubOilCbm")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("ManagingOwnerCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ManagingOwnerContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ManagingOwnerCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ManagingOwnerEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ManagingOwnerFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ManagingOwnerName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("ManagingOwnerPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ManagingOwnerStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("ManagingOwnerTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ManagingOwnerZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<double?>("ManifoldToBridge")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("ManifoldToKeel")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("ManifoldToWaterlineBallast")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("ManifoldToWaterlineLoaded")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("MaxAllowablePressurePsi")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("MaxLoadingRateShip")
+                        .HasColumnType("double precision");
+
+                    b.Property<int?>("MaxPassengersAllowedOB")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("MaxPersonsAllowedOB")
+                        .HasColumnType("integer");
+
+                    b.Property<double?>("MdoCbm")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("MmsiNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("Navtex")
+                        .HasColumnType("boolean");
+
+                    b.Property<double?>("NettTonnageInternational")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("NettTonnagePanamaCanal")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("NettTonnageSuezCanal")
+                        .HasColumnType("double precision");
+
+                    b.Property<int?>("NoOfBallastTanks")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("NoOfCargoHolds")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("NoOfCrewSafeManning")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("NoOfHatches")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("NumberOfLines")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("OfficialNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("OperatorCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("OperatorContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("OperatorCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("OperatorEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("OperatorFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("OperatorName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("OperatorPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("OperatorStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("OperatorTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("OperatorZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("OtherRadioEquipment")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("OwnerImoNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PanamaCanalIdNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<double?>("ParallelBodyBallast")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("ParallelBodyLoaded")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("PiClubCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PiClubContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PiClubCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PiClubEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PiClubFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PiClubName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("PiClubPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PiClubStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("PiClubTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PiClubZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("PortOfRegistry")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PreviousFlag")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PreviousName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("QiPanamaCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("QiPanamaCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("QiPanamaEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("QiPanamaFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("QiPanamaFirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("QiPanamaLastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("QiPanamaPhone24h")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("QiPanamaStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("QiPanamaTitle")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("QiPanamaTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("QiPanamaZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("QiUsaCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("QiUsaCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("QiUsaEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("QiUsaFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("QiUsaFirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("QiUsaLastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("QiUsaPhone24h")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("QiUsaStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("QiUsaTitle")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("QiUsaTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("QiUsaZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("RadiotelegraphHF")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RadiotelegraphMF")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RadiotelegraphVHF")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RadiotelephoneHF")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RadiotelephoneMF")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RadiotelephoneVHF")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("Radiotelex")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SartTransponder")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SeaAreaA1")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SeaAreaA2")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SeaAreaA3")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SeaAreaA4")
+                        .HasColumnType("boolean");
+
+                    b.Property<double?>("ServiceSpeedKts")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("SewageCbm")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("ShaftGeneratorNA")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ShipownerCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ShipownerContactPerson")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ShipownerCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ShipownerEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ShipownerFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ShipownerName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("ShipownerPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ShipownerStreet")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("ShipownerTlx")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ShipownerZip")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<double?>("ShipsideToManifold")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("ShipyardCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ShipyardName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<double?>("SludgeCbm")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("SternToManifold")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("SternthrusterNA")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("SuezCanalIdNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int?>("TeuOnDeck")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TeuTotal")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TeuUnderDeck")
+                        .HasColumnType("integer");
+
+                    b.Property<double?>("TpcAtSummerDraft")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VentingSystemShip")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("VesselType")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("VrpNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("VrpType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("YardNo")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int?>("YearBuilt")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 

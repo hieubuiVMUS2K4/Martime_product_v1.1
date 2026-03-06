@@ -160,11 +160,20 @@ public class ConflictResolverService : IConflictResolverService
                                || !incomingUpdated.HasValue
                                || incomingUpdated.Value > existingUpdated.Value;
 
+        _logger.LogInformation(
+            "CrewMember conflict resolution: origin={Origin}, existingUpdated={ExistingUpdated}, incomingUpdated={IncomingUpdated}, incomingIsNewer={IsNewer}",
+            originNode, existingUpdated, incomingUpdated, incomingIsNewer);
+
         foreach (var prop in properties)
         {
             if (prop.GetSetMethod() == null) continue; // Skip read-only
 
+            // Skip primary key - EF Core does not allow modifying key properties
+            if (prop.Name == "Id") continue;
+
+            var existingValue = prop.GetValue(existing);
             var incomingValue = prop.GetValue(incoming);
+            
             // Skip null or empty string — empty string means the field was not set
             // (often happens when snake_case payload can't be mapped to PascalCase properties)
             if (incomingValue == null) continue;
@@ -189,6 +198,14 @@ public class ConflictResolverService : IConflictResolverService
                     shouldApply = incomingIsNewer; // Edge wins when it has the latest edit
                 else
                     shouldApply = true;
+            }
+
+            // Log FullName specifically since that's what user reported as lost
+            if (prop.Name == "FullName" && existingValue?.ToString() != incomingValue?.ToString())
+            {
+                _logger.LogInformation(
+                    "CrewMember FullName change: '{ExistingValue}' → '{IncomingValue}', shouldApply={ShouldApply}",
+                    existingValue, incomingValue, shouldApply);
             }
 
             if (shouldApply)
@@ -225,6 +242,10 @@ public class ConflictResolverService : IConflictResolverService
         foreach (var prop in existingType.GetProperties())
         {
             if (prop.GetSetMethod() == null) continue;
+            
+            // Skip primary key
+            if (prop.Name == "Id") continue;
+            
             var incomingValue = prop.GetValue(incoming);
             if (incomingValue == null) continue;
 
@@ -254,6 +275,10 @@ public class ConflictResolverService : IConflictResolverService
         foreach (var prop in existingType.GetProperties())
         {
             if (prop.GetSetMethod() == null) continue;
+            
+            // Skip primary key
+            if (prop.Name == "Id") continue;
+            
             var incomingValue = prop.GetValue(incoming);
             if (incomingValue == null) continue;
 

@@ -2281,6 +2281,7 @@ public class EdgeDbContext : DbContext
             {
                 syncItem.ActionType = SyncActionType.DELETE;
                 syncItem.Payload = "{}"; 
+                Console.WriteLine($"[EDGE-SYNC] Queued DELETE: {tableName}/{recordKey}");
             }
             else if (entry.State == EntityState.Added)
             {
@@ -2292,6 +2293,7 @@ public class EdgeDbContext : DbContext
                     DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
                     ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
                 });
+                Console.WriteLine($"[EDGE-SYNC] Queued CREATE: {tableName}/{recordKey}");
             }
             else if (entry.State == EntityState.Modified)
             {
@@ -2312,9 +2314,23 @@ public class EdgeDbContext : DbContext
                 }
 
                 // If no meaningful changes, skip sync
-                if (changedProps.Count == 0) continue;
+                if (changedProps.Count == 0)
+                {
+                    Console.WriteLine($"[EDGE-SYNC] Skipped UPDATE (no meaningful changes): {tableName}/{recordKey}");
+                    continue;
+                }
 
                 syncItem.Payload = System.Text.Json.JsonSerializer.Serialize(changedProps);
+                
+                // Log CrewMember updates with FullName specifically
+                if (tableName == "crew_member" && changedProps.ContainsKey("FullName"))
+                {
+                    Console.WriteLine($"[EDGE-SYNC] Queued UPDATE: crew_member/{recordKey} with FullName='{changedProps["FullName"]}'");
+                }
+                else
+                {
+                    Console.WriteLine($"[EDGE-SYNC] Queued UPDATE: {tableName}/{recordKey} with {changedProps.Count} changed properties: [{string.Join(", ", changedProps.Keys)}]");
+                }
             }
 
             // 5. Add to SyncQueue

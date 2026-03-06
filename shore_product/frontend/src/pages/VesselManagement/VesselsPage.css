@@ -120,6 +120,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 12.5px;
+  table-layout: fixed;
 }
 
 /* Column header label row */
@@ -137,7 +138,11 @@
   letter-spacing: 0.04em;
 }
 .vp-tr-labels th:last-child { border-right: none; }
-.vp-tr-labels th:first-child { width: 36px; padding: 0; text-align: center; border-right: 1px solid rgba(0,84,166,0.12); }
+.vp-tr-labels th:nth-child(1) { width: 35%; } /* Tên tàu */
+.vp-tr-labels th:nth-child(2) { width: 18%; } /* Loại tàu */
+.vp-tr-labels th:nth-child(3) { width: 15%; } /* Cờ tàu */
+.vp-tr-labels th:nth-child(4) { width: 17%; } /* Số IMO */
+.vp-tr-labels th:nth-child(5) { width: 15%; } /* Trạng thái kết nối */
 
 /* Column filter row */
 .vp-tr-filters th {
@@ -147,9 +152,6 @@
   border-right: 1px solid rgba(0,84,166,0.12);
 }
 .vp-tr-filters th:last-child { border-right: none; }
-
-.vp-th-toggle { width: 36px; text-align: center !important; }
-.vp-th-actions { text-align: right !important; white-space: nowrap; }
 
 /* Search input wrapper — provides search icon via CSS */
 .vp-search-wrap {
@@ -187,6 +189,7 @@
 /* === Data rows === */
 .vp-tr {
   border-bottom: 1px solid #e6edf5;
+  cursor: context-menu;
 }
 .vp-tr:hover > td { background: #f0f7ff; }
 .vp-tr td {
@@ -197,24 +200,6 @@
 }
 .vp-tr td:last-child { border-right: none; }
 .vp-tr--alt td { background: var(--moc-row-alt); }
-.vp-tr--exp > td { background: #daeaf8 !important; }
-
-/* Toggle button */
-.vp-td-toggle { width: 36px; text-align: center; padding: 0 !important; }
-.vp-toggle-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  color: var(--moc-blue);
-  padding: 0;
-  border-radius: 3px;
-}
-.vp-toggle-btn:hover { background: #dbeeff; }
 
 /* Vessel name */
 .vp-name-link {
@@ -240,16 +225,6 @@
   font-size: 11px;
   color: var(--moc-muted);
 }
-
-/* Online/offline dot */
-.vp-dot {
-  display: inline-block;
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.vp-dot.on  { background: var(--moc-green); }
-.vp-dot.off { background: #94a3b8; }
 
 /* Alert badge */
 .vp-alert-mini {
@@ -300,194 +275,94 @@
   border-color: #fecaca;
 }
 
-/* === Detail expand row === */
-.vp-tr-detail { border-bottom: 2px solid var(--moc-blue-mid); }
-.vp-td-detail { padding: 0 !important; background: #f5f9fe !important; }
-
-/* === Detail panel === */
-.vp-detail-panel {
-  border-top: 3px solid var(--moc-blue);
-  background: #f5f9fe;
+/* === Status column === */
+.vp-cell-status {
+  text-align: center;
+  white-space: nowrap;
 }
 
-/* Tab bar — matches MOC tab style */
-.vp-detail-tabs {
-  display: flex;
-  align-items: flex-end;
-  gap: 0;
-  padding: 0 12px;
-  background: #fff;
-  border-bottom: 2px solid var(--moc-blue-mid);
-}
-.vp-detail-tab {
+.vp-status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 8px 16px;
-  border: 1px solid transparent;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
-  background: none;
-  color: var(--moc-muted);
-  font-size: 12.5px;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
   font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.vp-detail-tab:hover { color: var(--moc-blue); background: #f0f7ff; }
-.vp-detail-tab.active {
-  color: var(--moc-blue);
-  font-weight: 700;
-  border-bottom-color: var(--moc-blue);
-  background: none;
-}
-.vp-detail-badge {
-  background: var(--moc-blue);
-  color: #fff;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  font-weight: 700;
-  line-height: 15px;
+  line-height: 1;
 }
 
-/* Detail body */
-.vp-detail-body {
-  padding: 10px 12px 12px;
+.vp-status-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
-/* === Attribute table (info tab) — 4-col key/value === */
-.vp-attr-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12.5px;
+.vp-status-badge--online {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.vp-status-badge--online .vp-status-badge__dot {
+  background: #16a34a;
+  box-shadow: 0 0 0 2px #dcfce7, 0 0 4px #16a34a;
+}
+
+.vp-status-badge--offline {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.vp-status-badge--offline .vp-status-badge__dot {
+  background: #dc2626;
+}
+
+.vp-status-badge--unknown {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* === Selected row highlight === */
+.vp-tr--selected > td {
+  background: #dbeafe !important;
+}
+
+/* === Context Menu === */
+.vp-context-menu {
+  position: fixed;
+  z-index: 9999;
+  min-width: 200px;
   background: #fff;
   border: 1px solid var(--moc-border);
-  border-radius: 5px;
-  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  padding: 4px 0;
+  font-size: 13px;
 }
-.vp-attr-table tbody tr {
-  border-bottom: 1px solid #eef3f9;
-}
-.vp-attr-table tbody tr:last-child { border-bottom: none; }
-.vp-attr-table tbody tr:hover td,
-.vp-attr-table tbody tr:hover th { background: #f0f7ff !important; }
-.vp-attr-table tbody th {
-  padding: 5px 12px 5px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--moc-muted);
-  background: #fafcff;
-  width: 140px;
-  white-space: nowrap;
-  border-right: 1px solid #eef3f9;
-  text-align: left;
-}
-.vp-attr-table tbody td {
-  padding: 5px 14px;
-  font-size: 12.5px;
-  color: var(--moc-text);
-}
-.vp-attr-sect {
-  background: var(--moc-head-bg) !important;
-  font-weight: 700 !important;
-  font-size: 11px !important;
-  color: var(--moc-head-text) !important;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 5px 12px !important;
-  border-top: 1px solid var(--moc-border);
-}
-
-/* === Pills === */
-.vp-pill {
-  display: inline-block;
-  padding: 2px 9px;
-  border-radius: 11px;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 16px;
-}
-.vp-pill.active   { background: #dcfce7; color: #15803d; }
-.vp-pill.inactive { background: #f1f5f9; color: #475569; }
-
-/* === Crew / inner tables === */
-.vp-crew-tab { overflow-x: auto; }
-.vp-tab-loading {
-  display: flex; align-items: center; gap: 8px;
-  padding: 18px; color: var(--moc-muted); font-size: 12px;
-}
-.vp-tab-empty {
-  padding: 20px; text-align: center;
-  color: var(--moc-muted); font-size: 12px;
-}
-/* Inner (nested) table — identical visual system to main table */
-.vp-inner-table {
+.vp-ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
-  border-collapse: collapse;
-  font-size: 12.5px;
-  background: #fff;
-}
-.vp-inner-table thead tr { background: var(--moc-head-bg); }
-.vp-inner-table th {
-  background: var(--moc-head-bg);
-  color: var(--moc-head-text);
-  font-weight: 700;
-  font-size: 11.5px;
-  padding: 7px 10px;
-  text-align: left;
-  border-bottom: 2px solid var(--moc-blue-mid);
-  border-right: 1px solid rgba(0,84,166,0.12);
-  white-space: nowrap;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.vp-inner-table th:last-child { border-right: none; }
-.vp-inner-table td {
-  padding: 5px 10px;
-  border-bottom: 1px solid #edf2f8;
-  border-right: 1px solid #edf2f8;
-  vertical-align: middle;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
   color: var(--moc-text);
-  font-size: 12.5px;
+  text-align: left;
+  transition: background 0.12s;
 }
-.vp-inner-table td:last-child { border-right: none; }
-.vp-inner-table tr:last-child td { border-bottom: none; }
-.vp-inner-table tbody tr:hover td { background: var(--moc-blue-light); }
-.vp-inner-num { color: var(--moc-muted); text-align: center; width: 36px; }
-.vp-inner-id {
+.vp-ctx-item:hover {
   background: var(--moc-blue-light);
   color: var(--moc-blue);
-  border-radius: 3px;
-  padding: 1px 6px;
-  font-size: 11.5px;
-  font-family: monospace;
 }
-
-/* === Sync tab === */
-.vp-sync-cards {
-  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;
-}
-.vp-sync-card {
-  background: #fff;
-  border: 1px solid var(--moc-border);
-  border-radius: 5px;
-  padding: 8px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 150px;
-}
-.vp-sync-card-lbl { font-size: 11px; color: var(--moc-muted); }
-.vp-sync-card strong { font-size: 13px; color: var(--moc-text); font-weight: 700; }
-.vp-sync-hint { font-size: 12px; color: var(--moc-muted); margin: 0; }
-
-/* === Footer === */
-.vp-footer {
-  font-size: 11.5px;
-  color: var(--moc-muted);
-  text-align: right;
-  padding: 2px 4px;
+.vp-ctx-item--danger { color: var(--moc-red); }
+.vp-ctx-item--danger:hover { background: #fef2f2; color: var(--moc-red); }
+.vp-ctx-divider {
+  height: 1px;
+  background: var(--moc-border);
+  margin: 4px 0;
 }
 
 /* === Loading === */

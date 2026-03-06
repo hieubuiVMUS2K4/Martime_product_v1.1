@@ -31,7 +31,7 @@ export interface SyncStatusResponse {
   outboxStats: SyncOutboxStat[];
   recentLogs: SyncLogEntry[];
   serverTime: string;
-  nodes?: NodeInfo[];
+  nodes?: NodeTracker[];
 }
 
 export interface SyncHealthCheck {
@@ -43,6 +43,31 @@ export interface SyncHealthCheck {
     status: string;
     [key: string]: unknown;
   }>;
+}
+
+export interface ForcePushResponse {
+  message: string;
+  nodeId?: string;
+  queuedItems: number;
+  status: string;
+  note?: string;
+  nodeCount?: number;
+  totalQueuedItems?: number;
+  nodes?: string[];
+}
+
+export interface NodeTracker {
+  nodeId: string;
+  shipName?: string;
+  isOnline: boolean;
+  lastPushAt?: string;
+  lastPullAt?: string;
+  lastHeartbeatAt?: string;
+  pendingOutboxCount: number;
+  totalReceivedCount: number;
+  totalDeliveredCount: number;
+  consecutiveFailures: number;
+  currentNetworkType?: string;
 }
 
 // ============================================================
@@ -75,4 +100,16 @@ export const syncApi = {
       return null;
     }
   },
+
+  /** Force push to specific ship node */
+  forcePush: (nodeId: string): Promise<ForcePushResponse> =>
+    request(`${BASE}/sync/force-push/${nodeId}`, { method: 'POST' }),
+
+  /** Force push to all connected ships */
+  forcePushAll: (): Promise<ForcePushResponse> =>
+    request(`${BASE}/sync/force-push-all`, { method: 'POST' }),
+
+  /** Trigger reconciliation of unsynced records */
+  reconcile: (): Promise<{ message: string; count: number }> =>
+    request(`${BASE}/sync/reconcile`, { method: 'POST' }),
 };

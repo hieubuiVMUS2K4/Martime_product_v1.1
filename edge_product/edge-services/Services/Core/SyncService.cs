@@ -235,11 +235,25 @@ public class SyncService : ISyncService
             Timestamp = q.CreatedAt
         }).ToList();
 
+        // Log what we're sending - especially crew_member updates
+        var crewUpdates = dtoItems.Where(d => d.TableName == "crew_member").ToList();
+        if (crewUpdates.Any())
+        {
+            _logger.LogInformation("Sending {Count} crew_member updates to Shore:", crewUpdates.Count);
+            foreach (var crew in crewUpdates)
+            {
+                _logger.LogInformation("  - crew_member/{RecordKey} {Action}", crew.RecordKey, crew.ActionType);
+                _logger.LogInformation("    Payload: {Payload}", crew.Payload);
+            }
+        }
+
         try
         {
             var client = _httpClientFactory.CreateClient("ShoreAPI");
             var json = JsonSerializer.Serialize(dtoItems, _jsonOptions);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            _logger.LogInformation("Posting batch of {Count} items to {Url}", dtoItems.Count, $"{baseUrl}/api/sync");
 
             var response = await client.PostAsync($"{baseUrl}/api/sync", content, cancellationToken);
 

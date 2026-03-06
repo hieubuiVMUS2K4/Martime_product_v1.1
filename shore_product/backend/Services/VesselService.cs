@@ -12,6 +12,7 @@ namespace ProductApi.Services
         Task<VesselDto?> GetVesselByIMOAsync(string imo);
         Task<VesselDto> CreateVesselAsync(CreateVesselDto vesselDto);
         Task<VesselDto?> UpdateVesselAsync(Guid id, UpdateVesselDto vesselDto);
+        Task<VesselDto?> UpdateCommercialDataAsync(Guid id, UpdateCommercialDataDto commercialDto);
         Task<bool> DeleteVesselAsync(Guid id);
         Task<VesselPositionDto> AddPositionAsync(Guid vesselId, CreateVesselPositionDto positionDto);
         Task<IEnumerable<VesselPositionDto>> GetVesselPositionsAsync(Guid vesselId, DateTime? fromDate = null);
@@ -105,6 +106,82 @@ namespace ProductApi.Services
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Updated vessel: {IMO} - {Name}", vessel.IMO, vessel.Name);
+            return MapToDto(vessel);
+        }
+
+        public async Task<VesselDto?> UpdateCommercialDataAsync(Guid id, UpdateCommercialDataDto commercialDto)
+        {
+            var vessel = await _context.Vessels.FindAsync(id);
+            if (vessel == null) return null;
+
+            // Update Shipowner fields (Shore Master)
+            vessel.ShipownerName = commercialDto.ShipownerName;
+            vessel.ShipownerStreet = commercialDto.ShipownerStreet;
+            vessel.ShipownerCountry = commercialDto.ShipownerCountry;
+            vessel.ShipownerZip = commercialDto.ShipownerZip;
+            vessel.ShipownerCity = commercialDto.ShipownerCity;
+            vessel.ShipownerPhone = commercialDto.ShipownerPhone;
+            vessel.ShipownerFax = commercialDto.ShipownerFax;
+            vessel.ShipownerEmail = commercialDto.ShipownerEmail;
+            vessel.ShipownerContactPerson = commercialDto.ShipownerContactPerson;
+
+            vessel.ManagingOwnerName = commercialDto.ManagingOwnerName;
+            vessel.ManagingOwnerEmail = commercialDto.ManagingOwnerEmail;
+            vessel.ManagingOwnerContactPerson = commercialDto.ManagingOwnerContactPerson;
+
+            vessel.OperatorName = commercialDto.OperatorName;
+            vessel.OperatorEmail = commercialDto.OperatorEmail;
+            vessel.OperatorContactPerson = commercialDto.OperatorContactPerson;
+
+            vessel.CsoFirstName = commercialDto.CsoFirstName;
+            vessel.CsoLastName = commercialDto.CsoLastName;
+            vessel.CsoEmail = commercialDto.CsoEmail;
+            vessel.CsoPhone24h = commercialDto.CsoPhone24h;
+
+            vessel.DpaFirstName = commercialDto.DpaFirstName;
+            vessel.DpaLastName = commercialDto.DpaLastName;
+            vessel.DpaEmail = commercialDto.DpaEmail;
+            vessel.DpaPhone24h = commercialDto.DpaPhone24h;
+
+            // Update Charterer fields (Shore Master)
+            vessel.ChartererName = commercialDto.ChartererName;
+            vessel.ChartererStreet = commercialDto.ChartererStreet;
+            vessel.ChartererCountry = commercialDto.ChartererCountry;
+            vessel.ChartererZip = commercialDto.ChartererZip;
+            vessel.ChartererCity = commercialDto.ChartererCity;
+            vessel.ChartererPhone = commercialDto.ChartererPhone;
+            vessel.ChartererEmail = commercialDto.ChartererEmail;
+            vessel.ChartererContactPerson = commercialDto.ChartererContactPerson;
+
+            vessel.BareboatChartererName = commercialDto.BareboatChartererName;
+            vessel.BareboatChartererEmail = commercialDto.BareboatChartererEmail;
+            vessel.BareboatChartererContactPerson = commercialDto.BareboatChartererContactPerson;
+
+            // Update Insurance fields (Shore Master)
+            vessel.PiClubName = commercialDto.PiClubName;
+            vessel.PiClubStreet = commercialDto.PiClubStreet;
+            vessel.PiClubCountry = commercialDto.PiClubCountry;
+            vessel.PiClubZip = commercialDto.PiClubZip;
+            vessel.PiClubCity = commercialDto.PiClubCity;
+            vessel.PiClubPhone = commercialDto.PiClubPhone;
+            vessel.PiClubEmail = commercialDto.PiClubEmail;
+            vessel.PiClubContactPerson = commercialDto.PiClubContactPerson;
+
+            vessel.HmClubName = commercialDto.HmClubName;
+            vessel.HmClubEmail = commercialDto.HmClubEmail;
+            vessel.HmClubContactPerson = commercialDto.HmClubContactPerson;
+
+            // Update sync metadata
+            vessel.LastShoreSyncAt = DateTime.UtcNow;
+vessel.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Updated commercial data for vessel: {IMO} - {Name}", vessel.IMO, vessel.Name);
+
+            // TODO: Enqueue to SyncOutbox for Shore → Edge replication
+            // await EnqueueCommercialDataToSyncOutbox(vessel);
+
             return MapToDto(vessel);
         }
 
@@ -264,7 +341,154 @@ namespace ProductApi.Services
                         Timestamp = vessel.Positions.First().Timestamp,
                         Source = vessel.Positions.First().Source
                     } : null,
-                UnacknowledgedAlerts = vessel.Alerts?.Count(a => !a.IsAcknowledged) ?? 0
+                UnacknowledgedAlerts = vessel.Alerts?.Count(a => !a.IsAcknowledged) ?? 0,
+
+                // Extended Basic Data
+                OfficialNumber = vessel.OfficialNumber,
+                PortOfRegistry = vessel.PortOfRegistry,
+                PreviousName = vessel.PreviousName,
+                PreviousFlag = vessel.PreviousFlag,
+                MmsiNumber = vessel.MmsiNumber,
+                ClassNotation = vessel.ClassNotation,
+                ClassRegisterNumber = vessel.ClassRegisterNumber,
+                ShipyardCountry = vessel.ShipyardCountry,
+                ShipyardName = vessel.ShipyardName,
+                YardNo = vessel.YardNo,
+                CompanyImoNumber = vessel.CompanyImoNumber,
+                SuezCanalIdNumber = vessel.SuezCanalIdNumber,
+                KeelLaidDate = vessel.KeelLaidDate,
+                YearBuilt = vessel.YearBuilt,
+                DateOfRegistry = vessel.DateOfRegistry,
+                OwnerImoNumber = vessel.OwnerImoNumber,
+                PanamaCanalIdNumber = vessel.PanamaCanalIdNumber,
+                MaxPersonsAllowedOB = vessel.MaxPersonsAllowedOB,
+                ServiceSpeedKts = vessel.ServiceSpeedKts,
+                VrpNumber = vessel.VrpNumber,
+                VrpType = vessel.VrpType,
+                NoOfCrewSafeManning = vessel.NoOfCrewSafeManning,
+                MaxPassengersAllowedOB = vessel.MaxPassengersAllowedOB,
+
+                // Dimensions
+                Loa = vessel.Loa,
+                Lbp = vessel.Lbp,
+                BreadthMoulded = vessel.BreadthMoulded,
+                DepthMoulded = vessel.DepthMoulded,
+                DraftMoulded = vessel.DraftMoulded,
+                DraftScantling = vessel.DraftScantling,
+                DraftFullBallast = vessel.DraftFullBallast,
+                HMaxAirdraft = vessel.HMaxAirdraft,
+                LightShip = vessel.LightShip,
+                BlockCoefficient = vessel.BlockCoefficient,
+                TpcAtSummerDraft = vessel.TpcAtSummerDraft,
+                GrossTonnageInternational = vessel.GrossTonnageInternational,
+                GrossTonnageSuezCanal = vessel.GrossTonnageSuezCanal,
+                GrossTonnagePanamaCanal = vessel.GrossTonnagePanamaCanal,
+                NettTonnageInternational = vessel.NettTonnageInternational,
+
+                // Machinery
+                AnchorChainPort = vessel.AnchorChainPort,
+                AnchorChainStarboard = vessel.AnchorChainStarboard,
+                AnchorChainStern = vessel.AnchorChainStern,
+                HarbourGeneratorMaker = vessel.HarbourGeneratorMaker,
+                HarbourGeneratorMaxPowerKW = vessel.HarbourGeneratorMaxPowerKW,
+                AzimuthEngFwdCount = vessel.AzimuthEngFwdCount,
+                AzimuthEngFwdMaxPowerKW = vessel.AzimuthEngFwdMaxPowerKW,
+
+                // Shipowner
+                ShipownerName = vessel.ShipownerName,
+                ShipownerStreet = vessel.ShipownerStreet,
+                ShipownerCountry = vessel.ShipownerCountry,
+                ShipownerZip = vessel.ShipownerZip,
+                ShipownerCity = vessel.ShipownerCity,
+                ShipownerPhone = vessel.ShipownerPhone,
+                ShipownerFax = vessel.ShipownerFax,
+                ShipownerEmail = vessel.ShipownerEmail,
+                ShipownerContactPerson = vessel.ShipownerContactPerson,
+                ManagingOwnerName = vessel.ManagingOwnerName,
+                ManagingOwnerEmail = vessel.ManagingOwnerEmail,
+                ManagingOwnerContactPerson = vessel.ManagingOwnerContactPerson,
+                OperatorName = vessel.OperatorName,
+                OperatorEmail = vessel.OperatorEmail,
+                OperatorContactPerson = vessel.OperatorContactPerson,
+                CsoFirstName = vessel.CsoFirstName,
+                CsoLastName = vessel.CsoLastName,
+                CsoEmail = vessel.CsoEmail,
+                CsoPhone24h = vessel.CsoPhone24h,
+                DpaFirstName = vessel.DpaFirstName,
+                DpaLastName = vessel.DpaLastName,
+                DpaEmail = vessel.DpaEmail,
+                DpaPhone24h = vessel.DpaPhone24h,
+
+                // Charterer
+                ChartererName = vessel.ChartererName,
+                ChartererStreet = vessel.ChartererStreet,
+                ChartererCountry = vessel.ChartererCountry,
+                ChartererZip = vessel.ChartererZip,
+                ChartererCity = vessel.ChartererCity,
+                ChartererPhone = vessel.ChartererPhone,
+                ChartererEmail = vessel.ChartererEmail,
+                ChartererContactPerson = vessel.ChartererContactPerson,
+                BareboatChartererName = vessel.BareboatChartererName,
+                BareboatChartererEmail = vessel.BareboatChartererEmail,
+                BareboatChartererContactPerson = vessel.BareboatChartererContactPerson,
+
+                // Class / Flag State
+                ClassSocietyName = vessel.ClassSocietyName,
+                ClassSocietyCountry = vessel.ClassSocietyCountry,
+                ClassSocietyEmail = vessel.ClassSocietyEmail,
+                ClassSocietyContactPerson = vessel.ClassSocietyContactPerson,
+                FlagStateName = vessel.FlagStateName,
+                FlagStateCountry = vessel.FlagStateCountry,
+                FlagStateEmail = vessel.FlagStateEmail,
+                FlagStateContactPerson = vessel.FlagStateContactPerson,
+
+                // Insurance
+                PiClubName = vessel.PiClubName,
+                PiClubStreet = vessel.PiClubStreet,
+                PiClubCountry = vessel.PiClubCountry,
+                PiClubZip = vessel.PiClubZip,
+                PiClubCity = vessel.PiClubCity,
+                PiClubPhone = vessel.PiClubPhone,
+                PiClubEmail = vessel.PiClubEmail,
+                PiClubContactPerson = vessel.PiClubContactPerson,
+                HmClubName = vessel.HmClubName,
+                HmClubEmail = vessel.HmClubEmail,
+                HmClubContactPerson = vessel.HmClubContactPerson,
+
+                // Radio Communication
+                InmarsatPhone1 = vessel.InmarsatPhone1,
+                InmarsatPhone2 = vessel.InmarsatPhone2,
+                InmarsatFax1 = vessel.InmarsatFax1,
+                EmailAddress1 = vessel.EmailAddress1,
+                EmailAddress2 = vessel.EmailAddress2,
+                GsmPhone = vessel.GsmPhone,
+                SeaAreaA1 = vessel.SeaAreaA1,
+                SeaAreaA2 = vessel.SeaAreaA2,
+                SeaAreaA3 = vessel.SeaAreaA3,
+                SeaAreaA4 = vessel.SeaAreaA4,
+                Ais = vessel.Ais,
+                Navtex = vessel.Navtex,
+                EpirbNumber = vessel.EpirbNumber,
+                EpirbMaker = vessel.EpirbMaker,
+
+                // Tanks & Cargo
+                HfoCbm = vessel.HfoCbm,
+                MdoCbm = vessel.MdoCbm,
+                LubOilCbm = vessel.LubOilCbm,
+                FreshWaterCbm = vessel.FreshWaterCbm,
+                BallastWaterCbm = vessel.BallastWaterCbm,
+                NoOfBallastTanks = vessel.NoOfBallastTanks,
+                TeuTotal = vessel.TeuTotal,
+                TeuOnDeck = vessel.TeuOnDeck,
+                TeuUnderDeck = vessel.TeuUnderDeck,
+                GrainCbm = vessel.GrainCbm,
+                BalesCbm = vessel.BalesCbm,
+                NoOfCargoHolds = vessel.NoOfCargoHolds,
+                NoOfHatches = vessel.NoOfHatches,
+
+                // Sync Metadata
+                LastEdgeSyncAt = vessel.LastEdgeSyncAt,
+                LastShoreSyncAt = vessel.LastShoreSyncAt
             };
         }
     }

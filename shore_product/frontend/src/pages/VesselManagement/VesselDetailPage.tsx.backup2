@@ -1,0 +1,281 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  Ship, ArrowLeft, Save, Loader2, AlertCircle
+} from 'lucide-react';
+import { ENV } from '../../config/env';
+import './VesselDetailPage.css';
+
+// ============================================================
+// Types
+// ============================================================
+interface Vessel {
+  id: string;
+  imo: string;
+  name: string;
+  callSign: string;
+  vesselType: string;
+  grossTonnage: number;
+  deadWeight: number;
+  buildDate: string;
+  flag: string;
+  isActive: boolean;
+}
+
+type TabId = 'basic-data' | 'dimensions' | 'machinery' | 'shipowner' | 'charterer' | 'class-flag-state' | 'insurance' | 'radio-comm' | 'tanks-cargo';
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'basic-data', label: 'Basic Data' },
+  { id: 'dimensions', label: 'Dimensions' },
+  { id: 'machinery', label: 'Machinery' },
+  { id: 'shipowner', label: 'Shipowner' },
+  { id: 'charterer', label: 'Charterer' },
+  { id: 'class-flag-state', label: 'Class / Flag State' },
+  { id: 'insurance', label: 'Insurance' },
+  { id: 'radio-comm', label: 'Radio Comm.' },
+  { id: 'tanks-cargo', label: 'Tanks & Cargo' },
+];
+
+const VESSEL_TYPES = [
+  'Bulk Carrier', 'Container Ship', 'Tanker', 'General Cargo',
+  'RoRo', 'LNG Carrier', 'LPG Carrier', 'Passenger Ship', 'Tug', 'Other'
+];
+
+const FLAGS = [
+  'Vietnam', 'Panama', 'Liberia', 'Marshall Islands', 'Bahamas',
+  'Singapore', 'Malta', 'Cyprus', 'Hong Kong', 'Other'
+];
+
+// ============================================================
+// API Helper
+// ============================================================
+const BASE = ENV.API_BASE_URL;
+
+async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    ...options,
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
+// ============================================================
+// Main Component
+// ============================================================
+export const VesselDetailPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
+  const [activeTab, setActiveTab] = useState<TabId>('basic-data');
+  const [vessel, setVessel] = useState<Vessel | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  const [formData, setFormData] = useState({
+    imo: '',
+    name: '',
+    callSign: '',
+    vesselType: 'Bulk Carrier',
+    grossTonnage: 0,
+    deadWeight: 0,
+    buildDate: '',
+    flag: 'Vietnam',
+    isActive: true,
+  });
+
+  // Load vessel data
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    apiFetch<Vessel>(`${BASE}/vessels/${id}`)
+      .then(v => {
+        setVessel(v);
+        setFormData({
+          imo: v.imo,
+          name: v.name,
+          callSign: v.callSign,
+          vesselType: v.vesselType,
+          grossTonnage: v.grossTonnage,
+          deadWeight: v.deadWeight,
+          buildDate: v.buildDate?.slice(0, 10) ?? '',
+          flag: v.flag,
+          isActive: v.isActive,
+        });
+      })
+      .catch(e => setError(e instanceof Error ? e.message : 'Failed to load vessel'))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const handleChange = useCallback((field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setIsDirty(true);
+  }, []);
+
+  const handleSave = async () => {
+    if (!id) return;
+    setSaving(true);
+    try {
+      await apiFetch(`${BASE}/vessels/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(formData),
+      });
+      setIsDirty(false);
+      alert('Saved successfully');
+      // Reload
+      const updated = await apiFetch<Vessel>(`${BASE}/vessels/${id}`);
+      setVessel(updated);
+    } catch (e) {
+      alert('Failed to save: ' + (e instanceof Error ? e.message : 'Unknown error'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'basic-data':
+        return (
+          <div className="vd-form-grid">
+            <div className="vd-form-field vd-form-field--full">
+              <label>Ship Name *</label>
+              <input value={formData.name} onChange={e => handleChange('name', e.target.value)} placeholder="e.g. MV PIONEER STAR" />
+            </div>
+            <div className="vd-form-field">
+              <label>IMO Number *</label>
+              <input value={formData.imo} disabled placeholder="7 digits" />
+            </div>
+            <div className="vd-form-field">
+              <label>Call Sign *</label>
+              <input value={formData.callSign} onChange={e => handleChange('callSign', e.target.value)} placeholder="e.g. XVAB1" />
+            </div>
+            <div className="vd-form-field">
+              <label>Vessel Type *</label>
+              <select value={formData.vesselType} onChange={e => handleChange('vesselType', e.target.value)}>
+                {VESSEL_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="vd-form-field">
+              <label>Flag *</label>
+              <select value={formData.flag} onChange={e => handleChange('flag', e.target.value)}>
+                {FLAGS.map(f => <option key={f}>{f}</option>)}
+              </select>
+            </div>
+            <div className="vd-form-field">
+              <label>Gross Tonnage (GT)</label>
+              <input type="number" value={formData.grossTonnage} onChange={e => handleChange('grossTonnage', +e.target.value)} />
+            </div>
+            <div className="vd-form-field">
+              <label>Deadweight (DWT)</label>
+              <input type="number" value={formData.deadWeight} onChange={e => handleChange('deadWeight', +e.target.value)} />
+            </div>
+            <div className="vd-form-field">
+              <label>Build Date *</label>
+              <input type="date" value={formData.buildDate} onChange={e => handleChange('buildDate', e.target.value)} />
+            </div>
+            <div className="vd-form-field vd-form-field--checkbox">
+              <label>
+                <input type="checkbox" checked={formData.isActive} onChange={e => handleChange('isActive', e.target.checked)} />
+                Active
+              </label>
+            </div>
+          </div>
+        );
+      case 'dimensions':
+        return <div className="vd-tab-placeholder">Dimensions data coming soon...</div>;
+      case 'machinery':
+        return <div className="vd-tab-placeholder">Machinery data coming soon...</div>;
+      case 'shipowner':
+        return <div className="vd-tab-placeholder">Shipowner data coming soon...</div>;
+      case 'charterer':
+        return <div className="vd-tab-placeholder">Charterer data coming soon...</div>;
+      case 'class-flag-state':
+        return <div className="vd-tab-placeholder">Class / Flag State data coming soon...</div>;
+      case 'insurance':
+        return <div className="vd-tab-placeholder">Insurance data coming soon...</div>;
+      case 'radio-comm':
+        return <div className="vd-tab-placeholder">Radio Comm data coming soon...</div>;
+      case 'tanks-cargo':
+        return <div className="vd-tab-placeholder">Tanks & Cargo data coming soon...</div>;
+      default:
+        return null;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="vd-loading-screen">
+        <Loader2 size={32} className="vd-spin" />
+        <span>Loading vessel data...</span>
+      </div>
+    );
+  }
+
+  if (error || !vessel) {
+    return (
+      <div className="vd-error-screen">
+        <AlertCircle size={32} />
+        <span>{error ?? 'Vessel not found'}</span>
+        <button className="vd-btn" onClick={() => navigate('/vessels')}>
+          Back to list
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="vd-page-new">
+      {/* Header */}
+      <div className="vd-header-new">
+        <button className="vd-back-btn-new" onClick={() => navigate('/vessels')}>
+          <ArrowLeft size={18} />
+        </button>
+        <div className="vd-header-left">
+          <Ship className="vd-ship-icon" size={24} />
+          <div>
+            <h1 className="vd-title-new">{vessel.name}</h1>
+            {vessel.imo && (
+              <p className="vd-subtitle">IMO: {vessel.imo} • {vessel.callSign}</p>
+            )}
+          </div>
+          {isDirty && (
+            <span className="vd-unsaved-badge">
+              Unsaved changes
+            </span>
+          )}
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={saving || !isDirty}
+          className="vd-save-btn"
+        >
+          {saving ? <Loader2 size={16} className="vd-spin" /> : <Save size={16} />}
+          {saving ? 'Saving...' : 'Save All'}
+        </button>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="vd-tabs-new">
+        <nav className="vd-tabs-nav">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`vd-tab-btn ${activeTab === tab.id ? 'vd-tab-btn--active' : ''}`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      <div className="vd-content-new">
+        {renderTabContent()}
+      </div>
+    </div>
+  );
+};

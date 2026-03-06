@@ -2,9 +2,9 @@
 import { useNavigate } from 'react-router-dom';
 import {
   Ship, Plus, RefreshCw, Pencil, Trash2,
-  AlertTriangle, Activity,
-  X, Loader2, ChevronRight, ChevronDown, Download,
-  Users, FileText, Eye,
+  AlertTriangle,
+  X, Loader2, Download,
+  Eye, ExternalLink, FileText,
 } from 'lucide-react';
 import { ENV } from '../../config/env';
 import './VesselsPage.css';
@@ -74,8 +74,6 @@ interface VesselFormData {
   isActive: boolean;
 }
 
-type DetailTab = 'info' | 'crew' | 'sync';
-
 const EMPTY_FORM: VesselFormData = {
   imo: '',
   name: '',
@@ -116,171 +114,6 @@ async function apiRequest<T>(url: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-const fmtDate = (d?: string) => {
-  if (!d) return '';
-  return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-};
-
-// ============================================================
-// Detail Panel (inline expand)
-// ============================================================
-interface DetailPanelProps {
-  vessel: Vessel;
-  summary?: VesselSummary;
-  tab: DetailTab;
-  onTabChange: (t: DetailTab) => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onNavigate: () => void;
-}
-
-const DetailPanel: React.FC<DetailPanelProps> = ({
-  vessel, summary, tab, onTabChange, onEdit, onDelete, onNavigate,
-}) => {
-  const [crew, setCrew] = useState<CrewMember[]>([]);
-  const [crewLoading, setCrewLoading] = useState(false);
-
-  useEffect(() => {
-    if (tab !== 'crew') return;
-    setCrewLoading(true);
-    apiRequest<{ data: CrewMember[]; total: number }>(`${BASE}/vessels/${vessel.id}/crew`)
-      .then(d => setCrew(Array.isArray(d) ? d : (d?.data ?? [])))
-      .catch(() => setCrew([]))
-      .finally(() => setCrewLoading(false));
-  }, [tab, vessel.id]);
-
-  return (
-    <div className="vp-detail-panel">
-      {/* Tab bar */}
-      <div className="vp-detail-tabs">
-        <button type="button" className={`vp-detail-tab${tab === 'info' ? ' active' : ''}`} onClick={e => { e.stopPropagation(); onTabChange('info'); }}>
-          <FileText size={12} /> Thông tin tàu
-        </button>
-        <button type="button" className={`vp-detail-tab${tab === 'crew' ? ' active' : ''}`} onClick={e => { e.stopPropagation(); onTabChange('crew'); }}>
-          <Users size={12} /> Danh sách thuyền viên
-          {summary && <span className="vp-detail-badge">{summary.crewOnboard}/{summary.crewTotal}</span>}
-        </button>
-        <button type="button" className={`vp-detail-tab${tab === 'sync' ? ' active' : ''}`} onClick={e => { e.stopPropagation(); onTabChange('sync'); }}>
-          <Activity size={12} /> Trạng thái Sync
-        </button>
-      </div>
-
-      {/* Content */}
-      <div className="vp-detail-body">
-        {/* === TAB: INFO === */}
-        {tab === 'info' && (
-          <table className="vp-attr-table">
-            <tbody>
-              {/* Section: Thông tin cơ bản */}
-              <tr><td colSpan={4} className="vp-attr-sect">Thông tin cơ bản</td></tr>
-              <tr>
-                <th>Tên tàu</th><td><strong>{vessel.name}</strong></td>
-                <th>Gross Tonnage</th><td>{vessel.grossTonnage ? `${vessel.grossTonnage.toLocaleString('vi-VN')} GT` : '—'}</td>
-              </tr>
-              <tr>
-                <th>Số IMO</th><td style={{ fontFamily: 'monospace' }}>{vessel.imo}</td>
-                <th>Deadweight</th><td>{vessel.deadWeight ? `${vessel.deadWeight.toLocaleString('vi-VN')} DWT` : '—'}</td>
-              </tr>
-              <tr>
-                <th>Call Sign</th><td>{vessel.callSign || '—'}</td>
-                <th>Năm đóng</th><td>{vessel.buildDate ? new Date(vessel.buildDate).getFullYear() : '—'}</td>
-              </tr>
-              <tr>
-                <th>Loại tàu</th><td>{vessel.vesselType || '—'}</td>
-                <th>Trạng thái</th>
-                <td><span className={`vp-pill ${vessel.isActive ? 'active' : 'inactive'}`}>{vessel.isActive ? 'Hoạt động' : 'Ngừng HĐ'}</span></td>
-              </tr>
-              <tr>
-                <th>Cờ quốc tịch</th><td>{vessel.flag || '—'}</td>
-                <th>Vị trí</th>
-                <td>
-                  {vessel.lastPosition
-                    ? `${vessel.lastPosition.latitude.toFixed(4)}, ${vessel.lastPosition.longitude.toFixed(4)}`
-                    : 'Chưa có dữ liệu'}
-                </td>
-              </tr>
-              {/* Section: Thuyền viên & Sync */}
-              {summary && <>
-                <tr><td colSpan={4} className="vp-attr-sect">Thuyền viên &amp; Đồng bộ</td></tr>
-                <tr>
-                  <th>Đang trên tàu</th><td><strong>{summary.crewOnboard}</strong> người</td>
-                  <th>Tổng thuyền viên</th><td><strong>{summary.crewTotal}</strong> người</td>
-                </tr>
-                <tr>
-                  <th>Báo cáo nhận</th><td>{summary.reportsTotal}</td>
-                  <th>Sync cuối</th><td>{fmtDate(summary.lastSyncAt) || 'Chưa có'}</td>
-                </tr>
-              </>}
-            </tbody>
-          </table>
-        )}
-
-        {/* === TAB: CREW === */}
-        {tab === 'crew' && (
-          <div className="vp-crew-tab">
-            {crewLoading ? (
-              <div className="vp-tab-loading"><Loader2 size={16} className="spin" /> Đang tải...</div>
-            ) : crew.length === 0 ? (
-              <div className="vp-tab-empty">Chưa có dữ liệu thuyền viên</div>
-            ) : (
-              <table className="vp-inner-table">
-                <thead>
-                  <tr>
-                    <th>STT</th>
-                    <th>Mã TV</th>
-                    <th>Họ và tên</th>
-                    <th>Bộ phận</th>
-                    <th>Trạng thái</th>
-                    <th>Ngày lên tàu</th>
-                    <th>Hết hợp đồng</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {crew.map((c, i) => (
-                    <tr key={c.id}>
-                      <td className="vp-inner-num">{i + 1}</td>
-                      <td><span className="vp-inner-id">{c.crewId}</span></td>
-                      <td><strong>{c.fullName}</strong></td>
-                      <td>{c.department || ''}</td>
-                      <td><span className={`vp-pill ${c.isOnboard ? 'active' : 'inactive'}`}>{c.isOnboard ? 'Trên tàu' : 'Trên bờ'}</span></td>
-                      <td>{fmtDate(c.embarkDate)}</td>
-                      <td>{fmtDate(c.contractEnd)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
-
-        {/* === TAB: SYNC === */}
-        {tab === 'sync' && (
-          <div className="vp-sync-tab">
-            <div className="vp-sync-cards">
-              <div className="vp-sync-card">
-                <span className="vp-sync-card-lbl">Lần sync cuối</span>
-                <strong>{summary?.lastSyncAt ? new Date(summary.lastSyncAt).toLocaleString('vi-VN') : 'Chưa có'}</strong>
-              </div>
-              <div className="vp-sync-card">
-                <span className="vp-sync-card-lbl">Tổng báo cáo nhận</span>
-                <strong>{summary?.reportsTotal ?? 0}</strong>
-              </div>
-              <div className="vp-sync-card">
-                <span className="vp-sync-card-lbl">Thuyền viên đã đồng bộ</span>
-                <strong>{summary?.crewTotal ?? 0} người</strong>
-              </div>
-            </div>
-            <p className="vp-sync-hint">
-              Xem lịch sử sync đầy đủ {' '}
-              <button className="vp-link-btn" onClick={onNavigate}>Trang chi tiết tàu</button>
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
 // ============================================================
 // Main Page
 // ============================================================
@@ -291,10 +124,6 @@ export const VesselsPage: React.FC = () => {
   const [summaries, setSummaries] = useState<Record<string, VesselSummary>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Expand state
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [expandedTabs, setExpandedTabs] = useState<Record<string, DetailTab>>({});
 
   // Per-column filters
   const [colF, setColF] = useState({ name: '', imo: '', type: '', flag: '' });
@@ -309,6 +138,27 @@ export const VesselsPage: React.FC = () => {
   // Delete
   const [deleteTarget, setDeleteTarget] = useState<Vessel | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Context menu
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; vessel: Vessel } | null>(null);
+  const [selectedVesselId, setSelectedVesselId] = useState<string | null>(null);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent, vessel: Vessel) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, vessel });
+    setSelectedVesselId(vessel.id);
+  }, []);
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+    setSelectedVesselId(null);
+  }, []);
+
+  useEffect(() => {
+    const handler = () => closeContextMenu();
+    window.addEventListener('click', handler);
+    return () => window.removeEventListener('click', handler);
+  }, [closeContextMenu]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -352,11 +202,6 @@ export const VesselsPage: React.FC = () => {
     (!colF.flag || (v.flag ?? '').toLowerCase().includes(colF.flag.toLowerCase()))
   ), [vessels, colF]);
 
-  const toggleExpand = (id: string) => {
-    setExpandedId(p => p === id ? null : id);
-    setExpandedTabs(p => ({ ...p, [id]: p[id] ?? 'info' }));
-  };
-
   const cf = (k: keyof typeof colF, v: string) => setColF(p => ({ ...p, [k]: v }));
 
   const openCreate = () => { setEditingVessel(null); setFormData(EMPTY_FORM); setFormError(null); setModalOpen(true); };
@@ -381,7 +226,6 @@ export const VesselsPage: React.FC = () => {
     if (!deleteTarget) return; setDeleting(true);
     try {
       await apiRequest(`${BASE}/vessels/${deleteTarget.id}`, { method: 'DELETE' });
-      if (expandedId === deleteTarget.id) setExpandedId(null);
       setDeleteTarget(null); fetchData();
     } catch (err) { alert(err instanceof Error ? err.message : 'Xóa thất bại'); }
     finally { setDeleting(false); }
@@ -427,78 +271,59 @@ export const VesselsPage: React.FC = () => {
           <thead>
             {/* Label row */}
             <tr className="vp-tr-labels">
-              <th className="vp-th-toggle" />
               <th>Tên tàu</th>
               <th>Loại tàu</th>
               <th>Cờ tàu</th>
               <th>Số IMO</th>
-              <th className="vp-th-actions">Thao tác</th>
+              <th>Trạng thái kết nối</th>
             </tr>
             {/* Filter row */}
             <tr className="vp-tr-filters">
-              <th />
               <th><div className="vp-search-wrap"><input className="vp-cf" placeholder="Tìm kiếm" value={colF.name} onChange={e => cf('name', e.target.value)} /></div></th>
               <th><div className="vp-search-wrap"><input className="vp-cf" placeholder="Tìm kiếm" value={colF.type} onChange={e => cf('type', e.target.value)} /></div></th>
               <th><div className="vp-search-wrap"><input className="vp-cf" placeholder="Tìm kiếm" value={colF.flag} onChange={e => cf('flag', e.target.value)} /></div></th>
               <th><div className="vp-search-wrap"><input className="vp-cf" placeholder="Tìm kiếm" value={colF.imo} onChange={e => cf('imo', e.target.value)} /></div></th>
-              <th />
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={6} className="vp-empty"><Ship size={24} /><p>Không tìm thấy tàu nào</p></td></tr>
+              <tr><td colSpan={5} className="vp-empty"><Ship size={24} /><p>Không tìm thấy tàu nào</p></td></tr>
             ) : filtered.map((v, idx) => {
-              const isExp = expandedId === v.id;
               const node = syncNodesByImo[v.imo];
-              const summary = summaries[v.imo];
               return (
-                <React.Fragment key={v.id}>
-                  {/* Main row */}
-                  <tr className={`vp-tr${isExp ? ' vp-tr--exp' : ''}${idx % 2 === 1 ? ' vp-tr--alt' : ''}`}>
-                    <td className="vp-td-toggle">
-                      <button className="vp-toggle-btn" onClick={() => toggleExpand(v.id)}>
-                        {isExp ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                      </button>
-                    </td>
-                    <td>
-                      <button className="vp-name-link" onClick={() => navigate(`/vessels/${v.id}`)}>
-                        {v.name}
-                      </button>
-                      <div className="vp-name-sub">
-                        {node && <span className={`vp-dot ${node.isOnline ? 'on' : 'off'}`} />}
-                        <span className="vp-callsign">{v.callSign}</span>
-                        {v.unacknowledgedAlerts > 0 && (
-                          <span className="vp-alert-mini"><AlertTriangle size={9} />{v.unacknowledgedAlerts}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td>{v.vesselType || ''}</td>
-                    <td>{v.flag || ''}</td>
-                    <td className="vp-cell-imo">{v.imo}</td>
-                    <td className="vp-td-actions">
-                      <button className="vp-icon-btn" title="Chỉnh sửa" onClick={e => { e.stopPropagation(); openEdit(v); }}><Pencil size={12} /></button>
-                      <button className="vp-icon-btn" title="Xem chi tiết" onClick={e => { e.stopPropagation(); navigate(`/vessels/${v.id}`); }}><Eye size={12} /></button>
-                      <button className="vp-icon-btn vp-icon-btn--danger" title="Xóa" onClick={e => { e.stopPropagation(); setDeleteTarget(v); }}><Trash2 size={12} /></button>
-                    </td>
-                  </tr>
-
-                  {/* Detail row */}
-                  {isExp && (
-                    <tr className="vp-tr-detail">
-                      <td colSpan={6} className="vp-td-detail">
-                        <DetailPanel
-                          vessel={v}
-                          summary={summary}
-                          tab={expandedTabs[v.id] ?? 'info'}
-                          onTabChange={t => setExpandedTabs(p => ({ ...p, [v.id]: t }))}
-                          onEdit={() => openEdit(v)}
-                          onDelete={() => setDeleteTarget(v)}
-                          onNavigate={() => navigate(`/vessels/${v.id}`)}
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
+                <tr
+                  key={v.id}
+                  className={`vp-tr${idx % 2 === 1 ? ' vp-tr--alt' : ''}${selectedVesselId === v.id ? ' vp-tr--selected' : ''}`}
+                  onContextMenu={(e) => handleContextMenu(e, v)}
+                >
+                  <td>
+                    <button className="vp-name-link" onClick={() => navigate(`/vessels/${v.id}`)}>
+                      {v.name}
+                    </button>
+                    <div className="vp-name-sub">
+                      <span className="vp-callsign">{v.callSign}</span>
+                      {v.unacknowledgedAlerts > 0 && (
+                        <span className="vp-alert-mini"><AlertTriangle size={9} />{v.unacknowledgedAlerts}</span>
+                      )}
+                    </div>
+                  </td>
+                  <td>{v.vesselType || ''}</td>
+                  <td>{v.flag || ''}</td>
+                  <td className="vp-cell-imo">{v.imo}</td>
+                  <td className="vp-cell-status">
+                    {node ? (
+                      <span className={`vp-status-badge ${node.isOnline ? 'vp-status-badge--online' : 'vp-status-badge--offline'}`}>
+                        <span className="vp-status-badge__dot" />
+                        {node.isOnline ? 'Online' : 'Offline'}
+                      </span>
+                    ) : (
+                      <span className="vp-status-badge vp-status-badge--unknown">
+                        Chưa kết nối
+                      </span>
+                    )}
+                  </td>
+                </tr>
               );
             })}
           </tbody>
@@ -573,6 +398,42 @@ export const VesselsPage: React.FC = () => {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="vp-context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            className="vp-ctx-item"
+            onClick={() => { navigate(`/vessels/${contextMenu.vessel.id}`); closeContextMenu(); }}
+          >
+            <FileText size={13} /> Xem chi tiết
+          </button>
+          <button
+            className="vp-ctx-item"
+            onClick={() => { window.open(`/vessels/${contextMenu.vessel.id}`, '_blank'); closeContextMenu(); }}
+          >
+            <ExternalLink size={13} /> Mở trong tab mới
+          </button>
+          <div className="vp-ctx-divider" />
+          <button
+            className="vp-ctx-item"
+            onClick={() => { openEdit(contextMenu.vessel); closeContextMenu(); }}
+          >
+            <Pencil size={13} /> Chỉnh sửa
+          </button>
+          <div className="vp-ctx-divider" />
+          <button
+            className="vp-ctx-item vp-ctx-item--danger"
+            onClick={() => { setDeleteTarget(contextMenu.vessel); closeContextMenu(); }}
+          >
+            <Trash2 size={13} /> Xóa tàu
+          </button>
         </div>
       )}
 

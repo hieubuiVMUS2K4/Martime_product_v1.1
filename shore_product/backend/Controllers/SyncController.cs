@@ -282,6 +282,81 @@ public class SyncController : ControllerBase
             return StatusCode(500, new { error = "Reconciliation failed" });
         }
     }
+
+    /// <summary>
+    /// POST /api/sync/force-push — Admin trigger: Queue data for specific node to pull.
+    /// Pushes all crew/certificate data to target ship's outbox.
+    /// </summary>
+    [HttpPost("force-push/{nodeId}")]
+    public async Task<IActionResult> ForcePush(string nodeId)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(nodeId))
+                return BadRequest(new { error = "nodeId is required" });
+
+            _logger.LogInformation("Force push initiated for node {NodeId}", nodeId);
+
+            // Queue full snapshot for the target node
+            var count = await _crewSync.QueueFullCrewSnapshotAsync(nodeId);
+
+            _logger.LogInformation("Force push queued {Count} items for node {NodeId}", count, nodeId);
+
+            return Ok(new
+            {
+                message = $"Successfully queued {count} items for sync",
+                nodeId,
+                queuedItems = count,
+                status = "QUEUED",
+                note = "Edge node will pull these items in next sync cycle (typically 5 minutes)"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during force push for node {NodeId}", nodeId);
+            return StatusCode(500, new { error = "Force push failed" });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/sync/force-push-all — Broadcast push to all connected nodes.
+    /// </summary>
+    [HttpPost("force-push-all")]
+    public async Task<IActionResult> ForcePushAll()
+    {
+        try
+        {
+            var nodes = await _context.SyncNodeTrackers
+                .Where(n => n.IsOnline)
+                .Select(n => n.NodeId)
+                .ToListAsync();
+
+            if (nodes.Count == 0)
+                return BadRequest(new { error = "No online nodes found" });
+
+            var totalQueued = 0;
+            foreach (var nodeId in nodes)
+            {
+                var count = await _crewSync.QueueFullCrewSnapshotAsync(nodeId);
+                totalQueued += count;
+            }
+
+            _logger.LogInformation("Force push all queued {Total} items for {NodeCount} nodes", totalQueued, nodes.Count);
+
+            return Ok(new
+            {
+                message = $"Queued sync for {nodes.Count} ships",
+                nodeCount = nodes.Count,
+                totalQueuedItems = totalQueued,
+                nodes
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during force push all");
+            return StatusCode(500, new { error = "Force push all failed" });
+        }
+    }
 }
 
 public class SyncResultDto

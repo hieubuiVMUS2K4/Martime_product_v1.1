@@ -630,6 +630,11 @@ public class SyncInboxService : ISyncInboxService
             "Auto-registered new vessel IMO={IMO} (placeholder — will be updated by ship_data sync)", imo);
     }
 
+    /// <summary>
+    /// Process ship_data sync with Hybrid Master strategy:
+    /// - Technical data (dimensions, machinery, radio, tanks): Edge is master → always update
+    /// - Commercial data (shipowner, charterer, insurance): Shore is master → preserve existing values
+    /// </summary>
     private async Task ProcessShipDataAsync(SyncQueueItemDto item)
     {
         if (string.IsNullOrWhiteSpace(item.Payload))
@@ -642,41 +647,49 @@ public class SyncInboxService : ISyncInboxService
         using var doc = System.Text.Json.JsonDocument.Parse(item.Payload);
         var root = doc.RootElement;
 
-        string GetStr(params string[] keys)
+        // Helper functions with case-insensitive key matching
+        string? GetStr(params string[] keys)
         {
             foreach (var k in keys)
                 if (root.TryGetProperty(k, out var el) && el.ValueKind == JsonValueKind.String)
-                    return el.GetString() ?? "";
-            return "";
+                    return el.GetString();
+            return null;
         }
 
-        double GetDbl(params string[] keys)
+        double? GetDbl(params string[] keys)
         {
             foreach (var k in keys)
-                if (root.TryGetProperty(k, out var el) &&
-                    (el.ValueKind == JsonValueKind.Number) && el.TryGetDouble(out var d))
+                if (root.TryGetProperty(k, out var el) && el.ValueKind == JsonValueKind.Number && el.TryGetDouble(out var d))
                     return d;
-            return 0;
+            return null;
         }
 
-        int GetInt(params string[] keys)
+        int? GetInt(params string[] keys)
         {
             foreach (var k in keys)
-                if (root.TryGetProperty(k, out var el) &&
-                    el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out var i))
+                if (root.TryGetProperty(k, out var el) && el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out var i))
                     return i;
-            return 0;
+            return null;
         }
 
-        var imo       = GetStr("imoNumber", "ImoNumber", "imo_number");
-        var name      = GetStr("shipName",  "ShipName",  "ship_name");
-        var callSign  = GetStr("callSign",  "CallSign",  "call_sign");
-        var type      = GetStr("typeOfVessel", "TypeOfVessel", "type_of_vessel");
-        var flag      = GetStr("flag",      "Flag");
-        var gt        = GetDbl("grossTonnageInternational", "GrossTonnageInternational", "gross_tonnage_international");
-        var dwt       = GetDbl("deadweightMt", "DeadweightMt", "deadweight_mt");
-        var yearBuilt = GetInt("yearBuilt", "YearBuilt", "year_built");
+        bool GetBool(params string[] keys)
+        {
+            foreach (var k in keys)
+                if (root.TryGetProperty(k, out var el) && el.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                    return el.GetBoolean();
+            return false;
+        }
 
+        DateTime? GetDate(params string[] keys)
+        {
+            foreach (var k in keys)
+                if (root.TryGetProperty(k, out var el) && el.ValueKind == JsonValueKind.String && DateTime.TryParse(el.GetString(), out var dt))
+                    return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+            return null;
+        }
+
+        // Extract IMO - required field
+        var imo = GetStr("imoNumber", "ImoNumber", "imo_number", "IMO");
         if (string.IsNullOrWhiteSpace(imo))
         {
             _logger.LogWarning("ship_data missing IMO for key {Key}", item.RecordKey);
@@ -684,33 +697,290 @@ public class SyncInboxService : ISyncInboxService
             return;
         }
 
-        var buildDate = yearBuilt > 1900
-            ? new DateTime(yearBuilt, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-            : DateTime.UtcNow;
-
         // Upsert: find by IMO or create new
-        var existing = await _context.Vessels.FirstOrDefaultAsync(v => v.IMO == imo);
-        if (existing == null)
+        var vessel = await _context.Vessels.FirstOrDefaultAsync(v => v.IMO == imo);
+        bool isNew = vessel == null;
+        
+        if (isNew)
         {
-            existing = new ProductApi.Models.Vessel { Id = Guid.NewGuid() };
-            await _context.Vessels.AddAsync(existing);
-            _logger.LogInformation("Creating Vessel from ship_data: {Name} IMO={IMO}", name, imo);
+            vessel = new ProductApi.Models.Vessel { Id = Guid.NewGuid(), IMO = imo, CreatedAt = DateTime.UtcNow };
+            await _context.Vessels.AddAsync(vessel);
+            _logger.LogInformation("Creating Vessel from Edge ship_data: IMO={IMO}", imo);
         }
         else
         {
-            _logger.LogInformation("Updating Vessel from ship_data: {Name} IMO={IMO}", name, imo);
+            _logger.LogDebug("Updating Vessel from Edge ship_data: IMO={IMO}", imo);
         }
 
-        existing.IMO        = imo;
-        existing.Name       = string.IsNullOrWhiteSpace(name) ? existing.Name : name;
-        existing.CallSign   = string.IsNullOrWhiteSpace(callSign) ? existing.CallSign : callSign;
-        existing.VesselType = string.IsNullOrWhiteSpace(type) ? existing.VesselType : type;
-        existing.Flag       = string.IsNullOrWhiteSpace(flag) ? existing.Flag : flag;
-        if (gt  > 0) existing.GrossTonnage = gt;
-        if (dwt > 0) existing.DeadWeight   = dwt;
-        if (yearBuilt > 1900) existing.BuildDate = buildDate;
-        existing.IsActive = true;
+        // ══════════════════════════════════════════════════════════════════
+        // BASIC DATA - Always update from Edge (Edge is master)
+        // ══════════════════════════════════════════════════════════════════
+        
+        vessel.Name = GetStr("shipName", "ShipName", "ship_name") ?? vessel.Name;
+        vessel.CallSign = GetStr("callSign", "CallSign", "call_sign") ?? vessel.CallSign;
+        vessel.VesselType = GetStr("typeOfVessel", "TypeOfVessel", "type_of_vessel") ?? vessel.VesselType;
+        vessel.Flag = GetStr("flag", "Flag") ?? vessel.Flag;
+        vessel.OfficialNumber = GetStr("officialNumber", "OfficialNumber", "official_number");
+        vessel.PortOfRegistry = GetStr("portOfRegistry", "PortOfRegistry", "port_of_registry");
+        vessel.PreviousName = GetStr("previousName", "PreviousName", "previous_name");
+        vessel.PreviousFlag = GetStr("previousFlag", "PreviousFlag", "previous_flag");
+        vessel.MmsiNumber = GetStr("mmsiNumber", "MmsiNumber", "mmsi_number");
+        vessel.ClassNotation = GetStr("classNotation", "ClassNotation", "class_notation");
+        vessel.ClassRegisterNumber = GetStr("classRegisterNumber", "ClassRegisterNumber", "class_register_number");
+        vessel.ShipyardCountry = GetStr("shipyardCountry", "ShipyardCountry", "shipyard_country");
+        vessel.ShipyardName = GetStr("shipyardName", "ShipyardName", "shipyard_name");
+        vessel.YardNo = GetStr("yardNo", "YardNo", "yard_no");
+        vessel.SuezCanalIdNumber = GetStr("suezCanalIdNumber", "SuezCanalIdNumber", "suez_canal_id_number");
+        vessel.PanamaCanalIdNumber = GetStr("panamaCanalIdNumber", "PanamaCanalIdNumber", "panama_canal_id_number");
+        vessel.VrpNumber = GetStr("vrpNumber", "VrpNumber", "vrp_number");
+        vessel.VrpType = GetStr("vrpType", "VrpType", "vrp_type");
+        
+        vessel.KeelLaidDate = GetDate("keelLaidDate", "KeelLaidDate", "keel_laid_date");
+        vessel.YearBuilt = GetInt("yearBuilt", "YearBuilt", "year_built");
+        vessel.DateOfRegistry = GetDate("dateOfRegistry", "DateOfRegistry", "date_of_registry");
+        vessel.MaxPersonsAllowedOB = GetInt("maxPersonsAllowedOB", "MaxPersonsAllowedOB", "max_persons_allowed_ob");
+        vessel.MaxPassengersAllowedOB = GetInt("maxPassengersAllowedOB", "MaxPassengersAllowedOB", "max_passengers_allowed_ob");
+        vessel.NoOfCrewSafeManning = GetInt("noOfCrewSafeManning", "NoOfCrewSafeManning", "no_of_crew_safe_manning");
+        vessel.ServiceSpeedKts = GetDbl("serviceSpeedKts", "ServiceSpeedKts", "service_speed_kts");
 
+        // Build date from year
+        if (vessel.YearBuilt.HasValue && vessel.YearBuilt > 1900)
+            vessel.BuildDate = new DateTime(vessel.YearBuilt.Value, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        // Tonnage fields
+        vessel.GrossTonnage = GetDbl("grossTonnage", "GrossTonnage", "gross_tonnage") ?? vessel.GrossTonnage;
+        vessel.DeadWeight = GetDbl("deadWeight", "DeadWeight", "dead_weight", "deadweightMt", "DeadweightMt") ?? vessel.DeadWeight;
+        vessel.GrossTonnageInternational = GetDbl("grossTonnageInternational", "GrossTonnageInternational", "gross_tonnage_international");
+        vessel.GrossTonnageSuezCanal = GetDbl("grossTonnageSuezCanal", "GrossTonnageSuezCanal", "gross_tonnage_suez_canal");
+        vessel.GrossTonnagePanamaCanal = GetDbl("grossTonnagePanamaCanal", "GrossTonnagePanamaCanal", "gross_tonnage_panama_canal");
+        vessel.NettTonnageInternational = GetDbl("nettTonnageInternational", "NettTonnageInternational", "nett_tonnage_international");
+        vessel.NettTonnageSuezCanal = GetDbl("nettTonnageSuezCanal", "NettTonnageSuezCanal", "nett_tonnage_suez_canal");
+        vessel.NettTonnagePanamaCanal = GetDbl("nettTonnagePanamaCanal", "NettTonnagePanamaCanal", "nett_tonnage_panama_canal");
+
+        // ══════════════════════════════════════════════════════════════════
+        // DIMENSIONS - Technical data (Edge Master) - Always update
+        // ══════════════════════════════════════════════════════════════════
+        
+        vessel.Loa = GetDbl("loa", "Loa", "LOA");
+        vessel.Lbp = GetDbl("lbp", "Lbp", "LBP");
+        vessel.BreadthMoulded = GetDbl("breadthMoulded", "BreadthMoulded", "breadth_moulded");
+        vessel.DepthMoulded = GetDbl("depthMoulded", "DepthMoulded", "depth_moulded");
+        vessel.DraftMoulded = GetDbl("draftMoulded", "DraftMoulded", "draft_moulded");
+        vessel.DraftScantling = GetDbl("draftScantling", "DraftScantling", "draft_scantling");
+        vessel.DraftFullBallast = GetDbl("draftFullBallast", "DraftFullBallast", "draft_full_ballast");
+        vessel.HMaxAirdraft = GetDbl("hMaxAirdraft", "HMaxAirdraft", "h_max_airdraft");
+        vessel.AirdraftReductionMastFouled = GetDbl("airdraftReductionMastFouled", "AirdraftReductionMastFouled");
+        vessel.DDistance = GetDbl("dDistance", "DDistance", "d_distance");
+        vessel.BridgeToAft = GetDbl("bridgeToAft", "BridgeToAft", "bridge_to_aft");
+        vessel.BridgeToBow = GetDbl("bridgeToBow", "BridgeToBow", "bridge_to_bow");
+        vessel.BowToBulbousBow = GetDbl("bowToBulbousBow", "BowToBulbousBow", "bow_to_bulbous_bow");
+        vessel.ParallelBodyBallast = GetDbl("parallelBodyBallast", "ParallelBodyBallast", "parallel_body_ballast");
+        vessel.ParallelBodyLoaded = GetDbl("parallelBodyLoaded", "ParallelBodyLoaded", "parallel_body_loaded");
+        vessel.LightShip = GetDbl("lightShip", "LightShip", "light_ship");
+        vessel.BlockCoefficientNA = GetBool("blockCoefficientNA", "BlockCoefficientNA", "block_coefficient_na");
+        vessel.BlockCoefficient = GetDbl("blockCoefficient", "BlockCoefficient", "block_coefficient");
+        vessel.TpcAtSummerDraft = GetDbl("tpcAtSummerDraft", "TpcAtSummerDraft", "tpc_at_summer_draft");
+        vessel.FreshWaterAllowanceFwa = GetDbl("freshWaterAllowanceFwa", "FreshWaterAllowanceFwa", "fresh_water_allowance_fwa");
+
+        // Tanker-specific dimensions
+        vessel.ManifoldToWaterlineBallast = GetDbl("manifoldToWaterlineBallast", "ManifoldToWaterlineBallast");
+        vessel.ManifoldToWaterlineLoaded = GetDbl("manifoldToWaterlineLoaded", "ManifoldToWaterlineLoaded");
+        vessel.DeckToManifold = GetDbl("deckToManifold", "DeckToManifold", "deck_to_manifold");
+        vessel.SternToManifold = GetDbl("sternToManifold", "SternToManifold", "stern_to_manifold");
+        vessel.ShipsideToManifold = GetDbl("shipsideToManifold", "ShipsideToManifold", "shipside_to_manifold");
+        vessel.BowToManifold = GetDbl("bowToManifold", "BowToManifold", "bow_to_manifold");
+        vessel.ManifoldToKeel = GetDbl("manifoldToKeel", "ManifoldToKeel", "manifold_to_keel");
+        vessel.ManifoldToBridge = GetDbl("manifoldToBridge", "ManifoldToBridge", "manifold_to_bridge");
+        vessel.MaxLoadingRateShip = GetDbl("maxLoadingRateShip", "MaxLoadingRateShip", "max_loading_rate_ship");
+        vessel.NumberOfLines = GetInt("numberOfLines", "NumberOfLines", "number_of_lines");
+        vessel.MaxAllowablePressurePsi = GetDbl("maxAllowablePressurePsi", "MaxAllowablePressurePsi", "max_allowable_pressure_psi");
+        vessel.VentingSystemShip = GetStr("ventingSystemShip", "VentingSystemShip", "venting_system_ship");
+
+        // ══════════════════════════════════════════════════════════════════
+        // MACHINERY - Technical data (Edge Master) - Always update
+        // ══════════════════════════════════════════════════════════════════
+        
+        vessel.AnchorChainPort = GetInt("anchorChainPort", "AnchorChainPort", "anchor_chain_port");
+        vessel.AnchorChainStarboard = GetInt("anchorChainStarboard", "AnchorChainStarboard", "anchor_chain_starboard");
+        vessel.AnchorChainStern = GetInt("anchorChainStern", "AnchorChainStern", "anchor_chain_stern");
+        vessel.AnchorChainSternNA = GetBool("anchorChainSternNA", "AnchorChainSternNA", "anchor_chain_stern_na");
+        vessel.BowthrusterNA = GetBool("bowthrusterNA", "BowthrusterNA", "bowthruster_na");
+        vessel.SternthrusterNA = GetBool("sternthrusterNA", "SternthrusterNA", "sternthruster_na");
+        vessel.ShaftGeneratorNA = GetBool("shaftGeneratorNA", "ShaftGeneratorNA", "shaft_generator_na");
+        vessel.HarbourGeneratorMaker = GetStr("harbourGeneratorMaker", "HarbourGeneratorMaker", "harbour_generator_maker");
+        vessel.HarbourGeneratorMaxPowerKW = GetDbl("harbourGeneratorMaxPowerKW", "HarbourGeneratorMaxPowerKW");
+        vessel.AzimuthEngFwdCount = GetInt("azimuthEngFwdCount", "AzimuthEngFwdCount", "azimuth_eng_fwd_count");
+        vessel.AzimuthEngFwdMaxPowerKW = GetDbl("azimuthEngFwdMaxPowerKW", "AzimuthEngFwdMaxPowerKW");
+        vessel.AzimuthEngAftCount = GetInt("azimuthEngAftCount", "AzimuthEngAftCount", "azimuth_eng_aft_count");
+        vessel.AzimuthEngAftMaxPowerKW = GetDbl("azimuthEngAftMaxPowerKW", "AzimuthEngAftMaxPowerKW");
+
+        // ══════════════════════════════════════════════════════════════════
+        // RADIO COMMUNICATION - Technical data (Edge Master) - Always update
+        // ══════════════════════════════════════════════════════════════════
+        
+        vessel.InmarsatTelex1 = GetStr("inmarsatTelex1", "InmarsatTelex1", "inmarsat_telex1");
+        vessel.InmarsatTelex2 = GetStr("inmarsatTelex2", "InmarsatTelex2", "inmarsat_telex2");
+        vessel.InmarsatPhone1 = GetStr("inmarsatPhone1", "InmarsatPhone1", "inmarsat_phone1");
+        vessel.InmarsatPhone2 = GetStr("inmarsatPhone2", "InmarsatPhone2", "inmarsat_phone2");
+        vessel.InmarsatFax1 = GetStr("inmarsatFax1", "InmarsatFax1", "inmarsat_fax1");
+        vessel.InmarsatFax2 = GetStr("inmarsatFax2", "InmarsatFax2", "inmarsat_fax2");
+        vessel.EmailAddress1 = GetStr("emailAddress1", "EmailAddress1", "email_address1");
+        vessel.EmailAddress2 = GetStr("emailAddress2", "EmailAddress2", "email_address2");
+        vessel.GsmPhone = GetStr("gsmPhone", "GsmPhone", "gsm_phone");
+        vessel.SeaAreaA1 = GetBool("seaAreaA1", "SeaAreaA1", "sea_area_a1");
+        vessel.SeaAreaA2 = GetBool("seaAreaA2", "SeaAreaA2", "sea_area_a2");
+        vessel.SeaAreaA3 = GetBool("seaAreaA3", "SeaAreaA3", "sea_area_a3");
+        vessel.SeaAreaA4 = GetBool("seaAreaA4", "SeaAreaA4", "sea_area_a4");
+        vessel.DscHF = GetBool("dscHF", "DscHF", "dsc_hf");
+        vessel.DscMF = GetBool("dscMF", "DscMF", "dsc_mf");
+        vessel.DscVHF = GetBool("dscVHF", "DscVHF", "dsc_vhf");
+        vessel.RadiotelephoneHF = GetBool("radiotelephoneHF", "RadiotelephoneHF", "radiotelephone_hf");
+        vessel.RadiotelephoneMF = GetBool("radiotelephoneMF", "RadiotelephoneMF", "radiotelephone_mf");
+        vessel.RadiotelephoneVHF = GetBool("radiotelephoneVHF", "RadiotelephoneVHF", "radiotelephone_vhf");
+        vessel.RadiotelegraphHF = GetBool("radiotelegraphHF", "RadiotelegraphHF", "radiotelegraph_hf");
+        vessel.RadiotelegraphMF = GetBool("radiotelegraphMF", "RadiotelegraphMF", "radiotelegraph_mf");
+        vessel.RadiotelegraphVHF = GetBool("radiotelegraphVHF", "RadiotelegraphVHF", "radiotelegraph_vhf");
+        vessel.Navtex = GetBool("navtex", "Navtex");
+        vessel.Ais = GetBool("ais", "Ais", "AIS");
+        vessel.SartTransponder = GetBool("sartTransponder", "SartTransponder", "sart_transponder");
+        vessel.Radiotelex = GetBool("radiotelex", "Radiotelex");
+        vessel.OtherRadioEquipment = GetStr("otherRadioEquipment", "OtherRadioEquipment", "other_radio_equipment");
+        vessel.EpirbNumber = GetStr("epirbNumber", "EpirbNumber", "epirb_number");
+        vessel.EpirbOperatingSystem = GetStr("epirbOperatingSystem", "EpirbOperatingSystem", "epirb_operating_system");
+        vessel.EpirbMaker = GetStr("epirbMaker", "EpirbMaker", "epirb_maker");
+        vessel.EpirbModel = GetStr("epirbModel", "EpirbModel", "epirb_model");
+        vessel.EpirbFrequency = GetStr("epirbFrequency", "EpirbFrequency", "epirb_frequency");
+
+        // ══════════════════════════════════════════════════════════════════
+        // TANKS & CARGO - Technical data (Edge Master) - Always update
+        // ══════════════════════════════════════════════════════════════════
+        
+        vessel.HfoCbm = GetDbl("hfoCbm", "HfoCbm", "hfo_cbm");
+        vessel.MdoCbm = GetDbl("mdoCbm", "MdoCbm", "mdo_cbm");
+        vessel.LubOilCbm = GetDbl("lubOilCbm", "LubOilCbm", "lub_oil_cbm");
+        vessel.SludgeCbm = GetDbl("sludgeCbm", "SludgeCbm", "sludge_cbm");
+        vessel.BilgeWaterCbm = GetDbl("bilgeWaterCbm", "BilgeWaterCbm", "bilge_water_cbm");
+        vessel.SewageCbm = GetDbl("sewageCbm", "SewageCbm", "sewage_cbm");
+        vessel.FreshWaterCbm = GetDbl("freshWaterCbm", "FreshWaterCbm", "fresh_water_cbm");
+        vessel.BallastWaterCbm = GetDbl("ballastWaterCbm", "BallastWaterCbm", "ballast_water_cbm");
+        vessel.NoOfBallastTanks = GetInt("noOfBallastTanks", "NoOfBallastTanks", "no_of_ballast_tanks");
+        vessel.TeuTotal = GetInt("teuTotal", "TeuTotal", "teu_total");
+        vessel.TeuOnDeck = GetInt("teuOnDeck", "TeuOnDeck", "teu_on_deck");
+        vessel.TeuUnderDeck = GetInt("teuUnderDeck", "TeuUnderDeck", "teu_under_deck");
+        vessel.GrainCbm = GetDbl("grainCbm", "GrainCbm", "grain_cbm");
+        vessel.BalesCbm = GetDbl("balesCbm", "BalesCbm", "bales_cbm");
+        vessel.NoOfCargoHolds = GetInt("noOfCargoHolds", "NoOfCargoHolds", "no_of_cargo_holds");
+        vessel.NoOfHatches = GetInt("noOfHatches", "NoOfHatches", "no_of_hatches");
+
+        // ══════════════════════════════════════════════════════════════════
+        // CLASS / FLAG STATE - Technical data (Edge Master) - Always update
+        // ══════════════════════════════════════════════════════════════════
+        
+        vessel.ClassSocietyName = GetStr("classSocietyName", "ClassSocietyName", "class_society_name");
+        vessel.ClassSocietyStreet = GetStr("classSocietyStreet", "ClassSocietyStreet", "class_society_street");
+        vessel.ClassSocietyCountry = GetStr("classSocietyCountry", "ClassSocietyCountry", "class_society_country");
+        vessel.ClassSocietyZip = GetStr("classSocietyZip", "ClassSocietyZip", "class_society_zip");
+        vessel.ClassSocietyCity = GetStr("classSocietyCity", "ClassSocietyCity", "class_society_city");
+        vessel.ClassSocietyPhone = GetStr("classSocietyPhone", "ClassSocietyPhone", "class_society_phone");
+        vessel.ClassSocietyFax = GetStr("classSocietyFax", "ClassSocietyFax", "class_society_fax");
+        vessel.ClassSocietyTlx = GetStr("classSocietyTlx", "ClassSocietyTlx", "class_society_tlx");
+        vessel.ClassSocietyEmail = GetStr("classSocietyEmail", "ClassSocietyEmail", "class_society_email");
+        vessel.ClassSocietyContactPerson = GetStr("classSocietyContactPerson", "ClassSocietyContactPerson");
+        
+        vessel.FlagStateName = GetStr("flagStateName", "FlagStateName", "flag_state_name");
+        vessel.FlagStateStreet = GetStr("flagStateStreet", "FlagStateStreet", "flag_state_street");
+        vessel.FlagStateCountry = GetStr("flagStateCountry", "FlagStateCountry", "flag_state_country");
+        vessel.FlagStateZip = GetStr("flagStateZip", "FlagStateZip", "flag_state_zip");
+        vessel.FlagStateCity = GetStr("flagStateCity", "FlagStateCity", "flag_state_city");
+        vessel.FlagStatePhone = GetStr("flagStatePhone", "FlagStatePhone", "flag_state_phone");
+        vessel.FlagStateFax = GetStr("flagStateFax", "FlagStateFax", "flag_state_fax");
+        vessel.FlagStateTlx = GetStr("flagStateTlx", "FlagStateTlx", "flag_state_tlx");
+        vessel.FlagStateEmail = GetStr("flagStateEmail", "FlagStateEmail", "flag_state_email");
+        vessel.FlagStateContactPerson = GetStr("flagStateContactPerson", "FlagStateContactPerson", "flag_state_contact_person");
+
+        // ══════════════════════════════════════════════════════════════════
+        // COMMERCIAL DATA (Shipowner, Charterer, Insurance)
+        // ══════════════════════════════════════════════════════════════════
+        // IMPORTANT: DO NOT overwrite these fields if already set on Shore
+        // Shore is the master for commercial data
+        // Strategy: Fill from Edge only if field is currently null (initial sync)
+        //           OR if vessel has never been edited on Shore (LastShoreSyncAt == null)
+        // ══════════════════════════════════════════════════════════════════
+
+        // Check if this is initial sync (vessel exists but has never been edited on Shore)
+        bool isInitialSync = vessel.LastShoreSyncAt == null;
+        
+        // For new vessels OR initial sync: accept commercial data from Edge as initial values
+        if (isNew || isInitialSync)
+        {
+            // Only fill if current value is null (preserve Shore edits)
+            vessel.ShipownerName ??= GetStr("shipownerName", "ShipownerName", "shipowner_name");
+            vessel.ShipownerStreet ??= GetStr("shipownerStreet", "ShipownerStreet", "shipowner_street");
+            vessel.ShipownerCountry ??= GetStr("shipownerCountry", "ShipownerCountry", "shipowner_country");
+            vessel.ShipownerZip ??= GetStr("shipownerZip", "ShipownerZip", "shipowner_zip");
+            vessel.ShipownerCity ??= GetStr("shipownerCity", "ShipownerCity", "shipowner_city");
+            vessel.ShipownerPhone ??= GetStr("shipownerPhone", "ShipownerPhone", "shipowner_phone");
+            vessel.ShipownerFax ??= GetStr("shipownerFax", "ShipownerFax", "shipowner_fax");
+            vessel.ShipownerEmail ??= GetStr("shipownerEmail", "ShipownerEmail", "shipowner_email");
+            vessel.ShipownerContactPerson ??= GetStr("shipownerContactPerson", "ShipownerContactPerson", "shipowner_contact_person");
+            
+            vessel.ManagingOwnerName ??= GetStr("managingOwnerName", "ManagingOwnerName", "managing_owner_name");
+            vessel.ManagingOwnerEmail ??= GetStr("managingOwnerEmail", "ManagingOwnerEmail", "managing_owner_email");
+            vessel.ManagingOwnerContactPerson ??= GetStr("managingOwnerContactPerson", "ManagingOwnerContactPerson");
+            
+            vessel.OperatorName ??= GetStr("operatorName", "OperatorName", "operator_name");
+            vessel.OperatorEmail ??= GetStr("operatorEmail", "OperatorEmail", "operator_email");
+            vessel.OperatorContactPerson ??= GetStr("operatorContactPerson", "OperatorContactPerson");
+            
+            vessel.CsoFirstName ??= GetStr("csoFirstName", "CsoFirstName", "cso_first_name");
+            vessel.CsoLastName ??= GetStr("csoLastName", "CsoLastName", "cso_last_name");
+            vessel.CsoEmail ??= GetStr("csoEmail", "CsoEmail", "cso_email");
+            vessel.CsoPhone24h ??= GetStr("csoPhone24h", "CsoPhone24h", "cso_phone_24h");
+            
+            vessel.DpaFirstName ??= GetStr("dpaFirstName", "DpaFirstName", "dpa_first_name");
+            vessel.DpaLastName ??= GetStr("dpaLastName", "DpaLastName", "dpa_last_name");
+            vessel.DpaEmail ??= GetStr("dpaEmail", "DpaEmail", "dpa_email");
+            vessel.DpaPhone24h ??= GetStr("dpaPhone24h", "DpaPhone24h", "dpa_phone_24h");
+            
+            vessel.ChartererName ??= GetStr("chartererName", "ChartererName", "charterer_name");
+            vessel.ChartererStreet ??= GetStr("chartererStreet", "ChartererStreet", "charterer_street");
+            vessel.ChartererCountry ??= GetStr("chartererCountry", "ChartererCountry", "charterer_country");
+            vessel.ChartererZip ??= GetStr("chartererZip", "ChartererZip", "charterer_zip");
+            vessel.ChartererCity ??= GetStr("chartererCity", "ChartererCity", "charterer_city");
+            vessel.ChartererPhone ??= GetStr("chartererPhone", "ChartererPhone", "charterer_phone");
+            vessel.ChartererEmail ??= GetStr("chartererEmail", "ChartererEmail", "charterer_email");
+            vessel.ChartererContactPerson ??= GetStr("chartererContactPerson", "ChartererContactPerson", "charterer_contact_person");
+            
+            vessel.BareboatChartererName ??= GetStr("bareboatChartererName", "BareboatChartererName", "bareboat_charterer_name");
+            vessel.BareboatChartererEmail ??= GetStr("bareboatChartererEmail", "BareboatChartererEmail", "bareboat_charterer_email");
+            vessel.BareboatChartererContactPerson ??= GetStr("bareboatChartererContactPerson", "BareboatChartererContactPerson");
+            
+            vessel.PiClubName ??= GetStr("piClubName", "PiClubName", "pi_club_name");
+            vessel.PiClubStreet ??= GetStr("piClubStreet", "PiClubStreet", "pi_club_street");
+            vessel.PiClubCountry ??= GetStr("piClubCountry", "PiClubCountry", "pi_club_country");
+            vessel.PiClubZip ??= GetStr("piClubZip", "PiClubZip", "pi_club_zip");
+            vessel.PiClubCity ??= GetStr("piClubCity", "PiClubCity", "pi_club_city");
+            vessel.PiClubPhone ??= GetStr("piClubPhone", "PiClubPhone", "pi_club_phone");
+            vessel.PiClubEmail ??= GetStr("piClubEmail", "PiClubEmail", "pi_club_email");
+            vessel.PiClubContactPerson ??= GetStr("piClubContactPerson", "PiClubContactPerson", "pi_club_contact_person");
+            
+            vessel.HmClubName ??= GetStr("hmClubName", "HmClubName", "hm_club_name");
+            vessel.HmClubEmail ??= GetStr("hmClubEmail", "HmClubEmail", "hm_club_email");
+            vessel.HmClubContactPerson ??= GetStr("hmClubContactPerson", "HmClubContactPerson", "hm_club_contact_person");
+            
+            _logger.LogInformation("Filled commercial data from Edge for vessel IMO={IMO} (IsNew={IsNew}, IsInitialSync={IsInitialSync})", 
+                imo, isNew, isInitialSync);
+        }
+        
+        // ══════════════════════════════════════════════════════════════════
+        // UPDATE METADATA
+        // ══════════════════════════════════════════════════════════════════
+        
+        vessel.LastEdgeSyncAt = DateTime.UtcNow;
+        vessel.UpdatedAt = DateTime.UtcNow;
+        vessel.IsActive = true;
+
+        _logger.LogInformation("Processed ship_data sync for IMO={IMO} (New={IsNew}, Technical fields updated)", imo, isNew);
         await LogSyncOperation(item, "SUCCESS");
     }
 

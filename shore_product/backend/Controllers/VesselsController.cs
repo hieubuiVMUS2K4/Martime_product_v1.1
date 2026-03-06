@@ -173,10 +173,11 @@ namespace ProductApi.Controllers
         }
 
         /// <summary>
-        /// Update vessel information
+        /// Update vessel commercial data (Shore Master fields only)
+        /// Technical fields are synced from Edge and cannot be edited on Shore
         /// </summary>
         [HttpPut("{id:guid}")]
-        public async Task<ActionResult<VesselDto>> UpdateVessel(Guid id, [FromBody] UpdateVesselDto vesselDto)
+        public async Task<ActionResult<VesselDto>> UpdateVessel(Guid id, [FromBody] UpdateCommercialDataDto commercialDto)
         {
             try
             {
@@ -185,7 +186,7 @@ namespace ProductApi.Controllers
                     return BadRequest(ModelState);
                 }
 
-                var vessel = await _vesselService.UpdateVesselAsync(id, vesselDto);
+                var vessel = await _vesselService.UpdateCommercialDataAsync(id, commercialDto);
                 if (vessel == null)
                 {
                     return NotFound($"Vessel with ID {id} not found");
@@ -195,7 +196,7 @@ namespace ProductApi.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating vessel {VesselId}", id);
+                _logger.LogError(ex, "Error updating commercial data for vessel {VesselId}", id);
                 return StatusCode(500, "Internal server error");
             }
         }
