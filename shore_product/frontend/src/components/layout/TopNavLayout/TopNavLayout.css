@@ -178,7 +178,7 @@
 /* === Main Content Area === */
 .main-area {
   flex: 1;
-  padding: 8px 12px;
+  padding: 0;
   overflow: auto;
 }
 

@@ -195,4 +195,116 @@ public class SyncController : ControllerBase
             return StatusCode(500, new { error = "Reset failed", detail = ex.Message });
         }
     }
+
+    /// <summary>
+    /// POST /api/sync/snapshot-crew — Queue all existing crew data for first-time (or re-)sync to Shore.
+    /// Order is dependency-safe: master data (Countries, Ranks, Certificates) is queued before
+    /// crew members and their dependent documents so Shore can create them in the right order.
+    /// After calling this, use POST /api/sync/trigger to push queued items to Shore.
+    /// </summary>
+    [HttpPost("snapshot-crew")]
+    public async Task<IActionResult> SnapshotCrew()
+    {
+        try
+        {
+            _logger.LogInformation("Crew snapshot initiated");
+
+            var jsonOptions = new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = false,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+            };
+
+            // Build set of already-pending keys to avoid re-queuing
+            var alreadyPending = await _context.SyncQueue
+                .Where(q => q.SyncedAt == null)
+                .Select(q => new { q.TableName, q.RecordKey })
+                .ToListAsync();
+
+            var pendingSet = new HashSet<string>(
+                alreadyPending.Select(x => $"{x.TableName}:{x.RecordKey}"),
+                StringComparer.OrdinalIgnoreCase);
+
+            var toAdd = new List<SyncQueue>();
+            var baseTime = DateTime.UtcNow;
+            int seq = 0;
+
+            void Enqueue(string tableName, string recordKey, object entity)
+            {
+                var key = $"{tableName}:{recordKey}";
+                if (!pendingSet.Add(key)) return;
+                toAdd.Add(new SyncQueue
+                {
+                    TableName   = tableName,
+                    RecordKey   = recordKey,
+                    ActionType  = SyncActionType.CREATE,
+                    Payload     = System.Text.Json.JsonSerializer.Serialize(entity, jsonOptions),
+                    Priority    = SyncPriority.Operational,
+                    RetryCount  = 0,
+                    MaxRetries  = 5,
+                    CreatedAt   = baseTime.AddMilliseconds(seq++)
+                });
+            }
+
+            // Master/reference data first so Shore can satisfy FK constraints
+            var countries = await _context.Countries.AsNoTracking().ToListAsync();
+            foreach (var x in countries) Enqueue("country", x.Id.ToString(), x);
+
+            var ranks = await _context.Ranks.AsNoTracking().ToListAsync();
+            foreach (var x in ranks) Enqueue("rank", x.Id.ToString(), x);
+
+            var rankCerts = await _context.RankCertificates.AsNoTracking().ToListAsync();
+            foreach (var x in rankCerts) Enqueue("rank_certificate", x.Id.ToString(), x);
+
+            var countryCerts = await _context.CountryCertificates.AsNoTracking().ToListAsync();
+            foreach (var x in countryCerts) Enqueue("country_certificate", x.Id.ToString(), x);
+
+            var certs = await _context.Certificates.AsNoTracking().ToListAsync();
+            foreach (var x in certs) Enqueue("certificate", x.Id.ToString(), x);
+
+            // Crew members (depend on Rank)
+            var crew = await _context.CrewMembers.AsNoTracking().ToListAsync();
+            foreach (var x in crew) Enqueue("crew_member", x.Id.ToString(), x);
+
+            // Dependent on CrewMember
+            var crewCerts = await _context.CrewCertificates.AsNoTracking().ToListAsync();
+            foreach (var x in crewCerts) Enqueue("crew_certificate", x.Id.ToString(), x);
+
+            var svcRecs = await _context.ServiceRecords.AsNoTracking().ToListAsync();
+            foreach (var x in svcRecs) Enqueue("service_record", x.Id.ToString(), x);
+
+            var travelDocs = await _context.TravelDocuments.AsNoTracking().ToListAsync();
+            foreach (var x in travelDocs) Enqueue("travel_document", x.Id.ToString(), x);
+
+            var seafarerDocs = await _context.SeafarerDocuments.AsNoTracking().ToListAsync();
+            foreach (var x in seafarerDocs) Enqueue("seafarer_document", x.Id.ToString(), x);
+
+            var empDocs = await _context.EmploymentDocuments.AsNoTracking().ToListAsync();
+            foreach (var x in empDocs) Enqueue("employment_document", x.Id.ToString(), x);
+
+            var healthDocs = await _context.HealthDocuments.AsNoTracking().ToListAsync();
+            foreach (var x in healthDocs) Enqueue("health_document", x.Id.ToString(), x);
+
+            if (toAdd.Count == 0)
+                return Ok(new { message = "Tất cả dữ liệu thuyền viên đã có trong hàng đợi", queued = 0 });
+
+            await _context.SyncQueue.AddRangeAsync(toAdd);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Crew snapshot queued {Count} items", toAdd.Count);
+
+            return Ok(new
+            {
+                message = $"Đã đưa {toAdd.Count} bản ghi thuyền viên vào hàng đợi — nhấn 'Đồng bộ ngay' để gửi lên Shore",
+                queued  = toAdd.Count
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during crew snapshot");
+            return StatusCode(500, new { error = "Snapshot thất bại", detail = ex.Message });
+        }
+    }
 }
+

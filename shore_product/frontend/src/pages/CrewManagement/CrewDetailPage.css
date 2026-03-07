@@ -492,3 +492,79 @@
   .info-grid { grid-template-columns: 1fr; }
   .detail-tab { padding: 8px 12px; font-size: 0.8rem; }
 }
+
+/* ===== MOC Theme (Maritime OC Blue) ===== */
+.cd-page {
+  min-height: 100vh;
+  background: #eef1f5;
+}
+
+.cd-field {
+  width: 100%;
+  padding: 5px 10px;
+  font-size: 13px;
+  color: #1e2d3d;
+  background: #fff;
+  border: 1px solid #b8d4ee;
+  border-radius: 3px;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.cd-field:focus {
+  outline: none;
+  border-color: #0054a6;
+  box-shadow: 0 0 0 2px rgba(0, 84, 166, 0.1);
+}
+.cd-field:disabled,
+.cd-field[readonly] {
+  background: #f9fbfd;
+  cursor: not-allowed;
+}
+.cd-field.resize-none { resize: none; }
+
+.cd-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1a3a5c;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 3px;
+}
+
+.cd-section {
+  background: #fff;
+  border: 1px solid #C5D9EC;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 60, 120, 0.05);
+}
+.cd-section-header {
+  background: #D5E8FF;
+  border-bottom: 1px solid #b8d4ee;
+  padding: 7px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cd-section-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #1a3a5c;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+.cd-section-body { padding: 16px; }
+
+.cd-table-thead th {
+  background: #D5E8FF;
+  border-bottom: 1px solid #b8d4ee;
+  padding: 7px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1a3a5c;
+  text-transform: uppercase;
+  white-space: nowrap;
+}

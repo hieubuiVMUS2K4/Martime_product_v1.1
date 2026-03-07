@@ -557,6 +557,7 @@ export const syncService = {
   }>('/sync/status'),
   triggerSync: () => apiClient.post<{ message: string; totalSynced: number; pendingRecords: number }>('/sync/trigger', {}),
   resetErrors: () => apiClient.post<{ message: string }>('/sync/reset-errors', {}),
+  snapshotCrew: () => apiClient.post<{ message: string; queued: number }>('/sync/snapshot-crew', {}),
 }
 
 // ============================================================

@@ -6,8 +6,8 @@
 .vd-page-new {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  background: #f9fafb;
+  min-height: 100%;
+  background: #eef1f5;
 }
 
 /* === Header === */
@@ -16,7 +16,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 24px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #C5D9EC;
   background: #fff;
   gap: 16px;
 }
@@ -49,7 +49,7 @@
 }
 
 .vd-ship-icon {
-  color: #2563eb;
+  color: #0054a6;
 }
 
 .vd-title-new {
@@ -84,7 +84,7 @@
   font-size: 14px;
   font-weight: 500;
   color: #fff;
-  background: #2563eb;
+  background: #0054a6;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -92,7 +92,7 @@
 }
 
 .vd-save-btn:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: #003d7a;
 }
 
 .vd-save-btn:disabled {
@@ -102,7 +102,7 @@
 
 /* === Tab Navigation === */
 .vd-tabs-new {
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #C5D9EC;
   background: #fff;
   padding: 0 24px;
 }
@@ -133,8 +133,8 @@
 }
 
 .vd-tab-btn--active {
-  color: #2563eb;
-  border-bottom-color: #2563eb;
+  color: #0054a6;
+  border-bottom-color: #0054a6;
 }
 
 /* === Tab Content === */
@@ -142,7 +142,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 24px;
-  background: #f9fafb;
+  background: #eef1f5;
 }
 
 /* === Form Grid === */
@@ -154,8 +154,8 @@
   margin: 0 auto;
   background: #fff;
   padding: 24px;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  border: 1px solid #C5D9EC;
 }
 
 .vd-form-field {
@@ -176,20 +176,20 @@
 
 .vd-form-field input,
 .vd-form-field select {
-  padding: 8px 12px;
-  font-size: 14px;
-  color: #111827;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #1e2d3d;
   background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  transition: all 0.15s;
+  border: 1px solid #b8d4ee;
+  border-radius: 3px;
+  transition: border-color 0.15s;
 }
 
 .vd-form-field input:focus,
 .vd-form-field select:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: #0054a6;
+  box-shadow: 0 0 0 2px rgba(0, 84, 166, 0.1);
 }
 
 .vd-form-field input:disabled {
@@ -225,8 +225,8 @@
   color: #6b7280;
   font-size: 14px;
   background: #fff;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  border: 1px solid #C5D9EC;
 }
 
 /* === Loading & Error Screens === */
@@ -271,7 +271,7 @@
   font-size: 14px;
   font-weight: 500;
   color: #fff;
-  background: #2563eb;
+  background: #0054a6;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -279,7 +279,7 @@
 }
 
 .vd-save-btn-new:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: #003d7a;
 }
 
 .vd-save-btn-new:disabled {
@@ -289,10 +289,10 @@
 
 /* === Read Only Fields === */
 .vd-read-only {
-  background: #f9fafb !important;
+  background: #f9fbfd !important;
   color: #6b7280 !important;
   cursor: not-allowed !important;
-  border-color: #e5e7eb !important;
+  border-color: #b8d4ee !important;
 }
 
 .vd-read-only:focus {

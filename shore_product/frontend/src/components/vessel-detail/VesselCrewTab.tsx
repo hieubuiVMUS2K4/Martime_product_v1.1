@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { ENV } from '../../config/env';
+import { crewApi } from '../../services/crew.service';
+import '../../pages/VesselManagement/VesselsPage.css';
 
 interface VesselCrewTabProps {
   vesselId: string;
@@ -43,7 +45,13 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
   // Sorting state
   const [sortType, setSortType] = useState<{ col: string; dir: 'asc' | 'desc' } | null>({ col: 'crewId', dir: 'asc' });
   const [sortMenu, setSortMenu] = useState<string | null>(null);
-  
+
+  // Search / filter state
+  const [filterCrewId, setFilterCrewId] = useState('');
+  const [filterFullName, setFilterFullName] = useState('');
+  const [filterRank, setFilterRank] = useState('');
+  const [filterNationality, setFilterNationality] = useState('');
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 15;
@@ -74,6 +82,12 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
 
   // Get only onboard crew
   let crewOnBoard = crew.filter(c => c.isOnboard);
+
+  // Apply column filters
+  if (filterCrewId)     crewOnBoard = crewOnBoard.filter(c => (c.crewId || '').toLowerCase().includes(filterCrewId.toLowerCase()));
+  if (filterFullName)   crewOnBoard = crewOnBoard.filter(c => c.fullName.toLowerCase().includes(filterFullName.toLowerCase()));
+  if (filterRank)       crewOnBoard = crewOnBoard.filter(c => (c.rank?.rankName || c.rank?.name || '').toLowerCase().includes(filterRank.toLowerCase()));
+  if (filterNationality) crewOnBoard = crewOnBoard.filter(c => (c.nationality || '').toLowerCase().includes(filterNationality.toLowerCase()));
 
   // Apply sorting
   const applySorting = (crews: CrewMember[]) => {
@@ -130,6 +144,16 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
     setSelectedCrew(crew.id);
   };
 
+  const handleDelete = async (crew: CrewMember) => {
+    if (!window.confirm(`Xóa thuyền viên "${crew.fullName}"?\nHành động này không thể hoàn tác.`)) return;
+    try {
+      await crewApi.delete(crew.id);
+      await loadCrew();
+    } catch (e) {
+      alert('Xóa thất bại. Vui lòng thử lại.');
+    }
+  };
+
   // Sort Dropdown Component
   function SortDropdown({ col, options }: {
     col: string;
@@ -179,129 +203,92 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
 
   return (
     <div className="relative">
-      {/* Collapsible Crew Section */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
-        {/* Header */}
-        <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-700 uppercase">
-            CREW ON BOARD ({crewOnBoard.length})
-          </h3>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsOnboardExpanded(!isOnboardExpanded)}
-              className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
-              title={isOnboardExpanded ? "Collapse section" : "Expand section"}
-            >
-              <span className={`text-white text-xs transition-transform inline-block ${
-                isOnboardExpanded ? 'rotate-180' : 'rotate-0'
-              }`}>
-                ▼
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/* Table */}
-        {isOnboardExpanded && crewOnBoard.length > 0 && (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse table-fixed">
-                <thead className="bg-white border-b-2 border-gray-300">
-                  <tr>
-                    <th className="w-[10%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative">
-                      Crew ID
-                      <SortDropdown 
-                        col="crewId" 
-                        options={[
-                          { label: 'Sắp xếp từ A-Z', dir: 'asc' },
-                          { label: 'Sắp xếp từ Z-A', dir: 'desc' }
-                        ]} 
-                      />
+      {/* Table */}
+      {crewOnBoard.length > 0 ? (
+        <>
+          <div className="vp-table-card" style={{ borderRadius: 0, border: 'none', boxShadow: 'none' }}>
+            <table className="vp-table">
+                <thead>
+                  {/* Label row */}
+                  <tr className="vp-tr-labels">
+                    <th style={{ width: '10%', position: 'relative' }}>Crew ID
+                      <SortDropdown col="crewId" options={[{ label: 'A → Z', dir: 'asc' }, { label: 'Z → A', dir: 'desc' }]} />
                     </th>
-                    <th className="w-[20%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative">
-                      Full Name
-                      <SortDropdown 
-                        col="fullName" 
-                        options={[
-                          { label: 'Sắp xếp từ A-Z', dir: 'asc' },
-                          { label: 'Sắp xếp từ Z-A', dir: 'desc' }
-                        ]} 
-                      />
+                    <th style={{ width: '22%', position: 'relative' }}>Full Name
+                      <SortDropdown col="fullName" options={[{ label: 'A → Z', dir: 'asc' }, { label: 'Z → A', dir: 'desc' }]} />
                     </th>
-                    <th className="w-[18%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative">
-                      Rank
-                      <SortDropdown 
-                        col="position" 
-                        options={[
-                          { label: 'Sắp xếp từ A-Z', dir: 'asc' },
-                          { label: 'Sắp xếp từ Z-A', dir: 'desc' }
-                        ]} 
-                      />
+                    <th style={{ width: '20%', position: 'relative' }}>Rank
+                      <SortDropdown col="position" options={[{ label: 'A → Z', dir: 'asc' }, { label: 'Z → A', dir: 'desc' }]} />
                     </th>
-                    <th className="w-[12%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative">
-                      Nationality
-                      <SortDropdown 
-                        col="nationality" 
-                        options={[
-                          { label: 'Sắp xếp từ A-Z', dir: 'asc' },
-                          { label: 'Sắp xếp từ Z-A', dir: 'desc' }
-                        ]} 
-                      />
+                    <th style={{ width: '14%', position: 'relative' }}>Nationality
+                      <SortDropdown col="nationality" options={[{ label: 'A → Z', dir: 'asc' }, { label: 'Z → A', dir: 'desc' }]} />
                     </th>
-                    <th className="w-[15%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative">
-                      Embark Date
-                      <SortDropdown 
-                        col="embarkDate" 
-                        options={[
-                          { label: 'Ngày gần nhất', dir: 'desc' },
-                          { label: 'Ngày xa nhất', dir: 'asc' }
-                        ]} 
-                      />
+                    <th style={{ width: '16%', position: 'relative' }}>Embark Date
+                      <SortDropdown col="embarkDate" options={[{ label: 'Mới nhất', dir: 'desc' }, { label: 'Cũ nhất', dir: 'asc' }]} />
                     </th>
-                    <th className="w-[13%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
+                    <th style={{ width: '13%', borderRight: 'none' }}>Status</th>
+                  </tr>
+                  {/* Filter row */}
+                  <tr className="vp-tr-filters">
+                    <th>
+                      <div className="vp-search-wrap">
+                        <input className="vp-cf" placeholder="Tìm kiếm" value={filterCrewId} onChange={e => { setFilterCrewId(e.target.value); setCurrentPage(1); }} />
+                      </div>
                     </th>
+                    <th>
+                      <div className="vp-search-wrap">
+                        <input className="vp-cf" placeholder="Tìm kiếm" value={filterFullName} onChange={e => { setFilterFullName(e.target.value); setCurrentPage(1); }} />
+                      </div>
+                    </th>
+                    <th>
+                      <div className="vp-search-wrap">
+                        <input className="vp-cf" placeholder="Tìm kiếm" value={filterRank} onChange={e => { setFilterRank(e.target.value); setCurrentPage(1); }} />
+                      </div>
+                    </th>
+                    <th>
+                      <div className="vp-search-wrap">
+                        <input className="vp-cf" placeholder="Tìm kiếm" value={filterNationality} onChange={e => { setFilterNationality(e.target.value); setCurrentPage(1); }} />
+                      </div>
+                    </th>
+                    <th></th>
+                    <th style={{ borderRight: 'none' }}></th>
                   </tr>
                 </thead>
-                <tbody className="bg-white">
-                  {paginatedCrews.map((crewMember) => (
+                <tbody>
+                  {paginatedCrews.map((crewMember, idx) => (
                     <tr
                       key={crewMember.id}
                       onContextMenu={(e) => handleContextMenu(e, crewMember)}
-                      className={`border-b border-gray-100 transition-colors ${
-                        selectedCrew === crewMember.id ? 'bg-blue-100' : 'hover:bg-gray-50'
-                      }`}
+                      className={`vp-tr ${idx % 2 === 1 ? 'vp-tr--alt' : ''}`}
+                      style={selectedCrew === crewMember.id ? { background: '#dbeafe' } : undefined}
                     >
-                      <td className="w-[10%] px-4 py-3 text-sm text-gray-900 font-medium border-r border-gray-200">
-                        <div className="truncate">{crewMember.crewId}</div>
+                      <td style={{ borderRight: '1px solid #edf2f8' }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--moc-muted)' }}>{crewMember.crewId}</span>
                       </td>
-                      <td className="w-[20%] px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
-                        <div className="truncate">{crewMember.fullName}</div>
+                      <td style={{ borderRight: '1px solid #edf2f8' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--moc-blue)', cursor: 'pointer' }}
+                          onClick={() => navigate(`/vessels/${vesselId}/crew/${crewMember.id}`)}>
+                          {crewMember.fullName}
+                        </span>
                       </td>
-                      <td className="w-[18%] px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
-                        <div className="truncate">{crewMember.rank?.name || crewMember.rank?.rankName || '-'}</div>
+                      <td style={{ borderRight: '1px solid #edf2f8' }}>
+                        {crewMember.rank?.rankName || crewMember.rank?.name || '-'}
                       </td>
-                      <td className="w-[12%] px-4 py-3 text-sm text-gray-700 border-r border-gray-200">
-                        <div className="truncate">{crewMember.nationality || 'N/A'}</div>
+                      <td style={{ borderRight: '1px solid #edf2f8', color: 'var(--moc-muted)' }}>
+                        {crewMember.nationality || 'N/A'}
                       </td>
-                      <td className="w-[15%] px-4 py-3 text-sm text-gray-700 border-r border-gray-200">
-                        <div className="truncate">
-                          {crewMember.embarkDate 
-                            ? new Date(crewMember.embarkDate).toLocaleDateString('en-GB', { 
-                                day: '2-digit', 
-                                month: 'short', 
-                                year: 'numeric' 
-                              })
-                            : '-'}
-                        </div>
+                      <td style={{ borderRight: '1px solid #edf2f8', color: 'var(--moc-muted)' }}>
+                        {crewMember.embarkDate
+                          ? new Date(crewMember.embarkDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                          : '-'}
                       </td>
-                      <td className="w-[13%] px-4 py-3 text-sm">
+                      <td>
                         {crewMember.isOnboard ? (
-                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700">
-                            Onboard
+                          <span style={{ background: '#dcfce7', color: '#16a34a', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
+                            • Online
                           </span>
                         ) : (
-                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">
+                          <span style={{ background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
                             Ashore
                           </span>
                         )}
@@ -310,9 +297,9 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
                   ))}
                 </tbody>
               </table>
-            </div>
+          </div>
 
-            {/* Pagination */}
+          {/* Pagination */}
             {totalPages > 1 && (
               <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
                 <div className="text-sm text-gray-600">
@@ -340,15 +327,11 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
               </div>
             )}
           </>
-        )}
-
-        {/* Empty State */}
-        {isOnboardExpanded && crewOnBoard.length === 0 && (
+        ) : (
           <div className="px-4 py-12 text-center text-gray-500">
             <p>No crew members onboard this vessel</p>
           </div>
         )}
-      </div>
 
       {/* Context Menu */}
       {contextMenu && (
@@ -361,12 +344,24 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
         >
           <button
             onClick={() => {
-              navigate(`/crew/${contextMenu.crew.id}`);
+              navigate(`/vessels/${vesselId}/crew/${contextMenu.crew.id}`);
               setContextMenu(null);
             }}
             className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50"
           >
             View Details
+          </button>
+          <div className="border-t border-gray-100" />
+          <button
+            onClick={() => {
+              const target = contextMenu.crew;
+              setContextMenu(null);
+              setSelectedCrew(null);
+              handleDelete(target);
+            }}
+            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+          >
+            Delete
           </button>
         </div>
       )}

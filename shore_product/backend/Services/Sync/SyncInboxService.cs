@@ -112,27 +112,32 @@ public class SyncInboxService : ISyncInboxService
     // Maps edge table names (snake_case) to entity types
     private static readonly Dictionary<string, Type> _tableEntityMap = new(StringComparer.OrdinalIgnoreCase)
     {
-        // Telemetry / Reports (existing)
-        ["position_data"] = typeof(ProductApi.Models.PositionData),
-        ["engine_data"] = typeof(ProductApi.Models.EngineData),
-        ["maritime_report"] = typeof(ProductApi.Models.MaritimeReport),
-        ["noon_report"] = typeof(ProductApi.Models.NoonReport),
+        // Telemetry / Reports
+        ["position_data"]    = typeof(ProductApi.Models.PositionData),
+        ["engine_data"]      = typeof(ProductApi.Models.EngineData),
+        ["maritime_report"]  = typeof(ProductApi.Models.MaritimeReport),
+        ["noon_report"]      = typeof(ProductApi.Models.NoonReport),
 
-        // Crew Management (Phase 3)
-        ["crew_member"] = typeof(CrewMember),
-        ["certificate"] = typeof(Certificate),
-        ["crew_certificate"] = typeof(CrewCertificate),
-        ["country"] = typeof(Country),
-        ["rank"] = typeof(Rank),
-        ["rank_certificate"] = typeof(RankCertificate),
+        // Crew Management
+        ["crew_member"]         = typeof(CrewMember),
+        ["certificate"]         = typeof(Certificate),
+        ["crew_certificate"]    = typeof(CrewCertificate),
+        ["country"]             = typeof(Country),
+        ["rank"]                = typeof(Rank),
+        ["rank_certificate"]    = typeof(RankCertificate),
         ["country_certificate"] = typeof(CountryCertificate),
-        ["service_record"] = typeof(ServiceRecord),
+        ["service_record"]      = typeof(ServiceRecord),
 
-        // Documents
-        ["travel_document"] = typeof(TravelDocument),
-        ["seafarer_document"] = typeof(SeafarerDocument),
-        ["employment_document"] = typeof(EmploymentDocument),
-        ["health_document"] = typeof(HealthDocument),
+        // Crew Documents
+        ["travel_document"]      = typeof(TravelDocument),
+        ["seafarer_document"]    = typeof(SeafarerDocument),
+        ["employment_document"]  = typeof(EmploymentDocument),
+        ["health_document"]      = typeof(HealthDocument),
+
+        // NOTE: logbooks (deck_log_book, engine_log_book, ...) and inventory
+        // (material_item, material_receipt, ...) are not yet in Shore's AppDbContext.
+        // Items with those table names will be received from Edge but skipped with a
+        // warning until Shore adds the corresponding models and migrations.
     };
 
     public SyncInboxService(
@@ -284,9 +289,7 @@ public class SyncInboxService : ISyncInboxService
             switch (action)
             {
                 case "CREATE":
-                    await ProcessCreateAsync(entityType, item);
-                    break;
-                case "UPDATE":
+            case "SNAPSHOT": // Full-entity snapshot from Edge — treat as upsert (same as CREATE)
                     await ProcessUpdateAsync(entityType, item);
                     break;
                 case "DELETE":

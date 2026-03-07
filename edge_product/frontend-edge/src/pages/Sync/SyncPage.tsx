@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 import {
   RefreshCw, Cloud, Clock, AlertTriangle,
   CheckCircle2, XCircle, Loader2, Database, ArrowUpDown,
-  Wifi, WifiOff, Send, ChevronDown, ChevronUp, RotateCcw
+  Wifi, WifiOff, Send, ChevronDown, ChevronUp, RotateCcw, Users
 } from 'lucide-react'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 import { syncService } from '@/services/maritime.service'
@@ -27,6 +27,8 @@ export function SyncPage() {
   const [showQueue, setShowQueue] = useState(true)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const [resetting, setResetting] = useState(false)
+  const [snapshoting, setSnapshoting] = useState(false)
+  const [snapshotResult, setSnapshotResult] = useState<{ queued: number; message: string } | null>(null)
   const [syncResult, setSyncResult] = useState<{ totalSynced: number; pendingRecords: number } | null>(null)
 
   const fetchData = useCallback(async () => {
@@ -85,6 +87,21 @@ export function SyncPage() {
       setError(err instanceof Error ? err.message : 'Reset failed')
     } finally {
       setResetting(false)
+    }
+  }
+
+  const handleSnapshotCrew = async () => {
+    setSnapshoting(true)
+    setError(null)
+    setSnapshotResult(null)
+    try {
+      const result = await syncService.snapshotCrew()
+      setSnapshotResult({ queued: result.queued, message: result.message })
+      await fetchData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Snapshot thất bại')
+    } finally {
+      setSnapshoting(false)
     }
   }
 
@@ -199,6 +216,17 @@ export function SyncPage() {
               </button>
             )}
 
+            {/* Snapshot crew button — for first-time full sync */}
+            <button
+              onClick={handleSnapshotCrew}
+              disabled={snapshoting || syncing}
+              title="Đưa toàn bộ dữ liệu thuyền viên vào hàng đợi (dùng lần đầu hoặc khi cần đồng bộ lại toàn bộ)"
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-emerald-300 text-emerald-700 rounded-lg hover:bg-emerald-50 disabled:opacity-50 transition-colors text-sm font-medium"
+            >
+              {snapshoting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+              {snapshoting ? 'Đang chuẩn bị...' : 'Snapshot thuyền viên'}
+            </button>
+
             {/* Sync trigger */}
             <button
               onClick={handleTriggerSync}
@@ -214,6 +242,19 @@ export function SyncPage() {
             </button>
           </div>
         </div>
+
+        {/* Snapshot success banner */}
+        {snapshotResult && !snapshoting && (
+          <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-teal-500 flex-shrink-0" />
+            <span className="text-teal-700 text-sm">
+              {snapshotResult.queued > 0
+                ? <><strong>{snapshotResult.queued.toLocaleString()}</strong> bản ghi thuyền viên đã vào hàng đợi — nhấn <strong>Đồng bộ ngay</strong> để gửi lên Shore.</>
+                : 'Tất cả dữ liệu thuyền viên đã có trong hàng đợi.'}
+            </span>
+            <button onClick={() => setSnapshotResult(null)} className="ml-auto text-teal-500 hover:text-teal-700">✕</button>
+          </div>
+        )}
 
         {/* Success banner */}
         {syncResult && !syncing && (
