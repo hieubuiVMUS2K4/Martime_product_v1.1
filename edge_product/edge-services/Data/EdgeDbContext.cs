@@ -2320,6 +2320,15 @@ public class EdgeDbContext : DbContext
                     continue;
                 }
 
+                // For ship_data: always include ImoNumber in delta payload so shore
+                // can perform the IMO-based upsert lookup even if IMO wasn't changed.
+                if (tableName == "ship_data" && !changedProps.ContainsKey("ImoNumber"))
+                {
+                    var imoProp = entry.Properties.FirstOrDefault(p => p.Metadata.Name == "ImoNumber");
+                    if (imoProp?.CurrentValue != null)
+                        changedProps["ImoNumber"] = imoProp.CurrentValue;
+                }
+
                 syncItem.Payload = System.Text.Json.JsonSerializer.Serialize(changedProps);
                 
                 // Log CrewMember updates with FullName specifically

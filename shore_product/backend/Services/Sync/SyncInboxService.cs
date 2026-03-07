@@ -289,7 +289,8 @@ public class SyncInboxService : ISyncInboxService
             switch (action)
             {
                 case "CREATE":
-            case "SNAPSHOT": // Full-entity snapshot from Edge — treat as upsert (same as CREATE)
+                case "UPDATE":    // Field-level delta from Edge (e.g. FullName changed)
+                case "SNAPSHOT":  // Full-entity snapshot from Edge — treat as upsert
                     await ProcessUpdateAsync(entityType, item);
                     break;
                 case "DELETE":

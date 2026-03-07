@@ -103,11 +103,13 @@ public class SyncController : ControllerBase
             var node = await _crewSync.GetOrCreateNodeAsync(
                 heartbeat.NodeId, heartbeat.ShipName, heartbeat.ImoNumber);
 
-            node.LastHeartbeatAt = DateTime.UtcNow;
+            var receivedAt = DateTime.UtcNow;
+            node.LastHeartbeatAt = receivedAt;
             node.IsOnline = true;
             node.CurrentNetworkType = heartbeat.NetworkType;
             node.ConsecutiveFailures = 0;
-            node.UpdatedAt = DateTime.UtcNow;
+            node.UpdatedAt = receivedAt;
+
             await _context.SaveChangesAsync();
 
             // Return pending outbox count so edge knows how much to pull
@@ -357,6 +359,7 @@ public class SyncController : ControllerBase
             return StatusCode(500, new { error = "Force push all failed" });
         }
     }
+
 }
 
 public class SyncResultDto
@@ -373,4 +376,6 @@ public class SyncHeartbeatDto
     public string? ImoNumber { get; set; }
     public string? NetworkType { get; set; }
     public int PendingSyncItems { get; set; }
+    /// <summary>UTC timestamp set by Edge just before sending — used to compute one-way latency.</summary>
+    public DateTime? SentAt { get; set; }
 }
