@@ -5,7 +5,7 @@ import type { MenuItem } from './Sidebar';
 import './MainLayout.css';
 
 const menuItems: MenuItem[] = [
-  { path: '/dashboard', label: 'Dashboard' },
+  { path: '/report', label: 'Dashboard' },
   { path: '/categories', label: 'QL danh mục' },
   { path: '/vessels', label: 'QL tàu' },
   { path: '/crew', label: 'QL thuyền viên' },

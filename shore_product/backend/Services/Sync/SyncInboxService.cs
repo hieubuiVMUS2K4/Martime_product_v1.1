@@ -117,6 +117,8 @@ public class SyncInboxService : ISyncInboxService
         ["engine_data"]      = typeof(ProductApi.Models.EngineData),
         ["maritime_report"]  = typeof(ProductApi.Models.MaritimeReport),
         ["noon_report"]      = typeof(ProductApi.Models.NoonReport),
+        ["departure_report"] = typeof(ProductApi.Models.DepartureReport),
+        ["arrival_report"]   = typeof(ProductApi.Models.ArrivalReport),
 
         // Crew Management
         ["crew_member"]         = typeof(CrewMember),

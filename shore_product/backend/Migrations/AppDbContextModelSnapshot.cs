@@ -944,6 +944,191 @@ namespace productapi.Migrations
                     b.ToTable("AisData");
                 });
 
+            modelBuilder.Entity("ProductApi.Models.ArrivalReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ArrivalDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ArrivalDateTimeLocal")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("ArrivalLat")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("ArrivalLon")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("AverageSpeedKnots")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("CargoDescription")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<double?>("CargoOnBoard")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("DieselOilConsumed")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DieselOilROB")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DraftAft")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DraftFore")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DraftMidship")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("FreshWaterROB")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("FuelOilConsumed")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("FuelOilROB")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("LubOilROB")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid>("MaritimeReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("PersonsOnBoard")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PortLocode")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TimeZone")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<double?>("VoyageDistance")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("VoyageDurationHours")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MaritimeReportId")
+                        .IsUnique();
+
+                    b.ToTable("arrival_reports", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.DepartureReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CargoDescription")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<double?>("CargoOnBoard")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DepartureDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DepartureDateTimeLocal")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("DepartureLat")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DepartureLon")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DieselOilROB")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DistanceToNextPort")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DraftAft")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DraftFore")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DraftMidship")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("ETA")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("FreshWaterROB")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("FuelOilROB")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("LubOilROB")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid>("MaritimeReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("NextPort")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NextPortLocode")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<int?>("PersonsOnBoard")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PortLocode")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TimeZone")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MaritimeReportId")
+                        .IsUnique();
+
+                    b.ToTable("departure_reports", (string)null);
+                });
+
             modelBuilder.Entity("ProductApi.Models.EngineData", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1219,7 +1404,16 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("MaritimeReports");
+                    b.HasIndex("OriginNode");
+
+                    b.HasIndex("ReportDateTime");
+
+                    b.HasIndex("ReportNumber")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("maritime_reports", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.NoonReport", b =>
@@ -1342,7 +1536,10 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("NoonReports");
+                    b.HasIndex("MaritimeReportId")
+                        .IsUnique();
+
+                    b.ToTable("noon_reports", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.PortCall", b =>
@@ -1485,7 +1682,85 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ReportTypes");
+                    b.HasIndex("TypeCode")
+                        .IsUnique();
+
+                    b.ToTable("report_types", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Category = "VOYAGE",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Frequency = "DAILY",
+                            IsActive = true,
+                            IsMandatory = true,
+                            RegulationReference = "SOLAS V/28",
+                            RequiresMasterSignature = true,
+                            TypeCode = "NOON",
+                            TypeName = "Noon Report"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Category = "VOYAGE",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Frequency = "EVENT_BASED",
+                            IsActive = true,
+                            IsMandatory = true,
+                            RequiresMasterSignature = true,
+                            TypeCode = "DEPARTURE",
+                            TypeName = "Departure Report"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Category = "VOYAGE",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Frequency = "EVENT_BASED",
+                            IsActive = true,
+                            IsMandatory = true,
+                            RequiresMasterSignature = true,
+                            TypeCode = "ARRIVAL",
+                            TypeName = "Arrival Report"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Category = "VOYAGE",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Frequency = "DAILY",
+                            IsActive = true,
+                            IsMandatory = false,
+                            RequiresMasterSignature = false,
+                            TypeCode = "DAILY",
+                            TypeName = "Daily Report"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Category = "VOYAGE",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Frequency = "EVENT_BASED",
+                            IsActive = true,
+                            IsMandatory = false,
+                            RequiresMasterSignature = false,
+                            TypeCode = "BUNKER",
+                            TypeName = "Bunker Report"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Category = "VOYAGE",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Frequency = "EVENT_BASED",
+                            IsActive = true,
+                            IsMandatory = false,
+                            RequiresMasterSignature = false,
+                            TypeCode = "POSITION",
+                            TypeName = "Position Report"
+                        });
                 });
 
             modelBuilder.Entity("ProductApi.Models.SafetyAlarm", b =>

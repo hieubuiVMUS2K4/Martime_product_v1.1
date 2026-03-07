@@ -6,6 +6,8 @@ namespace Maritime.Shared.DTOs.Sync;
 /// </summary>
 public class SyncQueueItemDto
 {
+    /// <summary>Outbox row Id — used by edge to acknowledge delivery with exact IDs.</summary>
+    public long OutboxId { get; set; }
     public string TableName { get; set; } = string.Empty;
     public string RecordKey { get; set; } = string.Empty;
     public string ActionType { get; set; } = "CREATE"; // CREATE, UPDATE, DELETE

@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Maritime.Shared.Constants;
-using Maritime.Shared.Models.Sync;
 using ProductApi.Data;
 
 namespace ProductApi.Services.Sync;
@@ -61,7 +60,6 @@ public class CertificateExpiryMonitorService : BackgroundService
     {
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var syncOutbox = scope.ServiceProvider.GetRequiredService<ISyncOutboxService>();
 
         var warningThresholdDays = _configuration.GetValue("Sync:CertExpiryWarningDays", 90);
         var now = DateTime.UtcNow;
@@ -77,7 +75,6 @@ public class CertificateExpiryMonitorService : BackgroundService
             .ToListAsync(token);
 
         int updated = 0;
-        int broadcasted = 0;
 
         foreach (var cert in certsToUpdate)
         {
@@ -104,20 +101,11 @@ public class CertificateExpiryMonitorService : BackgroundService
             cert.UpdatedAt = DateTime.UtcNow;
             updated++;
 
-            // Broadcast status change to all ships
-            try
-            {
-                await syncOutbox.BroadcastAsync(
-                    "crew_certificate",
-                    cert.Id.ToString(),
-                    SyncActionType.UPDATE,
-                    cert);
-                broadcasted++;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to broadcast cert expiry update for cert {CertId}", cert.Id);
-            }
+            // NOTE: We intentionally do NOT broadcast to edge nodes here.
+            // Shore should NOT auto-push data to edge. Edge drives all sync
+            // by pulling from shore's outbox when it has connectivity.
+            // Ships will receive updated cert status on the next user-triggered sync
+            // (e.g. "Sync Now" button on SyncDashboard).
 
             _logger.LogInformation(
                 "Certificate {CertNum} for {CrewName}: {PrevStatus} → {NewStatus} (expires {Expiry:d})",
@@ -132,8 +120,8 @@ public class CertificateExpiryMonitorService : BackgroundService
         {
             await context.SaveChangesAsync(token);
             _logger.LogInformation(
-                "Certificate expiry check complete: {Updated} status updates, {Broadcast} broadcasted to ships",
-                updated, broadcasted);
+                "Certificate expiry check complete: {Updated} cert status updates saved",
+                updated);
         }
         else
         {

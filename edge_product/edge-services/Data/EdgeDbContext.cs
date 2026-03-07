@@ -2307,8 +2307,9 @@ public class EdgeDbContext : DbContext
                     // Skip if not modified
                     if (!prop.IsModified) continue;
                     
-                    // Skip metadata fields that don't need explicit sync logic if handled by server
-                    if (prop.Metadata.Name == "UpdatedAt" || prop.Metadata.Name == "IsSynced") continue;
+                    // Skip sync metadata fields — these are updated by MarkSynced() after receiving
+                    // items from shore, and must NOT be queued back or it creates an infinite sync loop.
+                    if (prop.Metadata.Name is "UpdatedAt" or "IsSynced" or "SyncVersion" or "OriginNode" or "LastSyncedAt") continue;
 
                     changedProps[prop.Metadata.Name] = prop.CurrentValue;
                 }

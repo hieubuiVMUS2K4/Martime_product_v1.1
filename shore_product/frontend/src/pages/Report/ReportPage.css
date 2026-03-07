@@ -1,0 +1,247 @@
+/* ============================================================
+   ReportPage — MOC style (matches VesselsPage)
+   ============================================================ */
+
+.rp-page {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  min-height: 100%;
+  background: #eef1f5;
+  color: #1e2d3d;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+/* === Header === */
+.rp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 6px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rp-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rp-header-icon { color: #0054a6; }
+
+.rp-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e2d3d;
+  margin: 0;
+}
+
+.rp-subtitle {
+  font-size: 11.5px;
+  color: #6b7c8f;
+  margin: 0 0 0 4px;
+}
+
+.rp-count-badge {
+  background: #0054a6;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  line-height: 18px;
+}
+
+.rp-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rp-search {
+  height: 28px;
+  padding: 0 10px 0 28px;
+  border: 1px solid #C5D9EC;
+  border-radius: 5px;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%236b7c8f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 8px center;
+  font-size: 12px;
+  color: #1e2d3d;
+  outline: none;
+  width: 200px;
+}
+
+.rp-search::placeholder { color: #9fb3c8; }
+.rp-search:focus { border-color: #0054a6; box-shadow: 0 0 0 2px rgba(0,84,166,0.1); }
+
+.rp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 5px;
+  border: 1px solid #C5D9EC;
+  background: #fff;
+  color: #1e2d3d;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  height: 28px;
+}
+.rp-btn:hover { background: #EBF4FF; color: #0054a6; border-color: #0054a6; }
+.rp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* === Cards grid === */
+.rp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 8px;
+}
+
+/* === Vessel card === */
+.rp-card {
+  background: #fff;
+  border: 1px solid #C5D9EC;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,60,120,0.06);
+}
+
+.rp-card:hover {
+  border-color: #0054a6;
+  box-shadow: 0 3px 10px rgba(0,84,166,0.13);
+}
+
+/* Card header strip */
+.rp-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #D5E8FF;
+  padding: 8px 12px;
+  border-bottom: 1px solid #C5D9EC;
+}
+
+.rp-card__ship-icon {
+  color: #0054a6;
+  flex-shrink: 0;
+}
+
+.rp-card__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.rp-card__name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a3a5c;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rp-card__meta {
+  font-size: 11px;
+  color: #4a6383;
+  margin: 1px 0 0 0;
+}
+
+.rp-card__status {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+/* Stats section */
+.rp-card__stats {
+  display: flex;
+  border-bottom: 1px solid #edf2f8;
+}
+
+.rp-card__stat {
+  flex: 1;
+  padding: 10px 8px;
+  text-align: center;
+  border-right: 1px solid #edf2f8;
+}
+.rp-card__stat:last-child { border-right: none; }
+
+.rp-card__stat-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e2d3d;
+  line-height: 1.2;
+}
+.rp-card__stat-val--approved { color: #16a34a; }
+.rp-card__stat-val--pending  { color: #d97706; }
+
+.rp-card__stat-lbl {
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b7c8f;
+  margin-top: 2px;
+}
+
+/* Footer */
+.rp-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+}
+
+.rp-card__last {
+  font-size: 11px;
+  color: #6b7c8f;
+}
+
+.rp-card__arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: #EBF4FF;
+  color: #0054a6;
+}
+
+/* === States === */
+.rp-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  gap: 8px;
+  color: #6b7c8f;
+  font-size: 13px;
+}
+
+.rp-empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: #9fb3c8;
+  font-size: 13px;
+}
+
+.rp-empty-icon {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.8s linear infinite; }

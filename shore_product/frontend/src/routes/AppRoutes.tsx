@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { TopNavLayout } from '../components/layout';
-import { DashboardPage, CategoryManagementPage, CrewListPage, CrewDetailPage, CertificateMonitorPage, MasterSchedulePage, VesselsPage } from '../pages';
+import { DashboardPage, CategoryManagementPage, CrewListPage, CrewDetailPage, CertificateMonitorPage, MasterSchedulePage, VesselsPage, ReportPage, VesselReportDetailPage } from '../pages';
 import { VesselDetailPage } from '../pages/VesselManagement';
 import { SyncDashboardPage } from '../pages/SyncManagement';
 import { WorkAssignmentPage } from '../pages/WorkAssignment';
@@ -10,17 +10,18 @@ import { WorkAssignmentPage } from '../pages/WorkAssignment';
  * Main application routes
  * 
  * Cấu trúc:
- * - / -> redirect to /dashboard
+ * - / -> redirect to /report
  * - TopNavLayout bao bọc tất cả các page với thanh điều hướng ngang
  * - Các route con render trong <Outlet /> của TopNavLayout
  */
 export const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Navigate to="/report" replace />} />
       
       <Route element={<TopNavLayout />}>
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/report" element={<ReportPage />} />
+        <Route path="/report/vessel/:vesselId" element={<VesselReportDetailPage />} />
         <Route path="/categories" element={<CategoryManagementPage />} />
         <Route path="/crew" element={<CrewListPage />} />
         <Route path="/crew/:id" element={<CrewDetailPage />} />

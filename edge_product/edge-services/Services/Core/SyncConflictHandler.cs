@@ -105,6 +105,10 @@ public class SyncConflictHandler : ISyncConflictHandler
             case "DELETE":
                 await HandleDeleteAsync(context, entityType, item);
                 break;
+            case "SNAPSHOT":
+                // SNAPSHOT = full upsert from shore (used by force-push / full resync)
+                await HandleUpdateAsync(context, entityType, item);
+                break;
         }
     }
 

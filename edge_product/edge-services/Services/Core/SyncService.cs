@@ -142,7 +142,11 @@ public class SyncService : ISyncService
 
                 if (pullResponse == null || pullResponse.Items.Count == 0) break;
 
-                // Process each item with conflict handling
+                // Process each item with conflict handling.
+                // Save + clear tracker per item to avoid EF identity conflicts when
+                // multiple entities share the same navigation property (e.g. two CrewMembers
+                // referencing the same Rank will each deserialize a Rank object, causing
+                // "another instance with the same key value is already being tracked").
                 foreach (var item in pullResponse.Items)
                 {
                     if (cancellationToken.IsCancellationRequested) break;
@@ -154,22 +158,23 @@ public class SyncService : ISyncService
                         else
                             await ApplyIncomingItemAsync(context, item, cancellationToken);
 
+                        await context.SaveChangesAsync(cancellationToken);
+                        context.ChangeTracker.Clear();
                         totalProcessed++;
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Failed to apply shore item {Table}/{Key}", 
                             item.TableName, item.RecordKey);
+                        context.ChangeTracker.Clear(); // Reset tracker so next item starts clean
                     }
                 }
 
-                await context.SaveChangesAsync(cancellationToken);
-
-                // Acknowledge received items
+                // Acknowledge received items using the real outbox IDs
                 var ack = new Maritime.Shared.DTOs.Sync.SyncAcknowledgeDto
                 {
                     NodeId = nodeId,
-                    ItemIds = pullResponse.Items.Select(_ => (long)0).ToList() // Simplified
+                    ItemIds = pullResponse.Items.Select(i => i.OutboxId).ToList()
                 };
                 await client.PostAsync($"{baseUrl}/api/sync/acknowledge",
                     new StringContent(JsonSerializer.Serialize(ack, _jsonOptions), Encoding.UTF8, "application/json"),

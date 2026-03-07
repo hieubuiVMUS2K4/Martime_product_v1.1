@@ -395,4 +395,93 @@ public class NoonReport
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
-// ... (Other report types omitted for brevity, can be added as needed)
+public class DepartureReport
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid MaritimeReportId { get; set; }
+
+    [MaxLength(200)]
+    public string? PortName { get; set; }
+    [MaxLength(10)]
+    public string? PortLocode { get; set; }
+
+    public DateTime? DepartureDateTime { get; set; }
+    public DateTime? DepartureDateTimeLocal { get; set; }
+    [MaxLength(100)]
+    public string? TimeZone { get; set; }
+
+    public double? DepartureLat { get; set; }
+    public double? DepartureLon { get; set; }
+
+    public double? DraftFore { get; set; }
+    public double? DraftAft { get; set; }
+    public double? DraftMidship { get; set; }
+
+    public double? FuelOilROB { get; set; }
+    public double? DieselOilROB { get; set; }
+    public double? LubOilROB { get; set; }
+    public double? FreshWaterROB { get; set; }
+
+    public double? DistanceToNextPort { get; set; }
+    public DateTime? ETA { get; set; }
+    [MaxLength(200)]
+    public string? NextPort { get; set; }
+    [MaxLength(10)]
+    public string? NextPortLocode { get; set; }
+
+    public double? CargoOnBoard { get; set; }
+    [MaxLength(200)]
+    public string? CargoDescription { get; set; }
+    public int? PersonsOnBoard { get; set; }
+
+    public string? Remarks { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class ArrivalReport
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid MaritimeReportId { get; set; }
+
+    [MaxLength(200)]
+    public string? PortName { get; set; }
+    [MaxLength(10)]
+    public string? PortLocode { get; set; }
+
+    public DateTime? ArrivalDateTime { get; set; }
+    public DateTime? ArrivalDateTimeLocal { get; set; }
+    [MaxLength(100)]
+    public string? TimeZone { get; set; }
+
+    public double? ArrivalLat { get; set; }
+    public double? ArrivalLon { get; set; }
+
+    public double? VoyageDistance { get; set; }
+    public double? VoyageDurationHours { get; set; }
+    public double? AverageSpeedKnots { get; set; }
+
+    public double? DraftFore { get; set; }
+    public double? DraftAft { get; set; }
+    public double? DraftMidship { get; set; }
+
+    public double? FuelOilConsumed { get; set; }
+    public double? DieselOilConsumed { get; set; }
+    public double? FuelOilROB { get; set; }
+    public double? DieselOilROB { get; set; }
+    public double? LubOilROB { get; set; }
+    public double? FreshWaterROB { get; set; }
+
+    public double? CargoOnBoard { get; set; }
+    [MaxLength(200)]
+    public string? CargoDescription { get; set; }
+    public int? PersonsOnBoard { get; set; }
+
+    public string? Remarks { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}

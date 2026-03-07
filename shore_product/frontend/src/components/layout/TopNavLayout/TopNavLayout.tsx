@@ -6,7 +6,7 @@ import './TopNavLayout.css';
 const navItems = [
   { path: '/crew',      label: 'Thuyền viên' },
   { path: '/vessels',   label: 'Danh sách tàu' },
-  { path: '/dashboard', label: 'Báo cáo' },
+  { path: '/report', label: 'Báo cáo' },
   { path: '/sync',      label: 'Đồng bộ' },
 ];
 

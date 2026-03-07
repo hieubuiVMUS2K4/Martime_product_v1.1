@@ -35,6 +35,8 @@ namespace ProductApi.Data
         public DbSet<ReportType> ReportTypes { get; set; } = null!;
         public DbSet<MaritimeReport> MaritimeReports { get; set; } = null!;
         public DbSet<NoonReport> NoonReports { get; set; } = null!;
+        public DbSet<DepartureReport> DepartureReports { get; set; } = null!;
+        public DbSet<ArrivalReport> ArrivalReports { get; set; } = null!;
 
         // ============================================================
         // CREW MANAGEMENT (Maritime.Shared models via SharedTypeAliases)
@@ -333,6 +335,60 @@ namespace ProductApi.Data
                     .HasForeignKey(e => e.CrewMemberId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
+
+            // Configure MaritimeReport
+            modelBuilder.Entity<MaritimeReport>(entity =>
+            {
+                entity.ToTable("maritime_reports");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.ReportNumber).IsUnique();
+                entity.HasIndex(e => e.OriginNode);
+                entity.HasIndex(e => e.ReportDateTime);
+                entity.HasIndex(e => e.Status);
+            });
+
+            // Configure ReportType
+            modelBuilder.Entity<ReportType>(entity =>
+            {
+                entity.ToTable("report_types");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.TypeCode).IsUnique();
+            });
+
+            // Configure NoonReport
+            modelBuilder.Entity<NoonReport>(entity =>
+            {
+                entity.ToTable("noon_reports");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.MaritimeReportId).IsUnique();
+            });
+
+            // Configure DepartureReport
+            modelBuilder.Entity<DepartureReport>(entity =>
+            {
+                entity.ToTable("departure_reports");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.MaritimeReportId).IsUnique();
+            });
+
+            // Configure ArrivalReport
+            modelBuilder.Entity<ArrivalReport>(entity =>
+            {
+                entity.ToTable("arrival_reports");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.MaritimeReportId).IsUnique();
+            });
+
+            // Seed ReportTypes
+            var seedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            modelBuilder.Entity<ReportType>().HasData(
+                new ReportType { Id = 1, TypeCode = "NOON",      TypeName = "Noon Report",      Category = "VOYAGE", Frequency = "DAILY",       IsMandatory = true,  RequiresMasterSignature = true,  IsActive = true, RegulationReference = "SOLAS V/28", CreatedAt = seedDate },
+                new ReportType { Id = 2, TypeCode = "DEPARTURE", TypeName = "Departure Report", Category = "VOYAGE", Frequency = "EVENT_BASED", IsMandatory = true,  RequiresMasterSignature = true,  IsActive = true, CreatedAt = seedDate },
+                new ReportType { Id = 3, TypeCode = "ARRIVAL",   TypeName = "Arrival Report",   Category = "VOYAGE", Frequency = "EVENT_BASED", IsMandatory = true,  RequiresMasterSignature = true,  IsActive = true, CreatedAt = seedDate },
+                new ReportType { Id = 4, TypeCode = "DAILY",     TypeName = "Daily Report",     Category = "VOYAGE", Frequency = "DAILY",       IsMandatory = false, RequiresMasterSignature = false, IsActive = true, CreatedAt = seedDate },
+                new ReportType { Id = 5, TypeCode = "BUNKER",    TypeName = "Bunker Report",    Category = "VOYAGE", Frequency = "EVENT_BASED", IsMandatory = false, RequiresMasterSignature = false, IsActive = true, CreatedAt = seedDate },
+                new ReportType { Id = 6, TypeCode = "POSITION",  TypeName = "Position Report",  Category = "VOYAGE", Frequency = "EVENT_BASED", IsMandatory = false, RequiresMasterSignature = false, IsActive = true, CreatedAt = seedDate }
+            );
 
             // Configure SyncOutbox (shore → ship)
             modelBuilder.Entity<SyncOutbox>(entity =>

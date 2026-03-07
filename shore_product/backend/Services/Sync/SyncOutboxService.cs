@@ -65,6 +65,26 @@ public class SyncOutboxService : ISyncOutboxService
         {
             var serializedPayload = JsonSerializer.Serialize(payload, _jsonOptions);
 
+            // Deduplication: if an undelivered item for the same (node, table, key) already exists,
+            // update its payload and version instead of inserting a duplicate.
+            var existing = await _context.SyncOutbox
+                .Where(o => o.DeliveredAt == null
+                         && o.TargetNode == targetNode
+                         && o.TableName == tableName
+                         && o.RecordKey == recordKey)
+                .OrderByDescending(o => o.Id)
+                .FirstOrDefaultAsync();
+
+            if (existing != null)
+            {
+                existing.Payload = serializedPayload;
+                existing.ActionType = action;
+                existing.SyncVersion = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                await _context.SaveChangesAsync();
+                _logger.LogDebug("Updated existing outbox item: {Table}/{Key} → {Node}", tableName, recordKey, targetNode);
+                return;
+            }
+
             var outboxItem = new SyncOutbox
             {
                 TargetNode = targetNode,
@@ -134,6 +154,7 @@ public class SyncOutboxService : ISyncOutboxService
             {
                 Items = items.Select(o => new SyncQueueItemDto
                 {
+                    OutboxId = o.Id,
                     TableName = o.TableName,
                     RecordKey = o.RecordKey,
                     ActionType = o.ActionType.ToString(),
