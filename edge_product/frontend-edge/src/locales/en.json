@@ -84,7 +84,9 @@
     "edgeDashboard": "Edge Dashboard",
     "localVessel": "Local Vessel",
     "safety": "Safety & Drills",
-    "drillTraining": "Drill Training"
+    "drillTraining": "Drill Training",
+    "shipData": "Ship Data",
+    "auditLog": "Audit Log"
   },
   "header": {
     "title": "Vessel Operations",
