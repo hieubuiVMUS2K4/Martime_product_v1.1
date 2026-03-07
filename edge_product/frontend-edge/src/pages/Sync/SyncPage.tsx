@@ -2,10 +2,12 @@
 import {
   RefreshCw, Cloud, Clock, AlertTriangle,
   CheckCircle2, XCircle, Loader2, Database, ArrowUpDown,
-  Wifi, WifiOff, Send, ChevronDown, ChevronUp, RotateCcw, Users, ArrowRight
+  Wifi, WifiOff, Send, ChevronDown, ChevronUp, RotateCcw, Users, ArrowRight,
+  Ship, FileText, Navigation, Calendar
 } from 'lucide-react'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 import { syncService } from '@/services/maritime.service'
+import type { SnapshotResponse } from '@/services/maritime.service'
 import type { SyncQueue } from '@/types/maritime.types'
 import { SYNC_CONFIG } from '@/config/app.config'
 
@@ -285,6 +287,171 @@ function SyncConfirmModal({
   )
 }
 
+// ============================================================
+// SNAPSHOT MODAL — select data groups to queue for Shore sync
+// ============================================================
+const SNAPSHOT_GROUPS = [
+  { id: 'ship_data', label: 'Thông tin tàu',  desc: 'Thông số kỹ thuật & đặc điểm tàu (1 bản ghi)',                    icon: Ship,       dateFilter: false, color: 'blue'    },
+  { id: 'crew',      label: 'Thuyền viên',    desc: 'Crew, chứng chỉ, hồ sơ, danh mục tham chiếu',                   icon: Users,      dateFilter: false, color: 'emerald' },
+  { id: 'voyage',    label: 'Chuyến đi',      desc: 'Hành trình, cảng ghé, trạng thái chuyến đi',                    icon: Navigation, dateFilter: true,  color: 'violet'  },
+  { id: 'report',    label: 'Báo cáo',        desc: 'Báo cáo hàng hải, noon report (cần Chuyến đi trước)',           icon: FileText,   dateFilter: true,  color: 'amber'   },
+] as const
+
+type GroupId = typeof SNAPSHOT_GROUPS[number]['id']
+
+const BORDER_MAP: Record<string, string> = {
+  blue:    'border-blue-300 bg-blue-50',
+  emerald: 'border-emerald-300 bg-emerald-50',
+  violet:  'border-violet-300 bg-violet-50',
+  amber:   'border-amber-300 bg-amber-50',
+}
+
+function SnapshotModal({
+  onConfirm, onClose,
+}: {
+  onConfirm: (groups: string[], fromDate?: string, toDate?: string) => Promise<void>
+  onClose:   () => void
+}) {
+  const [selected,  setSelected]  = useState<Set<GroupId>>(new Set(['ship_data', 'crew']))
+  const [fromDate,  setFromDate]  = useState('')
+  const [toDate,    setToDate]    = useState('')
+  const [loading,   setLoading]   = useState(false)
+
+  const needsDateFilter = SNAPSHOT_GROUPS.some(g => g.dateFilter && selected.has(g.id))
+
+  const toggle = (id: GroupId) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const handleConfirm = async () => {
+    if (selected.size === 0 || loading) return
+    setLoading(true)
+    try {
+      await onConfirm([...selected], fromDate || undefined, toDate || undefined)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={!loading ? onClose : undefined} />
+
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-slate-700 to-slate-800">
+          <div className="flex items-center gap-3 text-white">
+            <Database className="w-5 h-5" />
+            <span className="font-semibold text-lg">Snapshot dữ liệu lên Shore</span>
+          </div>
+          <button onClick={!loading ? onClose : undefined} className="text-white/70 hover:text-white transition-colors">
+            <XCircle className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+
+          {/* Group selector */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Chọn nhóm dữ liệu</p>
+            <div className="space-y-2">
+              {SNAPSHOT_GROUPS.map(g => {
+                const checked = selected.has(g.id)
+                const Icon    = g.icon
+                return (
+                  <div
+                    key={g.id}
+                    onClick={() => !loading && toggle(g.id)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all select-none ${
+                      checked ? BORDER_MAP[g.color] : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                      checked ? 'border-slate-600 bg-slate-700' : 'border-gray-300'
+                    }`}>
+                      {checked && <CheckCircle2 className="w-3 h-3 text-white" />}
+                    </div>
+                    <Icon className={`w-4 h-4 flex-shrink-0 ${checked ? 'text-slate-700' : 'text-gray-400'}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-gray-800">{g.label}</div>
+                      <div className="text-xs text-gray-500">{g.desc}</div>
+                    </div>
+                    {g.dateFilter && (
+                      <span className="text-xs text-gray-400 flex-shrink-0 bg-gray-100 px-2 py-0.5 rounded-full">
+                        Lọc ngày
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Date range — only shown when voyage or report is selected */}
+          {needsDateFilter && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Khoảng thời gian (Chuyến đi / Báo cáo)</p>
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 block mb-1">Từ ngày</label>
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={e => setFromDate(e.target.value)}
+                    disabled={loading}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-50"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 block mb-1">Đến ngày</label>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={e => setToDate(e.target.value)}
+                    disabled={loading}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-50"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-amber-600">💡 Bỏ trống để lấy toàn bộ dữ liệu không giới hạn thời gian</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-t border-gray-100">
+          <span className="text-xs text-gray-500">{selected.size} nhóm được chọn</span>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              disabled={loading}
+              className="px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={loading || selected.size === 0}
+              className="flex items-center gap-2 px-5 py-2 bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors shadow-sm"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+              {loading ? 'Đang xử lý...' : `Snapshot (${selected.size} nhóm)`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function SyncPage() {
   const { t } = useTranslationSafe()
 
@@ -298,8 +465,8 @@ export function SyncPage() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const [resetting, setResetting] = useState(false)
   const [showSyncModal, setShowSyncModal] = useState(false)
-  const [snapshoting, setSnapshoting] = useState(false)
-  const [snapshotResult, setSnapshotResult] = useState<{ queued: number; message: string } | null>(null)
+  const [showSnapshotModal, setShowSnapshotModal] = useState(false)
+  const [snapshotResult, setSnapshotResult] = useState<SnapshotResponse | null>(null)
   const [syncResult, setSyncResult] = useState<{ totalSynced: number; pendingRecords: number } | null>(null)
 
   const fetchData = useCallback(async () => {
@@ -362,18 +529,17 @@ export function SyncPage() {
     }
   }
 
-  const handleSnapshotCrew = async () => {
-    setSnapshoting(true)
+  const handleSnapshot = async (groups: string[], fromDate?: string, toDate?: string) => {
     setError(null)
     setSnapshotResult(null)
     try {
-      const result = await syncService.snapshotCrew()
-      setSnapshotResult({ queued: result.queued, message: result.message })
+      const result = await syncService.snapshotGroups(groups, fromDate, toDate)
+      setSnapshotResult(result)
       await fetchData()
+      setShowSnapshotModal(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Snapshot thất bại')
-    } finally {
-      setSnapshoting(false)
+      setShowSnapshotModal(false)
     }
   }
 
@@ -488,15 +654,15 @@ export function SyncPage() {
               </button>
             )}
 
-            {/* Snapshot crew button — for first-time full sync */}
+            {/* Snapshot button — opens group selector modal */}
             <button
-              onClick={handleSnapshotCrew}
-              disabled={snapshoting || syncing}
-              title="Đưa toàn bộ dữ liệu thuyền viên vào hàng đợi (dùng lần đầu hoặc khi cần đồng bộ lại toàn bộ)"
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-emerald-300 text-emerald-700 rounded-lg hover:bg-emerald-50 disabled:opacity-50 transition-colors text-sm font-medium"
+              onClick={() => setShowSnapshotModal(true)}
+              disabled={syncing}
+              title="Chọn nhóm dữ liệu cần snapshot lên Shore"
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors text-sm font-medium"
             >
-              {snapshoting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-              {snapshoting ? 'Đang chuẩn bị...' : 'Snapshot thuyền viên'}
+              <Database className="w-4 h-4" />
+              Snapshot dữ liệu
             </button>
 
             {/* Sync trigger */}
@@ -516,15 +682,26 @@ export function SyncPage() {
         </div>
 
         {/* Snapshot success banner */}
-        {snapshotResult && !snapshoting && (
-          <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-teal-500 flex-shrink-0" />
-            <span className="text-teal-700 text-sm">
-              {snapshotResult.queued > 0
-                ? <><strong>{snapshotResult.queued.toLocaleString()}</strong> bản ghi thuyền viên đã vào hàng đợi — nhấn <strong>Đồng bộ ngay</strong> để gửi lên Shore.</>
-                : 'Tất cả dữ liệu thuyền viên đã có trong hàng đợi.'}
-            </span>
-            <button onClick={() => setSnapshotResult(null)} className="ml-auto text-teal-500 hover:text-teal-700">✕</button>
+        {snapshotResult && (
+          <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-teal-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <span className="text-teal-700 text-sm font-medium">
+                {snapshotResult.queued > 0
+                  ? `${snapshotResult.queued.toLocaleString()} bản ghi đã vào hàng đợi — nhấn Đồng bộ ngay để gửi lên Shore.`
+                  : 'Tất cả dữ liệu đã có trong hàng đợi rồi.'}
+              </span>
+              {snapshotResult.groups?.length > 0 && snapshotResult.queued > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {snapshotResult.groups.filter(g => g.count > 0).map(g => (
+                    <span key={g.name} className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full">
+                      {g.label}: {g.count}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button onClick={() => setSnapshotResult(null)} className="text-teal-500 hover:text-teal-700 flex-shrink-0">✕</button>
           </div>
         )}
 
@@ -729,6 +906,14 @@ export function SyncPage() {
           syncing={syncing}
           onConfirm={handleTriggerSync}
           onClose={() => setShowSyncModal(false)}
+        />
+      )}
+
+      {/* Snapshot Modal */}
+      {showSnapshotModal && (
+        <SnapshotModal
+          onConfirm={handleSnapshot}
+          onClose={() => setShowSnapshotModal(false)}
         />
       )}
     </div>

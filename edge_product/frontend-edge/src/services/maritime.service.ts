@@ -548,6 +548,19 @@ export const complianceService = {
 // SYNC STATUS
 // ============================================================
 
+// Response types for POST /api/sync/snapshot
+export interface SnapshotGroupResult {
+  name:  string
+  label: string
+  count: number
+}
+
+export interface SnapshotResponse {
+  message: string
+  queued:  number
+  groups:  SnapshotGroupResult[]
+}
+
 export const syncService = {
   getSyncQueue: () => apiClient.get<SyncQueue[]>('/sync/queue'),
   getSyncStatus: () => apiClient.get<{
@@ -558,6 +571,9 @@ export const syncService = {
   triggerSync: () => apiClient.post<{ message: string; totalSynced: number; pendingRecords: number }>('/sync/trigger', {}),
   resetErrors: () => apiClient.post<{ message: string }>('/sync/reset-errors', {}),
   snapshotCrew: () => apiClient.post<{ message: string; queued: number }>('/sync/snapshot-crew', {}),
+  /** POST /api/sync/snapshot — queue selected groups with optional date range */
+  snapshotGroups: (groups: string[], fromDate?: string, toDate?: string): Promise<SnapshotResponse> =>
+    apiClient.post<SnapshotResponse>('/sync/snapshot', { groups, fromDate, toDate }),
 }
 
 // ============================================================
