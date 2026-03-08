@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ProductApi.Models;
+using Maritime.Shared.Models.CrewManagement;
 
 namespace ProductApi.Data
 {
@@ -63,6 +64,18 @@ namespace ProductApi.Data
         public DbSet<SyncNodeTracker> SyncNodeTrackers { get; set; } = null!;
         public DbSet<SyncIdempotencyRecord> SyncIdempotencyRecords { get; set; } = null!;
         public DbSet<SyncTableStats> SyncTableStats { get; set; } = null!;
+
+        // ============================================================
+        // CREW MANAGEMENT WORKFLOW (Phase 1A)
+        // ============================================================
+        public DbSet<CrewStatusHistory> CrewStatusHistory { get; set; } = null!;
+        public DbSet<OnboardingCase> OnboardingCases { get; set; } = null!;
+        public DbSet<OnboardingChecklistItem> OnboardingChecklistItems { get; set; } = null!;
+        public DbSet<CrewDocumentSubmission> DocumentSubmissions { get; set; } = null!;
+        public DbSet<CrewDocumentVersion> DocumentVersions { get; set; } = null!;
+        public DbSet<DocumentVerificationTask> VerificationTasks { get; set; } = null!;
+        public DbSet<DocumentVerificationAction> VerificationActions { get; set; } = null!;
+        public DbSet<AuditLog> AuditLogs { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -432,6 +445,132 @@ namespace ProductApi.Data
                 entity.ToTable("sync_table_stats");
                 entity.HasKey(e => e.Id);
                 entity.HasIndex(e => new { e.NodeId, e.TableName });
+            });
+
+            // ============================================================
+            // CREW MANAGEMENT WORKFLOW CONFIGURATIONS (Phase 1A)
+            // ============================================================
+
+            // Configure CrewStatusHistory
+            modelBuilder.Entity<CrewStatusHistory>(entity =>
+            {
+                entity.ToTable("crew_status_history");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewMemberId);
+                entity.HasIndex(e => e.ChangedAt);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany()
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure OnboardingCase
+            modelBuilder.Entity<OnboardingCase>(entity =>
+            {
+                entity.ToTable("onboarding_cases");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewMemberId);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.CreatedAt);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany()
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure OnboardingChecklistItem
+            modelBuilder.Entity<OnboardingChecklistItem>(entity =>
+            {
+                entity.ToTable("onboarding_checklist_items");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.OnboardingCaseId);
+                entity.HasIndex(e => new { e.OnboardingCaseId, e.Status });
+
+                entity.HasOne(e => e.OnboardingCase)
+                    .WithMany(c => c.ChecklistItems)
+                    .HasForeignKey(e => e.OnboardingCaseId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure CrewDocumentSubmission
+            modelBuilder.Entity<CrewDocumentSubmission>(entity =>
+            {
+                entity.ToTable("crew_document_submissions");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewMemberId);
+                entity.HasIndex(e => new { e.CrewMemberId, e.DocumentType, e.IsActiveSubmission });
+                entity.HasIndex(e => e.Status);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany()
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.IssuingCountry)
+                    .WithMany()
+                    .HasForeignKey(e => e.IssuingCountryId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // Configure CrewDocumentVersion
+            modelBuilder.Entity<CrewDocumentVersion>(entity =>
+            {
+                entity.ToTable("crew_document_versions");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.SubmissionId);
+                entity.HasIndex(e => new { e.SubmissionId, e.IsActiveVersion });
+
+                entity.HasOne(e => e.Submission)
+                    .WithMany(s => s.Versions)
+                    .HasForeignKey(e => e.SubmissionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure DocumentVerificationTask
+            modelBuilder.Entity<DocumentVerificationTask>(entity =>
+            {
+                entity.ToTable("document_verification_tasks");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.SubmissionId);
+                entity.HasIndex(e => new { e.Status, e.Priority });
+                entity.HasIndex(e => e.AssignedTo);
+                entity.HasIndex(e => e.DueAt);
+
+                entity.HasOne(e => e.Submission)
+                    .WithMany(s => s.VerificationTasks)
+                    .HasForeignKey(e => e.SubmissionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Version)
+                    .WithMany()
+                    .HasForeignKey(e => e.VersionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Configure DocumentVerificationAction
+            modelBuilder.Entity<DocumentVerificationAction>(entity =>
+            {
+                entity.ToTable("document_verification_actions");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.TaskId);
+
+                entity.HasOne(e => e.Task)
+                    .WithMany(t => t.Actions)
+                    .HasForeignKey(e => e.TaskId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure AuditLog
+            modelBuilder.Entity<AuditLog>(entity =>
+            {
+                entity.ToTable("audit_logs");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.EntityType, e.EntityId });
+                entity.HasIndex(e => e.Actor);
+                entity.HasIndex(e => e.Timestamp);
+                entity.HasIndex(e => e.CorrelationId);
             });
         }
     }

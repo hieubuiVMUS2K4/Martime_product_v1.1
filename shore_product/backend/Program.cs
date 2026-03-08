@@ -72,6 +72,12 @@ builder.Services.AddScoped<ITelemetryService, TelemetryService>();
 builder.Services.AddScoped<ProductApi.Services.Crew.ICrewService, ProductApi.Services.Crew.CrewService>();
 builder.Services.AddScoped<ProductApi.Services.Crew.ICertificateService, ProductApi.Services.Crew.CertificateService>();
 
+// Register crew management workflow services (Phase 1A)
+builder.Services.AddScoped<ProductApi.Services.CrewManagement.IAuditService, ProductApi.Services.CrewManagement.AuditService>();
+builder.Services.AddScoped<ProductApi.Services.CrewManagement.ICrewStatusService, ProductApi.Services.CrewManagement.CrewStatusService>();
+builder.Services.AddScoped<ProductApi.Services.CrewManagement.IOnboardingService, ProductApi.Services.CrewManagement.OnboardingService>();
+builder.Services.AddScoped<ProductApi.Services.CrewManagement.IDocumentWorkflowService, ProductApi.Services.CrewManagement.DocumentWorkflowService>();
+
 // Register sync services (Phase 3)
 builder.Services.AddScoped<ProductApi.Services.Sync.ISyncInboxService, ProductApi.Services.Sync.SyncInboxService>();
 builder.Services.AddScoped<ProductApi.Services.Sync.ISyncOutboxService, ProductApi.Services.Sync.SyncOutboxService>();

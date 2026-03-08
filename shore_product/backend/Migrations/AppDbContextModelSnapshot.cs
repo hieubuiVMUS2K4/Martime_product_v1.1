@@ -358,12 +358,28 @@ namespace productapi.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("PoolStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<int?>("RankId")
                         .HasColumnType("integer");
 
                     b.Property<string>("ShoeSize")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("StatusChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("StatusChangedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<long>("SyncVersion")
                         .HasColumnType("bigint");
@@ -584,6 +600,493 @@ namespace productapi.Migrations
                     b.HasIndex("IsSynced");
 
                     b.ToTable("service_records", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.AuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("AfterState")
+                        .HasColumnType("text");
+
+                    b.Property<string>("BeforeState")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Details")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("EntityId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("SourceChannel")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Actor");
+
+                    b.HasIndex("CorrelationId");
+
+                    b.HasIndex("Timestamp");
+
+                    b.HasIndex("EntityType", "EntityId");
+
+                    b.ToTable("audit_logs", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.CrewDocumentSubmission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DocumentNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("DocumentTitle")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActiveSubmission")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("IssueDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IssuingAuthority")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int?>("IssuingCountryId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("OnboardingCaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SensitivityLevel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("StatusChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("StatusChangedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SubmittedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.HasIndex("IssuingCountryId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("CrewMemberId", "DocumentType", "IsActiveSubmission");
+
+                    b.ToTable("crew_document_submissions", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.CrewDocumentVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FileChecksum")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("FilePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<long?>("FileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsActiveVersion")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LockedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OriginalFileName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UploadedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubmissionId");
+
+                    b.HasIndex("SubmissionId", "IsActiveVersion");
+
+                    b.ToTable("crew_document_versions", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.CrewStatusHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FromStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedAt");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.ToTable("crew_status_history", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.DocumentVerificationAction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("PerformedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PerformedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ReasonCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("document_verification_actions", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.DocumentVerificationTask", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AssignedTo")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DueAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Outcome")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("VersionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedTo");
+
+                    b.HasIndex("DueAt");
+
+                    b.HasIndex("SubmissionId");
+
+                    b.HasIndex("VersionId");
+
+                    b.HasIndex("Status", "Priority");
+
+                    b.ToTable("document_verification_tasks", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.OnboardingCase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ActivatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FlagState")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("InvitedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("ReferenceVesselId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReferenceVesselName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime?>("StatusChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("StatusChangedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VesselGroupCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("onboarding_cases", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.OnboardingChecklistItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CompletedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CompletionNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<bool>("IsMandatory")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ItemType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<Guid>("OnboardingCaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("RequiredCertificateId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RequiredDocumentType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceRuleId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("WaivedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("WaiverReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OnboardingCaseId");
+
+                    b.HasIndex("OnboardingCaseId", "Status");
+
+                    b.ToTable("onboarding_checklist_items", (string)null);
                 });
 
             modelBuilder.Entity("Maritime.Shared.Models.Documents.EmploymentDocument", b =>
@@ -3358,6 +3861,98 @@ namespace productapi.Migrations
                     b.Navigation("CrewMember");
                 });
 
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.CrewDocumentSubmission", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Maritime.Shared.Models.Crew.Country", "IssuingCountry")
+                        .WithMany()
+                        .HasForeignKey("IssuingCountryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CrewMember");
+
+                    b.Navigation("IssuingCountry");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.CrewDocumentVersion", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.CrewDocumentSubmission", "Submission")
+                        .WithMany("Versions")
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Submission");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.CrewStatusHistory", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CrewMember");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.DocumentVerificationAction", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.DocumentVerificationTask", "Task")
+                        .WithMany("Actions")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Task");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.DocumentVerificationTask", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.CrewDocumentSubmission", "Submission")
+                        .WithMany("VerificationTasks")
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.CrewDocumentVersion", "Version")
+                        .WithMany()
+                        .HasForeignKey("VersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Submission");
+
+                    b.Navigation("Version");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.OnboardingCase", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CrewMember");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.OnboardingChecklistItem", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.OnboardingCase", "OnboardingCase")
+                        .WithMany("ChecklistItems")
+                        .HasForeignKey("OnboardingCaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OnboardingCase");
+                });
+
             modelBuilder.Entity("Maritime.Shared.Models.Documents.EmploymentDocument", b =>
                 {
                     b.HasOne("Maritime.Shared.Models.Crew.Country", "Country")
@@ -3505,6 +4100,23 @@ namespace productapi.Migrations
                     b.Navigation("ServiceRecords");
 
                     b.Navigation("TravelDocuments");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.CrewDocumentSubmission", b =>
+                {
+                    b.Navigation("VerificationTasks");
+
+                    b.Navigation("Versions");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.DocumentVerificationTask", b =>
+                {
+                    b.Navigation("Actions");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.OnboardingCase", b =>
+                {
+                    b.Navigation("ChecklistItems");
                 });
 
             modelBuilder.Entity("ProductApi.Models.Vessel", b =>

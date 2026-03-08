@@ -1,0 +1,124 @@
+namespace Maritime.Shared.Models.CrewManagement;
+
+/// <summary>
+/// Crew profile lifecycle status
+/// </summary>
+public static class CrewStatus
+{
+    public const string Draft = "Draft";
+    public const string Active = "Active";
+    public const string Inactive = "Inactive";
+    public const string Retired = "Retired";
+    public const string Suspended = "Suspended";
+
+    public static readonly string[] All = [Draft, Active, Inactive, Retired, Suspended];
+}
+
+/// <summary>
+/// Crew pool availability status
+/// </summary>
+public static class PoolStatus
+{
+    public const string Available = "Available";
+    public const string Assigned = "Assigned";
+    public const string OnLeave = "OnLeave";
+    public const string Medical = "Medical";
+    public const string Hold = "Hold";
+}
+
+/// <summary>
+/// Onboarding case lifecycle states
+/// </summary>
+public static class OnboardingCaseStatus
+{
+    public const string Draft = "Draft";
+    public const string Invited = "Invited";
+    public const string InProgress = "InProgress";
+    public const string PendingReview = "PendingReview";
+    public const string ReturnedForCompletion = "ReturnedForCompletion";
+    public const string Approved = "Approved";
+    public const string Activated = "Activated";
+    public const string Cancelled = "Cancelled";
+
+    public static readonly string[] All = [Draft, Invited, InProgress, PendingReview, ReturnedForCompletion, Approved, Activated, Cancelled];
+}
+
+/// <summary>
+/// Onboarding checklist item status
+/// </summary>
+public static class ChecklistItemStatus
+{
+    public const string Pending = "Pending";
+    public const string InProgress = "InProgress";
+    public const string Completed = "Completed";
+    public const string Waived = "Waived";
+    public const string Blocked = "Blocked";
+}
+
+/// <summary>
+/// Checklist item types
+/// </summary>
+public static class ChecklistItemType
+{
+    public const string DocumentUpload = "DocumentUpload";
+    public const string DataEntry = "DataEntry";
+    public const string Verification = "Verification";
+    public const string Confirmation = "Confirmation";
+    public const string External = "External";
+}
+
+/// <summary>
+/// Document submission lifecycle
+/// </summary>
+public static class DocumentSubmissionStatus
+{
+    public const string Draft = "Draft";
+    public const string Submitted = "Submitted";
+    public const string SentForVerification = "SentForVerification";
+    public const string UnderReview = "UnderReview";
+    public const string Verified = "Verified";
+    public const string Rejected = "Rejected";
+    public const string Expired = "Expired";
+    public const string Archived = "Archived";
+    public const string Superseded = "Superseded";
+
+    public static readonly string[] All = [Draft, Submitted, SentForVerification, UnderReview, Verified, Rejected, Expired, Archived, Superseded];
+}
+
+/// <summary>
+/// Verification action types
+/// </summary>
+public static class VerificationActionType
+{
+    public const string Verified = "Verified";
+    public const string Rejected = "Rejected";
+    public const string RequestReUpload = "RequestReUpload";
+    public const string Comment = "Comment";
+}
+
+/// <summary>
+/// Verification task priority
+/// </summary>
+public static class VerificationPriority
+{
+    public const string Normal = "Normal";
+    public const string Urgent = "Urgent";
+    public const string Critical = "Critical";
+}
+
+/// <summary>
+/// Audit log action categories
+/// </summary>
+public static class AuditAction
+{
+    public const string Create = "Create";
+    public const string Update = "Update";
+    public const string Delete = "Delete";
+    public const string StatusChange = "StatusChange";
+    public const string Verify = "Verify";
+    public const string Reject = "Reject";
+    public const string Approve = "Approve";
+    public const string Waive = "Waive";
+    public const string Upload = "Upload";
+    public const string Download = "Download";
+}

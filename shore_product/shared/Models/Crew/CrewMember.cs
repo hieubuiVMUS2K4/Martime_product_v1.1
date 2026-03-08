@@ -121,6 +121,27 @@ public class CrewMember : ISyncableEntity
     public string? Notes { get; set; }
 
     // ============================================
+    // Crew Lifecycle Status
+    // ============================================
+
+    /// <summary>
+    /// Crew profile lifecycle: Draft, Active, Inactive, Retired, Suspended
+    /// </summary>
+    [MaxLength(20)]
+    public string Status { get; set; } = "Draft";
+
+    public DateTime? StatusChangedAt { get; set; }
+
+    [MaxLength(100)]
+    public string? StatusChangedBy { get; set; }
+
+    /// <summary>
+    /// Pool status: Available, Assigned, OnLeave, Medical, Hold
+    /// </summary>
+    [MaxLength(20)]
+    public string? PoolStatus { get; set; } = "Available";
+
+    // ============================================
     // ISyncableEntity implementation
     // ============================================
     public bool IsSynced { get; set; } = false;
