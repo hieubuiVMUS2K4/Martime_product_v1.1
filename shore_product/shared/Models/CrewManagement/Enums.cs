@@ -250,3 +250,73 @@ public static class PositionFillStatus
     public const string Filled = "Filled";
     public const string Shortage = "Shortage";
 }
+
+// ============================================================
+// PHASE 6: EXTERNAL REQUESTS & TRAVEL ENUMS
+// ============================================================
+
+/// <summary>
+/// External request lifecycle states
+/// </summary>
+public static class ExternalRequestStatus
+{
+    public const string Draft = "Draft";
+    public const string Sent = "Sent";
+    public const string Viewed = "Viewed";
+    public const string InProgress = "InProgress";
+    public const string CandidateSubmitted = "CandidateSubmitted";
+    public const string Shortlisted = "Shortlisted";
+    public const string Closed = "Closed";
+    public const string Cancelled = "Cancelled";
+
+    public static readonly string[] All = [Draft, Sent, Viewed, InProgress,
+        CandidateSubmitted, Shortlisted, Closed, Cancelled];
+
+    public static readonly string[] Active = [Draft, Sent, Viewed, InProgress,
+        CandidateSubmitted, Shortlisted];
+}
+
+/// <summary>
+/// External candidate status
+/// </summary>
+public static class ExternalCandidateStatus
+{
+    public const string Submitted = "Submitted";
+    public const string UnderReview = "UnderReview";
+    public const string Shortlisted = "Shortlisted";
+    public const string Accepted = "Accepted";
+    public const string Rejected = "Rejected";
+    public const string Withdrawn = "Withdrawn";
+}
+
+/// <summary>
+/// Travel request lifecycle states
+/// </summary>
+public static class TravelRequestStatus
+{
+    public const string Draft = "Draft";
+    public const string Pending = "Pending";
+    public const string BookingInProgress = "BookingInProgress";
+    public const string Booked = "Booked";
+    public const string InTransit = "InTransit";
+    public const string Completed = "Completed";
+    public const string Cancelled = "Cancelled";
+    public const string Reissued = "Reissued";
+
+    public static readonly string[] All = [Draft, Pending, BookingInProgress, Booked,
+        InTransit, Completed, Cancelled, Reissued];
+
+    public static readonly string[] Active = [Draft, Pending, BookingInProgress, Booked, InTransit];
+}
+
+/// <summary>
+/// Travel segment type
+/// </summary>
+public static class TravelSegmentType
+{
+    public const string Flight = "Flight";
+    public const string Ground = "Ground";
+    public const string Ferry = "Ferry";
+    public const string Hotel = "Hotel";
+    public const string Transfer = "Transfer";
+}

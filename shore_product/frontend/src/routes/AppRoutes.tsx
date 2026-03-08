@@ -9,6 +9,8 @@ import { OnboardingDashboardPage, OnboardingDetailPage } from '../pages/Onboardi
 import { VerificationQueuePage } from '../pages/DocumentWorkflow';
 import { ComplianceDashboardPage, RuleSetsPage, CrewEvaluationPage } from '../pages/ComplianceManagement';
 import { AssignmentListPage, AssignmentDetailPage, PlanningBoardPage } from '../pages/AssignmentManagement';
+import { ExternalRequestListPage, ExternalRequestDetailPage } from '../pages/ExternalRequestManagement';
+import { TravelListPage, TravelDetailPage } from '../pages/TravelManagement';
 
 /**
  * Main application routes
@@ -45,6 +47,10 @@ export const AppRoutes: React.FC = () => {
         <Route path="/assignments" element={<AssignmentListPage />} />
         <Route path="/assignments/:id" element={<AssignmentDetailPage />} />
         <Route path="/assignments/planning/:vesselId" element={<PlanningBoardPage />} />
+        <Route path="/external-requests" element={<ExternalRequestListPage />} />
+        <Route path="/external-requests/:id" element={<ExternalRequestDetailPage />} />
+        <Route path="/travel" element={<TravelListPage />} />
+        <Route path="/travel/:id" element={<TravelDetailPage />} />
       </Route>
       
       {/* 404 */}

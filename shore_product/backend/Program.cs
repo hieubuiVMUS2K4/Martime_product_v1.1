@@ -84,6 +84,10 @@ builder.Services.AddScoped<ProductApi.Services.CrewManagement.IComplianceService
 // Register assignment service (Phase 5)
 builder.Services.AddScoped<ProductApi.Services.CrewManagement.IAssignmentService, ProductApi.Services.CrewManagement.AssignmentService>();
 
+// Register external request & travel services (Phase 6)
+builder.Services.AddScoped<ProductApi.Services.CrewManagement.IExternalRequestService, ProductApi.Services.CrewManagement.ExternalRequestService>();
+builder.Services.AddScoped<ProductApi.Services.CrewManagement.ITravelService, ProductApi.Services.CrewManagement.TravelService>();
+
 // Register sync services (Phase 3)
 builder.Services.AddScoped<ProductApi.Services.Sync.ISyncInboxService, ProductApi.Services.Sync.SyncInboxService>();
 builder.Services.AddScoped<ProductApi.Services.Sync.ISyncOutboxService, ProductApi.Services.Sync.SyncOutboxService>();

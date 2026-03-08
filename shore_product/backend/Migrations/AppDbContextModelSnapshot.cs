@@ -1524,6 +1524,187 @@ namespace productapi.Migrations
                     b.ToTable("document_verification_tasks", (string)null);
                 });
 
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ExternalCandidate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CandidateName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ComplianceResult")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContactEmail")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ContactPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("ExternalRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("LinkedCrewMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Nationality")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProfileSummary")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("RankId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReviewedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SubmittedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalRequestId");
+
+                    b.HasIndex("LinkedCrewMemberId");
+
+                    b.HasIndex("RankId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("external_candidates", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ExternalRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AgencyEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("AgencyName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("AssignmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("MandatoryDocuments")
+                        .HasColumnType("text");
+
+                    b.Property<string>("NationalityPreference")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<int>("RankId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("RequiredByDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RequiredCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ResponseSlaDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VesselId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ViewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignmentId");
+
+                    b.HasIndex("RankId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("VesselId");
+
+                    b.ToTable("external_requests", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ExternalRequestMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Author")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("AuthorRole")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ExternalRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("PostedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalRequestId");
+
+                    b.ToTable("external_request_messages", (string)null);
+                });
+
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ManningPosition", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1708,6 +1889,182 @@ namespace productapi.Migrations
                     b.HasIndex("OnboardingCaseId", "Status");
 
                     b.ToTable("onboarding_checklist_items", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.TravelRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ArrivalDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ArrivalPort")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("AssignmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BaggageNotes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("BookingReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<DateTime?>("DepartureDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeparturePort")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<decimal?>("EstimatedCost")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ReportingDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SpecialRequirements")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("TravelType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VendorName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("VisaRequirements")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignmentId");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("travel_requests", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.TravelSegment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ArrivalTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CarrierName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ConfirmationNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("DepartureTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Destination")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("FlightNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Origin")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SegmentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("SequenceOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TravelRequestId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TravelRequestId");
+
+                    b.ToTable("travel_segments", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.TravelStatusHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ChangedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FromStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("TravelRequestId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TravelRequestId");
+
+                    b.ToTable("travel_status_history", (string)null);
                 });
 
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.VesselManningStandard", b =>
@@ -4724,6 +5081,58 @@ namespace productapi.Migrations
                     b.Navigation("Version");
                 });
 
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ExternalCandidate", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.ExternalRequest", "ExternalRequest")
+                        .WithMany("Candidates")
+                        .HasForeignKey("ExternalRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "LinkedCrewMember")
+                        .WithMany()
+                        .HasForeignKey("LinkedCrewMemberId");
+
+                    b.HasOne("Maritime.Shared.Models.Crew.Rank", "Rank")
+                        .WithMany()
+                        .HasForeignKey("RankId");
+
+                    b.Navigation("ExternalRequest");
+
+                    b.Navigation("LinkedCrewMember");
+
+                    b.Navigation("Rank");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ExternalRequest", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.CrewAssignment", "Assignment")
+                        .WithMany()
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Maritime.Shared.Models.Crew.Rank", "Rank")
+                        .WithMany()
+                        .HasForeignKey("RankId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Assignment");
+
+                    b.Navigation("Rank");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ExternalRequestMessage", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.ExternalRequest", "ExternalRequest")
+                        .WithMany("Messages")
+                        .HasForeignKey("ExternalRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ExternalRequest");
+                });
+
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ManningPosition", b =>
                 {
                     b.HasOne("Maritime.Shared.Models.CrewManagement.VesselManningStandard", "ManningStandard")
@@ -4763,6 +5172,47 @@ namespace productapi.Migrations
                         .IsRequired();
 
                     b.Navigation("OnboardingCase");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.TravelRequest", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.CrewAssignment", "Assignment")
+                        .WithMany()
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Assignment");
+
+                    b.Navigation("CrewMember");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.TravelSegment", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.TravelRequest", "TravelRequest")
+                        .WithMany("Segments")
+                        .HasForeignKey("TravelRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TravelRequest");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.TravelStatusHistory", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.TravelRequest", "TravelRequest")
+                        .WithMany("StatusHistory")
+                        .HasForeignKey("TravelRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TravelRequest");
                 });
 
             modelBuilder.Entity("Maritime.Shared.Models.Documents.EmploymentDocument", b =>
@@ -4947,9 +5397,23 @@ namespace productapi.Migrations
                     b.Navigation("Actions");
                 });
 
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ExternalRequest", b =>
+                {
+                    b.Navigation("Candidates");
+
+                    b.Navigation("Messages");
+                });
+
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.OnboardingCase", b =>
                 {
                     b.Navigation("ChecklistItems");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.TravelRequest", b =>
+                {
+                    b.Navigation("Segments");
+
+                    b.Navigation("StatusHistory");
                 });
 
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.VesselManningStandard", b =>

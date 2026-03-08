@@ -97,6 +97,16 @@ namespace ProductApi.Data
         public DbSet<AssignmentComment> AssignmentComments { get; set; } = null!;
         public DbSet<AssignmentStatusHistory> AssignmentStatusHistory { get; set; } = null!;
 
+        // ============================================================
+        // EXTERNAL REQUESTS & TRAVEL (Phase 6)
+        // ============================================================
+        public DbSet<ExternalRequest> ExternalRequests { get; set; } = null!;
+        public DbSet<ExternalCandidate> ExternalCandidates { get; set; } = null!;
+        public DbSet<ExternalRequestMessage> ExternalRequestMessages { get; set; } = null!;
+        public DbSet<TravelRequest> TravelRequests { get; set; } = null!;
+        public DbSet<TravelSegment> TravelSegments { get; set; } = null!;
+        public DbSet<TravelStatusHistory> TravelStatusHistory { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -772,6 +782,98 @@ namespace ProductApi.Data
                 entity.HasOne(e => e.Assignment)
                     .WithMany(a => a.StatusHistory)
                     .HasForeignKey(e => e.AssignmentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ============================================================
+            // EXTERNAL REQUESTS & TRAVEL CONFIGURATIONS (Phase 6)
+            // ============================================================
+
+            modelBuilder.Entity<ExternalRequest>(entity =>
+            {
+                entity.ToTable("external_requests");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.VesselId);
+                entity.HasIndex(e => e.Status);
+
+                entity.HasOne(e => e.Assignment)
+                    .WithMany()
+                    .HasForeignKey(e => e.AssignmentId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.Rank)
+                    .WithMany()
+                    .HasForeignKey(e => e.RankId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ExternalCandidate>(entity =>
+            {
+                entity.ToTable("external_candidates");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.ExternalRequestId);
+                entity.HasIndex(e => e.Status);
+
+                entity.HasOne(e => e.ExternalRequest)
+                    .WithMany(r => r.Candidates)
+                    .HasForeignKey(e => e.ExternalRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ExternalRequestMessage>(entity =>
+            {
+                entity.ToTable("external_request_messages");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.ExternalRequestId);
+
+                entity.HasOne(e => e.ExternalRequest)
+                    .WithMany(r => r.Messages)
+                    .HasForeignKey(e => e.ExternalRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<TravelRequest>(entity =>
+            {
+                entity.ToTable("travel_requests");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.AssignmentId);
+                entity.HasIndex(e => e.CrewMemberId);
+                entity.HasIndex(e => e.Status);
+
+                entity.HasOne(e => e.Assignment)
+                    .WithMany()
+                    .HasForeignKey(e => e.AssignmentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany()
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.Property(e => e.EstimatedCost).HasPrecision(12, 2);
+            });
+
+            modelBuilder.Entity<TravelSegment>(entity =>
+            {
+                entity.ToTable("travel_segments");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.TravelRequestId);
+
+                entity.HasOne(e => e.TravelRequest)
+                    .WithMany(t => t.Segments)
+                    .HasForeignKey(e => e.TravelRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<TravelStatusHistory>(entity =>
+            {
+                entity.ToTable("travel_status_history");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.TravelRequestId);
+
+                entity.HasOne(e => e.TravelRequest)
+                    .WithMany(t => t.StatusHistory)
+                    .HasForeignKey(e => e.TravelRequestId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
         }

@@ -10,6 +10,8 @@ const navItems = [
   { path: '/verification-queue', label: 'Xác minh' },
   { path: '/compliance', label: 'Tuân thủ' },
   { path: '/assignments', label: 'Phân công' },
+  { path: '/external-requests', label: 'Tuyển ngoài' },
+  { path: '/travel', label: 'Di chuyển' },
   { path: '/report', label: 'Báo cáo' },
   { path: '/sync',      label: 'Đồng bộ' },
 ];
