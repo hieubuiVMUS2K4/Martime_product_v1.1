@@ -8,6 +8,7 @@ const navItems = [
   { path: '/vessels',   label: 'Danh sách tàu' },
   { path: '/onboarding', label: 'Onboarding' },
   { path: '/verification-queue', label: 'Xác minh' },
+  { path: '/compliance', label: 'Tuân thủ' },
   { path: '/report', label: 'Báo cáo' },
   { path: '/sync',      label: 'Đồng bộ' },
 ];

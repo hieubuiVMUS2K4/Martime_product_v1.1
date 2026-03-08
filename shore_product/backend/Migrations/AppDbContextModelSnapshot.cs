@@ -666,6 +666,311 @@ namespace productapi.Migrations
                     b.ToTable("audit_logs", (string)null);
                 });
 
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ComplianceDimension", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DimensionType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Operator")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("RuleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RuleId");
+
+                    b.HasIndex("DimensionType", "Value");
+
+                    b.ToTable("compliance_dimensions", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ComplianceRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AllowEquivalent")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EquivalentCertificateIds")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EvaluationStage")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("ExplainabilityText")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int?>("GracePeriodDays")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("MinDaysBeforeExpiry")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RenewWindowDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RequiredCertificateId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RequiredDocumentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("RequirementType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("RuleSetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UiMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("WaiverAllowed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("WaiverApproverRole")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EvaluationStage");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("RequiredCertificateId");
+
+                    b.HasIndex("RuleSetId");
+
+                    b.HasIndex("Severity");
+
+                    b.ToTable("compliance_rules", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ComplianceRuleSet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Authority")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("EffectiveFrom")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("EffectiveTo")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasFilter("\"Code\" IS NOT NULL");
+
+                    b.HasIndex("IsActive");
+
+                    b.ToTable("compliance_rule_sets", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ComplianceSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("EvaluatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EvaluationDetails")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("EvaluationStage")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime?>("NextExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OverallResult")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<int>("RulesMet")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RulesNotMet")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RulesWaived")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RulesWarning")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TotalRules")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("VesselId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.HasIndex("EvaluatedAt");
+
+                    b.HasIndex("OverallResult");
+
+                    b.HasIndex("CrewMemberId", "VesselId");
+
+                    b.ToTable("compliance_snapshots", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ComplianceWaiver", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApprovalNotes")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Conditions")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("RuleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime?>("ValidFrom")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ValidTo")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("VesselId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.HasIndex("RuleId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("CrewMemberId", "RuleId", "Status");
+
+                    b.ToTable("compliance_waivers", (string)null);
+                });
+
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.CrewDocumentSubmission", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3861,6 +4166,58 @@ namespace productapi.Migrations
                     b.Navigation("CrewMember");
                 });
 
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ComplianceDimension", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.ComplianceRule", "Rule")
+                        .WithMany("Dimensions")
+                        .HasForeignKey("RuleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Rule");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ComplianceRule", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.ComplianceRuleSet", "RuleSet")
+                        .WithMany("Rules")
+                        .HasForeignKey("RuleSetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RuleSet");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ComplianceSnapshot", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CrewMember");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ComplianceWaiver", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.ComplianceRule", "Rule")
+                        .WithMany()
+                        .HasForeignKey("RuleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CrewMember");
+
+                    b.Navigation("Rule");
+                });
+
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.CrewDocumentSubmission", b =>
                 {
                     b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
@@ -4100,6 +4457,16 @@ namespace productapi.Migrations
                     b.Navigation("ServiceRecords");
 
                     b.Navigation("TravelDocuments");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ComplianceRule", b =>
+                {
+                    b.Navigation("Dimensions");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.ComplianceRuleSet", b =>
+                {
+                    b.Navigation("Rules");
                 });
 
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.CrewDocumentSubmission", b =>

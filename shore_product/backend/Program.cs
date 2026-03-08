@@ -78,6 +78,9 @@ builder.Services.AddScoped<ProductApi.Services.CrewManagement.ICrewStatusService
 builder.Services.AddScoped<ProductApi.Services.CrewManagement.IOnboardingService, ProductApi.Services.CrewManagement.OnboardingService>();
 builder.Services.AddScoped<ProductApi.Services.CrewManagement.IDocumentWorkflowService, ProductApi.Services.CrewManagement.DocumentWorkflowService>();
 
+// Register compliance service (Phase 2)
+builder.Services.AddScoped<ProductApi.Services.CrewManagement.IComplianceService, ProductApi.Services.CrewManagement.ComplianceService>();
+
 // Register sync services (Phase 3)
 builder.Services.AddScoped<ProductApi.Services.Sync.ISyncInboxService, ProductApi.Services.Sync.SyncInboxService>();
 builder.Services.AddScoped<ProductApi.Services.Sync.ISyncOutboxService, ProductApi.Services.Sync.SyncOutboxService>();

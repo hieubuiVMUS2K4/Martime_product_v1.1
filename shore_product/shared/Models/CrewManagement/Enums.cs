@@ -122,3 +122,70 @@ public static class AuditAction
     public const string Upload = "Upload";
     public const string Download = "Download";
 }
+
+// ============================================================
+// PHASE 2: COMPLIANCE MATRIX ENUMS
+// ============================================================
+
+/// <summary>
+/// Rule severity — determines if a rule blocks assignment or is advisory
+/// </summary>
+public static class RuleSeverity
+{
+    public const string Blocker = "Blocker";
+    public const string Warning = "Warning";
+    public const string Info = "Info";
+
+    public static readonly string[] All = [Blocker, Warning, Info];
+}
+
+/// <summary>
+/// Evaluation stage — when the rule should be checked
+/// </summary>
+public static class EvaluationStage
+{
+    public const string Onboarding = "Onboarding";
+    public const string PreConfirm = "PreConfirm";
+    public const string PreTravel = "PreTravel";
+    public const string PreOnboard = "PreOnboard";
+    public const string PeriodicReview = "PeriodicReview";
+
+    public static readonly string[] All = [Onboarding, PreConfirm, PreTravel, PreOnboard, PeriodicReview];
+}
+
+/// <summary>
+/// Compliance evaluation result
+/// </summary>
+public static class EligibilityResult
+{
+    public const string Eligible = "Eligible";
+    public const string EligibleWithWarnings = "EligibleWithWarnings";
+    public const string NotEligible = "NotEligible";
+    public const string EligibleByWaiver = "EligibleByWaiver";
+}
+
+/// <summary>
+/// Compliance evaluation item status
+/// </summary>
+public static class ComplianceItemResult
+{
+    public const string Met = "Met";
+    public const string MetExpiringSoon = "MetExpiringSoon";
+    public const string NotMet = "NotMet";
+    public const string Waived = "Waived";
+    public const string NotApplicable = "NotApplicable";
+}
+
+/// <summary>
+/// Compliance waiver status
+/// </summary>
+public static class WaiverStatus
+{
+    public const string Pending = "Pending";
+    public const string Approved = "Approved";
+    public const string Rejected = "Rejected";
+    public const string Expired = "Expired";
+    public const string Revoked = "Revoked";
+
+    public static readonly string[] All = [Pending, Approved, Rejected, Expired, Revoked];
+}

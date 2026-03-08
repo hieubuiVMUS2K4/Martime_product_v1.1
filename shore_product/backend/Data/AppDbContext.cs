@@ -77,6 +77,15 @@ namespace ProductApi.Data
         public DbSet<DocumentVerificationAction> VerificationActions { get; set; } = null!;
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
 
+        // ============================================================
+        // COMPLIANCE MATRIX (Phase 2)
+        // ============================================================
+        public DbSet<ComplianceRuleSet> ComplianceRuleSets { get; set; } = null!;
+        public DbSet<ComplianceRule> ComplianceRules { get; set; } = null!;
+        public DbSet<ComplianceDimension> ComplianceDimensions { get; set; } = null!;
+        public DbSet<ComplianceWaiver> ComplianceWaivers { get; set; } = null!;
+        public DbSet<ComplianceSnapshot> ComplianceSnapshots { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -571,6 +580,82 @@ namespace ProductApi.Data
                 entity.HasIndex(e => e.Actor);
                 entity.HasIndex(e => e.Timestamp);
                 entity.HasIndex(e => e.CorrelationId);
+            });
+
+            // ============================================================
+            // COMPLIANCE MATRIX CONFIGURATIONS (Phase 2)
+            // ============================================================
+
+            modelBuilder.Entity<ComplianceRuleSet>(entity =>
+            {
+                entity.ToTable("compliance_rule_sets");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.Code).IsUnique().HasFilter("\"Code\" IS NOT NULL");
+                entity.HasIndex(e => e.IsActive);
+            });
+
+            modelBuilder.Entity<ComplianceRule>(entity =>
+            {
+                entity.ToTable("compliance_rules");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.RuleSetId);
+                entity.HasIndex(e => e.Severity);
+                entity.HasIndex(e => e.EvaluationStage);
+                entity.HasIndex(e => e.RequiredCertificateId);
+                entity.HasIndex(e => e.IsActive);
+
+                entity.HasOne(e => e.RuleSet)
+                    .WithMany(rs => rs.Rules)
+                    .HasForeignKey(e => e.RuleSetId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ComplianceDimension>(entity =>
+            {
+                entity.ToTable("compliance_dimensions");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.RuleId);
+                entity.HasIndex(e => new { e.DimensionType, e.Value });
+
+                entity.HasOne(e => e.Rule)
+                    .WithMany(r => r.Dimensions)
+                    .HasForeignKey(e => e.RuleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ComplianceWaiver>(entity =>
+            {
+                entity.ToTable("compliance_waivers");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewMemberId);
+                entity.HasIndex(e => e.RuleId);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => new { e.CrewMemberId, e.RuleId, e.Status });
+
+                entity.HasOne(e => e.Rule)
+                    .WithMany()
+                    .HasForeignKey(e => e.RuleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany()
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ComplianceSnapshot>(entity =>
+            {
+                entity.ToTable("compliance_snapshots");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewMemberId);
+                entity.HasIndex(e => new { e.CrewMemberId, e.VesselId });
+                entity.HasIndex(e => e.OverallResult);
+                entity.HasIndex(e => e.EvaluatedAt);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany()
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }

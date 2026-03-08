@@ -7,6 +7,7 @@ import { SyncDashboardPage } from '../pages/SyncManagement';
 import { WorkAssignmentPage } from '../pages/WorkAssignment';
 import { OnboardingDashboardPage, OnboardingDetailPage } from '../pages/OnboardingManagement';
 import { VerificationQueuePage } from '../pages/DocumentWorkflow';
+import { ComplianceDashboardPage, RuleSetsPage, CrewEvaluationPage } from '../pages/ComplianceManagement';
 
 /**
  * Main application routes
@@ -37,6 +38,9 @@ export const AppRoutes: React.FC = () => {
         <Route path="/onboarding" element={<OnboardingDashboardPage />} />
         <Route path="/onboarding/:caseId" element={<OnboardingDetailPage />} />
         <Route path="/verification-queue" element={<VerificationQueuePage />} />
+        <Route path="/compliance" element={<ComplianceDashboardPage />} />
+        <Route path="/compliance/rule-sets" element={<RuleSetsPage />} />
+        <Route path="/compliance/evaluate/:crewId" element={<CrewEvaluationPage />} />
       </Route>
       
       {/* 404 */}
