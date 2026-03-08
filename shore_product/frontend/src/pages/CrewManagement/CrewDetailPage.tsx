@@ -3,14 +3,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import './CrewDetailPage.css';
 import {
   ArrowLeft, Upload, CheckCircle, XCircle, AlertTriangle,
-  Ship, MapPin, Calendar, Eye,
+  Ship, MapPin, Calendar, Eye, ClipboardList, FileCheck, History, ScrollText,
 } from 'lucide-react';
 import { useCrewDetail, useCrewCertificates } from '../../hooks/useCrew';
+import { useCrewOnboarding, useCrewDocumentSubmissions, useCrewStatusHistory, useCrewAuditLog } from '../../hooks/useCrewManagement';
 import { crewApi, certificateApi, referenceApi } from '../../services/crew.service';
+import { crewProfileApi } from '../../services/crewManagement.service';
 import type { CrewDocument, ServiceRecord, Rank } from '../../types/crew.types';
 import type { UpdateCrewRequest } from '../../types/crew.types';
 
-type TabType = 'basic-data' | 'documents' | 'voyage-history';
+type TabType = 'basic-data' | 'documents' | 'voyage-history' | 'onboarding' | 'doc-workflow' | 'status-history' | 'audit';
 
 const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : 'â€”';
 
@@ -43,6 +45,20 @@ export const CrewDetailPage: React.FC = () => {
   // Service records
   const [serviceRecords, setServiceRecords] = useState<ServiceRecord[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
+
+  // Crew management workflow hooks (lazy — only fetch when tab is active)
+  const { data: onboardingCase, loading: onbLoading, refetch: refetchOnb } = useCrewOnboarding(
+    activeTab === 'onboarding' ? id : undefined
+  );
+  const { data: docSubmissions, loading: docSubLoading, refetch: refetchDocSub } = useCrewDocumentSubmissions(
+    activeTab === 'doc-workflow' ? id : undefined
+  );
+  const { data: statusHistory, loading: statusHistLoading } = useCrewStatusHistory(
+    activeTab === 'status-history' ? id : undefined
+  );
+  const { data: auditLogs, loading: auditLoading } = useCrewAuditLog(
+    activeTab === 'audit' ? id : undefined
+  );
 
   useEffect(() => {
     if (crew) setEdited(crew);
@@ -203,6 +219,10 @@ export const CrewDetailPage: React.FC = () => {
             { key: 'basic-data', label: 'Basic Data' },
             { key: 'documents', label: 'Documents' },
             { key: 'voyage-history', label: 'Voyage History', icon: <Ship className="w-4 h-4" /> },
+            { key: 'onboarding', label: 'Onboarding', icon: <ClipboardList className="w-4 h-4" /> },
+            { key: 'doc-workflow', label: 'Doc Workflow', icon: <FileCheck className="w-4 h-4" /> },
+            { key: 'status-history', label: 'Status', icon: <History className="w-4 h-4" /> },
+            { key: 'audit', label: 'Audit', icon: <ScrollText className="w-4 h-4" /> },
           ] as { key: TabType; label: string; icon?: React.ReactNode }[]).map(tab => (
             <button
               key={tab.key}
@@ -640,6 +660,200 @@ export const CrewDetailPage: React.FC = () => {
                         </tr>
                       );
                     })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Onboarding Tab ── */}
+        {activeTab === 'onboarding' && (
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Onboarding</h2>
+            {onbLoading ? (
+              <div className="text-center py-8 text-gray-400">Loading onboarding data...</div>
+            ) : !onboardingCase ? (
+              <div className="text-center py-8 text-gray-400">
+                <ClipboardList className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p>No onboarding case found for this crew member</p>
+                <button
+                  onClick={() => navigate(`/onboarding/new?crewId=${id}`)}
+                  className="mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Create Onboarding Case
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+                    onboardingCase.status === 'Activated' ? 'bg-green-100 text-green-700' :
+                    onboardingCase.status === 'InProgress' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>{onboardingCase.status}</span>
+                  {onboardingCase.referenceVesselName && (
+                    <span className="text-sm text-gray-500"><Ship className="w-3.5 h-3.5 inline mr-1" />{onboardingCase.referenceVesselName}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden" style={{ maxWidth: 300 }}>
+                    <div
+                      className="h-full bg-green-500 rounded-full"
+                      style={{ width: `${onboardingCase.totalItems > 0 ? Math.round(onboardingCase.completedItems / onboardingCase.totalItems * 100) : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-sm text-gray-600">
+                    {onboardingCase.completedItems}/{onboardingCase.totalItems} items
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {onboardingCase.checklistItems.sort((a, b) => a.sortOrder - b.sortOrder).map(item => (
+                    <div key={item.id} className={`flex items-center gap-3 px-3 py-2 rounded border ${
+                      item.status === 'Completed' ? 'border-green-200 bg-green-50' :
+                      item.status === 'Waived' ? 'border-purple-200 bg-purple-50 opacity-75' :
+                      'border-gray-200'
+                    }`}>
+                      {item.status === 'Completed' ? <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" /> :
+                       item.status === 'Waived' ? <XCircle className="w-4 h-4 text-purple-400 flex-shrink-0" /> :
+                       <div className="w-4 h-4 rounded-full border-2 border-gray-300 flex-shrink-0" />}
+                      <span className="flex-1 text-sm text-gray-700">{item.title}</span>
+                      {item.isMandatory && <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700">Required</span>}
+                      <span className="text-xs text-gray-400">{item.status}</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => navigate(`/onboarding/${onboardingCase.id}`)}
+                  className="mt-4 px-4 py-2 text-sm border border-blue-300 text-blue-600 rounded hover:bg-blue-50"
+                >
+                  View Full Details
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Document Workflow Tab ── */}
+        {activeTab === 'doc-workflow' && (
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Document Submissions</h2>
+            {docSubLoading ? (
+              <div className="text-center py-8 text-gray-400">Loading document submissions...</div>
+            ) : docSubmissions.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                <FileCheck className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p>No document submissions yet</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead className="cd-table-thead">
+                    <tr>
+                      <th>Document</th>
+                      <th>Number</th>
+                      <th>Status</th>
+                      <th>Submitted</th>
+                      <th>Expiry</th>
+                      <th>Verification</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {docSubmissions.map(doc => (
+                      <tr key={doc.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 font-medium text-gray-800">
+                          {doc.documentTitle || doc.documentType}
+                        </td>
+                        <td className="px-4 py-2 text-gray-600">{doc.documentNumber || '—'}</td>
+                        <td className="px-4 py-2">
+                          <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+                            doc.status === 'Verified' ? 'bg-green-100 text-green-700' :
+                            doc.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                            doc.status === 'Submitted' || doc.status === 'SentForVerification' ? 'bg-blue-100 text-blue-700' :
+                            'bg-gray-100 text-gray-600'
+                          }`}>{doc.status}</span>
+                        </td>
+                        <td className="px-4 py-2 text-gray-600">{fmt(doc.submittedAt)}</td>
+                        <td className="px-4 py-2 text-gray-600">{fmt(doc.expiryDate)}</td>
+                        <td className="px-4 py-2 text-gray-500 text-xs">{doc.verificationStatus || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Status History Tab ── */}
+        {activeTab === 'status-history' && (
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Status History</h2>
+            {statusHistLoading ? (
+              <div className="text-center py-8 text-gray-400">Loading status history...</div>
+            ) : statusHistory.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                <History className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p>No status changes recorded</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {statusHistory.map(entry => (
+                  <div key={entry.id} className="flex items-start gap-3 px-4 py-3 border border-gray-200 rounded-lg">
+                    <div className="mt-0.5">
+                      <History className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600">{entry.fromStatus}</span>
+                        <span className="text-gray-400">→</span>
+                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700">{entry.toStatus}</span>
+                      </div>
+                      {entry.reason && <p className="text-sm text-gray-600 mt-1">{entry.reason}</p>}
+                      <p className="text-xs text-gray-400 mt-1">by {entry.changedBy} · {fmt(entry.changedAt)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Audit Tab ── */}
+        {activeTab === 'audit' && (
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Audit Trail</h2>
+            {auditLoading ? (
+              <div className="text-center py-8 text-gray-400">Loading audit log...</div>
+            ) : auditLogs.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                <ScrollText className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p>No audit records found</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead className="cd-table-thead">
+                    <tr>
+                      <th>Action</th>
+                      <th>Entity</th>
+                      <th>Actor</th>
+                      <th>Details</th>
+                      <th>Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {auditLogs.map(log => (
+                      <tr key={log.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-2">
+                          <span className="px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-700">{log.action}</span>
+                        </td>
+                        <td className="px-4 py-2 text-gray-600 text-xs">{log.entityType}</td>
+                        <td className="px-4 py-2 text-gray-700">{log.actor}</td>
+                        <td className="px-4 py-2 text-gray-500 text-xs truncate" style={{ maxWidth: 300 }}>{log.details || '—'}</td>
+                        <td className="px-4 py-2 text-gray-500 text-xs">{fmt(log.timestamp)}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

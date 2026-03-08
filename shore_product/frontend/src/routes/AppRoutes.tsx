@@ -5,6 +5,8 @@ import { DashboardPage, CategoryManagementPage, CrewListPage, CrewDetailPage, Ce
 import { VesselDetailPage } from '../pages/VesselManagement';
 import { SyncDashboardPage } from '../pages/SyncManagement';
 import { WorkAssignmentPage } from '../pages/WorkAssignment';
+import { OnboardingDashboardPage, OnboardingDetailPage } from '../pages/OnboardingManagement';
+import { VerificationQueuePage } from '../pages/DocumentWorkflow';
 
 /**
  * Main application routes
@@ -32,6 +34,9 @@ export const AppRoutes: React.FC = () => {
         <Route path="/vessels/:id" element={<VesselDetailPage />} />
         <Route path="/vessels/:vesselId/crew/:id" element={<CrewDetailPage />} />
         <Route path="/pms/master-schedule" element={<MasterSchedulePage />} />
+        <Route path="/onboarding" element={<OnboardingDashboardPage />} />
+        <Route path="/onboarding/:caseId" element={<OnboardingDetailPage />} />
+        <Route path="/verification-queue" element={<VerificationQueuePage />} />
       </Route>
       
       {/* 404 */}

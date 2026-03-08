@@ -1,0 +1,165 @@
+.verification-page {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.verification-page h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: #1e293b;
+}
+
+/* Toolbar */
+.verification-toolbar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.verification-toolbar select {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: #fff;
+}
+
+/* Queue cards */
+.verification-queue {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.verification-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.verification-card:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.08);
+}
+
+.verification-card.priority-critical {
+  border-left: 4px solid #dc2626;
+}
+
+.verification-card.priority-urgent {
+  border-left: 4px solid #f59e0b;
+}
+
+.verification-card.priority-normal {
+  border-left: 4px solid #3b82f6;
+}
+
+.verification-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.verification-card-content .doc-type {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.9rem;
+}
+
+.verification-card-content .crew-info {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.verification-card-meta {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.priority-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.priority-badge.critical {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.priority-badge.urgent {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.priority-badge.normal {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.due-info {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.due-info.overdue {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.verification-card-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.verification-card-actions button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  transition: all 0.15s;
+}
+
+.verification-card-actions button:hover {
+  background: #f9fafb;
+}
+
+.verification-card-actions button.verify-btn {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.verification-card-actions button.verify-btn:hover {
+  background: #bbf7d0;
+}
+
+.verification-card-actions button.reject-btn {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.verification-card-actions button.reject-btn:hover {
+  background: #fecaca;
+}
