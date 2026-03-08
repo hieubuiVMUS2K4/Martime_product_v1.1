@@ -12,6 +12,7 @@ const navItems = [
   { path: '/assignments', label: 'Phân công' },
   { path: '/external-requests', label: 'Tuyển ngoài' },
   { path: '/travel', label: 'Di chuyển' },
+  { path: '/onboard-events', label: 'Onboard' },
   { path: '/report', label: 'Báo cáo' },
   { path: '/sync',      label: 'Đồng bộ' },
 ];

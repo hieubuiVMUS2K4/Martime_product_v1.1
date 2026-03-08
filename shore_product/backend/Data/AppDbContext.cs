@@ -107,6 +107,14 @@ namespace ProductApi.Data
         public DbSet<TravelSegment> TravelSegments { get; set; } = null!;
         public DbSet<TravelStatusHistory> TravelStatusHistory { get; set; } = null!;
 
+        // ============================================================
+        // ONBOARD EVENTS, ACCESS & SIGN-ON/SIGN-OFF (Phase 7)
+        // ============================================================
+        public DbSet<OnboardEvent> OnboardEvents { get; set; } = null!;
+        public DbSet<CrewAccessGrant> CrewAccessGrants { get; set; } = null!;
+        public DbSet<SignOnRecord> SignOnRecords { get; set; } = null!;
+        public DbSet<SignOffRecord> SignOffRecords { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -875,6 +883,117 @@ namespace ProductApi.Data
                     .WithMany(t => t.StatusHistory)
                     .HasForeignKey(e => e.TravelRequestId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ============================================================
+            // PHASE 7: ONBOARD EVENTS, ACCESS & SIGN-ON/SIGN-OFF
+            // ============================================================
+
+            modelBuilder.Entity<OnboardEvent>(entity =>
+            {
+                entity.ToTable("onboard_events");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewMemberId);
+                entity.HasIndex(e => e.VesselId);
+                entity.HasIndex(e => e.EventType);
+                entity.HasIndex(e => e.EventTimestamp);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany()
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Assignment)
+                    .WithMany()
+                    .HasForeignKey(e => e.AssignmentId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.OriginalEvent)
+                    .WithMany()
+                    .HasForeignKey(e => e.OriginalEventId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<CrewAccessGrant>(entity =>
+            {
+                entity.ToTable("crew_access_grants");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewMemberId);
+                entity.HasIndex(e => e.VesselId);
+                entity.HasIndex(e => e.Status);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany()
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Assignment)
+                    .WithMany()
+                    .HasForeignKey(e => e.AssignmentId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<SignOnRecord>(entity =>
+            {
+                entity.ToTable("sign_on_records");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewMemberId);
+                entity.HasIndex(e => e.VesselId);
+                entity.HasIndex(e => e.SignOnDate);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany()
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Rank)
+                    .WithMany()
+                    .HasForeignKey(e => e.RankId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Assignment)
+                    .WithMany()
+                    .HasForeignKey(e => e.AssignmentId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.OnboardEvent)
+                    .WithMany()
+                    .HasForeignKey(e => e.OnboardEventId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<SignOffRecord>(entity =>
+            {
+                entity.ToTable("sign_off_records");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewMemberId);
+                entity.HasIndex(e => e.VesselId);
+                entity.HasIndex(e => e.SignOffDate);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany()
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Rank)
+                    .WithMany()
+                    .HasForeignKey(e => e.RankId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Assignment)
+                    .WithMany()
+                    .HasForeignKey(e => e.AssignmentId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.OnboardEvent)
+                    .WithMany()
+                    .HasForeignKey(e => e.OnboardEventId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.SignOnRecord)
+                    .WithMany()
+                    .HasForeignKey(e => e.SignOnRecordId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
         }
     }

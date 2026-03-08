@@ -88,6 +88,9 @@ builder.Services.AddScoped<ProductApi.Services.CrewManagement.IAssignmentService
 builder.Services.AddScoped<ProductApi.Services.CrewManagement.IExternalRequestService, ProductApi.Services.CrewManagement.ExternalRequestService>();
 builder.Services.AddScoped<ProductApi.Services.CrewManagement.ITravelService, ProductApi.Services.CrewManagement.TravelService>();
 
+// Register onboard event service (Phase 7)
+builder.Services.AddScoped<ProductApi.Services.CrewManagement.IOnboardEventService, ProductApi.Services.CrewManagement.OnboardEventService>();
+
 // Register sync services (Phase 3)
 builder.Services.AddScoped<ProductApi.Services.Sync.ISyncInboxService, ProductApi.Services.Sync.SyncInboxService>();
 builder.Services.AddScoped<ProductApi.Services.Sync.ISyncOutboxService, ProductApi.Services.Sync.SyncOutboxService>();

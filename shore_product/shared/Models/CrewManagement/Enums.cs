@@ -320,3 +320,58 @@ public static class TravelSegmentType
     public const string Hotel = "Hotel";
     public const string Transfer = "Transfer";
 }
+
+// ============================================================
+// PHASE 7: ONBOARD ACCESS & SIGN-ON/SIGN-OFF ENUMS
+// ============================================================
+
+/// <summary>
+/// Onboard event types — factual events that happen on Edge
+/// </summary>
+public static class OnboardEventType
+{
+    public const string Arrived = "Arrived";
+    public const string SignedOn = "SignedOn";
+    public const string SignedOff = "SignedOff";
+    public const string Departed = "Departed";
+    public const string CorrectionArrived = "CorrectionArrived";
+    public const string CorrectionSignedOn = "CorrectionSignedOn";
+    public const string CorrectionSignedOff = "CorrectionSignedOff";
+
+    public static readonly string[] All = [Arrived, SignedOn, SignedOff, Departed,
+        CorrectionArrived, CorrectionSignedOn, CorrectionSignedOff];
+}
+
+/// <summary>
+/// Crew access grant status for onboard modules
+/// </summary>
+public static class AccessGrantStatus
+{
+    public const string NotGranted = "NotGranted";
+    public const string PendingSync = "PendingSync";
+    public const string Granted = "Granted";
+    public const string Suspended = "Suspended";
+    public const string Revoked = "Revoked";
+
+    public static readonly string[] All = [NotGranted, PendingSync, Granted, Suspended, Revoked];
+    public static readonly string[] Active = [PendingSync, Granted];
+}
+
+/// <summary>
+/// Sign-off reason categories
+/// </summary>
+public static class SignOffReason
+{
+    public const string ContractEnd = "ContractEnd";
+    public const string MutualAgreement = "MutualAgreement";
+    public const string Medical = "Medical";
+    public const string Disciplinary = "Disciplinary";
+    public const string CompanyRequest = "CompanyRequest";
+    public const string CrewRequest = "CrewRequest";
+    public const string Emergency = "Emergency";
+    public const string VesselChange = "VesselChange";
+    public const string Other = "Other";
+
+    public static readonly string[] All = [ContractEnd, MutualAgreement, Medical, Disciplinary,
+        CompanyRequest, CrewRequest, Emergency, VesselChange, Other];
+}

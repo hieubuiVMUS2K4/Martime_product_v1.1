@@ -1137,6 +1137,68 @@ namespace productapi.Migrations
                     b.ToTable("compliance_waivers", (string)null);
                 });
 
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.CrewAccessGrant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssignmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("GrantedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GrantedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Module")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("RevokeReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RevokedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VesselId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignmentId");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("VesselId");
+
+                    b.ToTable("crew_access_grants", (string)null);
+                });
+
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.CrewAssignment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1742,6 +1804,84 @@ namespace productapi.Migrations
                     b.ToTable("manning_positions", (string)null);
                 });
 
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.OnboardEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssignmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConfirmedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ConfirmedByRole")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("EventTimestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("OriginalEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("SignOffReason")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("VesselId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignmentId");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.HasIndex("EventTimestamp");
+
+                    b.HasIndex("EventType");
+
+                    b.HasIndex("OriginalEventId");
+
+                    b.HasIndex("VesselId");
+
+                    b.ToTable("onboard_events", (string)null);
+                });
+
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.OnboardingCase", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1889,6 +2029,156 @@ namespace productapi.Migrations
                     b.HasIndex("OnboardingCaseId", "Status");
 
                     b.ToTable("onboarding_checklist_items", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.SignOffRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssignmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("OnboardEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("RankId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ReasonDetail")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("SignOffDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("SignOnRecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SignedOffBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("VesselId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignmentId");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.HasIndex("OnboardEventId");
+
+                    b.HasIndex("RankId");
+
+                    b.HasIndex("SignOffDate");
+
+                    b.HasIndex("SignOnRecordId");
+
+                    b.HasIndex("VesselId");
+
+                    b.ToTable("sign_off_records", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.SignOnRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssignmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("OnboardEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("RankId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("SignOnDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SignedOnBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("VesselId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignmentId");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.HasIndex("OnboardEventId");
+
+                    b.HasIndex("RankId");
+
+                    b.HasIndex("SignOnDate");
+
+                    b.HasIndex("VesselId");
+
+                    b.ToTable("sign_on_records", (string)null);
                 });
 
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.TravelRequest", b =>
@@ -4985,6 +5275,24 @@ namespace productapi.Migrations
                     b.Navigation("Rule");
                 });
 
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.CrewAccessGrant", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.CrewAssignment", "Assignment")
+                        .WithMany()
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Assignment");
+
+                    b.Navigation("CrewMember");
+                });
+
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.CrewAssignment", b =>
                 {
                     b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
@@ -5152,6 +5460,31 @@ namespace productapi.Migrations
                     b.Navigation("Rank");
                 });
 
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.OnboardEvent", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.CrewAssignment", "Assignment")
+                        .WithMany()
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.OnboardEvent", "OriginalEvent")
+                        .WithMany()
+                        .HasForeignKey("OriginalEventId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Assignment");
+
+                    b.Navigation("CrewMember");
+
+                    b.Navigation("OriginalEvent");
+                });
+
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.OnboardingCase", b =>
                 {
                     b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
@@ -5172,6 +5505,79 @@ namespace productapi.Migrations
                         .IsRequired();
 
                     b.Navigation("OnboardingCase");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.SignOffRecord", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.CrewAssignment", "Assignment")
+                        .WithMany()
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.OnboardEvent", "OnboardEvent")
+                        .WithMany()
+                        .HasForeignKey("OnboardEventId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Maritime.Shared.Models.Crew.Rank", "Rank")
+                        .WithMany()
+                        .HasForeignKey("RankId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.SignOnRecord", "SignOnRecord")
+                        .WithMany()
+                        .HasForeignKey("SignOnRecordId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Assignment");
+
+                    b.Navigation("CrewMember");
+
+                    b.Navigation("OnboardEvent");
+
+                    b.Navigation("Rank");
+
+                    b.Navigation("SignOnRecord");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.SignOnRecord", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.CrewAssignment", "Assignment")
+                        .WithMany()
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Maritime.Shared.Models.CrewManagement.OnboardEvent", "OnboardEvent")
+                        .WithMany()
+                        .HasForeignKey("OnboardEventId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Maritime.Shared.Models.Crew.Rank", "Rank")
+                        .WithMany()
+                        .HasForeignKey("RankId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Assignment");
+
+                    b.Navigation("CrewMember");
+
+                    b.Navigation("OnboardEvent");
+
+                    b.Navigation("Rank");
                 });
 
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.TravelRequest", b =>
