@@ -86,6 +86,17 @@ namespace ProductApi.Data
         public DbSet<ComplianceWaiver> ComplianceWaivers { get; set; } = null!;
         public DbSet<ComplianceSnapshot> ComplianceSnapshots { get; set; } = null!;
 
+        // ============================================================
+        // PLANNING & ASSIGNMENT (Phase 5)
+        // ============================================================
+        public DbSet<VesselManningStandard> VesselManningStandards { get; set; } = null!;
+        public DbSet<ManningPosition> ManningPositions { get; set; } = null!;
+        public DbSet<CrewAssignment> CrewAssignments { get; set; } = null!;
+        public DbSet<AssignmentConfirmation> AssignmentConfirmations { get; set; } = null!;
+        public DbSet<AssignmentConflict> AssignmentConflicts { get; set; } = null!;
+        public DbSet<AssignmentComment> AssignmentComments { get; set; } = null!;
+        public DbSet<AssignmentStatusHistory> AssignmentStatusHistory { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -655,6 +666,112 @@ namespace ProductApi.Data
                 entity.HasOne(e => e.CrewMember)
                     .WithMany()
                     .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ============================================================
+            // PLANNING & ASSIGNMENT CONFIGURATIONS (Phase 5)
+            // ============================================================
+
+            modelBuilder.Entity<VesselManningStandard>(entity =>
+            {
+                entity.ToTable("vessel_manning_standards");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.VesselId);
+                entity.HasIndex(e => e.IsActive);
+            });
+
+            modelBuilder.Entity<ManningPosition>(entity =>
+            {
+                entity.ToTable("manning_positions");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.ManningStandardId);
+                entity.HasIndex(e => e.RankId);
+
+                entity.HasOne(e => e.ManningStandard)
+                    .WithMany(s => s.Positions)
+                    .HasForeignKey(e => e.ManningStandardId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Rank)
+                    .WithMany()
+                    .HasForeignKey(e => e.RankId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<CrewAssignment>(entity =>
+            {
+                entity.ToTable("crew_assignments");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CrewMemberId);
+                entity.HasIndex(e => e.VesselId);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => new { e.CrewMemberId, e.Status });
+                entity.HasIndex(e => new { e.VesselId, e.Status });
+                entity.HasIndex(e => new { e.PlannedStartDate, e.PlannedEndDate });
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany()
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Rank)
+                    .WithMany()
+                    .HasForeignKey(e => e.RankId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.ManningPosition)
+                    .WithMany()
+                    .HasForeignKey(e => e.ManningPositionId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<AssignmentConfirmation>(entity =>
+            {
+                entity.ToTable("assignment_confirmations");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.AssignmentId);
+
+                entity.HasOne(e => e.Assignment)
+                    .WithMany(a => a.Confirmations)
+                    .HasForeignKey(e => e.AssignmentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<AssignmentConflict>(entity =>
+            {
+                entity.ToTable("assignment_conflicts");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.AssignmentId);
+                entity.HasIndex(e => new { e.AssignmentId, e.IsResolved });
+
+                entity.HasOne(e => e.Assignment)
+                    .WithMany(a => a.Conflicts)
+                    .HasForeignKey(e => e.AssignmentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<AssignmentComment>(entity =>
+            {
+                entity.ToTable("assignment_comments");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.AssignmentId);
+
+                entity.HasOne(e => e.Assignment)
+                    .WithMany(a => a.Comments)
+                    .HasForeignKey(e => e.AssignmentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<AssignmentStatusHistory>(entity =>
+            {
+                entity.ToTable("assignment_status_history");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.AssignmentId);
+
+                entity.HasOne(e => e.Assignment)
+                    .WithMany(a => a.StatusHistory)
+                    .HasForeignKey(e => e.AssignmentId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
         }

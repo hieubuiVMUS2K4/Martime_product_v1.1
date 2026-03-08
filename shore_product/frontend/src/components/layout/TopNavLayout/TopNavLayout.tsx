@@ -9,6 +9,7 @@ const navItems = [
   { path: '/onboarding', label: 'Onboarding' },
   { path: '/verification-queue', label: 'Xác minh' },
   { path: '/compliance', label: 'Tuân thủ' },
+  { path: '/assignments', label: 'Phân công' },
   { path: '/report', label: 'Báo cáo' },
   { path: '/sync',      label: 'Đồng bộ' },
 ];

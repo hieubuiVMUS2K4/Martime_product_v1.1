@@ -189,3 +189,64 @@ public static class WaiverStatus
 
     public static readonly string[] All = [Pending, Approved, Rejected, Expired, Revoked];
 }
+
+// ============================================================
+// PHASE 5: PLANNING & ASSIGNMENT ENUMS
+// ============================================================
+
+/// <summary>
+/// Crew assignment lifecycle states
+/// </summary>
+public static class AssignmentStatus
+{
+    public const string Draft = "Draft";
+    public const string Proposed = "Proposed";
+    public const string PendingCrewConfirmation = "PendingCrewConfirmation";
+    public const string Confirmed = "Confirmed";
+    public const string TravelInProgress = "TravelInProgress";
+    public const string ReadyToJoin = "ReadyToJoin";
+    public const string OnBoarded = "OnBoarded";
+    public const string Completed = "Completed";
+    public const string Cancelled = "Cancelled";
+    public const string Declined = "Declined";
+
+    public static readonly string[] All = [Draft, Proposed, PendingCrewConfirmation, Confirmed,
+        TravelInProgress, ReadyToJoin, OnBoarded, Completed, Cancelled, Declined];
+
+    public static readonly string[] Active = [Draft, Proposed, PendingCrewConfirmation, Confirmed,
+        TravelInProgress, ReadyToJoin, OnBoarded];
+}
+
+/// <summary>
+/// Assignment conflict types
+/// </summary>
+public static class ConflictType
+{
+    public const string DateOverlap = "DateOverlap";
+    public const string GapTooShort = "GapTooShort";
+    public const string CrewUnavailable = "CrewUnavailable";
+    public const string RankMismatch = "RankMismatch";
+    public const string ComplianceBlocker = "ComplianceBlocker";
+    public const string TravelInfeasible = "TravelInfeasible";
+}
+
+/// <summary>
+/// Assignment conflict severity
+/// </summary>
+public static class ConflictSeverity
+{
+    public const string Blocker = "Blocker";
+    public const string Warning = "Warning";
+    public const string Info = "Info";
+}
+
+/// <summary>
+/// Manning position fill status
+/// </summary>
+public static class PositionFillStatus
+{
+    public const string Open = "Open";
+    public const string Proposed = "Proposed";
+    public const string Filled = "Filled";
+    public const string Shortage = "Shortage";
+}
