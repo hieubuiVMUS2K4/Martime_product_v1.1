@@ -1,12 +1,14 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
-import { Anchor, EyeOff, AlertTriangle, Loader2, Shield, Ship, User, Lock } from 'lucide-react'
+import { Anchor, EyeOff, AlertTriangle, Loader2, Shield, Ship, User, Lock, Info, Compass, Globe, Mail, Phone, MapPin } from 'lucide-react'
 import { VESSEL_CONFIG } from '@/config/app.config'
 
 // ============================================================
 // LOGIN PAGE - Maritime Split-Panel Design with Background Image
 // ============================================================
+
+type PageTab = 'login' | 'about' | 'services' | 'contact'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -19,6 +21,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [activeTab, setActiveTab] = useState<PageTab>('login')
   const usernameRef = useRef<HTMLInputElement>(null)
 
   // Entrance animation trigger
@@ -112,6 +115,29 @@ export function LoginPage() {
             {VESSEL_CONFIG.VESSEL_NAME || 'Maritime Edge'}
           </span>
         </div>
+
+        {/* Tab Navigation */}
+        <nav className="hidden md:flex items-center gap-1">
+          {([
+            { key: 'login' as PageTab, label: 'Login' },
+            { key: 'about' as PageTab, label: 'About' },
+            { key: 'services' as PageTab, label: 'Services' },
+            { key: 'contact' as PageTab, label: 'Contact' },
+          ]).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                activeTab === tab.key
+                  ? 'text-white bg-white/15 border border-white/20'
+                  : 'text-white/60 hover:text-white hover:bg-white/[0.08]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+
         <div className="flex items-center gap-4">
           <span className="font-mono text-sm text-white/50 tabular-nums hidden sm:block">
             {formatDate(currentTime)} — {formatTime(currentTime)} UTC
@@ -122,12 +148,37 @@ export function LoginPage() {
         </div>
       </div>
 
-      {/* ===== MAIN CONTENT - SPLIT LAYOUT ===== */}
+      {/* Mobile Tab Navigation */}
+      <div className="relative z-20 flex md:hidden items-center justify-center gap-1 px-4 pb-2">
+        {([
+          { key: 'login' as PageTab, label: 'Login' },
+          { key: 'about' as PageTab, label: 'About' },
+          { key: 'services' as PageTab, label: 'Services' },
+          { key: 'contact' as PageTab, label: 'Contact' },
+        ]).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
+              activeTab === tab.key
+                ? 'text-white bg-white/15 border border-white/20'
+                : 'text-white/50 hover:text-white hover:bg-white/[0.08]'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ===== MAIN CONTENT ===== */}
       <div
         className={`relative z-10 flex items-center min-h-[calc(100vh-72px)] px-6 sm:px-12 lg:px-20 transition-all duration-700 ease-out ${
           mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}
       >
+        {/* ===== LOGIN TAB ===== */}
+        {activeTab === 'login' && (
+          <>
         {/* LEFT SIDE - Welcome / Branding */}
         <div className="hidden lg:flex flex-col justify-center flex-1 max-w-xl pr-16">
           <div
@@ -372,6 +423,194 @@ export function LoginPage() {
             </form>
           </div>
         </div>
+          </>
+        )}
+
+        {/* ===== ABOUT TAB ===== */}
+        {activeTab === 'about' && (
+          <div className="w-full max-w-4xl mx-auto px-4">
+            <div
+              className="rounded-2xl overflow-hidden p-8 md:p-12"
+              style={{
+                background: 'linear-gradient(160deg, rgba(15,23,60,0.85) 0%, rgba(10,18,50,0.90) 50%, rgba(8,15,40,0.92) 100%)',
+                backdropFilter: 'blur(40px) saturate(1.5)',
+                boxShadow: '0 32px 64px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.08)',
+              }}
+            >
+              <div className="flex items-center gap-3 mb-8">
+                <div className="p-3 rounded-xl" style={{ background: 'linear-gradient(135deg, #2563eb 0%, #0891b2 100%)' }}>
+                  <Info className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-white">About Us</h2>
+                  <p className="text-blue-200/50 text-sm">Maritime Edge Electronic Logbook System</p>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-white/90 flex items-center gap-2">
+                    <Compass className="w-5 h-5 text-cyan-400" />
+                    Our Mission
+                  </h3>
+                  <p className="text-blue-100/60 leading-relaxed text-sm">
+                    Maritime Edge E-Logbook is a comprehensive vessel management platform designed to digitize
+                    and streamline maritime operations. Our system ensures full compliance with international
+                    maritime regulations while providing an intuitive, modern interface for ship officers and crew.
+                  </p>
+                  <p className="text-blue-100/60 leading-relaxed text-sm">
+                    Built as part of an academic research project (NCKH), this platform demonstrates how
+                    modern technology can enhance safety, efficiency, and regulatory compliance in the maritime industry.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-white/90 flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-amber-400" />
+                    Compliance Standards
+                  </h3>
+                  <div className="space-y-3">
+                    {[
+                      { code: 'ISPS Code', desc: 'International Ship and Port Facility Security Code', icon: Shield, color: 'text-amber-400' },
+                      { code: 'ISM Code', desc: 'International Safety Management Code', icon: Ship, color: 'text-cyan-400' },
+                      { code: 'IMO MSC.428(98)', desc: 'Maritime Cyber Risk Management in SMS', icon: Globe, color: 'text-blue-400' },
+                    ].map(item => (
+                      <div key={item.code} className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+                        <item.icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${item.color}`} />
+                        <div>
+                          <p className="text-white/80 text-sm font-medium">{item.code}</p>
+                          <p className="text-blue-200/40 text-xs">{item.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===== SERVICES TAB ===== */}
+        {activeTab === 'services' && (
+          <div className="w-full max-w-5xl mx-auto px-4">
+            <div
+              className="rounded-2xl overflow-hidden p-8 md:p-12"
+              style={{
+                background: 'linear-gradient(160deg, rgba(15,23,60,0.85) 0%, rgba(10,18,50,0.90) 50%, rgba(8,15,40,0.92) 100%)',
+                backdropFilter: 'blur(40px) saturate(1.5)',
+                boxShadow: '0 32px 64px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.08)',
+              }}
+            >
+              <div className="flex items-center gap-3 mb-8">
+                <div className="p-3 rounded-xl" style={{ background: 'linear-gradient(135deg, #0891b2 0%, #2563eb 100%)' }}>
+                  <Compass className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-white">Our Services</h2>
+                  <p className="text-blue-200/50 text-sm">Comprehensive maritime vessel management features</p>
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[
+                  { title: 'Electronic Logbook', desc: 'Digital deck, engine, and radio logs with tamper-proof audit trails compliant with IMO regulations.', icon: '📋' },
+                  { title: 'Crew Management', desc: 'Complete crew database with rank tracking, watch assignments, and personnel records management.', icon: '👥' },
+                  { title: 'Certificate Monitor', desc: 'Track crew certifications, expiry dates, and compliance requirements with automated alerts.', icon: '📜' },
+                  { title: 'Voyage Tracking', desc: 'Record voyage details including ports, routes, cargo, and navigation events in real-time.', icon: '🧭' },
+                  { title: 'Safety Management', desc: 'ISM Code compliant safety management system with drill records and incident reporting.', icon: '🛡️' },
+                  { title: 'Audit & Compliance', desc: 'Comprehensive audit trail logging all system activities per ISPS Code and IMO MSC.428(98).', icon: '📊' },
+                  { title: 'Shore-Edge Sync', desc: 'Seamless data synchronization between vessel (edge) and shore-side management systems.', icon: '🔄' },
+                  { title: 'Role-Based Access', desc: 'Granular access control with Captain, Officer, Engineer, and Admin role hierarchies.', icon: '🔐' },
+                  { title: 'Offline Operation', desc: 'Full functionality even without internet connectivity, with automatic sync when connection is restored.', icon: '📡' },
+                ].map((service, idx) => (
+                  <div
+                    key={idx}
+                    className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] hover:border-white/[0.12] transition-all duration-300"
+                  >
+                    <div className="text-2xl mb-3">{service.icon}</div>
+                    <h3 className="text-white/90 font-semibold text-sm mb-1.5">{service.title}</h3>
+                    <p className="text-blue-200/40 text-xs leading-relaxed">{service.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===== CONTACT TAB ===== */}
+        {activeTab === 'contact' && (
+          <div className="w-full max-w-3xl mx-auto px-4">
+            <div
+              className="rounded-2xl overflow-hidden p-8 md:p-12"
+              style={{
+                background: 'linear-gradient(160deg, rgba(15,23,60,0.85) 0%, rgba(10,18,50,0.90) 50%, rgba(8,15,40,0.92) 100%)',
+                backdropFilter: 'blur(40px) saturate(1.5)',
+                boxShadow: '0 32px 64px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.08)',
+              }}
+            >
+              <div className="flex items-center gap-3 mb-8">
+                <div className="p-3 rounded-xl" style={{ background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)' }}>
+                  <Mail className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-white">Contact Us</h2>
+                  <p className="text-blue-200/50 text-sm">Get in touch with our development team</p>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-5">
+                  <div className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+                    <Mail className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-white/80 font-medium text-sm">Email</p>
+                      <p className="text-blue-200/50 text-sm">maritime-edge@university.edu.vn</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+                    <Phone className="w-5 h-5 text-cyan-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-white/80 font-medium text-sm">Phone</p>
+                      <p className="text-blue-200/50 text-sm">+84 (0) 123 456 789</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+                    <MapPin className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-white/80 font-medium text-sm">Address</p>
+                      <p className="text-blue-200/50 text-sm">Ho Chi Minh City University of Transport</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-white/90">Research Team</h3>
+                  <p className="text-blue-100/50 text-sm leading-relaxed">
+                    Maritime Edge E-Logbook is developed as part of a scientific research project (NCKH)
+                    focused on modernizing maritime vessel management through digital transformation.
+                  </p>
+                  <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+                    <p className="text-white/70 text-sm font-medium mb-2">Project Details</p>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-blue-200/40">Platform</span>
+                        <span className="text-white/60">Maritime Edge E-Logbook v1.1</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-blue-200/40">Tech Stack</span>
+                        <span className="text-white/60">React + .NET 8 + PostgreSQL</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-blue-200/40">Architecture</span>
+                        <span className="text-white/60">Shore-Edge Sync</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ===== BOTTOM FOOTER ===== */}
