@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Building2, Mail, Users, Clock, Eye, CheckCircle, XCircle } from 'lucide-react';
-import { useExternalRequests } from '../../../hooks/useExternalRequest';
-import { externalRequestApi } from '../../../services/externalRequest.service';
-import { ExternalRequestStatus } from '../../../types/externalTravel.types';
-import type { CreateExternalRequestRequest } from '../../../types/externalTravel.types';
+import { Search, Plus, Building2, Mail, Users, Clock, CheckCircle } from 'lucide-react';
+import { useExternalRequests } from '../../hooks/useExternalRequest';
+import { externalRequestApi } from '../../services/externalRequest.service';
+import { ExternalRequestStatus } from '../../types/externalTravel.types';
+import type { CreateExternalRequestRequest } from '../../types/externalTravel.types';
+import { useToast } from '../../components/common/Toast';
 import './ExternalRequestListPage.css';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -36,6 +37,8 @@ export default function ExternalRequestListPage() {
   const { data: requests, loading, refetch } = useExternalRequests(undefined, statusFilter || undefined);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<Partial<CreateExternalRequestRequest>>({});
+  const [creating, setCreating] = useState(false);
+  const toast = useToast();
 
   const filtered = requests.filter(r =>
     !search || (r.agencyName ?? '').toLowerCase().includes(search.toLowerCase())
@@ -54,11 +57,22 @@ export default function ExternalRequestListPage() {
   };
 
   const handleCreate = async () => {
-    if (!formData.vesselId || !formData.rankId || !formData.agencyName) return;
-    await externalRequestApi.create(formData as CreateExternalRequestRequest);
-    setShowForm(false);
-    setFormData({});
-    refetch();
+    if (!formData.vesselId || !formData.rankId || !formData.agencyName) {
+      toast.warning('Vui lòng điền đầy đủ thông tin bắt buộc');
+      return;
+    }
+    setCreating(true);
+    try {
+      await externalRequestApi.create(formData as CreateExternalRequestRequest);
+      setShowForm(false);
+      setFormData({});
+      refetch();
+      toast.success('Đã tạo yêu cầu thành công');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Lỗi tạo yêu cầu');
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -222,7 +236,9 @@ export default function ExternalRequestListPage() {
             </div>
             <div className="modal-actions">
               <button className="btn-secondary" onClick={() => setShowForm(false)}>Hủy</button>
-              <button className="btn-primary" onClick={handleCreate}>Tạo</button>
+              <button className="btn-primary" onClick={handleCreate} disabled={creating}>
+                {creating ? 'Đang tạo...' : 'Tạo'}
+              </button>
             </div>
           </div>
         </div>

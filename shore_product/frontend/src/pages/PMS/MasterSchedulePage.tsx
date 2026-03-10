@@ -32,6 +32,7 @@ export const MasterSchedulePage: React.FC = () => {
 
   useEffect(() => {
     loadSchedules();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, selectedDepartment, currentDate]);
 
   const loadSchedules = async () => {

@@ -8,6 +8,8 @@ import { useOnboardingCase } from '../../hooks/useCrewManagement';
 import { onboardingApi } from '../../services/crewManagement.service';
 import { OnboardingCaseStatus, ChecklistItemStatus } from '../../types/crewManagement.types';
 import type { OnboardingChecklistItem } from '../../types/crewManagement.types';
+import { useToast } from '../../components/common/Toast';
+import { useConfirmDialog } from '../../components/common/ConfirmDialog';
 import './OnboardingDetailPage.css';
 
 const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : '—';
@@ -44,6 +46,8 @@ export const OnboardingDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { data: caseData, loading, error, refetch } = useOnboardingCase(caseId);
   const [actionLoading, setActionLoading] = useState(false);
+  const toast = useToast();
+  const { confirm } = useConfirmDialog();
 
   const handleStatusChange = async (newStatus: string) => {
     if (!caseId || actionLoading) return;
@@ -52,7 +56,7 @@ export const OnboardingDetailPage: React.FC = () => {
       await onboardingApi.updateStatus(caseId, { newStatus });
       await refetch();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to update status');
+      toast.error(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
       setActionLoading(false);
     }
@@ -65,21 +69,29 @@ export const OnboardingDetailPage: React.FC = () => {
       await onboardingApi.updateChecklistItem(item.id, { status: ChecklistItemStatus.COMPLETED });
       await refetch();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to complete item');
+      toast.error(err instanceof Error ? err.message : 'Failed to complete item');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleWaiveItem = async (item: OnboardingChecklistItem) => {
-    const reason = prompt('Waiver reason:');
-    if (!reason || actionLoading) return;
+    const result = await confirm({
+      title: 'Waive checklist item',
+      message: `Are you sure you want to waive "${item.title}"? Please provide a reason.`,
+      variant: 'warning',
+      confirmText: 'Waive',
+      showInput: true,
+      inputPlaceholder: 'Waiver reason...',
+      inputRequired: true,
+    });
+    if (!result.confirmed || actionLoading) return;
     setActionLoading(true);
     try {
-      await onboardingApi.waiveChecklistItem(item.id, { waiverReason: reason });
+      await onboardingApi.waiveChecklistItem(item.id, { waiverReason: result.inputValue! });
       await refetch();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to waive item');
+      toast.error(err instanceof Error ? err.message : 'Failed to waive item');
     } finally {
       setActionLoading(false);
     }

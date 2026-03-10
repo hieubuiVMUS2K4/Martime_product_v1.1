@@ -6,10 +6,11 @@ import {
 } from 'lucide-react';
 import { useAssignments } from '../../hooks/useAssignment';
 import { useReferenceData } from '../../hooks/useCrew';
-import { AssignmentStatus, ACTIVE_STATUSES, ConflictSeverity } from '../../types/assignment.types';
-import type { CrewAssignment, CreateAssignmentRequest } from '../../types/assignment.types';
+import { AssignmentStatus, ACTIVE_STATUSES } from '../../types/assignment.types';
+import type { CreateAssignmentRequest } from '../../types/assignment.types';
 import { assignmentApi } from '../../services/assignment.service';
 import { AssignmentFormModal } from './AssignmentFormModal';
+import { useToast } from '../../components/common/Toast';
 import './AssignmentListPage.css';
 
 const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : '—';
@@ -46,6 +47,7 @@ export const AssignmentListPage: React.FC = () => {
     statusFilter ? { status: statusFilter } : undefined,
   );
   const { ranks } = useReferenceData();
+  const toast = useToast();
 
   const filtered = useMemo(() => {
     if (!search) return assignments;
@@ -76,7 +78,7 @@ export const AssignmentListPage: React.FC = () => {
       refetch();
       navigate(`/assignments/${created.id}`);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Lỗi tạo phân công');
+      toast.error(err instanceof Error ? err.message : 'Lỗi tạo phân công');
     }
   }, [refetch, navigate]);
 

@@ -1,5 +1,21 @@
 # SHORE Crew Management Implementation Blueprint
 
+> ### 📊 TỔNG KẾT TIẾN ĐỘ (Cập nhật: 2026-03-08)
+>
+> **Tiến độ tổng thể: 7/9 pha hoàn thành (~78%)**
+>
+> - ✅ **Pha 0–2**: Foundation, Onboarding, Document Workflow — HOÀN THÀNH
+> - ❌ **Pha 3**: Crew Portal/PWA — CHƯA BẮT ĐẦU
+> - ✅ **Pha 4–7**: Compliance, Assignment, External/Travel, Onboard — HOÀN THÀNH
+> - ❌ **Pha 8**: Hardening & Rollout — CHƯA BẮT ĐẦU
+>
+> **Backend:** 10 services, 8 controllers, 5 migrations, 30+ DbSets — ✅ đầy đủ
+> **Frontend Shore:** 20+ pages, 9 hooks, 7 API services, routes đầy đủ — ✅ đầy đủ
+> **PWA/Crew Portal:** ❌ Chưa có
+> **Items cần chú ý (⚠️):** Object storage/signed URL, Email invitation service, Service record auto-update
+>
+> → Xem chi tiết tại [Mục 24: Kế hoạch triển khai theo pha](#24-kế-hoạch-triển-khai-theo-pha)
+
 ## 1. Mục đích tài liệu
 
 Tài liệu này là blueprint triển khai module quản lý thuyền viên trên Shore cho hệ thống Maritime Product. Mục tiêu là đưa ra một kế hoạch đủ chi tiết để đội nghiệp vụ, backend, frontend, mobile/PWA, QA và triển khai có thể dùng làm chuẩn thống nhất trước khi bắt đầu phát triển.
@@ -874,106 +890,155 @@ Khóa đúng quyền truy cập onboard, đồng thời chuẩn hóa luồng fac
 
 ## 24. Kế hoạch triển khai theo pha
 
-### Pha 0. Business discovery và rule finalization
+> **CẬP NHẬT TIẾN ĐỘ — 2026-03-08**
+>
+> | Pha | Tên | Trạng thái | Backend | Frontend | Ghi chú |
+> |-----|-----|-----------|---------|----------|---------|
+> | 0 | Business discovery | ✅ HOÀN THÀNH | — | — | State machines, enums, data dictionary đã chốt |
+> | 1 | Foundation & data contracts | ✅ HOÀN THÀNH | ✅ | ✅ | 5 migrations, 30+ DbSets, 10 services, 8 controllers |
+> | 2 | Onboarding & document workflow | ✅ HOÀN THÀNH | ✅ | ✅ | OnboardingService, DocumentWorkflowService, UI pages |
+> | 3 | Crew portal/PWA | ❌ CHƯA BẮT ĐẦU | — | — | Chưa có PWA, chưa có activation flow |
+> | 4 | Compliance matrix & simulation | ✅ HOÀN THÀNH | ✅ | ✅ | ComplianceService, 3 UI pages (Dashboard, RuleSets, Evaluation) |
+> | 5 | Planning & assignment | ✅ HOÀN THÀNH | ✅ | ✅ | AssignmentService, 4 UI pages (List, Detail, Form, Planning) |
+> | 6 | External requests & travel | ✅ HOÀN THÀNH | ✅ | ✅ | ExternalRequestService, TravelService, 4 UI pages |
+> | 7 | Onboard events & Edge integration | ✅ HOÀN THÀNH | ✅ | ✅ | OnboardEventService, SignOn/SignOff, AccessGrant |
+> | 8 | Hardening, pilot & rollout | ❌ CHƯA BẮT ĐẦU | — | — | Chưa pilot, chưa có SOP, chưa QA regression |
+
+### Pha 0. Business discovery và rule finalization — ✅ HOÀN THÀNH
 
 Thời lượng: 1 đến 2 tuần.
 
 Kết quả đầu ra:
 
-- Business glossary.
-- State machine definitions.
-- Rule catalog.
-- Field-level data dictionary.
-- RACI matrix.
+- ✅ Business glossary — Enums.cs định nghĩa đầy đủ tất cả state machine statuses.
+- ✅ State machine definitions — 7 state machines hoàn chỉnh (CrewStatus, OnboardingCase, DocumentSubmission, Assignment, ExternalRequest, TravelRequest, AccessGrant).
+- ✅ Rule catalog — RuleSeverity, EvaluationStage, ConflictType, SignOffReason đã chốt.
+- ✅ Field-level data dictionary — Models đầy đủ với XML docs, MaxLength, và Required annotations.
+- ✅ RACI matrix — Tài liệu phần 7 đã định nghĩa, code phản ánh qua role-based actions.
 
-### Pha 1. Foundation và data contracts
+### Pha 1. Foundation và data contracts — ✅ HOÀN THÀNH
 
 Thời lượng: 2 đến 3 tuần.
 
 Công việc:
 
-- Mở rộng shared models và DTOs.
-- Thiết kế migrations cho onboarding, documents, compliance, planning, travel skeleton.
-- Dựng audit và notification outbox.
-- Chốt object storage strategy và upload pipeline.
+- ✅ Mở rộng shared models và DTOs — 7 model files + 5 DTO files trong `shared/Models/CrewManagement/` và `shared/DTOs/CrewManagement/`.
+- ✅ Thiết kế migrations — 5 migrations:
+  - `20260308101426_AddCrewManagementWorkflow` (Onboarding, Documents, Audit)
+  - `20260308112815_AddComplianceMatrix` (ComplianceRuleSet, Rule, Dimension, Waiver, Snapshot)
+  - `20260308122700_AddPlanningAssignment` (ManningStandard, Position, Assignment, Confirmation, Conflict, Comment, StatusHistory)
+  - `20260308130638_AddExternalRequestsAndTravel` (ExternalRequest, Candidate, Message, TravelRequest, Segment, StatusHistory)
+  - `20260308134144_AddOnboardEventsAndSignOnOff` (OnboardEvent, CrewAccessGrant, SignOnRecord, SignOffRecord)
+- ✅ Dựng audit — AuditLog model + AuditService.
+- ⚠️ Chốt object storage strategy và upload pipeline — Chưa có signed URL / object storage. DocumentVersion chỉ lưu FilePath local.
 
-### Pha 2. Crew onboarding và document workflow
-
-Thời lượng: 4 tuần.
-
-Kết quả:
-
-- Tạo hồ sơ crew.
-- Auto-generate checklist theo reference vessel hoặc vessel group.
-- Upload, verification, rejection, renew, versioning.
-- Email invitation và first-login flow.
-
-### Pha 3. Crew portal/PWA
-
-Thời lượng: 3 tuần.
-
-Kết quả:
-
-- Activate account.
-- Checklist view.
-- Document upload mobile-first.
-- Notification center cơ bản.
-
-### Pha 4. Compliance matrix và simulation
-
-Thời lượng: 3 tuần.
-
-Kết quả:
-
-- Rule configuration.
-- Evaluation engine.
-- Simulation UI.
-- Waiver flow cơ bản.
-
-### Pha 5. Planning, assignment và confirmation
+### Pha 2. Crew onboarding và document workflow — ✅ HOÀN THÀNH
 
 Thời lượng: 4 tuần.
 
 Kết quả:
 
-- Manning standard.
-- Planning board.
-- Conflict detection.
-- Crew confirmation.
-- Assignment thread.
+- ✅ Tạo hồ sơ crew — CrewProfileController + CrewStatusService.
+- ✅ Auto-generate checklist theo reference vessel hoặc vessel group — OnboardingService.
+- ✅ Upload, verification, rejection, renew, versioning — DocumentWorkflowService (CrewDocumentSubmission + CrewDocumentVersion + DocumentVerificationTask + DocumentVerificationAction).
+- ⚠️ Email invitation và first-login flow — Chưa có email service, chưa có token generation. Model OnboardingCase có InvitedAt nhưng chưa có thực thi gửi email.
 
-### Pha 6. External requests và travel
+**Frontend:**
+- ✅ OnboardingDashboardPage + OnboardingDetailPage.
+- ✅ VerificationQueuePage.
+- ✅ CrewDetailPage mở rộng với các tab Onboarding, Doc Workflow, Status History, Audit.
+- ✅ TypeScript types (crewManagement.types.ts), API service (crewManagement.service.ts), hooks (useCrewManagement.ts).
+
+### Pha 3. Crew portal/PWA — ❌ CHƯA BẮT ĐẦU
+
+Thời lượng: 3 tuần.
+
+Kết quả:
+
+- ❌ Activate account — Chưa triển khai.
+- ❌ Checklist view — Chưa có PWA frontend.
+- ❌ Document upload mobile-first — Chưa có.
+- ❌ Notification center cơ bản — Chưa có.
+
+**Ghi chú:** Toàn bộ pha này chưa bắt đầu. Không có repo PWA, không có auth realm riêng cho crew, không có service worker.
+
+### Pha 4. Compliance matrix và simulation — ✅ HOÀN THÀNH
+
+Thời lượng: 3 tuần.
+
+Kết quả:
+
+- ✅ Rule configuration — ComplianceRuleSet, ComplianceRule, ComplianceDimension models + ComplianceController CRUD.
+- ✅ Evaluation engine — ComplianceService + ComplianceSnapshot.
+- ✅ Simulation UI — CrewEvaluationPage (frontend).
+- ✅ Waiver flow cơ bản — ComplianceWaiver model + API.
+
+**Frontend:**
+- ✅ ComplianceDashboardPage.
+- ✅ RuleSetsPage.
+- ✅ CrewEvaluationPage.
+- ✅ TypeScript types (compliance.types.ts), API service (compliance.service.ts), hooks (useCompliance.ts).
+
+### Pha 5. Planning, assignment và confirmation — ✅ HOÀN THÀNH
+
+Thời lượng: 4 tuần.
+
+Kết quả:
+
+- ✅ Manning standard — VesselManningStandard + ManningPosition models.
+- ✅ Planning board — PlanningBoardPage (frontend).
+- ✅ Conflict detection — AssignmentConflict model + AssignmentService.
+- ✅ Crew confirmation — AssignmentConfirmation model + API.
+- ✅ Assignment thread — AssignmentComment model + AssignmentStatusHistory.
+
+**Frontend:**
+- ✅ AssignmentListPage.
+- ✅ AssignmentDetailPage.
+- ✅ AssignmentFormModal.
+- ✅ PlanningBoardPage.
+- ✅ TypeScript types (assignment.types.ts), API service (assignment.service.ts), hooks (useAssignment.ts).
+
+### Pha 6. External requests và travel — ✅ HOÀN THÀNH
 
 Thời lượng: 3 đến 4 tuần.
 
 Kết quả:
 
-- Agency request flow.
-- Candidate submission.
-- Auto-generate travel requests.
-- Itinerary distribution.
+- ✅ Agency request flow — ExternalRequest + ExternalRequestMessage + ExternalRequestService + ExternalRequestController.
+- ✅ Candidate submission — ExternalCandidate model.
+- ✅ Auto-generate travel requests — TravelRequest + TravelService + TravelController.
+- ✅ Itinerary distribution — TravelSegment + TravelStatusHistory.
 
-### Pha 7. Onboard access, sign-on/sign-off và Edge integration
+**Frontend:**
+- ✅ ExternalRequestListPage + ExternalRequestDetailPage.
+- ✅ TravelListPage + TravelDetailPage.
+- ✅ TypeScript types (externalTravel.types.ts), API services (externalRequest.service.ts, travel.service.ts), hooks (useExternalRequest.ts, useTravel.ts).
+
+### Pha 7. Onboard access, sign-on/sign-off và Edge integration — ✅ HOÀN THÀNH
 
 Thời lượng: 3 tuần.
 
 Kết quả:
 
-- Access grant policy.
-- Onboard event flow.
-- Sign-on/sign-off sync.
-- Service record update.
+- ✅ Access grant policy — CrewAccessGrant model + AccessGrantStatus enum.
+- ✅ Onboard event flow — OnboardEvent model + OnboardEventService + OnboardEventController.
+- ✅ Sign-on/sign-off sync — SignOnRecord + SignOffRecord models.
+- ⚠️ Service record auto-update — Models ready, nhưng chưa xác nhận logic tự động cập nhật ServiceRecord khi sign-off.
 
-### Pha 8. Hardening, pilot và rollout
+**Frontend:**
+- ✅ OnboardDashboardPage.
+- ✅ TypeScript types (OnboardDtos), hooks (useOnboard.ts).
+
+### Pha 8. Hardening, pilot và rollout — ❌ CHƯA BẮT ĐẦU
 
 Thời lượng: 2 đến 3 tuần.
 
 Kết quả:
 
-- PoC cho 1 đến 2 tàu, 10 đến 20 crew.
-- SOP theo vai trò.
-- Performance tuning.
-- QA regression và go-live checklist.
+- ❌ PoC cho 1 đến 2 tàu, 10 đến 20 crew — Chưa pilot.
+- ❌ SOP theo vai trò — Chưa viết.
+- ❌ Performance tuning — Chưa thực hiện.
+- ❌ QA regression và go-live checklist — Chưa có.
 
 ## 25. Test strategy và acceptance criteria
 

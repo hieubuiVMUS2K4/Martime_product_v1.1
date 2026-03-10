@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Plane, Ship, MapPin, Clock, User } from 'lucide-react';
-import { useTravelRequests } from '../../../hooks/useTravel';
-import { travelRequestApi } from '../../../services/travel.service';
-import { TravelRequestStatus } from '../../../types/externalTravel.types';
-import type { CreateTravelRequestRequest } from '../../../types/externalTravel.types';
+import { useTravelRequests } from '../../hooks/useTravel';
+import { travelRequestApi } from '../../services/travel.service';
+import { TravelRequestStatus } from '../../types/externalTravel.types';
+import type { CreateTravelRequestRequest } from '../../types/externalTravel.types';
+import { useToast } from '../../components/common/Toast';
 import './TravelListPage.css';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -26,6 +27,8 @@ export default function TravelListPage() {
   const { data: travels, loading, refetch } = useTravelRequests(undefined, undefined, statusFilter || undefined);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<Partial<CreateTravelRequestRequest>>({});
+  const [creating, setCreating] = useState(false);
+  const toast = useToast();
 
   const filtered = travels.filter(t =>
     !search || (t.crewName ?? '').toLowerCase().includes(search.toLowerCase())
@@ -42,11 +45,22 @@ export default function TravelListPage() {
   };
 
   const handleCreate = async () => {
-    if (!formData.assignmentId || !formData.travelType) return;
-    await travelRequestApi.create(formData as CreateTravelRequestRequest);
-    setShowForm(false);
-    setFormData({});
-    refetch();
+    if (!formData.assignmentId || !formData.travelType) {
+      toast.warning('Vui lòng chọn Assignment và loại di chuyển');
+      return;
+    }
+    setCreating(true);
+    try {
+      await travelRequestApi.create(formData as CreateTravelRequestRequest);
+      setShowForm(false);
+      setFormData({});
+      refetch();
+      toast.success('Đã tạo yêu cầu di chuyển');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Lỗi tạo yêu cầu');
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -167,7 +181,9 @@ export default function TravelListPage() {
             </div>
             <div className="modal-actions">
               <button className="btn-secondary" onClick={() => setShowForm(false)}>Hủy</button>
-              <button className="btn-primary" onClick={handleCreate}>Tạo</button>
+              <button className="btn-primary" onClick={handleCreate} disabled={creating}>
+                {creating ? 'Đang tạo...' : 'Tạo'}
+              </button>
             </div>
           </div>
         </div>

@@ -3,14 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users, UserCheck, UserMinus, ShieldAlert,
   Search, Filter, Plus, ChevronLeft, ChevronRight,
-  MoreHorizontal, Eye, Pencil, Trash2, RefreshCw,
+  Eye, Pencil, Trash2, RefreshCw,
   Download
 } from 'lucide-react';
 import { useCrewList, useReferenceData, useExpiringCertificates } from '../../hooks/useCrew';
-import { useDebounce } from '../../hooks/useDebounce';
 import { crewApi } from '../../services/crew.service';
+import { useToast } from '../../components/common/Toast';
+import { useConfirmDialog } from '../../components/common/ConfirmDialog';
 import { CrewFormModal } from './CrewFormModal';
-import type { CrewMember, CreateCrewRequest, UpdateCrewRequest } from '../../types/crew.types';
+import type { CrewMember, CreateCrewRequest } from '../../types/crew.types';
 import './CrewListPage.css';
 
 export const CrewListPage: React.FC = () => {
@@ -19,10 +20,11 @@ export const CrewListPage: React.FC = () => {
   const { ranks } = useReferenceData();
   const { data: expiringCerts } = useExpiringCertificates(90);
 
+  const toast = useToast();
+  const { confirm } = useConfirmDialog();
   const [showFilters, setShowFilters] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingCrew, setEditingCrew] = useState<CrewMember | null>(null);
-  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Stats computed from current data
@@ -53,12 +55,13 @@ export const CrewListPage: React.FC = () => {
       await crewApi.create(data as CreateCrewRequest);
       setFormOpen(false);
       refetch();
+      toast.success('Tạo thành công', 'Đã thêm thuyền viên mới.');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to create');
+      toast.error('Lỗi tạo thuyền viên', err instanceof Error ? err.message : 'Không thể tạo.');
     } finally {
       setSaving(false);
     }
-  }, [refetch]);
+  }, [refetch, toast]);
 
   const handleUpdate = useCallback(async (data: CreateCrewRequest | Partial<CreateCrewRequest>) => {
     if (!editingCrew) return;
@@ -68,27 +71,35 @@ export const CrewListPage: React.FC = () => {
       setEditingCrew(null);
       setFormOpen(false);
       refetch();
+      toast.success('Cập nhật thành công');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update');
+      toast.error('Lỗi cập nhật', err instanceof Error ? err.message : 'Không thể cập nhật.');
     } finally {
       setSaving(false);
     }
-  }, [editingCrew, refetch]);
+  }, [editingCrew, refetch, toast]);
 
   const handleDelete = useCallback(async (id: string, name: string) => {
-    if (!window.confirm(`Xác nhận xóa thuyền viên "${name}"?`)) return;
+    const { confirmed } = await confirm({
+      title: 'Xóa thuyền viên',
+      message: `Bạn có chắc chắn muốn xóa "${name}"? Hành động này không thể hoàn tác.`,
+      confirmLabel: 'Xóa',
+      cancelLabel: 'Hủy',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await crewApi.delete(id);
       refetch();
+      toast.success('Đã xóa thuyền viên');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete');
+      toast.error('Lỗi xóa', err instanceof Error ? err.message : 'Không thể xóa.');
     }
-  }, [refetch]);
+  }, [refetch, confirm, toast]);
 
   const openEdit = useCallback((crew: CrewMember) => {
     setEditingCrew(crew);
     setFormOpen(true);
-    setActionMenuId(null);
   }, []);
 
   const openNew = useCallback(() => {

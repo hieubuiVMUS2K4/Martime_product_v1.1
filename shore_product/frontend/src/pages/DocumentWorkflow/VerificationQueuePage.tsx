@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Clock, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useVerificationQueue } from '../../hooks/useCrewManagement';
 import { documentApi } from '../../services/crewManagement.service';
 import type { VerificationTask } from '../../types/crewManagement.types';
+import { useToast } from '../../components/common/Toast';
+import { useConfirmDialog } from '../../components/common/ConfirmDialog';
 import './VerificationQueuePage.css';
 
 const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : '—';
@@ -14,9 +16,11 @@ const isOverdue = (dueAt?: string) => {
 
 export const VerificationQueuePage: React.FC = () => {
   const {
-    data: tasks, loading, error, statusFilter, setStatusFilter, refetch,
+    data: tasks = [], loading, error, statusFilter, setStatusFilter, refetch,
   } = useVerificationQueue();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const toast = useToast();
+  const { confirm } = useConfirmDialog();
 
   const handleVerify = async (task: VerificationTask) => {
     if (actionLoading) return;
@@ -27,25 +31,35 @@ export const VerificationQueuePage: React.FC = () => {
         comment: 'Verified via queue',
       });
       await refetch();
+      toast.success('Document verified successfully');
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to verify');
+      toast.error(err instanceof Error ? err.message : 'Failed to verify');
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleReject = async (task: VerificationTask) => {
-    const comment = prompt('Rejection reason:');
-    if (!comment || actionLoading) return;
+    const result = await confirm({
+      title: 'Reject Document',
+      message: `Reject "${task.documentType}" from ${task.crewName}? Please provide a reason.`,
+      variant: 'danger',
+      confirmText: 'Reject',
+      showInput: true,
+      inputPlaceholder: 'Rejection reason...',
+      inputRequired: true,
+    });
+    if (!result.confirmed || actionLoading) return;
     setActionLoading(task.id);
     try {
       await documentApi.performVerification(task.id, {
         actionType: 'Rejected',
-        comment,
+        comment: result.inputValue!,
       });
       await refetch();
+      toast.success('Document rejected');
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to reject');
+      toast.error(err instanceof Error ? err.message : 'Failed to reject');
     } finally {
       setActionLoading(null);
     }

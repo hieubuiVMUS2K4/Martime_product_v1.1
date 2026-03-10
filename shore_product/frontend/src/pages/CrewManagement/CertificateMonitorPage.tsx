@@ -4,7 +4,6 @@ import {
   Search, ChevronDown, ChevronUp, RefreshCw, Filter
 } from 'lucide-react';
 import { useExpiringCertificates, useCompliance } from '../../hooks/useCrew';
-import type { CrewCertificate } from '../../types/crew.types';
 import { useNavigate } from 'react-router-dom';
 import './CertificateMonitorPage.css';
 
@@ -15,7 +14,7 @@ type StatusFilter = 'all' | 'VALID' | 'EXPIRING_SOON' | 'EXPIRED';
 export const CertificateMonitorPage: React.FC = () => {
   const [daysAhead, setDaysAhead] = useState(90);
   const { data: expiring, loading: expLoading, refetch: refetchExp } = useExpiringCertificates(daysAhead);
-  const { data: compliance, loading: compLoading, refetch: refetchComp } = useCompliance();
+  const { data: compliance, refetch: refetchComp } = useCompliance();
   const navigate = useNavigate();
 
   const [search, setSearch] = useState('');

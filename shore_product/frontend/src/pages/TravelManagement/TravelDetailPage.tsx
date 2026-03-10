@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plane, MapPin, Clock, Plus, Trash2, History } from 'lucide-react';
-import { useTravelRequest, useTravelHistory } from '../../../hooks/useTravel';
-import { travelRequestApi, travelSegmentApi } from '../../../services/travel.service';
-import { TravelSegmentType } from '../../../types/externalTravel.types';
-import type { CreateTravelSegmentRequest } from '../../../types/externalTravel.types';
+import { useTravelRequest, useTravelHistory } from '../../hooks/useTravel';
+import { travelRequestApi, travelSegmentApi } from '../../services/travel.service';
+import { TravelSegmentType } from '../../types/externalTravel.types';
+import type { CreateTravelSegmentRequest } from '../../types/externalTravel.types';
+import { useToast } from '../../components/common/Toast';
+import { useConfirmDialog } from '../../components/common/ConfirmDialog';
 import './TravelDetailPage.css';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -25,14 +27,34 @@ export default function TravelDetailPage() {
   const { data: history, refetch: refetchHistory } = useTravelHistory(id);
   const [showSegForm, setShowSegForm] = useState(false);
   const [segForm, setSegForm] = useState<Partial<CreateTravelSegmentRequest>>({});
+  const toast = useToast();
+  const { confirm } = useConfirmDialog();
 
   if (loading || !travel) return <div className="loading-state">Đang tải...</div>;
 
   const handleStatusChange = async (newStatus: string) => {
-    const reason = newStatus === 'Cancelled' ? prompt('Lý do hủy?') || undefined : undefined;
-    await travelRequestApi.changeStatus(id!, { newStatus, reason });
-    refetch();
-    refetchHistory();
+    let reason: string | undefined;
+    if (newStatus === 'Cancelled') {
+      const result = await confirm({
+        title: 'Hủy yêu cầu di chuyển',
+        message: 'Vui lòng cung cấp lý do hủy.',
+        variant: 'danger',
+        confirmText: 'Hủy yêu cầu',
+        showInput: true,
+        inputPlaceholder: 'Lý do hủy...',
+        inputRequired: true,
+      });
+      if (!result.confirmed) return;
+      reason = result.inputValue;
+    }
+    try {
+      await travelRequestApi.changeStatus(id!, { newStatus, reason });
+      refetch();
+      refetchHistory();
+      toast.success(`Đã chuyển sang ${STATUS_LABELS[newStatus] || newStatus}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Lỗi chuyển trạng thái');
+    }
   };
 
   const handleAddSegment = async () => {

@@ -2762,7 +2762,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AisData");
+                    b.ToTable("AisData", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.ArrivalReport", b =>
@@ -2992,7 +2992,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("EngineData");
+                    b.ToTable("EngineData", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.FuelConsumption", b =>
@@ -3031,7 +3031,7 @@ namespace productapi.Migrations
 
                     b.HasIndex("VesselId");
 
-                    b.ToTable("FuelConsumptions");
+                    b.ToTable("FuelConsumptions", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.FuelConsumptionData", b =>
@@ -3086,7 +3086,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("FuelConsumptionData");
+                    b.ToTable("FuelConsumptionData", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.GeneratorData", b =>
@@ -3125,7 +3125,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("GeneratorData");
+                    b.ToTable("GeneratorData", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.MaintenanceTask", b =>
@@ -3150,7 +3150,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("MaintenanceTasks");
+                    b.ToTable("MaintenanceTasks", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.MaritimeReport", b =>
@@ -3406,7 +3406,7 @@ namespace productapi.Migrations
 
                     b.HasIndex("VesselId", "ArrivalTime");
 
-                    b.ToTable("PortCalls");
+                    b.ToTable("PortCalls", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.PositionData", b =>
@@ -3448,7 +3448,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PositionData");
+                    b.ToTable("PositionData", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.ReportType", b =>
@@ -3644,7 +3644,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SafetyAlarms");
+                    b.ToTable("SafetyAlarms", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.Ship", b =>
@@ -3666,7 +3666,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Ships");
+                    b.ToTable("Ships", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.SyncIdempotencyRecord", b =>
@@ -3867,7 +3867,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TankLevels");
+                    b.ToTable("TankLevels", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.User", b =>
@@ -3890,7 +3890,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.Vessel", b =>
@@ -4893,7 +4893,7 @@ namespace productapi.Migrations
                     b.HasIndex("IMO")
                         .IsUnique();
 
-                    b.ToTable("Vessels");
+                    b.ToTable("Vessels", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.VesselAlert", b =>
@@ -4939,7 +4939,7 @@ namespace productapi.Migrations
 
                     b.HasIndex("VesselId", "Timestamp");
 
-                    b.ToTable("VesselAlerts");
+                    b.ToTable("VesselAlerts", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.VesselCertificate", b =>
@@ -5025,7 +5025,7 @@ namespace productapi.Migrations
 
                     b.HasIndex("VesselId", "Timestamp");
 
-                    b.ToTable("VesselPositions");
+                    b.ToTable("VesselPositions", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.VoyageRecord", b =>
@@ -5087,7 +5087,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("VoyageRecords");
+                    b.ToTable("VoyageRecords", (string)null);
                 });
 
             modelBuilder.Entity("Maritime.Shared.Models.Crew.CountryCertificate", b =>

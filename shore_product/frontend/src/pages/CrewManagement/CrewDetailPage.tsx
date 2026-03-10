@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+﻿import React, { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import './CrewDetailPage.css';
 import {
@@ -7,14 +7,14 @@ import {
 } from 'lucide-react';
 import { useCrewDetail, useCrewCertificates } from '../../hooks/useCrew';
 import { useCrewOnboarding, useCrewDocumentSubmissions, useCrewStatusHistory, useCrewAuditLog } from '../../hooks/useCrewManagement';
-import { crewApi, certificateApi, referenceApi } from '../../services/crew.service';
-import { crewProfileApi } from '../../services/crewManagement.service';
+import { crewApi, referenceApi } from '../../services/crew.service';
+import { useToast } from '../../components/common/Toast';
 import type { CrewDocument, ServiceRecord, Rank } from '../../types/crew.types';
 import type { UpdateCrewRequest } from '../../types/crew.types';
 
 type TabType = 'basic-data' | 'documents' | 'voyage-history' | 'onboarding' | 'doc-workflow' | 'status-history' | 'audit';
 
-const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : 'â€”';
+const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : '—';
 
 const calcAge = (dob?: string) => {
   if (!dob) return '';
@@ -27,12 +27,11 @@ export const CrewDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { data: crew, loading, error, refetch } = useCrewDetail(id);
   const { data: certificates, loading: certsLoading } = useCrewCertificates(id);
+  const toast = useToast();
 
   const [activeTab, setActiveTab] = useState<TabType>('basic-data');
   const [edited, setEdited] = useState<UpdateCrewRequest>({});
   const [saving, setSaving] = useState(false);
-  const [saveMsg, setSaveMsg] = useState<string | null>(null);
-  const [saveErr, setSaveErr] = useState<string | null>(null);
   const [ranks, setRanks] = useState<Rank[]>([]);
 
   // Documents
@@ -47,10 +46,10 @@ export const CrewDetailPage: React.FC = () => {
   const [recordsLoading, setRecordsLoading] = useState(false);
 
   // Crew management workflow hooks (lazy — only fetch when tab is active)
-  const { data: onboardingCase, loading: onbLoading, refetch: refetchOnb } = useCrewOnboarding(
+  const { data: onboardingCase, loading: onbLoading } = useCrewOnboarding(
     activeTab === 'onboarding' ? id : undefined
   );
-  const { data: docSubmissions, loading: docSubLoading, refetch: refetchDocSub } = useCrewDocumentSubmissions(
+  const { data: docSubmissions, loading: docSubLoading } = useCrewDocumentSubmissions(
     activeTab === 'doc-workflow' ? id : undefined
   );
   const { data: statusHistory, loading: statusHistLoading } = useCrewStatusHistory(
@@ -96,19 +95,18 @@ export const CrewDetailPage: React.FC = () => {
     if (tab === 'voyage-history') loadServiceRecords();
   };
 
-  const set = (key: keyof UpdateCrewRequest, value: any) =>
+  const set = (key: keyof UpdateCrewRequest, value: UpdateCrewRequest[keyof UpdateCrewRequest]) =>
     setEdited(prev => ({ ...prev, [key]: value }));
 
   const handleSave = async () => {
     if (!id) return;
-    setSaving(true); setSaveMsg(null); setSaveErr(null);
+    setSaving(true);
     try {
       await crewApi.update(id, edited);
       await refetch();
-      setSaveMsg('Saved successfully!');
-      setTimeout(() => setSaveMsg(null), 3000);
-    } catch (e: any) {
-      setSaveErr(e.message || 'Failed to save');
+      toast.success('Lưu thành công!');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Không thể lưu dữ liệu');
     } finally { setSaving(false); }
   };
 
@@ -161,10 +159,10 @@ export const CrewDetailPage: React.FC = () => {
               <td className="px-4 py-2 font-medium text-gray-800 truncate">
                 <span className="mr-2">{emoji}</span>{doc.documentType}
               </td>
-              <td className="px-4 py-2 text-gray-600 truncate">{doc.documentNumber || 'â€”'}</td>
+              <td className="px-4 py-2 text-gray-600 truncate">{doc.documentNumber || '—'}</td>
               <td className="px-4 py-2 text-gray-600">{fmt(doc.issueDate)}</td>
               <td className="px-4 py-2 text-gray-600">{fmt(doc.expiryDate)}</td>
-              <td className="px-4 py-2 text-gray-600 truncate">{doc.countryName || 'â€”'}</td>
+              <td className="px-4 py-2 text-gray-600 truncate">{doc.countryName || '—'}</td>
               <td className="px-4 py-2 text-center">
                 {doc.fileUrl ? (
                   <a href={doc.fileUrl} target="_blank" rel="noreferrer"
@@ -194,12 +192,10 @@ export const CrewDetailPage: React.FC = () => {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <h1 className="text-lg font-semibold text-gray-800 uppercase">
-              EDIT {crew.fullName} â€” {crew.rankName || 'CREW'}
+              EDIT {crew.fullName} — {crew.rankName || 'CREW'}
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            {saveMsg && <span className="text-sm text-green-600 font-medium">{saveMsg}</span>}
-            {saveErr && <span className="text-sm text-red-600 font-medium">{saveErr}</span>}
             <button
               onClick={handleSave}
               disabled={saving}
@@ -492,7 +488,7 @@ export const CrewDetailPage: React.FC = () => {
                       Identity Documents ({travelDocs.length + seafarerDocs.length + employmentDocs.length})
                     </h3>
                   </div>
-                  <DocTable docs={[...travelDocs, ...seafarerDocs, ...employmentDocs]} emoji="đŸ”’" />
+                  <DocTable docs={[...travelDocs, ...seafarerDocs, ...employmentDocs]} emoji="📄" />
                 </div>
 
                 {/* Health Documents */}
@@ -502,7 +498,7 @@ export const CrewDetailPage: React.FC = () => {
                       Health Documents ({healthDocs.length})
                     </h3>
                   </div>
-                  <DocTable docs={healthDocs} emoji="đŸ¥" />
+                  <DocTable docs={healthDocs} emoji="🏥" />
                 </div>
 
                 {/* Certificates */}
@@ -541,13 +537,13 @@ export const CrewDetailPage: React.FC = () => {
                                   <div className="font-medium text-gray-900 truncate">{cert.certificateName || cert.certificateCode}</div>
                                   {cert.category && <div className="text-xs text-gray-400">{cert.category}</div>}
                                 </td>
-                                <td className="px-4 py-2 font-mono text-xs text-gray-700 truncate">{cert.certificateNumber || 'â€”'}</td>
+                                <td className="px-4 py-2 font-mono text-xs text-gray-700 truncate">{cert.certificateNumber || '—'}</td>
                                 <td className="px-4 py-2 text-gray-600">{fmt(cert.issueDate)}</td>
                                 <td className="px-4 py-2 text-gray-700">
                                   <div className="font-medium">{fmt(cert.expiryDate)}</div>
                                   {s.days !== undefined && <div className={`text-xs ${s.color}`}>{s.days} days</div>}
                                 </td>
-                                <td className="px-4 py-2 text-gray-600 truncate">{cert.issuingAuthority || 'â€”'}</td>
+                                <td className="px-4 py-2 text-gray-600 truncate">{cert.issuingAuthority || '—'}</td>
                                 <td className="px-4 py-2">
                                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${s.bg} ${s.color}`}>
                                     <s.Icon className="w-3 h-3" />
@@ -631,10 +627,10 @@ export const CrewDetailPage: React.FC = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-gray-500 font-mono text-xs">{rec.vesselIMO || 'â€”'}</td>
+                          <td className="px-4 py-3 text-gray-500 font-mono text-xs">{rec.vesselIMO || '—'}</td>
                           <td className="px-4 py-3">
                             <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                              {rec.rankDuringService || 'â€”'}
+                              {rec.rankDuringService || '—'}
                             </span>
                           </td>
                           <td className="px-4 py-3">
@@ -655,8 +651,8 @@ export const CrewDetailPage: React.FC = () => {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-gray-600">{rec.tradingArea || 'â€”'}</td>
-                          <td className="px-4 py-3 text-gray-500 text-xs">{rec.remarks || 'â€”'}</td>
+                          <td className="px-4 py-3 text-gray-600">{rec.tradingArea || '—'}</td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">{rec.remarks || '—'}</td>
                         </tr>
                       );
                     })}

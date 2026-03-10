@@ -30,7 +30,7 @@ interface Vessel {
 interface ShipownerTabProps {
   vessel: Vessel;
   formData?: Partial<Vessel>;
-  onChange?: (field: keyof Vessel, value: any) => void;
+  onChange?: (field: keyof Vessel, value: Vessel[keyof Vessel]) => void;
 }
 
 // Shore Master badge component
@@ -53,8 +53,8 @@ const ShoreMasterBadge: React.FC = () => {
   );
 };
 
-export function ShipownerTab({ vessel, formData = {}, onChange }: ShipownerTabProps) {
-  const handleChange = (field: keyof Vessel, value: any) => {
+export function ShipownerTab({ formData = {}, onChange }: ShipownerTabProps) {
+  const handleChange = (field: keyof Vessel, value: Vessel[keyof Vessel]) => {
     if (onChange) {
       onChange(field, value);
     }

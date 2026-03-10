@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Card, CardHeader, CardBody, Button, Modal, Input } from '../../components/common';
+import { useToast } from '../../components/common/Toast';
+import { useConfirmDialog } from '../../components/common/ConfirmDialog';
 import type { Category, CategoryType, CategoryCard } from '../../types/category.types';
 import './CategoryManagementPage.css';
 
@@ -40,6 +42,8 @@ export const CategoryManagementPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState<Category>({ code: '', name: '', description: '' });
   const [editingCode, setEditingCode] = useState<string | null>(null);
+  const toast = useToast();
+  const { confirm } = useConfirmDialog();
 
   const handleOpenCategory = (type: CategoryType) => {
     setSelectedCategory(type);
@@ -59,15 +63,21 @@ export const CategoryManagementPage: React.FC = () => {
     setIsFormModalOpen(true);
   };
 
-  const handleDelete = (code: string) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa mục có mã ${code}?`)) {
-      alert(`Đã xóa thành công mục ${code}!`);
+  const handleDelete = async (code: string) => {
+    const result = await confirm({
+      title: 'Xóa mục',
+      message: `Bạn có chắc chắn muốn xóa mục có mã ${code}?`,
+      variant: 'danger',
+      confirmText: 'Xóa',
+    });
+    if (result.confirmed) {
+      toast.success(`Đã xóa thành công mục ${code}!`);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert(editingCode ? 'Đã cập nhật thành công!' : 'Đã thêm mới thành công!');
+    toast.success(editingCode ? 'Đã cập nhật thành công!' : 'Đã thêm mới thành công!');
     setIsFormModalOpen(false);
     setIsListModalOpen(true);
   };

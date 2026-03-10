@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, User, Phone, MapPin, GraduationCap, Heart, Ship } from 'lucide-react';
 import { useReferenceData } from '../../hooks/useCrew';
-import type { CrewMember, CreateCrewRequest, UpdateCrewRequest } from '../../types/crew.types';
+import type { CrewMember, CreateCrewRequest } from '../../types/crew.types';
 import './CrewFormModal.css';
 
 interface Props {
@@ -23,7 +23,7 @@ const sections: { key: Section; label: string; icon: React.ReactNode }[] = [
 ];
 
 export const CrewFormModal: React.FC<Props> = ({ crew, onClose, onSubmit, saving }) => {
-  const { ranks, countries } = useReferenceData();
+  const { ranks } = useReferenceData();
   const [activeSection, setActiveSection] = useState<Section>('basic');
   const isEdit = !!crew;
 

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Edit2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useComplianceRuleSets, useComplianceRules } from '../../hooks/useCompliance';
 import { complianceRuleSetApi, complianceRuleApi } from '../../services/compliance.service';
 import type { CreateRuleSetRequest, ComplianceRuleSet, ComplianceRule } from '../../types/compliance.types';
-import { RuleSeverity, EvaluationStage } from '../../types/compliance.types';
+import { RuleSeverity } from '../../types/compliance.types';
 import './RuleSetsPage.css';
 
 const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : '—';

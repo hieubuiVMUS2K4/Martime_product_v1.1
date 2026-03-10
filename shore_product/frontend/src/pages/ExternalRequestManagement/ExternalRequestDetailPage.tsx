@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Users, MessageSquare, CheckCircle, XCircle, Eye } from 'lucide-react';
-import { useExternalRequest, useCandidates, useMessages } from '../../../hooks/useExternalRequest';
-import { externalRequestApi, candidateApi, messageApi } from '../../../services/externalRequest.service';
-import type { SubmitCandidateRequest, ReviewCandidateRequest } from '../../../types/externalTravel.types';
+import { ArrowLeft, Send, Users, MessageSquare, CheckCircle, XCircle } from 'lucide-react';
+import { useExternalRequest, useCandidates, useMessages } from '../../hooks/useExternalRequest';
+import { externalRequestApi, candidateApi, messageApi } from '../../services/externalRequest.service';
+import type { SubmitCandidateRequest, ReviewCandidateRequest } from '../../types/externalTravel.types';
 import './ExternalRequestDetailPage.css';
 
 const STATUS_LABELS: Record<string, string> = {

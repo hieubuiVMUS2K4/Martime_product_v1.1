@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Ship, Users, AlertTriangle, UserPlus, ArrowLeft, RefreshCw, Plus,
@@ -8,7 +8,8 @@ import { useVesselPlanningBoard } from '../../hooks/useAssignment';
 import { planningApi, manningStandardApi, manningPositionApi, assignmentApi } from '../../services/assignment.service';
 import { useReferenceData } from '../../hooks/useCrew';
 import { PositionFillStatus, AssignmentStatus } from '../../types/assignment.types';
-import type { Candidate, CreateAssignmentRequest, CreateManningStandardRequest, CreateManningPositionRequest } from '../../types/assignment.types';
+import type { Candidate, CreateAssignmentRequest } from '../../types/assignment.types';
+import { useToast } from '../../components/common/Toast';
 import './PlanningBoardPage.css';
 
 const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : '—';
@@ -32,6 +33,7 @@ export const PlanningBoardPage: React.FC = () => {
   const navigate = useNavigate();
   const { data: board, loading, error, refetch } = useVesselPlanningBoard(vesselId);
   const { ranks } = useReferenceData();
+  const toast = useToast();
 
   // Candidate search state
   const [searchRankId, setSearchRankId] = useState<number>(0);
@@ -58,7 +60,7 @@ export const PlanningBoardPage: React.FC = () => {
       });
       setCandidates(res);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Lỗi tìm ứng viên');
+      toast.error(err instanceof Error ? err.message : 'Lỗi tìm ứng viên');
     } finally {
       setSearchingCandidates(false);
     }
@@ -72,7 +74,7 @@ export const PlanningBoardPage: React.FC = () => {
       setStdName('');
       refetch();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Lỗi');
+      toast.error(err instanceof Error ? err.message : 'Lỗi');
     }
   }, [vesselId, stdName, refetch]);
 
@@ -89,7 +91,7 @@ export const PlanningBoardPage: React.FC = () => {
       setPosCount(1);
       refetch();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Lỗi');
+      toast.error(err instanceof Error ? err.message : 'Lỗi');
     }
   }, [board, posRankId, posCount, refetch]);
 
@@ -100,7 +102,7 @@ export const PlanningBoardPage: React.FC = () => {
       const created = await assignmentApi.create(data);
       navigate(`/assignments/${created.id}`);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Lỗi tạo phân công');
+      toast.error(err instanceof Error ? err.message : 'Lỗi tạo phân công');
     }
   }, [vesselId, navigate]);
 

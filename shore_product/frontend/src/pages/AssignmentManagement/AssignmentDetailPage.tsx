@@ -2,13 +2,15 @@ import React, { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Send, MessageSquare, Clock, AlertOctagon, AlertTriangle,
-  Info, CheckCircle, XCircle, ChevronRight,
+  Info, ChevronRight,
 } from 'lucide-react';
 import {
   useAssignment, useAssignmentConflicts, useAssignmentComments, useAssignmentHistory,
 } from '../../hooks/useAssignment';
 import { assignmentApi, confirmationApi, commentApi } from '../../services/assignment.service';
 import { AssignmentStatus, ConflictSeverity } from '../../types/assignment.types';
+import { useToast } from '../../components/common/Toast';
+import { useConfirmDialog } from '../../components/common/ConfirmDialog';
 import './AssignmentDetailPage.css';
 
 const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : '—';
@@ -53,30 +55,43 @@ export const AssignmentDetailPage: React.FC = () => {
 
   const [newComment, setNewComment] = useState('');
   const [changingStatus, setChangingStatus] = useState(false);
+  const toast = useToast();
+  const { confirm } = useConfirmDialog();
 
   const handleStatusChange = useCallback(async (newStatus: string) => {
     if (!id) return;
-    const reason = window.prompt(`Lý do chuyển sang "${statusLabel[newStatus] || newStatus}":`);
-    if (reason === null) return;
+    const isCancelling = newStatus === AssignmentStatus.CANCELLED;
+    const result = await confirm({
+      title: `Chuyển trạng thái`,
+      message: `Chuyển sang "${statusLabel[newStatus] || newStatus}"${isCancelling ? '. Vui lòng cung cấp lý do.' : '. Bạn có thể thêm lý do (không bắt buộc).'}`,
+      variant: isCancelling ? 'danger' : 'warning',
+      confirmText: statusLabel[newStatus] || newStatus,
+      showInput: true,
+      inputPlaceholder: 'Lý do...',
+      inputRequired: isCancelling,
+    });
+    if (!result.confirmed) return;
     setChangingStatus(true);
     try {
-      await assignmentApi.changeStatus(id, { newStatus, reason: reason || undefined });
+      await assignmentApi.changeStatus(id, { newStatus, reason: result.inputValue || undefined });
       refetch();
       refetchConflicts();
+      toast.success(`Đã chuyển sang ${statusLabel[newStatus] || newStatus}`);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Lỗi');
+      toast.error(err instanceof Error ? err.message : 'Lỗi');
     } finally {
       setChangingStatus(false);
     }
-  }, [id, refetch, refetchConflicts]);
+  }, [id, refetch, refetchConflicts, confirm, toast]);
 
   const handleSendConfirmation = useCallback(async () => {
     if (!id) return;
     try {
       await confirmationApi.send({ assignmentId: id });
       refetch();
+      toast.success('Đã gửi xác nhận');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Lỗi gửi xác nhận');
+      toast.error(err instanceof Error ? err.message : 'Lỗi gửi xác nhận');
     }
   }, [id, refetch]);
 
@@ -87,7 +102,7 @@ export const AssignmentDetailPage: React.FC = () => {
       setNewComment('');
       refetchComments();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Lỗi');
+      toast.error(err instanceof Error ? err.message : 'Lỗi');
     }
   }, [id, newComment, refetchComments]);
 

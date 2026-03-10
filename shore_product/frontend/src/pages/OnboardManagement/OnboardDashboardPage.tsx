@@ -4,6 +4,8 @@ import { useOnboardEvents, useAccessGrants, useSignOns, useSignOffs } from '../.
 import { onboardEventApi, accessGrantApi, signOnApi, signOffApi } from '../../services/onboard.service';
 import type { CreateOnboardEventRequest, CreateSignOnRequest, CreateSignOffRequest } from '../../types/onboard.types';
 import { EVENT_TYPE_LABELS, ACCESS_STATUS_LABELS, SIGN_OFF_REASON_LABELS } from '../../types/onboard.types';
+import { useToast } from '../../components/common/Toast';
+import { useConfirmDialog } from '../../components/common/ConfirmDialog';
 import './OnboardDashboardPage.css';
 
 type TabKey = 'events' | 'access' | 'signOn' | 'signOff';
@@ -12,6 +14,8 @@ export const OnboardDashboardPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('events');
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState<'event' | 'signOn' | 'signOff' | null>(null);
+  const toast = useToast();
+  const { confirm } = useConfirmDialog();
 
   const events = useOnboardEvents();
   const access = useAccessGrants();
@@ -47,40 +51,96 @@ export const OnboardDashboardPage: React.FC = () => {
   });
 
   const handleCreateEvent = async () => {
-    await onboardEventApi.create({ ...eventForm, eventTimestamp: new Date(eventForm.eventTimestamp).toISOString() });
-    setShowModal(null);
-    events.refetch();
+    if (!eventForm.crewMemberId || !eventForm.vesselId) {
+      toast.warning('Vui lòng nhập Crew Member ID và Vessel ID');
+      return;
+    }
+    try {
+      await onboardEventApi.create({ ...eventForm, eventTimestamp: new Date(eventForm.eventTimestamp).toISOString() });
+      setShowModal(null);
+      events.refetch();
+      toast.success('Đã tạo sự kiện');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Lỗi tạo sự kiện');
+    }
   };
 
   const handleCreateSignOn = async () => {
-    await signOnApi.create({ ...signOnForm, signOnDate: new Date(signOnForm.signOnDate).toISOString() });
-    setShowModal(null);
-    signOns.refetch();
-    events.refetch();
-    access.refetch();
+    if (!signOnForm.crewMemberId || !signOnForm.vesselId) {
+      toast.warning('Vui lòng nhập đầy đủ thông tin');
+      return;
+    }
+    try {
+      await signOnApi.create({ ...signOnForm, signOnDate: new Date(signOnForm.signOnDate).toISOString() });
+      setShowModal(null);
+      signOns.refetch();
+      events.refetch();
+      access.refetch();
+      toast.success('Đã Sign-On thành công');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Lỗi Sign-On');
+    }
   };
 
   const handleCreateSignOff = async () => {
-    await signOffApi.create({ ...signOffForm, signOffDate: new Date(signOffForm.signOffDate).toISOString() });
-    setShowModal(null);
-    signOffs.refetch();
-    events.refetch();
-    access.refetch();
+    if (!signOffForm.crewMemberId || !signOffForm.vesselId) {
+      toast.warning('Vui lòng nhập đầy đủ thông tin');
+      return;
+    }
+    try {
+      await signOffApi.create({ ...signOffForm, signOffDate: new Date(signOffForm.signOffDate).toISOString() });
+      setShowModal(null);
+      signOffs.refetch();
+      events.refetch();
+      access.refetch();
+      toast.success('Đã Sign-Off thành công');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Lỗi Sign-Off');
+    }
   };
 
   const handleRevokeAccess = async (id: string) => {
-    await accessGrantApi.revoke(id, { revokeReason: 'Manual revoke', revokedBy: 'Admin' });
-    access.refetch();
+    const result = await confirm({
+      title: 'Thu hồi quyền truy cập',
+      message: 'Bạn có chắc muốn thu hồi quyền truy cập này?',
+      variant: 'danger',
+      confirmText: 'Thu hồi',
+    });
+    if (!result.confirmed) return;
+    try {
+      await accessGrantApi.revoke(id, { revokeReason: 'Manual revoke', revokedBy: 'Admin' });
+      access.refetch();
+      toast.success('Đã thu hồi quyền truy cập');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Lỗi thu hồi');
+    }
   };
 
   const handleSuspendAccess = async (id: string) => {
-    await accessGrantApi.suspend(id, { reason: 'Manual suspend', suspendedBy: 'Admin' });
-    access.refetch();
+    const result = await confirm({
+      title: 'Tạm ngưng quyền truy cập',
+      message: 'Bạn có chắc muốn tạm ngưng quyền truy cập này?',
+      variant: 'warning',
+      confirmText: 'Tạm ngưng',
+    });
+    if (!result.confirmed) return;
+    try {
+      await accessGrantApi.suspend(id, { reason: 'Manual suspend', suspendedBy: 'Admin' });
+      access.refetch();
+      toast.success('Đã tạm ngưng quyền truy cập');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Lỗi tạm ngưng');
+    }
   };
 
   const handleReinstateAccess = async (id: string) => {
-    await accessGrantApi.reinstate(id, 'Admin');
-    access.refetch();
+    try {
+      await accessGrantApi.reinstate(id, 'Admin');
+      access.refetch();
+      toast.success('Đã khôi phục quyền truy cập');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Lỗi khôi phục');
+    }
   };
 
   const lowerSearch = search.toLowerCase();

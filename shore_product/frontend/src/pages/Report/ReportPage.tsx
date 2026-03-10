@@ -42,8 +42,8 @@ export const ReportPage: React.FC = () => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: VesselWithStats[] = await res.json();
       setVessels(data);
-    } catch (e: any) {
-      setError(e.message ?? 'Không thể tải dữ liệu');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Không thể tải dữ liệu');
     } finally {
       setLoading(false);
     }

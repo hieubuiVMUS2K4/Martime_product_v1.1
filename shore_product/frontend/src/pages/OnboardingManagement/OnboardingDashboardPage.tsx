@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardList, Plus, Users, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ClipboardList, Plus } from 'lucide-react';
 import { useOnboardingCases } from '../../hooks/useCrewManagement';
 import { OnboardingCaseStatus } from '../../types/crewManagement.types';
 import type { OnboardingCase } from '../../types/crewManagement.types';
@@ -25,7 +25,7 @@ const statusClass = (status: string): string => {
 export const OnboardingDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
-  const { data: cases, loading, error, refetch } = useOnboardingCases(statusFilter);
+  const { data: cases = [], loading, error } = useOnboardingCases(statusFilter);
 
   // Compute stats from all cases (unfiltered view)
   const stats = useMemo(() => {

@@ -12,6 +12,7 @@ import { ClassFlagStateTab } from '../../components/vessel-detail/ClassFlagState
 import { InsuranceTab } from '../../components/vessel-detail/InsuranceTab';
 import { RadioCommTab } from '../../components/vessel-detail/RadioCommTab';
 import { TanksCargoTab } from '../../components/vessel-detail/TanksCargoTab';
+import { useToast } from '../../components/common/Toast';
 import './VesselDetailPage.css';
 
 // ============================================================
@@ -199,16 +200,6 @@ const TABS: { id: TabId; label: string; edgeSource: boolean }[] = [
   { id: 'crew', label: 'Crew / Thuyền viên', edgeSource: false },
 ];
 
-const VESSEL_TYPES = [
-  'Bulk Carrier', 'Container Ship', 'Tanker', 'General Cargo',
-  'RoRo', 'LNG Carrier', 'LPG Carrier', 'Passenger Ship', 'Tug', 'Other'
-];
-
-const FLAGS = [
-  'Vietnam', 'Panama', 'Liberia', 'Marshall Islands', 'Bahamas',
-  'Singapore', 'Malta', 'Cyprus', 'Hong Kong', 'Other'
-];
-
 // ============================================================
 // API Helper
 // ============================================================
@@ -229,6 +220,7 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 export const VesselDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [activeTab, setActiveTab] = useState<TabId>('basic-data');
   const [vessel, setVessel] = useState<Vessel | null>(null);
@@ -254,7 +246,7 @@ export const VesselDetailPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const handleChange = useCallback((field: keyof Vessel, value: any) => {
+  const handleChange = useCallback((field: keyof Vessel, value: Vessel[keyof Vessel]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setIsDirty(true);
   }, []);
@@ -321,14 +313,14 @@ export const VesselDetailPage: React.FC = () => {
       });
       
       setIsDirty(false);
-      alert('✅ Commercial data saved successfully. Changes will sync to Edge on next pull.');
+      toast.success('Đã lưu dữ liệu thương mại. Dữ liệu sẽ đồng bộ sang Edge trong lần pull tiếp theo.');
       
       // Reload
       const updated = await apiFetch<Vessel>(`${BASE}/vessels/${id}`);
       setVessel(updated);
       setFormData(updated);
     } catch (e) {
-      alert('❌ Failed to save: ' + (e instanceof Error ? e.message : 'Unknown error'));
+      toast.error(e instanceof Error ? e.message : 'Không thể lưu');
     } finally {
       setSaving(false);
     }

@@ -123,18 +123,17 @@ namespace productapi.Migrations
                     table.PrimaryKey("PK_departure_reports", x => x.Id);
                 });
 
-            migrationBuilder.InsertData(
-                table: "report_types",
-                columns: new[] { "Id", "Category", "CreatedAt", "Description", "Frequency", "IsActive", "IsMandatory", "RegulationReference", "RequiresMasterSignature", "TemplateSchema", "TypeCode", "TypeName" },
-                values: new object[,]
-                {
-                    { 1, "VOYAGE", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "DAILY", true, true, "SOLAS V/28", true, null, "NOON", "Noon Report" },
-                    { 2, "VOYAGE", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "EVENT_BASED", true, true, null, true, null, "DEPARTURE", "Departure Report" },
-                    { 3, "VOYAGE", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "EVENT_BASED", true, true, null, true, null, "ARRIVAL", "Arrival Report" },
-                    { 4, "VOYAGE", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "DAILY", true, false, null, false, null, "DAILY", "Daily Report" },
-                    { 5, "VOYAGE", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "EVENT_BASED", true, false, null, false, null, "BUNKER", "Bunker Report" },
-                    { 6, "VOYAGE", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "EVENT_BASED", true, false, null, false, null, "POSITION", "Position Report" }
-                });
+            migrationBuilder.Sql(@"
+                INSERT INTO report_types (""Id"", ""Category"", ""CreatedAt"", ""Description"", ""Frequency"", ""IsActive"", ""IsMandatory"", ""RegulationReference"", ""RequiresMasterSignature"", ""TemplateSchema"", ""TypeCode"", ""TypeName"")
+                VALUES
+                    (1, 'VOYAGE', '2026-01-01T00:00:00Z', NULL, 'DAILY', TRUE, TRUE, 'SOLAS V/28', TRUE, NULL, 'NOON', 'Noon Report'),
+                    (2, 'VOYAGE', '2026-01-01T00:00:00Z', NULL, 'EVENT_BASED', TRUE, TRUE, NULL, TRUE, NULL, 'DEPARTURE', 'Departure Report'),
+                    (3, 'VOYAGE', '2026-01-01T00:00:00Z', NULL, 'EVENT_BASED', TRUE, TRUE, NULL, TRUE, NULL, 'ARRIVAL', 'Arrival Report'),
+                    (4, 'VOYAGE', '2026-01-01T00:00:00Z', NULL, 'DAILY', TRUE, FALSE, NULL, FALSE, NULL, 'DAILY', 'Daily Report'),
+                    (5, 'VOYAGE', '2026-01-01T00:00:00Z', NULL, 'EVENT_BASED', TRUE, FALSE, NULL, FALSE, NULL, 'BUNKER', 'Bunker Report'),
+                    (6, 'VOYAGE', '2026-01-01T00:00:00Z', NULL, 'EVENT_BASED', TRUE, FALSE, NULL, FALSE, NULL, 'POSITION', 'Position Report')
+                ON CONFLICT (""Id"") DO NOTHING;
+            ");
 
             migrationBuilder.CreateIndex(
                 name: "IX_report_types_TypeCode",
@@ -227,35 +226,7 @@ namespace productapi.Migrations
                 name: "IX_maritime_reports_Status",
                 table: "maritime_reports");
 
-            migrationBuilder.DeleteData(
-                table: "report_types",
-                keyColumn: "Id",
-                keyValue: 1);
-
-            migrationBuilder.DeleteData(
-                table: "report_types",
-                keyColumn: "Id",
-                keyValue: 2);
-
-            migrationBuilder.DeleteData(
-                table: "report_types",
-                keyColumn: "Id",
-                keyValue: 3);
-
-            migrationBuilder.DeleteData(
-                table: "report_types",
-                keyColumn: "Id",
-                keyValue: 4);
-
-            migrationBuilder.DeleteData(
-                table: "report_types",
-                keyColumn: "Id",
-                keyValue: 5);
-
-            migrationBuilder.DeleteData(
-                table: "report_types",
-                keyColumn: "Id",
-                keyValue: 6);
+            migrationBuilder.Sql(@"DELETE FROM report_types WHERE ""Id"" IN (1,2,3,4,5,6);");
 
             migrationBuilder.RenameTable(
                 name: "report_types",

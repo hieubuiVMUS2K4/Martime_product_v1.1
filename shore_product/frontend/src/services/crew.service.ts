@@ -160,8 +160,8 @@ export const certificateApi = {
   getExpiring: async (days = 90): Promise<CrewCertificate[]> => {
     const res = await request<{ data: CrewCertificate[] } | CrewCertificate[]>(`${BASE}/certificates/expiring?days=${days}`);
     // Backend wraps response in { data: [...] }, unwrap if needed
-    if (res && !Array.isArray(res) && Array.isArray((res as any).data)) {
-      return (res as any).data;
+    if (res && !Array.isArray(res) && Array.isArray((res as { data: CrewCertificate[] }).data)) {
+      return (res as { data: CrewCertificate[] }).data;
     }
     return Array.isArray(res) ? res : [];
   },

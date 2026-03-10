@@ -5,7 +5,7 @@ import {
   ArrowDown, WifiOff, Settings, ChevronLeft, ChevronRight, Inbox
 } from 'lucide-react';
 import { syncApi } from '../../services/sync.service';
-import type { SyncStatusResponse, SyncLogEntry, NodeTracker } from '../../services/sync.service';
+import type { SyncStatusResponse } from '../../services/sync.service';
 import './SyncDashboardPage.css';
 
 // ============================================================

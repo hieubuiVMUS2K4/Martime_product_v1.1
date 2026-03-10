@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Button, Input, Select, Modal, StatusBadge } from '../../components/common';
+import { useToast } from '../../components/common/Toast';
+import { useConfirmDialog } from '../../components/common/ConfirmDialog';
 import type { WorkPlan, WorkFilter, WorkStatus } from '../../types/work.types';
 import './WorkAssignmentPage.css';
 
@@ -141,6 +143,8 @@ const mockWorkPlans: WorkPlan[] = [
 
 export const WorkAssignmentPage: React.FC = () => {
   const [workPlans, setWorkPlans] = useState<WorkPlan[]>(mockWorkPlans);
+  const toast = useToast();
+  const { confirm } = useConfirmDialog();
   const [filters, setFilters] = useState<WorkFilter>({
     search: '',
     status: '',
@@ -190,10 +194,16 @@ export const WorkAssignmentPage: React.FC = () => {
     setIsDetailModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa kế hoạch này?')) {
+  const handleDelete = async (id: string) => {
+    const result = await confirm({
+      title: 'Xóa kế hoạch',
+      message: 'Bạn có chắc chắn muốn xóa kế hoạch này?',
+      variant: 'danger',
+      confirmText: 'Xóa',
+    });
+    if (result.confirmed) {
       setWorkPlans(workPlans.filter((p) => p.id !== id));
-      alert('Đã xóa thành công!');
+      toast.success('Đã xóa thành công!');
     }
   };
 
@@ -206,7 +216,7 @@ export const WorkAssignmentPage: React.FC = () => {
           p.id === selectedPlan.id ? { ...p, ...formData } as WorkPlan : p
         )
       );
-      alert('Đã cập nhật thành công!');
+      toast.success('Đã cập nhật thành công!');
     } else {
       // Add new
       const newPlan: WorkPlan = {
@@ -216,7 +226,7 @@ export const WorkAssignmentPage: React.FC = () => {
         ...(formData as Omit<WorkPlan, 'id' | 'stt' | 'createdDate'>),
       };
       setWorkPlans([newPlan, ...workPlans]);
-      alert('Đã thêm mới thành công!');
+      toast.success('Đã thêm mới thành công!');
     }
     setIsFormModalOpen(false);
   };

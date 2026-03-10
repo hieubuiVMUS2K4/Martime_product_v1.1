@@ -4,7 +4,7 @@ import {
   Ship, Plus, RefreshCw, Pencil, Trash2,
   AlertTriangle,
   X, Loader2, Download,
-  Eye, ExternalLink, FileText,
+  ExternalLink, FileText,
 } from 'lucide-react';
 import { ENV } from '../../config/env';
 import './VesselsPage.css';
@@ -49,17 +49,6 @@ interface VesselSummary {
   crewOnboard: number;
   reportsTotal: number;
   lastSyncAt?: string;
-}
-
-interface CrewMember {
-  id: string;
-  fullName: string;
-  crewId: string;
-  department: string;
-  rankId?: number;
-  isOnboard: boolean;
-  embarkDate?: string;
-  contractEnd?: string;
 }
 
 interface VesselFormData {
@@ -121,7 +110,7 @@ export const VesselsPage: React.FC = () => {
   const navigate = useNavigate();
   const [vessels, setVessels] = useState<Vessel[]>([]);
   const [syncNodes, setSyncNodes] = useState<SyncNode[]>([]);
-  const [summaries, setSummaries] = useState<Record<string, VesselSummary>>({});
+  const [, setSummaries] = useState<Record<string, VesselSummary>>({})
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

@@ -34,11 +34,10 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
+export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
   const navigate = useNavigate();
   const [crew, setCrew] = useState<CrewMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isOnboardExpanded, setIsOnboardExpanded] = useState(true);
   const [selectedCrew, setSelectedCrew] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; crew: CrewMember } | null>(null);
   
@@ -58,6 +57,7 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
 
   useEffect(() => {
     loadCrew();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vesselId]);
 
   useEffect(() => {
@@ -149,7 +149,7 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
     try {
       await crewApi.delete(crew.id);
       await loadCrew();
-    } catch (e) {
+    } catch {
       alert('Xóa thất bại. Vui lòng thử lại.');
     }
   };
