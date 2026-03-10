@@ -1,11 +1,16 @@
 ﻿using System;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using ProductApi.Data;
 
 #nullable disable
 
 namespace productapi.Migrations
 {
     /// <inheritdoc />
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20260308130638_AddExternalRequestsAndTravel")]
     public partial class AddExternalRequestsAndTravel : Migration
     {
         /// <inheritdoc />

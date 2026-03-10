@@ -50,9 +50,9 @@ const getNavigation = (t: (key: string) => string) => [
       { name: t('nav.scheduleConfig'), to: '/pms/schedules', icon: ListChecks },
       { name: t('nav.masterSchedule'), to: '/pms/master-schedule', icon: Calendar },
       { name: t('nav.maintenance'), to: '/pms/maintenance', icon: Wrench },
+      { name: t('nav.materials'), to: '/pms/materials', icon: Boxes },
     ]
   },
-  { name: t('nav.materials'), to: '/materials', icon: Boxes },
   { name: t('nav.reporting'), to: '/reporting', icon: ClipboardList },
   { name: t('nav.shipData') || 'Ship Data', to: '/ship-data', icon: Anchor },
   { name: t('nav.voyage'), to: '/voyage', icon: Ship },

@@ -97,7 +97,7 @@ function App() {
         <Route path="ship-data" element={<ShipDataPage />} />
         <Route path="compliance" element={<CompliancePage />} />
         <Route path="sync" element={<SyncPage />} />
-        <Route path="materials" element={<MaterialPage />} />
+        <Route path="pms/materials" element={<MaterialPage />} />
         <Route path="fuel-analytics" element={<FuelAnalyticsPage />} />
         
         {/* Logbook Routes */}

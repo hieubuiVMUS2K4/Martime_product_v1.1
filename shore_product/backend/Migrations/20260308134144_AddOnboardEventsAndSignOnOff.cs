@@ -1,11 +1,16 @@
 ﻿using System;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using ProductApi.Data;
 
 #nullable disable
 
 namespace productapi.Migrations
 {
     /// <inheritdoc />
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20260308134144_AddOnboardEventsAndSignOnOff")]
     public partial class AddOnboardEventsAndSignOnOff : Migration
     {
         /// <inheritdoc />

@@ -20,8 +20,70 @@ namespace MaritimeEdge
 {
     public class Program
     {
+        /// <summary>
+        /// Load .env file và set environment variables trước khi app khởi động.
+        /// Ưu tiên: biến môi trường hệ thống > .env file > appsettings.json
+        /// </summary>
+        private static void LoadDotEnv()
+        {
+            // Tìm .env ở thư mục hiện tại hoặc thư mục chạy app
+            var candidates = new[]
+            {
+                Path.Combine(Directory.GetCurrentDirectory(), ".env"),
+                Path.Combine(AppContext.BaseDirectory, ".env")
+            };
+
+            var envFile = candidates.FirstOrDefault(File.Exists);
+            if (envFile == null) return;
+
+            foreach (var line in File.ReadAllLines(envFile))
+            {
+                var trimmed = line.Trim();
+                // Bỏ qua dòng trống và comment
+                if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#")) continue;
+
+                var idx = trimmed.IndexOf('=');
+                if (idx < 0) continue;
+
+                var key   = trimmed[..idx].Trim();
+                var value = trimmed[(idx + 1)..].Trim();
+
+                // Chỉ set nếu chưa có (ưu tiên biến môi trường hệ thống)
+                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key)))
+                    Environment.SetEnvironmentVariable(key, value);
+            }
+        }
+
+        /// <summary>
+        /// Xây dựng connection string từ env vars (EDGE_POSTGRES_*).
+        /// Nếu không có env vars, giữ nguyên connection string từ appsettings.json.
+        /// </summary>
+        private static string ResolveConnectionString(string? baseConnStr)
+        {
+            var host     = Environment.GetEnvironmentVariable("EDGE_POSTGRES_HOST")     ?? "localhost";
+            var port     = Environment.GetEnvironmentVariable("EDGE_POSTGRES_PORT")     ?? "5433";
+            var db       = Environment.GetEnvironmentVariable("EDGE_POSTGRES_DB");
+            var user     = Environment.GetEnvironmentVariable("EDGE_POSTGRES_USER");
+            var password = Environment.GetEnvironmentVariable("EDGE_POSTGRES_PASSWORD");
+
+            // Nếu không có bất kỳ env var nào → dùng nguyên appsettings
+            if (string.IsNullOrEmpty(db) && string.IsNullOrEmpty(user) && string.IsNullOrEmpty(password))
+                return baseConnStr ?? string.Empty;
+
+            // Nếu có env var → build lại connection string với giá trị từ .env
+            return $"Host={host};Port={port};" +
+                   $"Database={db ?? "maritime_edge"};" +
+                   $"Username={user ?? "edge_user"};" +
+                   $"Password={password ?? "edge_password"};" +
+                   "Pooling=true;MinPoolSize=2;MaxPoolSize=50;" +
+                   "ConnectionIdleLifetime=300;ConnectionPruningInterval=10";
+        }
+
         public static async Task Main(string[] args)
         {
+            // Load .env file TRƯỚC KHI khởi tạo builder
+            LoadDotEnv();
+
             var builder = WebApplication.CreateBuilder(args);
 
             // Configure default port - Listen on all network interfaces for mobile access
@@ -32,7 +94,9 @@ namespace MaritimeEdge
             }
 
             // Add services to the container
-            var connectionString = builder.Configuration.GetValue<string>("Database:ConnectionString");
+            // ResolveConnectionString: ưu tiên env vars (.env file) > appsettings.json
+            var connectionString = ResolveConnectionString(
+                builder.Configuration.GetValue<string>("Database:ConnectionString"));
             
             // HTTP context accessor for audit interceptor
             builder.Services.AddHttpContextAccessor();
