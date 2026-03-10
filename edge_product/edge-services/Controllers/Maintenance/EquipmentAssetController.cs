@@ -318,6 +318,7 @@ public class EquipmentAssetController : ControllerBase
             CurrentRunningHours = asset.CurrentRunningHours,
             LastRunningHoursUpdate = asset.LastRunningHoursUpdate,
             EquipmentGroupId = asset.EquipmentGroupId,
+            ParentId = asset.ParentId,
             Location = asset.Location,
             Criticality = asset.Criticality,
             Status = asset.Status,
@@ -325,5 +326,27 @@ public class EquipmentAssetController : ControllerBase
             Notes = asset.Notes,
             IsActive = asset.IsActive
         };
+    }
+
+    /// <summary>
+    /// Get all equipment assets as a flat list with parentId (frontend builds the tree)
+    /// </summary>
+    [HttpGet("tree")]
+    public async Task<ActionResult<List<EquipmentAssetDto>>> GetTree()
+    {
+        try
+        {
+            var assets = await _context.EquipmentAssets
+                .Where(a => a.IsActive)
+                .OrderBy(a => a.AssetCode)
+                .ToListAsync();
+
+            return Ok(assets.Select(MapToDto).ToList());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting equipment asset tree");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
     }
 }

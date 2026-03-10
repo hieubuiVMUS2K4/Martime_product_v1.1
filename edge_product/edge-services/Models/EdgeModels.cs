@@ -3763,6 +3763,23 @@ public class EquipmentAsset
     /// </summary>
     public string? Notes { get; set; }
     
+    /// <summary>
+    /// Parent asset ID for hierarchical tree structure.
+    /// Null = root node (top-level system/equipment).
+    /// Example hierarchy:
+    ///   [L1] Hệ thống Động lực  (parentId = null)
+    ///     [L2] Main Engine       (parentId = L1.Id)
+    ///       [L3] Cylinder Unit   (parentId = L2.Id)
+    ///         [L4] Cylinder Head (parentId = L3.Id)
+    /// </summary>
+    public Guid? ParentId { get; set; }
+
+    /// <summary>Navigation: parent asset</summary>
+    public virtual EquipmentAsset? Parent { get; set; }
+
+    /// <summary>Navigation: child assets (components/parts)</summary>
+    public virtual ICollection<EquipmentAsset> Children { get; set; } = new List<EquipmentAsset>();
+
     public bool IsActive { get; set; } = true;
     
     public bool IsSynced { get; set; } = false;

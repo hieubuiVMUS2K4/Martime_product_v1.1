@@ -20,6 +20,12 @@ export const equipmentAssetService = {
     return response.data;
   },
 
+  /** Lấy tất cả assets dưới dạng flat list có parentId, frontend tự build tree */
+  async getTree(): Promise<EquipmentAsset[]> {
+    const response = await axios.get(`${API_BASE_URL}/equipment-assets/tree`);
+    return response.data;
+  },
+
   async getById(id: string): Promise<EquipmentAsset> {
     const response = await axios.get(`${API_BASE_URL}/equipment-assets/${id}`);
     return response.data;

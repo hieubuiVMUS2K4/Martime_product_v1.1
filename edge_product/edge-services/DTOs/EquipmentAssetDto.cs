@@ -52,6 +52,9 @@ public class EquipmentAssetDto
     public string? Notes { get; set; }
     
     public bool IsActive { get; set; } = true;
+
+    /// <summary>Parent asset ID for hierarchy tree (null = root node)</summary>
+    public Guid? ParentId { get; set; }
 }
 
 /// <summary>
@@ -83,6 +86,9 @@ public class CreateEquipmentAssetDto
     public DateTime? InstallationDate { get; set; }
     
     public Guid? EquipmentGroupId { get; set; }
+
+    /// <summary>Parent asset ID for hierarchy tree (null = root node)</summary>
+    public Guid? ParentId { get; set; }
     
     [MaxLength(100)]
     public string? Location { get; set; }
@@ -117,6 +123,9 @@ public class UpdateEquipmentAssetDto
     public string? SerialNumber { get; set; }
     
     public Guid? EquipmentGroupId { get; set; }
+
+    /// <summary>Parent asset ID for hierarchy tree (null = root node)</summary>
+    public Guid? ParentId { get; set; }
     
     [MaxLength(100)]
     public string? Location { get; set; }

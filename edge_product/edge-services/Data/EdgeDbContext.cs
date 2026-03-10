@@ -1110,6 +1110,13 @@ public class EdgeDbContext : DbContext
             entity.HasIndex(e => e.AssetCode)
                 .IsUnique()
                 .HasDatabaseName("uk_equipment_assets_asset_code");
+
+            // Self-referencing hierarchy: parent -> children
+            entity.HasOne(e => e.Parent)
+                .WithMany(e => e.Children)
+                .HasForeignKey(e => e.ParentId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
         });
 
         // ========== EQUIPMENT GROUP MEMBERS ==========

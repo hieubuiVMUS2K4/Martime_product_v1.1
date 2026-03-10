@@ -12,6 +12,10 @@ export interface EquipmentAsset {
   currentRunningHours?: number;
   lastRunningHoursUpdate?: string;
   equipmentGroupId?: string;
+  /** Parent asset ID — null/undefined = root node in hierarchy tree */
+  parentId?: string;
+  /** Children assets (populated by frontend tree builder, not from API) */
+  children?: EquipmentAsset[];
   location?: string;
   criticality: string;
   status: string;
