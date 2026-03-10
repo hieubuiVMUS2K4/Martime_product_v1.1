@@ -39,6 +39,7 @@ public class CrewController : ControllerBase
             var query = _context.CrewMembers
                 .AsNoTracking()
                 .Include(c => c.Rank)
+                .Include(c => c.Country)
                 .AsQueryable();
 
             // Apply filters
@@ -97,6 +98,7 @@ public class CrewController : ControllerBase
             var crew = await _context.CrewMembers
                 .AsNoTracking()
                 .Include(c => c.Rank)
+                .Include(c => c.Country)
                 .Where(c => c.IsOnboard)
                 .OrderBy(c => c.FullName)
                 .ToListAsync();
@@ -119,6 +121,7 @@ public class CrewController : ControllerBase
             var crew = await _context.CrewMembers
                 .AsNoTracking()
                 .Include(c => c.Rank)
+                .Include(c => c.Country)
                 .FirstOrDefaultAsync(c => c.Id == id);
             if (crew == null)
             {
@@ -524,7 +527,7 @@ public class CrewController : ControllerBase
             // Update all properties - use null guards to avoid overwriting with empty values
             existing.FullName = crew.FullName;
             existing.RankId = crew.RankId;
-            if (crew.Nationality != null) existing.Nationality = crew.Nationality;
+            if (crew.CountryId.HasValue) existing.CountryId = crew.CountryId;
             if (crew.DateOfBirth.HasValue) existing.DateOfBirth = crew.DateOfBirth;
             if (crew.JoinDate.HasValue) existing.JoinDate = crew.JoinDate;
             if (crew.EmbarkDate.HasValue) existing.EmbarkDate = crew.EmbarkDate;
@@ -1281,7 +1284,8 @@ public class CrewController : ControllerBase
             RankGroup = rankGroup,
             IsOnboard = crew.IsOnboard,
             Department = crew.Department,
-            Nationality = crew.Nationality,
+            CountryId = crew.CountryId,
+            CountryName = crew.Country?.CountryName,
             EmailAddress = crew.EmailAddress,
             PhoneNumber = crew.PhoneNumber,
             EmbarkDate = crew.EmbarkDate,

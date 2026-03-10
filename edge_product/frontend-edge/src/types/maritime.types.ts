@@ -214,7 +214,8 @@ export interface CrewMember {
   rankId?: number // Foreign key to Ranks table
   rank?: Rank // Navigation property
   department?: string
-  nationality?: string
+  countryId?: number
+  countryName?: string
   dateOfBirth?: string
   phoneNumber?: string
   address?: string

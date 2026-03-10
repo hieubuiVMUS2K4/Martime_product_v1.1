@@ -16,7 +16,8 @@ public class CrewMemberDto
     public string? RankGroup { get; set; }
     public bool IsOnboard { get; set; }
     public string? Department { get; set; }
-    public string? Nationality { get; set; }
+    public int? CountryId { get; set; }
+    public string? CountryName { get; set; }
     public string? EmailAddress { get; set; }
     public string? PhoneNumber { get; set; }
     public DateTime? EmbarkDate { get; set; }
@@ -98,7 +99,7 @@ public class CreateCrewRequest
     public string FullName { get; set; } = string.Empty;
     public int? RankId { get; set; }
     public string? Department { get; set; }
-    public string? Nationality { get; set; }
+    public int? CountryId { get; set; }
     public DateTime? DateOfBirth { get; set; }
     public DateTime? JoinDate { get; set; }
     public DateTime? EmbarkDate { get; set; }
@@ -138,7 +139,7 @@ public class UpdateCrewRequest
     public string? FullName { get; set; }
     public int? RankId { get; set; }
     public string? Department { get; set; }
-    public string? Nationality { get; set; }
+    public int? CountryId { get; set; }
     public DateTime? DateOfBirth { get; set; }
     public DateTime? JoinDate { get; set; }
     public DateTime? EmbarkDate { get; set; }

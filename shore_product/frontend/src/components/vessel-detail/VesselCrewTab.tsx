@@ -15,7 +15,7 @@ interface CrewMember {
   crewId: string;
   fullName: string;
   rank?: { name: string; rankName?: string };
-  nationality?: string;
+  countryName?: string;
   isOnboard: boolean;
   joinDate?: string;
   embarkDate?: string;
@@ -87,7 +87,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
   if (filterCrewId)     crewOnBoard = crewOnBoard.filter(c => (c.crewId || '').toLowerCase().includes(filterCrewId.toLowerCase()));
   if (filterFullName)   crewOnBoard = crewOnBoard.filter(c => c.fullName.toLowerCase().includes(filterFullName.toLowerCase()));
   if (filterRank)       crewOnBoard = crewOnBoard.filter(c => (c.rank?.rankName || c.rank?.name || '').toLowerCase().includes(filterRank.toLowerCase()));
-  if (filterNationality) crewOnBoard = crewOnBoard.filter(c => (c.nationality || '').toLowerCase().includes(filterNationality.toLowerCase()));
+  if (filterNationality) crewOnBoard = crewOnBoard.filter(c => (c.countryName || '').toLowerCase().includes(filterNationality.toLowerCase()));
 
   // Apply sorting
   const applySorting = (crews: CrewMember[]) => {
@@ -114,8 +114,8 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
         break;
       case 'nationality':
         sorted.sort((a, b) => {
-          const aNat = a.nationality || '';
-          const bNat = b.nationality || '';
+          const aNat = a.countryName || '';
+          const bNat = b.countryName || '';
           return sortType.dir === 'asc' ? aNat.localeCompare(bNat) : bNat.localeCompare(aNat);
         });
         break;
@@ -275,7 +275,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
                         {crewMember.rank?.rankName || crewMember.rank?.name || '-'}
                       </td>
                       <td style={{ borderRight: '1px solid #edf2f8', color: 'var(--moc-muted)' }}>
-                        {crewMember.nationality || 'N/A'}
+                        {crewMember.countryName || 'N/A'}
                       </td>
                       <td style={{ borderRight: '1px solid #edf2f8', color: 'var(--moc-muted)' }}>
                         {crewMember.embarkDate

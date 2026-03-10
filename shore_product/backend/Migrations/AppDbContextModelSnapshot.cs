@@ -244,6 +244,9 @@ namespace productapi.Migrations
                     b.Property<DateTime?>("ContractEnd")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("CountryId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -318,10 +321,6 @@ namespace productapi.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<string>("Nationality")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
                     b.Property<string>("NextOfKinAddress")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -392,6 +391,8 @@ namespace productapi.Migrations
                         .HasColumnType("numeric(5,2)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CountryId");
 
                     b.HasIndex("CrewId")
                         .IsUnique();
@@ -2762,7 +2763,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AisData", (string)null);
+                    b.ToTable("AisData");
                 });
 
             modelBuilder.Entity("ProductApi.Models.ArrivalReport", b =>
@@ -2992,7 +2993,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("EngineData", (string)null);
+                    b.ToTable("EngineData");
                 });
 
             modelBuilder.Entity("ProductApi.Models.FuelConsumption", b =>
@@ -3031,7 +3032,7 @@ namespace productapi.Migrations
 
                     b.HasIndex("VesselId");
 
-                    b.ToTable("FuelConsumptions", (string)null);
+                    b.ToTable("FuelConsumptions");
                 });
 
             modelBuilder.Entity("ProductApi.Models.FuelConsumptionData", b =>
@@ -3086,7 +3087,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("FuelConsumptionData", (string)null);
+                    b.ToTable("FuelConsumptionData");
                 });
 
             modelBuilder.Entity("ProductApi.Models.GeneratorData", b =>
@@ -3125,7 +3126,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("GeneratorData", (string)null);
+                    b.ToTable("GeneratorData");
                 });
 
             modelBuilder.Entity("ProductApi.Models.MaintenanceTask", b =>
@@ -3150,7 +3151,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("MaintenanceTasks", (string)null);
+                    b.ToTable("MaintenanceTasks");
                 });
 
             modelBuilder.Entity("ProductApi.Models.MaritimeReport", b =>
@@ -3406,7 +3407,7 @@ namespace productapi.Migrations
 
                     b.HasIndex("VesselId", "ArrivalTime");
 
-                    b.ToTable("PortCalls", (string)null);
+                    b.ToTable("PortCalls");
                 });
 
             modelBuilder.Entity("ProductApi.Models.PositionData", b =>
@@ -3448,7 +3449,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PositionData", (string)null);
+                    b.ToTable("PositionData");
                 });
 
             modelBuilder.Entity("ProductApi.Models.ReportType", b =>
@@ -3644,7 +3645,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SafetyAlarms", (string)null);
+                    b.ToTable("SafetyAlarms");
                 });
 
             modelBuilder.Entity("ProductApi.Models.Ship", b =>
@@ -3666,7 +3667,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Ships", (string)null);
+                    b.ToTable("Ships");
                 });
 
             modelBuilder.Entity("ProductApi.Models.SyncIdempotencyRecord", b =>
@@ -3867,7 +3868,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TankLevels", (string)null);
+                    b.ToTable("TankLevels");
                 });
 
             modelBuilder.Entity("ProductApi.Models.User", b =>
@@ -3890,7 +3891,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("ProductApi.Models.Vessel", b =>
@@ -4893,7 +4894,7 @@ namespace productapi.Migrations
                     b.HasIndex("IMO")
                         .IsUnique();
 
-                    b.ToTable("Vessels", (string)null);
+                    b.ToTable("Vessels");
                 });
 
             modelBuilder.Entity("ProductApi.Models.VesselAlert", b =>
@@ -4939,7 +4940,7 @@ namespace productapi.Migrations
 
                     b.HasIndex("VesselId", "Timestamp");
 
-                    b.ToTable("VesselAlerts", (string)null);
+                    b.ToTable("VesselAlerts");
                 });
 
             modelBuilder.Entity("ProductApi.Models.VesselCertificate", b =>
@@ -5025,7 +5026,7 @@ namespace productapi.Migrations
 
                     b.HasIndex("VesselId", "Timestamp");
 
-                    b.ToTable("VesselPositions", (string)null);
+                    b.ToTable("VesselPositions");
                 });
 
             modelBuilder.Entity("ProductApi.Models.VoyageRecord", b =>
@@ -5087,7 +5088,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("VoyageRecords", (string)null);
+                    b.ToTable("VoyageRecords");
                 });
 
             modelBuilder.Entity("Maritime.Shared.Models.Crew.CountryCertificate", b =>
@@ -5137,10 +5138,17 @@ namespace productapi.Migrations
 
             modelBuilder.Entity("Maritime.Shared.Models.Crew.CrewMember", b =>
                 {
+                    b.HasOne("Maritime.Shared.Models.Crew.Country", "Country")
+                        .WithMany()
+                        .HasForeignKey("CountryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Maritime.Shared.Models.Crew.Rank", "Rank")
                         .WithMany()
                         .HasForeignKey("RankId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Country");
 
                     b.Navigation("Rank");
                 });

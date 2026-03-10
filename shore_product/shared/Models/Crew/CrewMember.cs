@@ -31,8 +31,10 @@ public class CrewMember : ISyncableEntity
     [MaxLength(100)]
     public string? Department { get; set; }
 
-    [MaxLength(50)]
-    public string? Nationality { get; set; }
+    /// <summary>
+    /// Foreign key to Countries table (replaces old Nationality string)
+    /// </summary>
+    public int? CountryId { get; set; }
 
     public DateTime? DateOfBirth { get; set; }
 
@@ -158,6 +160,9 @@ public class CrewMember : ISyncableEntity
     // ============================================
     [ForeignKey("RankId")]
     public Rank? Rank { get; set; }
+
+    [ForeignKey("CountryId")]
+    public Country? Country { get; set; }
 
     [JsonIgnore]
     public List<CrewCertificate> Certificates { get; set; } = new();

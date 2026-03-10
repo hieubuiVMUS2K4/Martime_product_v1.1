@@ -59,6 +59,7 @@ export function CrewDetailPage() {
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null)
   const [pendingAvatarPreview, setPendingAvatarPreview] = useState<string | null>(null)
   const [ranks, setRanks] = useState<any[]>([])
+  const [countries, setCountries] = useState<any[]>([])
   const [voyageHistory, setVoyageHistory] = useState<VoyageCrewAssignment[]>([])
   const [loadingVoyageHistory, setLoadingVoyageHistory] = useState(false)
   const [serviceRecords, setServiceRecords] = useState<ServiceRecord[]>([])
@@ -68,6 +69,7 @@ export function CrewDetailPage() {
   useEffect(() => {
     loadCrewDetails()
     loadRanks()
+    loadCountries()
   }, [id])
   
   const loadRanks = async () => {
@@ -76,6 +78,15 @@ export function CrewDetailPage() {
       setRanks(data)
     } catch (error) {
       console.error('Failed to load ranks:', error)
+    }
+  }
+
+  const loadCountries = async () => {
+    try {
+      const data = await maritimeService.countries.getAll()
+      setCountries(data)
+    } catch (error) {
+      console.error('Failed to load countries:', error)
     }
   }
 
@@ -341,8 +352,13 @@ export function CrewDetailPage() {
         6: { cellWidth: tw * 0.14 }  // Remark
       }
 
+      // Helper: check page break
+      const checkPageBreak = (y: number, needed: number = 30) => {
+        if (y > pageHeight - needed) { doc.addPage(); return 10 }
+        return y
+      }
+
       // ========== ROW 1-5: HEADER ==========
-      // Logo placeholder (A1:D5)
       doc.setDrawColor(180, 180, 180)
       doc.setLineWidth(0.3)
       doc.rect(ml, 6, 30, 16, 'S')
@@ -351,30 +367,23 @@ export function CrewDetailPage() {
       doc.setFont('helvetica', 'italic')
       doc.text('LOGO', ml + 15, 15, { align: 'center' })
       
-      // Title: BIO - DATA (F2:AQ2)
       doc.setFontSize(16)
       doc.setTextColor(0, 0, 0)
       doc.setFont('helvetica', 'bold')
       doc.text('BIO - DATA', pageWidth / 2, 14, { align: 'center' })
       
-      // Row 4: Crew code | Present Rank | Prepared by | Date Prepared
       const row4Y = 26
       doc.setFontSize(7)
       doc.setFont('helvetica', 'normal')
       doc.text('Crew code', ml, row4Y)
       doc.setFont('helvetica', 'bold')
       doc.text(crew.crewId || '', ml + 25, row4Y)
-      
       doc.setFont('helvetica', 'normal')
       doc.text('Present Rank', ml + 60, row4Y)
       doc.setFont('helvetica', 'bold')
       doc.text(crew.rank?.rankName || '', ml + 85, row4Y)
-      
       doc.setFont('helvetica', 'normal')
       doc.text('Prepared by', ml + 140, row4Y)
-      doc.setFont('helvetica', 'bold')
-      doc.text('', ml + 165, row4Y)
-      
       doc.setFont('helvetica', 'normal')
       doc.text('Date Prepared', ml + 200, row4Y)
       doc.setFont('helvetica', 'bold')
@@ -391,7 +400,6 @@ export function CrewDetailPage() {
       doc.text('1. Personal Particular', ml + 2, yPos + 3.5)
       yPos += 6
       
-      // Photo on the left side (matching Excel A8:G14)
       const photoX = ml
       const photoY = yPos
       const photoW = 28
@@ -425,20 +433,17 @@ export function CrewDetailPage() {
       }
       doc.setTextColor(0, 0, 0)
       
-      // Personal data table (to the right of photo, matching Excel H8:AR14)
       const pdLeft = ml + photoW + 2
       const pdWidth = tw - photoW - 2
       
-      // Cell style helpers: Label (bold + gray bg) vs Value (normal)
       const Lb = (text: string) => ({ content: text, styles: { fontStyle: 'bold' as const, fillColor: [245, 245, 245] as [number, number, number] } })
       const Va = (text: string) => ({ content: text, styles: {} as any })
 
-      // Build autoTable data for personal info — cell-level styling to match Excel exactly
       doc.autoTable({
         startY: yPos,
         head: [['', 'Full name', '', 'Date of Birth', '', 'Place of Birth', '', 'Nationality', '']],
         body: [
-          [Lb('Name'), Va(crew.fullName || ''), Va(''), Va(crew.dateOfBirth ? format(new Date(crew.dateOfBirth), 'dd/MM/yyyy') : ''), Va(''), Va(crew.placeOfBirth || ''), Va(''), Va(crew.nationality || ''), Va('')],
+          [Lb('Name'), Va(crew.fullName || ''), Va(''), Va(crew.dateOfBirth ? format(new Date(crew.dateOfBirth), 'dd/MM/yyyy') : ''), Va(''), Va(crew.placeOfBirth || ''), Va(''), Va(crew.countryName || ''), Va('')],
           [Lb('ID No.'), Va(crew.idCardNumber || ''), Va(''), Lb('Address'), Va(crew.address || ''), Va(''), Va(''), Va(''), Va('')],
           [Lb('Home Tel'), Va(''), Lb('Hand phone'), Va(crew.phoneNumber || ''), Lb('Email'), Va(crew.emailAddress || ''), Va(''), Lb('Marital status'), Va(crew.maritalStatus || '')],
           [Lb('Height'), Va(crew.height ? `${crew.height} cm` : ''), Lb('Weight'), Va(crew.weight ? `${crew.weight} kg` : ''), Lb('Overall size'), Va(crew.clothingSize || ''), Lb("Shoe's size"), Va(crew.shoeSize || ''), Va('')],
@@ -491,7 +496,8 @@ export function CrewDetailPage() {
       
       yPos = doc.lastAutoTable.finalY + 4
       
-      // ========== 3. Immigration Documents — from travel_documents ==========
+      // ========== 3. Immigration Documents — DYNAMIC ROWS ==========
+      yPos = checkPageBreak(yPos)
       doc.setFillColor(173, 216, 230)
       doc.rect(ml, yPos, tw, 5, 'F')
       doc.setFont('helvetica', 'bold')
@@ -499,35 +505,37 @@ export function CrewDetailPage() {
       doc.text('3. Immigration Documents', ml + 2, yPos + 3.5)
       yPos += 6
       
-      const immigDocsPdf = travelDocuments.map((d: any) => [
-        d.documentType || '', d.country?.countryName || 'Vietnam', d.documentNumber || '',
+      const immigDocsPdf = travelDocuments.map((d: any, i: number) => [
+        `${i + 1}`, d.documentType || '', d.country?.countryName || 'Vietnam', d.documentNumber || '',
         d.issueDate ? format(new Date(d.issueDate), 'dd/MM/yyyy') : '',
         d.expiryDate ? format(new Date(d.expiryDate), 'dd/MM/yyyy') : '', d.notes || ''
       ])
-      if (immigDocsPdf.length === 0) immigDocsPdf.push(['', '', '', '', '', ''])
+      // Always +1 empty row
+      immigDocsPdf.push(['', '', '', '', '', '', ''])
       
       doc.autoTable({
         startY: yPos,
-        head: [['Name of Document', 'Issued by', 'Number', 'Date of Issue', 'Date of expiry', 'Remark']],
+        head: [['No.', 'Name of Document', 'Issued by', 'Number', 'Date of Issue', 'Date of expiry', 'Remark']],
         body: immigDocsPdf,
         theme: 'grid',
         styles: bodyStyle,
         headStyles: headerStyle,
         margin: { left: ml, right: mr },
         columnStyles: {
-          0: { cellWidth: tw * 0.28 },
-          1: { cellWidth: tw * 0.13 },
-          2: { cellWidth: tw * 0.17 },
-          3: { cellWidth: tw * 0.13 },
+          0: { cellWidth: tw * 0.03 },
+          1: { cellWidth: tw * 0.25 },
+          2: { cellWidth: tw * 0.14 },
+          3: { cellWidth: tw * 0.16 },
           4: { cellWidth: tw * 0.13 },
-          5: { cellWidth: tw * 0.16 }
+          5: { cellWidth: tw * 0.13 },
+          6: { cellWidth: tw * 0.16 }
         }
       })
       
       yPos = doc.lastAutoTable.finalY + 4
-      if (yPos > pageHeight - 30) { doc.addPage(); yPos = 10 }
       
       // ========== 4. Licenses ==========
+      yPos = checkPageBreak(yPos)
       doc.setFillColor(173, 216, 230)
       doc.rect(ml, yPos, tw, 5, 'F')
       doc.setFont('helvetica', 'bold')
@@ -535,7 +543,7 @@ export function CrewDetailPage() {
       doc.text('4. Licenses', ml + 2, yPos + 3.5)
       yPos += 6
       
-      // 4.1. National Licenses (Vietnam) — from seafarer_documents (coc)
+      // 4.1. National Licenses (Vietnam) — DYNAMIC ROWS
       doc.setFontSize(7)
       doc.setFont('helvetica', 'bold')
       doc.text('4.1. National Licenses (Vietnam)', ml + 2, yPos + 3)
@@ -548,7 +556,7 @@ export function CrewDetailPage() {
         d.issueDate ? format(new Date(d.issueDate), 'dd/MM/yyyy') : '',
         d.expiryDate ? format(new Date(d.expiryDate), 'dd/MM/yyyy') : '', d.notes || ''
       ])
-      if (cocPdf.length === 0) cocPdf.push(['1', '', '', '', '', '', ''])
+      cocPdf.push(['', '', '', '', '', '', ''])
       
       doc.autoTable({
         startY: yPos,
@@ -562,9 +570,9 @@ export function CrewDetailPage() {
       })
       
       yPos = doc.lastAutoTable.finalY + 4
-      if (yPos > pageHeight - 30) { doc.addPage(); yPos = 10 }
       
       // ========== 5. Training Certificate ==========
+      yPos = checkPageBreak(yPos)
       doc.setFillColor(173, 216, 230)
       doc.rect(ml, yPos, tw, 5, 'F')
       doc.setFont('helvetica', 'bold')
@@ -572,7 +580,7 @@ export function CrewDetailPage() {
       doc.text('5. Training Certificate', ml + 2, yPos + 3.5)
       yPos += 6
       
-      // 5.1. Training Certificate (required by STCW) — from crew_certificates
+      // 5.1. Training Certificate (required by STCW) — DYNAMIC ROWS
       doc.setFontSize(7)
       doc.setFont('helvetica', 'bold')
       doc.text('5.1. Training Certificate (required by STCW)', ml + 2, yPos + 3)
@@ -587,7 +595,7 @@ export function CrewDetailPage() {
         c.expiryDate ? format(new Date(c.expiryDate), 'dd/MM/yyyy') : '',
         c.notes || ''
       ])
-      if (stcwPdf.length === 0) stcwPdf.push(['1', '', '', '', '', '', ''])
+      stcwPdf.push(['', '', '', '', '', '', ''])
       
       doc.autoTable({
         startY: yPos,
@@ -601,18 +609,19 @@ export function CrewDetailPage() {
       })
       
       yPos = doc.lastAutoTable.finalY + 3
-      if (yPos > pageHeight - 30) { doc.addPage(); yPos = 10 }
       
-      // 5.2. Training Certificate (required by Owner)
+      // 5.2. Training Certificate (required by Owner) — DYNAMIC ROWS
+      yPos = checkPageBreak(yPos)
       doc.setFontSize(7)
       doc.setFont('helvetica', 'bold')
       doc.text('5.2. Training Certificate (required by Owner)', ml + 2, yPos + 3)
       yPos += 5
       
+      // Currently no data source for this, just empty row
       doc.autoTable({
         startY: yPos,
         head: [certColumns],
-        body: [['1', '', '', '', '', '', '']],
+        body: [['', '', '', '', '', '', '']],
         theme: 'grid',
         styles: bodyStyle,
         headStyles: headerStyle,
@@ -621,9 +630,9 @@ export function CrewDetailPage() {
       })
       
       yPos = doc.lastAutoTable.finalY + 3
-      if (yPos > pageHeight - 30) { doc.addPage(); yPos = 10 }
       
-      // 5.3. In house training course — from employment_documents
+      // 5.3. In house training course — DYNAMIC ROWS
+      yPos = checkPageBreak(yPos)
       doc.setFontSize(7)
       doc.setFont('helvetica', 'bold')
       doc.text('5.3. In house training course', ml + 2, yPos + 3)
@@ -634,7 +643,7 @@ export function CrewDetailPage() {
         d.issueDate ? format(new Date(d.issueDate), 'dd/MM/yyyy') : '',
         d.expiryDate ? format(new Date(d.expiryDate), 'dd/MM/yyyy') : '', d.notes || ''
       ])
-      if (inHousePdf.length === 0) inHousePdf.push(['1', '', '', '', '', '', ''])
+      inHousePdf.push(['', '', '', '', '', '', ''])
       
       doc.autoTable({
         startY: yPos,
@@ -648,9 +657,9 @@ export function CrewDetailPage() {
       })
       
       yPos = doc.lastAutoTable.finalY + 4
-      if (yPos > pageHeight - 30) { doc.addPage(); yPos = 10 }
       
-      // ========== 6. Other certificate — from health_documents ==========
+      // ========== 6. Other certificate — DYNAMIC ROWS ==========
+      yPos = checkPageBreak(yPos)
       doc.setFillColor(173, 216, 230)
       doc.rect(ml, yPos, tw, 5, 'F')
       doc.setFont('helvetica', 'bold')
@@ -663,7 +672,7 @@ export function CrewDetailPage() {
         d.issueDate ? format(new Date(d.issueDate), 'dd/MM/yyyy') : '',
         d.expiryDate ? format(new Date(d.expiryDate), 'dd/MM/yyyy') : '', d.notes || ''
       ])
-      if (otherPdf.length === 0) otherPdf.push(['1', '', '', '', '', '', ''])
+      otherPdf.push(['', '', '', '', '', '', ''])
       
       doc.autoTable({
         startY: yPos,
@@ -677,87 +686,20 @@ export function CrewDetailPage() {
       })
       
       yPos = doc.lastAutoTable.finalY + 4
-      if (yPos > pageHeight - 30) { doc.addPage(); yPos = 10 }
+      yPos = checkPageBreak(yPos, 20)
       
-      // ========== 7. Service records ==========
+      // ========== 7. Remark ==========
       doc.setFillColor(173, 216, 230)
       doc.rect(ml, yPos, tw, 5, 'F')
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(8)
-      doc.text('7. Service records', ml + 2, yPos + 3.5)
-      yPos += 6
-      
-      // Load service records if not available
-      let svcRecords = serviceRecords
-      if (svcRecords.length === 0 && id) {
-        try { svcRecords = await maritimeService.crew.getServiceRecords(id) } catch { /* ignore */ }
-      }
-      
-      const svcHeaders = [
-        'Rank', 'Vessel', 'Flag', 'Type', 'GRT', 'Trade Area',
-        'Year Built', 'Maker', 'Type/Model', 'K.W',
-        'ECDIS', 'Embark Date', 'Disembark Date', 'Duration'
-      ]
-      
-      const svcData = svcRecords.length > 0 ? svcRecords.map((s: ServiceRecord) => [
-        s.rankAtTime || '',
-        s.vesselName || '',
-        s.vesselFlag || '',
-        s.vesselType || '',
-        s.vesselGrt ? `${s.vesselGrt}` : '',
-        s.tradeArea || '',
-        s.vesselYearBuilt ? `${s.vesselYearBuilt}` : '',
-        s.mainEngineMaker || '',
-        s.mainEngineType || '',
-        s.mainEnginePowerKw ? `${s.mainEnginePowerKw}` : '',
-        s.ecdis || '',
-        s.boardingDate ? format(new Date(s.boardingDate), 'dd/MM/yyyy') : '',
-        s.disembarkDate ? format(new Date(s.disembarkDate), 'dd/MM/yyyy') : '',
-        s.totalServiceDays ? `${s.totalServiceDays}` : ''
-      ]) : [['', '', '', '', '', '', '', '', '', '', '', '', '', '']]
-      
-      doc.autoTable({
-        startY: yPos,
-        head: [svcHeaders],
-        body: svcData,
-        theme: 'grid',
-        styles: { fontSize: 5, cellPadding: 0.8, lineWidth: 0.1, lineColor: [0, 0, 0], overflow: 'linebreak' },
-        headStyles: { ...headerStyle, fontSize: 5 },
-        margin: { left: ml, right: mr },
-        columnStyles: {
-          0: { cellWidth: tw * 0.06 },   // Rank
-          1: { cellWidth: tw * 0.115 },  // Vessel
-          2: { cellWidth: tw * 0.05 },   // Flag
-          3: { cellWidth: tw * 0.07 },   // Type
-          4: { cellWidth: tw * 0.05 },   // GRT
-          5: { cellWidth: tw * 0.085 },  // Trade Area
-          6: { cellWidth: tw * 0.055 },  // Year Built
-          7: { cellWidth: tw * 0.085 },  // Maker
-          8: { cellWidth: tw * 0.085 },  // Type/Model
-          9: { cellWidth: tw * 0.05 },   // K.W
-          10: { cellWidth: tw * 0.07 },  // ECDIS
-          11: { cellWidth: tw * 0.08 },  // Embark
-          12: { cellWidth: tw * 0.08 },  // Disembark
-          13: { cellWidth: tw * 0.065 }  // Duration
-        }
-      })
-      
-      yPos = doc.lastAutoTable.finalY + 4
-      if (yPos > pageHeight - 20) { doc.addPage(); yPos = 10 }
-      
-      // ========== 8. Remark ==========
-      doc.setFillColor(173, 216, 230)
-      doc.rect(ml, yPos, tw, 5, 'F')
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(8)
-      doc.text('8. Remark', ml + 2, yPos + 3.5)
+      doc.text('7. Remark', ml + 2, yPos + 3.5)
       yPos += 7
       
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(7)
       doc.text(crew.notes || '', ml + 2, yPos, { maxWidth: tw - 4 })
       
-      // Save PDF
       doc.save(`BIO-DATA_${crew.crewId || crew.fullName}_${format(new Date(), 'yyyyMMdd')}.pdf`)
       
       toast.success('PDF exported successfully!')
@@ -771,263 +713,353 @@ export function CrewDetailPage() {
     if (!crew) return
     
     try {
-      // Dynamic import ExcelJS
       const ExcelJS = await import('exceljs')
-      
-      // Load user's template XLSX (with merged cells already set up)
-      const templateResponse = await fetch('/template1.xlsx')
-      if (!templateResponse.ok) {
-        throw new Error('Failed to load template1.xlsx')
-      }
-      const arrayBuffer = await templateResponse.arrayBuffer()
-      
-      // Load workbook from user's template - preserving all formatting, merged cells, borders
       const workbook = new ExcelJS.Workbook()
-      await workbook.xlsx.load(arrayBuffer)
+      const ws = workbook.addWorksheet('BIO-DATA', {
+        pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+      })
       
-      // Get the worksheet (first sheet)
-      const worksheet = workbook.worksheets[0]
-      if (!worksheet) {
-        throw new Error('Template worksheet not found')
+      // Column count A(1) to AR(44)
+      const TC = 44
+      const thin: any = { style: 'thin', color: { argb: 'FF000000' } }
+      const border: any = { top: thin, bottom: thin, left: thin, right: thin }
+      const noBorder: any = { top: undefined, bottom: undefined, left: undefined, right: undefined }
+      const SEC_FILL = 'FF4BACC6'  // teal section header (matches template)
+      const SUBSEC_FILL = 'FF92CDDC' // lighter teal sub-section header
+      const LABEL_FILL = 'FFD9E2F3' // light blue-gray label bg
+      const DATA_FILL = 'FFFDE9D0'  // light orange/peach for data cells
+      const HDR_FILL = 'FFDAEEF3'   // column header bg
+      const TN = 'Times New Roman'
+      const boldFont = (sz = 10) => ({ bold: true, size: sz, name: TN })
+      const normFont = (sz = 10) => ({ size: sz, name: TN })
+      const cAlign: any = { horizontal: 'center', vertical: 'middle' }
+      const lAlign: any = { horizontal: 'left', vertical: 'middle' }
+
+      // Set column widths — wider so headers display fully without wrapping
+      for (let c = 1; c <= TC; c++) ws.getColumn(c).width = 4.5
+
+      // Helper: merge cells in a single row with border + styles
+      const mSet = (r: number, c1: number, c2: number, val: any, font?: any, fill?: string, align?: any) => {
+        if (c2 > c1) ws.mergeCells(r, c1, r, c2)
+        const cell = ws.getCell(r, c1)
+        cell.value = val
+        if (font) cell.font = font
+        if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }
+        if (align) cell.alignment = align
+        for (let c = c1; c <= c2; c++) ws.getCell(r, c).border = border
       }
-      
-      // ===== TEMPLATE STRUCTURE (from analysis): =====
-      // Row 4: G4:J4="Crew code" | K4:M4=DATA | Q4:S4="Present Rank" | T4:X4="WPR" 
-      //         Z4:AC4="Prepared by" | AD4:AI4=DATA | AK4:AM4="Date Prepared" | AN4:AQ4=DATA
-      // Row 8: H8:K9="Name" | L8:Z8="Full name"(label) | AA8:AD8="Date of Birth"(label) | AE8:AL8="Place of Birth"(label) | AM8:AR8="Nationality"(label)
-      // Row 9: L9:Z9=DATA(name) | AA9:AD9=DATA(dob) | AE9:AR9=DATA(pob) | AM9:AR9=DATA(nationality)
-      // Row 10: H10:K10="ID No." | L10:U10=DATA | V10:W10="Address" | X10:AR10=DATA
-      // Row 11: H11:K11="Home Tel" | L11:O11=DATA | P11:R11="Hand phone" | S11:U11=DATA | V11:W11="Email" | X11:AG11=DATA | AH11:AL11="Marital status" | AM11:AR11=DATA
-      // Row 12: H12:K12="Height" | L12:O12=DATA | P12:R12="Weight" | S12:U12=DATA | V12:W12="Overall size" | X12:Z12=DATA | AA12:AD12="Shoe's size" | AE12:AF12=DATA | AG12:AJ12="Catering size" | AK12:AL12=DATA | AM12:AO12="Blood Group" | AP12:AR12=DATA
-      // Row 13: H13:K14="Contact person/Next of Kin" | L13:O13="Name"(label) | P13:U13=DATA(name) | V13:W13="Phone No."(label) | X13:AD13=DATA(phone) | AE13:AJ13="Covid-19 Vaccinated" | AK13:AL13=DATA | AM13:AO13="Smoker" | AP13:AS13=DATA
-      // Row 14: L14:O14="Relation"(label) | P14:U14=DATA | V14:W14="Address"(label) | X14:AR14=DATA
-      
-      // ===== FILL DATA =====
-      
-      // Row 4: Header info
-      worksheet.getCell('K4').value = crew.crewId || ''
-      worksheet.getCell('T4').value = crew.rank?.rankName || ''  // Overwrite "WPR" with actual rank
-      worksheet.getCell('AD4').value = ''  // Prepared by
-      worksheet.getCell('AN4').value = new Date().toLocaleDateString('en-GB')
-      
-      // Row 9: Personal data (Row 8 has labels, Row 9 has data cells)
-      worksheet.getCell('L9').value = crew.fullName || ''  // Full name data
-      worksheet.getCell('AA9').value = crew.dateOfBirth ? new Date(crew.dateOfBirth).toLocaleDateString('en-GB') : ''
-      worksheet.getCell('AE9').value = crew.placeOfBirth || ''
-      worksheet.getCell('AM9').value = crew.nationality || ''
-      
-      // Row 10: ID No. and Address
-      worksheet.getCell('L10').value = crew.idCardNumber || ''
-      worksheet.getCell('X10').value = crew.address || ''
-      
-      // Row 11: Phones, Email, Marital status
-      worksheet.getCell('L11').value = ''  // Home Tel (not in DB)
-      worksheet.getCell('S11').value = crew.phoneNumber || ''  // Hand phone
-      worksheet.getCell('X11').value = crew.emailAddress || ''  // Email
-      worksheet.getCell('AM11').value = crew.maritalStatus || ''  // Marital status
-      
-      // Row 12: Physical details
-      worksheet.getCell('L12').value = crew.height ? `${crew.height}` : ''
-      worksheet.getCell('S12').value = crew.weight ? `${crew.weight}` : ''
-      worksheet.getCell('X12').value = crew.clothingSize || ''  // Overall size
-      worksheet.getCell('AE12').value = crew.shoeSize || ''  // Shoe's size
-      worksheet.getCell('AK12').value = crew.cateringSize || ''  // Catering size
-      worksheet.getCell('AP12').value = crew.bloodGroup || ''  // Blood Group
-      
-      // Row 13: Next of Kin
-      worksheet.getCell('P13').value = crew.nextOfKinName || ''
-      worksheet.getCell('X13').value = crew.nextOfKinPhone || ''
-      worksheet.getCell('AK13').value = crew.isCovidVaccinated ? 'Yes' : 'No'
-      worksheet.getCell('AP13').value = crew.isSmoker ? 'Yes' : 'No'
-      
-      // Row 14: Next of Kin continued
-      worksheet.getCell('P14').value = crew.nextOfKinRelation || ''
-      worksheet.getCell('X14').value = crew.nextOfKinAddress || ''
-      
-      // ===== SECTION 2: EDUCATION (Row 16 is header, data goes in next available row) =====
-      // Row 16: A16="University..." | V16="Course" | AE16="Period" | AK16="Year of graduation"
-      // Data should go in a row below headers - but no empty data row exists, so we use same row
-      // Actually looking at template, row 16 IS the header labels. Need to check if there's a data row after.
-      // From merge analysis: A16:K16, L16:U16, V16:W16, AE16:AF16, AG16:AJ16, AK16:AO16, AP16:AR16
-      // So the labels are in row 16 merged cells. We don't have a data row for education after.
-      // We'll skip education for now as template doesn't have clear data rows.
-      
-      // ===== SECTION 3: IMMIGRATION DOCUMENTS (Rows 19-24) — from travel_documents =====
-      // Row 18: headers | Rows 19-24 are data rows
-      const immigrationDocsExcel = travelDocuments.map((d: any) => ({
-        name: d.documentType || 'Document',
-        issuedBy: d.country?.countryName || 'Vietnam',
-        number: d.documentNumber || '',
-        issueDate: d.issueDate ? new Date(d.issueDate).toLocaleDateString('en-GB') : '',
-        expiryDate: d.expiryDate ? new Date(d.expiryDate).toLocaleDateString('en-GB') : '',
-        remark: d.notes || ''
-      }))
-      
-      for (let i = 0; i < Math.min(immigrationDocsExcel.length, 6); i++) {
-        const row = 19 + i
-        const doc = immigrationDocsExcel[i]
-        worksheet.getCell(`A${row}`).value = doc.name
-        worksheet.getCell(`P${row}`).value = doc.issuedBy
-        worksheet.getCell(`V${row}`).value = doc.number
-        worksheet.getCell(`AA${row}`).value = doc.issueDate
-        worksheet.getCell(`AE${row}`).value = doc.expiryDate
-        worksheet.getCell(`AH${row}`).value = doc.remark
+
+      // Helper: multi-row merge with border
+      const mSetR = (r1: number, c1: number, r2: number, c2: number, val: any, font?: any, fill?: string, align?: any) => {
+        ws.mergeCells(r1, c1, r2, c2)
+        const cell = ws.getCell(r1, c1)
+        cell.value = val
+        if (font) cell.font = font
+        if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }
+        if (align) cell.alignment = align
+        for (let r = r1; r <= r2; r++)
+          for (let c = c1; c <= c2; c++) ws.getCell(r, c).border = border
       }
-      
-      // ===== SECTION 4: LICENSES (Row 28) — from seafarer_documents where documentType='coc' =====
-      const cocDocs = (seafarerDocuments || []).filter((d: any) => 
-        d.documentType?.toLowerCase() === 'coc' || d.documentType?.toLowerCase() === 'certificate of competency'
-      )
-      
-      for (let i = 0; i < Math.min(cocDocs.length, 1); i++) {
-        const doc = cocDocs[i] as any
-        worksheet.getCell('A28').value = `${i + 1}`
-        worksheet.getCell('D28').value = doc.documentType || 'CoC'
-        worksheet.getCell('P28').value = doc.country?.countryName || 'Vietnam'
-        worksheet.getCell('V28').value = doc.documentNumber || ''
-        worksheet.getCell('AA28').value = doc.issueDate ? new Date(doc.issueDate).toLocaleDateString('en-GB') : ''
-        worksheet.getCell('AE28').value = doc.expiryDate ? new Date(doc.expiryDate).toLocaleDateString('en-GB') : ''
-        worksheet.getCell('AH28').value = doc.notes || ''
+
+      // Helper: merge WITHOUT border (for header area outside table)
+      const mNoBorder = (r: number, c1: number, c2: number, val: any, font?: any, fill?: string, align?: any) => {
+        if (c2 > c1) ws.mergeCells(r, c1, r, c2)
+        const cell = ws.getCell(r, c1)
+        cell.value = val
+        if (font) cell.font = font
+        if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }
+        if (align) cell.alignment = align
+        for (let c = c1; c <= c2; c++) ws.getCell(r, c).border = noBorder
       }
-      
-      // ===== SECTION 5.1: TRAINING CERTIFICATES STCW (Rows 31-34) — from crew_certificates =====
-      const crewCerts = certificates || []
-      
-      for (let i = 0; i < Math.min(crewCerts.length, 4); i++) {
-        const row = 31 + i  // Rows 31, 32, 33, 34
-        const cert = crewCerts[i] as any
-        worksheet.getCell(`A${row}`).value = `${i + 1}`
-        worksheet.getCell(`D${row}`).value = cert.certificate?.certificateName || cert.certificateName || ''
-        worksheet.getCell(`P${row}`).value = cert.issuingAuthority || cert.country?.countryName || ''
-        worksheet.getCell(`V${row}`).value = cert.certificateNumber || ''
-        worksheet.getCell(`AA${row}`).value = cert.issueDate ? new Date(cert.issueDate).toLocaleDateString('en-GB') : ''
-        worksheet.getCell(`AE${row}`).value = cert.expiryDate ? new Date(cert.expiryDate).toLocaleDateString('en-GB') : ''
-        worksheet.getCell(`AH${row}`).value = cert.notes || ''
+
+      // Section header (full-width, white bold text on teal)
+      const secHead = (r: number, text: string) => mSet(r, 1, TC, text, { bold: true, size: 10, name: TN, color: { argb: 'FFFFFFFF' } }, SEC_FILL, lAlign)
+
+      // Sub-section header (lighter teal)
+      const subSecHead = (r: number, text: string) => mSet(r, 1, TC, text, boldFont(10), SUBSEC_FILL, lAlign)
+
+      // Immigration data row with orange data fill
+      const immigRow = (r: number, vals: string[], isHeader = false) => {
+        const f = isHeader ? boldFont(10) : normFont(10)
+        const bg = isHeader ? HDR_FILL : DATA_FILL
+        mSet(r, 1, 15, vals[0], f, bg, lAlign)
+        mSet(r, 16, 21, vals[1], f, bg, cAlign)
+        mSet(r, 22, 26, vals[2], f, bg, cAlign)
+        mSet(r, 27, 30, vals[3], f, bg, cAlign)
+        mSet(r, 31, 33, vals[4], f, bg, cAlign)
+        mSet(r, 34, TC, vals[5], f, bg, lAlign)
       }
-      
-      // ===== SECTION 5.3: IN-HOUSE TRAINING (Rows 38-39) — from employment_documents =====
-      for (let i = 0; i < Math.min(employmentDocuments.length, 2); i++) {
-        const row = 38 + i  // Rows 38, 39
-        const doc = employmentDocuments[i] as any
-        worksheet.getCell(`A${row}`).value = `${i + 1}`
-        worksheet.getCell(`D${row}`).value = doc.documentType || ''
-        worksheet.getCell(`P${row}`).value = doc.country?.countryName || 'Vietnam'
-        worksheet.getCell(`V${row}`).value = doc.documentNumber || ''
-        worksheet.getCell(`AA${row}`).value = doc.issueDate ? new Date(doc.issueDate).toLocaleDateString('en-GB') : ''
-        worksheet.getCell(`AE${row}`).value = doc.expiryDate ? new Date(doc.expiryDate).toLocaleDateString('en-GB') : ''
-        worksheet.getCell(`AH${row}`).value = doc.notes || ''
+
+      // Cert data row with orange data fill
+      const certRow = (r: number, vals: string[], isHeader = false) => {
+        const f = isHeader ? boldFont(10) : normFont(10)
+        const bg = isHeader ? HDR_FILL : DATA_FILL
+        mSet(r, 1, 3, vals[0], f, bg, cAlign)
+        mSet(r, 4, 15, vals[1], f, bg, lAlign)
+        mSet(r, 16, 21, vals[2], f, bg, cAlign)
+        mSet(r, 22, 26, vals[3], f, bg, cAlign)
+        mSet(r, 27, 30, vals[4], f, bg, cAlign)
+        mSet(r, 31, 33, vals[5], f, bg, cAlign)
+        mSet(r, 34, TC, vals[6], f, bg, lAlign)
       }
-      
-      // ===== SECTION 6: OTHER CERTIFICATES (Rows 41-43) — from health_documents =====
-      for (let i = 0; i < Math.min(healthDocuments.length, 3); i++) {
-        const row = 41 + i  // Rows 41, 42, 43
-        const doc = healthDocuments[i] as any
-        worksheet.getCell(`A${row}`).value = `${i + 1}`
-        worksheet.getCell(`D${row}`).value = doc.documentType || ''
-        worksheet.getCell(`P${row}`).value = doc.country?.countryName || 'Vietnam'
-        worksheet.getCell(`V${row}`).value = doc.documentNumber || ''
-        worksheet.getCell(`AA${row}`).value = doc.issueDate ? new Date(doc.issueDate).toLocaleDateString('en-GB') : ''
-        worksheet.getCell(`AE${row}`).value = doc.expiryDate ? new Date(doc.expiryDate).toLocaleDateString('en-GB') : ''
-        worksheet.getCell(`AH${row}`).value = doc.notes || ''
-      }
-      
-      // ===== SECTION 7: SERVICE RECORDS (Row 44="7. Service records", Row 45-46 headers, Row 47 data) =====
-      // Row 47 merge structure (0-indexed cols → letters):
-      // A47:B47=Rank, C47:H47=Vessel, I47=Flag, J47:L47=Type, M47:N47=GRT, 
-      // O47:Q47=Trade Area, R47=Year Built, S47:T47=Engine Maker, U47:V47=Engine Type,
-      // W47=KW, X47:AB47=BWTS Maker, AD47:AE47=Scrubber Maker, AF47:AH47=Scrubber Type,
-      // AI47:AK47=ECDIS Maker, AM47:AN47=Embark Date, AO47:AP47=Disembark, AQ47:AR47=Duration
-      
-      // Load service records if not loaded yet
-      let records = serviceRecords
-      if (records.length === 0 && id) {
-        try {
-          records = await maritimeService.crew.getServiceRecords(id)
-        } catch { /* ignore */ }
-      }
-      
-      // Only row 47 is available as a data row (between row 44 header and row 48 remark)
-      if (records.length > 0) {
-        const rec = records[0]
-        worksheet.getCell('A47').value = rec.rankAtTime || ''
-        worksheet.getCell('C47').value = rec.vesselName || ''
-        worksheet.getCell('I47').value = rec.vesselFlag || ''
-        worksheet.getCell('J47').value = rec.vesselType || ''
-        worksheet.getCell('M47').value = rec.vesselGrt ? `${rec.vesselGrt}` : ''
-        worksheet.getCell('O47').value = rec.tradeArea || ''
-        worksheet.getCell('R47').value = rec.vesselYearBuilt ? `${rec.vesselYearBuilt}` : ''
-        worksheet.getCell('S47').value = rec.mainEngineMaker || ''
-        worksheet.getCell('U47').value = rec.mainEngineType || ''
-        worksheet.getCell('W47').value = rec.mainEnginePowerKw ? `${rec.mainEnginePowerKw}` : ''
-        // ECDIS
-        worksheet.getCell('AI47').value = rec.ecdis || ''
-        // Boarding records
-        worksheet.getCell('AM47').value = rec.boardingDate ? new Date(rec.boardingDate).toLocaleDateString('en-GB') : ''
-        worksheet.getCell('AO47').value = rec.disembarkDate ? new Date(rec.disembarkDate).toLocaleDateString('en-GB') : ''
-        worksheet.getCell('AQ47').value = rec.totalServiceDays ? `${rec.totalServiceDays}` : ''
-      }
-      
-      // ===== ADD CREW PHOTO =====
-      // Template has A1:D5 merged (company logo area) and A8:G14 merged (crew photo area)
-      // The photo should go into the A8:G14 area (left side of Personal Particulars section)
+
+      const fmtDate = (d: string | null | undefined) => d ? new Date(d).toLocaleDateString('en-GB') : ''
+
+      // =============== ROW 1-5: HEADER (no borders) ===============
+      // Logo placeholder A1:D5
+      mSetR(1, 1, 5, 4, 'LOGO', { italic: true, size: 8, name: TN, color: { argb: 'FF999999' } }, undefined, cAlign)
+      // Remove border on logo area
+      for (let r = 1; r <= 5; r++) for (let c = 1; c <= 4; c++) ws.getCell(r, c).border = noBorder
+      // Title F2:AQ2 — no border
+      ws.mergeCells(2, 6, 2, 43)
+      const ttl = ws.getCell(2, 6)
+      ttl.value = 'BIO - DATA'; ttl.font = boldFont(16); ttl.alignment = cAlign
+      for (let c = 6; c <= 43; c++) ws.getCell(2, c).border = noBorder
+      // Clear borders on empty header rows
+      for (let r = 1; r <= 6; r++) for (let c = 5; c <= TC; c++) { if (r !== 2 && r !== 4) ws.getCell(r, c).border = noBorder }
+
+      // Row 4 info — no borders, underline for data values
+      let R = 4
+      mNoBorder(R, 7, 10, 'Crew code', boldFont(10), undefined, lAlign)
+      mNoBorder(R, 11, 16, crew.crewId || '', { ...normFont(10), underline: true }, undefined, lAlign)
+      mNoBorder(R, 17, 20, 'Present Rank', boldFont(10), undefined, lAlign)
+      mNoBorder(R, 21, 25, crew.rank?.rankName || '', { ...normFont(10), bold: true }, undefined, lAlign)
+      mNoBorder(R, 26, 29, 'Prepared by', boldFont(10), undefined, lAlign)
+      mNoBorder(R, 30, 35, '', normFont(10), undefined, lAlign)
+      mNoBorder(R, 37, 40, 'Date Prepared', boldFont(10), undefined, lAlign)
+      mNoBorder(R, 41, TC, format(new Date(), 'dd/MM/yyyy'), normFont(10), undefined, lAlign)
+
+      // =============== 1. Personal Particular ===============
+      R = 7
+      secHead(R, '1. Personal Particular')
+      R = 8
+
+      // Photo area A8:G14
+      const photoStartRow = R
+      const photoEndRow = R + 6
+      mSetR(photoStartRow, 1, photoEndRow, 7, '', undefined, undefined, cAlign)
+
+      // Add photo image if available
       if (crew.photoUrl && crew.photoUrl.trim() !== '') {
         try {
           let imageUrl = crew.photoUrl
           let base64Data = ''
-          
           if (imageUrl.startsWith('data:')) {
             base64Data = imageUrl.split(',')[1]
           } else {
-            if (!imageUrl.startsWith('http')) {
+            if (!imageUrl.startsWith('http'))
               imageUrl = `http://localhost:5001${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`
-            }
-            
-            const response = await fetch(imageUrl)
-            const blob = await response.blob()
+            const resp = await fetch(imageUrl)
+            const blob = await resp.blob()
             const reader = new FileReader()
-            
-            await new Promise((resolve) => {
-              reader.onloadend = () => resolve(null)
-              reader.readAsDataURL(blob)
-            })
-            
-            if (reader.result) {
-              base64Data = reader.result.toString().split(',')[1]
-            }
+            await new Promise(resolve => { reader.onloadend = () => resolve(null); reader.readAsDataURL(blob) })
+            if (reader.result) base64Data = reader.result.toString().split(',')[1]
           }
-          
           if (base64Data) {
-            const imageId = workbook.addImage({
-              base64: base64Data,
-              extension: 'jpeg'
-            })
-            
-            // Place crew photo in A8:G14 merged area (0-indexed: col 0, row 7 to col 7, row 14)
-            worksheet.addImage(imageId, {
-              tl: { col: 0.2, row: 7.2 },
-              br: { col: 6.8, row: 13.8 }
-            } as any)
+            const imgId = workbook.addImage({ base64: base64Data, extension: 'jpeg' })
+            ws.addImage(imgId, { tl: { col: 0.2, row: photoStartRow - 0.8 }, br: { col: 6.8, row: photoEndRow - 0.2 } } as any)
           }
-        } catch (imgError) {
-          console.error('Excel: Could not add image:', imgError)
-        }
+        } catch { /* photo not critical */ }
       }
-      
+
+      // Personal data rows (H8:AR14 area → cols 8..44)
+      const pCol = 8 // start col for personal data (col H)
+      // Row 8-9: labels + data header row
+      mSetR(R, pCol, R + 1, pCol + 3, 'Name', boldFont(10), LABEL_FILL, lAlign)  // H8:K9
+      mSet(R, pCol + 4, 26, 'Full name', boldFont(10), LABEL_FILL, lAlign) // L8:Z8
+      mSet(R, 27, 30, 'Date of Birth', boldFont(10), LABEL_FILL, cAlign)
+      mSet(R, 31, 38, 'Place of Birth', boldFont(10), LABEL_FILL, cAlign)
+      mSet(R, 39, TC, 'Nationality', boldFont(10), LABEL_FILL, cAlign)
+      R = 9
+      // data row 9 (Name label spans 8-9)
+      mSet(R, pCol + 4, 26, crew.fullName || '', normFont(10), DATA_FILL, lAlign)
+      mSet(R, 27, 30, fmtDate(crew.dateOfBirth), normFont(10), DATA_FILL, cAlign)
+      mSet(R, 31, 38, crew.placeOfBirth || '', normFont(10), DATA_FILL, cAlign)
+      mSet(R, 39, TC, crew.countryName || '', normFont(10), DATA_FILL, cAlign)
+      R = 10
+      mSet(R, pCol, pCol + 3, 'ID No.', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, pCol + 4, 21, crew.idCardNumber || '', normFont(10), DATA_FILL, lAlign)
+      mSet(R, 22, 23, 'Address', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 24, TC, crew.address || '', normFont(10), DATA_FILL, lAlign)
+      R = 11
+      mSet(R, pCol, pCol + 3, 'Home Tel', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, pCol + 4, 15, '', normFont(10), DATA_FILL, lAlign)
+      mSet(R, 16, 18, 'Hand phone', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 19, 21, crew.phoneNumber || '', normFont(10), DATA_FILL, lAlign)
+      mSet(R, 22, 23, 'Email', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 24, 33, crew.emailAddress || '', normFont(10), DATA_FILL, lAlign)
+      mSet(R, 34, 38, 'Marital status', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 39, TC, crew.maritalStatus || '', normFont(10), DATA_FILL, lAlign)
+      R = 12
+      mSet(R, pCol, pCol + 3, 'Height', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, pCol + 4, 15, crew.height ? `${crew.height} cm` : '', normFont(10), DATA_FILL, lAlign)
+      mSet(R, 16, 18, 'Weight', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 19, 21, crew.weight ? `${crew.weight} kg` : '', normFont(10), DATA_FILL, lAlign)
+      mSet(R, 22, 23, 'Overall size', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 24, 26, crew.clothingSize || '', normFont(10), DATA_FILL, cAlign)
+      mSet(R, 27, 30, "Shoe's size", boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 31, 32, crew.shoeSize || '', normFont(10), DATA_FILL, cAlign)
+      mSet(R, 33, 36, 'Catering size', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 37, 38, crew.cateringSize || '', normFont(10), DATA_FILL, cAlign)
+      mSet(R, 39, 41, 'Blood Group', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 42, TC, crew.bloodGroup || '', normFont(10), DATA_FILL, cAlign)
+      R = 13
+      mSetR(R, pCol, R + 1, pCol + 3, 'Contact person/\nNext of Kin', boldFont(10), LABEL_FILL, { ...lAlign, wrapText: true })
+      mSet(R, pCol + 4, 15, 'Name', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 16, 21, crew.nextOfKinName || '', normFont(10), DATA_FILL, lAlign)
+      mSet(R, 22, 23, 'Phone No.', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 24, 30, crew.nextOfKinPhone || '', normFont(10), DATA_FILL, lAlign)
+      mSet(R, 31, 36, 'Covid-19 Vaccinated', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 37, 38, crew.isCovidVaccinated ? 'Yes' : 'No', normFont(10), DATA_FILL, cAlign)
+      mSet(R, 39, 41, 'Smoker', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 42, TC, crew.isSmoker ? 'Yes' : 'No', normFont(10), DATA_FILL, cAlign)
+      R = 14
+      // H14:K14 is part of merge above
+      mSet(R, pCol + 4, 15, 'Relation', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 16, 21, crew.nextOfKinRelation || '', normFont(10), DATA_FILL, lAlign)
+      mSet(R, 22, 23, 'Address', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 24, TC, crew.nextOfKinAddress || '', normFont(10), DATA_FILL, lAlign)
+
+      // =============== 2. Education ===============
+      R = 15
+      secHead(R, '2. Education')
+      R = 16
+      // Education: labels + data
+      mSet(R, 1, 11, 'University / College / School name', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 12, 21, 'Course', boldFont(10), LABEL_FILL, lAlign)
+      mSet(R, 22, 26, 'Period', boldFont(10), LABEL_FILL, cAlign)
+      mSet(R, 27, 33, 'Year of graduation', boldFont(10), LABEL_FILL, cAlign)
+      mSet(R, 34, TC, '', boldFont(10), LABEL_FILL, cAlign)
+      R = 17
+      mSet(R, 1, 11, crew.educationInstitution || '', normFont(10), DATA_FILL, lAlign)
+      mSet(R, 12, 21, crew.educationCourse || '', normFont(10), DATA_FILL, lAlign)
+      mSet(R, 22, 26, crew.educationPeriodYears ? `${crew.educationPeriodYears} years` : '', normFont(10), DATA_FILL, cAlign)
+      mSet(R, 27, 33, crew.educationGraduationYear || '', normFont(10), DATA_FILL, cAlign)
+      mSet(R, 34, TC, '', normFont(10), DATA_FILL, cAlign)
+
+      // =============== 3. Immigration Documents — DYNAMIC ===============
+      R++
+      secHead(R, '3. Immigration Documents')
+      R++
+      // Column headers
+      immigRow(R, ['Name of Document', 'Issued by', 'Number', 'Date of Issue', 'Date of expiry', 'Remark'], true)
+      R++
+
+      // Data rows
+      for (const d of travelDocuments) {
+        immigRow(R, [
+          d.documentType || '', d.country?.countryName || 'Vietnam', d.documentNumber || '',
+          fmtDate(d.issueDate), fmtDate(d.expiryDate), d.notes || ''
+        ])
+        R++
+      }
+      // +1 empty row
+      immigRow(R, ['', '', '', '', '', ''])
+      R++
+
+      // =============== 4. Licenses ===============
+      secHead(R, '4. Licenses')
+      R++
+      // Cert column headers
+      certRow(R, ['No.', 'Name', 'Issued by', 'Number', 'Date of issue', 'Date of expiry', 'Remark'], true)
+      R++
+
+      // 4.1. National Licenses (Vietnam) — DYNAMIC
+      subSecHead(R, '4.1. National Licenses (Vietnam)')
+      R++
+
+      const cocDocs = (seafarerDocuments || []).filter((d: any) =>
+        d.documentType?.toLowerCase() === 'coc' || d.documentType?.toLowerCase() === 'certificate of competency'
+      )
+      cocDocs.forEach((d: any, i: number) => {
+        certRow(R, [
+          `${i + 1}`, d.documentType || 'CoC', d.country?.countryName || 'Vietnam',
+          d.documentNumber || '', fmtDate(d.issueDate), fmtDate(d.expiryDate), d.notes || ''
+        ])
+        R++
+      })
+      // +1 empty row
+      certRow(R, ['', '', '', '', '', '', ''])
+      R++
+
+      // =============== 5. Training Certificate ===============
+      secHead(R, '5. Training Certificate')
+      R++
+
+      // 5.1. STCW — DYNAMIC
+      subSecHead(R, '5.1. Training Certificate (required by STCW)')
+      R++
+      const crewCerts = certificates || []
+      crewCerts.forEach((c: any, i: number) => {
+        certRow(R, [
+          `${i + 1}`,
+          c.certificate?.certificateName || c.certificateName || '',
+          c.issuingAuthority || c.country?.countryName || '',
+          c.certificateNumber || '', fmtDate(c.issueDate), fmtDate(c.expiryDate), c.notes || ''
+        ])
+        R++
+      })
+      certRow(R, ['', '', '', '', '', '', ''])
+      R++
+
+      // 5.2. Owner — DYNAMIC
+      subSecHead(R, '5.2. Training Certificate (required by Owner)')
+      R++
+      // No data source yet — just +1 empty row
+      certRow(R, ['', '', '', '', '', '', ''])
+      R++
+
+      // 5.3. In house training — DYNAMIC
+      subSecHead(R, '5.3. In house training course')
+      R++
+      employmentDocuments.forEach((d: any, i: number) => {
+        certRow(R, [
+          `${i + 1}`, d.documentType || '', d.country?.countryName || 'Vietnam',
+          d.documentNumber || '', fmtDate(d.issueDate), fmtDate(d.expiryDate), d.notes || ''
+        ])
+        R++
+      })
+      certRow(R, ['', '', '', '', '', '', ''])
+      R++
+
+      // =============== 6. Other certificate — DYNAMIC ===============
+      secHead(R, '6. Other certificate')
+      R++
+      healthDocuments.forEach((d: any, i: number) => {
+        certRow(R, [
+          `${i + 1}`, d.documentType || '', d.country?.countryName || 'Vietnam',
+          d.documentNumber || '', fmtDate(d.issueDate), fmtDate(d.expiryDate), d.notes || ''
+        ])
+        R++
+      })
+      certRow(R, ['', '', '', '', '', '', ''])
+      R++
+
+      // =============== 7. Remark ===============
+      secHead(R, '7. Remark')
+      R++
+      mSet(R, 1, TC, crew.notes || '', normFont(10), DATA_FILL, lAlign)
+      ws.getRow(R).height = 30
+
+      // Set minimum row height of 20 for all used rows
+      for (let r = 1; r <= R; r++) {
+        const row = ws.getRow(r)
+        if (!row.height || row.height < 20) row.height = 20
+      }
+
       // Export file
       const buffer = await workbook.xlsx.writeBuffer()
-      const blob = new Blob([buffer], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-      })
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `BIO-DATA_${crew.crewId || crew.fullName}_${new Date().toISOString().split('T')[0]}.xlsx`
+      link.download = `BIO-DATA_${crew.crewId || crew.fullName}_${format(new Date(), 'dd-MM-yyyy')}.xlsx`
       link.click()
       URL.revokeObjectURL(url)
       
       toast.success('Excel exported successfully!')
     } catch (error: any) {
-      console.error('❌ Failed to export Excel:', error)
+      console.error('Failed to export Excel:', error)
       toast.error(error.message || 'Failed to export Excel')
     }
   }
@@ -1273,14 +1305,20 @@ export function CrewDetailPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Nationality
+                      Country
                     </label>
-                    <input
-                      type="text"
-                      value={editedCrew.nationality || ''}
-                      onChange={(e) => setEditedCrew({ ...editedCrew, nationality: e.target.value })}
+                    <select
+                      value={editedCrew.countryId || ''}
+                      onChange={(e) => setEditedCrew({ ...editedCrew, countryId: e.target.value ? Number(e.target.value) : undefined })}
                       className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                    />
+                    >
+                      <option value="">Select country</option>
+                      {countries.map((country) => (
+                        <option key={country.id} value={country.id}>
+                          {country.countryName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">

@@ -12,7 +12,8 @@ export interface CrewMember {
   rankName?: string;
   rankCode?: string;
   department?: string;
-  nationality?: string;
+  countryId?: number;
+  countryName?: string;
   dateOfBirth?: string;
   joinDate?: string;
   embarkDate?: string;
@@ -151,7 +152,7 @@ export interface CreateCrewRequest {
   fullName: string;
   rankId?: number;
   department?: string;
-  nationality?: string;
+  countryId?: number;
   dateOfBirth?: string;
   joinDate?: string;
   embarkDate?: string;

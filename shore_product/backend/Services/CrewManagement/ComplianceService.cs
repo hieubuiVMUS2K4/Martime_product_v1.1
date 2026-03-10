@@ -310,6 +310,7 @@ public class ComplianceService : IComplianceService
         var crew = await _db.CrewMembers
             .AsNoTracking()
             .Include(c => c.Rank)
+            .Include(c => c.Country)
             .Include(c => c.Certificates).ThenInclude(cc => cc.Certificate)
             .FirstOrDefaultAsync(c => c.Id == crewMemberId);
 
@@ -582,7 +583,7 @@ public class ComplianceService : IComplianceService
         {
             "rank" => crew.Rank?.RankName ?? crew.RankId?.ToString(),
             "rankid" => crew.RankId?.ToString(),
-            "nationality" => crew.Nationality,
+            "nationality" => crew.Country?.CountryName,
             "department" => crew.Department ?? crew.Rank?.Department,
             "flagstate" or "flag" => vessel?.Flag,
             "vesseltype" => vessel?.VesselType,

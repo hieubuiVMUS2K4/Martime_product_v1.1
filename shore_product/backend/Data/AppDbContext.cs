@@ -215,6 +215,11 @@ namespace ProductApi.Data
                     .HasForeignKey(e => e.RankId)
                     .OnDelete(DeleteBehavior.SetNull);
 
+                entity.HasOne(e => e.Country)
+                    .WithMany()
+                    .HasForeignKey(e => e.CountryId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
                 entity.Property(e => e.Weight).HasPrecision(5, 2);
             });
 

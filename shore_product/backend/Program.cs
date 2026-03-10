@@ -135,15 +135,15 @@ using (var scope = app.Services.CreateScope())
     {
         try
         {
-            logger.LogInformation($"Attempting database creation (Attempt {retryCount + 1}/5)...");
-            db.Database.EnsureCreated();
-            logger.LogInformation("Database creation/verification completed successfully.");
+            logger.LogInformation($"Attempting database migration (Attempt {retryCount + 1}/5)...");
+            db.Database.Migrate();
+            logger.LogInformation("Database migration/verification completed successfully.");
             break;
         }
         catch (Exception ex)
         {
             retryCount++;
-            logger.LogError(ex, $"Database creation attempt {retryCount} failed.");
+            logger.LogError(ex, $"Database migration attempt {retryCount} failed.");
             if (retryCount >= 5) throw;
             await Task.Delay(5000); // Wait 5 seconds before retry
         }

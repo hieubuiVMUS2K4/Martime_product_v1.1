@@ -46,6 +46,7 @@ public class CrewService : ICrewService
         var query = _context.CrewMembers
             .AsNoTracking()
             .Include(c => c.Rank)
+            .Include(c => c.Country)
             .AsQueryable();
 
         // Search
@@ -80,6 +81,7 @@ public class CrewService : ICrewService
         var crew = await _context.CrewMembers
             .AsNoTracking()
             .Include(c => c.Rank)
+            .Include(c => c.Country)
             .FirstOrDefaultAsync(c => c.Id == id);
 
         return crew == null ? null : MapToDto(crew);
@@ -90,6 +92,7 @@ public class CrewService : ICrewService
         var crew = await _context.CrewMembers
             .AsNoTracking()
             .Include(c => c.Rank)
+            .Include(c => c.Country)
             .Include(c => c.Certificates).ThenInclude(cc => cc.Certificate)
             .FirstOrDefaultAsync(c => c.Id == id);
 
@@ -146,7 +149,7 @@ public class CrewService : ICrewService
                 FullName = request.FullName,
                 RankId = request.RankId,
                 Department = request.Department,
-                Nationality = request.Nationality,
+                CountryId = request.CountryId,
                 DateOfBirth = request.DateOfBirth,
                 JoinDate = request.JoinDate,
                 EmbarkDate = request.EmbarkDate,
@@ -233,6 +236,7 @@ public class CrewService : ICrewService
     {
         var crew = await _context.CrewMembers
             .Include(c => c.Rank)
+            .Include(c => c.Country)
             .FirstOrDefaultAsync(c => c.Id == id);
 
         if (crew == null) return null;
@@ -241,7 +245,7 @@ public class CrewService : ICrewService
         if (request.FullName != null) crew.FullName = request.FullName;
         if (request.RankId.HasValue) crew.RankId = request.RankId;
         if (request.Department != null) crew.Department = request.Department;
-        if (request.Nationality != null) crew.Nationality = request.Nationality;
+        if (request.CountryId.HasValue) crew.CountryId = request.CountryId;
         if (request.DateOfBirth.HasValue) crew.DateOfBirth = request.DateOfBirth;
         if (request.JoinDate.HasValue) crew.JoinDate = request.JoinDate;
         if (request.EmbarkDate.HasValue) crew.EmbarkDate = request.EmbarkDate;
@@ -638,7 +642,8 @@ public class CrewService : ICrewService
             RankId = crew.RankId,
             IsOnboard = crew.IsOnboard,
             Department = crew.Department,
-            Nationality = crew.Nationality,
+            CountryId = crew.CountryId,
+            CountryName = crew.Country?.CountryName,
             EmailAddress = crew.EmailAddress,
             PhoneNumber = crew.PhoneNumber,
             EmbarkDate = crew.EmbarkDate,
@@ -688,7 +693,7 @@ public class CrewService : ICrewService
             Id = baseDto.Id, CrewId = baseDto.CrewId, FirstName = baseDto.FirstName,
             LastName = baseDto.LastName, FullName = baseDto.FullName, Rank = baseDto.Rank,
             RankId = baseDto.RankId, IsOnboard = baseDto.IsOnboard, Department = baseDto.Department,
-            Nationality = baseDto.Nationality, EmailAddress = baseDto.EmailAddress, PhoneNumber = baseDto.PhoneNumber,
+            CountryId = baseDto.CountryId, CountryName = baseDto.CountryName, EmailAddress = baseDto.EmailAddress, PhoneNumber = baseDto.PhoneNumber,
             EmbarkDate = baseDto.EmbarkDate, DisembarkDate = baseDto.DisembarkDate,
             ContractEnd = baseDto.ContractEnd, JoinDate = baseDto.JoinDate,
             CertificateNumber = baseDto.CertificateNumber, CertificateIssue = baseDto.CertificateIssue,
