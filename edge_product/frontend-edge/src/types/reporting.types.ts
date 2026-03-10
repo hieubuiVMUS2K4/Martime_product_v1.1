@@ -357,9 +357,11 @@ export interface ReportPaginationDto {
   pageSize: number;
   status?: ReportStatus;
   reportTypeId?: number;
+  reportTypeCode?: string;
   fromDate?: string;
   toDate?: string;
   voyageId?: string; // Guid in backend - string type
+  searchTerm?: string;
 }
 
 export interface ReportSummaryDto {

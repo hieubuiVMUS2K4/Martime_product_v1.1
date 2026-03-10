@@ -22,7 +22,7 @@ export const WeeklyReportEditModal: React.FC<WeeklyReportEditModalProps> = ({
   const [formData, setFormData] = useState({
     remarks: report.remarks || '',
     masterSignature: report.masterSignature || '',
-    status: report.status || 'DRAFT' as 'DRAFT' | 'SIGNED' | 'TRANSMITTED' | 'ARCHIVED'
+      status: report.status || 'DRAFT' as 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'TRANSMITTED'
   });
 
   const [loading, setLoading] = useState(false);
@@ -102,9 +102,10 @@ export const WeeklyReportEditModal: React.FC<WeeklyReportEditModalProps> = ({
               disabled={loading}
             >
               <option value="DRAFT">Draft</option>
-              <option value="SIGNED">Signed</option>
+              <option value="SUBMITTED">Submitted</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
               <option value="TRANSMITTED">Transmitted</option>
-              <option value="ARCHIVED">Archived</option>
             </select>
             <p className="text-xs text-gray-500 mt-1">
               Change report workflow status

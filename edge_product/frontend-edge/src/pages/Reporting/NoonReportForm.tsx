@@ -26,37 +26,6 @@ import { maritimeService } from '../../services/maritime.service';
 import type { CreateNoonReportDto } from '../../types/reporting.types';
 import type { TaskSummary } from '../../types/maintenance.types';
 
-// Field name mapping for better error messages
-const FIELD_LABELS: Record<string, string> = {
-  'reportDate': 'Report Date',
-  'voyageId': 'Voyage ID',
-  'latitude': 'Latitude',
-  'longitude': 'Longitude',
-  'courseOverGround': 'Course Over Ground (COG)',
-  'speedOverGround': 'Speed Over Ground (SOG)',
-  'distanceTraveled': 'Distance Traveled',
-  'distanceToGo': 'Distance To Go',
-  'weatherConditions': 'Weather Conditions',
-  'seaState': 'Sea State',
-  'windDirection': 'Wind Direction',
-  'windSpeed': 'Wind Speed',
-  'airTemperature': 'Air Temperature',
-  'seaTemperature': 'Sea Temperature',
-  'barometricPressure': 'Barometric Pressure',
-  'visibility': 'Visibility',
-  'fuelOilConsumed': 'Fuel Oil Consumed',
-  'dieselOilConsumed': 'Diesel Oil Consumed',
-  'fuelOilROB': 'Fuel Oil ROB',
-  'dieselOilROB': 'Diesel Oil ROB',
-  'mainEngineRunningHours': 'M/E Running Hours',
-  'auxEngineRunningHours': 'A/E Running Hours',
-  'cargoOnBoard': 'Cargo On Board',
-  'preparedBy': 'Prepared By',
-  'generalRemarks': 'General Remarks',
-  'crewOnBoard': 'Crew On Board',
-  'passengersOnBoard': 'Passengers On Board',
-};
-
 export function NoonReportForm() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>(); // Get ID from URL if editing
@@ -65,7 +34,6 @@ export function NoonReportForm() {
   const [loading, setLoading] = useState(false);
   const [loadingReport, setLoadingReport] = useState(isEditMode);
   const [error, setError] = useState<string | null>(null);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
   
@@ -351,107 +319,123 @@ export function NoonReportForm() {
       const fieldRef = fieldRefs.current[firstErrorField];
       if (fieldRef) {
         fieldRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        fieldRef.focus();
+        setTimeout(() => fieldRef.focus(), 150);
       }
     }
   };
 
+  const applyFieldErrors = (nextFieldErrors: Record<string, string>) => {
+    setError(null);
+    setFieldErrors(nextFieldErrors);
+
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setTimeout(() => scrollToFirstError(nextFieldErrors), 100);
+    }
+  };
+
+  const mapValidationMessageToField = (message: string): string | null => {
+    const normalized = message.toLowerCase();
+
+    if (normalized.includes('prepared by')) return 'preparedBy';
+    if (normalized.includes('voyage')) return 'voyageId';
+    if (normalized.includes('null island') || normalized.includes('latitude')) return 'latitude';
+    if (normalized.includes('longitude')) return 'longitude';
+    if (normalized.includes('speed')) return 'speedOverGround';
+    if (normalized.includes('course')) return 'courseOverGround';
+    if (normalized.includes('fuel oil rob')) return 'fuelOilROB';
+    if (normalized.includes('fuel oil consumed')) return 'fuelOilConsumed';
+    if (normalized.includes('diesel oil rob')) return 'dieselOilROB';
+    if (normalized.includes('diesel oil consumed')) return 'dieselOilConsumed';
+    if (normalized.includes('barometric pressure')) return 'barometricPressure';
+    if (normalized.includes('air temperature')) return 'airTemperature';
+    if (normalized.includes('sea temperature')) return 'seaTemperature';
+    if (normalized.includes('wind speed')) return 'windSpeed';
+    if (normalized.includes('distance traveled')) return 'distanceTraveled';
+    if (normalized.includes('distance to go')) return 'distanceToGo';
+    if (normalized.includes('report date')) return 'reportDate';
+
+    return null;
+  };
+
   const validateForm = (): boolean => {
-    const errors: string[] = [];
     const newFieldErrors: Record<string, string> = {};
     
     // Required fields
     if (!formData.voyageId) {
-      errors.push('Voyage ID is required');
       newFieldErrors['voyageId'] = 'Voyage ID is required';
     }
     
     if (!formData.preparedBy?.trim()) {
-      errors.push('Prepared By is required');
       newFieldErrors['preparedBy'] = 'Prepared By is required';
     }
     
     // GPS validation
     if (formData.latitude !== undefined && (formData.latitude < -90 || formData.latitude > 90)) {
-      errors.push('Latitude must be between -90 and 90');
       newFieldErrors['latitude'] = 'Must be between -90 and 90';
     }
     
     if (formData.longitude !== undefined && (formData.longitude < -180 || formData.longitude > 180)) {
-      errors.push('Longitude must be between -180 and 180');
       newFieldErrors['longitude'] = 'Must be between -180 and 180';
     }
     
     // Null Island check
     if (formData.latitude === 0 && formData.longitude === 0) {
-      errors.push('Invalid position (Null Island) - please enter actual coordinates');
-      newFieldErrors['latitude'] = 'Invalid Null Island position';
-      newFieldErrors['longitude'] = 'Invalid Null Island position';
+      newFieldErrors['latitude'] = 'Invalid position. Please enter actual latitude.';
+      newFieldErrors['longitude'] = 'Invalid position. Please enter actual longitude.';
     }
     
     // Speed validation
     if (formData.speedOverGround !== undefined && (formData.speedOverGround < 0 || formData.speedOverGround > 40)) {
-      errors.push('Speed must be between 0 and 40 knots');
       newFieldErrors['speedOverGround'] = 'Must be between 0 and 40 knots';
     }
     
     // Course validation
     if (formData.courseOverGround !== undefined && (formData.courseOverGround < 0 || formData.courseOverGround > 360)) {
-      errors.push('Course must be between 0 and 360 degrees');
       newFieldErrors['courseOverGround'] = 'Must be between 0 and 360°';
     }
     
     // Fuel validation
     if (formData.fuelOilROB !== undefined && formData.fuelOilROB < 0) {
-      errors.push('Fuel Oil ROB cannot be negative');
       newFieldErrors['fuelOilROB'] = 'Cannot be negative';
     }
     
     if (formData.fuelOilConsumed !== undefined && formData.fuelOilConsumed < 0) {
-      errors.push('Fuel Oil Consumed cannot be negative');
       newFieldErrors['fuelOilConsumed'] = 'Cannot be negative';
     }
     
     // Backend validation rules (from ReportingDTOs.cs)
     if (formData.barometricPressure !== undefined && 
         (formData.barometricPressure < 900 || formData.barometricPressure > 1100)) {
-      errors.push('Barometric Pressure must be between 900 and 1100 hPa');
       newFieldErrors['barometricPressure'] = 'Must be 900-1100 hPa';
     }
     
     if (formData.airTemperature !== undefined && 
         (formData.airTemperature < -50 || formData.airTemperature > 50)) {
-      errors.push('Air Temperature must be between -50 and 50°C');
       newFieldErrors['airTemperature'] = 'Must be -50 to 50°C';
     }
     
     if (formData.seaTemperature !== undefined && 
         (formData.seaTemperature < -50 || formData.seaTemperature > 50)) {
-      errors.push('Sea Temperature must be between -50 and 50°C');
       newFieldErrors['seaTemperature'] = 'Must be -50 to 50°C';
     }
     
     if (formData.windSpeed !== undefined && 
         (formData.windSpeed < 0 || formData.windSpeed > 100)) {
-      errors.push('Wind Speed must be between 0 and 100 knots');
       newFieldErrors['windSpeed'] = 'Must be 0-100 knots';
     }
     
     if (formData.distanceTraveled !== undefined && 
         (formData.distanceTraveled < 0 || formData.distanceTraveled > 1000)) {
-      errors.push('Distance Traveled must be between 0 and 1000 nm');
       newFieldErrors['distanceTraveled'] = 'Must be 0-1000 nm';
     }
-    
-    setValidationErrors(errors);
-    setFieldErrors(newFieldErrors);
-    
-    // Scroll to first error
+
     if (Object.keys(newFieldErrors).length > 0) {
-      setTimeout(() => scrollToFirstError(newFieldErrors), 100);
+      applyFieldErrors(newFieldErrors);
+      return false;
     }
-    
-    return errors.length === 0;
+
+    setFieldErrors({});
+    return true;
   };
 
   const handleSubmit = async (asDraft: boolean = false) => {
@@ -462,7 +446,6 @@ export function NoonReportForm() {
     try {
       setLoading(true);
       setError(null);
-      setValidationErrors([]); // Clear previous errors
       setFieldErrors({}); // Clear field errors
       
       // Clean up data before sending - ensure voyageId is valid GUID or null
@@ -507,7 +490,6 @@ export function NoonReportForm() {
       
       // Check for validation errors from backend
       if (err.validationErrors) {
-        const backendErrors: string[] = [];
         const newFieldErrors: Record<string, string> = {};
         
         Object.entries(err.validationErrors).forEach(([field, messages]) => {
@@ -544,23 +526,12 @@ export function NoonReportForm() {
               };
               
               const frontendField = fieldNameMap[field] || field.charAt(0).toLowerCase() + field.slice(1);
-              const readableField = FIELD_LABELS[frontendField] || field.replace(/([A-Z])/g, ' $1').trim();
-              
-              backendErrors.push(`${readableField}: ${msg}`);
               newFieldErrors[frontendField] = msg;
             });
           }
         });
-        
-        setValidationErrors(backendErrors);
-        setFieldErrors(newFieldErrors);
-        
-        // Scroll to first error field
-        if (Object.keys(newFieldErrors).length > 0) {
-          setTimeout(() => scrollToFirstError(newFieldErrors), 100);
-        }
-        
-        setError('❌ Validation failed. Please check the fields highlighted below.');
+
+        applyFieldErrors(newFieldErrors);
         return;
       }
       
@@ -572,12 +543,26 @@ export function NoonReportForm() {
       } else if (err.message) {
         // If it's a formatted validation message from api.client
         if (err.message.includes('Validation failed:')) {
-          errorMsg = err.message;
-          // Also parse the individual errors
           const lines = err.message.split('\n').filter((l: string) => l.startsWith('•'));
           if (lines.length > 0) {
-            setValidationErrors(lines.map((l: string) => l.replace('• ', '')));
+            const parsedFieldErrors: Record<string, string> = {};
+
+            lines
+              .map((line: string) => line.replace('• ', '').trim())
+              .forEach((line: string) => {
+                const mappedField = mapValidationMessageToField(line);
+                if (mappedField) {
+                  parsedFieldErrors[mappedField] = line;
+                }
+              });
+
+            if (Object.keys(parsedFieldErrors).length > 0) {
+              applyFieldErrors(parsedFieldErrors);
+              return;
+            }
           }
+
+          errorMsg = err.message;
         } else {
           const msg = err.message.toLowerCase();
           
@@ -600,7 +585,6 @@ export function NoonReportForm() {
       }
       
       setError(errorMsg);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -637,35 +621,6 @@ export function NoonReportForm() {
           </div>
         </div>
 
-        {/* Validation Errors - Enhanced */}
-        {validationErrors.length > 0 && (
-          <div className="bg-red-50 border-l-4 border-red-500 rounded-r-xl p-4 mb-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base font-bold text-red-900 mb-2">
-                  ❌ Validation Failed ({validationErrors.length} {validationErrors.length === 1 ? 'error' : 'errors'})
-                </h3>
-                <p className="text-sm text-red-700 mb-3">
-                  Please fix the following issues before submitting:
-                </p>
-                <div className="bg-white rounded-lg p-3 border border-red-200">
-                  <ul className="space-y-2">
-                    {validationErrors.map((err, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-sm text-red-800">
-                        <span className="text-red-500 font-bold">•</span>
-                        <span>{err}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Compact Loading */}
         {loadingReport && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
@@ -677,7 +632,7 @@ export function NoonReportForm() {
         )}
 
         {/* Error Message - Enhanced */}
-        {error && !validationErrors.length && (
+        {error && (
           <div className="bg-red-50 border-l-4 border-red-500 rounded-r-xl p-4 mb-4 shadow-sm">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-red-100 rounded-lg">

@@ -26,8 +26,6 @@ interface WeeklyReportFormProps {
 }
 
 const WeeklyReportForm: React.FC<WeeklyReportFormProps> = ({ onReportGenerated }) => {
-  console.log('🚀 WeeklyReportForm component mounted!');
-  
   const currentYear = new Date().getFullYear();
   const currentWeek = getISOWeek(new Date());
 
@@ -53,7 +51,6 @@ const WeeklyReportForm: React.FC<WeeklyReportFormProps> = ({ onReportGenerated }
 
   // Load existing weekly reports
   useEffect(() => {
-    console.log('⚡ useEffect triggered for year:', formData.year);
     loadWeeklyReports();
   }, [formData.year]);
 
@@ -62,34 +59,20 @@ const WeeklyReportForm: React.FC<WeeklyReportFormProps> = ({ onReportGenerated }
    */
   const loadWeeklyReports = useCallback(async () => {
     setLoadingReports(true);
-    console.log('🔄 Loading weekly reports for year:', formData.year);
-    console.log('📍 Current component state:', { loading, loadingReports, reportsCount: weeklyReports.length });
     try {
       const reports = await retryApiCall(
         () => ReportingService.getWeeklyReports(formData.year),
         {
           maxRetries: 2,
-          onRetry: (attempt) => {
-            console.log(`Retrying to load reports (attempt ${attempt})...`);
-          },
         }
       );
-      console.log('✅ Weekly reports loaded successfully!');
-      console.log('📊 Reports data:', reports);
-      console.log('📊 Number of reports:', reports?.length || 0);
-      console.log('📊 Is array?', Array.isArray(reports));
-      if (reports && reports.length > 0) {
-        console.log('📊 First report:', reports[0]);
-      }
       setWeeklyReports(reports || []);
-      console.log('✅ State updated with reports');
     } catch (err) {
       console.error('❌ Failed to load weekly reports:', err);
       console.error('❌ Error details:', JSON.stringify(err, null, 2));
       // Don't show error for list loading failure
     } finally {
       setLoadingReports(false);
-      console.log('✅ Loading finished');
     }
   }, [formData.year]);
 
@@ -137,7 +120,7 @@ const WeeklyReportForm: React.FC<WeeklyReportFormProps> = ({ onReportGenerated }
   /**
    * Handle view report with typed error handling
    */
-  const handleViewReport = async (reportId: number) => {
+  const handleViewReport = async (reportId: string) => {
     try {
       const report = await retryApiCall(
         () => ReportingService.getWeeklyReport(reportId),
@@ -212,8 +195,6 @@ const WeeklyReportForm: React.FC<WeeklyReportFormProps> = ({ onReportGenerated }
   };
 
   const weekDateRange = getWeekDateRange(formData.year, formData.weekNumber);
-
-  console.log('🎨 Rendering WeeklyReportForm with', weeklyReports.length, 'reports');
 
   return (
     <div className="space-y-6">

@@ -3,7 +3,9 @@ using Maritime.Shared.DTOs.Crew;
 using Maritime.Shared.Models.Crew;
 using Maritime.Shared.Models.Documents;
 using Maritime.Shared.Models.Sync;
+using Maritime.Shared.DTOs.CrewManagement;
 using ProductApi.Data;
+using ProductApi.Services.CrewManagement;
 using ProductApi.Services.Sync;
 
 namespace ProductApi.Services.Crew;
@@ -18,12 +20,14 @@ public class CrewService : ICrewService
     private readonly AppDbContext _context;
     private readonly ILogger<CrewService> _logger;
     private readonly ISyncOutboxService? _syncOutbox;
+    private readonly IOnboardingService? _onboardingService;
 
-    public CrewService(AppDbContext context, ILogger<CrewService> logger, ISyncOutboxService? syncOutbox = null)
+    public CrewService(AppDbContext context, ILogger<CrewService> logger, ISyncOutboxService? syncOutbox = null, IOnboardingService? onboardingService = null)
     {
         _context = context;
         _logger = logger;
         _syncOutbox = syncOutbox;
+        _onboardingService = onboardingService;
     }
 
     // ============================================================
@@ -198,6 +202,24 @@ public class CrewService : ICrewService
             }
 
             _logger.LogInformation("Created crew member {CrewId} - {Name}", crew.CrewId, crew.FullName);
+
+            // Auto-create onboarding case for new crew member
+            if (_onboardingService != null)
+            {
+                try
+                {
+                    await _onboardingService.CreateCaseAsync(new CreateOnboardingCaseRequest
+                    {
+                        CrewMemberId = crew.Id,
+                    }, "System (Auto-Onboarding)");
+                    _logger.LogInformation("Auto-created onboarding case for crew {CrewId}", crew.CrewId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to auto-create onboarding case for crew {CrewId}. Crew saved but onboarding must be started manually.", crew.CrewId);
+                }
+            }
+
             return MapToDto(crew);
         }
         catch (DbUpdateException ex)

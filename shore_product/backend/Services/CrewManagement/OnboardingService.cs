@@ -21,11 +21,13 @@ public class OnboardingService : IOnboardingService
 {
     private readonly AppDbContext _db;
     private readonly IAuditService _audit;
+    private readonly IComplianceService _complianceService;
 
-    public OnboardingService(AppDbContext db, IAuditService audit)
+    public OnboardingService(AppDbContext db, IAuditService audit, IComplianceService complianceService)
     {
         _db = db;
         _audit = audit;
+        _complianceService = complianceService;
     }
 
     public async Task<OnboardingCaseDto> CreateCaseAsync(CreateOnboardingCaseRequest request, string createdBy)
@@ -63,6 +65,19 @@ public class OnboardingService : IOnboardingService
 
         // Auto-generate standard checklist items
         var checklistItems = GenerateStandardChecklist(onboardingCase.Id);
+
+        // Generate compliance-based checklist items dynamically
+        try
+        {
+            var complianceItems = await GenerateComplianceChecklistAsync(
+                onboardingCase.Id, request.CrewMemberId, request.ReferenceVesselId);
+            checklistItems.AddRange(complianceItems);
+        }
+        catch
+        {
+            // Compliance engine may not have rules configured yet — use standard checklist only
+        }
+
         _db.OnboardingChecklistItems.AddRange(checklistItems);
 
         await _db.SaveChangesAsync();
@@ -144,7 +159,23 @@ public class OnboardingService : IOnboardingService
             onboardingCase.InvitedAt = DateTime.UtcNow;
 
         if (newStatus == OnboardingCaseStatus.Activated)
+        {
             onboardingCase.ActivatedAt = DateTime.UtcNow;
+
+            // Activate the crew member profile
+            var crew = await _db.CrewMembers.FindAsync(onboardingCase.CrewMemberId);
+            if (crew != null && crew.Status == CrewStatus.Draft)
+            {
+                crew.Status = CrewStatus.Active;
+                crew.StatusChangedAt = DateTime.UtcNow;
+                crew.StatusChangedBy = changedBy;
+                crew.UpdatedAt = DateTime.UtcNow;
+
+                // Also set pool status if not already set
+                if (string.IsNullOrEmpty(crew.PoolStatus))
+                    crew.PoolStatus = PoolStatus.Available;
+            }
+        }
 
         if (!string.IsNullOrWhiteSpace(notes))
             onboardingCase.Notes = notes;
@@ -313,6 +344,60 @@ public class OnboardingService : IOnboardingService
                 SortOrder = 9
             }
         };
+
+        return items;
+    }
+
+    /// <summary>
+    /// Generate additional checklist items based on compliance rules applicable to the crew member.
+    /// Queries the Compliance Matrix for Onboarding-stage rules matching the crew's rank, nationality,
+    /// and reference vessel, then creates DocumentUpload items for any required certificates/documents
+    /// not already in the standard checklist.
+    /// </summary>
+    private async Task<List<OnboardingChecklistItem>> GenerateComplianceChecklistAsync(
+        Guid caseId, Guid crewMemberId, Guid? referenceVesselId)
+    {
+        var items = new List<OnboardingChecklistItem>();
+
+        var eval = await _complianceService.EvaluateCrewAsync(
+            crewMemberId, referenceVesselId, EvaluationStage.Onboarding);
+
+        // Standard doc types already covered by GenerateStandardChecklist
+        var standardDocTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "PASSPORT", "SEAMAN_BOOK", "COC", "MEDICAL", "FLAG_ENDORSEMENT"
+        };
+
+        var sortOrder = 100; // Start after standard items
+
+        foreach (var ruleItem in eval.Items)
+        {
+            // Skip items that are already met or already in the standard checklist
+            if (ruleItem.Result == "Met" || ruleItem.Result == "Waived")
+                continue;
+
+            // Derive doc type from requirement type and rule title
+            var docType = ruleItem.RequirementType;
+
+            // Skip if this requirement type is already covered by standard checklist
+            if (standardDocTypes.Contains(ruleItem.RuleTitle?.ToUpperInvariant()
+                    ?.Replace(" ", "_") ?? ""))
+                continue;
+
+            var isMandatory = ruleItem.Severity == "Blocker";
+
+            items.Add(new OnboardingChecklistItem
+            {
+                OnboardingCaseId = caseId,
+                ItemType = ChecklistItemType.DocumentUpload,
+                Title = $"Upload: {ruleItem.RuleTitle}",
+                Description = ruleItem.UiMessage ?? ruleItem.ExplainabilityText ?? $"Required by compliance rule: {ruleItem.RuleTitle}",
+                RequiredDocumentType = docType,
+                SourceRuleId = ruleItem.RuleId.ToString(),
+                IsMandatory = isMandatory,
+                SortOrder = sortOrder++
+            });
+        }
 
         return items;
     }

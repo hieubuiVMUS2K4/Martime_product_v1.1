@@ -14,7 +14,7 @@ interface MonthlyReportsGridProps {
   year: number;
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
-  onReportClick: (reportId: number) => void;
+  onReportClick: (reportId: string) => void;
   monthNames: string[];
 }
 

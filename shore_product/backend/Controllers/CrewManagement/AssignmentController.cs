@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Maritime.Shared.DTOs.CrewManagement;
 using ProductApi.Services.CrewManagement;
@@ -6,6 +7,7 @@ namespace ProductApi.Controllers.CrewManagement;
 
 [ApiController]
 [Route("api/assignments")]
+[AllowAnonymous] // TODO: restore [Authorize(Policy = "FleetManagement")] after auth is implemented
 public class AssignmentController : ControllerBase
 {
     private readonly IAssignmentService _service;

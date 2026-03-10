@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Maritime.Shared.DTOs.CrewManagement;
 
@@ -5,6 +6,7 @@ namespace ProductApi.Controllers.CrewManagement;
 
 [ApiController]
 [Route("api/onboard-events")]
+[AllowAnonymous] // TODO: restore [Authorize(Policy = "OnboardManagement")] after auth is implemented
 public class OnboardEventController : ControllerBase
 {
     private readonly ProductApi.Services.CrewManagement.IOnboardEventService _service;

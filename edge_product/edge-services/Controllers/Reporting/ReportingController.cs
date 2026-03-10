@@ -315,9 +315,11 @@ public class ReportingController : ControllerBase
         [FromQuery] int pageSize = 20,
         [FromQuery] string? status = null,
         [FromQuery] int? reportTypeId = null,
+        [FromQuery] string? reportTypeCode = null,
         [FromQuery] DateTime? fromDate = null,
         [FromQuery] DateTime? toDate = null,
-        [FromQuery] Guid? voyageId = null)
+        [FromQuery] Guid? voyageId = null,
+        [FromQuery] string? searchTerm = null)
     {
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 20;
@@ -329,9 +331,11 @@ public class ReportingController : ControllerBase
             PageSize = pageSize,
             Status = status,
             ReportTypeId = reportTypeId,
+            ReportTypeCode = reportTypeCode,
             FromDate = fromDate,
             ToDate = toDate,
-            VoyageId = voyageId
+            VoyageId = voyageId,
+            SearchTerm = searchTerm
         };
 
         var result = await _reportingService.GetReportsAsync(pagination);

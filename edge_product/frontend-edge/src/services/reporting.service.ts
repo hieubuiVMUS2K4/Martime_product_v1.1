@@ -40,42 +40,54 @@ import type {
   // Responses
   CreateReportResponse,
 } from '../types/reporting.types';
+import type {
+  GenerateWeeklyReportDto,
+  GenerateMonthlyReportDto,
+  WeeklyReportDto,
+  MonthlyReportDto,
+} from '../types/aggregate-reports.types';
 
 const BASE_URL = '/reports';
+
+const normalizeArrayResponse = <T>(response: unknown): T[] => {
+  if (Array.isArray(response)) {
+    return response as T[];
+  }
+
+  if (response && typeof response === 'object' && 'value' in response) {
+    const wrapped = response as { value?: unknown };
+    if (Array.isArray(wrapped.value)) {
+      return wrapped.value as T[];
+    }
+  }
+
+  return [];
+};
 
 export class ReportingService {
   // ============================================================
   // WEEKLY REPORTS (AGGREGATE)
   // ============================================================
 
-  static async generateWeeklyReport(data: { weekNumber: number; year: number; voyageId?: number; remarks?: string }): Promise<CreateReportResponse> {
+  static async generateWeeklyReport(data: GenerateWeeklyReportDto): Promise<CreateReportResponse> {
     return await apiClient.post<CreateReportResponse>(`${BASE_URL}/weekly/generate`, data);
   }
 
-  static async getWeeklyReport(reportId: number): Promise<any> {
-    return await apiClient.get(`${BASE_URL}/weekly/${reportId}`);
+  static async getWeeklyReport(reportId: string): Promise<WeeklyReportDto> {
+    return await apiClient.get<WeeklyReportDto>(`${BASE_URL}/weekly/${reportId}`);
   }
 
-  static async getWeeklyReports(year?: number): Promise<any[]> {
+  static async getWeeklyReports(year?: number): Promise<WeeklyReportDto[]> {
     const query = year ? `?year=${year}` : '';
-    console.log('🔍 Calling API:', `${BASE_URL}/weekly${query}`);
-    const response: any = await apiClient.get(`${BASE_URL}/weekly${query}`);
-    console.log('📦 Raw API Response:', response);
-    console.log('📦 Response type:', typeof response);
-    console.log('📦 Response is array?', Array.isArray(response));
-    console.log('📦 Response.value:', response?.value);
-    console.log('📦 Response.value is array?', Array.isArray(response?.value));
-    // Backend returns { value: [], Count: number } format OR direct array
-    const result = Array.isArray(response) ? response : (response?.value || response || []);
-    console.log('✅ Final result:', result);
-    return result;
+    const response = await apiClient.get<unknown>(`${BASE_URL}/weekly${query}`);
+    return normalizeArrayResponse<WeeklyReportDto>(response);
   }
 
-  static async updateWeeklyReport(reportId: number, data: { remarks?: string; masterSignature?: string; status?: string }): Promise<any> {
+  static async updateWeeklyReport(reportId: string, data: { remarks?: string; masterSignature?: string; status?: string }): Promise<void> {
     return await apiClient.put(`${BASE_URL}/weekly/${reportId}`, data);
   }
 
-  static async deleteWeeklyReport(reportId: number): Promise<any> {
+  static async deleteWeeklyReport(reportId: string): Promise<void> {
     return await apiClient.delete(`${BASE_URL}/weekly/${reportId}`);
   }
 
@@ -83,33 +95,25 @@ export class ReportingService {
   // MONTHLY REPORTS (AGGREGATE)
   // ============================================================
 
-  static async generateMonthlyReport(data: { month: number; year: number; remarks?: string }): Promise<CreateReportResponse> {
+  static async generateMonthlyReport(data: GenerateMonthlyReportDto): Promise<CreateReportResponse> {
     return await apiClient.post<CreateReportResponse>(`${BASE_URL}/monthly/generate`, data);
   }
 
-  static async getMonthlyReport(reportId: number): Promise<any> {
-    return await apiClient.get(`${BASE_URL}/monthly/${reportId}`);
+  static async getMonthlyReport(reportId: string): Promise<MonthlyReportDto> {
+    return await apiClient.get<MonthlyReportDto>(`${BASE_URL}/monthly/${reportId}`);
   }
 
-  static async getMonthlyReports(year?: number): Promise<any[]> {
+  static async getMonthlyReports(year?: number): Promise<MonthlyReportDto[]> {
     const query = year ? `?year=${year}` : '';
-    console.log('🔍 Calling API:', `${BASE_URL}/monthly${query}`);
-    const response: any = await apiClient.get(`${BASE_URL}/monthly${query}`);
-    console.log('📦 Raw API Response:', response);
-    console.log('📦 Response type:', typeof response);
-    console.log('📦 Response is array?', Array.isArray(response));
-    console.log('📦 Response.value:', response?.value);
-    // Backend returns { value: [], Count: number } format OR direct array
-    const result = Array.isArray(response) ? response : (response?.value || response || []);
-    console.log('✅ Final result:', result);
-    return result;
+    const response = await apiClient.get<unknown>(`${BASE_URL}/monthly${query}`);
+    return normalizeArrayResponse<MonthlyReportDto>(response);
   }
 
-  static async updateMonthlyReport(reportId: number, data: { remarks?: string; masterSignature?: string; status?: string }): Promise<any> {
+  static async updateMonthlyReport(reportId: string, data: { remarks?: string; masterSignature?: string; status?: string }): Promise<void> {
     return await apiClient.put(`${BASE_URL}/monthly/${reportId}`, data);
   }
 
-  static async deleteMonthlyReport(reportId: number): Promise<any> {
+  static async deleteMonthlyReport(reportId: string): Promise<void> {
     return await apiClient.delete(`${BASE_URL}/monthly/${reportId}`);
   }
 
@@ -214,9 +218,11 @@ export class ReportingService {
     queryParams.append('pageSize', params.pageSize.toString());
     if (params.status) queryParams.append('status', params.status);
     if (params.reportTypeId) queryParams.append('reportTypeId', params.reportTypeId.toString());
+    if (params.reportTypeCode) queryParams.append('reportTypeCode', params.reportTypeCode);
     if (params.fromDate) queryParams.append('fromDate', params.fromDate);
     if (params.toDate) queryParams.append('toDate', params.toDate);
     if (params.voyageId) queryParams.append('voyageId', params.voyageId.toString());
+    if (params.searchTerm) queryParams.append('searchTerm', params.searchTerm);
     
     return await apiClient.get<PaginatedReportResponse<ReportSummaryDto>>(`${BASE_URL}?${queryParams}`);
   }

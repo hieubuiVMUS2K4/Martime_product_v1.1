@@ -4,6 +4,7 @@ using ProductApi.Models;
 using Maritime.Shared.DTOs.Sync;
 using Maritime.Shared.Models.Sync;
 using Maritime.Shared.Models.Crew;
+using Maritime.Shared.Models.CrewManagement;
 using Maritime.Shared.Models.Documents;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -136,6 +137,12 @@ public class SyncInboxService : ISyncInboxService
         ["employment_document"]  = typeof(EmploymentDocument),
         ["health_document"]      = typeof(HealthDocument),
 
+        // Crew Management Workflow — onboard events from Edge
+        ["onboard_event"]        = typeof(OnboardEvent),
+        ["sign_on_record"]       = typeof(SignOnRecord),
+        ["sign_off_record"]      = typeof(SignOffRecord),
+        ["crew_access_grant"]    = typeof(CrewAccessGrant),
+
         // NOTE: logbooks (deck_log_book, engine_log_book, ...) and inventory
         // (material_item, material_receipt, ...) are not yet in Shore's AppDbContext.
         // Items with those table names will be received from Edge but skipped with a
@@ -196,6 +203,33 @@ public class SyncInboxService : ISyncInboxService
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "ship_data sync failed for key {Key}", item.RecordKey);
+                        _context.ChangeTracker.Clear();
+                        failed++;
+                    }
+                }
+                continue;
+            }
+
+            // ── Special handler: onboard events from Edge with business logic ──
+            if (group.Key.Equals("onboard_event", StringComparison.OrdinalIgnoreCase)
+                || group.Key.Equals("sign_on_record", StringComparison.OrdinalIgnoreCase)
+                || group.Key.Equals("sign_off_record", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var item in group)
+                {
+                    try
+                    {
+                        if (await IsAlreadyProcessedAsync(item.TableName, item.RecordKey, item.SyncVersion))
+                        { succeeded++; continue; }
+
+                        await ProcessOnboardEventFromEdgeAsync(item);
+                        await RecordProcessedAsync(item);
+                        await _context.SaveChangesAsync();
+                        succeeded++;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Onboard event sync failed: {Table}/{Key}", item.TableName, item.RecordKey);
                         _context.ChangeTracker.Clear();
                         failed++;
                     }
@@ -1022,5 +1056,271 @@ public class SyncInboxService : ISyncInboxService
         {
             return null;
         }
+    }
+
+    // ============================================================
+    // ONBOARD EVENT HANDLER — processes Edge onboard events with
+    // business logic (assignment updates, crew status, access grants)
+    // ============================================================
+
+    private async Task ProcessOnboardEventFromEdgeAsync(SyncQueueItemDto item)
+    {
+        if (string.IsNullOrWhiteSpace(item.Payload))
+            throw new InvalidOperationException($"Empty payload for {item.TableName}/{item.RecordKey}");
+
+        var cleanPayload = NormalizePayloadToCamelCase(StripNavigationProperties(item.Payload));
+
+        switch (item.TableName.ToLowerInvariant())
+        {
+            case "onboard_event":
+                await ProcessOnboardEventEntityAsync(cleanPayload, item);
+                break;
+            case "sign_on_record":
+                await ProcessSignOnFromEdgeAsync(cleanPayload, item);
+                break;
+            case "sign_off_record":
+                await ProcessSignOffFromEdgeAsync(cleanPayload, item);
+                break;
+        }
+    }
+
+    private async Task ProcessOnboardEventEntityAsync(string payload, SyncQueueItemDto item)
+    {
+        var ev = JsonSerializer.Deserialize<OnboardEvent>(payload, _jsonOptions);
+        if (ev == null) throw new InvalidOperationException("Failed to deserialize OnboardEvent");
+
+        // Upsert: check if exists
+        var existing = await _context.OnboardEvents.FindAsync(ev.Id);
+        if (existing != null)
+        {
+            _context.Entry(existing).CurrentValues.SetValues(ev);
+            existing.IsSynced = true;
+        }
+        else
+        {
+            ev.IsSynced = true;
+            await _context.OnboardEvents.AddAsync(ev);
+        }
+
+        // Business logic: update assignment status based on event type
+        if (ev.AssignmentId.HasValue)
+        {
+            var assignment = await _context.CrewAssignments.FindAsync(ev.AssignmentId.Value);
+            if (assignment != null)
+            {
+                if (ev.EventType == OnboardEventType.Arrived
+                    && (assignment.Status == AssignmentStatus.ReadyToJoin
+                        || assignment.Status == AssignmentStatus.TravelInProgress))
+                {
+                    assignment.Status = AssignmentStatus.OnBoarded;
+                    assignment.ActualStartDate ??= ev.EventTimestamp;
+                    assignment.StatusChangedAt = DateTime.UtcNow;
+                    assignment.StatusChangedBy = $"Edge:{ev.ConfirmedBy}";
+                    assignment.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+        }
+
+        _logger.LogInformation("Processed onboard_event {Id} type={Type} crew={CrewId} from Edge",
+            ev.Id, ev.EventType, ev.CrewMemberId);
+        await LogSyncOperation(item, "SUCCESS");
+    }
+
+    private async Task ProcessSignOnFromEdgeAsync(string payload, SyncQueueItemDto item)
+    {
+        var record = JsonSerializer.Deserialize<SignOnRecord>(payload, _jsonOptions);
+        if (record == null) throw new InvalidOperationException("Failed to deserialize SignOnRecord");
+
+        // Upsert
+        var existing = await _context.SignOnRecords.FindAsync(record.Id);
+        if (existing != null)
+        {
+            _context.Entry(existing).CurrentValues.SetValues(record);
+            existing.IsSynced = true;
+        }
+        else
+        {
+            record.IsSynced = true;
+            await _context.SignOnRecords.AddAsync(record);
+        }
+
+        // Business logic: update assignment to OnBoarded
+        if (record.AssignmentId.HasValue)
+        {
+            var assignment = await _context.CrewAssignments.FindAsync(record.AssignmentId.Value);
+            if (assignment != null && assignment.Status != AssignmentStatus.OnBoarded
+                && assignment.Status != AssignmentStatus.Completed)
+            {
+                assignment.Status = AssignmentStatus.OnBoarded;
+                assignment.ActualStartDate ??= record.SignOnDate;
+                assignment.StatusChangedAt = DateTime.UtcNow;
+                assignment.StatusChangedBy = $"Edge:{record.SignedOnBy}";
+                assignment.UpdatedAt = DateTime.UtcNow;
+
+                _context.AssignmentStatusHistory.Add(new AssignmentStatusHistory
+                {
+                    Id = Guid.NewGuid(),
+                    AssignmentId = assignment.Id,
+                    FromStatus = assignment.Status,
+                    ToStatus = AssignmentStatus.OnBoarded,
+                    ChangedBy = $"Edge:{record.SignedOnBy}",
+                    Reason = "Sign-on received from Edge",
+                });
+            }
+        }
+
+        // Update crew status: IsOnboard = true, PoolStatus = Assigned
+        var crew = await _context.CrewMembers.FindAsync(record.CrewMemberId);
+        if (crew != null)
+        {
+            crew.IsOnboard = true;
+            crew.EmbarkDate = record.SignOnDate;
+            crew.PoolStatus = PoolStatus.Assigned;
+            crew.UpdatedAt = DateTime.UtcNow;
+        }
+
+        // Auto-grant access if none exists
+        var hasGrant = await _context.CrewAccessGrants
+            .AnyAsync(g => g.CrewMemberId == record.CrewMemberId
+                && g.VesselId == record.VesselId
+                && g.Status == AccessGrantStatus.Granted);
+
+        if (!hasGrant)
+        {
+            _context.CrewAccessGrants.Add(new CrewAccessGrant
+            {
+                CrewMemberId = record.CrewMemberId,
+                VesselId = record.VesselId,
+                AssignmentId = record.AssignmentId,
+                Module = "All",
+                Status = AccessGrantStatus.Granted,
+                GrantedAt = DateTime.UtcNow,
+                GrantedBy = $"System (Edge Sign-On by {record.SignedOnBy})"
+            });
+        }
+
+        // Create service record if not exists for this period
+        var hasServiceRecord = await _context.ServiceRecords
+            .AnyAsync(sr => sr.CrewMemberId == record.CrewMemberId
+                && sr.DisembarkDate == null
+                && sr.BoardingDate >= record.SignOnDate.AddDays(-1));
+
+        if (!hasServiceRecord)
+        {
+            var vessel = await _context.Vessels.FindAsync(record.VesselId);
+            var rank = await _context.Set<Rank>().FindAsync(record.RankId);
+            _context.ServiceRecords.Add(new ServiceRecord
+            {
+                CrewMemberId = record.CrewMemberId,
+                VesselName = vessel?.Name ?? "Unknown",
+                VesselFlag = vessel?.Flag,
+                VesselType = vessel?.VesselType,
+                RankAtTime = rank?.RankName,
+                BoardingDate = record.SignOnDate,
+                BoardingPortCode = record.PortCode,
+                BoardingPortName = record.PortName,
+                OriginNode = "EDGE",
+                Notes = $"Sign-on synced from Edge by {record.SignedOnBy}"
+            });
+        }
+
+        _logger.LogInformation("Processed sign_on_record {Id} crew={CrewId} vessel={VesselId} from Edge",
+            record.Id, record.CrewMemberId, record.VesselId);
+        await LogSyncOperation(item, "SUCCESS");
+    }
+
+    private async Task ProcessSignOffFromEdgeAsync(string payload, SyncQueueItemDto item)
+    {
+        var record = JsonSerializer.Deserialize<SignOffRecord>(payload, _jsonOptions);
+        if (record == null) throw new InvalidOperationException("Failed to deserialize SignOffRecord");
+
+        // Upsert
+        var existing = await _context.SignOffRecords.FindAsync(record.Id);
+        if (existing != null)
+        {
+            _context.Entry(existing).CurrentValues.SetValues(record);
+            existing.IsSynced = true;
+        }
+        else
+        {
+            record.IsSynced = true;
+            await _context.SignOffRecords.AddAsync(record);
+        }
+
+        // Business logic: complete assignment
+        if (record.AssignmentId.HasValue)
+        {
+            var assignment = await _context.CrewAssignments.FindAsync(record.AssignmentId.Value);
+            if (assignment != null && assignment.Status != AssignmentStatus.Completed)
+            {
+                var oldStatus = assignment.Status;
+                assignment.Status = AssignmentStatus.Completed;
+                assignment.ActualEndDate = record.SignOffDate;
+                assignment.StatusChangedAt = DateTime.UtcNow;
+                assignment.StatusChangedBy = $"Edge:{record.SignedOffBy}";
+                assignment.UpdatedAt = DateTime.UtcNow;
+
+                _context.AssignmentStatusHistory.Add(new AssignmentStatusHistory
+                {
+                    Id = Guid.NewGuid(),
+                    AssignmentId = assignment.Id,
+                    FromStatus = oldStatus,
+                    ToStatus = AssignmentStatus.Completed,
+                    ChangedBy = $"Edge:{record.SignedOffBy}",
+                    Reason = $"Sign-off from Edge: {record.Reason}",
+                });
+            }
+        }
+
+        // Revoke access grants for this crew on this vessel
+        var activeGrants = await _context.CrewAccessGrants
+            .Where(g => g.CrewMemberId == record.CrewMemberId
+                && g.VesselId == record.VesselId
+                && g.Status == AccessGrantStatus.Granted)
+            .ToListAsync();
+
+        foreach (var grant in activeGrants)
+        {
+            grant.Status = AccessGrantStatus.Revoked;
+            grant.RevokedAt = DateTime.UtcNow;
+            grant.RevokedBy = $"System (Edge Sign-Off)";
+            grant.RevokeReason = $"Sign-off: {record.Reason}";
+            grant.UpdatedAt = DateTime.UtcNow;
+        }
+
+        // Update crew status
+        var crew = await _context.CrewMembers.FindAsync(record.CrewMemberId);
+        if (crew != null)
+        {
+            crew.IsOnboard = false;
+            crew.DisembarkDate = record.SignOffDate;
+            crew.UpdatedAt = DateTime.UtcNow;
+
+            // Check if crew has other active assignments
+            var hasOtherActive = await _context.CrewAssignments
+                .AnyAsync(a => a.CrewMemberId == record.CrewMemberId
+                    && a.Id != record.AssignmentId
+                    && AssignmentStatus.Active.Contains(a.Status));
+
+            crew.PoolStatus = hasOtherActive ? PoolStatus.Assigned : PoolStatus.Available;
+        }
+
+        // Update service record — set disembark date
+        var serviceRecord = await _context.ServiceRecords
+            .Where(sr => sr.CrewMemberId == record.CrewMemberId && sr.DisembarkDate == null)
+            .OrderByDescending(sr => sr.BoardingDate)
+            .FirstOrDefaultAsync();
+
+        if (serviceRecord != null)
+        {
+            serviceRecord.DisembarkDate = record.SignOffDate;
+            serviceRecord.DisembarkPortCode = record.PortCode;
+            serviceRecord.DisembarkPortName = record.PortName;
+            serviceRecord.UpdatedAt = DateTime.UtcNow;
+        }
+
+        _logger.LogInformation("Processed sign_off_record {Id} crew={CrewId} vessel={VesselId} reason={Reason} from Edge",
+            record.Id, record.CrewMemberId, record.VesselId, record.Reason);
+        await LogSyncOperation(item, "SUCCESS");
     }
 }

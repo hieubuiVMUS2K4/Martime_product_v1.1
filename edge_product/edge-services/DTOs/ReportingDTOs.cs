@@ -15,9 +15,11 @@ public class ReportPaginationDto
     public int PageSize { get; set; } = 20;
     public string? Status { get; set; }
     public int? ReportTypeId { get; set; }
+    public string? ReportTypeCode { get; set; }
     public DateTime? FromDate { get; set; }
     public DateTime? ToDate { get; set; }
     public Guid? VoyageId { get; set; }
+    public string? SearchTerm { get; set; }
 }
 
 /// <summary>
@@ -878,6 +880,8 @@ public class WeeklyPerformanceReportDto
     public int Year { get; set; }
     public DateTime WeekStartDate { get; set; }
     public DateTime WeekEndDate { get; set; }
+    public Guid? VoyageId { get; set; }
+    public string? VoyageNumber { get; set; }
     
     // Performance
     public double TotalDistance { get; set; }

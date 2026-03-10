@@ -29,6 +29,10 @@ public class AggregateReportService : IAggregateReportService
     private readonly EdgeDbContext _context;
     private readonly ILogger<AggregateReportService> _logger;
 
+    private sealed record PortStayEvent(Guid? VoyageId, DateTime ArrivalDateTime);
+    private sealed record PortDepartureEvent(Guid? VoyageId, DateTime DepartureDateTime, double? CargoOnBoard);
+    private sealed record PortArrivalCargoEvent(Guid? VoyageId, DateTime ArrivalDateTime, double? CargoOnBoard);
+
     public AggregateReportService(EdgeDbContext context, ILogger<AggregateReportService> logger)
     {
         _context = context;
@@ -44,35 +48,40 @@ public class AggregateReportService : IAggregateReportService
     {
         try
         {
-            // Calculate week start/end dates (FIXED: Specify UTC to avoid timezone issues)
+            // Calculate week start/end dates (UTC boundaries with exclusive end to avoid missing Sunday data)
             var weekStartDate = DateTime.SpecifyKind(
-                ISOWeek.ToDateTime(dto.Year, dto.WeekNumber, DayOfWeek.Monday), 
+                ISOWeek.ToDateTime(dto.Year, dto.WeekNumber, DayOfWeek.Monday).Date,
                 DateTimeKind.Utc);
             var weekEndDate = weekStartDate.AddDays(6);
+            var weekEndExclusive = weekStartDate.AddDays(7);
 
             // Check if report already exists
             var existing = await _context.WeeklyPerformanceReports
-                .FirstOrDefaultAsync(r => r.WeekNumber == dto.WeekNumber && r.Year == dto.Year);
+                .FirstOrDefaultAsync(r =>
+                    r.WeekNumber == dto.WeekNumber &&
+                    r.Year == dto.Year &&
+                    r.VoyageId == dto.VoyageId);
 
             if (existing != null)
             {
                 return (false, string.Empty, null, 
-                    $"Weekly report for Week {dto.WeekNumber}/{dto.Year} already exists");
+                    dto.VoyageId.HasValue
+                        ? $"Weekly report for Week {dto.WeekNumber}/{dto.Year} and voyage {dto.VoyageId} already exists"
+                        : $"Weekly report for Week {dto.WeekNumber}/{dto.Year} already exists");
             }
 
-            // ⚡ OPTIMIZED: Execute aggregations on SQL Server side
-            var noonReportQuery = _context.NoonReports
-                .Where(nr => nr.ReportDate >= weekStartDate && nr.ReportDate <= weekEndDate);
+            var noonReportQuery = BuildWeeklyNoonReportQuery(weekStartDate, weekEndExclusive, dto.VoyageId);
 
             // Check if any reports exist
             var reportCount = await noonReportQuery.CountAsync();
             if (reportCount == 0)
             {
                 return (false, string.Empty, null, 
-                    $"No Noon Reports found for Week {dto.WeekNumber}/{dto.Year}");
+                    dto.VoyageId.HasValue
+                        ? $"No Noon Reports found for Week {dto.WeekNumber}/{dto.Year} and voyage {dto.VoyageId}"
+                        : $"No Noon Reports found for Week {dto.WeekNumber}/{dto.Year}");
             }
 
-            // ⚡ Aggregate in single query (SQL-side execution)
             var aggregates = await noonReportQuery
                 .GroupBy(r => 1) // Group all into single result
                 .Select(g => new
@@ -85,7 +94,10 @@ public class AggregateReportService : IAggregateReportService
                 })
                 .FirstAsync();
 
-            // ⚡ Get latest ROB values in single query
+            var noonSafetyAndCargo = await noonReportQuery
+                .Select(r => new { r.SafetyDrillsConducted, r.SafetyIncidents, r.CargoOnBoard })
+                .ToListAsync();
+
             var latestReport = await noonReportQuery
                 .OrderByDescending(r => r.ReportDate)
                 .Select(r => new { r.FuelOilROB, r.DieselOilROB })
@@ -98,11 +110,10 @@ public class AggregateReportService : IAggregateReportService
             var totalFuelConsumed = aggregates.TotalFuelOil + aggregates.TotalDieselOil;
             var fuelEfficiency = totalFuelConsumed > 0 ? aggregates.TotalDistance / totalFuelConsumed : 0;
 
-            // ⚡ OPTIMIZED: Aggregate maintenance hours on SQL side
             var maintenanceQuery = _context.MaintenanceTasks
                 .Where(mt => !mt.IsDeleted &&
                             mt.CompletedAt >= weekStartDate && 
-                            mt.CompletedAt <= weekEndDate &&
+                            mt.CompletedAt < weekEndExclusive &&
                             mt.Status == "COMPLETED" &&
                             mt.CompletedAt.HasValue && 
                             mt.StartedAt.HasValue);
@@ -129,16 +140,10 @@ public class AggregateReportService : IAggregateReportService
                     .Sum(mt => (mt.CompletedAt!.Value - mt.StartedAt!.Value).TotalHours);
             }
 
-            // ⚠️ FIXED: Execute queries SEQUENTIALLY (not parallel) to avoid DbContext threading issues
-            // EF Core DbContext is NOT thread-safe and cannot handle concurrent operations
-            var departureCount = await _context.DepartureReports
-                .Where(dr => dr.DepartureDateTime >= weekStartDate && 
-                            dr.DepartureDateTime <= weekEndDate)
-                .CountAsync();
+            var departureQuery = BuildWeeklyDepartureReportQuery(weekStartDate, weekEndExclusive, dto.VoyageId);
+            var arrivalQuery = BuildWeeklyArrivalReportQuery(weekStartDate, weekEndExclusive, dto.VoyageId);
 
-            var arrivalData = await _context.ArrivalReports
-                .Where(ar => ar.ArrivalDateTime >= weekStartDate && 
-                            ar.ArrivalDateTime <= weekEndDate)
+            var departureData = await departureQuery
                 .GroupBy(ar => 1)
                 .Select(g => new
                 {
@@ -147,12 +152,24 @@ public class AggregateReportService : IAggregateReportService
                 })
                 .FirstOrDefaultAsync();
 
-            var portCalls = Math.Max(departureCount, arrivalData?.Count ?? 0);
-            var totalCargoLoaded = arrivalData?.TotalCargoLoaded ?? 0;
-            var totalCargoDischarged = 0.0; // TODO: Track cargo discharge separately
+            var arrivalData = await arrivalQuery
+                .GroupBy(ar => 1)
+                .Select(g => new
+                {
+                    Count = g.Count()
+                })
+                .FirstOrDefaultAsync();
 
-            // Generate report number
-            var reportNumber = $"WPR-{dto.Year}-W{dto.WeekNumber:D2}";
+            var portCalls = Math.Max(departureData?.Count ?? 0, arrivalData?.Count ?? 0);
+            var totalCargoLoaded = departureData?.TotalCargoLoaded ?? 0;
+            var totalCargoDischarged = await CalculateCargoDischargedAsync(weekStartDate, weekEndExclusive, dto.VoyageId);
+            var portHours = await CalculatePortStayHoursAsync(weekStartDate, weekEndExclusive, dto.VoyageId);
+            var safetyIncidentCount = noonSafetyAndCargo.Count(r => !string.IsNullOrWhiteSpace(r.SafetyIncidents));
+
+            var reportNumber = await BuildWeeklyReportNumberAsync(dto.Year, dto.WeekNumber, dto.VoyageId);
+            var totalCoveredHours = aggregates.ReportCount * 24.0;
+            var totalSteamingHours = Math.Max(0, totalCoveredHours - portHours);
+            var voyageNumber = await GetVoyageNumberAsync(dto.VoyageId);
 
             // Create weekly report
             var weeklyReport = new WeeklyPerformanceReport
@@ -167,8 +184,8 @@ public class AggregateReportService : IAggregateReportService
                 // Performance
                 TotalDistance = aggregates.TotalDistance,
                 AverageSpeed = aggregates.AvgSpeed,
-                TotalSteamingHours = aggregates.ReportCount * 24, // Each noon report represents ~24h
-                TotalPortHours = 0, // TODO: Calculate from port stays
+                TotalSteamingHours = totalSteamingHours,
+                TotalPortHours = portHours,
                 
                 // Fuel
                 TotalFuelOilConsumed = aggregates.TotalFuelOil,
@@ -184,7 +201,7 @@ public class AggregateReportService : IAggregateReportService
                 TotalMaintenanceTasksCompleted = maintenanceStats?.TotalTasks ?? 0,
                 TotalMaintenanceHours = totalMaintenanceHours,
                 CriticalIssues = maintenanceStats?.CriticalCount ?? 0,
-                SafetyIncidents = 0, // TODO: Integrate with safety incident tracking
+                SafetyIncidents = safetyIncidentCount,
                 
                 // Operations
                 PortCalls = portCalls,
@@ -202,8 +219,11 @@ public class AggregateReportService : IAggregateReportService
             await _context.SaveChangesAsync();
 
             _logger.LogInformation(
-                "Weekly report {ReportNumber} generated for Week {Week}/{Year}",
-                reportNumber, dto.WeekNumber, dto.Year);
+                "Weekly report {ReportNumber} generated for Week {Week}/{Year} {VoyageScope}",
+                reportNumber,
+                dto.WeekNumber,
+                dto.Year,
+                voyageNumber != null ? $"(voyage {voyageNumber})" : string.Empty);
 
             return (true, reportNumber, weeklyReport.Id, null);
         }
@@ -228,6 +248,7 @@ public class AggregateReportService : IAggregateReportService
                 Year = r.Year,
                 WeekStartDate = r.WeekStartDate,
                 WeekEndDate = r.WeekEndDate,
+                VoyageId = r.VoyageId,
                 TotalDistance = r.TotalDistance,
                 AverageSpeed = r.AverageSpeed,
                 TotalSteamingHours = r.TotalSteamingHours,
@@ -254,6 +275,11 @@ public class AggregateReportService : IAggregateReportService
             })
             .FirstOrDefaultAsync();
 
+        if (report?.VoyageId.HasValue == true)
+        {
+            report.VoyageNumber = await GetVoyageNumberAsync(report.VoyageId);
+        }
+
         return report;
     }
 
@@ -271,6 +297,7 @@ public class AggregateReportService : IAggregateReportService
                 Year = r.Year,
                 WeekStartDate = r.WeekStartDate,
                 WeekEndDate = r.WeekEndDate,
+                VoyageId = r.VoyageId,
                 TotalDistance = r.TotalDistance,
                 AverageSpeed = r.AverageSpeed,
                 TotalFuelOilConsumed = r.TotalFuelOilConsumed,
@@ -281,6 +308,28 @@ public class AggregateReportService : IAggregateReportService
                 CreatedAt = r.CreatedAt
             })
             .ToListAsync();
+
+        var voyageIds = reports
+            .Where(r => r.VoyageId.HasValue)
+            .Select(r => r.VoyageId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (voyageIds.Count > 0)
+        {
+            var voyageNumbers = await _context.VoyageRecords
+                .AsNoTracking()
+                .Where(v => voyageIds.Contains(v.Id))
+                .ToDictionaryAsync(v => v.Id, v => v.VoyageNumber);
+
+            foreach (var report in reports)
+            {
+                if (report.VoyageId.HasValue && voyageNumbers.TryGetValue(report.VoyageId.Value, out var voyageNumber))
+                {
+                    report.VoyageNumber = voyageNumber;
+                }
+            }
+        }
 
         return reports;
     }
@@ -294,11 +343,12 @@ public class AggregateReportService : IAggregateReportService
     {
         try
         {
-            // Calculate month start/end dates (FIXED: Specify UTC to avoid timezone issues)
+            // Calculate month start/end dates using an exclusive upper bound to include the entire last day.
             var monthStartDate = DateTime.SpecifyKind(
                 new DateTime(dto.Year, dto.Month, 1), 
                 DateTimeKind.Utc);
-            var monthEndDate = monthStartDate.AddMonths(1).AddDays(-1);
+            var monthEndExclusive = monthStartDate.AddMonths(1);
+            var monthEndDate = monthEndExclusive.AddDays(-1);
 
             // Check if report already exists
             var existing = await _context.MonthlySummaryReports
@@ -311,8 +361,7 @@ public class AggregateReportService : IAggregateReportService
             }
 
             // ⚡ OPTIMIZED: Single aggregation query for all noon report metrics
-            var noonReportQuery = _context.NoonReports
-                .Where(nr => nr.ReportDate >= monthStartDate && nr.ReportDate <= monthEndDate);
+            var noonReportQuery = BuildWeeklyNoonReportQuery(monthStartDate, monthEndExclusive, null);
 
             var noonAggregates = await noonReportQuery
                 .GroupBy(nr => 1)
@@ -332,10 +381,11 @@ public class AggregateReportService : IAggregateReportService
                     $"No Noon Reports found for {dto.Month:D2}/{dto.Year}");
             }
 
-            // ⚠️ FIXED: Execute queries SEQUENTIALLY to avoid DbContext threading issues
-            // EF Core DbContext is NOT thread-safe and cannot handle concurrent operations
-            var bunkerStats = await _context.BunkerReports
-                .Where(br => br.BunkerDate >= monthStartDate && br.BunkerDate <= monthEndDate)
+            var noonSafetyAndCargo = await noonReportQuery
+                .Select(r => new { r.SafetyDrillsConducted, r.SafetyIncidents, r.CargoOnBoard })
+                .ToListAsync();
+
+            var bunkerStats = await BuildMonthlyBunkerReportQuery(monthStartDate, monthEndExclusive)
                 .GroupBy(br => 1)
                 .Select(g => new
                 {
@@ -345,7 +395,7 @@ public class AggregateReportService : IAggregateReportService
                 .FirstOrDefaultAsync();
 
             var maintenanceStats = await _context.MaintenanceTasks
-                .Where(mt => !mt.IsDeleted && mt.CompletedAt >= monthStartDate && mt.CompletedAt <= monthEndDate)
+                .Where(mt => !mt.IsDeleted && mt.CompletedAt >= monthStartDate && mt.CompletedAt < monthEndExclusive)
                 .GroupBy(mt => 1)
                 .Select(g => new
                 {
@@ -354,24 +404,46 @@ public class AggregateReportService : IAggregateReportService
                 })
                 .FirstOrDefaultAsync();
 
-            var departureCount = await _context.DepartureReports
-                .Where(dr => dr.DepartureDateTime >= monthStartDate && dr.DepartureDateTime <= monthEndDate)
-                .CountAsync();
+            var totalMaintenanceHours = 0.0;
+            if (maintenanceStats != null && maintenanceStats.CompletedCount > 0)
+            {
+                var completedMaintenanceTimes = await _context.MaintenanceTasks
+                    .Where(mt => !mt.IsDeleted &&
+                                 mt.Status == "COMPLETED" &&
+                                 mt.CompletedAt >= monthStartDate &&
+                                 mt.CompletedAt < monthEndExclusive &&
+                                 mt.CompletedAt.HasValue &&
+                                 mt.StartedAt.HasValue)
+                    .Select(mt => new { mt.StartedAt, mt.CompletedAt })
+                    .ToListAsync();
 
-            var arrivalStats = await _context.ArrivalReports
-                .Where(ar => ar.ArrivalDateTime >= monthStartDate && ar.ArrivalDateTime <= monthEndDate)
+                totalMaintenanceHours = completedMaintenanceTimes
+                    .Sum(mt => (mt.CompletedAt!.Value - mt.StartedAt!.Value).TotalHours);
+            }
+
+            var departureQuery = BuildWeeklyDepartureReportQuery(monthStartDate, monthEndExclusive, null);
+            var arrivalQuery = BuildWeeklyArrivalReportQuery(monthStartDate, monthEndExclusive, null);
+
+            var departureData = await departureQuery
+                .GroupBy(dr => 1)
+                .Select(g => new
+                {
+                    Count = g.Count(),
+                    TotalCargoLoaded = g.Sum(dr => dr.CargoOnBoard ?? 0)
+                })
+                .FirstOrDefaultAsync();
+
+            var arrivalStats = await arrivalQuery
                 .GroupBy(ar => 1)
                 .Select(g => new
                 {
                     Count = g.Count(),
-                    TotalCargoLoaded = g.Sum(ar => ar.CargoOnBoard ?? 0),
-                    AvgCargo = g.Average(ar => ar.CargoOnBoard ?? 0),
                     PortNames = string.Join(", ", g.Select(ar => ar.PortName).Distinct())
                 })
                 .FirstOrDefaultAsync();
 
             // Calculate derived values
-            var totalPortCalls = Math.Max(departureCount, arrivalStats?.Count ?? 0);
+            var totalPortCalls = Math.Max(departureData?.Count ?? 0, arrivalStats?.Count ?? 0);
             var totalFuelConsumed = noonAggregates.TotalFuelOil + noonAggregates.TotalDieselOil;
             var avgFuelPerDay = noonAggregates.ReportCount > 0 
                 ? totalFuelConsumed / noonAggregates.ReportCount 
@@ -379,10 +451,28 @@ public class AggregateReportService : IAggregateReportService
             var fuelEfficiency = totalFuelConsumed > 0 
                 ? noonAggregates.TotalDistance / totalFuelConsumed 
                 : 0;
+            var totalPortHours = await CalculatePortStayHoursAsync(monthStartDate, monthEndExclusive, null);
+            var totalPortDays = totalPortHours / 24.0;
+            var totalSteamingDays = Math.Max(0, noonAggregates.ReportCount - totalPortDays);
+            var safetyDrillsConducted = noonSafetyAndCargo.Count(r => !string.IsNullOrWhiteSpace(r.SafetyDrillsConducted));
+            var safetyIncidents = noonSafetyAndCargo.Count(r => !string.IsNullOrWhiteSpace(r.SafetyIncidents));
+            var nearMissIncidents = noonSafetyAndCargo.Count(r =>
+                !string.IsNullOrWhiteSpace(r.SafetyIncidents) &&
+                (r.SafetyIncidents!.Contains("near miss", StringComparison.OrdinalIgnoreCase) ||
+                 r.SafetyIncidents.Contains("near-miss", StringComparison.OrdinalIgnoreCase)));
+            var averageCargoOnBoard = noonSafetyAndCargo.Count(r => r.CargoOnBoard.HasValue) > 0
+                ? noonSafetyAndCargo.Where(r => r.CargoOnBoard.HasValue).Average(r => r.CargoOnBoard ?? 0)
+                : 0;
+            var totalCargoDischarged = await CalculateCargoDischargedAsync(monthStartDate, monthEndExclusive, null);
+            var voyagesCompleted = await _context.VoyageRecords
+                .AsNoTracking()
+                .Where(v => v.ArrivalTime >= monthStartDate && v.ArrivalTime < monthEndExclusive && v.VoyageStatus == "COMPLETED")
+                .CountAsync();
 
             // Report counts
             var noonCount = noonAggregates.ReportCount;
             var arrivalCount = arrivalStats?.Count ?? 0;
+            var departureCount = departureData?.Count ?? 0;
             var bunkerCount = bunkerStats?.TotalOps ?? 0;
             var totalReports = noonCount + departureCount + arrivalCount + bunkerCount;
 
@@ -401,9 +491,9 @@ public class AggregateReportService : IAggregateReportService
                 // Performance
                 TotalDistance = noonAggregates.TotalDistance,
                 AverageSpeed = noonAggregates.AvgSpeed,
-                TotalSteamingDays = noonAggregates.ReportCount,
-                TotalPortDays = 0, // TODO: Calculate from arrival/departure time differences
-                VoyagesCompleted = 0, // TODO: Calculate from voyage records
+                TotalSteamingDays = totalSteamingDays,
+                TotalPortDays = totalPortDays,
+                VoyagesCompleted = voyagesCompleted,
                 
                 // Fuel
                 TotalFuelOilConsumed = noonAggregates.TotalFuelOil,
@@ -416,20 +506,20 @@ public class AggregateReportService : IAggregateReportService
                 
                 // Maintenance
                 TotalMaintenanceCompleted = maintenanceStats?.CompletedCount ?? 0,
-                TotalMaintenanceHours = 0, // TODO: Calculate from StartedAt/CompletedAt
+                TotalMaintenanceHours = totalMaintenanceHours,
                 OverdueMaintenanceTasks = maintenanceStats?.OverdueCount ?? 0,
-                SafetyDrillsConducted = 0, // TODO: Integrate safety drill tracking
-                SafetyIncidents = 0, // TODO: Integrate safety incident tracking
-                NearMissIncidents = 0, // TODO: Integrate near-miss tracking
+                SafetyDrillsConducted = safetyDrillsConducted,
+                SafetyIncidents = safetyIncidents,
+                NearMissIncidents = nearMissIncidents,
                 
                 // Port Operations
                 TotalPortCalls = totalPortCalls,
                 PortsVisited = arrivalStats?.PortNames ?? string.Empty,
                 
                 // Cargo
-                TotalCargoLoaded = arrivalStats?.TotalCargoLoaded ?? 0,
-                TotalCargoDischarged = 0.0, // TODO: Track cargo discharge separately
-                AverageCargoOnBoard = arrivalStats?.AvgCargo ?? 0,
+                TotalCargoLoaded = departureData?.TotalCargoLoaded ?? 0,
+                TotalCargoDischarged = totalCargoDischarged,
+                AverageCargoOnBoard = averageCargoOnBoard,
                 
                 // Compliance
                 TotalReportsSubmitted = totalReports,
@@ -540,6 +630,246 @@ public class AggregateReportService : IAggregateReportService
             .ToListAsync();
 
         return reports;
+    }
+
+    private IQueryable<NoonReport> BuildWeeklyNoonReportQuery(DateTime periodStart, DateTime periodEndExclusive, Guid? voyageId)
+    {
+        var query =
+            from nr in _context.NoonReports.AsNoTracking()
+            join mr in _context.MaritimeReports.AsNoTracking() on nr.MaritimeReportId equals mr.Id
+            where mr.DeletedAt == null &&
+                  nr.ReportDate >= periodStart &&
+                  nr.ReportDate < periodEndExclusive
+            select new { nr, mr };
+
+        if (voyageId.HasValue)
+        {
+            query = query.Where(x => x.mr.VoyageId == voyageId.Value);
+        }
+
+        return query.Select(x => x.nr);
+    }
+
+    private IQueryable<DepartureReport> BuildWeeklyDepartureReportQuery(DateTime periodStart, DateTime periodEndExclusive, Guid? voyageId)
+    {
+        var query =
+            from dr in _context.DepartureReports.AsNoTracking()
+            join mr in _context.MaritimeReports.AsNoTracking() on dr.MaritimeReportId equals mr.Id
+            where mr.DeletedAt == null &&
+                  dr.DepartureDateTime >= periodStart &&
+                  dr.DepartureDateTime < periodEndExclusive
+            select new { dr, mr };
+
+        if (voyageId.HasValue)
+        {
+            query = query.Where(x => (x.dr.VoyageId ?? x.mr.VoyageId) == voyageId.Value);
+        }
+
+        return query.Select(x => x.dr);
+    }
+
+    private IQueryable<ArrivalReport> BuildWeeklyArrivalReportQuery(DateTime periodStart, DateTime periodEndExclusive, Guid? voyageId)
+    {
+        var query =
+            from ar in _context.ArrivalReports.AsNoTracking()
+            join mr in _context.MaritimeReports.AsNoTracking() on ar.MaritimeReportId equals mr.Id
+            where mr.DeletedAt == null &&
+                  ar.ArrivalDateTime >= periodStart &&
+                  ar.ArrivalDateTime < periodEndExclusive
+            select new { ar, mr };
+
+        if (voyageId.HasValue)
+        {
+            query = query.Where(x => (x.ar.VoyageId ?? x.mr.VoyageId) == voyageId.Value);
+        }
+
+        return query.Select(x => x.ar);
+    }
+
+    private IQueryable<BunkerReport> BuildMonthlyBunkerReportQuery(DateTime periodStart, DateTime periodEndExclusive)
+    {
+        return from br in _context.BunkerReports.AsNoTracking()
+               join mr in _context.MaritimeReports.AsNoTracking() on br.MaritimeReportId equals mr.Id
+               where mr.DeletedAt == null &&
+                     br.BunkerDate >= periodStart &&
+                     br.BunkerDate < periodEndExclusive
+               select br;
+    }
+
+    private async Task<double> CalculatePortStayHoursAsync(DateTime periodStart, DateTime periodEndExclusive, Guid? voyageId)
+    {
+        var arrivals = await GetPortStayArrivalsQuery(periodStart, periodEndExclusive, voyageId)
+            .OrderBy(a => a.ArrivalDateTime)
+            .ToListAsync();
+
+        if (arrivals.Count == 0)
+        {
+            return 0;
+        }
+
+        var departures = await GetPortStayDeparturesQuery(periodStart, periodEndExclusive, voyageId)
+            .OrderBy(d => d.DepartureDateTime)
+            .ToListAsync();
+
+        double totalHours = 0;
+
+        foreach (var arrival in arrivals)
+        {
+            var stayStart = arrival.ArrivalDateTime < periodStart ? periodStart : arrival.ArrivalDateTime;
+            var matchingDeparture = departures
+                .Where(d => (!arrival.VoyageId.HasValue || d.VoyageId == arrival.VoyageId) && d.DepartureDateTime >= stayStart)
+                .OrderBy(d => d.DepartureDateTime)
+                .FirstOrDefault();
+
+            var stayEnd = matchingDeparture?.DepartureDateTime ?? periodEndExclusive;
+            if (stayEnd > periodEndExclusive)
+            {
+                stayEnd = periodEndExclusive;
+            }
+
+            if (stayEnd > stayStart)
+            {
+                totalHours += (stayEnd - stayStart).TotalHours;
+            }
+        }
+
+        return totalHours;
+    }
+
+    private IQueryable<PortStayEvent> GetPortStayArrivalsQuery(DateTime periodStart, DateTime periodEndExclusive, Guid? voyageId)
+    {
+        var query = _context.ArrivalReports
+            .AsNoTracking()
+            .Where(ar => ar.ArrivalDateTime < periodEndExclusive);
+
+        if (voyageId.HasValue)
+        {
+            query = query.Where(ar => ar.VoyageId == voyageId.Value);
+        }
+
+        return query.Select(ar => new PortStayEvent(ar.VoyageId, ar.ArrivalDateTime));
+    }
+
+    private IQueryable<PortDepartureEvent> GetPortStayDeparturesQuery(DateTime periodStart, DateTime periodEndExclusive, Guid? voyageId)
+    {
+        var query = _context.DepartureReports
+            .AsNoTracking()
+            .Where(dr => dr.DepartureDateTime > periodStart && dr.DepartureDateTime <= periodEndExclusive);
+
+        if (voyageId.HasValue)
+        {
+            query = query.Where(dr => dr.VoyageId == voyageId.Value);
+        }
+
+        return query.Select(dr => new PortDepartureEvent(dr.VoyageId, dr.DepartureDateTime, dr.CargoOnBoard));
+    }
+
+    private async Task<double> CalculateCargoDischargedAsync(DateTime periodStart, DateTime periodEndExclusive, Guid? voyageId)
+    {
+        var arrivals = await BuildArrivalCargoQuery(periodStart, periodEndExclusive, voyageId)
+            .OrderBy(a => a.ArrivalDateTime)
+            .ToListAsync();
+
+        if (arrivals.Count == 0)
+        {
+            return 0;
+        }
+
+        var departures = await BuildDepartureCargoQuery(periodStart, periodEndExclusive, voyageId)
+            .OrderBy(d => d.DepartureDateTime)
+            .ToListAsync();
+
+        double totalDischarged = 0;
+
+        foreach (var arrival in arrivals)
+        {
+            if (!arrival.CargoOnBoard.HasValue)
+            {
+                continue;
+            }
+
+            var matchingDeparture = departures
+                .Where(d => d.CargoOnBoard.HasValue &&
+                            d.DepartureDateTime <= arrival.ArrivalDateTime &&
+                            (!arrival.VoyageId.HasValue || d.VoyageId == arrival.VoyageId))
+                .OrderByDescending(d => d.DepartureDateTime)
+                .FirstOrDefault();
+
+            if (matchingDeparture?.CargoOnBoard is null)
+            {
+                continue;
+            }
+
+            totalDischarged += Math.Max(0, matchingDeparture.CargoOnBoard.Value - arrival.CargoOnBoard.Value);
+        }
+
+        return totalDischarged;
+    }
+
+    private IQueryable<PortDepartureEvent> BuildDepartureCargoQuery(DateTime periodStart, DateTime periodEndExclusive, Guid? voyageId)
+    {
+        var query = _context.DepartureReports
+            .AsNoTracking()
+            .Where(dr => dr.DepartureDateTime >= periodStart && dr.DepartureDateTime < periodEndExclusive);
+
+        if (voyageId.HasValue)
+        {
+            query = query.Where(dr => dr.VoyageId == voyageId.Value);
+        }
+
+        return query.Select(dr => new PortDepartureEvent(dr.VoyageId, dr.DepartureDateTime, dr.CargoOnBoard));
+    }
+
+    private IQueryable<PortArrivalCargoEvent> BuildArrivalCargoQuery(DateTime periodStart, DateTime periodEndExclusive, Guid? voyageId)
+    {
+        var query = _context.ArrivalReports
+            .AsNoTracking()
+            .Where(ar => ar.ArrivalDateTime >= periodStart && ar.ArrivalDateTime < periodEndExclusive);
+
+        if (voyageId.HasValue)
+        {
+            query = query.Where(ar => ar.VoyageId == voyageId.Value);
+        }
+
+        return query.Select(ar => new PortArrivalCargoEvent(ar.VoyageId, ar.ArrivalDateTime, ar.CargoOnBoard));
+    }
+
+    private async Task<string> BuildWeeklyReportNumberAsync(int year, int weekNumber, Guid? voyageId)
+    {
+        if (!voyageId.HasValue)
+        {
+            return $"WPR-{year}-W{weekNumber:D2}";
+        }
+
+        var voyageNumber = await GetVoyageNumberAsync(voyageId);
+        var suffix = !string.IsNullOrWhiteSpace(voyageNumber)
+            ? SanitizeReportNumberSegment(voyageNumber)
+            : voyageId.Value.ToString("N")[..8].ToUpperInvariant();
+
+        return $"WPR-{year}-W{weekNumber:D2}-{suffix}";
+    }
+
+    private async Task<string?> GetVoyageNumberAsync(Guid? voyageId)
+    {
+        if (!voyageId.HasValue)
+        {
+            return null;
+        }
+
+        return await _context.VoyageRecords
+            .AsNoTracking()
+            .Where(v => v.Id == voyageId.Value)
+            .Select(v => v.VoyageNumber)
+            .FirstOrDefaultAsync();
+    }
+
+    private static string SanitizeReportNumberSegment(string value)
+    {
+        var normalized = value.Trim().ToUpperInvariant().Replace(' ', '-');
+        var chars = normalized.Where(c => char.IsLetterOrDigit(c) || c == '-').ToArray();
+        var result = new string(chars);
+
+        return string.IsNullOrWhiteSpace(result) ? "VOYAGE" : result;
     }
 
     // ============================================================

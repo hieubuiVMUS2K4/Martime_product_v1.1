@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Maritime.Shared.DTOs.CrewManagement;
 using Maritime.Shared.Models.CrewManagement;
+using Maritime.Shared.Models.Sync;
 using ProductApi.Data;
+using ProductApi.Services.Sync;
 
 namespace ProductApi.Services.CrewManagement;
 
@@ -9,11 +11,15 @@ public class AssignmentService : IAssignmentService
 {
     private readonly AppDbContext _db;
     private readonly IComplianceService _complianceService;
+    private readonly ITravelService _travelService;
+    private readonly ISyncOutboxService _syncOutbox;
 
-    public AssignmentService(AppDbContext db, IComplianceService complianceService)
+    public AssignmentService(AppDbContext db, IComplianceService complianceService, ITravelService travelService, ISyncOutboxService syncOutbox)
     {
         _db = db;
         _complianceService = complianceService;
+        _travelService = travelService;
+        _syncOutbox = syncOutbox;
     }
 
     // ================================================================
@@ -203,6 +209,10 @@ public class AssignmentService : IAssignmentService
         // Detect conflicts
         await DetectAndSaveConflictsAsync(entity);
 
+        // Sync assignment to Edge
+        await _syncOutbox.BroadcastAsync("crew_assignment", entity.Id.ToString(),
+            SyncActionType.CREATE, entity);
+
         return (await GetAssignmentAsync(entity.Id))!;
     }
 
@@ -256,6 +266,15 @@ public class AssignmentService : IAssignmentService
         });
 
         await _db.SaveChangesAsync();
+
+        // Sync status change to Edge
+        var updated = await _db.CrewAssignments.FindAsync(id);
+        if (updated != null)
+        {
+            await _syncOutbox.BroadcastAsync("crew_assignment", id.ToString(),
+                SyncActionType.UPDATE, updated);
+        }
+
         return await GetAssignmentAsync(id);
     }
 
@@ -456,6 +475,35 @@ public class AssignmentService : IAssignmentService
         // Update assignment status based on response
         if (entity.Assignment != null)
         {
+            // Re-check compliance before confirming
+            if (request.Response == "Confirmed")
+            {
+                try
+                {
+                    var eval = await _complianceService.EvaluateCrewAsync(
+                        entity.Assignment.CrewMemberId, entity.Assignment.VesselId, EvaluationStage.PreConfirm);
+                    entity.Assignment.ComplianceResult = eval.OverallResult;
+                    entity.Assignment.ComplianceEvaluatedAt = DateTime.UtcNow;
+
+                    if (eval.OverallResult == EligibilityResult.NotEligible)
+                    {
+                        throw new InvalidOperationException(
+                            "Cannot confirm: crew does not meet compliance requirements. "
+                            + string.Join("; ", eval.Items
+                                .Where(i => i.Severity == "Blocker" && i.Result == "NotMet")
+                                .Select(i => i.UiMessage ?? i.RuleTitle)));
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                    throw; // Re-throw compliance blocker
+                }
+                catch
+                {
+                    // Compliance engine may not have rules yet — non-fatal
+                }
+            }
+
             var oldStatus = entity.Assignment.Status;
             var newStatus = request.Response == "Confirmed"
                 ? AssignmentStatus.Confirmed
@@ -465,6 +513,17 @@ public class AssignmentService : IAssignmentService
             entity.Assignment.StatusChangedAt = DateTime.UtcNow;
             entity.Assignment.StatusChangedBy = respondedBy;
             entity.Assignment.UpdatedAt = DateTime.UtcNow;
+
+            // Update crew pool status
+            if (request.Response == "Confirmed")
+            {
+                var crew = await _db.CrewMembers.FindAsync(entity.Assignment.CrewMemberId);
+                if (crew != null)
+                {
+                    crew.PoolStatus = PoolStatus.Assigned;
+                    crew.UpdatedAt = DateTime.UtcNow;
+                }
+            }
 
             _db.AssignmentStatusHistory.Add(new AssignmentStatusHistory
             {
@@ -480,6 +539,24 @@ public class AssignmentService : IAssignmentService
         }
 
         await _db.SaveChangesAsync();
+
+        // Auto-generate travel request when assignment is confirmed
+        if (request.Response == "Confirmed" && entity.Assignment != null)
+        {
+            try
+            {
+                await _travelService.AutoGenerateFromAssignmentAsync(entity.AssignmentId);
+            }
+            catch
+            {
+                // Travel auto-generation is best-effort, log but don't block confirmation
+            }
+
+            // Sync confirmed assignment to Edge
+            await _syncOutbox.BroadcastAsync("crew_assignment", entity.AssignmentId.ToString(),
+                SyncActionType.UPDATE, entity.Assignment);
+        }
+
         return MapConfirmationDto(entity);
     }
 

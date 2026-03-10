@@ -1,15 +1,22 @@
 using Microsoft.EntityFrameworkCore;
 using Maritime.Shared.DTOs.CrewManagement;
 using Maritime.Shared.Models.CrewManagement;
+using Maritime.Shared.Models.Sync;
 using ProductApi.Data;
+using ProductApi.Services.Sync;
 
 namespace ProductApi.Services.CrewManagement;
 
 public class TravelService : ITravelService
 {
     private readonly AppDbContext _db;
+    private readonly ISyncOutboxService _syncOutbox;
 
-    public TravelService(AppDbContext db) => _db = db;
+    public TravelService(AppDbContext db, ISyncOutboxService syncOutbox)
+    {
+        _db = db;
+        _syncOutbox = syncOutbox;
+    }
 
     // ============================================================
     // TRAVEL REQUESTS
@@ -76,6 +83,10 @@ public class TravelService : ITravelService
         _db.TravelRequests.Add(entity);
         await _db.SaveChangesAsync();
 
+        // Sync travel request to Edge
+        await _syncOutbox.BroadcastAsync("travel_request", entity.Id.ToString(),
+            SyncActionType.CREATE, entity);
+
         return (await GetRequestAsync(entity.Id))!;
     }
 
@@ -135,6 +146,11 @@ public class TravelService : ITravelService
         }
 
         await _db.SaveChangesAsync();
+
+        // Sync status change to Edge
+        await _syncOutbox.BroadcastAsync("travel_request", id.ToString(),
+            SyncActionType.UPDATE, entity);
+
         return (await GetRequestAsync(id))!;
     }
 
@@ -190,6 +206,11 @@ public class TravelService : ITravelService
         });
 
         await _db.SaveChangesAsync();
+
+        // Sync auto-generated travel to Edge
+        await _syncOutbox.BroadcastAsync("travel_request", entity.Id.ToString(),
+            SyncActionType.CREATE, entity);
+
         return (await GetRequestAsync(entity.Id))!;
     }
 

@@ -14,7 +14,7 @@ export default function WeeklyReportForm() {
   const [formData, setFormData] = useState({
     weekNumber: currentWeek,
     year: currentYear,
-    voyageId: undefined as number | undefined,
+    voyageId: undefined as string | undefined,
     remarks: ''
   });
   
@@ -183,9 +183,9 @@ export default function WeeklyReportForm() {
             Voyage ID (Optional)
           </label>
           <input
-            type="number"
+            type="text"
             value={formData.voyageId || ''}
-            onChange={(e) => setFormData({ ...formData, voyageId: e.target.value ? parseInt(e.target.value) : undefined })}
+            onChange={(e) => setFormData({ ...formData, voyageId: e.target.value || undefined })}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="Filter by specific voyage"
           />

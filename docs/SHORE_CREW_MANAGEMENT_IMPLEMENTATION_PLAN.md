@@ -1119,13 +1119,10 @@ Giảm thiểu bằng fine-grained authorization, document sensitivity labels, d
 - Chốt SLA cho verification, agency response và travel handling.
 - Chốt security model cho portal, secure links và file access.
 
-## 29. Kết luận
+## 29. Kết    
+8. Xây dựng mechanism nhận onboard events từ Edge (SyncInbox handler).
 
-Giải pháp đúng cho Shore Crew Management không phải là mở rộng thêm vài màn hình CRUD, mà là xây một operating platform cho toàn bộ vòng đời thuyền viên. Nền tảng hiện tại đã có shared models, sync infrastructure và crew CRUD cơ bản, nhưng để vận hành ở mức chuyên nghiệp và tiệm cận chuẩn quốc tế, hệ thống cần được nâng lên thành 4 năng lực lõi:
-
-- Onboarding có checklist sinh tự động và identity activation an toàn.
-- Document lifecycle có verification, lock, versioning, archive và audit đầy đủ.
-- Compliance matrix đa chiều có simulation, explainability và waiver governance.
-- Planning, travel, external request và onboard event được nối thành một chuỗi nghiệp vụ khép kín giữa Shore, Edge và Crew Portal/PWA.
-
-Nếu triển khai theo blueprint này, Shore sẽ đóng vai trò control tower thực sự cho crew operations, Edge giữ đúng vai trò factual execution tại tàu, còn crew portal trở thành lớp self-service hiệu quả, nhẹ, dễ rollout và bền vững về hiệu năng trong môi trường hàng hải thực tế.
+Đợt 3 — Background jobs & Notifications:
+9. Background job compliance periodic re-evaluation.
+10. Background job SLA breach monitoring (document verification + external request).
+11. Notification service (in-app + email templates).

@@ -1086,6 +1086,12 @@ public class ReportingService : IReportingService
             query = query.Where(x => x.mr.ReportTypeId == pagination.ReportTypeId.Value);
         }
 
+        if (!string.IsNullOrWhiteSpace(pagination.ReportTypeCode))
+        {
+            var reportTypeCode = pagination.ReportTypeCode.Trim().ToUpperInvariant();
+            query = query.Where(x => x.rt.TypeCode == reportTypeCode);
+        }
+
         if (pagination.FromDate.HasValue)
         {
             query = query.Where(x => x.mr.ReportDateTime >= pagination.FromDate.Value);
@@ -1099,6 +1105,20 @@ public class ReportingService : IReportingService
         if (pagination.VoyageId.HasValue)
         {
             query = query.Where(x => x.mr.VoyageId == pagination.VoyageId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(pagination.SearchTerm))
+        {
+            var searchTerm = pagination.SearchTerm.Trim().ToLowerInvariant();
+
+            query = query.Where(x =>
+                x.mr.ReportNumber.ToLower().Contains(searchTerm) ||
+                x.rt.TypeName.ToLower().Contains(searchTerm) ||
+                x.rt.TypeCode.ToLower().Contains(searchTerm) ||
+                (x.mr.PreparedBy != null && x.mr.PreparedBy.ToLower().Contains(searchTerm)) ||
+                (x.mr.MasterSignature != null && x.mr.MasterSignature.ToLower().Contains(searchTerm)) ||
+                (x.mr.Remarks != null && x.mr.Remarks.ToLower().Contains(searchTerm)) ||
+                (x.vr != null && x.vr.VoyageNumber != null && x.vr.VoyageNumber.ToLower().Contains(searchTerm)));
         }
 
         // Total count

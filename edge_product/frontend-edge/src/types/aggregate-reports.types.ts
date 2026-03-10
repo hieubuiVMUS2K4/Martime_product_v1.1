@@ -13,12 +13,14 @@
  * Aggregates 7 daily noon reports with comprehensive KPIs
  */
 export interface WeeklyReportDto {
-  id: number;
+  id: string;
   reportNumber: string;
   weekNumber: number;
   year: number;
   weekStartDate: string; // ISO 8601
   weekEndDate: string;   // ISO 8601
+  voyageId?: string;
+  voyageNumber?: string;
   
   // Performance Metrics
   totalDistance: number;
@@ -46,7 +48,7 @@ export interface WeeklyReportDto {
   totalCargoDischarged: number;
   
   // Metadata
-  status: 'DRAFT' | 'SIGNED' | 'TRANSMITTED' | 'ARCHIVED';
+  status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'TRANSMITTED';
   preparedBy?: string;
   masterSignature?: string;
   signedAt?: string; // ISO 8601
@@ -61,7 +63,7 @@ export interface WeeklyReportDto {
 export interface GenerateWeeklyReportDto {
   weekNumber: number;  // ISO week number (1-53)
   year: number;
-  voyageId?: number;
+  voyageId?: string;
   remarks?: string;
 }
 
@@ -83,7 +85,7 @@ export interface CreateWeeklyReportResponse {
  * Comprehensive monthly operations summary
  */
 export interface MonthlyReportDto {
-  id: number;
+  id: string;
   reportNumber: string;
   month: number;         // 1-12
   year: number;
@@ -130,7 +132,7 @@ export interface MonthlyReportDto {
   arrivalReportsSubmitted: number;
   
   // Metadata
-  status: 'DRAFT' | 'SIGNED' | 'TRANSMITTED' | 'ARCHIVED';
+  status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'TRANSMITTED';
   preparedBy?: string;
   masterSignature?: string;
   signedAt?: string; // ISO 8601
@@ -164,7 +166,7 @@ export interface CreateMonthlyReportResponse {
 /**
  * Report Status Enum
  */
-export type ReportStatus = 'DRAFT' | 'SIGNED' | 'TRANSMITTED' | 'ARCHIVED';
+export type ReportStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'TRANSMITTED';
 
 /**
  * View Mode for Report Lists

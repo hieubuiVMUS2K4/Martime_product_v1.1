@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using ProductApi.Data;
 using Maritime.Shared.Models.CrewManagement;
 using Maritime.Shared.DTOs.CrewManagement;
+using Maritime.Shared.Models.Crew;
 
 namespace ProductApi.Services.CrewManagement;
 
@@ -382,6 +383,16 @@ public class OnboardEventService : IOnboardEventService
             });
         }
 
+        // Update crew onboard status and pool status
+        var signOnCrew = await _db.CrewMembers.FindAsync(request.CrewMemberId);
+        if (signOnCrew != null)
+        {
+            signOnCrew.IsOnboard = true;
+            signOnCrew.EmbarkDate = request.SignOnDate;
+            signOnCrew.PoolStatus = PoolStatus.Assigned;
+            signOnCrew.UpdatedAt = DateTime.UtcNow;
+        }
+
         await _db.SaveChangesAsync();
 
         await _db.Entry(record).Reference(s => s.CrewMember).LoadAsync();
@@ -511,6 +522,25 @@ public class OnboardEventService : IOnboardEventService
             grant.RevokedBy = "System (Sign-Off)";
             grant.RevokeReason = $"Sign-off: {request.Reason}";
             grant.UpdatedAt = DateTime.UtcNow;
+        }
+
+        // Update crew pool status and onboard flag
+        var signOffCrew = await _db.CrewMembers.FindAsync(request.CrewMemberId);
+        if (signOffCrew != null)
+        {
+            signOffCrew.IsOnboard = false;
+            signOffCrew.DisembarkDate = request.SignOffDate;
+            signOffCrew.PoolStatus = PoolStatus.Available;
+            signOffCrew.UpdatedAt = DateTime.UtcNow;
+
+            // Check if crew has other active assignments; if so, keep as Assigned
+            var hasOtherActiveAssignment = await _db.CrewAssignments
+                .AnyAsync(a => a.CrewMemberId == request.CrewMemberId
+                    && a.Id != request.AssignmentId
+                    && AssignmentStatus.Active.Contains(a.Status));
+
+            if (hasOtherActiveAssignment)
+                signOffCrew.PoolStatus = PoolStatus.Assigned;
         }
 
         await _db.SaveChangesAsync();

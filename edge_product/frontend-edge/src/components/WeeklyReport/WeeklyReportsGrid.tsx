@@ -14,7 +14,7 @@ interface WeeklyReportsGridProps {
   year: number;
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
-  onReportClick: (reportId: number) => void;
+  onReportClick: (reportId: string) => void;
 }
 
 export const WeeklyReportsGrid: React.FC<WeeklyReportsGridProps> = ({
@@ -25,13 +25,6 @@ export const WeeklyReportsGrid: React.FC<WeeklyReportsGridProps> = ({
   onViewModeChange,
   onReportClick,
 }) => {
-  console.log('📋 WeeklyReportsGrid rendered with:', { 
-    reportsCount: reports.length, 
-    loading, 
-    year,
-    reports 
-  });
-  
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex justify-between items-center">

@@ -77,7 +77,7 @@ export function ReportsPage() {
         pageSize
       };
 
-      if (filters.reportType) params.reportType = filters.reportType;
+      if (filters.reportType) params.reportTypeCode = filters.reportType;
       if (filters.status) params.status = filters.status;
       if (filters.voyageId) params.voyageId = filters.voyageId;
       if (filters.fromDate) params.fromDate = filters.fromDate;
@@ -300,11 +300,11 @@ export function ReportsPage() {
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
               >
                 <option value="">All Types</option>
-                <option value="NOON_REPORT">🌅 Noon Report</option>
-                <option value="DEPARTURE_REPORT">🚢 Departure</option>
-                <option value="ARRIVAL_REPORT">⚓ Arrival</option>
-                <option value="BUNKER_REPORT">⛽ Bunker</option>
-                <option value="POSITION_REPORT">📍 Position</option>
+                <option value="NOON">🌅 Noon Report</option>
+                <option value="DEPARTURE">🚢 Departure</option>
+                <option value="ARRIVAL">⚓ Arrival</option>
+                <option value="BUNKER">⛽ Bunker</option>
+                <option value="POSITION">📍 Position</option>
               </select>
             </div>
 
@@ -332,11 +332,11 @@ export function ReportsPage() {
               <label className="block text-xs font-medium text-gray-600 mb-1.5">
                 Voyage ID
               </label>
-              <input
-                type="number"
+                <input
+                  type="text"
                 value={filters.voyageId}
                 onChange={(e) => handleFilterChange('voyageId', e.target.value)}
-                placeholder="Enter ID"
+                  placeholder="Enter voyage GUID"
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
               />
             </div>
@@ -488,7 +488,7 @@ export function ReportsPage() {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className="text-sm text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
-                            #{report.voyageId}
+                            {report.voyageNumber || report.voyageId || '-'}
                           </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">

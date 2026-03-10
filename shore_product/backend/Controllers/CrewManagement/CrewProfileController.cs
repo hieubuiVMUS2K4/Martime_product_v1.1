@@ -7,7 +7,7 @@ namespace ProductApi.Controllers.CrewManagement;
 
 [ApiController]
 [Route("api/crew-profiles")]
-[AllowAnonymous] // TODO: Replace with proper authorization
+[AllowAnonymous] // TODO: restore [Authorize(Policy = "CrewManagement")] after auth is implemented
 public class CrewProfileController : ControllerBase
 {
     private readonly ICrewStatusService _statusService;

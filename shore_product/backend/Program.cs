@@ -51,6 +51,27 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// Authorization policies — role-based access for Crew Management
+builder.Services.AddAuthorizationBuilder()
+    // HR Admin + Crew Coordinator — full crew management
+    .AddPolicy("CrewManagement", policy =>
+        policy.RequireRole("Admin", "HRAdmin", "CrewCoordinator", "SystemAdmin"))
+    // Compliance Officer — compliance rules, waivers, document verification
+    .AddPolicy("ComplianceManagement", policy =>
+        policy.RequireRole("Admin", "ComplianceOfficer", "SystemAdmin"))
+    // Travel Coordinator — travel requests and itineraries
+    .AddPolicy("TravelManagement", policy =>
+        policy.RequireRole("Admin", "TravelCoordinator", "CrewCoordinator", "SystemAdmin"))
+    // Fleet Manager + Port Captain — planning, assignments, external requests
+    .AddPolicy("FleetManagement", policy =>
+        policy.RequireRole("Admin", "FleetManager", "PortCaptain", "CrewCoordinator", "SystemAdmin"))
+    // Master (edge) — onboard events, sign-on/sign-off
+    .AddPolicy("OnboardManagement", policy =>
+        policy.RequireRole("Admin", "Master", "ChiefOfficer", "CrewCoordinator", "SystemAdmin"))
+    // Read-only access for authenticated users
+    .AddPolicy("CrewReadOnly", policy =>
+        policy.RequireAuthenticatedUser());
+
 // Add Redis cache (commented out until package is available)
 // builder.Services.AddStackExchangeRedisCache(options =>
 // {

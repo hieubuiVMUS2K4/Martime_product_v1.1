@@ -69,9 +69,6 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({ onReportGenerated
         () => ReportingService.getMonthlyReports(formData.year),
         {
           maxRetries: 2,
-          onRetry: (attempt) => {
-            console.log(`Retrying to load monthly reports (attempt ${attempt})...`);
-          },
         }
       );
       setMonthlyReports(reports || []);
@@ -127,7 +124,7 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({ onReportGenerated
   /**
    * Handle view report with typed error handling
    */
-  const handleViewReport = async (reportId: number) => {
+  const handleViewReport = async (reportId: string) => {
     try {
       const report = await retryApiCall(
         () => ReportingService.getMonthlyReport(reportId),
