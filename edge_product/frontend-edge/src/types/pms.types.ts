@@ -187,3 +187,120 @@ export interface CreateStoreLocationDto {
   phone?: string | null;
   email?: string | null;
 }
+
+// ── Material Requests (Yêu cầu vật tư) ──
+
+export interface MaterialRequest {
+  id: number;
+  requestCode: string;
+  vesselName?: string | null;
+  voyageId?: string | null;
+  voyageName?: string | null;
+  urgency: string;
+  neededDate: string;
+  requestDate: string;
+  requestedBy?: string | null;
+  notes?: string | null;
+  attachments?: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  itemCount?: number;
+  items?: MaterialRequestItem[];
+}
+
+export interface MaterialRequestItem {
+  id?: number;
+  equipmentAssetId?: string | null;
+  materialItemId?: string | null;
+  itemName: string;
+  description?: string | null;
+  unit: string;
+  quantityOnHand: number;
+  quantityRequested: number;
+  note?: string | null;
+}
+
+export interface CreateMaterialRequestDto {
+  vesselName?: string;
+  voyageId?: string;
+  voyageName?: string;
+  urgency: string;
+  neededDate: string;
+  requestDate: string;
+  requestedBy?: string;
+  notes?: string;
+  attachments?: string;
+  items: MaterialRequestItem[];
+}
+
+// ── Stock Receipts (Phiếu nhập kho) ──
+
+export interface StockReceipt {
+  id: number;
+  receiptCode: string;
+  supplierCode?: string | null;
+  supplierName?: string | null;
+  receivedDate: string;
+  receiptDate: string;
+  createdBy?: string | null;
+  notes?: string | null;
+  status: string;
+  materialRequestId?: number | null;
+  requestCode?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  itemCount?: number;
+  totalValue?: number;
+  items?: StockReceiptItem[];
+}
+
+export interface StockReceiptItem {
+  id?: number;
+  storeLocationId?: string | null;
+  materialItemId?: string | null;
+  itemCode?: string | null;
+  itemName: string;
+  description?: string | null;
+  unit: string;
+  quantityRequested: number;
+  quantityReceived: number;
+  unitCost?: number | null;
+  currency?: string | null;
+  note?: string | null;
+}
+
+export interface CreateStockReceiptDto {
+  supplierCode?: string;
+  supplierName?: string;
+  receivedDate: string;
+  receiptDate: string;
+  createdBy?: string;
+  notes?: string;
+  materialRequestId?: number;
+  items: StockReceiptItem[];
+}
+
+// ── Inventory Stock (Tồn kho) ──
+
+export interface InventoryStockItem {
+  id: number;
+  materialItemId: string;
+  itemCode: string;
+  itemName: string;
+  notes?: string | null;
+  unit: string;
+  storeLocationId: string;
+  locationName: string;
+  quantity: number;
+  unitCost: number;
+  totalValue: number;
+  lastReceiptDate?: string | null;
+  updatedAt: string;
+}
+
+export interface InventorySummary {
+  totalItems: number;
+  totalValue: number;
+  lowStockCount: number;
+}

@@ -82,6 +82,9 @@
     "scheduleConfig": "Schedule Config",
     "masterSchedule": "Master Schedule",
     "storeLocations": "Store Locations",
+    "materialRequests": "Material Requests",
+    "stockReceipts": "Stock Receipts",
+    "inventory": "Inventory",
     "edgeDashboard": "Edge Dashboard",
     "localVessel": "Local Vessel",
     "safety": "Safety & Drills",
@@ -853,6 +856,39 @@
       "saving": "Saving...",
       "create": "Create"
     }
+  },
+  "materialRequests": {
+    "title": "Material Requests",
+    "addNew": "New Request",
+    "code": "Request Code",
+    "urgency": "Urgency",
+    "requestDate": "Request Date",
+    "neededDate": "Needed Date",
+    "requestedBy": "Requested By",
+    "status": "Status",
+    "items": "Items",
+    "notes": "Notes"
+  },
+  "stockReceipts": {
+    "title": "Stock Receipts",
+    "addNew": "New Receipt",
+    "code": "Receipt Code",
+    "supplier": "Supplier",
+    "receivedDate": "Received Date",
+    "receiptDate": "Receipt Date",
+    "createdBy": "Created By",
+    "status": "Status",
+    "totalValue": "Total Value"
+  },
+  "inventory": {
+    "title": "Inventory ROB",
+    "itemCode": "Item Code",
+    "itemName": "Item Name",
+    "location": "Store Location",
+    "quantity": "Quantity",
+    "unitCost": "Unit Cost USD",
+    "totalValue": "Total Value",
+    "unit": "Unit"
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",

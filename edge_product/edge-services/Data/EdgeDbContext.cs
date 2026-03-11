@@ -71,6 +71,11 @@ public class EdgeDbContext : DbContext
     public DbSet<MaterialReceipt> MaterialReceipts { get; set; } = null!;
     public DbSet<MaterialReceiptItem> MaterialReceiptItems { get; set; } = null!;
     public DbSet<StoreLocation> StoreLocations { get; set; } = null!;
+    public DbSet<MaterialRequest> MaterialRequests { get; set; } = null!;
+    public DbSet<MaterialRequestItem> MaterialRequestItems { get; set; } = null!;
+    public DbSet<StockReceipt> StockReceipts { get; set; } = null!;
+    public DbSet<StockReceiptItem> StockReceiptItems { get; set; } = null!;
+    public DbSet<InventoryStock> InventoryStocks { get; set; } = null!;
 
     // Fuel Analytics (IMO DCS / EU MRV / CII Compliance)
     public DbSet<FuelAnalyticsSummary> FuelAnalyticsSummaries { get; set; } = null!;
@@ -1561,6 +1566,78 @@ public class EdgeDbContext : DbContext
 
         // ========== MATERIAL RECEIPT ITEMS ==========
         // Config đã có trong migration, không cần config lại ở đây
+
+        // ========== MATERIAL REQUESTS ==========
+        modelBuilder.Entity<MaterialRequest>(entity =>
+        {
+            entity.ToTable("material_requests");
+
+            entity.HasIndex(e => e.RequestCode)
+                .IsUnique()
+                .HasDatabaseName("uk_material_request_code");
+
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("idx_material_request_status");
+        });
+
+        modelBuilder.Entity<MaterialRequestItem>(entity =>
+        {
+            entity.ToTable("material_request_items");
+
+            entity.HasOne(e => e.Request)
+                .WithMany(e => e.Items)
+                .HasForeignKey(e => e.RequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(e => e.QuantityOnHand).HasColumnType("decimal(14,3)");
+            entity.Property(e => e.QuantityRequested).HasColumnType("decimal(14,3)");
+        });
+
+        // ========== STOCK RECEIPTS ==========
+        modelBuilder.Entity<StockReceipt>(entity =>
+        {
+            entity.ToTable("stock_receipts");
+
+            entity.HasIndex(e => e.ReceiptCode)
+                .IsUnique()
+                .HasDatabaseName("uk_stock_receipt_code");
+
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("idx_stock_receipt_status");
+
+            entity.HasOne(e => e.MaterialRequest)
+                .WithMany()
+                .HasForeignKey(e => e.MaterialRequestId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+        });
+
+        modelBuilder.Entity<StockReceiptItem>(entity =>
+        {
+            entity.ToTable("stock_receipt_items");
+
+            entity.HasOne(e => e.Receipt)
+                .WithMany(e => e.Items)
+                .HasForeignKey(e => e.ReceiptId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(e => e.QuantityRequested).HasColumnType("decimal(14,3)");
+            entity.Property(e => e.QuantityReceived).HasColumnType("decimal(14,3)");
+            entity.Property(e => e.UnitCost).HasColumnType("decimal(18,2)");
+        });
+
+        // ========== INVENTORY STOCK ==========
+        modelBuilder.Entity<InventoryStock>(entity =>
+        {
+            entity.ToTable("inventory_stock");
+
+            entity.HasIndex(e => new { e.MaterialItemId, e.StoreLocationId })
+                .IsUnique()
+                .HasDatabaseName("uk_inventory_material_location");
+
+            entity.Property(e => e.Quantity).HasColumnType("decimal(14,3)");
+            entity.Property(e => e.UnitCost).HasColumnType("decimal(18,2)");
+        });
 
         // ========== FUEL ANALYTICS SUMMARY ==========
         modelBuilder.Entity<FuelAnalyticsSummary>(entity =>

@@ -4684,3 +4684,237 @@ public class StoreLocation
     /// <summary>Navigation: child locations</summary>
     public virtual ICollection<StoreLocation> Children { get; set; } = new List<StoreLocation>();
 }
+
+// ============================================================
+// MATERIAL REQUESTS (Yêu cầu vật tư)
+// ============================================================
+
+/// <summary>
+/// Material Request header - Phiếu yêu cầu vật tư
+/// </summary>
+public class MaterialRequest
+{
+    [Key]
+    public int Id { get; set; }
+
+    [Required]
+    [MaxLength(50)]
+    public string RequestCode { get; set; } = string.Empty;
+
+    /// <summary>Tàu (vessel name)</summary>
+    [MaxLength(150)]
+    public string? VesselName { get; set; }
+
+    /// <summary>Voyage liên kết</summary>
+    public Guid? VoyageId { get; set; }
+
+    /// <summary>Tên voyage (snapshot)</summary>
+    [MaxLength(150)]
+    public string? VoyageName { get; set; }
+
+    /// <summary>Urgency: Normal, Urgent, Critical</summary>
+    [Required]
+    [MaxLength(20)]
+    public string Urgency { get; set; } = "Normal";
+
+    /// <summary>Ngày cần vật tư</summary>
+    public DateTime NeededDate { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Ngày yêu cầu</summary>
+    public DateTime RequestDate { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Người yêu cầu</summary>
+    [MaxLength(100)]
+    public string? RequestedBy { get; set; }
+
+    public string? Notes { get; set; }
+
+    /// <summary>File đính kèm (JSON array of file names/paths)</summary>
+    public string? Attachments { get; set; }
+
+    /// <summary>Status: Draft, Submitted, Approved, Rejected, Completed</summary>
+    [Required]
+    [MaxLength(20)]
+    public string Status { get; set; } = "Draft";
+
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    public virtual ICollection<MaterialRequestItem> Items { get; set; } = new List<MaterialRequestItem>();
+}
+
+/// <summary>
+/// Material Request line item - Chi tiết yêu cầu vật tư
+/// </summary>
+public class MaterialRequestItem
+{
+    [Key]
+    public int Id { get; set; }
+
+    [Required]
+    public int RequestId { get; set; }
+
+    /// <summary>Thiết bị liên quan (optional)</summary>
+    public Guid? EquipmentAssetId { get; set; }
+
+    /// <summary>Vật tư yêu cầu (optional - có thể nhập tay)</summary>
+    public Guid? MaterialItemId { get; set; }
+
+    [Required]
+    [MaxLength(200)]
+    public string ItemName { get; set; } = string.Empty;
+
+    public string? Description { get; set; }
+
+    [MaxLength(20)]
+    public string Unit { get; set; } = "PCS";
+
+    /// <summary>Số lượng tồn kho tại thời điểm yêu cầu (snapshot)</summary>
+    public decimal QuantityOnHand { get; set; } = 0;
+
+    /// <summary>Số lượng yêu cầu</summary>
+    [Required]
+    public decimal QuantityRequested { get; set; }
+
+    public string? Note { get; set; }
+
+    // Navigation
+    public virtual MaterialRequest Request { get; set; } = null!;
+}
+
+// ============================================================
+// STOCK RECEIPTS (Phiếu nhập kho)
+// ============================================================
+
+/// <summary>
+/// Stock Receipt header - Phiếu nhập kho
+/// </summary>
+public class StockReceipt
+{
+    [Key]
+    public int Id { get; set; }
+
+    [Required]
+    [MaxLength(50)]
+    public string ReceiptCode { get; set; } = string.Empty;
+
+    [MaxLength(50)]
+    public string? SupplierCode { get; set; }
+
+    [MaxLength(200)]
+    public string? SupplierName { get; set; }
+
+    /// <summary>Ngày nhận hàng</summary>
+    public DateTime ReceivedDate { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Ngày nhập kho</summary>
+    public DateTime ReceiptDate { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(100)]
+    public string? CreatedBy { get; set; }
+
+    public string? Notes { get; set; }
+
+    /// <summary>Liên kết yêu cầu vật tư gốc (optional)</summary>
+    public int? MaterialRequestId { get; set; }
+
+    /// <summary>Status: Draft, Approved, Completed</summary>
+    [Required]
+    [MaxLength(20)]
+    public string Status { get; set; } = "Draft";
+
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    // Navigation
+    public virtual MaterialRequest? MaterialRequest { get; set; }
+    public virtual ICollection<StockReceiptItem> Items { get; set; } = new List<StockReceiptItem>();
+}
+
+/// <summary>
+/// Stock Receipt line item - Chi tiết phiếu nhập kho
+/// </summary>
+public class StockReceiptItem
+{
+    [Key]
+    public int Id { get; set; }
+
+    [Required]
+    public int ReceiptId { get; set; }
+
+    /// <summary>Vị trí kho nhập vào</summary>
+    public Guid? StoreLocationId { get; set; }
+
+    /// <summary>Vật tư</summary>
+    public Guid? MaterialItemId { get; set; }
+
+    [MaxLength(50)]
+    public string? ItemCode { get; set; }
+
+    [Required]
+    [MaxLength(200)]
+    public string ItemName { get; set; } = string.Empty;
+
+    public string? Description { get; set; }
+
+    [MaxLength(20)]
+    public string Unit { get; set; } = "PCS";
+
+    /// <summary>Số lượng yêu cầu nhập</summary>
+    public decimal QuantityRequested { get; set; } = 0;
+
+    /// <summary>Số lượng thực nhập</summary>
+    [Required]
+    public decimal QuantityReceived { get; set; }
+
+    /// <summary>Đơn giá</summary>
+    public decimal? UnitCost { get; set; }
+
+    [MaxLength(3)]
+    public string? Currency { get; set; } = "USD";
+
+    public string? Note { get; set; }
+
+    // Navigation
+    public virtual StockReceipt Receipt { get; set; } = null!;
+}
+
+// ============================================================
+// INVENTORY STOCK (Tồn kho - M:N bridge MaterialItem ↔ StoreLocation)
+// ============================================================
+
+/// <summary>
+/// Inventory Stock - Tồn kho theo vị trí
+/// Tracks quantity & value of each material at each store location
+/// </summary>
+public class InventoryStock
+{
+    [Key]
+    public int Id { get; set; }
+
+    [Required]
+    public Guid MaterialItemId { get; set; }
+
+    [Required]
+    public Guid StoreLocationId { get; set; }
+
+    /// <summary>Số lượng tồn</summary>
+    public decimal Quantity { get; set; } = 0;
+
+    /// <summary>Đơn giá USD</summary>
+    public decimal UnitCost { get; set; } = 0;
+
+    public DateTime? LastReceiptDate { get; set; }
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+}

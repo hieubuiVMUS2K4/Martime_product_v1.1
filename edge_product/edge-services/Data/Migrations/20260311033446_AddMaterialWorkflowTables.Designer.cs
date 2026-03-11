@@ -3,6 +3,7 @@ using System;
 using MaritimeEdge.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MaritimeEdge.Data.Migrations
 {
     [DbContext(typeof(EdgeDbContext))]
-    partial class EdgeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260311033446_AddMaterialWorkflowTables")]
+    partial class AddMaterialWorkflowTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -566,112 +569,112 @@ namespace MaritimeEdge.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2205),
+                            CreatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4817),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "MAST",
                             RankName = "Master (Captain)",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2218)
+                            UpdatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4822)
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2228),
+                            CreatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4829),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/O",
                             RankName = "Chief Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2228)
+                            UpdatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4829)
                         },
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2229),
+                            CreatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4831),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/O",
                             RankName = "Second Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2230)
+                            UpdatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4831)
                         },
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2231),
+                            CreatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4838),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "3/O",
                             RankName = "Third Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2239)
+                            UpdatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4838)
                         },
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2240),
+                            CreatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4839),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/E",
                             RankName = "Chief Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2240)
+                            UpdatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4839)
                         },
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2241),
+                            CreatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4840),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/E",
                             RankName = "Second Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2241)
+                            UpdatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4841)
                         },
                         new
                         {
                             Id = 7,
-                            CreatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2242),
+                            CreatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4842),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "BOSN",
                             RankName = "Bosun",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2242)
+                            UpdatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4842)
                         },
                         new
                         {
                             Id = 8,
-                            CreatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2243),
+                            CreatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4843),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "AB",
                             RankName = "Able Seaman",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2246)
+                            UpdatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4843)
                         },
                         new
                         {
                             Id = 9,
-                            CreatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2247),
+                            CreatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4844),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "OILR",
                             RankName = "Oiler",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2247)
+                            UpdatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4845)
                         },
                         new
                         {
                             Id = 10,
-                            CreatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2248),
+                            CreatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4845),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "COOK",
                             RankName = "Chief Cook",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 11, 4, 48, 56, 329, DateTimeKind.Utc).AddTicks(2248)
+                            UpdatedAt = new DateTime(2026, 3, 11, 3, 34, 44, 794, DateTimeKind.Utc).AddTicks(4846)
                         });
                 });
 
@@ -6019,10 +6022,6 @@ namespace MaritimeEdge.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Attachments")
-                        .HasColumnType("text")
-                        .HasColumnName("attachments");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -6075,20 +6074,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("urgency");
-
-                    b.Property<string>("VesselName")
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)")
-                        .HasColumnName("vessel_name");
-
-                    b.Property<Guid?>("VoyageId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("voyage_id");
-
-                    b.Property<string>("VoyageName")
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)")
-                        .HasColumnName("voyage_name");
 
                     b.HasKey("Id")
                         .HasName("p_k_material_requests");

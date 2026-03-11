@@ -82,6 +82,9 @@
     "scheduleConfig": "Cấu hình lịch",
     "masterSchedule": "Lịch tổng",
     "storeLocations": "Vị trí kho",
+    "materialRequests": "Yêu cầu vật tư",
+    "stockReceipts": "Phiếu nhập kho",
+    "inventory": "Tồn kho",
     "edgeDashboard": "Bảng điều khiển",
     "localVessel": "Tàu địa phương",
     "safety": "An toàn & Diễn tập",
@@ -853,6 +856,39 @@
       "saving": "Đang lưu...",
       "create": "Tạo mới"
     }
+  },
+  "materialRequests": {
+    "title": "Yêu cầu vật tư",
+    "addNew": "Thêm yêu cầu",
+    "code": "Mã yêu cầu",
+    "urgency": "Mức khẩn cấp",
+    "requestDate": "Ngày yêu cầu",
+    "neededDate": "Ngày cần",
+    "requestedBy": "Người yêu cầu",
+    "status": "Trạng thái",
+    "items": "Vật tư",
+    "notes": "Ghi chú"
+  },
+  "stockReceipts": {
+    "title": "Phiếu nhập kho",
+    "addNew": "Tạo phiếu nhập",
+    "code": "Mã nhập kho",
+    "supplier": "Nhà cung cấp",
+    "receivedDate": "Ngày nhận hàng",
+    "receiptDate": "Ngày nhập kho",
+    "createdBy": "Người tạo",
+    "status": "Trạng thái",
+    "totalValue": "Tổng giá trị"
+  },
+  "inventory": {
+    "title": "Tồn kho giá trị",
+    "itemCode": "Mã vật tư",
+    "itemName": "Tên vật tư",
+    "location": "Vị trí kho",
+    "quantity": "Số lượng tồn",
+    "unitCost": "Đơn giá USD",
+    "totalValue": "Giá trị tồn",
+    "unit": "ĐVT"
   },
   "errors": {
     "generic": "Đã xảy ra lỗi. Vui lòng thử lại.",

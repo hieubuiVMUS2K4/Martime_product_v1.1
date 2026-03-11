@@ -35,6 +35,9 @@ import WorkPlanningPage from './pages/PMS/WorkPlanningPage'
 import EquipmentGroupsPage from './pages/PMS/EquipmentGroupsPage'
 import { MaintenanceHistoryPage } from './pages/PMS/MaintenanceHistoryPage'
 import StoreLocationPage from './pages/StoreLocation/StoreLocationPage'
+import MaterialRequestPage from './pages/MaterialRequest/MaterialRequestPage'
+import StockReceiptPage from './pages/StockReceipt/StockReceiptPage'
+import InventoryPage from './pages/Inventory/InventoryPage'
 
 // Reporting Pages
 import { ReportingDashboard } from './pages/Reporting/ReportingDashboard'
@@ -128,6 +131,9 @@ function App() {
         <Route path="pms/maintenance-history" element={<MaintenanceHistoryPage />} />
         <Route path="pms/work-planning" element={<WorkPlanningPage />} />
         <Route path="pms/store-locations" element={<StoreLocationPage />} />
+        <Route path="pms/material-requests" element={<MaterialRequestPage />} />
+        <Route path="pms/stock-receipts" element={<StockReceiptPage />} />
+        <Route path="pms/inventory" element={<InventoryPage />} />
         
         {/* Reporting Routes */}
         {/* System Routes */}

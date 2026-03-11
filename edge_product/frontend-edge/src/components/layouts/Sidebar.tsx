@@ -31,6 +31,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Warehouse,
+  PackageCheck,
+  BarChart3,
 } from 'lucide-react'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 
@@ -53,6 +55,9 @@ const getNavigation = (t: (key: string) => string) => [
       { name: t('nav.maintenance'), to: '/pms/maintenance', icon: Wrench },
       { name: t('nav.materials'), to: '/pms/materials', icon: Boxes },
       { name: t('nav.storeLocations'), to: '/pms/store-locations', icon: Warehouse },
+      { name: t('nav.materialRequests'), to: '/pms/material-requests', icon: ClipboardList },
+      { name: t('nav.stockReceipts'), to: '/pms/stock-receipts', icon: PackageCheck },
+      { name: t('nav.inventory'), to: '/pms/inventory', icon: BarChart3 },
     ]
   },
   { name: t('nav.reporting'), to: '/reporting', icon: ClipboardList },
