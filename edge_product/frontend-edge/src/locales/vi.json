@@ -86,6 +86,8 @@
     "materialRequests": "Yêu cầu vật tư",
     "stockReceipts": "Phiếu nhập kho",
     "inventory": "Tồn kho",
+    "catalog": "Danh mục",
+    "warehouseManagement": "Kho vận",
     "edgeDashboard": "Bảng điều khiển",
     "localVessel": "Tàu địa phương",
     "safety": "An toàn & Diễn tập",

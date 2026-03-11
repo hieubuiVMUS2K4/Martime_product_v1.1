@@ -178,6 +178,18 @@ export default function StoreLocationPage() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedRows.size === 0) return;
+    if (!confirm(t('storeLocations.confirmBulkDelete', { count: selectedRows.size }))) return;
+    try {
+      await Promise.all([...selectedRows].map(id => storeLocationService.delete(id)));
+      setSelectedRows(new Set());
+      await loadData();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Delete failed');
+    }
+  };
+
   const handleEdit = (item: StoreLocation) => {
     setEditItem(item);
     setShowFormModal(true);
@@ -270,9 +282,13 @@ export default function StoreLocationPage() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
+            <button
+              onClick={handleBulkDelete}
+              disabled={selectedRows.size === 0}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded ${selectedRows.size > 0 ? 'text-red-600 hover:bg-red-50 border-red-300' : 'text-gray-400 cursor-not-allowed'}`}
+            >
               <Trash2 className="w-3.5 h-3.5" />
-              {t('storeLocations.deleteMany')}
+              {t('storeLocations.deleteMany')}{selectedRows.size > 0 ? ` (${selectedRows.size})` : ''}
             </button>
             <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
               <Copy className="w-3.5 h-3.5" />

@@ -86,6 +86,8 @@
     "materialRequests": "Material Requests",
     "stockReceipts": "Stock Receipts",
     "inventory": "Inventory",
+    "catalog": "Catalog",
+    "warehouseManagement": "Logistics",
     "edgeDashboard": "Edge Dashboard",
     "localVessel": "Local Vessel",
     "safety": "Safety & Drills",

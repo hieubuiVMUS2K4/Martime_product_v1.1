@@ -33,6 +33,7 @@ import {
   Warehouse,
   PackageCheck,
   BarChart3,
+  FolderOpen,
 } from 'lucide-react'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 
@@ -48,18 +49,26 @@ const getNavigation = (t: (key: string) => string) => [
     name: t('nav.pms'), 
     icon: Calendar, 
     subItems: [
-      { name: t('nav.equipmentAssets'), to: '/pms/assets', icon: Settings },
-      { name: t('nav.equipmentGroups'), to: '/pms/groups', icon: Boxes },
-      { name: t('nav.scheduleConfig'), to: '/pms/schedules', icon: ListChecks },
-      { name: t('nav.masterSchedule'), to: '/pms/master-schedule', icon: Calendar },
+      { 
+        name: t('nav.catalog'), 
+        icon: FolderOpen, 
+        children: [
+          { name: t('nav.equipmentAssets'), to: '/pms/catalog/assets', icon: Settings },
+          { name: t('nav.equipmentGroups'), to: '/pms/catalog/groups', icon: Boxes },
+          { name: t('nav.materials'), to: '/pms/catalog/materials', icon: Boxes },
+          { name: t('nav.storeLocations'), to: '/pms/catalog/store-locations', icon: Warehouse },
+        ]
+      },
+      {
+        name: t('nav.warehouseManagement'),
+        icon: Warehouse,
+        children: [
+          { name: t('nav.materialRequests'), to: '/pms/logistics/material-requests', icon: ClipboardList },
+          { name: t('nav.stockReceipts'), to: '/pms/logistics/stock-receipts', icon: PackageCheck },
+          { name: t('nav.inventory'), to: '/pms/logistics/inventory', icon: BarChart3 },
+        ]
+      },
       { name: t('nav.workPlanning') || 'Danh sách công việc', to: '/pms/work-planning', icon: ClipboardList },
-      { name: 'Báo cáo công việc', to: '/pms/work-report', icon: FileText },
-      { name: t('nav.maintenance'), to: '/pms/maintenance', icon: Wrench },
-      { name: t('nav.materials'), to: '/pms/materials', icon: Boxes },
-      { name: t('nav.storeLocations'), to: '/pms/store-locations', icon: Warehouse },
-      { name: t('nav.materialRequests'), to: '/pms/material-requests', icon: ClipboardList },
-      { name: t('nav.stockReceipts'), to: '/pms/stock-receipts', icon: PackageCheck },
-      { name: t('nav.inventory'), to: '/pms/inventory', icon: BarChart3 },
     ]
   },
   { name: t('nav.reporting'), to: '/reporting', icon: ClipboardList },
@@ -151,7 +160,7 @@ export function Sidebar() {
               <button
                 onClick={() => toggleMenu(item.name)}
                 className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                  isCollapsed && item.subItems?.some(s => location.pathname.startsWith(s.to.split('/').slice(0, 2).join('/')))
+                  isCollapsed && item.subItems?.some(s => s.to ? location.pathname.startsWith(s.to.split('/').slice(0, 2).join('/')) : s.children?.some(c => location.pathname.startsWith(c.to.split('/').slice(0, 2).join('/'))))
                     ? 'bg-blue-600 text-white shadow-md'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
@@ -159,7 +168,7 @@ export function Sidebar() {
               >
                 <div className={`flex items-center ${isCollapsed ? 'justify-center' : ''}`}>
                   <item.icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'} flex-shrink-0 ${
-                    isCollapsed && item.subItems?.some(s => location.pathname.startsWith(s.to.split('/').slice(0,2).join('/')))
+                    isCollapsed && item.subItems?.some(s => s.to ? location.pathname.startsWith(s.to.split('/').slice(0,2).join('/')) : s.children?.some(c => location.pathname.startsWith(c.to.split('/').slice(0,2).join('/'))))
                       ? 'text-white' : ''
                   }`} />
                   {!isCollapsed && <span>{item.name}</span>}
@@ -175,6 +184,52 @@ export function Sidebar() {
               {expandedMenus.includes(item.name) && !isCollapsed && (
                 <div className="ml-4 mt-1 space-y-1">
                   {item.subItems.map((subItem) => (
+                    'children' in subItem && subItem.children ? (
+                      <div key={subItem.name}>
+                        <button
+                          onClick={() => toggleMenu(subItem.name)}
+                          className={`w-full flex items-center justify-between px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                            subItem.children.some(c => location.pathname === c.to)
+                              ? 'text-blue-600 dark:text-blue-400'
+                              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          <div className="flex items-center">
+                            <subItem.icon className="w-4 h-4 mr-2 flex-shrink-0" />
+                            <span className="truncate">{subItem.name}</span>
+                          </div>
+                          {expandedMenus.includes(subItem.name) ? (
+                            <ChevronDown className="w-3 h-3" />
+                          ) : (
+                            <ChevronRight className="w-3 h-3" />
+                          )}
+                        </button>
+                        {expandedMenus.includes(subItem.name) && (
+                          <div className="ml-4 mt-1 space-y-1">
+                            {subItem.children.map((child) => (
+                              <NavLink
+                                key={child.to}
+                                to={child.to}
+                                className={({ isActive }) =>
+                                  `flex items-center px-4 py-2 text-sm rounded-lg transition-colors ${
+                                    isActive
+                                      ? 'bg-blue-600 text-white shadow-md'
+                                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                  }`
+                                }
+                              >
+                                {({ isActive }) => (
+                                  <>
+                                    <child.icon className={`w-4 h-4 mr-2 flex-shrink-0 ${isActive ? 'text-white' : ''}`} />
+                                    <span className="truncate">{child.name}</span>
+                                  </>
+                                )}
+                              </NavLink>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
                     <NavLink
                       key={subItem.to}
                       to={subItem.to}
@@ -193,6 +248,7 @@ export function Sidebar() {
                         </>
                       )}
                     </NavLink>
+                    )
                   ))}
                 </div>
               )}

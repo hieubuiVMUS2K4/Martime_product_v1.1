@@ -169,6 +169,28 @@ export default function AssetsPage() {
     else setSelectedRows(new Set(paginatedAssets.map(a => a.id)));
   };
 
+  const handleDelete = async (asset: EquipmentAsset) => {
+    if (!confirm(t('pms.assets.confirmDelete', { name: asset.assetName }))) return;
+    try {
+      await equipmentAssetService.delete(asset.id);
+      await loadAssets();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Delete failed');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedRows.size === 0) return;
+    if (!confirm(t('pms.assets.confirmBulkDelete', { count: selectedRows.size }))) return;
+    try {
+      await Promise.all([...selectedRows].map(id => equipmentAssetService.delete(id)));
+      setSelectedRows(new Set());
+      await loadAssets();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Delete failed');
+    }
+  };
+
   const handleDownloadTemplate = () => {
     const template = [
       ['AssetCode', 'AssetName', 'Category', 'Manufacturer', 'Model', 'SerialNumber', 'Location', 'Criticality', 'ParentAssetCode'],
@@ -288,9 +310,13 @@ export default function AssetsPage() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
+            <button
+              onClick={handleBulkDelete}
+              disabled={selectedRows.size === 0}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded ${selectedRows.size > 0 ? 'text-red-600 hover:bg-red-50 border-red-300' : 'text-gray-400 cursor-not-allowed'}`}
+            >
               <Trash2 className="w-3.5 h-3.5" />
-              {t('pms.assets.deleteMany')}
+              {t('pms.assets.deleteMany')}{selectedRows.size > 0 ? ` (${selectedRows.size})` : ''}
             </button>
             <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
               <Copy className="w-3.5 h-3.5" />
@@ -539,6 +565,7 @@ export default function AssetsPage() {
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
+                          onClick={() => handleDelete(asset)}
                           className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
                           title={t('pms.assets.delete')}
                         >

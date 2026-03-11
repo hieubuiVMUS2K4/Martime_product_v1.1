@@ -102,7 +102,7 @@ function App() {
         <Route path="ship-data" element={<ShipDataPage />} />
         <Route path="compliance" element={<CompliancePage />} />
         <Route path="sync" element={<SyncPage />} />
-        <Route path="pms/materials" element={<MaterialPage />} />
+
         <Route path="fuel-analytics" element={<FuelAnalyticsPage />} />
         
         {/* Logbook Routes */}
@@ -122,8 +122,13 @@ function App() {
         <Route path="safety/drills" element={<DrillTimelinePage />} />
 
         {/* PMS Routes */}
-        <Route path="pms/assets" element={<AssetsPage />} />
-        <Route path="pms/groups" element={<EquipmentGroupsPage />} />
+        <Route path="pms/catalog/assets" element={<AssetsPage />} />
+        <Route path="pms/catalog/groups" element={<EquipmentGroupsPage />} />
+        <Route path="pms/catalog/materials" element={<MaterialPage />} />
+        <Route path="pms/catalog/store-locations" element={<StoreLocationPage />} />
+        <Route path="pms/logistics/material-requests" element={<MaterialRequestPage />} />
+        <Route path="pms/logistics/stock-receipts" element={<StockReceiptPage />} />
+        <Route path="pms/logistics/inventory" element={<InventoryPage />} />
         <Route path="pms/schedules" element={<ScheduleConfigPage />} />
         <Route path="pms/master-schedule" element={<MasterSchedulePage />} />
         <Route path="pms/unassigned-tasks" element={<UnassignedTasksPage />} />
@@ -132,10 +137,6 @@ function App() {
         <Route path="pms/maintenance-history" element={<MaintenanceHistoryPage />} />
         <Route path="pms/work-planning" element={<WorkPlanningPage />} />
         <Route path="pms/work-report/:id" element={<WorkReportPage />} />
-        <Route path="pms/store-locations" element={<StoreLocationPage />} />
-        <Route path="pms/material-requests" element={<MaterialRequestPage />} />
-        <Route path="pms/stock-receipts" element={<StockReceiptPage />} />
-        <Route path="pms/inventory" element={<InventoryPage />} />
         
         {/* Reporting Routes */}
         {/* System Routes */}
