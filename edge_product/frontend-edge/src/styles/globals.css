@@ -22,6 +22,38 @@ html {
   hyphens: auto;
 }
 
+/* ============================================
+   Marquee-on-hover: text scrolls left when hovered
+   Usage: wrap text in <span class="marquee-text">
+   and its parent should have overflow:hidden + fixed width
+   ============================================ */
+.marquee-cell {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.marquee-cell .marquee-text {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  transition: none;
+}
+
+.marquee-cell:hover .marquee-text {
+  /* Will be overridden by inline style for dynamic width */
+  animation: marquee-scroll 3s linear forwards;
+  text-overflow: clip;
+}
+
+@keyframes marquee-scroll {
+  0%   { transform: translateX(0); }
+  15%  { transform: translateX(0); }
+  85%  { transform: translateX(var(--marquee-offset, -60%)); }
+  100% { transform: translateX(var(--marquee-offset, -60%)); }
+}
+
 /* Font size specific adjustments */
 html[data-font-size="xlarge"] {
   --spacing-scale: 0.9;

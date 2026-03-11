@@ -8,14 +8,7 @@ import ViewAssetModal from '@/components/pms/ViewAssetModal';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { EquipmentAsset } from '@/types/pms.types';
 
-const STATUS_OPTIONS = [
-  { value: '', label: 'Tìm kiếm' },
-  { value: 'ACTIVE', label: 'Hoạt động' },
-  { value: 'STANDBY', label: 'Dự phòng' },
-  { value: 'UNDER_MAINTENANCE', label: 'Đang bảo trì' },
-  { value: 'DECOMMISSIONED', label: 'Ngừng hoạt động' },
-  { value: 'IN_STORAGE', label: 'Lưu kho' },
-];
+const STATUS_VALUES = ['', 'ACTIVE', 'STANDBY', 'UNDER_MAINTENANCE', 'DECOMMISSIONED', 'IN_STORAGE'] as const;
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50];
 
@@ -48,6 +41,16 @@ function getDescendantIds(node: EquipmentAsset): Set<string> {
 
 export default function AssetsPage() {
   const { t } = useTranslationSafe();
+
+  const statusOptions = useMemo(() => STATUS_VALUES.map(v => ({
+    value: v,
+    label: v === '' ? t('common.search')
+         : v === 'ACTIVE' ? t('pms.assets.active')
+         : v === 'STANDBY' ? t('pms.assets.standby')
+         : v === 'UNDER_MAINTENANCE' ? t('pms.assets.underMaintenance')
+         : v === 'DECOMMISSIONED' ? t('pms.assets.decommissioned')
+         : t('pms.assets.inStorage'),
+  })), [t]);
   const [assets, setAssets] = useState<EquipmentAsset[]>([]);   // flat list từ API
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -62,7 +65,12 @@ export default function AssetsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<EquipmentAsset | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);  // null = root (tất cả)
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('pms-assets-expanded-nodes');
+      return saved ? new Set<string>(JSON.parse(saved)) : new Set<string>();
+    } catch { return new Set<string>(); }
+  });
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
   useEffect(() => { loadData(); }, []);
@@ -98,6 +106,7 @@ export default function AssetsPage() {
     setExpandedNodes(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
+      try { localStorage.setItem('pms-assets-expanded-nodes', JSON.stringify([...next])); } catch {}
       return next;
     });
   }, []);
@@ -186,14 +195,14 @@ export default function AssetsPage() {
   };
 
   const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'ACTIVE': return 'Hoạt động';
-      case 'STANDBY': return 'Dự phòng';
-      case 'UNDER_MAINTENANCE': return 'Đang bảo trì';
-      case 'DECOMMISSIONED': return 'Ngừng hoạt động';
-      case 'IN_STORAGE': return 'Lưu kho';
-      default: return status;
-    }
+    const map: Record<string, string> = {
+      ACTIVE: t('pms.assets.active'),
+      STANDBY: t('pms.assets.standby'),
+      UNDER_MAINTENANCE: t('pms.assets.underMaintenance'),
+      DECOMMISSIONED: t('pms.assets.decommissioned'),
+      IN_STORAGE: t('pms.assets.inStorage'),
+    };
+    return map[status] ?? status;
   };
 
   const selectedNodeName = selectedNodeId ? assetMap.get(selectedNodeId)?.assetName : null;
@@ -225,10 +234,10 @@ export default function AssetsPage() {
             <span className="w-3 flex-shrink-0" />
           )}
           <FolderOpen className="w-3 h-3 flex-shrink-0 text-gray-400" />
-          <span className="flex-1 text-left leading-snug truncate">
-            {node.assetName}
+          <span className="flex-1 text-left leading-snug marquee-cell">
+            <span className="marquee-text">{node.assetName}</span>
           </span>
-          <span className="text-gray-400 text-[10px] flex-shrink-0">(SL:{childCount})</span>
+          <span className="text-gray-400 text-[10px] flex-shrink-0">{t('pms.assets.childCount', { count: childCount })}</span>
         </button>
 
         {isExpanded && node.children?.map(child => renderTreeNode(child, depth + 1))}
@@ -264,7 +273,7 @@ export default function AssetsPage() {
         >
           <FolderOpen className="w-4 h-4 flex-shrink-0" />
           <span className="flex-1 text-left truncate">
-            Tất cả thiết bị (SL:{assets.length})
+            {t('pms.assets.allEquipment')} ({t('pms.assets.childCount', { count: assets.length })})
           </span>
         </button>
 
@@ -272,7 +281,7 @@ export default function AssetsPage() {
         <div className="flex-1 flex items-center justify-between px-4 py-3 bg-white">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-gray-700">
-              ≡ Danh sách thiết bị{selectedNodeName ? ` - ${selectedNodeName}` : ''}
+              ≡ {t('pms.assets.equipmentList')}{selectedNodeName ? ` - ${selectedNodeName}` : ''}
             </span>
             <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
               {filteredAssets.length}
@@ -281,23 +290,23 @@ export default function AssetsPage() {
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
               <Trash2 className="w-3.5 h-3.5" />
-              Xóa nhiều
+              {t('pms.assets.deleteMany')}
             </button>
             <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
               <Copy className="w-3.5 h-3.5" />
-              Sao chép
+              {t('pms.assets.copy')}
             </button>
             <button
               onClick={() => setShowAddModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
             >
               <Plus className="w-3.5 h-3.5" />
-              Thêm mới
+              {t('pms.assets.addNew')}
             </button>
-            <button onClick={handleDownloadTemplate} className="p-1.5 border border-gray-300 rounded text-gray-500 hover:bg-gray-50" title="Tải mẫu">
+            <button onClick={handleDownloadTemplate} className="p-1.5 border border-gray-300 rounded text-gray-500 hover:bg-gray-50" title={t('pms.assets.downloadTemplate')}>
               <Download className="w-3.5 h-3.5" />
             </button>
-            <button onClick={() => setShowImportModal(true)} className="p-1.5 border border-gray-300 rounded text-gray-500 hover:bg-gray-50" title="Import">
+            <button onClick={() => setShowImportModal(true)} className="p-1.5 border border-gray-300 rounded text-gray-500 hover:bg-gray-50" title={t('pms.assets.import')}>
               <Upload className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -310,7 +319,7 @@ export default function AssetsPage() {
         {/* LEFT: cây phân cấp thiết bị */}
         <div className="w-64 flex-shrink-0 border-r border-gray-200 overflow-y-auto bg-white">
           {treeRoots.length === 0 ? (
-            <div className="px-4 py-6 text-xs text-gray-400 text-center">Chưa có thiết bị</div>
+            <div className="px-4 py-6 text-xs text-gray-400 text-center">{t('pms.assets.noEquipmentTree')}</div>
           ) : (
             treeRoots.map(node => renderTreeNode(node, 0))
           )}
@@ -337,37 +346,37 @@ export default function AssetsPage() {
                 </th>
                 <th className="min-w-[200px] px-3 py-2 text-left border-b border-r border-gray-200">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-semibold text-gray-600">Tiêu đề</span>
+                    <span className="text-xs font-semibold text-gray-600">{t('pms.assets.colTitle')}</span>
                     <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                   </div>
                 </th>
                 <th className="w-32 px-3 py-2 text-left border-b border-r border-gray-200">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-semibold text-gray-600">Mã thiết bị</span>
+                    <span className="text-xs font-semibold text-gray-600">{t('pms.assets.colCode')}</span>
                     <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                   </div>
                 </th>
                 <th className="w-36 px-3 py-2 text-left border-b border-r border-gray-200">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-semibold text-gray-600">Vị trí</span>
+                    <span className="text-xs font-semibold text-gray-600">{t('pms.assets.location')}</span>
                     <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                   </div>
                 </th>
                 <th className="w-36 px-3 py-2 text-left border-b border-r border-gray-200">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-semibold text-gray-600">Trạng thái</span>
+                    <span className="text-xs font-semibold text-gray-600">{t('pms.assets.status')}</span>
                     <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                   </div>
                 </th>
                 <th className="w-40 px-3 py-2 text-left border-b border-r border-gray-200">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-semibold text-gray-600">Hãng sản xuất</span>
+                    <span className="text-xs font-semibold text-gray-600">{t('pms.assets.colManufacturer')}</span>
                     <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                   </div>
                 </th>
                 <th className="min-w-[180px] px-3 py-2 text-left border-b border-r border-gray-200">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-semibold text-gray-600">Thông số kỹ thuật</span>
+                    <span className="text-xs font-semibold text-gray-600">{t('pms.assets.colSpecs')}</span>
                     <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                   </div>
                 </th>
@@ -383,7 +392,7 @@ export default function AssetsPage() {
                     <span className="text-gray-400 text-xs select-none">→</span>
                     <input
                       type="text"
-                      placeholder="Tìm kiếm"
+                      placeholder={t('common.search')}
                       value={searchTerm}
                       onChange={e => setSearchTerm(e.target.value)}
                       className="flex-1 text-xs outline-none min-w-0 bg-transparent"
@@ -396,7 +405,7 @@ export default function AssetsPage() {
                     <span className="text-gray-400 text-xs select-none">→</span>
                     <input
                       type="text"
-                      placeholder="Tìm k..."
+                      placeholder={t('common.search')}
                       value={searchCode}
                       onChange={e => setSearchCode(e.target.value)}
                       className="flex-1 text-xs outline-none min-w-0 bg-transparent"
@@ -409,7 +418,7 @@ export default function AssetsPage() {
                     <span className="text-gray-400 text-xs select-none">→</span>
                     <input
                       type="text"
-                      placeholder="Tìm kiếm"
+                      placeholder={t('common.search')}
                       value={searchLocation}
                       onChange={e => setSearchLocation(e.target.value)}
                       className="flex-1 text-xs outline-none min-w-0 bg-transparent"
@@ -423,24 +432,22 @@ export default function AssetsPage() {
                     onChange={e => setSelectedStatus(e.target.value)}
                     className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white"
                   >
-                    {STATUS_OPTIONS.map(o => (
-                      <option key={o.value} value={o.value}>
-                        {o.value === '' ? 'Tìm kiếm' : o.label}
-                      </option>
+                    {statusOptions.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </select>
                 </th>
                 <th className="px-2 py-1 border-r border-gray-200">
                   <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
                     <span className="text-gray-400 text-xs select-none">→</span>
-                    <input type="text" placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                    <input type="text" placeholder={t('common.search')} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
                     <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
                   </div>
                 </th>
                 <th className="px-2 py-1 border-r border-gray-200">
                   <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
                     <span className="text-gray-400 text-xs select-none">→</span>
-                    <input type="text" placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                    <input type="text" placeholder={t('common.search')} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
                     <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
                   </div>
                 </th>
@@ -453,7 +460,7 @@ export default function AssetsPage() {
                 <tr>
                   <td colSpan={9} className="px-4 py-12 text-center text-gray-400">
                     <Package className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                    <p>Không có thiết bị nào</p>
+                    <p>{t('pms.assets.noAssets')}</p>
                   </td>
                 </tr>
               ) : (
@@ -478,53 +485,62 @@ export default function AssetsPage() {
                     <td className="px-3 py-2 border-r border-gray-100">
                       <button
                         onClick={() => { setSelectedAsset(asset); setShowViewModal(true); }}
-                        className="flex items-center gap-1 text-blue-600 hover:underline font-medium text-xs text-left"
+                        className="flex items-center gap-1 text-blue-600 hover:underline font-medium text-xs text-left w-full"
                       >
                         <ChevronRight className="w-3 h-3 flex-shrink-0" />
-                        {asset.assetName}
+                        <span className="marquee-cell flex-1 min-w-0">
+                          <span className="marquee-text">{asset.assetName}</span>
+                        </span>
                       </button>
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-600 border-r border-gray-100 font-mono">
                       {asset.assetCode}
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-500 border-r border-gray-100">
-                      {asset.location || ''}
+                      <div className="marquee-cell">
+                        <span className="marquee-text">{asset.location || ''}</span>
+                      </div>
                     </td>
                     <td className="px-3 py-2 border-r border-gray-100">
                       {asset.status ? (
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded ${getStatusBadgeColor(asset.status)}`}>
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded whitespace-nowrap ${getStatusBadgeColor(asset.status)}`}>
                           {getStatusLabel(asset.status)}
                         </span>
                       ) : null}
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-600 border-r border-gray-100">
-                      {asset.manufacturer || ''}
+                      <div className="marquee-cell">
+                        <span className="marquee-text">{asset.manufacturer || ''}</span>
+                      </div>
                     </td>
-                    <td className="px-3 py-2 text-xs text-gray-500 border-r border-gray-100 max-w-[200px] truncate">
-                      {asset.technicalSpecs
-                        ? asset.technicalSpecs.substring(0, 40) + (asset.technicalSpecs.length > 40 ? '...' : '')
-                        : `${asset.model || ''}${asset.model && asset.serialNumber ? ' · ' : ''}${asset.serialNumber ? 'SN:' + asset.serialNumber : ''}` || ''
-                      }
+                    <td className="px-3 py-2 text-xs text-gray-500 border-r border-gray-100 max-w-[200px]">
+                      <div className="marquee-cell">
+                        <span className="marquee-text">
+                          {asset.technicalSpecs
+                            ? asset.technicalSpecs
+                            : `${asset.model || ''}${asset.model && asset.serialNumber ? ' · ' : ''}${asset.serialNumber ? 'SN:' + asset.serialNumber : ''}` || ''}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-2 py-2">
                       <div className="flex items-center justify-center gap-0.5">
                         <button
                           onClick={() => { setSelectedAsset(asset); setShowViewModal(true); }}
                           className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
-                          title="Xem"
+                          title={t('pms.assets.view')}
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => { setSelectedAsset(asset); setShowEditModal(true); }}
                           className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"
-                          title="Sửa"
+                          title={t('pms.assets.edit')}
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                          title="Xóa"
+                          title={t('pms.assets.delete')}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -547,7 +563,7 @@ export default function AssetsPage() {
               className="border border-gray-300 rounded px-2 py-1 text-xs"
             >
               {ITEMS_PER_PAGE_OPTIONS.map(n => (
-                <option key={n} value={n}>{n} / trang</option>
+                <option key={n} value={n}>{t('pms.assets.perPage', { n })}</option>
               ))}
             </select>
           </div>
@@ -555,7 +571,7 @@ export default function AssetsPage() {
           {/* Giữa: thông tin trang + số trang */}
           <div className="flex items-center gap-1">
             <span className="mr-2">
-              Trang số {currentPage} của {totalPages} ({filteredAssets.length} bản ghi)
+              {t('pms.assets.pageInfo', { current: currentPage, total: totalPages, records: filteredAssets.length })}
             </span>
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -591,7 +607,7 @@ export default function AssetsPage() {
 
           {/* Phải: nhảy đến trang */}
           <div className="flex items-center gap-2">
-            <span>Đi đến trang</span>
+            <span>{t('pms.assets.goToPage')}</span>
             <input
               type="number"
               min={1}

@@ -1,113 +1,64 @@
-﻿import { useEffect, useMemo, useState } from 'react';
-import { Boxes, Layers, Search, AlertTriangle, Tag, Edit2, Trash2, TrendingUp, FileSpreadsheet } from 'lucide-react';
-import { materialService } from '../../services/materialService';
-import { receiptService } from '../../services/receiptService';
-import type { MaterialItem, MaterialCategory } from '../../types/maritime.types';
-import type { CreateMaterialItemDto, UpdateMaterialItemDto, CreateMaterialCategoryDto, UpdateMaterialCategoryDto, StockAdjustmentDto } from '../../services/materialService';
-import type { MaterialReceiptListDto } from '../../services/receiptService';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Plus, Search, Package, Eye, Edit2, Trash2, ChevronsUpDown, Upload, ChevronRight } from 'lucide-react';
+import { materialService } from '@/services/materialService';
+import type { CreateMaterialItemDto, UpdateMaterialItemDto, StockAdjustmentDto } from '@/services/materialService';
 import { ItemFormModal } from './ItemFormModal';
 import { CategoryFormModal } from './CategoryFormModal';
 import { StockAdjustmentModal } from './StockAdjustmentModal';
 import { ImportReceiptModal } from './ImportReceiptModal';
-import { ReceiptDetailModal } from './ReceiptDetailModal';
 import { useTranslationSafe } from '@/contexts/I18nContext';
+import type { MaterialItem, MaterialCategory } from '@/types/maritime.types';
 
-type TabType = 'items' | 'low' | 'categories' | 'receipts';
+const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50];
 
 export function MaterialPage() {
   const { t } = useTranslationSafe();
-  const [activeTab, setActiveTab] = useState<TabType>('items');
-  const [items, setItems] = useState<MaterialItem[]>([]);
-  const [lowStock, setLowStock] = useState<MaterialItem[]>([]);
-  const [categories, setCategories] = useState<MaterialCategory[]>([]);
-  const [receipts, setReceipts] = useState<MaterialReceiptListDto[]>([]);
-  const [totalReceipts, setTotalReceipts] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [categorySearch, setCategorySearch] = useState('');
-  const [categoryId, setCategoryId] = useState<number | 'all'>('all');
-  const [filterUnit, setFilterUnit] = useState<string>('all');
 
-  // Modal states
+  const [items, setItems] = useState<MaterialItem[]>([]);
+  const [categories, setCategories] = useState<MaterialCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Filters
+  const [searchName, setSearchName] = useState('');
+  const [searchCode, setSearchCode] = useState('');
+  const [filterCategory, setFilterCategory] = useState<string>('');
+  const [filterUnit, setFilterUnit] = useState<string>('');
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Row selection
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+
+  // Modals
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [stockAdjustmentModalOpen, setStockAdjustmentModalOpen] = useState(false);
   const [importReceiptModalOpen, setImportReceiptModalOpen] = useState(false);
-  const [receiptDetailModalOpen, setReceiptDetailModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MaterialItem | null>(null);
   const [editingCategory, setEditingCategory] = useState<MaterialCategory | null>(null);
   const [adjustingItem, setAdjustingItem] = useState<MaterialItem | null>(null);
-  const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  useEffect(() => { loadData(); }, []);
 
-  // State filter/sort cho bảng
-  const [sortType, setSortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>(null);
-  const [sortMenu, setSortMenu] = useState<string | null>(null); // col name or null
-  
-  // Category sorting state
-  const [categorySortType, setCategorySortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>(null);
-  const [categorySortMenu, setCategorySortMenu] = useState<string | null>(null);
-
-  // Receipt sorting state - default: muộn nhất trước (latest first)
-  const [receiptSortType, setReceiptSortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>({ col: 'date', dir: 'desc' });
-  const [receiptSortMenu, setReceiptSortMenu] = useState<string | null>(null);
-
-  // Expanded states for collapsible sections
-  const [isItemsExpanded, setIsItemsExpanded] = useState(true);
-  const [isLowStockExpanded, setIsLowStockExpanded] = useState(true);
-  const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(true);
-  const [isReceiptsExpanded, setIsReceiptsExpanded] = useState(true);
-
-  useEffect(() => {
-    setCurrentPage(1); // Reset page when tab changes
-  }, [activeTab]);
-
-  useEffect(() => {
-    loadData();
-  }, [activeTab, currentPage]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      if (activeTab === 'low') {
-        const [ls, cats] = await Promise.all([
-          materialService.getLowStockItems(),
-          materialService.getCategories(true)
-        ]);
-        setLowStock(ls);
-        setCategories(cats);
-      } else if (activeTab === 'categories') {
-        const cats = await materialService.getCategories(false);
-        setCategories(cats);
-      } else if (activeTab === 'receipts') {
-        const response = await receiptService.getReceipts({
-          page: currentPage,
-          pageSize: itemsPerPage
-        });
-        setReceipts(response.data);
-        setTotalReceipts(response.totalRecords);
-      } else {
-        // Load items, categories, and lowStock for stats
-        const [its, cats, ls] = await Promise.all([
-          materialService.getItems({ onlyActive: true }),
-          materialService.getCategories(true),
-          materialService.getLowStockItems()
-        ]);
-        setItems(its);
-        setCategories(cats);
-        setLowStock(ls);
-      }
+      const [its, cats] = await Promise.all([
+        materialService.getItems({ onlyActive: true }),
+        materialService.getCategories(true),
+      ]);
+      setItems(its);
+      setCategories(cats);
     } catch (e) {
       console.error('Failed to load material data:', e);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Item handlers
+  // ---------- Handlers ----------
   const handleCreateItem = async (data: CreateMaterialItemDto) => {
     await materialService.createItem(data);
     await loadData();
@@ -121,7 +72,7 @@ export function MaterialPage() {
   };
 
   const handleDeleteItem = async (item: MaterialItem) => {
-    if (!confirm(`Are you sure you want to delete "${item.name}"?`)) return;
+    if (!confirm(t('materials.page.confirmDelete', { name: item.name }))) return;
     try {
       await materialService.deleteItem(item.id);
       await loadData();
@@ -136,447 +87,424 @@ export function MaterialPage() {
     await loadData();
   };
 
-  // Category handlers
-  const handleCreateCategory = async (data: CreateMaterialCategoryDto) => {
+  // Category handlers (for modal)
+  const handleCreateCategory = async (data: any) => {
     await materialService.createCategory(data);
     await loadData();
   };
-
-  const handleUpdateCategory = async (data: UpdateMaterialCategoryDto) => {
+  const handleUpdateCategory = async (data: any) => {
     if (!editingCategory) return;
     await materialService.updateCategory(editingCategory.id, data);
     setEditingCategory(null);
     await loadData();
   };
 
-  const handleDeleteCategory = async (category: MaterialCategory) => {
-    if (!confirm(`Are you sure you want to delete category "${category.name}"?`)) return;
-    try {
-      await materialService.deleteCategory(category.id);
-      await loadData();
-    } catch (error: any) {
-      alert(error.message || 'Failed to delete category');
-    }
-  };
+  // ---------- Derived ----------
+  const categoryMap = useMemo(() => {
+    const m = new Map<number, string>();
+    categories.forEach(c => m.set(c.id, c.name));
+    return m;
+  }, [categories]);
+
+  const uniqueUnits = useMemo(() => [...new Set(items.map(i => i.unit))].sort(), [items]);
 
   const filteredItems = useMemo(() => {
     let data = [...items];
-    if (categoryId !== 'all') data = data.filter(x => x.categoryId === categoryId);
-    if (filterUnit !== 'all') data = data.filter(x => x.unit === filterUnit);
-    if (search) {
-      const q = search.toLowerCase();
-      data = data.filter(x =>
-        x.itemCode.toLowerCase().includes(q) ||
-        x.name.toLowerCase().includes(q) ||
-        (x.partNumber && x.partNumber.toLowerCase().includes(q)) ||
-        (x.barcode && x.barcode.toLowerCase().includes(q)) ||
-        (x.manufacturer && x.manufacturer.toLowerCase().includes(q))
-      );
+    if (searchName) {
+      const q = searchName.toLowerCase();
+      data = data.filter(i => i.name.toLowerCase().includes(q) || i.manufacturer?.toLowerCase().includes(q));
+    }
+    if (searchCode) {
+      const q = searchCode.toLowerCase();
+      data = data.filter(i => i.itemCode.toLowerCase().includes(q));
+    }
+    if (filterCategory) {
+      data = data.filter(i => String(i.categoryId) === filterCategory);
+    }
+    if (filterUnit) {
+      data = data.filter(i => i.unit === filterUnit);
     }
     return data;
-  }, [items, search, categoryId, filterUnit]);
+  }, [items, searchName, searchCode, filterCategory, filterUnit]);
 
-  // Sorting for items
-  const sortedItems = useMemo(() => {
-    if (!sortType) return filteredItems;
-    const sorted = [...filteredItems];
-    switch (sortType.col) {
-      case 'name':
-        sorted.sort((a, b) => {
-          return sortType.dir === 'asc'
-            ? a.name.localeCompare(b.name)
-            : b.name.localeCompare(a.name);
-        });
-        break;
-      case 'category':
-        sorted.sort((a, b) => {
-          const aCat = categories.find(c => c.id === a.categoryId)?.name || '';
-          const bCat = categories.find(c => c.id === b.categoryId)?.name || '';
-          return sortType.dir === 'asc'
-            ? aCat.localeCompare(bCat)
-            : bCat.localeCompare(aCat);
-        });
-        break;
-      case 'stock':
-        sorted.sort((a, b) => {
-          return sortType.dir === 'asc' 
-            ? a.onHandQuantity - b.onHandQuantity 
-            : b.onHandQuantity - a.onHandQuantity;
-        });
-        break;
-      case 'unitCost':
-        sorted.sort((a, b) => {
-          const aCost = a.unitCost || 0;
-          const bCost = b.unitCost || 0;
-          return sortType.dir === 'asc' ? aCost - bCost : bCost - aCost;
-        });
-        break;
-      default:
-        break;
-    }
-    return sorted;
-  }, [filteredItems, sortType, categories]);
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / itemsPerPage));
 
-  const filteredCategories = useMemo(() => {
-    if (!categorySearch) return categories;
-    const q = categorySearch.toLowerCase();
-    return categories.filter(cat =>
-      cat.name.toLowerCase().includes(q) ||
-      cat.categoryCode.toLowerCase().includes(q) ||
-      (cat.description && cat.description.toLowerCase().includes(q))
-    );
-  }, [categories, categorySearch]);
-
-  // Sorting for categories
-  const sortedCategories = useMemo(() => {
-    if (!categorySortType) return filteredCategories;
-    const sorted = [...filteredCategories];
-    switch (categorySortType.col) {
-      case 'name':
-        sorted.sort((a, b) => {
-          return categorySortType.dir === 'asc'
-            ? a.name.localeCompare(b.name)
-            : b.name.localeCompare(a.name);
-        });
-        break;
-      case 'code':
-        sorted.sort((a, b) => {
-          return categorySortType.dir === 'asc'
-            ? a.categoryCode.localeCompare(b.categoryCode)
-            : b.categoryCode.localeCompare(a.categoryCode);
-        });
-        break;
-      case 'status':
-        sorted.sort((a, b) => {
-          const aActive = a.isActive ? 1 : 0;
-          const bActive = b.isActive ? 1 : 0;
-          return categorySortType.dir === 'asc' ? aActive - bActive : bActive - aActive;
-        });
-        break;
-      default:
-        break;
-    }
-    return sorted;
-  }, [filteredCategories, categorySortType]);
-
-  // Sorting for receipts
-  const sortedReceipts = useMemo(() => {
-    if (!receiptSortType) return receipts;
-    const sorted = [...receipts];
-    switch (receiptSortType.col) {
-      case 'date':
-        sorted.sort((a, b) => {
-          const dateA = new Date(a.receiptDate).getTime();
-          const dateB = new Date(b.receiptDate).getTime();
-          return receiptSortType.dir === 'asc' ? dateA - dateB : dateB - dateA;
-        });
-        break;
-      case 'amount':
-        sorted.sort((a, b) => {
-          const amountA = a.totalAmount || 0;
-          const amountB = b.totalAmount || 0;
-          return receiptSortType.dir === 'asc' ? amountA - amountB : amountB - amountA;
-        });
-        break;
-      case 'items':
-        sorted.sort((a, b) => {
-          return receiptSortType.dir === 'asc' ? a.itemCount - b.itemCount : b.itemCount - a.itemCount;
-        });
-        break;
-      default:
-        break;
-    }
-    return sorted;
-  }, [receipts, receiptSortType]);
-
-  // Pagination for items
   const paginatedItems = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return sortedItems.slice(startIndex, endIndex);
-  }, [sortedItems, currentPage, itemsPerPage]);
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredItems.slice(start, start + itemsPerPage);
+  }, [filteredItems, currentPage, itemsPerPage]);
 
-  const totalPages = Math.ceil(sortedItems.length / itemsPerPage);
+  useEffect(() => { setCurrentPage(1); }, [searchName, searchCode, filterCategory, filterUnit]);
 
-  // Reset to page 1 when filter changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, categoryId, filterUnit]);
+  const toggleRow = (id: string) => {
+    setSelectedRows(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
 
-  // Get unique units
-  const uniqueUnits = useMemo(() => {
-    return [...new Set(items.map(item => item.unit))].sort();
-  }, [items]);
+  const toggleAllRows = () => {
+    if (selectedRows.size === paginatedItems.length) setSelectedRows(new Set());
+    else setSelectedRows(new Set(paginatedItems.map(i => i.id)));
+  };
+
+  const formatDate = (dateStr: string) => {
+    try { return new Date(dateStr).toLocaleDateString('vi-VN'); } catch { return dateStr; }
+  };
+
+  // ---------- Render ----------
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">{t('materials.loading')}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
-      <div className="p-3 space-y-4">
-        {/* Tabs */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="border-b border-gray-200">
-            <nav className="flex -mb-px">
-              <TabButton active={activeTab === 'items'} onClick={() => setActiveTab('items')} icon={<Boxes className="w-5 h-5" />} label={t('materials.tabs.items')} />
-              <TabButton active={activeTab === 'low'} onClick={() => setActiveTab('low')} icon={<AlertTriangle className="w-5 h-5" />} label={t('materials.tabs.lowStock')} />
-              <TabButton active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} icon={<Layers className="w-5 h-5" />} label={t('materials.tabs.categories')} />
-              <TabButton active={activeTab === 'receipts'} onClick={() => setActiveTab('receipts')} icon={<FileSpreadsheet className="w-5 h-5" />} label={t('materials.tabs.receipts')} />
-            </nav>
-          </div>
+    <div className="h-full w-full flex flex-col overflow-hidden bg-white">
 
-          {/* Content */}
-          <div>
-            {loading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-gray-600 mt-4">{t('materials.loading')}</p>
-              </div>
-            ) : (
-              <>
-                {activeTab === 'categories' ? (
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-700 uppercase">CATEGORIES ({sortedCategories.length})</h3>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            setEditingCategory(null);
-                            setCategoryModalOpen(true);
-                          }}
-                          className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
-                          title="Add category"
-                        >
-                          +
-                        </button>
-                        <button
-                          onClick={() => setIsCategoriesExpanded(!isCategoriesExpanded)}
-                          className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
-                          title={isCategoriesExpanded ? "Collapse section" : "Expand section"}
-                        >
-                          <span className="text-white text-xs transition-transform" style={{ transform: isCategoriesExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
-                            ▼
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                    {isCategoriesExpanded && sortedCategories.length > 0 && (
-                      <>
-                        {/* Filters */}
-                        <div className="p-4 border-b border-gray-200">
-                          <div className="relative">
-                            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                            <input
-                              value={categorySearch}
-                              onChange={(e) => setCategorySearch(e.target.value)}
-                              placeholder={t('materials.categorySearchPlaceholder')}
-                              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
-                        </div>
-                        <CategoryList 
-                        categories={sortedCategories}
-                        onEdit={(cat) => {
-                          setEditingCategory(cat);
-                          setCategoryModalOpen(true);
-                        }}
-                        onDelete={handleDeleteCategory}
-                        sortType={categorySortType}
-                        setSortType={setCategorySortType}
-                        sortMenu={categorySortMenu}
-                        setSortMenu={setCategorySortMenu}
-                      />
-                      </>
-                    )}
-                  </div>
-                ) : activeTab === 'receipts' ? (
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-700 uppercase">IMPORT RECEIPTS ({totalReceipts})</h3>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setImportReceiptModalOpen(true)}
-                          className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
-                          title="Import receipt"
-                        >
-                          +
-                        </button>
-                        <button
-                          onClick={() => setIsReceiptsExpanded(!isReceiptsExpanded)}
-                          className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
-                          title={isReceiptsExpanded ? "Collapse section" : "Expand section"}
-                        >
-                          <span className="text-white text-xs transition-transform" style={{ transform: isReceiptsExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
-                            ▼
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                    {isReceiptsExpanded && (
-                      <ReceiptList 
-                        receipts={sortedReceipts}
-                        currentPage={currentPage}
-                        itemsPerPage={itemsPerPage}
-                        totalReceipts={totalReceipts}
-                        setCurrentPage={setCurrentPage}
-                        onReceiptClick={(receiptId) => {
-                          setSelectedReceiptId(receiptId);
-                          setReceiptDetailModalOpen(true);
-                        }}
-                        sortType={receiptSortType}
-                        setSortType={setReceiptSortType}
-                        sortMenu={receiptSortMenu}
-                        setSortMenu={setReceiptSortMenu}
-                      />
-                    )}
-                  </div>
-                ) : activeTab === 'low' ? (
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-700 uppercase">LOW STOCK ITEMS ({lowStock.length})</h3>
-                      <button
-                        onClick={() => setIsLowStockExpanded(!isLowStockExpanded)}
-                        className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
-                        title={isLowStockExpanded ? "Collapse section" : "Expand section"}
-                      >
-                        <span className="text-white text-xs transition-transform" style={{ transform: isLowStockExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
-                          ▼
-                        </span>
-                      </button>
-                    </div>
-                    {isLowStockExpanded && lowStock.length > 0 && (
-                      <ItemList 
-                        items={lowStock} 
-                        categories={categories} 
-                        highlightLow
-                        onEdit={(item) => {
-                          setEditingItem(item);
-                          setItemModalOpen(true);
-                        }}
-                        onDelete={handleDeleteItem}
-                        onAdjustStock={(item) => {
-                          setAdjustingItem(item);
-                          setStockAdjustmentModalOpen(true);
-                        }}
-                      />
-                    )}
-                  </div>
-                ) : (
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-700 uppercase">MATERIAL ITEMS ({sortedItems.length})</h3>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setImportReceiptModalOpen(true)}
-                          className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
-                          title="Import receipt"
-                        >
-                          +
-                        </button>
-                        <button
-                          onClick={() => setIsItemsExpanded(!isItemsExpanded)}
-                          className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
-                          title={isItemsExpanded ? "Collapse section" : "Expand section"}
-                        >
-                          <span className="text-white text-xs transition-transform" style={{ transform: isItemsExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
-                            ▼
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                    {isItemsExpanded && sortedItems.length > 0 && (
-                      <>
-                        {/* Filters */}
-                        <div className="p-4 border-b border-gray-200 flex items-center gap-4">
-                          <div className="relative flex-1">
-                            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                            <input
-                              value={search}
-                              onChange={(e) => setSearch(e.target.value)}
-                              placeholder={t('materials.searchPlaceholder')}
-                              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
-                          <select
-                            value={categoryId}
-                            onChange={(e) => setCategoryId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[180px]"
-                          >
-                            <option value="all">{t('materials.allCategories')}</option>
-                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          </select>
-                          <select
-                            value={filterUnit}
-                            onChange={(e) => setFilterUnit(e.target.value)}
-                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[150px]"
-                          >
-                            <option value="all">{t('materials.allUnits')}</option>
-                            {uniqueUnits.map(unit => <option key={unit} value={unit}>{unit}</option>)}
-                          </select>
-                        </div>
-                        <div className="overflow-x-auto">
-                          <ItemList 
-                            items={paginatedItems} 
-                            categories={categories}
-                            onEdit={(item) => {
-                              setEditingItem(item);
-                              setItemModalOpen(true);
-                            }}
-                            onDelete={handleDeleteItem}
-                            onAdjustStock={(item) => {
-                              setAdjustingItem(item);
-                              setStockAdjustmentModalOpen(true);
-                            }}
-                            currentPage={currentPage}
-                            itemsPerPage={itemsPerPage}
-                            sortType={sortType}
-                            setSortType={setSortType}
-                            sortMenu={sortMenu}
-                            setSortMenu={setSortMenu}
-                          />
-                        </div>
-                        
-                        {/* Pagination */}
-                        {totalPages > 1 && (
-                          <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
-                            <div className="text-sm text-gray-600">
-                              Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedItems.length)} of {sortedItems.length}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                                disabled={currentPage === 1}
-                                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                ← Previous
-                              </button>
-                              <span className="text-sm text-gray-600">
-                                Page {currentPage} / {totalPages}
-                              </span>
-                              <button
-                                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                                disabled={currentPage === totalPages}
-                                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                Next →
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+      {/* ── HEADER ROW ── */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-gray-700">
+            ≡ {t('materials.page.materialList')}
+          </span>
+          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
+            {filteredItems.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCategoryModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50"
+          >
+            {t('materials.page.manageCategories')}
+          </button>
+          <button
+            onClick={() => { setEditingItem(null); setItemModalOpen(true); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            {t('materials.page.addNew')}
+          </button>
+          <button
+            onClick={() => setImportReceiptModalOpen(true)}
+            className="p-1.5 border border-gray-300 rounded text-gray-500 hover:bg-gray-50"
+            title={t('materials.importReceipt')}
+          >
+            <Upload className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 
-      {/* Modals */}
+      {/* ── TABLE ── */}
+      <div className="flex-1 overflow-auto">
+        <table className="min-w-full text-sm border-collapse">
+          <thead className="sticky top-0 z-10">
+
+            {/* Row 1: Column headers */}
+            <tr className="bg-blue-50">
+              <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">TT</th>
+              <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">
+                <input
+                  type="checkbox"
+                  checked={selectedRows.size === paginatedItems.length && paginatedItems.length > 0}
+                  onChange={toggleAllRows}
+                  className="rounded text-blue-600"
+                />
+              </th>
+              <th className="w-32 px-3 py-2 text-left border-b border-r border-gray-200">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-semibold text-gray-600">{t('materials.page.colCode')}</span>
+                  <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                </div>
+              </th>
+              <th className="min-w-[200px] px-3 py-2 text-left border-b border-r border-gray-200">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-semibold text-gray-600">{t('materials.page.colName')}</span>
+                  <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                </div>
+              </th>
+              <th className="w-40 px-3 py-2 text-left border-b border-r border-gray-200">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-semibold text-gray-600">{t('materials.page.colCategory')}</span>
+                  <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                </div>
+              </th>
+              <th className="w-24 px-3 py-2 text-left border-b border-r border-gray-200">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-semibold text-gray-600">{t('materials.page.colUnit')}</span>
+                  <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                </div>
+              </th>
+              <th className="min-w-[180px] px-3 py-2 text-left border-b border-r border-gray-200">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-semibold text-gray-600">{t('materials.page.colDescription')}</span>
+                </div>
+              </th>
+              <th className="w-28 px-3 py-2 text-left border-b border-r border-gray-200">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-semibold text-gray-600">{t('materials.page.colUpdatedAt')}</span>
+                  <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                </div>
+              </th>
+              <th className="w-28 px-3 py-2 text-left border-b border-r border-gray-200">
+                <span className="text-xs font-semibold text-gray-600">{t('materials.page.colCreatedBy')}</span>
+              </th>
+              <th className="w-24 px-3 py-2 border-b border-gray-200"></th>
+            </tr>
+
+            {/* Row 2: Column search inputs */}
+            <tr className="bg-white border-b border-gray-200">
+              <th className="border-r border-gray-200"></th>
+              <th className="border-r border-gray-200"></th>
+              {/* Code search */}
+              <th className="px-2 py-1 border-r border-gray-200">
+                <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
+                  <span className="text-gray-400 text-xs select-none">→</span>
+                  <input
+                    type="text"
+                    placeholder={t('common.search')}
+                    value={searchCode}
+                    onChange={e => setSearchCode(e.target.value)}
+                    className="flex-1 text-xs outline-none min-w-0 bg-transparent"
+                  />
+                  <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                </div>
+              </th>
+              {/* Name search */}
+              <th className="px-2 py-1 border-r border-gray-200">
+                <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
+                  <span className="text-gray-400 text-xs select-none">→</span>
+                  <input
+                    type="text"
+                    placeholder={t('common.search')}
+                    value={searchName}
+                    onChange={e => setSearchName(e.target.value)}
+                    className="flex-1 text-xs outline-none min-w-0 bg-transparent"
+                  />
+                  <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                </div>
+              </th>
+              {/* Category filter */}
+              <th className="px-2 py-1 border-r border-gray-200">
+                <select
+                  value={filterCategory}
+                  onChange={e => setFilterCategory(e.target.value)}
+                  className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white"
+                >
+                  <option value="">{t('materials.allCategories')}</option>
+                  {categories.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                </select>
+              </th>
+              {/* Unit filter */}
+              <th className="px-2 py-1 border-r border-gray-200">
+                <select
+                  value={filterUnit}
+                  onChange={e => setFilterUnit(e.target.value)}
+                  className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white"
+                >
+                  <option value="">{t('materials.allUnits')}</option>
+                  {uniqueUnits.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </th>
+              {/* Description - no filter */}
+              <th className="border-r border-gray-200"></th>
+              {/* Date - no filter */}
+              <th className="border-r border-gray-200"></th>
+              {/* Created by - no filter */}
+              <th className="border-r border-gray-200"></th>
+              <th className="border-gray-200"></th>
+            </tr>
+
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {paginatedItems.length === 0 ? (
+              <tr>
+                <td colSpan={10} className="px-4 py-12 text-center text-gray-400">
+                  <Package className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                  <p>{t('materials.noItemsFound')}</p>
+                </td>
+              </tr>
+            ) : (
+              paginatedItems.map((item, idx) => {
+                const globalIndex = (currentPage - 1) * itemsPerPage + idx + 1;
+                const low = item.minStock != null && item.onHandQuantity < (item.minStock ?? 0);
+                return (
+                  <tr
+                    key={item.id}
+                    className={`hover:bg-blue-50 ${
+                      selectedRows.has(item.id) ? 'bg-blue-50' : idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'
+                    }`}
+                  >
+                    {/* TT */}
+                    <td className="px-2 py-2 text-center text-xs text-gray-500 border-r border-gray-100">
+                      {globalIndex}
+                    </td>
+                    {/* Checkbox */}
+                    <td className="px-2 py-2 text-center border-r border-gray-100">
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.has(item.id)}
+                        onChange={() => toggleRow(item.id)}
+                        className="rounded text-blue-600"
+                      />
+                    </td>
+                    {/* Mã vật tư */}
+                    <td className="px-3 py-2 text-xs text-gray-600 border-r border-gray-100 font-mono">
+                      {item.itemCode}
+                    </td>
+                    {/* Tên vật tư */}
+                    <td className="px-3 py-2 border-r border-gray-100">
+                      <button
+                        onClick={() => { setEditingItem(item); setItemModalOpen(true); }}
+                        className="flex items-center gap-1 text-blue-600 hover:underline font-medium text-xs text-left w-full"
+                      >
+                        <ChevronRight className="w-3 h-3 flex-shrink-0" />
+                        <span className="marquee-cell flex-1 min-w-0">
+                          <span className="marquee-text">{item.name}</span>
+                        </span>
+                      </button>
+                      {low && (
+                        <span className="ml-4 text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 whitespace-nowrap">LOW</span>
+                      )}
+                    </td>
+                    {/* Loại vật tư */}
+                    <td className="px-3 py-2 text-xs border-r border-gray-100">
+                      <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 whitespace-nowrap">
+                        {categoryMap.get(item.categoryId) || '—'}
+                      </span>
+                    </td>
+                    {/* Đơn vị tính */}
+                    <td className="px-3 py-2 text-xs text-gray-600 border-r border-gray-100 text-center">
+                      {item.unit}
+                    </td>
+                    {/* Mô tả */}
+                    <td className="px-3 py-2 text-xs text-gray-500 border-r border-gray-100 max-w-[200px]">
+                      <div className="marquee-cell">
+                        <span className="marquee-text">{item.specification || item.notes || ''}</span>
+                      </div>
+                    </td>
+                    {/* Ngày cập nhật */}
+                    <td className="px-3 py-2 text-xs text-gray-500 border-r border-gray-100 text-center">
+                      {formatDate(item.createdAt)}
+                    </td>
+                    {/* Người tạo */}
+                    <td className="px-3 py-2 text-xs text-gray-500 border-r border-gray-100 text-center">
+                      —
+                    </td>
+                    {/* Actions */}
+                    <td className="px-2 py-2">
+                      <div className="flex items-center justify-center gap-0.5">
+                        <button
+                          onClick={() => { setEditingItem(item); setItemModalOpen(true); }}
+                          className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                          title={t('materials.page.edit')}
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => { setAdjustingItem(item); setStockAdjustmentModalOpen(true); }}
+                          className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"
+                          title={t('materials.adjustStock')}
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteItem(item)}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                          title={t('materials.page.delete')}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── PAGINATION ── */}
+      <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
+        {/* Left: per-page selector */}
+        <div>
+          <select
+            value={itemsPerPage}
+            onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+            className="border border-gray-300 rounded px-2 py-1 text-xs"
+          >
+            {ITEMS_PER_PAGE_OPTIONS.map(n => (
+              <option key={n} value={n}>{t('pms.assets.perPage', { n })}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Middle: page buttons */}
+        <div className="flex items-center gap-1">
+          <span className="mr-2">
+            {t('pms.assets.pageInfo', { current: currentPage, total: totalPages, records: filteredItems.length })}
+          </span>
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40"
+          >‹</button>
+          {[...Array(Math.min(5, totalPages))].map((_, i) => {
+            let page: number;
+            if (totalPages <= 5) page = i + 1;
+            else if (currentPage <= 3) page = i + 1;
+            else if (currentPage >= totalPages - 2) page = totalPages - 4 + i;
+            else page = currentPage - 2 + i;
+            return (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${
+                  currentPage === page
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {page}
+              </button>
+            );
+          })}
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40"
+          >›</button>
+        </div>
+
+        {/* Right: go to page */}
+        <div className="flex items-center gap-2">
+          <span>{t('pms.assets.goToPage')}</span>
+          <input
+            type="number"
+            min={1}
+            max={totalPages}
+            value={currentPage}
+            onChange={e => {
+              const v = Number(e.target.value);
+              if (v >= 1 && v <= totalPages) setCurrentPage(v);
+            }}
+            className="w-12 border border-gray-300 rounded px-1 py-1 text-center text-xs"
+          />
+        </div>
+      </div>
+
+      {/* ── MODALS ── */}
       <ItemFormModal
         isOpen={itemModalOpen}
-        onClose={() => {
-          setItemModalOpen(false);
-          setEditingItem(null);
-        }}
+        onClose={() => { setItemModalOpen(false); setEditingItem(null); }}
         onSubmit={editingItem ? handleUpdateItem : handleCreateItem}
         item={editingItem}
         categories={categories}
@@ -585,10 +513,7 @@ export function MaterialPage() {
 
       <CategoryFormModal
         isOpen={categoryModalOpen}
-        onClose={() => {
-          setCategoryModalOpen(false);
-          setEditingCategory(null);
-        }}
+        onClose={() => { setCategoryModalOpen(false); setEditingCategory(null); }}
         onSubmit={editingCategory ? handleUpdateCategory : handleCreateCategory}
         category={editingCategory}
         categories={categories}
@@ -597,10 +522,7 @@ export function MaterialPage() {
 
       <StockAdjustmentModal
         isOpen={stockAdjustmentModalOpen}
-        onClose={() => {
-          setStockAdjustmentModalOpen(false);
-          setAdjustingItem(null);
-        }}
+        onClose={() => { setStockAdjustmentModalOpen(false); setAdjustingItem(null); }}
         onSubmit={handleStockAdjustment}
         item={adjustingItem}
       />
@@ -608,545 +530,8 @@ export function MaterialPage() {
       <ImportReceiptModal
         isOpen={importReceiptModalOpen}
         onClose={() => setImportReceiptModalOpen(false)}
-        onSuccess={() => {
-          loadData();
-          alert('Import successful!');
-        }}
-      />
-
-      <ReceiptDetailModal
-        isOpen={receiptDetailModalOpen}
-        onClose={() => {
-          setReceiptDetailModalOpen(false);
-          setSelectedReceiptId(null);
-        }}
-        receiptId={selectedReceiptId || 0}
+        onSuccess={() => { loadData(); }}
       />
     </div>
-  );
-}
-
-function ItemList({ items, highlightLow = false, categories, onEdit, onDelete, onAdjustStock, currentPage, itemsPerPage, sortType, setSortType, sortMenu, setSortMenu }: { 
-  items: MaterialItem[]; 
-  highlightLow?: boolean; 
-  categories: MaterialCategory[];
-  onEdit: (item: MaterialItem) => void;
-  onDelete: (item: MaterialItem) => void;
-  onAdjustStock: (item: MaterialItem) => void;
-  currentPage?: number;
-  itemsPerPage?: number;
-  sortType?: { col: string; dir: 'asc'|'desc' } | null;
-  setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
-  sortMenu?: string | null;
-  setSortMenu?: (sortMenu: string | null) => void;
-}) {
-  const { t } = useTranslationSafe()
-  const getCategoryName = (catId: number) => {
-    const cat = categories.find(c => c.id === catId);
-    return cat?.name || 'Unknown';
-  };
-
-  // SortDropdown component
-  function SortDropdown({ col, options, sortType, setSortType, sortMenu, setSortMenu }: {
-    col: string;
-    options: Array<{ label: string; dir: 'asc'|'desc' }>;
-    sortType: any;
-    setSortType: any;
-    sortMenu: any;
-    setSortMenu: any;
-  }) {
-    return (
-      <div className="absolute top-1/2 right-0 -translate-y-1/2" style={{zIndex:2}}>
-        <button
-          className="text-gray-400 hover:text-blue-600 text-base p-1"
-          onClick={e => { e.stopPropagation(); setSortMenu(sortMenu === col ? null : col) }}
-          style={{lineHeight:0}}
-        >
-          ▼
-        </button>
-        {sortMenu === col && (
-          <div className="absolute right-0 mt-6 w-40 bg-white border border-gray-200 rounded shadow-lg z-20">
-            {options.map(opt => (
-              <button
-                key={opt.label}
-                className={`block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${sortType?.col === col && sortType?.dir === opt.dir ? 'text-blue-600 font-bold' : 'text-gray-700'}`}
-                onClick={e => { e.stopPropagation(); setSortType({col,dir:opt.dir}); setSortMenu(null) }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <div className="overflow-x-auto border border-gray-200 rounded-lg">
-      <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
-        <thead className="bg-white border-b-2 border-gray-300">
-          <tr>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{width: '5%'}}>STT</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{position:'relative', width: '22%'}}>
-              Tên vật tư
-              {setSortType && setSortMenu && (
-                <SortDropdown col="name" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{position:'relative', width: '18%'}}>
-              Danh mục
-              {setSortType && setSortMenu && (
-                <SortDropdown col="category" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '6%'}}>Đơn vị</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{position:'relative', width: '8%'}}>
-              Tồn kho
-              {setSortType && setSortMenu && (
-                <SortDropdown col="stock" options={[{label:'Sắp xếp tăng dần',dir:'asc'},{label:'Sắp xếp giảm dần',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Min / Max</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '11%'}}>Mã linh kiện</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{position:'relative', width: '10%'}}>
-              Đơn giá
-              {setSortType && setSortMenu && (
-                <SortDropdown col="unitCost" options={[{label:'Sắp xếp tăng dần',dir:'asc'},{label:'Sắp xếp giảm dần',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '11%'}}>Trạng thái</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '7%'}}>Thao tác</th>
-          </tr>
-        </thead>
-        <tbody className="bg-white">
-          {items.map((it, index) => {
-            const low = it.minStock != null && it.onHandQuantity < (it.minStock ?? 0);
-            const over = it.maxStock != null && it.onHandQuantity > (it.maxStock ?? 0);
-            const totalValue = it.unitCost ? (it.unitCost * it.onHandQuantity) : null;
-            const globalIndex = currentPage && itemsPerPage ? (currentPage - 1) * itemsPerPage + index + 1 : index + 1;
-            
-            return (
-              <tr 
-                key={it.id} 
-                className={`cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 ${highlightLow && low ? 'bg-red-50' : ''}`}
-                onClick={(e) => {
-                  // Don't trigger if clicking action buttons
-                  if ((e.target as HTMLElement).closest('button')) return;
-                  onEdit(it);
-                }}
-              >
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center border-r border-gray-200" style={{width: '5%'}}>{globalIndex}</td>
-                <td className="px-4 py-3 border-r border-gray-200 overflow-hidden" style={{width: '22%'}}>
-                  <div className="text-sm font-medium text-gray-900 truncate">{it.name}</div>
-                  {it.specification && (
-                    <div className="text-xs text-gray-500 mt-1 truncate">{it.specification}</div>
-                  )}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-200 overflow-hidden" style={{width: '18%'}}>
-                  <div className="flex justify-center">
-                    <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 truncate max-w-full inline-block">
-                      {getCategoryName(it.categoryId)}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-200 overflow-hidden" style={{width: '6%'}}>
-                  <span className="text-xs truncate">{it.unit}</span>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-200 overflow-hidden" style={{width: '8%'}}>
-                  <span className={`text-sm font-medium ${low ? 'text-red-600' : over ? 'text-orange-600' : 'text-gray-900'}`}>
-                    {it.onHandQuantity.toFixed(2)}
-                  </span>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-200 overflow-hidden" style={{width: '12%'}}>
-                  <span className="text-xs text-gray-600 truncate">
-                    {it.minStock != null ? it.minStock.toFixed(2) : '-'} / {it.maxStock != null ? it.maxStock.toFixed(2) : '-'}
-                  </span>
-                </td>
-                <td className="px-4 py-3 border-r border-gray-200 overflow-hidden" style={{width: '11%'}}>
-                  <div className="text-xs font-mono text-gray-700 truncate">{it.partNumber || '-'}</div>
-                  {it.barcode && <div className="text-xs text-gray-400 mt-0.5 truncate">🔖 {it.barcode}</div>}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-200 overflow-hidden" style={{width: '10%'}}>
-                  <div className="flex flex-col items-center">
-                    {it.unitCost ? (
-                      <>
-                        <span className="text-xs font-medium text-gray-900 truncate">{it.unitCost.toFixed(2)} {it.currency || 'USD'}</span>
-                        {totalValue && <span className="text-xs text-gray-500 truncate">= {totalValue.toFixed(2)}</span>}
-                      </>
-                    ) : (
-                      <span className="text-xs text-gray-400">-</span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-center border-r border-gray-200 overflow-hidden" style={{width: '11%'}}>
-                  <div className="flex flex-wrap gap-1 justify-center">
-                    {low && <span className="px-1 py-0.5 text-xs rounded-full bg-red-100 text-red-700 whitespace-nowrap">LOW</span>}
-                    {over && <span className="px-1 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700 whitespace-nowrap">OVER</span>}
-                    {it.serialTracked && <span className="px-1 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 whitespace-nowrap">SN</span>}
-                    {it.batchTracked && <span className="px-1 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700 whitespace-nowrap">BATCH</span>}
-                    {it.expiryRequired && <span className="px-1 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 whitespace-nowrap">EXP</span>}
-                    {!it.isActive && <span className="px-1 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">INACTIVE</span>}
-                  </div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center" style={{width: '8%'}}>
-                  <div className="flex items-center justify-center gap-1.5">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAdjustStock(it);
-                      }}
-                      className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
-                      title={t('materials.adjustStock')}
-                    >
-                      <TrendingUp className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(it);
-                      }}
-                      className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                      title={t('common.delete')}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-
-      {items.length === 0 && (
-        <div className="text-center py-12">
-          <Boxes className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">{t('materials.noItemsFound')}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ReceiptList({ receipts, currentPage, itemsPerPage, totalReceipts, setCurrentPage, onReceiptClick, sortType, setSortType, sortMenu, setSortMenu }: {
-  receipts: MaterialReceiptListDto[];
-  currentPage: number;
-  itemsPerPage: number;
-  totalReceipts: number;
-  setCurrentPage: (page: number) => void;
-  onReceiptClick: (receiptId: number) => void;
-  sortType?: { col: string; dir: 'asc'|'desc' } | null;
-  setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
-  sortMenu?: string | null;
-  setSortMenu?: (sortMenu: string | null) => void;
-}) {
-  // SortDropdown component
-  function SortDropdown({ col, options, sortType, setSortType, sortMenu, setSortMenu }: {
-    col: string;
-    options: Array<{ label: string; dir: 'asc'|'desc' }>;
-    sortType: any;
-    setSortType: any;
-    sortMenu: any;
-    setSortMenu: any;
-  }) {
-    return (
-      <div className="absolute top-1/2 right-2 -translate-y-1/2" style={{zIndex:10}}>
-        <button
-          className="text-gray-400 hover:text-blue-600 text-base p-1"
-          onClick={e => { e.stopPropagation(); setSortMenu(sortMenu === col ? null : col) }}
-          style={{lineHeight:0}}
-        >
-          ▼
-        </button>
-        {sortMenu === col && (
-          <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded shadow-lg" style={{zIndex:50}}>
-            {options.map(opt => (
-              <button
-                key={opt.label}
-                className={`block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${sortType?.col === col && sortType?.dir === opt.dir ? 'text-blue-600 font-bold' : 'text-gray-700'}`}
-                onClick={e => { e.stopPropagation(); setSortType({col,dir:opt.dir}); setSortMenu(null) }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <div>
-      {receipts.length > 0 ? (
-        <>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
-              <thead className="bg-white border-b-2 border-gray-300">
-                <tr>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>STT</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '18%'}}>Receipt Code</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{position:'relative', width: '18%'}}>
-                    Receipt Date
-                    {setSortType && setSortMenu && (
-                      <SortDropdown col="date" options={[{label:'Sớm nhất trước',dir:'asc'},{label:'Muộn nhất trước',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-                    )}
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{position:'relative', width: '20%'}}>
-                    Total Amount
-                    {setSortType && setSortMenu && (
-                      <SortDropdown col="amount" options={[{label:'Từ nhỏ đến lớn',dir:'asc'},{label:'Từ lớn đến nhỏ',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-                    )}
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative" style={{position:'relative', width: '18%'}}>
-                    Items
-                    {setSortType && setSortMenu && (
-                      <SortDropdown col="items" options={[{label:'Từ ít đến nhiều',dir:'asc'},{label:'Từ nhiều đến ít',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-                    )}
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '18%'}}>Status</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white">
-                {receipts.map((receipt: MaterialReceiptListDto, idx: number) => (
-                  <tr 
-                    key={receipt.receiptCode} 
-                    className="hover:bg-blue-50 cursor-pointer transition-colors border-b border-gray-100"
-                    onClick={() => onReceiptClick(receipt.id)}
-                  >
-                    <td className="px-4 py-3 text-sm text-center text-gray-900 border-r border-gray-200">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
-                    <td className="px-4 py-3 text-sm text-center border-r border-gray-200">
-                      <span className="font-medium text-blue-600">{receipt.receiptCode}</span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center text-gray-700 border-r border-gray-200">
-                      {new Date(receipt.receiptDate).toLocaleDateString('vi-VN')}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center border-r border-gray-200">
-                      <span className="font-semibold text-gray-900">
-                        {receipt.totalAmount ? receipt.totalAmount.toLocaleString('vi-VN') : '0'} {receipt.currency}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center border-r border-gray-200">
-                      <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">
-                        {receipt.itemCount} items
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        receipt.status === 'Completed' ? 'bg-green-100 text-green-700' : 
-                        receipt.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {receipt.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          
-          {/* Pagination */}
-          {Math.ceil(totalReceipts / itemsPerPage) > 1 && (
-            <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
-              <div className="text-sm text-gray-600">
-                Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalReceipts)} of {totalReceipts}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  ← Previous
-                </button>
-                <span className="text-sm text-gray-600">
-                  Page {currentPage} / {Math.ceil(totalReceipts / itemsPerPage)}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage * itemsPerPage >= totalReceipts}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next →
-                </button>
-              </div>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="text-center py-12">
-          <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">No receipts found</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CategoryList({ categories, onEdit, onDelete, sortType, setSortType, sortMenu, setSortMenu }: { 
-  categories: MaterialCategory[];
-  onEdit: (category: MaterialCategory) => void;
-  onDelete: (category: MaterialCategory) => void;
-  sortType?: { col: string; dir: 'asc'|'desc' } | null;
-  setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
-  sortMenu?: string | null;
-  setSortMenu?: (sortMenu: string | null) => void;
-}) {
-  // SortDropdown component for categories
-  function SortDropdown({ col, options, sortType, setSortType, sortMenu, setSortMenu }: {
-    col: string;
-    options: Array<{ label: string; dir: 'asc'|'desc' }>;
-    sortType: any;
-    setSortType: any;
-    sortMenu: any;
-    setSortMenu: any;
-  }) {
-    return (
-      <div className="absolute top-1/2 right-0 -translate-y-1/2" style={{zIndex:2}}>
-        <button
-          className="text-gray-400 hover:text-blue-600 text-base p-1"
-          onClick={e => { e.stopPropagation(); setSortMenu(sortMenu === col ? null : col) }}
-          style={{lineHeight:0}}
-        >
-          ▼
-        </button>
-        {sortMenu === col && (
-          <div className="absolute right-0 mt-6 w-40 bg-white border border-gray-200 rounded shadow-lg z-20">
-            {options.map(opt => (
-              <button
-                key={opt.label}
-                className={`block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${sortType?.col === col && sortType?.dir === opt.dir ? 'text-blue-600 font-bold' : 'text-gray-700'}`}
-                onClick={e => { e.stopPropagation(); setSortType({col,dir:opt.dir}); setSortMenu(null) }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <div className="overflow-x-auto border border-gray-200 rounded-lg">
-      <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{width: '8%'}}>STT</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '25%'}}>
-              Tên danh mục
-              {setSortType && setSortMenu && (
-                <SortDropdown col="name" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '15%'}}>
-              Mã danh mục
-              {setSortType && setSortMenu && (
-                <SortDropdown col="code" options={[{label:'Sắp xếp từ A-Z',dir:'asc'},{label:'Sắp xếp từ Z-A',dir:'desc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '25%'}}>Mô tả</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300" style={{width: '15%'}}>Danh mục cha</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-300 relative" style={{position:'relative', width: '12%'}}>
-              Trạng thái
-              {setSortType && setSortMenu && (
-                <SortDropdown col="status" options={[{label:'Hoạt động trước',dir:'desc'},{label:'Không hoạt động trước',dir:'asc'}]} sortType={sortType} setSortType={setSortType} sortMenu={sortMenu} setSortMenu={setSortMenu} />
-              )}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10%'}}>Thao tác</th>
-          </tr>
-        </thead>
-        <tbody className="bg-white">
-          {categories.map((cat, index) => {
-            const parentCat = cat.parentCategoryId ? categories.find(c => c.id === cat.parentCategoryId) : null;
-            return (
-              <tr 
-                key={cat.id} 
-                className="cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-200"
-                onClick={(e) => {
-                  // Don't trigger if clicking action buttons
-                  if ((e.target as HTMLElement).closest('button')) return;
-                  onEdit(cat);
-                }}
-              >
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center border-r border-gray-300" style={{width: '8%'}}>{index + 1}</td>
-                <td className="px-4 py-3 border-r border-gray-300" style={{width: '25%'}}>
-                  <div className="flex items-center gap-2">
-                    <Tag className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                    <div className="text-sm font-medium text-gray-900 truncate">{cat.name}</div>
-                  </div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '15%'}}>
-                  <span className="text-xs font-mono text-gray-700">{cat.categoryCode}</span>
-                </td>
-                <td className="px-4 py-3 border-r border-gray-300" style={{width: '25%'}}>
-                  <div className="text-xs text-gray-600 line-clamp-2">
-                    {cat.description || '-'}
-                  </div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '15%'}}>
-                  {parentCat ? (
-                    <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700 truncate">
-                      {parentCat.name}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-gray-400">Root</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center border-r border-gray-300" style={{width: '12%'}}>
-                  <span className={`text-xs px-2 py-1 rounded-full ${cat.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                    {cat.isActive ? 'Hoạt động' : 'Không hoạt động'}
-                  </span>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-center" style={{width: '10%'}}>
-                  <div className="flex items-center justify-center gap-1.5">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit(cat);
-                      }}
-                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                      title="Sửa"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(cat);
-                      }}
-                      className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                      title="Xóa"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-
-      {categories.length === 0 && (
-        <div className="text-center py-12">
-          <Layers className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">No categories found</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TabButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 px-6 py-3 border-b-2 font-medium text-sm transition-colors ${
-        active ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-      }`}
-    >
-      {icon}{label}
-    </button>
   );
 }

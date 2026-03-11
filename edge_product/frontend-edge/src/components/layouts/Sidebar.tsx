@@ -84,7 +84,9 @@ const getLogbooksMenu = (t: (key: string) => string) => [
 export function Sidebar() {
   const location = useLocation()
   const { t } = useTranslationSafe()
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem('sidebar-collapsed') === 'true'; } catch { return false; }
+  })
   const [logbooksOpen, setLogbooksOpen] = useState(location.pathname.startsWith('/logbooks'))
   const [expandedMenus, setExpandedMenus] = useState<string[]>([t('nav.pms')])
   const userRoleCode = useAuthStore(s => s.user?.roleCode?.toUpperCase())
@@ -110,9 +112,11 @@ export function Sidebar() {
   }
 
   const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed)
+    const next = !isCollapsed;
+    setIsCollapsed(next)
+    try { localStorage.setItem('sidebar-collapsed', String(next)); } catch {}
     // Close all submenus when collapsing
-    if (!isCollapsed) {
+    if (next) {
       setExpandedMenus([])
       setLogbooksOpen(false)
     }
@@ -137,11 +141,18 @@ export function Sidebar() {
             <div key={item.name}>
               <button
                 onClick={() => toggleMenu(item.name)}
-                className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-4 py-3 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}
-                title={isCollapsed ? item.name : ''}
+                className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                  isCollapsed && item.subItems?.some(s => location.pathname.startsWith(s.to.split('/').slice(0, 2).join('/')))
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+                title={item.name}
               >
                 <div className={`flex items-center ${isCollapsed ? 'justify-center' : ''}`}>
-                  <item.icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'} flex-shrink-0`} />
+                  <item.icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'} flex-shrink-0 ${
+                    isCollapsed && item.subItems?.some(s => location.pathname.startsWith(s.to.split('/').slice(0,2).join('/')))
+                      ? 'text-white' : ''
+                  }`} />
                   {!isCollapsed && <span>{item.name}</span>}
                 </div>
                 {!isCollapsed && (
@@ -188,7 +199,7 @@ export function Sidebar() {
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                 }`
               }
-              title={isCollapsed ? item.name : ''}
+              title={item.name}
             >
               {({ isActive }) => (
                 <>

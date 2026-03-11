@@ -797,6 +797,21 @@
       "adjusting": "Đang điều chỉnh...",
       "confirmAdjustment": "Xác nhận điều chỉnh",
       "adjustFailed": "Điều chỉnh tồn kho thất bại"
+    },
+    "page": {
+      "materialList": "Danh mục vật tư",
+      "addNew": "Thêm mới",
+      "manageCategories": "Quản lý danh mục",
+      "colCode": "Mã vật tư",
+      "colName": "Tên vật tư",
+      "colCategory": "Loại vật tư",
+      "colUnit": "Đơn vị tính",
+      "colDescription": "Mô tả",
+      "colUpdatedAt": "Ngày cập nhật",
+      "colCreatedBy": "Người tạo",
+      "edit": "Sửa",
+      "delete": "Xóa",
+      "confirmDelete": "Bạn có chắc muốn xóa \"{name}\"?"
     }
   },
   "errors": {
@@ -851,7 +866,24 @@
       "viewDetails": "Xem chi tiết",
       "page": "Trang {current} / {total}",
       "previous": "Trước",
-      "next": "Sau"
+      "next": "Sau",
+      "allEquipment": "Tất cả thiết bị",
+      "equipmentList": "Danh sách thiết bị",
+      "noEquipmentTree": "Chưa có thiết bị",
+      "deleteMany": "Xóa nhiều",
+      "copy": "Sao chép",
+      "addNew": "Thêm mới",
+      "downloadTemplate": "Tải mẫu",
+      "colTitle": "Tiêu đề",
+      "colCode": "Mã thiết bị",
+      "colManufacturer": "Hãng sản xuất",
+      "colSpecs": "Thông số kỹ thuật",
+      "childCount": "(SL:{count})",
+      "perPage": "{n} / trang",
+      "pageInfo": "Trang số {current} của {total} ({records} bản ghi)",
+      "goToPage": "Đi đến trang",
+      "view": "Xem",
+      "delete": "Xóa"
     },
     "groups": {
       "title": "Nhóm thiết bị",

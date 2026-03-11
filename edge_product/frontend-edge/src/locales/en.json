@@ -797,6 +797,21 @@
       "adjusting": "Adjusting...",
       "confirmAdjustment": "Confirm Adjustment",
       "adjustFailed": "Failed to adjust stock"
+    },
+    "page": {
+      "materialList": "Material List",
+      "addNew": "Add New",
+      "manageCategories": "Manage Categories",
+      "colCode": "Item Code",
+      "colName": "Name",
+      "colCategory": "Category",
+      "colUnit": "Unit",
+      "colDescription": "Description",
+      "colUpdatedAt": "Updated",
+      "colCreatedBy": "Created By",
+      "edit": "Edit",
+      "delete": "Delete",
+      "confirmDelete": "Are you sure you want to delete \"{name}\"?"
     }
   },
   "errors": {
@@ -851,7 +866,24 @@
       "viewDetails": "View Details",
       "page": "Page {current} of {total}",
       "previous": "Previous",
-      "next": "Next"
+      "next": "Next",
+      "allEquipment": "All Equipment",
+      "equipmentList": "Equipment List",
+      "noEquipmentTree": "No equipment yet",
+      "deleteMany": "Delete Multiple",
+      "copy": "Copy",
+      "addNew": "Add New",
+      "downloadTemplate": "Download Template",
+      "colTitle": "Title",
+      "colCode": "Equipment Code",
+      "colManufacturer": "Manufacturer",
+      "colSpecs": "Technical Specs",
+      "childCount": "(Qty:{count})",
+      "perPage": "{n} / page",
+      "pageInfo": "Page {current} of {total} ({records} records)",
+      "goToPage": "Go to page",
+      "view": "View",
+      "delete": "Delete"
     },
     "groups": {
       "title": "Equipment Groups",
