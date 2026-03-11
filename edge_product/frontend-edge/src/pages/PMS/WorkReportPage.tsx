@@ -244,8 +244,8 @@ export default function WorkReportPage() {
   const priorityLabel = PRIORITY_LABELS[task.priority] || 'Trung bình'
 
   // common input class
-  const inp = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
-  const inpRo = 'w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-sm'
+  const inp = 'w-full px-3 py-1.5 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
+  const inpRo = 'w-full px-3 py-1.5 border border-gray-300 bg-gray-50 text-gray-600 text-sm'
   const lbl = 'text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap'
 
   return (
@@ -280,318 +280,318 @@ export default function WorkReportPage() {
       </div>
 
       {/* ── Body ── */}
-      <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-        <div className="flex gap-6">
+      <div className="flex flex-1 overflow-hidden">
 
-          {/* ════════ LEFT: Thông tin công việc + Bottom Tabs ════════ */}
-          <div className="flex-1 min-w-0 space-y-4">
+        {/* ════════ LEFT: Thông tin công việc + Bottom Tabs (60%) ════════ */}
+        <div className="w-[60%] min-w-0 flex flex-col overflow-y-auto">
 
-            {/* Thông tin công việc */}
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50"><span className="text-sm font-semibold text-gray-700">Thông tin công việc</span></div>
-              <div className="p-6 space-y-4 text-sm">
-                {/* Row 1: Mã CV + Tên CV */}
-                <div className="flex gap-4">
-                  <div className="flex items-center flex-1">
-                    <label className={lbl} style={{ width: 110 }}>Mã công việc:</label>
-                    <input type="text" readOnly value={task.taskId} className={inpRo} />
-                  </div>
-                  <div className="flex items-center flex-1">
-                    <label className={lbl} style={{ width: 110 }}>Tên công việc:</label>
-                    <input type="text" readOnly value={task.taskDescription || ''} className={inpRo} />
-                  </div>
-                </div>
-                {/* Row 2: Ngày bắt đầu + Ngày kết thúc */}
-                <div className="flex gap-4">
-                  <div className="flex items-center flex-1">
-                    <label className={lbl} style={{ width: 110 }}>Ngày bắt đầu:</label>
-                    <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} className={inp} />
-                  </div>
-                  <div className="flex items-center flex-1">
-                    <label className={lbl} style={{ width: 110 }}>Ngày kết thúc:</label>
-                    <input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} className={inp} />
-                  </div>
-                </div>
-                {/* Row 3: Mô tả công việc */}
-                <div className="flex items-start">
-                  <label className={`${lbl} pt-1.5`} style={{ width: 110 }}>Mô tả công việc:</label>
-                  <textarea rows={4} value={description} onChange={e => setDescription(e.target.value)} className={`${inp} resize-y`} />
-                </div>
-                {/* Row 4: Mã thiết bị + Tên thiết bị */}
-                <div className="flex gap-4">
-                  <div className="flex items-center flex-1">
-                    <label className={lbl} style={{ width: 110 }}>Mã thiết bị:</label>
-                    <input type="text" readOnly value={task.equipmentId || task.equipmentGroupId || ''} className={inpRo} />
-                  </div>
-                  <div className="flex items-center flex-1">
-                    <label className={lbl} style={{ width: 110 }}>Tên thiết bị:</label>
-                    <input type="text" readOnly value={task.equipmentName || task.equipmentGroupName || ''} className={inpRo} />
-                  </div>
-                </div>
-                {/* Row 5: Mô tả thiết bị */}
-                <div className="flex items-start">
-                  <label className={`${lbl} pt-1.5`} style={{ width: 110 }}>Mô tả thiết bị:</label>
-                  <textarea rows={2} readOnly value="" className={`${inpRo} resize-none`} />
-                </div>
-                {/* Row 6: Đánh giá rủi ro + Biên bản kiểm tra */}
-                <div className="flex gap-4">
-                  <div className="flex items-center flex-1">
-                    <label className={lbl} style={{ width: 110 }}>Đánh giá rủi ro:</label>
-                    <div className="flex items-center gap-1 flex-1">
-                      <input type="text" readOnly value="" placeholder="" className={inpRo} />
-                      <button className="p-1.5 text-gray-400 hover:text-blue-600 shrink-0"><FileText size={14} /></button>
-                    </div>
-                  </div>
-                  <div className="flex items-center flex-1">
-                    <label className={lbl} style={{ width: 110 }}>Biên bản kiểm tra:</label>
-                    <div className="flex items-center gap-1 flex-1">
-                      <input type="text" readOnly value="" placeholder="" className={inpRo} />
-                      <button className="p-1.5 text-gray-400 hover:text-blue-600 shrink-0"><FileText size={14} /></button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          {/* Thông tin công việc */}
+          <div className="flex-shrink-0">
+            <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50">
+              <span className="text-sm font-semibold text-gray-700">Thông tin công việc</span>
             </div>
-
-            {/* ── Bottom tabs: Báo cáo / Vật tư / ĐGRR / BBKT ── */}
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="flex border-b border-gray-200 text-sm">
-                {([
-                  { key: 'report' as BottomTab, label: 'Báo cáo' },
-                  { key: 'materials' as BottomTab, label: 'Vật tư' },
-                  { key: 'risk' as BottomTab, label: 'Biểu mẫu ĐGRR' },
-                  { key: 'inspection' as BottomTab, label: 'Biểu mẫu BBKT' },
-                ]).map(tab => (
-                  <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key)}
-                    className={`px-4 py-2.5 font-medium border-b-2 transition-colors ${
-                      activeTab === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+            <div className="px-4 py-4 space-y-3 text-sm border-b border-gray-200">
+              {/* Row 1: Mã CV + Tên CV */}
+              <div className="flex gap-4">
+                <div className="flex items-center flex-1">
+                  <label className={lbl} style={{ width: 110 }}>Mã công việc:</label>
+                  <input type="text" readOnly value={task.taskId} className={inpRo} />
+                </div>
+                <div className="flex items-center flex-1">
+                  <label className={lbl} style={{ width: 110 }}>Tên công việc:</label>
+                  <input type="text" readOnly value={task.taskDescription || ''} className={inpRo} />
+                </div>
               </div>
-
-              <div className="p-6 text-sm">
-                {/* Báo cáo tab */}
-                {activeTab === 'report' && (
-                  <div className="space-y-2.5">
-                    <div className="flex gap-4">
-                      <div className="flex items-center flex-1">
-                        <label className={lbl} style={{ width: 160 }}>Thời gian chạy của thiết bị:</label>
-                        <input type="number" value={equipmentRunningHours} onChange={e => setEquipmentRunningHours(Number(e.target.value))} className={inp} />
-                        <span className="text-gray-500 text-sm ml-2 shrink-0">Giờ</span>
-                      </div>
-                      <div className="flex items-center flex-1">
-                        <label className={lbl} style={{ width: 190 }}>Thời gian hiện tại của thiết bị:</label>
-                        <input type="number" value={currentEquipmentHours} onChange={e => setCurrentEquipmentHours(Number(e.target.value))} className={inp} />
-                        <span className="text-gray-500 text-sm ml-2 shrink-0">Giờ</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-4">
-                      <div className="flex items-center flex-1">
-                        <label className={lbl} style={{ width: 160 }}>Ngày hoàn thành: <span className="text-red-500">*</span></label>
-                        <input type="date" value={completionDate} onChange={e => setCompletionDate(e.target.value)} className={inp} />
-                      </div>
-                      <div className="flex items-center flex-1">
-                        <label className={lbl} style={{ width: 190 }}>Thời gian thực hiện:</label>
-                        <input type="number" value={actualDuration} onChange={e => setActualDuration(Number(e.target.value))} className={inp} />
-                        <span className="text-gray-500 text-sm ml-2 shrink-0">Giờ</span>
-                      </div>
-                    </div>
-                    <div className="flex items-start">
-                      <label className={`${lbl} pt-1.5`} style={{ width: 160 }}>Báo cáo công việc:</label>
-                      <textarea rows={3} value={reportText} onChange={e => setReportText(e.target.value)} placeholder="Nhập thông tin" className={`${inp} resize-y`} />
-                    </div>
-                    <div className="flex items-center gap-2 pl-[160px]">
-                      <Paperclip size={14} className="text-gray-400" />
-                      <button className="text-sm text-blue-600 hover:underline">Đính kèm tệp tin</button>
-                    </div>
+              {/* Row 2: Ngày bắt đầu + Ngày kết thúc */}
+              <div className="flex gap-4">
+                <div className="flex items-center flex-1">
+                  <label className={lbl} style={{ width: 110 }}>Ngày bắt đầu:</label>
+                  <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} className={inp} />
+                </div>
+                <div className="flex items-center flex-1">
+                  <label className={lbl} style={{ width: 110 }}>Ngày kết thúc:</label>
+                  <input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} className={inp} />
+                </div>
+              </div>
+              {/* Row 3: Mô tả công việc */}
+              <div className="flex items-start">
+                <label className={`${lbl} pt-1.5`} style={{ width: 110 }}>Mô tả công việc:</label>
+                <textarea rows={4} value={description} onChange={e => setDescription(e.target.value)} className={`${inp} resize-y`} />
+              </div>
+              {/* Row 4: Mã thiết bị + Tên thiết bị */}
+              <div className="flex gap-4">
+                <div className="flex items-center flex-1">
+                  <label className={lbl} style={{ width: 110 }}>Mã thiết bị:</label>
+                  <input type="text" readOnly value={task.equipmentId || task.equipmentGroupId || ''} className={inpRo} />
+                </div>
+                <div className="flex items-center flex-1">
+                  <label className={lbl} style={{ width: 110 }}>Tên thiết bị:</label>
+                  <input type="text" readOnly value={task.equipmentName || task.equipmentGroupName || ''} className={inpRo} />
+                </div>
+              </div>
+              {/* Row 5: Mô tả thiết bị */}
+              <div className="flex items-start">
+                <label className={`${lbl} pt-1.5`} style={{ width: 110 }}>Mô tả thiết bị:</label>
+                <textarea rows={2} readOnly value="" className={`${inpRo} resize-none`} />
+              </div>
+              {/* Row 6: Đánh giá rủi ro + Biên bản kiểm tra */}
+              <div className="flex gap-4">
+                <div className="flex items-center flex-1">
+                  <label className={lbl} style={{ width: 110 }}>Đánh giá rủi ro:</label>
+                  <div className="flex items-center gap-1 flex-1">
+                    <input type="text" readOnly value="" placeholder="" className={inpRo} />
+                    <button className="p-1.5 text-gray-400 hover:text-blue-600 shrink-0"><FileText size={14} /></button>
                   </div>
-                )}
-
-                {/* Vật tư tab */}
-                {activeTab === 'materials' && (
-                  <div className="space-y-3">
-                    {task.requiredSpareParts && (
-                      <div>
-                        <p className="text-xs font-semibold text-gray-500 mb-1">Vật tư yêu cầu (từ lịch bảo trì)</p>
-                        <div className="bg-blue-50 rounded p-2 text-sm text-gray-700">
-                          {typeof task.requiredSpareParts === 'string'
-                            ? task.requiredSpareParts
-                            : task.requiredSpareParts.map(sp => `${sp.materialName || sp.materialCode || 'Item'} x${sp.quantityRequired}`).join(', ')
-                          }
-                        </div>
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 mb-1">Vật tư đã sử dụng</p>
-                      <textarea rows={4} value={sparePartsUsed} onChange={e => setSparePartsUsed(e.target.value)} placeholder="Nhập danh sách vật tư..." className={`${inp} resize-y`} />
-                    </div>
+                </div>
+                <div className="flex items-center flex-1">
+                  <label className={lbl} style={{ width: 110 }}>Biên bản kiểm tra:</label>
+                  <div className="flex items-center gap-1 flex-1">
+                    <input type="text" readOnly value="" placeholder="" className={inpRo} />
+                    <button className="p-1.5 text-gray-400 hover:text-blue-600 shrink-0"><FileText size={14} /></button>
                   </div>
-                )}
-
-                {/* Biểu mẫu ĐGRR tab */}
-                {activeTab === 'risk' && (
-                  <div className="space-y-2.5">
-                    <div className="flex items-center">
-                      <label className={lbl} style={{ width: 120 }}>Mức độ rủi ro:</label>
-                      <select value={riskLevel} onChange={e => setRiskLevel(e.target.value)} className={inp}>
-                        <option value="LOW">Thấp</option>
-                        <option value="MEDIUM">Trung bình</option>
-                        <option value="HIGH">Cao</option>
-                        <option value="CRITICAL">Nghiêm trọng</option>
-                      </select>
-                    </div>
-                    <div className="flex items-start">
-                      <label className={`${lbl} pt-1.5`} style={{ width: 120 }}>Mô tả rủi ro:</label>
-                      <textarea rows={3} value={riskDescription} onChange={e => setRiskDescription(e.target.value)} placeholder="Mô tả các rủi ro tiềm ẩn..." className={`${inp} resize-y`} />
-                    </div>
-                    <div className="flex items-start">
-                      <label className={`${lbl} pt-1.5`} style={{ width: 120 }}>Biện pháp giảm thiểu:</label>
-                      <textarea rows={3} value={mitigationMeasures} onChange={e => setMitigationMeasures(e.target.value)} placeholder="Các biện pháp..." className={`${inp} resize-y`} />
-                    </div>
-                  </div>
-                )}
-
-                {/* Biểu mẫu BBKT tab */}
-                {activeTab === 'inspection' && (
-                  <div className="space-y-2.5">
-                    <div className="flex items-center">
-                      <label className={lbl} style={{ width: 120 }}>Kết quả kiểm tra:</label>
-                      <select value={inspectionResult} onChange={e => setInspectionResult(e.target.value as 'PASS' | 'FAIL' | '')} className={inp}>
-                        <option value="">-- Chọn kết quả --</option>
-                        <option value="PASS">Đạt</option>
-                        <option value="FAIL">Không đạt</option>
-                      </select>
-                    </div>
-                    <div className="flex items-start">
-                      <label className={`${lbl} pt-1.5`} style={{ width: 120 }}>Ghi chú:</label>
-                      <textarea rows={4} value={inspectionNotes} onChange={e => setInspectionNotes(e.target.value)} placeholder="Nhập ghi chú kiểm tra..." className={`${inp} resize-y`} />
-                    </div>
-                    <div className="flex items-center gap-2 pl-[120px]">
-                      <Paperclip size={14} className="text-gray-400" />
-                      <button className="text-sm text-blue-600 hover:underline">Đính kèm biên bản</button>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* ════════ RIGHT: Thông tin chung + Bình luận + Lịch sử ════════ */}
-          <div className="w-80 shrink-0 space-y-4">
-
-            {/* Thông tin chung */}
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50"><span className="text-sm font-semibold text-gray-700">Thông tin chung</span></div>
-              <div className="px-4 py-3 space-y-3 text-sm">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={reportCompleted} onChange={e => setReportCompleted(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
-                  <span className="text-gray-700">Xác nhận hoàn thành báo cáo</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={isCbm} onChange={e => setIsCbm(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
-                  <span className="text-gray-700">CBM</span>
-                </label>
-                <div className="flex items-center">
-                  <label className="text-gray-500 w-28 text-right pr-3 shrink-0">Ngày báo cáo:</label>
-                  <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className={inp} />
-                </div>
-                <div className="flex items-center">
-                  <label className="text-gray-500 w-28 text-right pr-3 shrink-0">Trạng thái:</label>
-                  <input type="text" readOnly value={statusLabel} className={inpRo} />
-                </div>
-                <div className="flex items-center">
-                  <label className="text-gray-500 w-28 text-right pr-3 shrink-0">Ngày đến hạn:</label>
-                  <input type="date" readOnly value={task.nextDueAt ? task.nextDueAt.substring(0, 10) : ''} className={inpRo} />
-                </div>
-                <div className="flex items-center">
-                  <label className="text-gray-500 w-28 text-right pr-3 shrink-0">Độ ưu tiên:</label>
-                  <input type="text" readOnly value={priorityLabel} className={inpRo} />
-                </div>
-                <div className="flex items-center">
-                  <label className="text-gray-500 w-28 text-right pr-3 shrink-0">Người thực hiện:</label>
-                  <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} className={inp}>
-                    <option value="">-- Chọn --</option>
-                    {crewMembers.map(c => <option key={c.id} value={c.fullName}>{c.fullName} - {c.rank?.rankName || ''}</option>)}
-                  </select>
-                </div>
-                <div className="flex items-center">
-                  <label className="text-gray-500 w-28 text-right pr-3 shrink-0">Người nhận BC:</label>
-                  <select value={reportReceiver} onChange={e => setReportReceiver(e.target.value)} className={inp}>
-                    <option value="">-- Chọn --</option>
-                    {crewMembers.map(c => <option key={c.id} value={c.fullName}>{c.fullName} - {c.rank?.rankName || ''}</option>)}
-                  </select>
-                </div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={hasRiskAssessment} onChange={e => setHasRiskAssessment(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
-                  <span className="text-gray-700">Đánh giá rủi ro công việc</span>
-                </label>
-              </div>
+          {/* ── Bottom tabs: Báo cáo / Vật tư / ĐGRR / BBKT ── */}
+          <div className="flex-shrink-0">
+            <div className="flex border-b border-gray-200 text-sm">
+              {([
+                { key: 'report' as BottomTab, label: 'Báo cáo' },
+                { key: 'materials' as BottomTab, label: 'Vật tư' },
+                { key: 'risk' as BottomTab, label: 'Biểu mẫu ĐGRR' },
+                { key: 'inspection' as BottomTab, label: 'Biểu mẫu BBKT' },
+              ]).map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`px-4 py-2.5 font-medium border-b-2 transition-colors ${
+                    activeTab === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
-            {/* Bình luận */}
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50"><span className="text-sm font-semibold text-gray-700">Bình luận</span></div>
-              <div className="px-4 py-3">
-                {comments.length > 0 && (
-                  <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
-                    {comments.map((c, i) => (
-                      <div key={i} className="bg-gray-50 rounded p-2">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <User size={12} className="text-gray-400" />
-                          <span className="text-xs font-medium text-gray-700">{c.author}</span>
-                          <span className="text-xs text-gray-400">{format(parseISO(c.date), 'dd/MM/yyyy HH:mm', { locale: vi })}</span>
-                        </div>
-                        <p className="text-sm text-gray-600">{c.text}</p>
-                      </div>
-                    ))}
+            <div className="px-4 py-4 text-sm">
+              {/* Báo cáo tab */}
+              {activeTab === 'report' && (
+                <div className="space-y-2.5">
+                  <div className="flex gap-4">
+                    <div className="flex items-center flex-1">
+                      <label className={lbl} style={{ width: 160 }}>Thời gian chạy của thiết bị:</label>
+                      <input type="number" value={equipmentRunningHours} onChange={e => setEquipmentRunningHours(Number(e.target.value))} className={inp} />
+                      <span className="text-gray-500 text-sm ml-2 shrink-0">Giờ</span>
+                    </div>
+                    <div className="flex items-center flex-1">
+                      <label className={lbl} style={{ width: 190 }}>Thời gian hiện tại của thiết bị:</label>
+                      <input type="number" value={currentEquipmentHours} onChange={e => setCurrentEquipmentHours(Number(e.target.value))} className={inp} />
+                      <span className="text-gray-500 text-sm ml-2 shrink-0">Giờ</span>
+                    </div>
                   </div>
-                )}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={commentText}
-                    onChange={e => setCommentText(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleAddComment()}
-                    placeholder="Nhập bình luận tại đây (Shift + enter: Xuống dòng)"
-                    className="flex-1 border rounded px-2 py-1.5 text-sm"
-                  />
-                  <button onClick={handleAddComment} className="border rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-1">
-                    <Send size={12} /> Bình luận
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Lịch sử công việc */}
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50"><span className="text-sm font-semibold text-gray-700">Lịch sử công việc</span></div>
-              <div className="px-4 py-3">
-                {statusHistory.length === 0 ? (
-                  <p className="text-sm text-gray-400 italic">Chưa có lịch sử</p>
-                ) : (
-                  <div className="space-y-2.5 relative pl-4">
-                    <div className="absolute left-[5px] top-1 bottom-1 w-px bg-gray-200" />
-                    {statusHistory.map((entry, i) => (
-                      <div key={i} className="relative flex items-start gap-2.5">
-                        <div className="w-2.5 h-2.5 rounded-full bg-gray-400 border-2 border-white z-10 shrink-0 mt-1" />
-                        <div className="text-sm">
-                          <span className="text-gray-700">{entry.changedByName || entry.changedBy}</span>
-                          <span className="text-gray-400 ml-1.5">
-                            {format(parseISO(entry.changedAt), 'dd/MM/yyyy HH:mm:ss', { locale: vi })}
-                          </span>
-                          {entry.notes && <p className="text-xs text-gray-400 mt-0.5">{entry.notes}</p>}
-                        </div>
-                      </div>
-                    ))}
+                  <div className="flex gap-4">
+                    <div className="flex items-center flex-1">
+                      <label className={lbl} style={{ width: 160 }}>Ngày hoàn thành: <span className="text-red-500">*</span></label>
+                      <input type="date" value={completionDate} onChange={e => setCompletionDate(e.target.value)} className={inp} />
+                    </div>
+                    <div className="flex items-center flex-1">
+                      <label className={lbl} style={{ width: 190 }}>Thời gian thực hiện:</label>
+                      <input type="number" value={actualDuration} onChange={e => setActualDuration(Number(e.target.value))} className={inp} />
+                      <span className="text-gray-500 text-sm ml-2 shrink-0">Giờ</span>
+                    </div>
                   </div>
-                )}
-              </div>
+                  <div className="flex items-start">
+                    <label className={`${lbl} pt-1.5`} style={{ width: 160 }}>Báo cáo công việc:</label>
+                    <textarea rows={3} value={reportText} onChange={e => setReportText(e.target.value)} placeholder="Nhập thông tin" className={`${inp} resize-y`} />
+                  </div>
+                  <div className="flex items-center gap-2 pl-[160px]">
+                    <Paperclip size={14} className="text-gray-400" />
+                    <button className="text-sm text-blue-600 hover:underline">Đính kèm tệp tin</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Vật tư tab */}
+              {activeTab === 'materials' && (
+                <div className="space-y-3">
+                  {task.requiredSpareParts && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 mb-1">Vật tư yêu cầu (từ lịch bảo trì)</p>
+                      <div className="bg-blue-50 rounded p-2 text-sm text-gray-700">
+                        {typeof task.requiredSpareParts === 'string'
+                          ? task.requiredSpareParts
+                          : task.requiredSpareParts.map(sp => `${sp.materialName || sp.materialCode || 'Item'} x${sp.quantityRequired}`).join(', ')
+                        }
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 mb-1">Vật tư đã sử dụng</p>
+                    <textarea rows={4} value={sparePartsUsed} onChange={e => setSparePartsUsed(e.target.value)} placeholder="Nhập danh sách vật tư..." className={`${inp} resize-y`} />
+                  </div>
+                </div>
+              )}
+
+              {/* Biểu mẫu ĐGRR tab */}
+              {activeTab === 'risk' && (
+                <div className="space-y-2.5">
+                  <div className="flex items-center">
+                    <label className={lbl} style={{ width: 120 }}>Mức độ rủi ro:</label>
+                    <select value={riskLevel} onChange={e => setRiskLevel(e.target.value)} className={inp}>
+                      <option value="LOW">Thấp</option>
+                      <option value="MEDIUM">Trung bình</option>
+                      <option value="HIGH">Cao</option>
+                      <option value="CRITICAL">Nghiêm trọng</option>
+                    </select>
+                  </div>
+                  <div className="flex items-start">
+                    <label className={`${lbl} pt-1.5`} style={{ width: 120 }}>Mô tả rủi ro:</label>
+                    <textarea rows={3} value={riskDescription} onChange={e => setRiskDescription(e.target.value)} placeholder="Mô tả các rủi ro tiềm ẩn..." className={`${inp} resize-y`} />
+                  </div>
+                  <div className="flex items-start">
+                    <label className={`${lbl} pt-1.5`} style={{ width: 120 }}>Biện pháp giảm thiểu:</label>
+                    <textarea rows={3} value={mitigationMeasures} onChange={e => setMitigationMeasures(e.target.value)} placeholder="Các biện pháp..." className={`${inp} resize-y`} />
+                  </div>
+                </div>
+              )}
+
+              {/* Biểu mẫu BBKT tab */}
+              {activeTab === 'inspection' && (
+                <div className="space-y-2.5">
+                  <div className="flex items-center">
+                    <label className={lbl} style={{ width: 120 }}>Kết quả kiểm tra:</label>
+                    <select value={inspectionResult} onChange={e => setInspectionResult(e.target.value as 'PASS' | 'FAIL' | '')} className={inp}>
+                      <option value="">-- Chọn kết quả --</option>
+                      <option value="PASS">Đạt</option>
+                      <option value="FAIL">Không đạt</option>
+                    </select>
+                  </div>
+                  <div className="flex items-start">
+                    <label className={`${lbl} pt-1.5`} style={{ width: 120 }}>Ghi chú:</label>
+                    <textarea rows={4} value={inspectionNotes} onChange={e => setInspectionNotes(e.target.value)} placeholder="Nhập ghi chú kiểm tra..." className={`${inp} resize-y`} />
+                  </div>
+                  <div className="flex items-center gap-2 pl-[120px]">
+                    <Paperclip size={14} className="text-gray-400" />
+                    <button className="text-sm text-blue-600 hover:underline">Đính kèm biên bản</button>
+                  </div>
+                </div>
+              )}
             </div>
+          </div>
+        </div>
+
+        {/* ════════ RIGHT: Thông tin chung + Bình luận + Lịch sử (40%) ════════ */}
+        <div className="w-[40%] shrink-0 border-l border-gray-200 overflow-y-auto">
+
+          {/* Thông tin chung */}
+          <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50">
+            <span className="text-sm font-semibold text-gray-700">Thông tin chung</span>
+          </div>
+          <div className="px-4 py-3 space-y-3 text-sm border-b border-gray-200">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={reportCompleted} onChange={e => setReportCompleted(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
+              <span className="text-gray-700">Xác nhận hoàn thành báo cáo</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={isCbm} onChange={e => setIsCbm(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
+              <span className="text-gray-700">CBM</span>
+            </label>
+            <div className="flex items-center">
+              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">Ngày báo cáo:</label>
+              <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className={inp} />
+            </div>
+            <div className="flex items-center">
+              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">Trạng thái:</label>
+              <input type="text" readOnly value={statusLabel} className={inpRo} />
+            </div>
+            <div className="flex items-center">
+              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">Ngày đến hạn:</label>
+              <input type="date" readOnly value={task.nextDueAt ? task.nextDueAt.substring(0, 10) : ''} className={inpRo} />
+            </div>
+            <div className="flex items-center">
+              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">Độ ưu tiên:</label>
+              <input type="text" readOnly value={priorityLabel} className={inpRo} />
+            </div>
+            <div className="flex items-center">
+              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">Người thực hiện:</label>
+              <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} className={inp}>
+                <option value="">-- Chọn --</option>
+                {crewMembers.map(c => <option key={c.id} value={c.fullName}>{c.fullName} - {c.rank?.rankName || ''}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center">
+              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">Người nhận BC:</label>
+              <select value={reportReceiver} onChange={e => setReportReceiver(e.target.value)} className={inp}>
+                <option value="">-- Chọn --</option>
+                {crewMembers.map(c => <option key={c.id} value={c.fullName}>{c.fullName} - {c.rank?.rankName || ''}</option>)}
+              </select>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={hasRiskAssessment} onChange={e => setHasRiskAssessment(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
+              <span className="text-gray-700">Đánh giá rủi ro công việc</span>
+            </label>
+          </div>
+
+          {/* Bình luận */}
+          <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50">
+            <span className="text-sm font-semibold text-gray-700">Bình luận</span>
+          </div>
+          <div className="px-4 py-3 border-b border-gray-200">
+            {comments.length > 0 && (
+              <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
+                {comments.map((c, i) => (
+                  <div key={i} className="border-b border-gray-100 pb-2">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <User size={12} className="text-gray-400" />
+                      <span className="text-xs font-medium text-gray-700">{c.author}</span>
+                      <span className="text-xs text-gray-400">{format(parseISO(c.date), 'dd/MM/yyyy HH:mm', { locale: vi })}</span>
+                    </div>
+                    <p className="text-sm text-gray-600">{c.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={commentText}
+                onChange={e => setCommentText(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddComment()}
+                placeholder="Nhập bình luận tại đây (Shift + enter: Xuống dòng)"
+                    className="flex-1 px-2 py-1.5 text-sm border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button onClick={handleAddComment} className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
+                <Send size={12} /> Bình luận
+              </button>
+            </div>
+          </div>
+
+          {/* Lịch sử công việc */}
+          <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50">
+            <span className="text-sm font-semibold text-gray-700">Lịch sử công việc</span>
+          </div>
+          <div className="px-4 py-3">
+            {statusHistory.length === 0 ? (
+              <p className="text-sm text-gray-400 italic">Chưa có lịch sử</p>
+            ) : (
+              <div className="space-y-2.5 relative pl-4">
+                <div className="absolute left-[5px] top-1 bottom-1 w-px bg-gray-200" />
+                {statusHistory.map((entry, i) => (
+                  <div key={i} className="relative flex items-start gap-2.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-gray-400 border-2 border-white z-10 shrink-0 mt-1" />
+                    <div className="text-sm">
+                      <span className="text-gray-700">{entry.changedByName || entry.changedBy}</span>
+                      <span className="text-gray-400 ml-1.5">
+                        {format(parseISO(entry.changedAt), 'dd/MM/yyyy HH:mm:ss', { locale: vi })}
+                      </span>
+                      {entry.notes && <p className="text-xs text-gray-400 mt-0.5">{entry.notes}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
