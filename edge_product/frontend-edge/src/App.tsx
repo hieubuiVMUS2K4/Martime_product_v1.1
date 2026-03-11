@@ -26,7 +26,6 @@ import { FuelAnalyticsPage } from './pages/FuelAnalytics'
 
 // PMS Pages
 import AssetsPage from './pages/PMS/AssetsPage'
-import ScheduleConfigPage from './pages/PMS/ScheduleConfigPage'
 import MasterSchedulePage from './pages/PMS/MasterSchedulePage'
 import UnassignedTasksPage from './pages/PMS/UnassignedTasksPage'
 import ApprovalDashboardPage from './pages/PMS/ApprovalDashboardPage'
@@ -129,7 +128,7 @@ function App() {
         <Route path="pms/logistics/material-requests" element={<MaterialRequestPage />} />
         <Route path="pms/logistics/stock-receipts" element={<StockReceiptPage />} />
         <Route path="pms/logistics/inventory" element={<InventoryPage />} />
-        <Route path="pms/schedules" element={<ScheduleConfigPage />} />
+        {/* Schedule Config is now integrated into Work Planning page as "Cấu hình" tab */}
         <Route path="pms/master-schedule" element={<MasterSchedulePage />} />
         <Route path="pms/unassigned-tasks" element={<UnassignedTasksPage />} />
         <Route path="pms/approval-dashboard" element={<ApprovalDashboardPage />} />

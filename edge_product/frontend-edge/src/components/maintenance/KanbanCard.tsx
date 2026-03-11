@@ -214,7 +214,7 @@ export const KanbanCard = memo(function KanbanCard({
           <button
             onClick={(e) => {
               e.stopPropagation()
-              navigate('/pms/schedules')
+              navigate('/pms/work-planning')
             }}
             className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-[10px] font-medium hover:bg-purple-100 transition-colors max-w-full"
             title={scheduleInfo.scheduleCode}

@@ -1,6 +1,6 @@
 /**
  * Danh sách công việc (Work Planning) - Avison-style
- * Gộp 4 view: Bảng | Lịch | Gantt Chart | Kanban
+ * Gộp 6 view: Bảng | Lịch | Gantt Chart | Kanban | Counter | Cấu hình
  * Panel trái: Equipment Tree + Filters (Ngày, Người thực hiện, Loại CV, Trạng thái)
  */
 
@@ -10,7 +10,7 @@ import {
   Table2, Calendar, BarChart3, LayoutGrid,
   Search, ChevronRight, ChevronDown, ChevronLeft,
   Eye, Pencil, Trash2,
-  RefreshCw, Download, Clock,
+  RefreshCw, Download, Clock, Settings, Gauge, Plus, Wrench, Edit2, Save, ExternalLink,
   CheckCircle, ChevronsUpDown, FolderOpen
 } from 'lucide-react';
 import { parseISO, format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, addDays, getDay } from 'date-fns';
@@ -20,13 +20,15 @@ import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
 import { KanbanBoard } from '@/components/maintenance/KanbanBoard';
 import { AddScheduleModal } from '@/components/pms/AddScheduleModal';
+import { EditScheduleModal } from '@/components/pms/EditScheduleModal';
+import { ViewScheduleModal } from '@/components/pms/ViewScheduleModal';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import type { MaintenanceTask, CrewMember } from '@/types/maritime.types';
-import type { EquipmentAsset } from '@/types/pms.types';
+import type { EquipmentAsset, MaintenanceSchedule } from '@/types/pms.types';
 
-type ViewTab = 'table' | 'calendar' | 'gantt' | 'kanban';
+type ViewTab = 'table' | 'calendar' | 'gantt' | 'kanban' | 'counter' | 'config';
 
 // === Equipment Tree Helpers ===
 function buildTree(items: EquipmentAsset[]): EquipmentAsset[] {
@@ -158,6 +160,30 @@ export default function WorkPlanningPage() {
   // === Modals ===
   const [isAddScheduleModalOpen, setIsAddScheduleModalOpen] = useState(false);
 
+  // === Schedule Config state ===
+  const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedSchedule, setSelectedSchedule] = useState<MaintenanceSchedule | null>(null);
+  const [scheduleSearch, setScheduleSearch] = useState('');
+  const [schedulePriorityFilter, setSchedulePriorityFilter] = useState('');
+  const [scheduleIntervalFilter, setScheduleIntervalFilter] = useState('');
+  const [schedulePage, setSchedulePage] = useState(1);
+  const schedulePageSize = 10;
+  const [scheduleFilterCode, setScheduleFilterCode] = useState('');
+  const [scheduleFilterName, setScheduleFilterName] = useState('');
+  const [scheduleSortField, setScheduleSortField] = useState<string>('');
+  const [scheduleSortDir, setScheduleSortDir] = useState<'asc' | 'desc'>('asc');
+
+  // === Counter state ===
+  const [counterEditing, setCounterEditing] = useState<Record<string, number>>({});
+  const [counterSaving, setCounterSaving] = useState<Set<string>>(new Set());
+  const [counterFilterCode, setCounterFilterCode] = useState('');
+  const [counterFilterName, setCounterFilterName] = useState('');
+  const [counterSortField, setCounterSortField] = useState<string>('');
+  const [counterSortDir, setCounterSortDir] = useState<'asc' | 'desc'>('asc');
+
   // === Build equipment tree ===
   const tree = useMemo(() => buildTree(assets), [assets]);
 
@@ -218,12 +244,171 @@ export default function WorkPlanningPage() {
     }
   }, []);
 
+  // Load schedule config data
+  const loadSchedules = useCallback(async () => {
+    try {
+      setScheduleLoading(true);
+      const data = await maintenanceScheduleService.getAll();
+      setSchedules(data);
+    } catch (error) {
+      console.error('Error loading schedules:', error);
+      toast.error('Không thể tải cấu hình lịch');
+    } finally {
+      setScheduleLoading(false);
+    }
+  }, []);
+
+  // Schedule config filtered/paginated
+  const filteredSchedules = useMemo(() => {
+    let result = schedules.filter(schedule => {
+      const matchesSearch =
+        schedule.scheduleCode.toLowerCase().includes(scheduleSearch.toLowerCase()) ||
+        schedule.scheduleName.toLowerCase().includes(scheduleSearch.toLowerCase());
+      const matchesPriority = !schedulePriorityFilter || schedule.priority === schedulePriorityFilter;
+      const matchesInterval = !scheduleIntervalFilter || schedule.intervalType === scheduleIntervalFilter;
+      const matchesCode = !scheduleFilterCode || schedule.scheduleCode.toLowerCase().includes(scheduleFilterCode.toLowerCase());
+      const matchesName = !scheduleFilterName || schedule.scheduleName.toLowerCase().includes(scheduleFilterName.toLowerCase());
+      return matchesSearch && matchesPriority && matchesInterval && matchesCode && matchesName;
+    });
+    if (scheduleSortField) {
+      result = [...result].sort((a, b) => {
+        let va: any, vb: any;
+        switch (scheduleSortField) {
+          case 'scheduleCode': va = a.scheduleCode; vb = b.scheduleCode; break;
+          case 'scheduleName': va = a.scheduleName; vb = b.scheduleName; break;
+          case 'target': va = a.equipmentAssetId ? a.assetName : a.groupName; vb = b.equipmentAssetId ? b.assetName : b.groupName; break;
+          case 'intervalType': va = a.intervalType; vb = b.intervalType; break;
+          case 'priority': va = a.priority; vb = b.priority; break;
+          default: va = ''; vb = '';
+        }
+        if (va == null) va = '';
+        if (vb == null) vb = '';
+        const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+        return scheduleSortDir === 'asc' ? cmp : -cmp;
+      });
+    }
+    return result;
+  }, [schedules, scheduleSearch, schedulePriorityFilter, scheduleIntervalFilter, scheduleFilterCode, scheduleFilterName, scheduleSortField, scheduleSortDir]);
+
+  useEffect(() => { setSchedulePage(1); }, [scheduleSearch, schedulePriorityFilter, scheduleIntervalFilter, scheduleFilterCode, scheduleFilterName]);
+
+  const handleScheduleSort = (field: string) => {
+    if (scheduleSortField === field) setScheduleSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setScheduleSortField(field); setScheduleSortDir('asc'); }
+  };
+
+  const scheduleTotalPages = Math.ceil(filteredSchedules.length / schedulePageSize);
+  const paginatedSchedules = filteredSchedules.slice((schedulePage - 1) * schedulePageSize, schedulePage * schedulePageSize);
+
+  const getIntervalDisplay = (schedule: MaintenanceSchedule) => {
+    const parts = [];
+    if (schedule.intervalDays) parts.push(`${schedule.intervalDays} ngày`);
+    if (schedule.intervalHours) parts.push(`${schedule.intervalHours} giờ`);
+    return parts.join(' hoặc ');
+  };
+
+  const handleScheduleEdit = (schedule: MaintenanceSchedule) => {
+    setSelectedSchedule(schedule);
+    setShowEditModal(true);
+  };
+
+  const handleScheduleDelete = async (schedule: MaintenanceSchedule) => {
+    if (!confirm(`Bạn có chắc muốn xóa lịch "${schedule.scheduleName}"?`)) return;
+    try {
+      await maintenanceScheduleService.delete(schedule.id);
+      await loadSchedules();
+      toast.success('Đã xóa lịch bảo trì');
+    } catch (error) {
+      console.error('Error deleting schedule:', error);
+      toast.error('Không thể xóa lịch');
+    }
+  };
+
+  // Counter helpers
+  const counterAssets = useMemo(() => {
+    return assets.filter(a => a.currentRunningHours !== undefined || a.currentRunningHours === 0 || !a.children?.length);
+  }, [assets]);
+
+  const filteredCounterAssets = useMemo(() => {
+    let list = selectedAssetIds.size === 0 ? counterAssets : counterAssets.filter(a => selectedAssetIds.has(a.id));
+    if (counterFilterCode) list = list.filter(a => a.assetCode.toLowerCase().includes(counterFilterCode.toLowerCase()));
+    if (counterFilterName) list = list.filter(a => a.assetName.toLowerCase().includes(counterFilterName.toLowerCase()));
+    if (counterSortField) {
+      list = [...list].sort((a, b) => {
+        let va: any, vb: any;
+        switch (counterSortField) {
+          case 'assetCode': va = a.assetCode; vb = b.assetCode; break;
+          case 'assetName': va = a.assetName; vb = b.assetName; break;
+          case 'currentRunningHours': va = a.currentRunningHours || 0; vb = b.currentRunningHours || 0; break;
+          case 'lastRunningHoursUpdate': va = a.lastRunningHoursUpdate || ''; vb = b.lastRunningHoursUpdate || ''; break;
+          default: return 0;
+        }
+        if (typeof va === 'string') { va = va.toLowerCase(); vb = (vb as string).toLowerCase(); }
+        if (va < vb) return counterSortDir === 'asc' ? -1 : 1;
+        if (va > vb) return counterSortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return list;
+  }, [counterAssets, selectedAssetIds, counterFilterCode, counterFilterName, counterSortField, counterSortDir]);
+
+  const handleCounterSort = (field: string) => {
+    if (counterSortField === field) {
+      setCounterSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setCounterSortField(field);
+      setCounterSortDir('asc');
+    }
+  };
+
+  // Config helpers: count tasks per schedule code, next due info
+  const scheduleTaskCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    tasks.forEach(t => {
+      if (t.notes) {
+        const match = t.notes.match(/Auto-generated from schedule: ([\w-]+)/);
+        if (match?.[1]) {
+          map.set(match[1], (map.get(match[1]) || 0) + 1);
+        }
+      }
+    });
+    return map;
+  }, [tasks]);
+
+  // Navigate from config to table with filter by schedule code
+  const viewScheduleTasks = (scheduleCode: string) => {
+    setColFilterCode('');
+    setColFilterEquip('');
+    setColFilterName('');
+    setColFilterDesc(scheduleCode);
+    setActiveTab('table');
+    setTablePage(1);
+  };
+
+  const handleCounterSave = async (assetId: string) => {
+    const newHours = counterEditing[assetId];
+    if (newHours === undefined) return;
+    setCounterSaving(prev => new Set(prev).add(assetId));
+    try {
+      await equipmentAssetService.updateRunningHours(assetId, newHours);
+      setAssets(prev => prev.map(a => a.id === assetId ? { ...a, currentRunningHours: newHours, lastRunningHoursUpdate: new Date().toISOString() } : a));
+      setCounterEditing(prev => { const n = { ...prev }; delete n[assetId]; return n; });
+      toast.success('Đã cập nhật giờ chạy');
+    } catch (error) {
+      console.error('Error updating running hours:', error);
+      toast.error('Không thể cập nhật giờ chạy');
+    } finally {
+      setCounterSaving(prev => { const n = new Set(prev); n.delete(assetId); return n; });
+    }
+  };
+
   useEffect(() => {
     loadData(true);
     loadGanttData();
+    loadSchedules();
     const iv = setInterval(() => loadData(false), 15000);
     return () => clearInterval(iv);
-  }, [loadData, loadGanttData]);
+  }, [loadData, loadGanttData, loadSchedules]);
 
   // === Filter tasks ===
   const filteredTasks = useMemo(() => {
@@ -565,11 +750,13 @@ export default function WorkPlanningPage() {
             { key: 'calendar' as ViewTab, label: 'Lịch', icon: Calendar },
             { key: 'gantt' as ViewTab, label: 'Gantt chart', icon: BarChart3 },
             { key: 'kanban' as ViewTab, label: 'Kanban', icon: LayoutGrid },
+            { key: 'counter' as ViewTab, label: 'Counter', icon: Gauge },
+            { key: 'config' as ViewTab, label: 'Cấu hình', icon: Settings },
           ]).map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
+              className={`relative group flex items-center gap-1.5 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
                 activeTab === tab.key
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -577,6 +764,17 @@ export default function WorkPlanningPage() {
             >
               <tab.icon className="w-3.5 h-3.5" />
               {tab.label}
+              {/* Tooltip for Counter & Config */}
+              {tab.key === 'counter' && (
+                <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 hidden group-hover:block w-64 px-3 py-2 bg-gray-800 text-white text-[10px] rounded-lg shadow-lg leading-relaxed pointer-events-none">
+                  Cập nhật giờ chạy máy (Running Hours). Khi đạt ngưỡng, hệ thống tự động tạo công việc bảo trì.
+                </div>
+              )}
+              {tab.key === 'config' && (
+                <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 hidden group-hover:block w-64 px-3 py-2 bg-gray-800 text-white text-[10px] rounded-lg shadow-lg leading-relaxed pointer-events-none">
+                  Định nghĩa hạng mục bảo trì định kỳ/đột xuất. Kết quả hiển thị trên Bảng, Lịch, Gantt và Kanban.
+                </div>
+              )}
             </button>
           ))}
         </div>
@@ -1106,18 +1304,377 @@ export default function WorkPlanningPage() {
               />
             </div>
           )}
+
+          {/* ============ TAB: COUNTER ============ */}
+          {activeTab === 'counter' && (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 overflow-auto">
+                <table className="min-w-full text-sm border-collapse">
+                  <thead className="sticky top-0 z-10">
+                    {/* Row 1: headers */}
+                    <tr className="bg-blue-50">
+                      <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">TT</th>
+                      <th className="min-w-[130px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleCounterSort('assetCode')}>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-semibold text-gray-600">Mã thiết bị</span>
+                          <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="min-w-[200px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleCounterSort('assetName')}>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-semibold text-gray-600">Tên thiết bị</span>
+                          <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="w-36 px-3 py-2 text-center border-b border-r border-gray-200 cursor-pointer" onClick={() => handleCounterSort('currentRunningHours')}>
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-xs font-semibold text-gray-600">Giờ chạy hiện tại</span>
+                          <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="w-36 px-3 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">Giờ chạy mới</th>
+                      <th className="w-44 px-3 py-2 text-center border-b border-r border-gray-200 cursor-pointer" onClick={() => handleCounterSort('lastRunningHoursUpdate')}>
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-xs font-semibold text-gray-600">Cập nhật lần cuối</span>
+                          <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="w-20 px-3 py-2 border-b border-gray-200">
+                        <span className="text-xs font-semibold text-gray-600"></span>
+                      </th>
+                    </tr>
+                    {/* Row 2: column filters */}
+                    <tr className="bg-white border-b border-gray-200">
+                      <th className="border-r border-gray-200"></th>
+                      <th className="px-2 py-1 border-r border-gray-200">
+                        <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
+                          <span className="text-gray-400 text-xs select-none">→</span>
+                          <input type="text" value={counterFilterCode} onChange={e => setCounterFilterCode(e.target.value)} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                          <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="px-2 py-1 border-r border-gray-200">
+                        <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
+                          <span className="text-gray-400 text-xs select-none">→</span>
+                          <input type="text" value={counterFilterName} onChange={e => setCounterFilterName(e.target.value)} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                          <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="border-r border-gray-200"></th>
+                      <th className="border-r border-gray-200"></th>
+                      <th className="border-r border-gray-200"></th>
+                      <th className="border-gray-200"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filteredCounterAssets.length === 0 ? (
+                      <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-400">Không có thiết bị nào</td></tr>
+                    ) : (
+                      filteredCounterAssets.map((asset, idx) => (
+                        <tr key={asset.id} className={`hover:bg-blue-50 ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
+                          <td className="px-2 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{idx + 1}</td>
+                          <td className="px-3 py-2 text-xs font-medium text-gray-900 border-r border-gray-100">{asset.assetCode}</td>
+                          <td className="px-3 py-2 text-xs text-gray-700 border-r border-gray-100">
+                            <span className="truncate block max-w-[200px]" title={asset.assetName}>{asset.assetName}</span>
+                          </td>
+                          <td className="px-3 py-2 text-center text-xs font-semibold text-gray-900 border-r border-gray-100">
+                            {asset.currentRunningHours?.toLocaleString() || '0'} <span className="text-gray-400 font-normal">hrs</span>
+                          </td>
+                          <td className="px-3 py-2 text-center border-r border-gray-100">
+                            <input
+                              type="number"
+                              min={0}
+                              value={counterEditing[asset.id] ?? ''}
+                              onChange={e => setCounterEditing(prev => ({ ...prev, [asset.id]: Number(e.target.value) }))}
+                              placeholder={String(asset.currentRunningHours || 0)}
+                              className="w-full px-2 py-1 text-xs text-center border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-center text-xs text-gray-500 border-r border-gray-100">
+                            {asset.lastRunningHoursUpdate ? format(new Date(asset.lastRunningHoursUpdate), 'dd/MM/yyyy HH:mm') : '—'}
+                          </td>
+                          <td className="px-2 py-2">
+                            <div className="flex items-center justify-center">
+                              <button
+                                onClick={() => handleCounterSave(asset.id)}
+                                disabled={counterEditing[asset.id] === undefined || counterSaving.has(asset.id)}
+                                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+                                title="Lưu giờ chạy"
+                              >
+                                {counterSaving.has(asset.id) ? (
+                                  <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <Save className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Counter pagination area */}
+              <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
+                <span>{filteredCounterAssets.length} thiết bị</span>
+              </div>
+            </div>
+          )}
+
+          {/* ============ TAB: CẤU HÌNH ============ */}
+          {activeTab === 'config' && (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {scheduleLoading ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : (
+                <div className="flex-1 overflow-auto">
+                  <table className="min-w-full text-sm border-collapse">
+                    <thead className="sticky top-0 z-10">
+                      {/* Row 1: sortable headers */}
+                      <tr className="bg-blue-50">
+                        <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">TT</th>
+                        <th className="min-w-[100px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleScheduleSort('scheduleCode')}>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-semibold text-gray-600">Mã</span>
+                            <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                          </div>
+                        </th>
+                        <th className="min-w-[180px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleScheduleSort('scheduleName')}>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-semibold text-gray-600">Tên lịch</span>
+                            <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                          </div>
+                        </th>
+                        <th className="min-w-[160px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleScheduleSort('target')}>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-semibold text-gray-600">Đối tượng</span>
+                            <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                          </div>
+                        </th>
+                        <th className="w-28 px-3 py-2 text-center border-b border-r border-gray-200 cursor-pointer" onClick={() => handleScheduleSort('intervalType')}>
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-xs font-semibold text-gray-600">Loại chu kỳ</span>
+                            <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                          </div>
+                        </th>
+                        <th className="w-24 px-3 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">Chu kỳ</th>
+                        <th className="w-24 px-3 py-2 text-center border-b border-r border-gray-200 cursor-pointer" onClick={() => handleScheduleSort('priority')}>
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-xs font-semibold text-gray-600">Độ ưu tiên</span>
+                            <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                          </div>
+                        </th>
+                        <th className="w-20 px-3 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">Số task</th>
+                        <th className="w-20 px-3 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">Tự động</th>
+                        <th className="w-24 px-2 py-2 text-center border-b border-gray-200">
+                          <button
+                            onClick={() => setIsAddScheduleModalOpen(true)}
+                            className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 mx-auto"
+                            title="Thêm lịch bảo trì mới"
+                          >
+                            <Plus className="w-3 h-3" />
+                            Thêm
+                          </button>
+                        </th>
+                      </tr>
+                      {/* Row 2: column filters */}
+                      <tr className="bg-white border-b border-gray-200">
+                        <th className="border-r border-gray-200"></th>
+                        <th className="px-2 py-1 border-r border-gray-200">
+                          <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
+                            <span className="text-gray-400 text-xs select-none">→</span>
+                            <input type="text" value={scheduleFilterCode} onChange={e => setScheduleFilterCode(e.target.value)} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                            <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                          </div>
+                        </th>
+                        <th className="px-2 py-1 border-r border-gray-200">
+                          <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
+                            <span className="text-gray-400 text-xs select-none">→</span>
+                            <input type="text" value={scheduleFilterName} onChange={e => setScheduleFilterName(e.target.value)} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                            <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                          </div>
+                        </th>
+                        <th className="border-r border-gray-200"></th>
+                        <th className="px-2 py-1 border-r border-gray-200">
+                          <select value={scheduleIntervalFilter} onChange={e => setScheduleIntervalFilter(e.target.value)} className="w-full text-xs border border-gray-200 rounded px-1 py-0.5 bg-white">
+                            <option value="">Tất cả</option>
+                            <option value="CALENDAR">Calendar</option>
+                            <option value="RUNNING_HOURS">Running Hours</option>
+                            <option value="HYBRID">Hybrid</option>
+                          </select>
+                        </th>
+                        <th className="border-r border-gray-200"></th>
+                        <th className="px-2 py-1 border-r border-gray-200">
+                          <select value={schedulePriorityFilter} onChange={e => setSchedulePriorityFilter(e.target.value)} className="w-full text-xs border border-gray-200 rounded px-1 py-0.5 bg-white">
+                            <option value="">Tất cả</option>
+                            <option value="CRITICAL">Critical</option>
+                            <option value="HIGH">High</option>
+                            <option value="MEDIUM">Medium</option>
+                            <option value="LOW">Low</option>
+                          </select>
+                        </th>
+                        <th className="border-r border-gray-200"></th>
+                        <th className="border-r border-gray-200"></th>
+                        <th className="border-gray-200"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {paginatedSchedules.length === 0 ? (
+                        <tr>
+                          <td colSpan={10} className="px-4 py-12 text-center text-gray-400">
+                            {schedules.length === 0 ? (
+                              <div>
+                                <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                                <p className="text-sm">Chưa có lịch bảo trì nào</p>
+                                <button onClick={() => setIsAddScheduleModalOpen(true)} className="mt-1 text-xs text-blue-600 hover:underline">+ Thêm lịch đầu tiên</button>
+                              </div>
+                            ) : 'Không tìm thấy kết quả phù hợp'}
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedSchedules.map((schedule, idx) => {
+                          const taskCount = scheduleTaskCounts.get(schedule.scheduleCode) || 0;
+                          const isAssetSchedule = !!schedule.equipmentAssetId;
+                          return (
+                            <tr key={schedule.id} className={`hover:bg-blue-50 ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
+                              <td className="px-2 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{(schedulePage - 1) * schedulePageSize + idx + 1}</td>
+                              <td className="px-3 py-2 text-xs font-medium text-gray-900 border-r border-gray-100">{schedule.scheduleCode}</td>
+                              <td className="px-3 py-2 text-xs text-gray-900 border-r border-gray-100">
+                                <span className="truncate block max-w-[180px]" title={schedule.scheduleName}>{schedule.scheduleName}</span>
+                              </td>
+                              <td className="px-3 py-2 text-xs border-r border-gray-100">
+                                {isAssetSchedule ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="inline-flex items-center justify-center w-4 h-4 bg-teal-100 text-teal-700 rounded text-[9px] font-bold flex-shrink-0" title="Thiết bị đơn lẻ">A</span>
+                                    <span className="text-gray-700 truncate" title={`${schedule.assetCode} - ${schedule.assetName}`}>{schedule.assetCode} - {schedule.assetName}</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="inline-flex items-center justify-center w-4 h-4 bg-indigo-100 text-indigo-700 rounded text-[9px] font-bold flex-shrink-0" title="Nhóm thiết bị">G</span>
+                                    <span className="text-gray-700 truncate" title={`${schedule.groupCode} - ${schedule.groupName}`}>{schedule.groupName || schedule.groupCode}</span>
+                                    {schedule.assetCount ? <span className="text-[10px] text-gray-400 flex-shrink-0">({schedule.assetCount})</span> : null}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-center border-r border-gray-100">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded ${
+                                  schedule.intervalType === 'CALENDAR' ? 'bg-blue-100 text-blue-800' :
+                                  schedule.intervalType === 'RUNNING_HOURS' ? 'bg-amber-100 text-amber-800' :
+                                  'bg-purple-100 text-purple-800'
+                                }`}>
+                                  {schedule.intervalType === 'CALENDAR' && <Calendar className="w-2.5 h-2.5" />}
+                                  {schedule.intervalType === 'RUNNING_HOURS' && <Clock className="w-2.5 h-2.5" />}
+                                  {schedule.intervalType === 'HYBRID' && <Wrench className="w-2.5 h-2.5" />}
+                                  {schedule.intervalType === 'CALENDAR' ? 'Lịch' : schedule.intervalType === 'RUNNING_HOURS' ? 'Giờ chạy' : 'Kết hợp'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-center text-xs text-gray-600 border-r border-gray-100">{getIntervalDisplay(schedule)}</td>
+                              <td className="px-3 py-2 text-center border-r border-gray-100">
+                                <span className={`px-2 py-0.5 text-[10px] font-medium rounded ${
+                                  schedule.priority === 'CRITICAL' ? 'bg-red-100 text-red-800' :
+                                  schedule.priority === 'HIGH' ? 'bg-orange-100 text-orange-800' :
+                                  schedule.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {schedule.priority}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-center border-r border-gray-100">
+                                {taskCount > 0 ? (
+                                  <button
+                                    onClick={() => viewScheduleTasks(schedule.scheduleCode)}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-semibold rounded hover:bg-green-200 transition-colors"
+                                    title={`Xem ${taskCount} công việc được tạo từ lịch này`}
+                                  >
+                                    {taskCount}
+                                    <ExternalLink className="w-2.5 h-2.5" />
+                                  </button>
+                                ) : (
+                                  <span className="text-xs text-gray-400">0</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-center text-xs border-r border-gray-100">
+                                {schedule.autoGenerate ? (
+                                  <span className="text-green-600 font-medium">✓</span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                              <td className="px-2 py-2">
+                                <div className="flex items-center justify-center gap-0.5">
+                                  <button onClick={() => { setSelectedSchedule(schedule); setShowViewModal(true); }} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Xem chi tiết">
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button onClick={() => handleScheduleEdit(schedule)} className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title="Sửa">
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button onClick={() => handleScheduleDelete(schedule)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Xóa">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Config Pagination */}
+              <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
+                <span>{filteredSchedules.length}/{schedules.length} lịch</span>
+                {scheduleTotalPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button disabled={schedulePage <= 1} onClick={() => setSchedulePage(p => p - 1)} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">‹</button>
+                    {Array.from({ length: Math.min(5, scheduleTotalPages) }, (_, i) => {
+                      let page: number;
+                      if (scheduleTotalPages <= 5) page = i + 1;
+                      else if (schedulePage <= 3) page = i + 1;
+                      else if (schedulePage >= scheduleTotalPages - 2) page = scheduleTotalPages - 4 + i;
+                      else page = schedulePage - 2 + i;
+                      if (page > scheduleTotalPages || page < 1) return null;
+                      return (
+                        <button key={page} onClick={() => setSchedulePage(page)} className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${page === schedulePage ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}>
+                          {page}
+                        </button>
+                      );
+                    })}
+                    <button disabled={schedulePage >= scheduleTotalPages} onClick={() => setSchedulePage(p => p + 1)} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">›</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Add Schedule Modal */}
+      {/* Modals */}
       <AddScheduleModal
         isOpen={isAddScheduleModalOpen}
         onClose={() => setIsAddScheduleModalOpen(false)}
         onSuccess={() => {
           loadData(true);
           loadGanttData();
+          loadSchedules();
           setIsAddScheduleModalOpen(false);
         }}
+      />
+      <EditScheduleModal
+        isOpen={showEditModal}
+        schedule={selectedSchedule}
+        onClose={() => { setShowEditModal(false); setSelectedSchedule(null); }}
+        onSuccess={() => { loadSchedules(); loadGanttData(); }}
+      />
+      <ViewScheduleModal
+        isOpen={showViewModal}
+        schedule={selectedSchedule}
+        onClose={() => { setShowViewModal(false); setSelectedSchedule(null); }}
       />
     </div>
   );

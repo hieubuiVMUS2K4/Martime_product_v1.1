@@ -47,7 +47,10 @@ export interface CreateEquipmentAssetDto {
 export interface MaintenanceSchedule {
   id: string;
   scheduleCode: string;
-  equipmentGroupId: string;
+  equipmentGroupId?: string;
+  equipmentAssetId?: string;
+  assetCode?: string;
+  assetName?: string;
   groupCode?: string;
   groupName?: string;
   assetCount?: number;
@@ -84,7 +87,8 @@ export interface ScheduleSparePart {
 
 export interface CreateMaintenanceScheduleDto {
   scheduleCode: string;
-  equipmentGroupId: string;
+  equipmentGroupId?: string;
+  equipmentAssetId?: string;
   taskTypeId: number;
   scheduleName: string;
   intervalType: 'CALENDAR' | 'RUNNING_HOURS' | 'HYBRID';
