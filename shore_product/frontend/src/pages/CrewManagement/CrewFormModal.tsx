@@ -23,7 +23,7 @@ const sections: { key: Section; label: string; icon: React.ReactNode }[] = [
 ];
 
 export const CrewFormModal: React.FC<Props> = ({ crew, onClose, onSubmit, saving }) => {
-  const { ranks } = useReferenceData();
+  const { ranks, countries } = useReferenceData();
   const [activeSection, setActiveSection] = useState<Section>('basic');
   const isEdit = !!crew;
 
@@ -39,7 +39,7 @@ export const CrewFormModal: React.FC<Props> = ({ crew, onClose, onSubmit, saving
         fullName: crew.fullName,
         rankId: crew.rankId,
         department: crew.department,
-        nationality: crew.nationality,
+        countryId: crew.countryId,
         dateOfBirth: crew.dateOfBirth?.split('T')[0],
         joinDate: crew.joinDate?.split('T')[0],
         embarkDate: crew.embarkDate?.split('T')[0],
@@ -150,7 +150,10 @@ export const CrewFormModal: React.FC<Props> = ({ crew, onClose, onSubmit, saving
                 </div>
                 <div className="cfm-field">
                   <label>Quốc tịch</label>
-                  <input value={form.nationality ?? ''} onChange={e => set('nationality', e.target.value)} placeholder="Vietnam" />
+                  <select value={form.countryId ?? ''} onChange={e => set('countryId', e.target.value ? Number(e.target.value) : undefined)}>
+                    <option value="">— Chọn quốc tịch —</option>
+                    {countries.map(c => <option key={c.id} value={c.id}>{c.countryName}</option>)}
+                  </select>
                 </div>
                 <div className="cfm-field">
                   <label>Ngày sinh</label>
@@ -192,6 +195,12 @@ export const CrewFormModal: React.FC<Props> = ({ crew, onClose, onSubmit, saving
             {/* Vessel & Contract */}
             {activeSection === 'vessel' && (
               <div className="cfm-grid fade-in">
+                {crew && (
+                  <div className="cfm-field">
+                    <label>Tàu hiện tại</label>
+                    <input value={crew.vesselName || '— Chưa gán tàu —'} disabled />
+                  </div>
+                )}
                 <div className="cfm-field">
                   <label>Ngày gia nhập</label>
                   <input type="date" value={form.joinDate ?? ''} onChange={e => set('joinDate', e.target.value)} />

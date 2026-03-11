@@ -20,6 +20,9 @@ export interface CrewMember {
   disembarkDate?: string;
   contractEnd?: string;
   isOnboard: boolean;
+  onboardStatus?: string;
+  vesselId?: string;
+  vesselName?: string;
   emergencyContact?: string;
   emailAddress?: string;
   phoneNumber?: string;
@@ -158,6 +161,7 @@ export interface CreateCrewRequest {
   embarkDate?: string;
   contractEnd?: string;
   isOnboard?: boolean;
+  vesselId?: string;
   emergencyContact?: string;
   emailAddress?: string;
   phoneNumber?: string;
@@ -246,6 +250,7 @@ export interface CrewFilters {
   isOnboard?: boolean | null;
   department?: string;
   rankId?: number | null;
+  vesselId?: string | null;
   page: number;
   pageSize: number;
 }
@@ -253,3 +258,9 @@ export interface CrewFilters {
 export type CertificateStatusType = 'VALID' | 'EXPIRING_SOON' | 'EXPIRED' | 'SUSPENDED' | 'REVOKED';
 
 export type TabKey = 'personal' | 'certificates' | 'documents' | 'service-history';
+
+export interface VesselSimple {
+  id: string;
+  name: string;
+  imo: string;
+}

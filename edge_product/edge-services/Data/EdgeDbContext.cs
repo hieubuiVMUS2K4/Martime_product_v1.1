@@ -941,6 +941,10 @@ public class EdgeDbContext : DbContext
             entity.HasIndex(e => e.IsSynced)
                 .HasDatabaseName("idx_crew_synced")
                 .HasFilter("is_synced = false");
+
+            entity.HasIndex(e => e.OnboardStatus)
+                .HasDatabaseName("idx_crew_onboard_status")
+                .HasFilter("onboard_status IS NOT NULL");
         });
 
         // ========== MAINTENANCE TASKS ==========

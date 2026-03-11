@@ -9,7 +9,7 @@ import { useCrewDetail, useCrewCertificates } from '../../hooks/useCrew';
 import { useCrewOnboarding, useCrewDocumentSubmissions, useCrewStatusHistory, useCrewAuditLog } from '../../hooks/useCrewManagement';
 import { crewApi, referenceApi } from '../../services/crew.service';
 import { useToast } from '../../components/common/Toast';
-import type { CrewDocument, ServiceRecord, Rank } from '../../types/crew.types';
+import type { CrewDocument, ServiceRecord, Rank, Country } from '../../types/crew.types';
 import type { UpdateCrewRequest } from '../../types/crew.types';
 
 type TabType = 'basic-data' | 'documents' | 'voyage-history' | 'onboarding' | 'doc-workflow' | 'status-history' | 'audit';
@@ -33,6 +33,7 @@ export const CrewDetailPage: React.FC = () => {
   const [edited, setEdited] = useState<UpdateCrewRequest>({});
   const [saving, setSaving] = useState(false);
   const [ranks, setRanks] = useState<Rank[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
 
   // Documents
   const [travelDocs, setTravelDocs] = useState<CrewDocument[]>([]);
@@ -65,6 +66,7 @@ export const CrewDetailPage: React.FC = () => {
 
   useEffect(() => {
     referenceApi.getRanks().then(setRanks).catch(() => {});
+    referenceApi.getCountries().then(setCountries).catch(() => {});
   }, []);
 
   const loadDocuments = useCallback(async () => {
@@ -290,7 +292,10 @@ export const CrewDetailPage: React.FC = () => {
                   </div>
                   <div>
                     <label className={labelCls}>Nationality</label>
-                    <input className={fieldCls} value={edited.nationality ?? ''} onChange={e => set('nationality', e.target.value)} />
+                    <select className={fieldCls} value={edited.countryId ?? ''} onChange={e => set('countryId', e.target.value ? Number(e.target.value) : undefined)}>
+                      <option value="">Select country</option>
+                      {countries.map(c => <option key={c.id} value={c.id}>{c.countryName}</option>)}
+                    </select>
                   </div>
                   <div>
                     <label className={labelCls}>ID Card Number</label>

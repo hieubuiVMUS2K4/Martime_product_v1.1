@@ -1334,6 +1334,167 @@ public class CrewController : ControllerBase
             IsSynced = crew.IsSynced,
             CreatedAt = crew.CreatedAt,
             UpdatedAt = crew.UpdatedAt,
+
+            // Onboard Review
+            OnboardStatus = crew.OnboardStatus,
+            OnboardStatusChangedAt = crew.OnboardStatusChangedAt,
+            OnboardStatusChangedBy = crew.OnboardStatusChangedBy,
         };
     }
+
+    // ============================================================
+    // PENDING CREW REVIEW (Shore → Edge onboarding workflow)
+    // ============================================================
+
+    /// <summary>
+    /// GET /api/crew/pending - List all crew members with PendingReview status
+    /// </summary>
+    [HttpGet("pending")]
+    public async Task<IActionResult> GetPendingCrew()
+    {
+        try
+        {
+            var crew = await _context.CrewMembers
+                .AsNoTracking()
+                .Include(c => c.Rank)
+                .Include(c => c.Country)
+                .Where(c => c.OnboardStatus == "PendingReview")
+                .OrderByDescending(c => c.UpdatedAt)
+                .ToListAsync();
+
+            var crewDtos = crew.Select(MapToCrewMemberDto).ToList();
+            return Ok(crewDtos);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting pending crew");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/crew/{id}/approve - Captain approves a pending crew member
+    /// </summary>
+    [HttpPost("{id}/approve")]
+    public async Task<IActionResult> ApproveCrew(Guid id)
+    {
+        try
+        {
+            var crew = await _context.CrewMembers
+                .Include(c => c.Rank)
+                .Include(c => c.Country)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (crew == null)
+                return NotFound(new { error = "Crew member not found" });
+
+            if (crew.OnboardStatus != "PendingReview")
+                return BadRequest(new { error = $"Crew member is not in PendingReview status (current: {crew.OnboardStatus})" });
+
+            // Extract approver from auth header
+            string approver = "Captain";
+            if (Request.Headers.ContainsKey("Authorization"))
+            {
+                var authHeader = Request.Headers["Authorization"].ToString();
+                if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    var token = authHeader.Substring("Bearer ".Length).Trim();
+                    var parts = token.Split('_');
+                    if (parts.Length >= 3) approver = parts[2];
+                }
+            }
+
+            crew.OnboardStatus = "Approved";
+            crew.OnboardStatusChangedAt = DateTime.UtcNow;
+            crew.OnboardStatusChangedBy = approver;
+            crew.IsOnboard = true;
+            crew.EmbarkDate ??= DateTime.UtcNow;
+            crew.IsSynced = false;
+            crew.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            // Auto-create User account if not exists
+            await CreateUserForCrewMemberAsync(crew);
+
+            _logger.LogInformation("Approved crew member: {CrewId} - {FullName} by {Approver}", 
+                crew.CrewId, crew.FullName, approver);
+
+            return Ok(new
+            {
+                message = $"Crew member {crew.FullName} approved and moved to onboard",
+                crew = MapToCrewMemberDto(crew)
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error approving crew member {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/crew/{id}/reject - Captain rejects a pending crew member
+    /// </summary>
+    [HttpPost("{id}/reject")]
+    public async Task<IActionResult> RejectCrew(Guid id, [FromBody] RejectCrewRequest? request = null)
+    {
+        try
+        {
+            var crew = await _context.CrewMembers
+                .Include(c => c.Rank)
+                .Include(c => c.Country)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (crew == null)
+                return NotFound(new { error = "Crew member not found" });
+
+            if (crew.OnboardStatus != "PendingReview")
+                return BadRequest(new { error = $"Crew member is not in PendingReview status (current: {crew.OnboardStatus})" });
+
+            // Extract rejector from auth header
+            string rejector = "Captain";
+            if (Request.Headers.ContainsKey("Authorization"))
+            {
+                var authHeader = Request.Headers["Authorization"].ToString();
+                if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    var token = authHeader.Substring("Bearer ".Length).Trim();
+                    var parts = token.Split('_');
+                    if (parts.Length >= 3) rejector = parts[2];
+                }
+            }
+
+            crew.OnboardStatus = "Rejected";
+            crew.OnboardStatusChangedAt = DateTime.UtcNow;
+            crew.OnboardStatusChangedBy = rejector;
+            crew.IsOnboard = false;
+            crew.IsSynced = false;
+            crew.UpdatedAt = DateTime.UtcNow;
+
+            if (!string.IsNullOrWhiteSpace(request?.Reason))
+                crew.Notes = $"[Rejected] {request.Reason}" + (string.IsNullOrWhiteSpace(crew.Notes) ? "" : $"\n{crew.Notes}");
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Rejected crew member: {CrewId} - {FullName} by {Rejector}. Reason: {Reason}", 
+                crew.CrewId, crew.FullName, rejector, request?.Reason ?? "N/A");
+
+            return Ok(new
+            {
+                message = $"Crew member {crew.FullName} rejected",
+                crew = MapToCrewMemberDto(crew)
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error rejecting crew member {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+}
+
+public class RejectCrewRequest
+{
+    public string? Reason { get; set; }
 }

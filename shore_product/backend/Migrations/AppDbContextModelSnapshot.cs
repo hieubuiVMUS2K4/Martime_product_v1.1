@@ -340,6 +340,10 @@ namespace productapi.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("text");
 
+                    b.Property<string>("OnboardStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("OriginNode")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -386,6 +390,9 @@ namespace productapi.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("VesselId")
+                        .HasColumnType("uuid");
+
                     b.Property<decimal?>("Weight")
                         .HasPrecision(5, 2)
                         .HasColumnType("numeric(5,2)");
@@ -404,6 +411,8 @@ namespace productapi.Migrations
                     b.HasIndex("IsSynced");
 
                     b.HasIndex("RankId");
+
+                    b.HasIndex("VesselId");
 
                     b.ToTable("crew_members", (string)null);
                 });
@@ -601,6 +610,41 @@ namespace productapi.Migrations
                     b.HasIndex("IsSynced");
 
                     b.ToTable("service_records", (string)null);
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.Crew.VesselCertificateAssignment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CertificateId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VesselId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CertificateId");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("VesselId", "CertificateId")
+                        .IsUnique();
+
+                    b.ToTable("vessel_certificate_assignments", (string)null);
                 });
 
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.AssignmentComment", b =>
@@ -5185,6 +5229,17 @@ namespace productapi.Migrations
                         .HasForeignKey("CrewMemberId1");
 
                     b.Navigation("CrewMember");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.Crew.VesselCertificateAssignment", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.Crew.Certificate", "Certificate")
+                        .WithMany()
+                        .HasForeignKey("CertificateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Certificate");
                 });
 
             modelBuilder.Entity("Maritime.Shared.Models.CrewManagement.AssignmentComment", b =>

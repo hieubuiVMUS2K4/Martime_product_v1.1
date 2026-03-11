@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Users, Shield, FileText, ExternalLink, ArrowDownCircle, ArrowRightCircle, Trash2, Pencil, Copy, XCircle, CheckCircle, Award, User, Search, Plus, Download, FileSpreadsheet } from 'lucide-react'
+import { Users, Shield, FileText, ExternalLink, ArrowDownCircle, ArrowRightCircle, Trash2, Pencil, Copy, XCircle, CheckCircle, Award, User, Search, Plus, Download, FileSpreadsheet, Clock, UserCheck, UserX } from 'lucide-react'
 import { toast } from 'react-toastify'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
@@ -28,6 +28,10 @@ export function CrewPage() {
   const [filterRank] = useState<string>('all')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showCertificateModal, setShowCertificateModal] = useState(false)
+
+  // Pending crew review state
+  const [pendingCrew, setPendingCrew] = useState<CrewMember[]>([])
+  const [pendingLoading, setPendingLoading] = useState(false)
   const [editingCertificate, setEditingCertificate] = useState<any | null>(null)
   const [certificateReloadTrigger, setCertificateReloadTrigger] = useState(0)
   
@@ -60,6 +64,13 @@ export function CrewPage() {
     }
   }, [location])
 
+  // Load pending count on initial mount for badge display
+  useEffect(() => {
+    maritimeService.crew.getPending()
+      .then(data => setPendingCrew(data))
+      .catch(() => {/* ignore */})
+  }, [])
+
   useEffect(() => {
     if (activeTab === 'certificates') {
       loadCertificatesWithCache()
@@ -70,6 +81,7 @@ export function CrewPage() {
       }
     } else {
       loadCrewData()
+      loadPendingCrew()
     }
   }, [activeTab])
 
@@ -96,6 +108,40 @@ export function CrewPage() {
       console.error('Failed to load crew data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadPendingCrew = async () => {
+    try {
+      setPendingLoading(true)
+      const data = await maritimeService.crew.getPending()
+      setPendingCrew(data)
+    } catch (error) {
+      console.error('Failed to load pending crew:', error)
+    } finally {
+      setPendingLoading(false)
+    }
+  }
+
+  const handleApproveCrew = async (id: string) => {
+    try {
+      const result = await maritimeService.crew.approve(id)
+      toast.success(result.message)
+      await loadPendingCrew()
+      // Invalidate onboard cache since crew moved to onboard
+      setCrewOnboardCache(null)
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to approve crew')
+    }
+  }
+
+  const handleRejectCrew = async (id: string, reason?: string) => {
+    try {
+      const result = await maritimeService.crew.reject(id, reason)
+      toast.success(result.message)
+      await loadPendingCrew()
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to reject crew')
     }
   }
 
@@ -302,7 +348,7 @@ export function CrewPage() {
                 active={activeTab === 'onboard'}
                 onClick={() => setActiveTab('onboard')}
                 icon={<Users className="w-5 h-5" />}
-                label="Crew Members"
+                label={`Crew Members${pendingCrew.length > 0 ? ` (${pendingCrew.length} pending)` : ''}`}
               />
               <TabButton
                 active={activeTab === 'certificates'}
@@ -332,7 +378,7 @@ export function CrewPage() {
 
         {/* Content */}
         <div>
-          {loading ? (
+          {(loading) ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
               <p className="text-gray-600 mt-4">Loading crew data...</p>
@@ -366,6 +412,11 @@ export function CrewPage() {
                   setSortType={setSortType}
                   sortMenu={sortMenu}
                   setSortMenu={setSortMenu}
+                  pendingCrew={pendingCrew}
+                  pendingLoading={pendingLoading}
+                  onApproveCrew={handleApproveCrew}
+                  onRejectCrew={handleRejectCrew}
+                  onPendingChanged={() => { loadPendingCrew(); setCrewOnboardCache(null); loadCrewData() }}
                 />
               )}
             </>
@@ -400,7 +451,12 @@ function SectionedCrewView({
   sortType,
   setSortType,
   sortMenu,
-  setSortMenu
+  setSortMenu,
+  pendingCrew,
+  pendingLoading,
+  onApproveCrew,
+  onRejectCrew,
+  onPendingChanged
 }: { 
   crewMembers: CrewMember[]; 
   onViewCrew: (id: string) => void;
@@ -409,6 +465,11 @@ function SectionedCrewView({
   setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
   sortMenu?: string | null;
   setSortMenu?: (sortMenu: string | null) => void;
+  pendingCrew: CrewMember[];
+  pendingLoading: boolean;
+  onApproveCrew: (id: string) => Promise<void>;
+  onRejectCrew: (id: string, reason?: string) => Promise<void>;
+  onPendingChanged: () => void;
 }) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; crew: CrewMember } | null>(null)
   const [selectedCrew, setSelectedCrew] = useState<string | null>(null)
@@ -1013,6 +1074,15 @@ function SectionedCrewView({
     <div className="relative">
       {/* Collapsible Crew On Board Section */}
       {renderCollapsibleCrewSection()}
+
+      {/* Pending Crew Review Section - inline below onboard */}
+      <InlinePendingReviewSection
+        pendingCrew={pendingCrew}
+        pendingLoading={pendingLoading}
+        onApprove={async (id) => { await onApproveCrew(id); onPendingChanged() }}
+        onReject={async (id, reason) => { await onRejectCrew(id, reason); onPendingChanged() }}
+        onViewCrew={onViewCrew}
+      />
 
       {/* Context Menu */}
       {contextMenu && (
@@ -3330,6 +3400,182 @@ function CertificateMonitorView({
       </div>
     )}
 
+    </div>
+  )
+}
+
+// ============================================================
+// PENDING CREW REVIEW VIEW
+// ============================================================
+// Inline Pending Review Section - displayed right below Crew Onboard
+function InlinePendingReviewSection({
+  pendingCrew,
+  pendingLoading,
+  onApprove,
+  onReject,
+  onViewCrew,
+}: {
+  pendingCrew: CrewMember[]
+  pendingLoading: boolean
+  onApprove: (id: string) => Promise<void>
+  onReject: (id: string, reason?: string) => Promise<void>
+  onViewCrew: (id: string) => void
+}) {
+  const [isExpanded, setIsExpanded] = useState(true)
+  const [rejectingId, setRejectingId] = useState<string | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
+  const [processingId, setProcessingId] = useState<string | null>(null)
+
+  const handleApprove = async (id: string) => {
+    setProcessingId(id)
+    try { await onApprove(id) } finally { setProcessingId(null) }
+  }
+
+  const handleReject = async (id: string) => {
+    setProcessingId(id)
+    try { await onReject(id, rejectReason || undefined) } finally {
+      setProcessingId(null)
+      setRejectingId(null)
+      setRejectReason('')
+    }
+  }
+
+  if (pendingCrew.length === 0 && !pendingLoading) return null
+
+  return (
+    <div className="border border-amber-200 rounded-lg overflow-hidden mt-4">
+      <div className="bg-amber-50 px-4 py-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-amber-800 uppercase flex items-center gap-2">
+          <Clock className="w-4 h-4 text-amber-600" />
+          PENDING CREW REVIEW ({pendingCrew.length})
+        </h3>
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-6 h-6 rounded bg-amber-600 hover:bg-amber-700 text-white flex items-center justify-center transition-all"
+          title={isExpanded ? "Collapse section" : "Expand section"}
+        >
+          <span className="text-white text-xs transition-transform" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
+            ▼
+          </span>
+        </button>
+      </div>
+
+      {isExpanded && (
+        <>
+          {pendingLoading ? (
+            <div className="text-center py-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600 mx-auto"></div>
+              <p className="text-gray-500 mt-2 text-sm">Loading pending crew...</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+                <thead className="bg-white border-b-2 border-amber-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{ width: '10%' }}>Crew ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{ width: '20%' }}>Full Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{ width: '15%' }}>Rank</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{ width: '12%' }}>Nationality</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{ width: '10%' }}>Department</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{ width: '10%' }}>Status</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '23%' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {pendingCrew.map((crew) => (
+                    <React.Fragment key={crew.id}>
+                      <tr className="border-b border-gray-100 hover:bg-amber-50/50 transition-colors">
+                        <td className="px-4 py-3 text-sm text-gray-900 font-medium border-r border-gray-200">
+                          <div className="truncate">{crew.crewId}</div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                              {crew.fullName?.charAt(0) || '?'}
+                            </div>
+                            <span className="truncate">{crew.fullName}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
+                          <div className="truncate">{crew.rank?.rankName || '-'}</div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200">
+                          <div className="truncate">{crew.countryName || 'N/A'}</div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200">
+                          <div className="truncate">{crew.department || 'N/A'}</div>
+                        </td>
+                        <td className="px-4 py-3 text-sm border-r border-gray-200">
+                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-700">
+                            Pending
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleApprove(crew.id)}
+                              disabled={processingId === crew.id}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => setRejectingId(rejectingId === crew.id ? null : crew.id)}
+                              disabled={processingId === crew.id}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
+                            >
+                              <UserX className="w-3.5 h-3.5" />
+                              Reject
+                            </button>
+                            <button
+                              onClick={() => onViewCrew(crew.id)}
+                              className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                              title="View full profile"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {/* Reject reason row */}
+                      {rejectingId === crew.id && (
+                        <tr className="bg-red-50 border-b border-red-200">
+                          <td colSpan={7} className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-red-700 whitespace-nowrap">Reason:</span>
+                              <input
+                                type="text"
+                                value={rejectReason}
+                                onChange={(e) => setRejectReason(e.target.value)}
+                                placeholder="e.g. Missing certificates, expired documents..."
+                                className="flex-1 px-3 py-1.5 border border-red-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                              />
+                              <button
+                                onClick={() => handleReject(crew.id)}
+                                disabled={processingId === crew.id}
+                                className="px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => { setRejectingId(null); setRejectReason('') }}
+                                className="px-3 py-1.5 text-gray-600 text-sm rounded-lg hover:bg-gray-100"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

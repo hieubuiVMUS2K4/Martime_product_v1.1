@@ -46,7 +46,7 @@ public class CrewMember : ISyncableEntity
 
     public DateTime? ContractEnd { get; set; }
 
-    public bool IsOnboard { get; set; } = true;
+    public bool IsOnboard { get; set; } = false;
 
     [MaxLength(500)]
     public string? EmergencyContact { get; set; }
@@ -142,6 +142,19 @@ public class CrewMember : ISyncableEntity
     /// </summary>
     [MaxLength(20)]
     public string? PoolStatus { get; set; } = "Available";
+
+    /// <summary>
+    /// Foreign key to Vessels table.
+    /// Set when crew is assigned to a vessel; null when on shore/pool.
+    /// </summary>
+    public Guid? VesselId { get; set; }
+
+    /// <summary>
+    /// Onboard review status for edge-side workflow: PendingReview, Approved, Rejected.
+    /// Set to "PendingReview" when assigning crew to a vessel, synced to edge.
+    /// </summary>
+    [MaxLength(20)]
+    public string? OnboardStatus { get; set; }
 
     // ============================================
     // ISyncableEntity implementation

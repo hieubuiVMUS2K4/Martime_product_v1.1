@@ -87,6 +87,21 @@ public class CrewSyncOrchestrator : ICrewSyncOrchestrator
             enqueued++;
         }
 
+        // 1b. Certificate junction tables (country + rank mappings)
+        var countryCerts = await _context.CountryCertificates.AsNoTracking().ToListAsync();
+        foreach (var cc in countryCerts)
+        {
+            await _syncOutbox.EnqueueAsync(targetNode, "country_certificate", cc.Id.ToString(), SyncActionType.SNAPSHOT, cc);
+            enqueued++;
+        }
+
+        var rankCerts = await _context.RankCertificates.AsNoTracking().ToListAsync();
+        foreach (var rc in rankCerts)
+        {
+            await _syncOutbox.EnqueueAsync(targetNode, "rank_certificate", rc.Id.ToString(), SyncActionType.SNAPSHOT, rc);
+            enqueued++;
+        }
+
         // 2. Crew members
         var crew = await _context.CrewMembers.AsNoTracking().Include(c => c.Rank).ToListAsync();
         foreach (var c in crew)

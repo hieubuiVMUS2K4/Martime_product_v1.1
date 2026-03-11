@@ -13,6 +13,7 @@ global using Rank = Maritime.Shared.Models.Crew.Rank;
 global using RankCertificate = Maritime.Shared.Models.Crew.RankCertificate;
 global using CountryCertificate = Maritime.Shared.Models.Crew.CountryCertificate;
 global using ServiceRecord = Maritime.Shared.Models.Crew.ServiceRecord;
+global using VesselCertificateAssignment = Maritime.Shared.Models.Crew.VesselCertificateAssignment;
 
 // Document Models
 global using TravelDocument = Maritime.Shared.Models.Documents.TravelDocument;

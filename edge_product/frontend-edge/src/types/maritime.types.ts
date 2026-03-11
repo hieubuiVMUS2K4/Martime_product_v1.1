@@ -280,6 +280,11 @@ export interface CrewMember {
   
   isSynced: boolean
   createdAt: string
+
+  // Onboard Review Status
+  onboardStatus?: string // 'PendingReview' | 'Approved' | 'Rejected'
+  onboardStatusChangedAt?: string
+  onboardStatusChangedBy?: string
 }
 
 // Certificate Types (Master Data)

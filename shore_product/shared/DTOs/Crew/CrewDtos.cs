@@ -13,8 +13,12 @@ public class CrewMemberDto
     public string FullName { get; set; } = string.Empty;
     public RankDto? Rank { get; set; }
     public int? RankId { get; set; }
+    public string? RankName { get; set; }
+    public string? RankCode { get; set; }
     public string? RankGroup { get; set; }
     public bool IsOnboard { get; set; }
+    public Guid? VesselId { get; set; }
+    public string? VesselName { get; set; }
     public string? Department { get; set; }
     public int? CountryId { get; set; }
     public string? CountryName { get; set; }
@@ -66,6 +70,9 @@ public class CrewMemberDto
     public bool IsSynced { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    // Onboard Review
+    public string? OnboardStatus { get; set; }
 }
 
 /// <summary>
@@ -104,7 +111,8 @@ public class CreateCrewRequest
     public DateTime? JoinDate { get; set; }
     public DateTime? EmbarkDate { get; set; }
     public DateTime? ContractEnd { get; set; }
-    public bool IsOnboard { get; set; } = true;
+    public bool IsOnboard { get; set; } = false;
+    public Guid? VesselId { get; set; }
     public string? EmergencyContact { get; set; }
     public string? EmailAddress { get; set; }
     public string? PhoneNumber { get; set; }
@@ -146,6 +154,7 @@ public class UpdateCrewRequest
     public DateTime? DisembarkDate { get; set; }
     public DateTime? ContractEnd { get; set; }
     public bool? IsOnboard { get; set; }
+    public Guid? VesselId { get; set; }
     public string? EmergencyContact { get; set; }
     public string? EmailAddress { get; set; }
     public string? PhoneNumber { get; set; }

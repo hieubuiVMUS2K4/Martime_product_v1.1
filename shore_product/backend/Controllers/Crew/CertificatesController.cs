@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Maritime.Shared.DTOs.Crew;
+using ProductApi.Data;
 using ProductApi.Services.Crew;
 
 namespace ProductApi.Controllers.Crew;
@@ -15,11 +17,13 @@ namespace ProductApi.Controllers.Crew;
 public class CertificatesController : ControllerBase
 {
     private readonly ICertificateService _certService;
+    private readonly AppDbContext _context;
     private readonly ILogger<CertificatesController> _logger;
 
-    public CertificatesController(ICertificateService certService, ILogger<CertificatesController> logger)
+    public CertificatesController(ICertificateService certService, AppDbContext context, ILogger<CertificatesController> logger)
     {
         _certService = certService;
+        _context = context;
         _logger = logger;
     }
 
@@ -115,6 +119,50 @@ public class CertificatesController : ControllerBase
         {
             _logger.LogError(ex, "Error deleting certificate type {Id}", id);
             return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    // ============================================================
+    // CERTIFICATE MAPPINGS (Countries & Ranks)
+    // ============================================================
+
+    /// <summary>GET /api/certificates/{id}/countries — Get country IDs mapped to a certificate.</summary>
+    [HttpGet("{id:int}/countries")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetCertificateCountries(int id)
+    {
+        try
+        {
+            var ids = await _context.CountryCertificates
+                .Where(cc => cc.CertificateId == id)
+                .Select(cc => cc.CountryId)
+                .ToListAsync();
+            return Ok(ids);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting countries for certificate {Id}", id);
+            return Ok(new List<int>());
+        }
+    }
+
+    /// <summary>GET /api/certificates/{id}/ranks — Get rank IDs mapped to a certificate.</summary>
+    [HttpGet("{id:int}/ranks")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetCertificateRanks(int id)
+    {
+        try
+        {
+            var ids = await _context.RankCertificates
+                .Where(rc => rc.CertificateId == id)
+                .Select(rc => rc.RankId)
+                .ToListAsync();
+            return Ok(ids);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting ranks for certificate {Id}", id);
+            return Ok(new List<int>());
         }
     }
 

@@ -1,9 +1,16 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Maritime.Shared.DTOs.Crew;
+using ProductApi.Data;
 using ProductApi.Services.Crew;
 
 namespace ProductApi.Controllers.Crew;
+
+public class AssignVesselRequest
+{
+    public Guid VesselId { get; set; }
+}
 
 /// <summary>
 /// Shore Crew Management Controller.
@@ -16,11 +23,13 @@ public class CrewController : ControllerBase
 {
     private readonly ICrewService _crewService;
     private readonly ILogger<CrewController> _logger;
+    private readonly AppDbContext _context;
 
-    public CrewController(ICrewService crewService, ILogger<CrewController> logger)
+    public CrewController(ICrewService crewService, ILogger<CrewController> logger, AppDbContext context)
     {
         _crewService = crewService;
         _logger = logger;
+        _context = context;
     }
 
     // ============================================================
@@ -63,6 +72,23 @@ public class CrewController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting crew list");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>GET /api/crew/stats — Fleet-wide crew counts (total, onboard, pool).</summary>
+    [HttpGet("stats")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetCrewStats()
+    {
+        try
+        {
+            var (total, onboard, pool, pendingReview) = await _crewService.GetCrewStatsAsync();
+            return Ok(new { total, onboard, pool, pendingReview });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting crew stats");
             return StatusCode(500, new { error = "Internal server error" });
         }
     }
@@ -116,10 +142,19 @@ public class CrewController : ControllerBase
             var crew = await _crewService.CreateCrewAsync(request);
             return CreatedAtAction(nameof(GetCrew), new { id = crew.Id }, crew);
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Create crew failed: {Message}", ex.Message);
+            return Conflict(new { error = ex.Message });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating crew");
-            return StatusCode(500, new { error = "Internal server error" });
+            return StatusCode(500, new { error = ex.Message });
         }
     }
 
@@ -155,6 +190,72 @@ public class CrewController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting crew {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    // ============================================================
+    // VESSEL ASSIGNMENT ENDPOINTS
+    // ============================================================
+
+    /// <summary>POST /api/crew/{id}/assign — Assign crew to a vessel.</summary>
+    [HttpPost("{id:guid}/assign")]
+    [AllowAnonymous]
+    public async Task<IActionResult> AssignToVessel(Guid id, [FromBody] AssignVesselRequest request)
+    {
+        try
+        {
+            var crew = await _crewService.AssignToVesselAsync(id, request.VesselId);
+            if (crew == null) return NotFound(new { error = "Crew member not found" });
+            return Ok(crew);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error assigning crew {Id} to vessel", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>POST /api/crew/{id}/unassign — Remove crew from vessel (back to pool).</summary>
+    [HttpPost("{id:guid}/unassign")]
+    [AllowAnonymous]
+    public async Task<IActionResult> UnassignFromVessel(Guid id)
+    {
+        try
+        {
+            var crew = await _crewService.UnassignFromVesselAsync(id);
+            if (crew == null) return NotFound(new { error = "Crew member not found" });
+            return Ok(crew);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error unassigning crew {Id} from vessel", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>GET /api/crew/vessels — Get simple list of all vessels for assignment dropdown.</summary>
+    [HttpGet("vessels")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetVesselsForAssignment()
+    {
+        try
+        {
+            var vessels = await _context.Vessels
+                .AsNoTracking()
+                .Where(v => v.IsActive)
+                .OrderBy(v => v.Name)
+                .Select(v => new { v.Id, v.Name, v.IMO })
+                .ToListAsync();
+            return Ok(vessels);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting vessels for crew assignment");
             return StatusCode(500, new { error = "Internal server error" });
         }
     }

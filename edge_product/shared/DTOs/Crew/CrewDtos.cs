@@ -66,6 +66,11 @@ public class CrewMemberDto
     public bool IsSynced { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    // Onboard Review
+    public string? OnboardStatus { get; set; }
+    public DateTime? OnboardStatusChangedAt { get; set; }
+    public string? OnboardStatusChangedBy { get; set; }
 }
 
 /// <summary>

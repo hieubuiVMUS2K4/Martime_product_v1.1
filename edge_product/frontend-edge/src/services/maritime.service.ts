@@ -144,6 +144,16 @@ export class MaritimeService {
     },
     getOnboard: () => this.request<CrewMember[]>('/crew/onboard'),
     getById: (id: string) => this.request<CrewMember>(`/crew/${id}`),
+    getPending: () => this.request<CrewMember[]>('/crew/pending'),
+    approve: (id: string) =>
+      this.request<{ message: string; crew: CrewMember }>(`/crew/${id}/approve`, {
+        method: 'POST',
+      }),
+    reject: (id: string, reason?: string) =>
+      this.request<{ message: string; crew: CrewMember }>(`/crew/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
     add: (crew: Partial<CrewMember>) =>
       this.request<CrewMember>('/crew', {
         method: 'POST',

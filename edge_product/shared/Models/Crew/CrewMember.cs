@@ -46,7 +46,7 @@ public class CrewMember : ISyncableEntity
 
     public DateTime? ContractEnd { get; set; }
 
-    public bool IsOnboard { get; set; } = true;
+    public bool IsOnboard { get; set; } = false;
 
     [MaxLength(500)]
     public string? EmergencyContact { get; set; }
@@ -121,6 +121,29 @@ public class CrewMember : ISyncableEntity
     public int? EducationGraduationYear { get; set; }
 
     public string? Notes { get; set; }
+
+    // ============================================
+    // Onboard Review Status (Edge-side workflow)
+    // ============================================
+
+    /// <summary>
+    /// Onboard review status: PendingReview, Approved, Rejected.
+    /// Set to "PendingReview" when shore assigns crew to this vessel.
+    /// Captain/admin reviews and approves/rejects on edge.
+    /// </summary>
+    [MaxLength(20)]
+    public string? OnboardStatus { get; set; }
+
+    /// <summary>
+    /// When the onboard status was last changed (approved/rejected).
+    /// </summary>
+    public DateTime? OnboardStatusChangedAt { get; set; }
+
+    /// <summary>
+    /// Who changed the onboard status (captain/admin username).
+    /// </summary>
+    [MaxLength(100)]
+    public string? OnboardStatusChangedBy { get; set; }
 
     // ============================================
     // ISyncableEntity implementation

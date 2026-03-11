@@ -4,7 +4,7 @@ import { Anchor, Bell, Menu, X } from 'lucide-react';
 import './TopNavLayout.css';
 
 const navItems = [
-  { path: '/crew',      label: 'Thuyền viên' },
+  { path: '/categories', label: 'Danh mục' },
   { path: '/vessels',   label: 'Danh sách tàu' },
   { path: '/onboarding', label: 'Onboarding' },
   { path: '/verification-queue', label: 'Xác minh' },

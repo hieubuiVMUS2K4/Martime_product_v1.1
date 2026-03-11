@@ -17,6 +17,7 @@ interface CrewMember {
   rank?: { name: string; rankName?: string };
   countryName?: string;
   isOnboard: boolean;
+  onboardStatus?: string;
   joinDate?: string;
   embarkDate?: string;
   disembarkDate?: string;
@@ -80,14 +81,14 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
     }
   };
 
-  // Get only onboard crew
-  let crewOnBoard = crew.filter(c => c.isOnboard);
+  // All crew assigned to this vessel
+  let filteredCrew = [...crew];
 
   // Apply column filters
-  if (filterCrewId)     crewOnBoard = crewOnBoard.filter(c => (c.crewId || '').toLowerCase().includes(filterCrewId.toLowerCase()));
-  if (filterFullName)   crewOnBoard = crewOnBoard.filter(c => c.fullName.toLowerCase().includes(filterFullName.toLowerCase()));
-  if (filterRank)       crewOnBoard = crewOnBoard.filter(c => (c.rank?.rankName || c.rank?.name || '').toLowerCase().includes(filterRank.toLowerCase()));
-  if (filterNationality) crewOnBoard = crewOnBoard.filter(c => (c.countryName || '').toLowerCase().includes(filterNationality.toLowerCase()));
+  if (filterCrewId)     filteredCrew = filteredCrew.filter(c => (c.crewId || '').toLowerCase().includes(filterCrewId.toLowerCase()));
+  if (filterFullName)   filteredCrew = filteredCrew.filter(c => c.fullName.toLowerCase().includes(filterFullName.toLowerCase()));
+  if (filterRank)       filteredCrew = filteredCrew.filter(c => (c.rank?.rankName || c.rank?.name || '').toLowerCase().includes(filterRank.toLowerCase()));
+  if (filterNationality) filteredCrew = filteredCrew.filter(c => (c.countryName || '').toLowerCase().includes(filterNationality.toLowerCase()));
 
   // Apply sorting
   const applySorting = (crews: CrewMember[]) => {
@@ -130,13 +131,13 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
     return sorted;
   };
 
-  crewOnBoard = applySorting(crewOnBoard);
+  filteredCrew = applySorting(filteredCrew);
 
   // Pagination
-  const totalPages = Math.ceil(crewOnBoard.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredCrew.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
-  const paginatedCrews = crewOnBoard.slice(startIndex, endIndex);
+  const paginatedCrews = filteredCrew.slice(startIndex, endIndex);
 
   const handleContextMenu = (e: React.MouseEvent, crew: CrewMember) => {
     e.preventDefault();
@@ -204,7 +205,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
   return (
     <div className="relative">
       {/* Table */}
-      {crewOnBoard.length > 0 ? (
+      {filteredCrew.length > 0 ? (
         <>
           <div className="vp-table-card" style={{ borderRadius: 0, border: 'none', boxShadow: 'none' }}>
             <table className="vp-table">
@@ -285,7 +286,15 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
                       <td>
                         {crewMember.isOnboard ? (
                           <span style={{ background: '#dcfce7', color: '#16a34a', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
-                            • Online
+                            • Onboard
+                          </span>
+                        ) : crewMember.onboardStatus === 'PendingReview' ? (
+                          <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
+                            • Đang duyệt
+                          </span>
+                        ) : crewMember.onboardStatus === 'Rejected' ? (
+                          <span style={{ background: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
+                            • Từ chối
                           </span>
                         ) : (
                           <span style={{ background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
@@ -303,7 +312,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
             {totalPages > 1 && (
               <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
                 <div className="text-sm text-gray-600">
-                  Showing {startIndex + 1} - {Math.min(endIndex, crewOnBoard.length)} of {crewOnBoard.length}
+                  Showing {startIndex + 1} - {Math.min(endIndex, filteredCrew.length)} of {filteredCrew.length}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
