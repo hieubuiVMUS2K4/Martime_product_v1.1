@@ -13,8 +13,11 @@ public class MaintenanceScheduleDto
     [MaxLength(50)]
     public string ScheduleCode { get; set; } = string.Empty;
     
-    [Required]
-    public Guid EquipmentGroupId { get; set; }
+    public Guid? EquipmentGroupId { get; set; }
+    
+    public Guid? EquipmentAssetId { get; set; }
+    public string? AssetCode { get; set; }
+    public string? AssetName { get; set; }
     
     public string? GroupCode { get; set; }
     public string? GroupName { get; set; }
@@ -67,8 +70,15 @@ public class CreateMaintenanceScheduleDto
     [MaxLength(50)]
     public string ScheduleCode { get; set; } = string.Empty;
     
-    [Required]
-    public Guid EquipmentGroupId { get; set; }
+    /// <summary>
+    /// Equipment Group ID (for group-based schedule). Must provide either this or EquipmentAssetId.
+    /// </summary>
+    public Guid? EquipmentGroupId { get; set; }
+    
+    /// <summary>
+    /// Equipment Asset ID (for per-equipment schedule). Must provide either this or EquipmentGroupId.
+    /// </summary>
+    public Guid? EquipmentAssetId { get; set; }
     
     [Required]
     [MaxLength(200)]

@@ -135,20 +135,40 @@ public class MaintenanceScheduleController : ControllerBase
                 return Ok(new List<MaintenanceScheduleDto>());
             
             // Batch load all related data
-            var groupIds = schedules.Select(s => s.EquipmentGroupId).Distinct().ToList();
+            var groupIds = schedules
+                .Where(s => s.EquipmentGroupId.HasValue)
+                .Select(s => s.EquipmentGroupId!.Value)
+                .Distinct()
+                .ToList();
+            var assetIds = schedules
+                .Where(s => s.EquipmentAssetId.HasValue)
+                .Select(s => s.EquipmentAssetId!.Value)
+                .Distinct()
+                .ToList();
             var scheduleIds = schedules.Select(s => s.Id).ToList();
             
-            var groups = await _context.EquipmentGroups
-                .AsNoTracking()
-                .Where(g => groupIds.Contains(g.Id))
-                .ToDictionaryAsync(g => g.Id);
+            var groups = groupIds.Any()
+                ? await _context.EquipmentGroups
+                    .AsNoTracking()
+                    .Where(g => groupIds.Contains(g.Id))
+                    .ToDictionaryAsync(g => g.Id)
+                : new Dictionary<Guid, EquipmentGroup>();
             
-            var memberCounts = await _context.EquipmentGroupMembers
-                .AsNoTracking()
-                .Where(egm => groupIds.Contains(egm.GroupId))
-                .GroupBy(egm => egm.GroupId)
-                .Select(g => new { GroupId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.GroupId, x => x.Count);
+            var memberCounts = groupIds.Any()
+                ? await _context.EquipmentGroupMembers
+                    .AsNoTracking()
+                    .Where(egm => groupIds.Contains(egm.GroupId))
+                    .GroupBy(egm => egm.GroupId)
+                    .Select(g => new { GroupId = g.Key, Count = g.Count() })
+                    .ToDictionaryAsync(x => x.GroupId, x => x.Count)
+                : new Dictionary<Guid, int>();
+            
+            var assets = assetIds.Any()
+                ? await _context.EquipmentAssets
+                    .AsNoTracking()
+                    .Where(a => assetIds.Contains(a.Id))
+                    .ToDictionaryAsync(a => a.Id)
+                : new Dictionary<Guid, EquipmentAsset>();
             
             var allSpareParts = await _context.ScheduleSpareParts
                 .AsNoTracking()
@@ -167,8 +187,17 @@ public class MaintenanceScheduleController : ControllerBase
             
             // Map to DTOs without additional queries
             var dtos = schedules.Select(schedule => {
-                groups.TryGetValue(schedule.EquipmentGroupId, out var group);
-                memberCounts.TryGetValue(schedule.EquipmentGroupId, out var memberCount);
+                EquipmentGroup? group = null;
+                int memberCount = 0;
+                if (schedule.EquipmentGroupId.HasValue)
+                {
+                    groups.TryGetValue(schedule.EquipmentGroupId.Value, out group);
+                    memberCounts.TryGetValue(schedule.EquipmentGroupId.Value, out memberCount);
+                }
+                EquipmentAsset? asset = null;
+                if (schedule.EquipmentAssetId.HasValue)
+                    assets.TryGetValue(schedule.EquipmentAssetId.Value, out asset);
+                    
                 sparePartsBySchedule.TryGetValue(schedule.Id, out var spareParts);
                 checklistsBySchedule.TryGetValue(schedule.Id, out var checklists);
                 
@@ -177,9 +206,12 @@ public class MaintenanceScheduleController : ControllerBase
                     Id = schedule.Id,
                     ScheduleCode = schedule.ScheduleCode,
                     EquipmentGroupId = schedule.EquipmentGroupId,
+                    EquipmentAssetId = schedule.EquipmentAssetId,
+                    AssetCode = asset?.AssetCode,
+                    AssetName = asset?.AssetName,
                     GroupCode = group?.GroupCode,
                     GroupName = group?.GroupName,
-                    AssetCount = memberCount,
+                    AssetCount = schedule.EquipmentAssetId.HasValue ? 1 : memberCount,
                     ScheduleName = schedule.ScheduleName,
                     IntervalType = schedule.IntervalType,
                     IntervalHours = schedule.IntervalHours,
@@ -293,6 +325,7 @@ public class MaintenanceScheduleController : ControllerBase
                     Id = schedule.Id,
                     ScheduleCode = schedule.ScheduleCode,
                     EquipmentGroupId = schedule.EquipmentGroupId,
+                    EquipmentAssetId = schedule.EquipmentAssetId,
                     GroupCode = group?.GroupCode,
                     GroupName = group?.GroupName,
                     AssetCount = memberCount,
@@ -348,11 +381,18 @@ public class MaintenanceScheduleController : ControllerBase
     {
         try
         {
-            // Log incoming request
-            _logger.LogInformation("Creating schedule: Code={Code}, GroupId={GroupId}, Name={Name}, IntervalType={IntervalType}", 
-                dto.ScheduleCode, dto.EquipmentGroupId, dto.ScheduleName, dto.IntervalType);
+            // Validate: must provide either EquipmentGroupId or EquipmentAssetId
+            if (!dto.EquipmentGroupId.HasValue && !dto.EquipmentAssetId.HasValue)
+                return BadRequest(new { error = "Must provide either EquipmentGroupId or EquipmentAssetId" });
+            
+            if (dto.EquipmentGroupId.HasValue && dto.EquipmentAssetId.HasValue)
+                return BadRequest(new { error = "Cannot provide both EquipmentGroupId and EquipmentAssetId" });
 
-            // Validate model state
+            bool isPerAsset = dto.EquipmentAssetId.HasValue;
+            
+            _logger.LogInformation("Creating schedule: Code={Code}, GroupId={GroupId}, AssetId={AssetId}, Name={Name}, IntervalType={IntervalType}", 
+                dto.ScheduleCode, dto.EquipmentGroupId, dto.EquipmentAssetId, dto.ScheduleName, dto.IntervalType);
+
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
@@ -360,12 +400,31 @@ public class MaintenanceScheduleController : ControllerBase
                 return BadRequest(new { error = "Validation failed", details = errors });
             }
 
-            // Validate equipment group exists
-            var group = await _context.EquipmentGroups.FindAsync(dto.EquipmentGroupId);
-            if (group == null)
+            EquipmentAsset? firstAsset = null;
+            
+            if (isPerAsset)
             {
-                _logger.LogWarning("Equipment group not found: {GroupId}", dto.EquipmentGroupId);
-                return BadRequest(new { error = "Equipment group not found" });
+                // Per-equipment schedule: validate asset exists
+                var asset = await _context.EquipmentAssets.FindAsync(dto.EquipmentAssetId!.Value);
+                if (asset == null)
+                    return BadRequest(new { error = "Equipment asset not found" });
+                firstAsset = asset;
+            }
+            else
+            {
+                // Group-based schedule: validate group exists and has members
+                var group = await _context.EquipmentGroups.FindAsync(dto.EquipmentGroupId!.Value);
+                if (group == null)
+                    return BadRequest(new { error = "Equipment group not found" });
+
+                var groupMembers = await _context.EquipmentGroupMembers
+                    .Where(egm => egm.GroupId == dto.EquipmentGroupId!.Value)
+                    .Include(egm => egm.Asset)
+                    .ToListAsync();
+                
+                firstAsset = groupMembers.FirstOrDefault()?.Asset;
+                if (firstAsset == null)
+                    return BadRequest(new { error = "Equipment group has no members" });
             }
 
             // Check if schedule code already exists
@@ -378,16 +437,6 @@ public class MaintenanceScheduleController : ControllerBase
             
             if (dto.IntervalType == "CALENDAR" && !dto.IntervalDays.HasValue)
                 return BadRequest(new { error = "IntervalDays is required for CALENDAR interval type" });
-
-            // Get first asset from group for next due date calculation
-            var groupMembers = await _context.EquipmentGroupMembers
-                .Where(egm => egm.GroupId == dto.EquipmentGroupId)
-                .Include(egm => egm.Asset)
-                .ToListAsync();
-            
-            var firstAsset = groupMembers.FirstOrDefault()?.Asset;
-            if (firstAsset == null)
-                return BadRequest(new { error = "Equipment group has no members" });
 
             // ISM Code Compliance: Validate and auto-correct lead time based on priority
             // For RUNNING_HOURS: Convert hours to estimated days (÷ 10 hrs/day) for lead time validation
@@ -405,6 +454,7 @@ public class MaintenanceScheduleController : ControllerBase
             {
                 ScheduleCode = dto.ScheduleCode,
                 EquipmentGroupId = dto.EquipmentGroupId,
+                EquipmentAssetId = dto.EquipmentAssetId,
                 ScheduleName = dto.ScheduleName,
                 IntervalType = dto.IntervalType,
                 IntervalHours = dto.IntervalHours,
@@ -555,10 +605,38 @@ public class MaintenanceScheduleController : ControllerBase
             if (schedule == null)
                 return NotFound(new { error = "Maintenance schedule not found" });
 
-            // Validate equipment group exists
-            var group = await _context.EquipmentGroups.FindAsync(dto.EquipmentGroupId);
-            if (group == null)
-                return BadRequest(new { error = "Equipment group not found" });
+            // Validate: must provide either EquipmentGroupId or EquipmentAssetId
+            if (!dto.EquipmentGroupId.HasValue && !dto.EquipmentAssetId.HasValue)
+                return BadRequest(new { error = "Must provide either EquipmentGroupId or EquipmentAssetId" });
+            
+            if (dto.EquipmentGroupId.HasValue && dto.EquipmentAssetId.HasValue)
+                return BadRequest(new { error = "Cannot provide both EquipmentGroupId and EquipmentAssetId" });
+
+            bool isPerAsset = dto.EquipmentAssetId.HasValue;
+            EquipmentAsset? firstAsset = null;
+            
+            if (isPerAsset)
+            {
+                var asset = await _context.EquipmentAssets.FindAsync(dto.EquipmentAssetId!.Value);
+                if (asset == null)
+                    return BadRequest(new { error = "Equipment asset not found" });
+                firstAsset = asset;
+            }
+            else
+            {
+                var group = await _context.EquipmentGroups.FindAsync(dto.EquipmentGroupId!.Value);
+                if (group == null)
+                    return BadRequest(new { error = "Equipment group not found" });
+
+                var groupMembers = await _context.EquipmentGroupMembers
+                    .Where(egm => egm.GroupId == dto.EquipmentGroupId!.Value)
+                    .Include(egm => egm.Asset)
+                    .ToListAsync();
+                
+                firstAsset = groupMembers.FirstOrDefault()?.Asset;
+                if (firstAsset == null)
+                    return BadRequest(new { error = "Equipment group has no members" });
+            }
 
             // Check if schedule code is being changed and if new code already exists
             if (schedule.ScheduleCode != dto.ScheduleCode && 
@@ -572,18 +650,7 @@ public class MaintenanceScheduleController : ControllerBase
             if (dto.IntervalType == "CALENDAR" && !dto.IntervalDays.HasValue)
                 return BadRequest(new { error = "IntervalDays is required for CALENDAR interval type" });
 
-            // Get first asset from group for next due date calculation
-            var groupMembers = await _context.EquipmentGroupMembers
-                .Where(egm => egm.GroupId == dto.EquipmentGroupId)
-                .Include(egm => egm.Asset)
-                .ToListAsync();
-            
-            var firstAsset = groupMembers.FirstOrDefault()?.Asset;
-            if (firstAsset == null)
-                return BadRequest(new { error = "Equipment group has no members" });
-
             // ISM Code Compliance: Validate and auto-correct lead time based on priority
-            // For RUNNING_HOURS: Convert hours to estimated days (÷ 10 hrs/day) for lead time validation
             var effectiveIntervalDays = dto.IntervalType == "RUNNING_HOURS" && dto.IntervalHours.HasValue
                 ? (int)Math.Ceiling(dto.IntervalHours.Value / 10.0)
                 : dto.IntervalDays;
@@ -594,12 +661,13 @@ public class MaintenanceScheduleController : ControllerBase
                 dto.EstimatedDurationHours,
                 effectiveIntervalDays);
 
-            // Update schedule required fields
+            // Update schedule fields
             schedule.ScheduleCode = dto.ScheduleCode;
-            schedule.EquipmentGroupId = dto.EquipmentGroupId;
+            schedule.EquipmentGroupId = isPerAsset ? null : dto.EquipmentGroupId;
+            schedule.EquipmentAssetId = isPerAsset ? dto.EquipmentAssetId : null;
             schedule.ScheduleName = dto.ScheduleName;
             schedule.IntervalType = dto.IntervalType;
-            schedule.DaysBeforeDue = validatedDaysBeforeDue; // Use validated value
+            schedule.DaysBeforeDue = validatedDaysBeforeDue;
             schedule.Priority = dto.Priority;
             schedule.AutoGenerate = dto.AutoGenerate;
 
@@ -723,9 +791,19 @@ public class MaintenanceScheduleController : ControllerBase
 
     private async Task<MaintenanceScheduleDto> MapToDtoAsync(MaintenanceSchedule schedule)
     {
-        var group = await _context.EquipmentGroups.FindAsync(schedule.EquipmentGroupId);
-        var groupMembersCount = await _context.EquipmentGroupMembers
-            .CountAsync(egm => egm.GroupId == schedule.EquipmentGroupId);
+        var group = schedule.EquipmentGroupId.HasValue 
+            ? await _context.EquipmentGroups.FindAsync(schedule.EquipmentGroupId.Value) 
+            : null;
+        var groupMembersCount = schedule.EquipmentGroupId.HasValue 
+            ? await _context.EquipmentGroupMembers
+                .CountAsync(egm => egm.GroupId == schedule.EquipmentGroupId.Value) 
+            : 0;
+        
+        // For per-asset schedules, load asset info
+        EquipmentAsset? asset = schedule.EquipmentAssetId.HasValue
+            ? await _context.EquipmentAssets.FindAsync(schedule.EquipmentAssetId.Value)
+            : null;
+        
         var spareParts = await _scheduleRepository.GetSparePartsByScheduleIdAsync(schedule.Id);
         var checklistTemplates = await _context.ScheduleChecklistTemplates
             .Where(t => t.ScheduleId == schedule.Id)
@@ -737,9 +815,12 @@ public class MaintenanceScheduleController : ControllerBase
             Id = schedule.Id,
             ScheduleCode = schedule.ScheduleCode,
             EquipmentGroupId = schedule.EquipmentGroupId,
+            EquipmentAssetId = schedule.EquipmentAssetId,
+            AssetCode = asset?.AssetCode,
+            AssetName = asset?.AssetName,
             GroupCode = group?.GroupCode,
             GroupName = group?.GroupName,
-            AssetCount = groupMembersCount,
+            AssetCount = schedule.EquipmentAssetId.HasValue ? 1 : groupMembersCount,
             ScheduleName = schedule.ScheduleName,
             IntervalType = schedule.IntervalType,
             IntervalHours = schedule.IntervalHours,

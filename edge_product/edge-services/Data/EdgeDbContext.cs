@@ -978,6 +978,9 @@ public class EdgeDbContext : DbContext
             entity.HasIndex(e => e.AssignedDepartment)
                 .HasDatabaseName("idx_maintenance_department");
             
+            entity.HasIndex(e => e.EquipmentAssetId)
+                .HasDatabaseName("idx_maintenance_equipment_asset");
+            
             entity.HasIndex(e => e.HasPendingDeferral)
                 .HasDatabaseName("idx_maintenance_pending_deferral")
                 .HasFilter("has_pending_deferral = true");
@@ -1250,11 +1253,25 @@ public class EdgeDbContext : DbContext
             entity.Property(e => e.AutoGenerate)
                 .HasColumnName("auto_generate");
             
-            // Foreign key to equipment_groups
+            // Foreign key to equipment_groups (optional - for group-based schedules)
             entity.HasOne<EquipmentGroup>()
                 .WithMany()
                 .HasForeignKey(e => e.EquipmentGroupId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+            
+            // Foreign key to equipment_assets (optional - for per-equipment schedules)
+            entity.HasOne<EquipmentAsset>()
+                .WithMany()
+                .HasForeignKey(e => e.EquipmentAssetId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+            
+            entity.HasIndex(e => e.EquipmentAssetId)
+                .HasDatabaseName("idx_schedule_equipment_asset");
+            
+            entity.HasIndex(e => e.EquipmentGroupId)
+                .HasDatabaseName("idx_schedule_equipment_group");
         });
 
         // ========== CARGO OPERATIONS ==========

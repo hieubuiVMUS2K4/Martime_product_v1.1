@@ -893,6 +893,18 @@ public class MaintenanceTask
     public string? EquipmentGroupName { get; set; }
     
     /// <summary>
+    /// NEW: FK -> EquipmentAsset.Id for per-equipment tasks
+    /// Set when the task targets a single asset (from per-equipment schedule)
+    /// </summary>
+    public Guid? EquipmentAssetId { get; set; }
+    
+    /// <summary>
+    /// NEW: Equipment Asset Name (denormalized for display)
+    /// </summary>
+    [MaxLength(200)]
+    public string? EquipmentAssetName { get; set; }
+    
+    /// <summary>
     /// NEW: Schedule ID - Links to the maintenance schedule that generated this task
     /// Null for manually created tasks, populated for auto-generated tasks
     /// </summary>
@@ -3813,11 +3825,18 @@ public class MaintenanceSchedule
     public string ScheduleCode { get; set; } = string.Empty;
     
     /// <summary>
-    /// FK -> EquipmentGroup.Id (can be single asset group or multi-asset group)
-    /// When auto-generating tasks, will create 1 task per asset in this group
+    /// FK -> EquipmentGroup.Id (group-based schedule)
+    /// Nullable: set when schedule targets an entire group
+    /// Must have either EquipmentGroupId OR EquipmentAssetId
     /// </summary>
-    [Required]
-    public Guid EquipmentGroupId { get; set; }
+    public Guid? EquipmentGroupId { get; set; }
+    
+    /// <summary>
+    /// FK -> EquipmentAsset.Id (per-equipment schedule)
+    /// Nullable: set when schedule targets a single asset
+    /// Must have either EquipmentGroupId OR EquipmentAssetId
+    /// </summary>
+    public Guid? EquipmentAssetId { get; set; }
     
     /// <summary>
     /// Schedule name (e.g., "Main Engine Oil Change")

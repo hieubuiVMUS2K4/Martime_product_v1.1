@@ -146,19 +146,30 @@ public class MaintenanceCompletionService
             // 5. Create maintenance history record
             if (schedule != null)
             {
-                // Get first asset from group for running hours tracking
-                var firstAsset = await _context.EquipmentGroupMembers
-                    .Where(egm => egm.GroupId == schedule.EquipmentGroupId)
-                    .Include(egm => egm.Asset)
-                    .Select(egm => egm.Asset)
-                    .FirstOrDefaultAsync();
+                // Get asset for running hours tracking
+                // Per-asset schedule: use the asset directly
+                // Group-based schedule: use first asset from group
+                EquipmentAsset? trackingAsset = null;
+                if (schedule.EquipmentAssetId.HasValue)
+                {
+                    trackingAsset = await _context.EquipmentAssets
+                        .FirstOrDefaultAsync(a => a.Id == schedule.EquipmentAssetId.Value);
+                }
+                else if (schedule.EquipmentGroupId.HasValue)
+                {
+                    trackingAsset = await _context.EquipmentGroupMembers
+                        .Where(egm => egm.GroupId == schedule.EquipmentGroupId.Value)
+                        .Include(egm => egm.Asset)
+                        .Select(egm => egm.Asset)
+                        .FirstOrDefaultAsync();
+                }
                 
                 var history = new MaintenanceHistory
                 {
                     ScheduleId = schedule.Id,
                     TaskId = task.Id,
                     ExecutedAt = DateTime.UtcNow,
-                    ExecutedRunningHours = firstAsset != null ? await GetCurrentRunningHours(firstAsset.Id) : null,
+                    ExecutedRunningHours = trackingAsset != null ? await GetCurrentRunningHours(trackingAsset.Id) : null,
                     CompletedBy = completedBy,
                     ActualDurationHours = task.StartedAt.HasValue 
                         ? (DateTime.UtcNow - task.StartedAt.Value).TotalHours 
@@ -176,9 +187,9 @@ public class MaintenanceCompletionService
                 schedule.LastExecutedAt = DateTime.UtcNow;
                 schedule.LastExecutedRunningHours = history.ExecutedRunningHours;
                 
-                if (firstAsset != null)
+                if (trackingAsset != null)
                 {
-                    CalculateNextDueDate(schedule, firstAsset);
+                    CalculateNextDueDate(schedule, trackingAsset);
                 }
 
                 await _scheduleRepository.UpdateAsync(schedule);
