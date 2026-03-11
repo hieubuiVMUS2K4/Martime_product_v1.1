@@ -52,6 +52,8 @@ const getNavigation = (t: (key: string) => string) => [
       { name: t('nav.equipmentGroups'), to: '/pms/groups', icon: Boxes },
       { name: t('nav.scheduleConfig'), to: '/pms/schedules', icon: ListChecks },
       { name: t('nav.masterSchedule'), to: '/pms/master-schedule', icon: Calendar },
+      { name: t('nav.workPlanning') || 'Danh sách công việc', to: '/pms/work-planning', icon: ClipboardList },
+      { name: 'Báo cáo công việc', to: '/pms/work-report', icon: FileText },
       { name: t('nav.maintenance'), to: '/pms/maintenance', icon: Wrench },
       { name: t('nav.materials'), to: '/pms/materials', icon: Boxes },
       { name: t('nav.storeLocations'), to: '/pms/store-locations', icon: Warehouse },

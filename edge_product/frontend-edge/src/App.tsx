@@ -32,6 +32,7 @@ import UnassignedTasksPage from './pages/PMS/UnassignedTasksPage'
 import ApprovalDashboardPage from './pages/PMS/ApprovalDashboardPage'
 import DeferralManagementPage from './pages/PMS/DeferralManagementPage'
 import WorkPlanningPage from './pages/PMS/WorkPlanningPage'
+import WorkReportPage from './pages/PMS/WorkReportPage'
 import EquipmentGroupsPage from './pages/PMS/EquipmentGroupsPage'
 import { MaintenanceHistoryPage } from './pages/PMS/MaintenanceHistoryPage'
 import StoreLocationPage from './pages/StoreLocation/StoreLocationPage'
@@ -130,6 +131,7 @@ function App() {
         <Route path="pms/deferrals" element={<DeferralManagementPage />} />
         <Route path="pms/maintenance-history" element={<MaintenanceHistoryPage />} />
         <Route path="pms/work-planning" element={<WorkPlanningPage />} />
+        <Route path="pms/work-report/:id" element={<WorkReportPage />} />
         <Route path="pms/store-locations" element={<StoreLocationPage />} />
         <Route path="pms/material-requests" element={<MaterialRequestPage />} />
         <Route path="pms/stock-receipts" element={<StockReceiptPage />} />
