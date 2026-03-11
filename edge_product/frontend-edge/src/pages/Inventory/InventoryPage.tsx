@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, ChevronLeft, ChevronRight, ChevronDown, Package, DollarSign, AlertTriangle } from 'lucide-react';
+import { Search, ChevronRight, ChevronDown, Package, DollarSign, AlertTriangle, ChevronsUpDown } from 'lucide-react';
 import { inventoryService } from '@/services/inventory.service';
 import { storeLocationService } from '@/services/store-location.service';
 import { useTranslationSafe } from '@/contexts/I18nContext';
@@ -126,42 +126,50 @@ export default function InventoryPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-bold text-gray-800">{t('inventory.title')}</h1>
-        </div>
-        {summary && (
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
-              <Package size={14} /> {summary.totalItems} mặt hàng
-            </div>
-            <div className="flex items-center gap-1.5 bg-green-50 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
-              <DollarSign size={14} /> USD {fmt(summary.totalValue)}
-            </div>
-            {summary.lowStockCount > 0 && (
-              <div className="flex items-center gap-1.5 bg-red-50 text-red-700 px-3 py-1 rounded-full text-sm font-medium">
-                <AlertTriangle size={14} /> {summary.lowStockCount} tồn thấp
-              </div>
-            )}
+    <div className="h-full w-full flex flex-col overflow-hidden bg-white">
+      {/* ── HEADER ROW ── */}
+      <div className="flex flex-shrink-0 border-b border-gray-200">
+        {/* Header trái: root node "Tất cả kho" */}
+        <button
+          onClick={() => selectLocation(null)}
+          className={`w-56 flex-shrink-0 flex items-center gap-1.5 px-3 py-3 text-sm font-semibold border-r border-gray-200 ${
+            !selectedLocationId
+              ? 'bg-blue-800 text-white'
+              : 'text-gray-700 hover:bg-gray-50 bg-white'
+          }`}
+        >
+          <Package className="w-4 h-4 flex-shrink-0" />
+          <span className="flex-1 text-left truncate">Tất cả kho ({summary?.totalItems || 0})</span>
+        </button>
+
+        {/* Header phải: title + summary badges */}
+        <div className="flex-1 flex items-center justify-between px-4 py-3 bg-white">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-700">
+              ≡ {t('inventory.title')}{selectedLocationId ? ` - ${locations.find(l => l.id === selectedLocationId)?.name}` : ''}
+            </span>
           </div>
-        )}
+          {summary && (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                <Package size={12} /> {summary.totalItems} mặt hàng
+              </div>
+              <div className="flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                <DollarSign size={12} /> USD {fmt(totalValue)}
+              </div>
+              {summary.lowStockCount > 0 && (
+                <div className="flex items-center gap-1 text-xs bg-red-50 text-red-700 px-2 py-0.5 rounded-full font-medium">
+                  <AlertTriangle size={12} /> {summary.lowStockCount} tồn thấp
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left Panel - Location Tree */}
-        <div className="w-56 border-r bg-white overflow-y-auto flex-shrink-0">
-          <div className="p-2 border-b">
-            <div
-              className={`flex items-center gap-1.5 py-1.5 px-2 rounded cursor-pointer text-sm hover:bg-blue-50 ${!selectedLocationId ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
-              onClick={() => selectLocation(null)}
-            >
-              <Package size={14} />
-              <span className="flex-1">Tất cả kho</span>
-              <span className="text-xs bg-gray-100 text-gray-500 px-1.5 rounded">{summary?.totalItems || 0}</span>
-            </div>
-          </div>
+        <div className="w-56 border-r border-gray-200 bg-white overflow-y-auto flex-shrink-0">
           <div className="p-1">
             {tree.map(node => renderTreeNode(node))}
           </div>
@@ -169,55 +177,104 @@ export default function InventoryPage() {
 
         {/* Right Panel - Table */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Search bar */}
-          <div className="flex items-center gap-3 px-4 py-2 bg-white border-b">
-            <div className="relative flex-1 max-w-xs">
-              <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
-              <input type="text" placeholder="Tìm kiếm vật tư..." value={searchQ} onChange={e => { setSearchQ(e.target.value); setCurrentPage(1); }} className="pl-8 pr-3 py-2 text-sm border rounded w-full" />
-            </div>
-            {selectedLocationId && (
-              <span className="text-sm text-blue-600">
-                Kho: {locations.find(l => l.id === selectedLocationId)?.name}
-              </span>
-            )}
-            <span className="text-sm text-gray-400 ml-auto">
-              Tổng giá trị: <span className="font-semibold text-gray-700">USD {fmt(totalValue)}</span>
-            </span>
-          </div>
-
           {/* Table */}
           <div className="flex-1 overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-blue-50 sticky top-0 z-10">
-                <tr>
-                  <th className="px-3 py-2 text-left w-12">TT</th>
-                  <th className="px-3 py-2 text-left">{t('inventory.itemCode')}</th>
-                  <th className="px-3 py-2 text-left">{t('inventory.itemName')}</th>
-                  <th className="px-3 py-2 text-left">Ghi chú</th>
-                  <th className="px-3 py-2 text-left">{t('inventory.location')}</th>
-                  <th className="px-3 py-2 text-right">{t('inventory.quantity')}</th>
-                  <th className="px-3 py-2 text-right">{t('inventory.unitCost')}</th>
-                  <th className="px-3 py-2 text-right">{t('inventory.totalValue')}</th>
-                  <th className="px-3 py-2 text-left">ĐVT</th>
-                  <th className="px-3 py-2 text-left">Cập nhật</th>
+            <table className="min-w-full text-sm border-collapse">
+              <thead className="sticky top-0 z-10">
+                {/* Row 1: Column headers + sort icons */}
+                <tr className="bg-blue-50">
+                  <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">TT</th>
+                  <th className="w-32 px-3 py-2 text-left border-b border-r border-gray-200">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-semibold text-gray-600">{t('inventory.itemCode')}</span>
+                      <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="min-w-[180px] px-3 py-2 text-left border-b border-r border-gray-200">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-semibold text-gray-600">{t('inventory.itemName')}</span>
+                      <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="w-36 px-3 py-2 text-left border-b border-r border-gray-200">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-semibold text-gray-600">Ghi chú</span>
+                      <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="w-32 px-3 py-2 text-left border-b border-r border-gray-200">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-semibold text-gray-600">{t('inventory.location')}</span>
+                      <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="w-24 px-3 py-2 text-right border-b border-r border-gray-200">
+                    <div className="flex items-center justify-end gap-1">
+                      <span className="text-xs font-semibold text-gray-600">{t('inventory.quantity')}</span>
+                      <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="w-24 px-3 py-2 text-right border-b border-r border-gray-200">
+                    <div className="flex items-center justify-end gap-1">
+                      <span className="text-xs font-semibold text-gray-600">{t('inventory.unitCost')}</span>
+                      <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="w-28 px-3 py-2 text-right border-b border-r border-gray-200">
+                    <div className="flex items-center justify-end gap-1">
+                      <span className="text-xs font-semibold text-gray-600">{t('inventory.totalValue')}</span>
+                      <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="w-16 px-3 py-2 text-left border-b border-r border-gray-200">
+                    <span className="text-xs font-semibold text-gray-600">ĐVT</span>
+                  </th>
+                  <th className="w-24 px-3 py-2 border-b border-gray-200">
+                    <span className="text-xs font-semibold text-gray-600">Cập nhật</span>
+                  </th>
+                </tr>
+                {/* Row 2: Column filters */}
+                <tr className="bg-white border-b border-gray-200">
+                  <th className="border-r border-gray-200"></th>
+                  <th className="px-2 py-1 border-r border-gray-200">
+                    <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
+                      <span className="text-gray-400 text-xs select-none">→</span>
+                      <input type="text" placeholder={t('common.search')} value={searchQ} onChange={e => { setSearchQ(e.target.value); setCurrentPage(1); }} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                      <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="px-2 py-1 border-r border-gray-200">
+                    <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
+                      <span className="text-gray-400 text-xs select-none">→</span>
+                      <input type="text" placeholder={t('common.search')} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                      <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="border-r border-gray-200"></th>
+                  <th className="border-r border-gray-200"></th>
+                  <th className="border-r border-gray-200"></th>
+                  <th className="border-r border-gray-200"></th>
+                  <th className="border-r border-gray-200"></th>
+                  <th className="border-r border-gray-200"></th>
+                  <th className="border-gray-200"></th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr><td colSpan={10} className="text-center py-8 text-gray-400">Đang tải...</td></tr>
                 ) : items.length === 0 ? (
                   <tr><td colSpan={10} className="text-center py-8 text-gray-400">Không có dữ liệu tồn kho</td></tr>
                 ) : items.map((row, idx) => (
-                  <tr key={row.id} className="border-b hover:bg-gray-50">
-                    <td className="px-3 py-2 text-gray-500">{(currentPage - 1) * pageSize + idx + 1}</td>
-                    <td className="px-3 py-2 font-medium">{row.itemCode}</td>
-                    <td className="px-3 py-2">{row.itemName}</td>
-                    <td className="px-3 py-2 text-gray-500 truncate max-w-[150px]">{row.notes || '—'}</td>
-                    <td className="px-3 py-2 text-gray-600">{row.locationName}</td>
-                    <td className="px-3 py-2 text-right font-semibold">{fmt(row.quantity)}</td>
-                    <td className="px-3 py-2 text-right">{fmt(row.unitCost)}</td>
-                    <td className="px-3 py-2 text-right font-semibold text-green-700">{fmt(row.totalValue)}</td>
-                    <td className="px-3 py-2">{row.unit}</td>
+                  <tr key={row.id} className={`hover:bg-blue-50 ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
+                    <td className="px-2 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{(currentPage - 1) * pageSize + idx + 1}</td>
+                    <td className="px-3 py-2 text-xs font-medium border-r border-gray-100">{row.itemCode}</td>
+                    <td className="px-3 py-2 text-xs border-r border-gray-100">{row.itemName}</td>
+                    <td className="px-3 py-2 text-xs text-gray-500 truncate max-w-[150px] border-r border-gray-100">{row.notes || '—'}</td>
+                    <td className="px-3 py-2 text-xs text-gray-600 border-r border-gray-100">{row.locationName}</td>
+                    <td className="px-3 py-2 text-xs text-right font-semibold border-r border-gray-100">{fmt(row.quantity)}</td>
+                    <td className="px-3 py-2 text-xs text-right border-r border-gray-100">{fmt(row.unitCost)}</td>
+                    <td className="px-3 py-2 text-xs text-right font-semibold text-green-700 border-r border-gray-100">{fmt(row.totalValue)}</td>
+                    <td className="px-3 py-2 text-xs border-r border-gray-100">{row.unit}</td>
                     <td className="px-3 py-2 text-gray-400 text-xs">{row.updatedAt?.slice(0, 10)}</td>
                   </tr>
                 ))}
@@ -225,17 +282,34 @@ export default function InventoryPage() {
             </table>
           </div>
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between px-4 py-2 bg-white border-t text-sm">
-            <div className="flex items-center gap-2">
-              <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className="border rounded px-2 py-1 text-sm">
+          {/* ── PAGINATION ── */}
+          <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
+            <div>
+              <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className="border border-gray-300 rounded px-2 py-1 text-xs">
                 {ITEMS_PER_PAGE_OPTIONS.map(n => <option key={n} value={n}>{n} / trang</option>)}
               </select>
-              <span className="text-gray-500">Trang {currentPage} / {totalPages || 1} ({total} bản ghi)</span>
             </div>
             <div className="flex items-center gap-1">
-              <button disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)} className="p-1 border rounded disabled:opacity-40"><ChevronLeft size={16} /></button>
-              <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)} className="p-1 border rounded disabled:opacity-40"><ChevronRight size={16} /></button>
+              <span className="mr-2">Trang {currentPage} / {totalPages || 1} ({total} bản ghi)</span>
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">‹</button>
+              {[...Array(Math.min(5, totalPages || 1))].map((_, i) => {
+                const tp = totalPages || 1;
+                let page: number;
+                if (tp <= 5) page = i + 1;
+                else if (currentPage <= 3) page = i + 1;
+                else if (currentPage >= tp - 2) page = tp - 4 + i;
+                else page = currentPage - 2 + i;
+                return (
+                  <button key={page} onClick={() => setCurrentPage(page)} className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${currentPage === page ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}>
+                    {page}
+                  </button>
+                );
+              })}
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))} disabled={currentPage >= (totalPages || 1)} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">›</button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>Đến trang</span>
+              <input type="number" min={1} max={totalPages || 1} value={currentPage} onChange={e => { const v = Number(e.target.value); if (v >= 1 && v <= (totalPages || 1)) setCurrentPage(v); }} className="w-12 border border-gray-300 rounded px-1 py-1 text-center text-xs" />
             </div>
           </div>
         </div>
