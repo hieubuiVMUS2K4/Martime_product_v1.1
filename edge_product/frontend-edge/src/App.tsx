@@ -34,6 +34,7 @@ import DeferralManagementPage from './pages/PMS/DeferralManagementPage'
 import WorkPlanningPage from './pages/PMS/WorkPlanningPage'
 import EquipmentGroupsPage from './pages/PMS/EquipmentGroupsPage'
 import { MaintenanceHistoryPage } from './pages/PMS/MaintenanceHistoryPage'
+import StoreLocationPage from './pages/StoreLocation/StoreLocationPage'
 
 // Reporting Pages
 import { ReportingDashboard } from './pages/Reporting/ReportingDashboard'
@@ -126,6 +127,7 @@ function App() {
         <Route path="pms/deferrals" element={<DeferralManagementPage />} />
         <Route path="pms/maintenance-history" element={<MaintenanceHistoryPage />} />
         <Route path="pms/work-planning" element={<WorkPlanningPage />} />
+        <Route path="pms/store-locations" element={<StoreLocationPage />} />
         
         {/* Reporting Routes */}
         {/* System Routes */}

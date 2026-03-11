@@ -70,6 +70,7 @@ public class EdgeDbContext : DbContext
     public DbSet<MaterialItem> MaterialItems { get; set; } = null!;
     public DbSet<MaterialReceipt> MaterialReceipts { get; set; } = null!;
     public DbSet<MaterialReceiptItem> MaterialReceiptItems { get; set; } = null!;
+    public DbSet<StoreLocation> StoreLocations { get; set; } = null!;
 
     // Fuel Analytics (IMO DCS / EU MRV / CII Compliance)
     public DbSet<FuelAnalyticsSummary> FuelAnalyticsSummaries { get; set; } = null!;
@@ -1531,6 +1532,31 @@ public class EdgeDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ========== STORE LOCATIONS ==========
+        modelBuilder.Entity<StoreLocation>(entity =>
+        {
+            entity.ToTable("store_locations");
+
+            entity.HasIndex(e => e.LocationCode)
+                .IsUnique()
+                .HasDatabaseName("uk_store_locations_code");
+
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_store_location_active")
+                .HasFilter("is_active = true");
+
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_store_location_synced")
+                .HasFilter("is_synced = false");
+
+            // Self-referencing hierarchy: parent -> children
+            entity.HasOne(e => e.Parent)
+                .WithMany(e => e.Children)
+                .HasForeignKey(e => e.ParentId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
         });
 
         // ========== MATERIAL RECEIPT ITEMS ==========

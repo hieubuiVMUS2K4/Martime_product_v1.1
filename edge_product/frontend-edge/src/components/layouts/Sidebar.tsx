@@ -30,6 +30,7 @@ import {
   Shield,
   PanelLeftClose,
   PanelLeftOpen,
+  Warehouse,
 } from 'lucide-react'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 
@@ -51,6 +52,7 @@ const getNavigation = (t: (key: string) => string) => [
       { name: t('nav.masterSchedule'), to: '/pms/master-schedule', icon: Calendar },
       { name: t('nav.maintenance'), to: '/pms/maintenance', icon: Wrench },
       { name: t('nav.materials'), to: '/pms/materials', icon: Boxes },
+      { name: t('nav.storeLocations'), to: '/pms/store-locations', icon: Warehouse },
     ]
   },
   { name: t('nav.reporting'), to: '/reporting', icon: ClipboardList },

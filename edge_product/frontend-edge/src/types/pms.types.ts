@@ -157,3 +157,33 @@ export interface MaintenanceHistory {
   notes?: string;
   conditionAfter?: string;
 }
+
+// ── Store Locations (Danh mục vị trí kho) ──
+
+export interface StoreLocation {
+  id: string;
+  locationCode: string;
+  name: string;
+  description?: string | null;
+  parentId?: string | null;
+  address?: string | null;
+  managerName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  /** Children (populated by frontend tree builder) */
+  children?: StoreLocation[];
+}
+
+export interface CreateStoreLocationDto {
+  locationCode: string;
+  name: string;
+  description?: string | null;
+  parentId?: string | null;
+  address?: string | null;
+  managerName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}

@@ -4623,3 +4623,64 @@ public class AbstractLogDailyEntry
     [JsonIgnore]
     public virtual AbstractLogLeg? AbstractLogLeg { get; set; }
 }
+
+// ============================================================
+// INVENTORY - STORE LOCATIONS (Danh mục vị trí kho)
+// ============================================================
+
+/// <summary>
+/// Store Locations - Vị trí kho trên tàu
+/// Hierarchical structure: Ship → Store → Sub-store (Areas)
+/// </summary>
+public class StoreLocation
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    /// <summary>Location code (e.g., "KHO-01", "AREA-A1")</summary>
+    [Required]
+    [MaxLength(50)]
+    public string LocationCode { get; set; } = string.Empty;
+
+    /// <summary>Location name</summary>
+    [Required]
+    [MaxLength(200)]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Description</summary>
+    [MaxLength(500)]
+    public string? Description { get; set; }
+
+    /// <summary>Parent location ID for hierarchy (null = root/top-level store)</summary>
+    public Guid? ParentId { get; set; }
+
+    /// <summary>Physical address or deck/compartment info</summary>
+    [MaxLength(300)]
+    public string? Address { get; set; }
+
+    /// <summary>Manager / person in charge</summary>
+    [MaxLength(100)]
+    public string? ManagerName { get; set; }
+
+    /// <summary>Contact phone</summary>
+    [MaxLength(50)]
+    public string? Phone { get; set; }
+
+    /// <summary>Contact email</summary>
+    [MaxLength(100)]
+    public string? Email { get; set; }
+
+    public bool IsActive { get; set; } = true;
+    public bool IsSynced { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    /// <summary>Navigation: parent location</summary>
+    public virtual StoreLocation? Parent { get; set; }
+
+    /// <summary>Navigation: child locations</summary>
+    public virtual ICollection<StoreLocation> Children { get; set; } = new List<StoreLocation>();
+}
