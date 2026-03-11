@@ -239,12 +239,16 @@ export interface CreateMaterialRequestDto {
 export interface StockReceipt {
   id: number;
   receiptCode: string;
+  vesselName?: string | null;
+  voyageId?: string | null;
+  voyageName?: string | null;
   supplierCode?: string | null;
   supplierName?: string | null;
   receivedDate: string;
   receiptDate: string;
   createdBy?: string | null;
   notes?: string | null;
+  attachments?: string | null;
   status: string;
   materialRequestId?: number | null;
   requestCode?: string | null;
@@ -271,12 +275,16 @@ export interface StockReceiptItem {
 }
 
 export interface CreateStockReceiptDto {
+  vesselName?: string;
+  voyageId?: string;
+  voyageName?: string;
   supplierCode?: string;
   supplierName?: string;
   receivedDate: string;
   receiptDate: string;
   createdBy?: string;
   notes?: string;
+  attachments?: string;
   materialRequestId?: number;
   items: StockReceiptItem[];
 }

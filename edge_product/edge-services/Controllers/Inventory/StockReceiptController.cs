@@ -8,12 +8,16 @@ namespace MaritimeEdge.Controllers.Inventory;
 // ========== DTOs ==========
 public class CreateStockReceiptDto
 {
+    public string? VesselName { get; set; }
+    public Guid? VoyageId { get; set; }
+    public string? VoyageName { get; set; }
     public string? SupplierCode { get; set; }
     public string? SupplierName { get; set; }
     public DateTime ReceivedDate { get; set; }
     public DateTime ReceiptDate { get; set; }
     public string? CreatedBy { get; set; }
     public string? Notes { get; set; }
+    public string? Attachments { get; set; }
     public int? MaterialRequestId { get; set; }
     public List<CreateStockReceiptItemDto> Items { get; set; } = new();
 }
@@ -35,11 +39,16 @@ public class CreateStockReceiptItemDto
 
 public class UpdateStockReceiptDto
 {
+    public string? VesselName { get; set; }
+    public Guid? VoyageId { get; set; }
+    public string? VoyageName { get; set; }
     public string? SupplierCode { get; set; }
     public string? SupplierName { get; set; }
     public DateTime? ReceivedDate { get; set; }
     public DateTime? ReceiptDate { get; set; }
+    public string? CreatedBy { get; set; }
     public string? Notes { get; set; }
+    public string? Attachments { get; set; }
     public string? Status { get; set; }
     public List<CreateStockReceiptItemDto>? Items { get; set; }
 }
@@ -86,12 +95,16 @@ public class StockReceiptController : ControllerBase
             {
                 r.Id,
                 r.ReceiptCode,
+                r.VesselName,
+                r.VoyageId,
+                r.VoyageName,
                 r.SupplierCode,
                 r.SupplierName,
                 r.ReceivedDate,
                 r.ReceiptDate,
                 r.CreatedBy,
                 r.Notes,
+                r.Attachments,
                 r.Status,
                 r.MaterialRequestId,
                 RequestCode = r.MaterialRequest != null ? r.MaterialRequest.RequestCode : null,
@@ -115,12 +128,16 @@ public class StockReceiptController : ControllerBase
             {
                 r.Id,
                 r.ReceiptCode,
+                r.VesselName,
+                r.VoyageId,
+                r.VoyageName,
                 r.SupplierCode,
                 r.SupplierName,
                 r.ReceivedDate,
                 r.ReceiptDate,
                 r.CreatedBy,
                 r.Notes,
+                r.Attachments,
                 r.Status,
                 r.MaterialRequestId,
                 RequestCode = r.MaterialRequest != null ? r.MaterialRequest.RequestCode : null,
@@ -161,12 +178,16 @@ public class StockReceiptController : ControllerBase
         var receipt = new StockReceipt
         {
             ReceiptCode = code,
+            VesselName = dto.VesselName,
+            VoyageId = dto.VoyageId,
+            VoyageName = dto.VoyageName,
             SupplierCode = dto.SupplierCode,
             SupplierName = dto.SupplierName,
             ReceivedDate = DateTime.SpecifyKind(dto.ReceivedDate, DateTimeKind.Utc),
             ReceiptDate = DateTime.SpecifyKind(dto.ReceiptDate, DateTimeKind.Utc),
             CreatedBy = dto.CreatedBy,
             Notes = dto.Notes,
+            Attachments = dto.Attachments,
             MaterialRequestId = dto.MaterialRequestId,
             Status = "Draft"
         };
@@ -205,11 +226,16 @@ public class StockReceiptController : ControllerBase
 
         if (receipt == null) return NotFound();
 
+        if (dto.VesselName != null) receipt.VesselName = dto.VesselName;
+        if (dto.VoyageId.HasValue) receipt.VoyageId = dto.VoyageId;
+        if (dto.VoyageName != null) receipt.VoyageName = dto.VoyageName;
         if (dto.SupplierCode != null) receipt.SupplierCode = dto.SupplierCode;
         if (dto.SupplierName != null) receipt.SupplierName = dto.SupplierName;
         if (dto.ReceivedDate.HasValue) receipt.ReceivedDate = DateTime.SpecifyKind(dto.ReceivedDate.Value, DateTimeKind.Utc);
         if (dto.ReceiptDate.HasValue) receipt.ReceiptDate = DateTime.SpecifyKind(dto.ReceiptDate.Value, DateTimeKind.Utc);
+        if (dto.CreatedBy != null) receipt.CreatedBy = dto.CreatedBy;
         if (dto.Notes != null) receipt.Notes = dto.Notes;
+        if (dto.Attachments != null) receipt.Attachments = dto.Attachments;
         if (dto.Status != null) receipt.Status = dto.Status;
         receipt.UpdatedAt = DateTime.UtcNow;
 

@@ -4802,6 +4802,17 @@ public class StockReceipt
     [MaxLength(50)]
     public string ReceiptCode { get; set; } = string.Empty;
 
+    /// <summary>Tàu (vessel name)</summary>
+    [MaxLength(150)]
+    public string? VesselName { get; set; }
+
+    /// <summary>Voyage liên kết</summary>
+    public Guid? VoyageId { get; set; }
+
+    /// <summary>Tên voyage (snapshot)</summary>
+    [MaxLength(150)]
+    public string? VoyageName { get; set; }
+
     [MaxLength(50)]
     public string? SupplierCode { get; set; }
 
@@ -4818,6 +4829,9 @@ public class StockReceipt
     public string? CreatedBy { get; set; }
 
     public string? Notes { get; set; }
+
+    /// <summary>File đính kèm (JSON array of file names/paths)</summary>
+    public string? Attachments { get; set; }
 
     /// <summary>Liên kết yêu cầu vật tư gốc (optional)</summary>
     public int? MaterialRequestId { get; set; }
