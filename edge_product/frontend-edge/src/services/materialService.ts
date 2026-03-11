@@ -1,4 +1,5 @@
-import { apiClient } from './api.client'
+import { apiClient, getAuthToken } from './api.client'
+import { API_CONFIG } from '@/config/app.config'
 import type { MaterialCategory, MaterialItem } from '@/types/maritime.types'
 
 // ============================================================
@@ -97,6 +98,63 @@ export interface StockAdjustmentDto {
 }
 
 // ============================================================
+// EQUIPMENT ASSIGNMENT DTOs
+// ============================================================
+
+export interface AssignEquipmentDto {
+  materialItemIds: string[]
+  equipmentAssetIds: string[]
+  notes?: string | null
+}
+
+export interface MaterialItemEquipmentLink {
+  id: string
+  materialItemId: string
+  equipmentAssetId: string
+  notes?: string | null
+  createdAt: string
+  equipmentCode?: string
+  equipmentName?: string
+  equipmentCategory?: string
+}
+
+export interface ItemActivityRequest {
+  type: 'request'
+  code: string
+  date: string
+  status: string
+  quantity: number
+  note?: string | null
+  urgency: string
+  requestedBy?: string | null
+}
+
+export interface ItemActivityReceipt {
+  type: 'receipt'
+  code: string
+  date: string
+  status: string
+  quantityReceived: number
+  quantityRequested: number
+  unitCost?: number | null
+  currency?: string | null
+  supplierName?: string | null
+  note?: string | null
+}
+
+export interface ItemActivityResponse {
+  summary: {
+    totalRequested: number
+    totalReceived: number
+    pendingRequests: number
+    lastRequestDate?: string | null
+    lastReceiptDate?: string | null
+  }
+  requests: ItemActivityRequest[]
+  receipts: ItemActivityReceipt[]
+}
+
+// ============================================================
 // MATERIAL SERVICE
 // ============================================================
 
@@ -178,4 +236,47 @@ export const materialService = {
       quantity: number
       reason?: string
     }>('/material/items/adjust-stock', dto),
+
+  // ── Equipment Assignment ──
+  getEquipmentCounts: () =>
+    apiClient.get<{ materialItemId: string; count: number }[]>('/material/items/equipment-counts'),
+
+  getItemEquipment: (itemId: string) =>
+    apiClient.get<MaterialItemEquipmentLink[]>(`/material/items/${itemId}/equipment`),
+
+  assignEquipment: (dto: AssignEquipmentDto) =>
+    apiClient.post<{ message: string; created: number; skipped: number }>(
+      '/material/items/assign-equipment',
+      dto,
+    ),
+
+  removeEquipmentLink: (materialItemId: string, equipmentAssetId: string) =>
+    apiClient.delete<{ message: string }>(
+      `/material/items/${materialItemId}/equipment/${equipmentAssetId}`,
+    ),
+
+  // ── Image Upload ──
+  uploadItemImage: async (itemId: string, file: File): Promise<{ imageUrl: string }> => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const headers: Record<string, string> = {}
+    const token = getAuthToken()
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const res = await fetch(`${API_CONFIG.BASE_URL}/material/items/${itemId}/image`, {
+      method: 'PUT',
+      body: fd,
+      headers,
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }))
+      throw new Error(err.error || 'Upload failed')
+    }
+    return res.json()
+  },
+
+  deleteItemImage: (itemId: string) =>
+    apiClient.delete<{ message: string }>(`/material/items/${itemId}/image`),
+
+  getItemActivity: (itemId: string) =>
+    apiClient.get<ItemActivityResponse>(`/material/items/${itemId}/activity`),
 }

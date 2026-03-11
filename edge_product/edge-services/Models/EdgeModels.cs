@@ -2449,6 +2449,10 @@ public class MaterialItem
 
     public string? Notes { get; set; }
 
+    /// <summary>Image URL path (e.g. /uploads/materials/xxx.jpg)</summary>
+    [MaxLength(500)]
+    public string? ImageUrl { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public bool IsSynced { get; set; } = false;
@@ -3950,6 +3954,30 @@ public class ScheduleSparePart
     [MaxLength(500)]
     public string? Notes { get; set; }
     
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Material-Equipment Link - Liên kết vật tư với thiết bị
+/// M:N bridge between MaterialItem and EquipmentAsset
+/// </summary>
+public class MaterialItemEquipment
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    /// FK -> MaterialItem.Id
+    [Required]
+    public Guid MaterialItemId { get; set; }
+
+    /// FK -> EquipmentAsset.Id
+    [Required]
+    public Guid EquipmentAssetId { get; set; }
+
+    /// Notes about this link
+    [MaxLength(500)]
+    public string? Notes { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 

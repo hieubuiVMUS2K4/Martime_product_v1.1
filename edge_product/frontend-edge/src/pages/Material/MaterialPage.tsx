@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, Search, Package, Eye, Edit2, Trash2, ChevronsUpDown, Upload, ChevronRight } from 'lucide-react';
+import { Plus, Search, Package, Eye, Edit2, Trash2, ChevronsUpDown, Upload, Link2 } from 'lucide-react';
 import { materialService } from '@/services/materialService';
-import type { CreateMaterialItemDto, UpdateMaterialItemDto, StockAdjustmentDto } from '@/services/materialService';
+import type { CreateMaterialItemDto, UpdateMaterialItemDto } from '@/services/materialService';
 import { ItemFormModal } from './ItemFormModal';
 import { CategoryFormModal } from './CategoryFormModal';
-import { StockAdjustmentModal } from './StockAdjustmentModal';
 import { ImportReceiptModal } from './ImportReceiptModal';
+import { AssignEquipmentModal } from './AssignEquipmentModal';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { MaterialItem, MaterialCategory } from '@/types/maritime.types';
 
@@ -34,23 +34,27 @@ export function MaterialPage() {
   // Modals
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-  const [stockAdjustmentModalOpen, setStockAdjustmentModalOpen] = useState(false);
   const [importReceiptModalOpen, setImportReceiptModalOpen] = useState(false);
+  const [assignEquipmentModalOpen, setAssignEquipmentModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MaterialItem | null>(null);
+  const [viewingItem, setViewingItem] = useState<MaterialItem | null>(null);
   const [editingCategory, setEditingCategory] = useState<MaterialCategory | null>(null);
-  const [adjustingItem, setAdjustingItem] = useState<MaterialItem | null>(null);
+  const [equipmentCounts, setEquipmentCounts] = useState<Map<string, number>>(new Map());
+  const [singleAssignItemId, setSingleAssignItemId] = useState<string | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [its, cats] = await Promise.all([
+      const [its, cats, eqCounts] = await Promise.all([
         materialService.getItems({ onlyActive: true }),
         materialService.getCategories(true),
+        materialService.getEquipmentCounts(),
       ]);
       setItems(its);
       setCategories(cats);
+      setEquipmentCounts(new Map(eqCounts.map(e => [e.materialItemId, e.count])));
     } catch (e) {
       console.error('Failed to load material data:', e);
     } finally {
@@ -81,10 +85,25 @@ export function MaterialPage() {
     }
   };
 
-  const handleStockAdjustment = async (data: StockAdjustmentDto) => {
-    await materialService.adjustStock(data);
-    setAdjustingItem(null);
-    await loadData();
+  const handleBulkDelete = async () => {
+    if (selectedRows.size === 0) return;
+    if (!confirm(`Bạn có chắc muốn xóa ${selectedRows.size} vật tư đã chọn?`)) return;
+    try {
+      const ids = Array.from(selectedRows);
+      await Promise.all(ids.map(id => materialService.deleteItem(id)));
+      setSelectedRows(new Set());
+      await loadData();
+    } catch (error: any) {
+      alert(error.message || 'Xóa thất bại');
+    }
+  };
+
+  const handleAssignEquipment = () => {
+    if (selectedRows.size === 0) {
+      alert('Vui lòng chọn ít nhất 1 vật tư để gán thiết bị');
+      return;
+    }
+    setAssignEquipmentModalOpen(true);
   };
 
   // Category handlers (for modal)
@@ -180,6 +199,20 @@ export function MaterialPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={handleAssignEquipment}
+            disabled={selectedRows.size === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Link2 className="w-3.5 h-3.5" /> Gán thiết bị
+          </button>
+          <button
+            onClick={handleBulkDelete}
+            disabled={selectedRows.size === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-red-300 rounded text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> Xóa nhiều
+          </button>
+          <button
             onClick={() => setCategoryModalOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50"
           >
@@ -247,14 +280,14 @@ export function MaterialPage() {
                   <span className="text-xs font-semibold text-gray-600">{t('materials.page.colDescription')}</span>
                 </div>
               </th>
+              <th className="w-24 px-3 py-2 text-center border-b border-r border-gray-200">
+                <span className="text-xs font-semibold text-gray-600">Thiết bị</span>
+              </th>
               <th className="w-28 px-3 py-2 text-left border-b border-r border-gray-200">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-xs font-semibold text-gray-600">{t('materials.page.colUpdatedAt')}</span>
                   <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                 </div>
-              </th>
-              <th className="w-28 px-3 py-2 text-left border-b border-r border-gray-200">
-                <span className="text-xs font-semibold text-gray-600">{t('materials.page.colCreatedBy')}</span>
               </th>
               <th className="w-24 px-3 py-2 border-b border-gray-200"></th>
             </tr>
@@ -315,9 +348,9 @@ export function MaterialPage() {
               </th>
               {/* Description - no filter */}
               <th className="border-r border-gray-200"></th>
-              {/* Date - no filter */}
+              {/* Equipment - no filter */}
               <th className="border-r border-gray-200"></th>
-              {/* Created by - no filter */}
+              {/* Date - no filter */}
               <th className="border-r border-gray-200"></th>
               <th className="border-gray-200"></th>
             </tr>
@@ -363,9 +396,8 @@ export function MaterialPage() {
                     <td className="px-3 py-2 border-r border-gray-100">
                       <button
                         onClick={() => { setEditingItem(item); setItemModalOpen(true); }}
-                        className="flex items-center gap-1 text-blue-600 hover:underline font-medium text-xs text-left w-full"
+                        className="text-blue-600 hover:underline font-medium text-xs text-left w-full"
                       >
-                        <ChevronRight className="w-3 h-3 flex-shrink-0" />
                         <span className="marquee-cell flex-1 min-w-0">
                           <span className="marquee-text">{item.name}</span>
                         </span>
@@ -390,30 +422,46 @@ export function MaterialPage() {
                         <span className="marquee-text">{item.specification || item.notes || ''}</span>
                       </div>
                     </td>
+                    {/* Thiết bị */}
+                    <td className="px-3 py-2 text-center border-r border-gray-100">
+                      {(() => {
+                        const count = equipmentCounts.get(item.id) || 0;
+                        return (
+                          <button
+                            onClick={() => { setSingleAssignItemId(item.id); setSelectedRows(new Set([item.id])); setAssignEquipmentModalOpen(true); }}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                              count > 0
+                                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                            }`}
+                            title={count > 0 ? `${count} thiết bị đã gán — click để xem/sửa` : 'Chưa gán thiết bị — click để gán'}
+                          >
+                            <Link2 className="w-3 h-3" />
+                            {count}
+                          </button>
+                        );
+                      })()}
+                    </td>
                     {/* Ngày cập nhật */}
                     <td className="px-3 py-2 text-xs text-gray-500 border-r border-gray-100 text-center">
                       {formatDate(item.createdAt)}
                     </td>
-                    {/* Người tạo */}
-                    <td className="px-3 py-2 text-xs text-gray-500 border-r border-gray-100 text-center">
-                      —
-                    </td>
                     {/* Actions */}
                     <td className="px-2 py-2">
                       <div className="flex items-center justify-center gap-0.5">
+                        <button
+                          onClick={() => setViewingItem(item)}
+                          className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                          title="Xem chi tiết"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           onClick={() => { setEditingItem(item); setItemModalOpen(true); }}
                           className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
                           title={t('materials.page.edit')}
                         >
                           <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => { setAdjustingItem(item); setStockAdjustmentModalOpen(true); }}
-                          className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"
-                          title={t('materials.adjustStock')}
-                        >
-                          <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDeleteItem(item)}
@@ -511,6 +559,17 @@ export function MaterialPage() {
         title={editingItem ? t('materials.editItem') : t('materials.addItem')}
       />
 
+      {/* View-only detail modal */}
+      <ItemFormModal
+        isOpen={!!viewingItem}
+        onClose={() => setViewingItem(null)}
+        onSubmit={async () => {}}
+        item={viewingItem}
+        categories={categories}
+        title="Chi tiết vật tư"
+        viewMode
+      />
+
       <CategoryFormModal
         isOpen={categoryModalOpen}
         onClose={() => { setCategoryModalOpen(false); setEditingCategory(null); }}
@@ -520,17 +579,22 @@ export function MaterialPage() {
         title={editingCategory ? t('materials.editCategory') : t('materials.addCategory')}
       />
 
-      <StockAdjustmentModal
-        isOpen={stockAdjustmentModalOpen}
-        onClose={() => { setStockAdjustmentModalOpen(false); setAdjustingItem(null); }}
-        onSubmit={handleStockAdjustment}
-        item={adjustingItem}
-      />
-
       <ImportReceiptModal
         isOpen={importReceiptModalOpen}
         onClose={() => setImportReceiptModalOpen(false)}
         onSuccess={() => { loadData(); }}
+      />
+
+      <AssignEquipmentModal
+        isOpen={assignEquipmentModalOpen}
+        onClose={() => { setAssignEquipmentModalOpen(false); setSingleAssignItemId(null); }}
+        onSuccess={() => { loadData(); }}
+        selectedMaterialIds={singleAssignItemId ? [singleAssignItemId] : [...selectedRows]}
+        selectedMaterialNames={
+          singleAssignItemId
+            ? items.filter(i => i.id === singleAssignItemId).map(i => i.name || i.itemCode)
+            : items.filter(i => selectedRows.has(i.id)).map(i => i.name || i.itemCode)
+        }
       />
     </div>
   );

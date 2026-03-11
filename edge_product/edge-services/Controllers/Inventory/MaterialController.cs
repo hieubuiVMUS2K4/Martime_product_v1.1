@@ -678,6 +678,314 @@ public class MaterialController : ControllerBase
     // ======== HELPER METHODS ========
 
     /// <summary>
+    /// Upload image for a material item
+    /// </summary>
+    [HttpPut("items/{id}/image")]
+    public async Task<IActionResult> UploadItemImage(Guid id, [FromForm] IFormFile file)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { error = "File is required" });
+
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+                return BadRequest(new { error = "Only image files (jpg, jpeg, png, gif, webp) are allowed" });
+
+            if (file.Length > 5 * 1024 * 1024)
+                return BadRequest(new { error = "File size must not exceed 5MB" });
+
+            var item = await _context.MaterialItems.FindAsync(id);
+            if (item is null) return NotFound(new { error = "Item not found" });
+
+            var uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "materials");
+            Directory.CreateDirectory(uploadsRoot);
+
+            var fileName = $"{id}{extension}";
+            var filePath = Path.Combine(uploadsRoot, fileName);
+
+            // Delete old file if exists
+            if (!string.IsNullOrEmpty(item.ImageUrl))
+            {
+                var oldPath = Path.Combine(Directory.GetCurrentDirectory(), item.ImageUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
+            }
+
+            await using var stream = new FileStream(filePath, FileMode.Create);
+            await file.CopyToAsync(stream);
+
+            item.ImageUrl = $"/uploads/materials/{fileName}";
+            item.IsSynced = false;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { imageUrl = item.ImageUrl });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading image for item {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Delete image for a material item
+    /// </summary>
+    [HttpDelete("items/{id}/image")]
+    public async Task<IActionResult> DeleteItemImage(Guid id)
+    {
+        try
+        {
+            var item = await _context.MaterialItems.FindAsync(id);
+            if (item is null) return NotFound(new { error = "Item not found" });
+
+            if (!string.IsNullOrEmpty(item.ImageUrl))
+            {
+                var filePath = Path.Combine(Directory.GetCurrentDirectory(), item.ImageUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath);
+            }
+
+            item.ImageUrl = null;
+            item.IsSynced = false;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Image deleted" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting image for item {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Get activity history for a material item (recent requests & receipts)
+    /// </summary>
+    [HttpGet("items/{id}/activity")]
+    public async Task<IActionResult> GetItemActivity(Guid id, [FromQuery] int limit = 20)
+    {
+        try
+        {
+            var item = await _context.MaterialItems.FindAsync(id);
+            if (item == null) return NotFound(new { error = "Item not found" });
+
+            var requests = await _context.MaterialRequestItems
+                .Where(ri => ri.MaterialItemId == id)
+                .Join(_context.MaterialRequests,
+                    ri => ri.RequestId,
+                    r => r.Id,
+                    (ri, r) => new
+                    {
+                        type = "request",
+                        code = r.RequestCode,
+                        date = r.RequestDate,
+                        status = r.Status,
+                        quantity = ri.QuantityRequested,
+                        note = ri.Note,
+                        urgency = r.Urgency,
+                        requestedBy = r.RequestedBy
+                    })
+                .OrderByDescending(x => x.date)
+                .Take(limit)
+                .ToListAsync();
+
+            var receipts = await _context.StockReceiptItems
+                .Where(si => si.MaterialItemId == id)
+                .Join(_context.StockReceipts,
+                    si => si.ReceiptId,
+                    r => r.Id,
+                    (si, r) => new
+                    {
+                        type = "receipt",
+                        code = r.ReceiptCode,
+                        date = r.ReceivedDate,
+                        status = r.Status,
+                        quantityReceived = si.QuantityReceived,
+                        quantityRequested = si.QuantityRequested,
+                        unitCost = si.UnitCost,
+                        currency = si.Currency,
+                        supplierName = r.SupplierName,
+                        note = si.Note
+                    })
+                .OrderByDescending(x => x.date)
+                .Take(limit)
+                .ToListAsync();
+
+            var totalRequested = await _context.MaterialRequestItems
+                .Where(ri => ri.MaterialItemId == id)
+                .SumAsync(ri => ri.QuantityRequested);
+
+            var totalReceived = await _context.StockReceiptItems
+                .Where(si => si.MaterialItemId == id)
+                .SumAsync(si => si.QuantityReceived);
+
+            var pendingRequests = await _context.MaterialRequestItems
+                .Where(ri => ri.MaterialItemId == id)
+                .Join(_context.MaterialRequests, ri => ri.RequestId, r => r.Id, (ri, r) => r)
+                .CountAsync(r => r.Status == "Submitted" || r.Status == "Approved");
+
+            return Ok(new
+            {
+                summary = new
+                {
+                    totalRequested,
+                    totalReceived,
+                    pendingRequests,
+                    lastRequestDate = requests.FirstOrDefault()?.date,
+                    lastReceiptDate = receipts.FirstOrDefault()?.date
+                },
+                requests,
+                receipts
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting activity for item {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    // ======== MATERIAL-EQUIPMENT ASSIGNMENT ========
+
+    /// <summary>
+    /// Get equipment link counts for all material items (bulk)
+    /// </summary>
+    [HttpGet("items/equipment-counts")]
+    public async Task<IActionResult> GetEquipmentCounts()
+    {
+        try
+        {
+            var counts = await _context.MaterialItemEquipments
+                .AsNoTracking()
+                .GroupBy(x => x.MaterialItemId)
+                .Select(g => new { materialItemId = g.Key, count = g.Count() })
+                .ToListAsync();
+
+            return Ok(counts);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting equipment counts");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Get equipment linked to a material item
+    /// </summary>
+    [HttpGet("items/{id}/equipment")]
+    public async Task<IActionResult> GetItemEquipment(Guid id)
+    {
+        try
+        {
+            var item = await _context.MaterialItems.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && x.IsActive);
+            if (item is null) return NotFound(new { error = "Item not found" });
+
+            var links = await _context.MaterialItemEquipments
+                .AsNoTracking()
+                .Where(x => x.MaterialItemId == id)
+                .ToListAsync();
+
+            var eqIds = links.Select(x => x.EquipmentAssetId).ToList();
+            var assets = await _context.EquipmentAssets
+                .AsNoTracking()
+                .Where(a => eqIds.Contains(a.Id))
+                .Select(a => new { a.Id, a.AssetCode, a.AssetName, a.Category })
+                .ToListAsync();
+
+            return Ok(links.Select(l => new
+            {
+                l.Id,
+                l.MaterialItemId,
+                l.EquipmentAssetId,
+                l.Notes,
+                l.CreatedAt,
+                equipmentCode = assets.FirstOrDefault(a => a.Id == l.EquipmentAssetId)?.AssetCode,
+                equipmentName = assets.FirstOrDefault(a => a.Id == l.EquipmentAssetId)?.AssetName,
+                equipmentCategory = assets.FirstOrDefault(a => a.Id == l.EquipmentAssetId)?.Category,
+            }));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting equipment for item {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Assign equipment to material items (batch M:N)
+    /// </summary>
+    [HttpPost("items/assign-equipment")]
+    public async Task<IActionResult> AssignEquipment([FromBody] AssignEquipmentDto dto)
+    {
+        try
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var created = 0;
+            var skipped = 0;
+
+            foreach (var matId in dto.MaterialItemIds)
+            {
+                foreach (var eqId in dto.EquipmentAssetIds)
+                {
+                    var exists = await _context.MaterialItemEquipments
+                        .AnyAsync(x => x.MaterialItemId == matId && x.EquipmentAssetId == eqId);
+
+                    if (exists) { skipped++; continue; }
+
+                    _context.MaterialItemEquipments.Add(new MaterialItemEquipment
+                    {
+                        MaterialItemId = matId,
+                        EquipmentAssetId = eqId,
+                        Notes = dto.Notes
+                    });
+                    created++;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = $"Assigned {created} links, {skipped} already existed",
+                created,
+                skipped
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error assigning equipment to materials");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Remove equipment assignment from a material item
+    /// </summary>
+    [HttpDelete("items/{materialItemId}/equipment/{equipmentAssetId}")]
+    public async Task<IActionResult> RemoveEquipmentAssignment(Guid materialItemId, Guid equipmentAssetId)
+    {
+        try
+        {
+            var link = await _context.MaterialItemEquipments
+                .FirstOrDefaultAsync(x => x.MaterialItemId == materialItemId && x.EquipmentAssetId == equipmentAssetId);
+
+            if (link is null) return NotFound(new { error = "Link not found" });
+
+            _context.MaterialItemEquipments.Remove(link);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Assignment removed" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error removing equipment assignment");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
     /// Check if setting a parent category would create a circular reference
     /// </summary>
     private async Task<bool> HasCircularReference(long categoryId, long proposedParentId)

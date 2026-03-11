@@ -13,6 +13,9 @@ interface CategoryFormModalProps {
   title: string
 }
 
+const inp = 'w-full px-2 py-1.5 border border-gray-300 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white'
+const lbl = 'text-sm text-gray-600 whitespace-nowrap text-right pr-3'
+
 export function CategoryFormModal({
   isOpen,
   onClose,
@@ -32,7 +35,6 @@ export function CategoryFormModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Update form data when category changes
   useEffect(() => {
     if (category) {
       setFormData({
@@ -43,7 +45,6 @@ export function CategoryFormModal({
         isActive: category.isActive,
       })
     } else {
-      // Reset form for new category
       setFormData({
         categoryCode: '',
         name: '',
@@ -61,18 +62,9 @@ export function CategoryFormModal({
     e.preventDefault()
     setError(null)
     setLoading(true)
-
     try {
       await onSubmit(formData)
       onClose()
-      // Reset form
-      setFormData({
-        categoryCode: '',
-        name: '',
-        description: '',
-        parentCategoryId: null,
-        isActive: true,
-      })
     } catch (err: any) {
       setError(err.message || t('materials.category.saveFailed'))
     } finally {
@@ -85,132 +77,77 @@ export function CategoryFormModal({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
-        {/* Backdrop */}
-        <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
+        <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
 
-        {/* Modal */}
-        <div className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl">
+        <div className="relative w-full max-w-xl bg-white rounded-lg shadow-xl flex flex-col max-h-[90vh]">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-            <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
+          <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3 shrink-0">
+            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Body */}
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                {error}
-              </div>
+              <div className="mx-5 mt-3 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded text-sm">{error}</div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Category Code */}
+            <div className="p-5 space-y-5">
+              {/* General Info */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('materials.category.code')} <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  maxLength={50}
-                  value={formData.categoryCode}
-                  onChange={(e) => setFormData({ ...formData, categoryCode: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder={t('materials.category.codePlaceholder')}
-                />
+                <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">Thông tin danh mục</div>
+                <div className="border border-t-0 border-gray-200 rounded-b p-4 space-y-2.5">
+                  <div className="flex items-center">
+                    <label className={lbl} style={{ width: 120 }}>Mã danh mục <span className="text-red-500">*</span></label>
+                    <input type="text" required maxLength={50} value={formData.categoryCode} onChange={e => setFormData({ ...formData, categoryCode: e.target.value })} className={inp} placeholder="VD: CAT-001" />
+                  </div>
+                  <div className="flex items-center">
+                    <label className={lbl} style={{ width: 120 }}>Tên danh mục <span className="text-red-500">*</span></label>
+                    <input type="text" required maxLength={200} value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={inp} placeholder="Tên danh mục" />
+                  </div>
+                  <div className="flex items-center">
+                    <label className={lbl} style={{ width: 120 }}>Danh mục cha</label>
+                    <select value={formData.parentCategoryId || ''} onChange={e => setFormData({ ...formData, parentCategoryId: e.target.value ? Number(e.target.value) : null })} className={inp}>
+                      <option value="">Không (Cấp cao nhất)</option>
+                      {availableParents.map(c => <option key={c.id} value={c.id}>{c.name} ({c.categoryCode})</option>)}
+                    </select>
+                  </div>
+                </div>
               </div>
 
-              {/* Name */}
+              {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('materials.category.name')} <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  maxLength={200}
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder={t('materials.category.namePlaceholder')}
-                />
+                <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">Mô tả</div>
+                <div className="border border-t-0 border-gray-200 rounded-b p-4">
+                  <textarea
+                    rows={3}
+                    maxLength={1000}
+                    value={formData.description || ''}
+                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    className={`${inp} resize-y`}
+                    placeholder="Mô tả tùy chọn..."
+                  />
+                </div>
+              </div>
+
+              {/* Options */}
+              <div>
+                <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">Tùy chọn</div>
+                <div className="border border-t-0 border-gray-200 rounded-b p-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={formData.isActive} onChange={e => setFormData({ ...formData, isActive: e.target.checked })} className="w-4 h-4 text-blue-600 rounded" />
+                    Đang hoạt động
+                  </label>
+                </div>
               </div>
             </div>
 
-            {/* Parent Category */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('materials.category.parentCategory')}
-              </label>
-              <select
-                value={formData.parentCategoryId || ''}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    parentCategoryId: e.target.value ? Number(e.target.value) : null,
-                  })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">{t('materials.category.noneTopLevel')}</option>
-                {availableParents.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name} ({cat.categoryCode})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('materials.category.description')}
-              </label>
-              <textarea
-                rows={3}
-                maxLength={1000}
-                value={formData.description || ''}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder={t('materials.category.descriptionPlaceholder')}
-              />
-            </div>
-
-            {/* Active Status */}
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
-                {t('materials.active')}
-              </label>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-              >
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-5 py-3 border-t border-gray-200 bg-gray-50 sticky bottom-0">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">
                 {t('common.cancel')}
               </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
+              <button type="submit" disabled={loading} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-50">
                 {loading ? t('materials.saving') : category ? t('materials.update') : t('materials.create')}
               </button>
             </div>

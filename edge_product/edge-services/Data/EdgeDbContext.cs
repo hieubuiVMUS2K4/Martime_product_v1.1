@@ -110,6 +110,7 @@ public class EdgeDbContext : DbContext
     public DbSet<EquipmentAsset> EquipmentAssets { get; set; } = null!;
     public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; } = null!;
     public DbSet<ScheduleSparePart> ScheduleSpareParts { get; set; } = null!;
+    public DbSet<MaterialItemEquipment> MaterialItemEquipments { get; set; } = null!;
     public DbSet<ScheduleChecklistTemplate> ScheduleChecklistTemplates { get; set; } = null!;
     public DbSet<MaintenanceHistory> MaintenanceHistories { get; set; } = null!;
     public DbSet<EquipmentGroup> EquipmentGroups { get; set; } = null!;

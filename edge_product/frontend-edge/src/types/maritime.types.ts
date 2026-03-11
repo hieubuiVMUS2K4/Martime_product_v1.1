@@ -911,6 +911,7 @@ export interface MaterialItem {
   unitCost?: number | null;
   currency: string;
   notes?: string | null;
+  imageUrl?: string | null;
   isActive: boolean;
   isSynced: boolean;
   createdAt: string;

@@ -278,3 +278,18 @@ public class StockAdjustmentDto
     [StringLength(500, ErrorMessage = "Reason cannot exceed 500 characters")]
     public string? Reason { get; set; }
 }
+
+/// <summary>
+/// DTO for assigning equipment to materials
+/// </summary>
+public class AssignEquipmentDto
+{
+    [Required(ErrorMessage = "MaterialItemIds is required")]
+    public List<Guid> MaterialItemIds { get; set; } = new();
+
+    [Required(ErrorMessage = "EquipmentAssetIds is required")]
+    public List<Guid> EquipmentAssetIds { get; set; } = new();
+
+    [StringLength(500)]
+    public string? Notes { get; set; }
+}
