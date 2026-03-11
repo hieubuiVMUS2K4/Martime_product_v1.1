@@ -1,17 +1,11 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft,
   Save,
   CheckCircle,
   ChevronRight,
-  Clock,
+  X,
   FileText,
-  Package,
-  Shield,
-  ClipboardCheck,
-  MessageSquare,
-  History,
   Send,
   Paperclip,
   User,
@@ -24,53 +18,35 @@ import { format, parseISO } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import { toast } from 'sonner'
 
-// ============================================================
-// STATUS & PRIORITY LABELS (Vietnamese - Avison style)
-// ============================================================
-const STATUS_LABELS: Record<string, { label: string; bg: string; text: string }> = {
-  SCHEDULED: { label: 'Đã lên lịch', bg: 'bg-blue-100', text: 'text-blue-700' },
-  DUE: { label: 'Đến hạn', bg: 'bg-yellow-100', text: 'text-yellow-700' },
-  OVERDUE: { label: 'Quá hạn', bg: 'bg-red-100', text: 'text-red-700' },
-  IN_PROGRESS: { label: 'Đang thực hiện', bg: 'bg-indigo-100', text: 'text-indigo-700' },
-  PENDING_APPROVAL: { label: 'Chờ phê duyệt', bg: 'bg-purple-100', text: 'text-purple-700' },
-  RECTIFY: { label: 'Cần sửa chữa', bg: 'bg-orange-100', text: 'text-orange-700' },
-  COMPLETED: { label: 'Hoàn thành', bg: 'bg-green-100', text: 'text-green-700' },
-  CANCELLED: { label: 'Đã hủy', bg: 'bg-gray-100', text: 'text-gray-700' },
+const STATUS_LABELS: Record<string, string> = {
+  SCHEDULED: 'Chưa bắt đầu',
+  DUE: 'Đến hạn',
+  OVERDUE: 'Quá hạn',
+  IN_PROGRESS: 'Đang thực hiện',
+  PENDING_APPROVAL: 'Chờ duyệt',
+  RECTIFY: 'Trả hoàn',
+  COMPLETED: 'Hoàn thành',
+  CANCELLED: 'Hủy bỏ',
 }
 
-const PRIORITY_LABELS: Record<string, { label: string; bg: string; text: string }> = {
-  CRITICAL: { label: 'Nghiêm trọng', bg: 'bg-red-100', text: 'text-red-700' },
-  HIGH: { label: 'Cao', bg: 'bg-orange-100', text: 'text-orange-700' },
-  NORMAL: { label: 'Trung bình', bg: 'bg-blue-100', text: 'text-blue-700' },
-  LOW: { label: 'Thấp', bg: 'bg-gray-100', text: 'text-gray-700' },
+const PRIORITY_LABELS: Record<string, string> = {
+  CRITICAL: 'Rất cao',
+  HIGH: 'Cao',
+  NORMAL: 'Trung bình',
+  LOW: 'Thấp',
 }
 
-// ============================================================
-// BOTTOM TABS
-// ============================================================
 type BottomTab = 'report' | 'materials' | 'risk' | 'inspection'
 
-const BOTTOM_TABS: { key: BottomTab; label: string; icon: React.ElementType }[] = [
-  { key: 'report', label: 'Báo cáo', icon: FileText },
-  { key: 'materials', label: 'Vật tư', icon: Package },
-  { key: 'risk', label: 'Biểu mẫu ĐGRR', icon: Shield },
-  { key: 'inspection', label: 'Biểu mẫu BBKT', icon: ClipboardCheck },
-]
-
-// ============================================================
-// COMPONENT
-// ============================================================
 export default function WorkReportPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  // Data
   const [task, setTask] = useState<MaintenanceTask | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [crewMembers, setCrewMembers] = useState<CrewMember[]>([])
 
-  // Form state
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [description, setDescription] = useState('')
@@ -81,22 +57,18 @@ export default function WorkReportPage() {
   const [reportReceiver, setReportReceiver] = useState('')
   const [hasRiskAssessment, setHasRiskAssessment] = useState(false)
 
-  // Report tab state
   const [equipmentRunningHours, setEquipmentRunningHours] = useState<number>(0)
   const [currentEquipmentHours, setCurrentEquipmentHours] = useState<number>(0)
   const [completionDate, setCompletionDate] = useState('')
   const [actualDuration, setActualDuration] = useState<number>(0)
   const [reportText, setReportText] = useState('')
 
-  // Materials tab state
   const [sparePartsUsed, setSparePartsUsed] = useState('')
 
-  // Risk assessment tab state
   const [riskDescription, setRiskDescription] = useState('')
   const [riskLevel, setRiskLevel] = useState('LOW')
   const [mitigationMeasures, setMitigationMeasures] = useState('')
 
-  // Inspection tab state
   const [inspectionNotes, setInspectionNotes] = useState('')
   const [inspectionResult, setInspectionResult] = useState<'PASS' | 'FAIL' | ''>('')
 
@@ -268,643 +240,354 @@ export default function WorkReportPage() {
     )
   }
 
-  const statusInfo = STATUS_LABELS[task.status] || STATUS_LABELS.SCHEDULED
-  const priorityInfo = PRIORITY_LABELS[task.priority] || PRIORITY_LABELS.NORMAL
+  const statusLabel = STATUS_LABELS[task.status] || 'Chưa bắt đầu'
+  const priorityLabel = PRIORITY_LABELS[task.priority] || 'Trung bình'
+
+  // common input class
+  const inp = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
+  const inpRo = 'w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-sm'
+  const lbl = 'text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap'
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      {/* ============================================================ */}
-      {/* HEADER: Breadcrumb + Action Buttons */}
-      {/* ============================================================ */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-sm">
-            <button onClick={() => navigate('/pms/work-planning')} className="text-blue-600 hover:underline flex items-center gap-1">
-              <ArrowLeft className="w-4 h-4" />
-              Danh sách công việc
+    <div className="h-full w-full flex flex-col overflow-hidden bg-white">
+      {/* ── Header: breadcrumb + action buttons ── */}
+      <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2.5">
+        <div className="flex items-center gap-1.5 text-sm text-gray-500">
+          <button onClick={() => navigate('/pms/work-planning')} className="text-blue-600 hover:underline">
+            Báo cáo
+          </button>
+          <ChevronRight size={14} className="text-gray-300" />
+          <span className="text-gray-700 font-medium">Báo cáo công việc</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={handleCancel} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
+            <X className="w-3.5 h-3.5" /> Hủy bỏ
+          </button>
+          {(task.status === 'SCHEDULED' || task.status === 'DUE' || task.status === 'OVERDUE') && (
+            <button onClick={handleStartTask} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+              <PlayCircle className="w-3.5 h-3.5" /> Tiếp tục
             </button>
-            <ChevronRight className="w-4 h-4 text-gray-400" />
-            <span className="text-gray-600 dark:text-gray-300 font-medium">Báo cáo công việc</span>
-          </div>
-
-          {/* Action Buttons (Avison style) */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCancel}
-              className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              Hủy bỏ
+          )}
+          <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-800 text-white rounded hover:bg-gray-900 disabled:opacity-50">
+            <Save className="w-3.5 h-3.5" /> {saving ? 'Đang lưu...' : 'Lưu lại'}
+          </button>
+          {task.status === 'IN_PROGRESS' && (
+            <button onClick={handleComplete} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">
+              <CheckCircle className="w-3.5 h-3.5" /> Hoàn thành
             </button>
-
-            {(task.status === 'SCHEDULED' || task.status === 'DUE' || task.status === 'OVERDUE') && (
-              <button
-                onClick={handleStartTask}
-                disabled={saving}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                <PlayCircle className="w-4 h-4" />
-                Tiếp tục
-              </button>
-            )}
-
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              {saving ? 'Đang lưu...' : 'Lưu lại'}
-            </button>
-
-            {task.status === 'IN_PROGRESS' && (
-              <button
-                onClick={handleComplete}
-                disabled={saving}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-              >
-                <CheckCircle className="w-4 h-4" />
-                Hoàn thành
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
-      {/* ============================================================ */}
-      {/* MAIN CONTENT - 2 columns */}
-      {/* ============================================================ */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* ── Body ── */}
+      <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+        <div className="flex gap-6">
 
-            {/* ========================================== */}
-            {/* LEFT COLUMN: Thông tin công việc (2/3 width) */}
-            {/* ========================================== */}
-            <div className="lg:col-span-2 space-y-6">
+          {/* ════════ LEFT: Thông tin công việc + Bottom Tabs ════════ */}
+          <div className="flex-1 min-w-0 space-y-4">
 
-              {/* Thông tin công việc */}
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
-                <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-blue-600" />
-                  Thông tin công việc
-                </h2>
-
-                <div className="space-y-3">
-                  {/* Mã công việc */}
-                  <div className="grid grid-cols-3 gap-3 items-center">
-                    <label className="text-sm text-gray-600 dark:text-gray-400 font-medium">Mã công việc</label>
-                    <div className="col-span-2">
-                      <input type="text" readOnly value={task.taskId} className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300" />
-                    </div>
+            {/* Thông tin công việc */}
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50"><span className="text-sm font-semibold text-gray-700">Thông tin công việc</span></div>
+              <div className="p-6 space-y-4 text-sm">
+                {/* Row 1: Mã CV + Tên CV */}
+                <div className="flex gap-4">
+                  <div className="flex items-center flex-1">
+                    <label className={lbl} style={{ width: 110 }}>Mã công việc:</label>
+                    <input type="text" readOnly value={task.taskId} className={inpRo} />
                   </div>
-
-                  {/* Tên công việc */}
-                  <div className="grid grid-cols-3 gap-3 items-center">
-                    <label className="text-sm text-gray-600 dark:text-gray-400 font-medium">Tên công việc</label>
-                    <div className="col-span-2">
-                      <input type="text" readOnly value={task.equipmentName || task.equipmentGroupName || ''} className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300" />
-                    </div>
-                  </div>
-
-                  {/* Ngày bắt đầu */}
-                  <div className="grid grid-cols-3 gap-3 items-center">
-                    <label className="text-sm text-gray-600 dark:text-gray-400 font-medium">Ngày bắt đầu</label>
-                    <div className="col-span-2">
-                      <input
-                        type="datetime-local"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300 focus:ring-1 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Ngày kết thúc */}
-                  <div className="grid grid-cols-3 gap-3 items-center">
-                    <label className="text-sm text-gray-600 dark:text-gray-400 font-medium">Ngày kết thúc</label>
-                    <div className="col-span-2">
-                      <input
-                        type="datetime-local"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300 focus:ring-1 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Mô tả công việc */}
-                  <div className="grid grid-cols-3 gap-3 items-start">
-                    <label className="text-sm text-gray-600 dark:text-gray-400 font-medium pt-2">Mô tả công việc</label>
-                    <div className="col-span-2">
-                      <textarea
-                        rows={4}
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300 focus:ring-1 focus:ring-blue-500 resize-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Mã thiết bị */}
-                  <div className="grid grid-cols-3 gap-3 items-center">
-                    <label className="text-sm text-gray-600 dark:text-gray-400 font-medium">Mã thiết bị</label>
-                    <div className="col-span-2">
-                      <input type="text" readOnly value={task.equipmentId || task.equipmentGroupId || ''} className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-gray-500 dark:text-gray-400" />
-                    </div>
-                  </div>
-
-                  {/* Tên thiết bị */}
-                  <div className="grid grid-cols-3 gap-3 items-center">
-                    <label className="text-sm text-gray-600 dark:text-gray-400 font-medium">Tên thiết bị</label>
-                    <div className="col-span-2">
-                      <input type="text" readOnly value={task.equipmentName || task.equipmentGroupName || ''} className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-gray-500 dark:text-gray-400" />
-                    </div>
-                  </div>
-
-                  {/* Đánh giá rủi ro */}
-                  <div className="grid grid-cols-3 gap-3 items-center">
-                    <label className="text-sm text-gray-600 dark:text-gray-400 font-medium">Đánh giá rủi ro</label>
-                    <div className="col-span-2 flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-500 dark:text-gray-400 italic">Chưa có tệp đính kèm</span>
-                    </div>
-                  </div>
-
-                  {/* Biên bản kiểm tra */}
-                  <div className="grid grid-cols-3 gap-3 items-center">
-                    <label className="text-sm text-gray-600 dark:text-gray-400 font-medium">Biên bản kiểm tra</label>
-                    <div className="col-span-2 flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-500 dark:text-gray-400 italic">Chưa có tệp đính kèm</span>
-                    </div>
+                  <div className="flex items-center flex-1">
+                    <label className={lbl} style={{ width: 110 }}>Tên công việc:</label>
+                    <input type="text" readOnly value={task.taskDescription || ''} className={inpRo} />
                   </div>
                 </div>
-              </div>
-
-              {/* ========================================== */}
-              {/* BOTTOM TABS: Báo cáo / Vật tư / ĐGRR / BBKT */}
-              {/* ========================================== */}
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                {/* Tab header */}
-                <div className="flex border-b border-gray-200 dark:border-gray-700">
-                  {BOTTOM_TABS.map((tab) => {
-                    const Icon = tab.icon
-                    return (
-                      <button
-                        key={tab.key}
-                        onClick={() => setActiveTab(tab.key)}
-                        className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors
-                          ${activeTab === tab.key
-                            ? 'border-blue-600 text-blue-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                          }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        {tab.label}
-                      </button>
-                    )
-                  })}
+                {/* Row 2: Ngày bắt đầu + Ngày kết thúc */}
+                <div className="flex gap-4">
+                  <div className="flex items-center flex-1">
+                    <label className={lbl} style={{ width: 110 }}>Ngày bắt đầu:</label>
+                    <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} className={inp} />
+                  </div>
+                  <div className="flex items-center flex-1">
+                    <label className={lbl} style={{ width: 110 }}>Ngày kết thúc:</label>
+                    <input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} className={inp} />
+                  </div>
                 </div>
-
-                {/* Tab content */}
-                <div className="p-5">
-                  {/* ---- Báo cáo Tab ---- */}
-                  {activeTab === 'report' && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-                            Thời gian chạy của thiết bị
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              value={equipmentRunningHours}
-                              onChange={(e) => setEquipmentRunningHours(Number(e.target.value))}
-                              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-1 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-500 whitespace-nowrap">Giờ</span>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-                            Thời gian hiện tại của thiết bị
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              value={currentEquipmentHours}
-                              onChange={(e) => setCurrentEquipmentHours(Number(e.target.value))}
-                              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-1 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-500 whitespace-nowrap">Giờ</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-                            Ngày hoàn thành <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="date"
-                            value={completionDate}
-                            onChange={(e) => setCompletionDate(e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-1 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-                            Thời gian thực hiện
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              value={actualDuration}
-                              onChange={(e) => setActualDuration(Number(e.target.value))}
-                              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-1 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-500 whitespace-nowrap">Giờ</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-                          Báo cáo công việc
-                        </label>
-                        <textarea
-                          rows={5}
-                          value={reportText}
-                          onChange={(e) => setReportText(e.target.value)}
-                          placeholder="Nhập nội dung báo cáo công việc..."
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-1 focus:ring-blue-500 resize-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-                          Đính kèm tệp tin
-                        </label>
-                        <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
-                          <Paperclip className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-gray-500">Kéo thả hoặc nhấn để chọn tệp</p>
-                          <input type="file" multiple className="hidden" id="file-upload" />
-                          <label htmlFor="file-upload" className="mt-2 inline-block px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded cursor-pointer hover:bg-gray-200">
-                            Chọn tệp
-                          </label>
-                        </div>
-                      </div>
+                {/* Row 3: Mô tả công việc */}
+                <div className="flex items-start">
+                  <label className={`${lbl} pt-1.5`} style={{ width: 110 }}>Mô tả công việc:</label>
+                  <textarea rows={4} value={description} onChange={e => setDescription(e.target.value)} className={`${inp} resize-y`} />
+                </div>
+                {/* Row 4: Mã thiết bị + Tên thiết bị */}
+                <div className="flex gap-4">
+                  <div className="flex items-center flex-1">
+                    <label className={lbl} style={{ width: 110 }}>Mã thiết bị:</label>
+                    <input type="text" readOnly value={task.equipmentId || task.equipmentGroupId || ''} className={inpRo} />
+                  </div>
+                  <div className="flex items-center flex-1">
+                    <label className={lbl} style={{ width: 110 }}>Tên thiết bị:</label>
+                    <input type="text" readOnly value={task.equipmentName || task.equipmentGroupName || ''} className={inpRo} />
+                  </div>
+                </div>
+                {/* Row 5: Mô tả thiết bị */}
+                <div className="flex items-start">
+                  <label className={`${lbl} pt-1.5`} style={{ width: 110 }}>Mô tả thiết bị:</label>
+                  <textarea rows={2} readOnly value="" className={`${inpRo} resize-none`} />
+                </div>
+                {/* Row 6: Đánh giá rủi ro + Biên bản kiểm tra */}
+                <div className="flex gap-4">
+                  <div className="flex items-center flex-1">
+                    <label className={lbl} style={{ width: 110 }}>Đánh giá rủi ro:</label>
+                    <div className="flex items-center gap-1 flex-1">
+                      <input type="text" readOnly value="" placeholder="" className={inpRo} />
+                      <button className="p-1.5 text-gray-400 hover:text-blue-600 shrink-0"><FileText size={14} /></button>
                     </div>
-                  )}
-
-                  {/* ---- Vật tư Tab ---- */}
-                  {activeTab === 'materials' && (
-                    <div className="space-y-4">
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                        Danh sách vật tư sử dụng cho công việc bảo trì
-                      </p>
-
-                      {/* Required spare parts from schedule */}
-                      {task.requiredSpareParts && (
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">📋 Vật tư yêu cầu (từ lịch bảo trì)</h4>
-                          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
-                            <p className="text-sm text-gray-700 dark:text-gray-300">
-                              {typeof task.requiredSpareParts === 'string'
-                                ? task.requiredSpareParts
-                                : task.requiredSpareParts.map(sp => `${sp.materialName || sp.materialCode || 'Item'} x${sp.quantityRequired}`).join(', ')
-                              }
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">🔧 Vật tư đã sử dụng</h4>
-                        <textarea
-                          rows={4}
-                          value={sparePartsUsed}
-                          onChange={(e) => setSparePartsUsed(e.target.value)}
-                          placeholder="Nhập danh sách vật tư đã sử dụng..."
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-1 focus:ring-blue-500 resize-none"
-                        />
-                      </div>
+                  </div>
+                  <div className="flex items-center flex-1">
+                    <label className={lbl} style={{ width: 110 }}>Biên bản kiểm tra:</label>
+                    <div className="flex items-center gap-1 flex-1">
+                      <input type="text" readOnly value="" placeholder="" className={inpRo} />
+                      <button className="p-1.5 text-gray-400 hover:text-blue-600 shrink-0"><FileText size={14} /></button>
                     </div>
-                  )}
-
-                  {/* ---- Biểu mẫu ĐGRR (Risk Assessment) Tab ---- */}
-                  {activeTab === 'risk' && (
-                    <div className="space-y-4">
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Đánh giá rủi ro công việc</h4>
-
-                      <div>
-                        <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-                          Mức độ rủi ro
-                        </label>
-                        <select
-                          value={riskLevel}
-                          onChange={(e) => setRiskLevel(e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-1 focus:ring-blue-500"
-                        >
-                          <option value="LOW">Thấp</option>
-                          <option value="MEDIUM">Trung bình</option>
-                          <option value="HIGH">Cao</option>
-                          <option value="CRITICAL">Nghiêm trọng</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-                          Mô tả rủi ro
-                        </label>
-                        <textarea
-                          rows={3}
-                          value={riskDescription}
-                          onChange={(e) => setRiskDescription(e.target.value)}
-                          placeholder="Mô tả các rủi ro tiềm ẩn..."
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-1 focus:ring-blue-500 resize-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-                          Biện pháp giảm thiểu
-                        </label>
-                        <textarea
-                          rows={3}
-                          value={mitigationMeasures}
-                          onChange={(e) => setMitigationMeasures(e.target.value)}
-                          placeholder="Các biện pháp giảm thiểu rủi ro..."
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-1 focus:ring-blue-500 resize-none"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ---- Biểu mẫu BBKT (Inspection Report) Tab ---- */}
-                  {activeTab === 'inspection' && (
-                    <div className="space-y-4">
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Biên bản kiểm tra</h4>
-
-                      <div>
-                        <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-                          Kết quả kiểm tra
-                        </label>
-                        <select
-                          value={inspectionResult}
-                          onChange={(e) => setInspectionResult(e.target.value as 'PASS' | 'FAIL' | '')}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-1 focus:ring-blue-500"
-                        >
-                          <option value="">-- Chọn kết quả --</option>
-                          <option value="PASS">Đạt</option>
-                          <option value="FAIL">Không đạt</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-                          Ghi chú kiểm tra
-                        </label>
-                        <textarea
-                          rows={5}
-                          value={inspectionNotes}
-                          onChange={(e) => setInspectionNotes(e.target.value)}
-                          placeholder="Nhập ghi chú kiểm tra..."
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-1 focus:ring-blue-500 resize-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-                          Đính kèm biên bản
-                        </label>
-                        <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
-                          <Paperclip className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-gray-500">Kéo thả hoặc nhấn để chọn tệp</p>
-                          <input type="file" multiple className="hidden" id="inspection-upload" />
-                          <label htmlFor="inspection-upload" className="mt-2 inline-block px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded cursor-pointer hover:bg-gray-200">
-                            Chọn tệp
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* ========================================== */}
-            {/* RIGHT COLUMN: Thông tin chung + Comments + Lịch sử */}
-            {/* ========================================== */}
-            <div className="space-y-6">
-
-              {/* Thông tin chung */}
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
-                <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-blue-600" />
-                  Thông tin chung
-                </h2>
-
-                <div className="space-y-3">
-                  {/* Checkboxes */}
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={reportCompleted}
-                      onChange={(e) => setReportCompleted(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Xác nhận hoàn thành báo cáo</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isCbm}
-                      onChange={(e) => setIsCbm(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">CBM</span>
-                  </label>
-
-                  {/* Ngày báo cáo */}
-                  <div>
-                    <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">Ngày báo cáo</label>
-                    <input
-                      type="date"
-                      value={reportDate}
-                      onChange={(e) => setReportDate(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-1 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  {/* Trạng thái */}
-                  <div>
-                    <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">Trạng thái</label>
-                    <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${statusInfo.bg} ${statusInfo.text}`}>
-                      {statusInfo.label}
-                    </span>
-                  </div>
-
-                  {/* Ngày đến hạn */}
-                  <div>
-                    <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">Ngày đến hạn</label>
-                    <input
-                      type="date"
-                      readOnly
-                      value={task.nextDueAt ? task.nextDueAt.substring(0, 10) : ''}
-                      className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-gray-500"
-                    />
-                  </div>
-
-                  {/* Độ ưu tiên */}
-                  <div>
-                    <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">Độ ưu tiên</label>
-                    <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${priorityInfo.bg} ${priorityInfo.text}`}>
-                      {priorityInfo.label}
-                    </span>
-                  </div>
-
-                  {/* Người thực hiện */}
-                  <div>
-                    <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">Người thực hiện</label>
-                    <select
-                      value={assignedTo}
-                      onChange={(e) => setAssignedTo(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-1 focus:ring-blue-500"
-                    >
-                      <option value="">-- Chọn người thực hiện --</option>
-                      {crewMembers.map((crew) => (
-                        <option key={crew.id} value={crew.fullName}>
-                          {crew.fullName} - {crew.rank?.rankName || ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Người nhận báo cáo */}
-                  <div>
-                    <label className="block text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">Người nhận báo cáo</label>
-                    <select
-                      value={reportReceiver}
-                      onChange={(e) => setReportReceiver(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-1 focus:ring-blue-500"
-                    >
-                      <option value="">-- Chọn người nhận --</option>
-                      {crewMembers.map((crew) => (
-                        <option key={crew.id} value={crew.fullName}>
-                          {crew.fullName} - {crew.rank?.rankName || ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Đánh giá rủi ro checkbox */}
-                  <label className="flex items-center gap-2 cursor-pointer pt-1">
-                    <input
-                      type="checkbox"
-                      checked={hasRiskAssessment}
-                      onChange={(e) => setHasRiskAssessment(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Đánh giá rủi ro công việc</span>
-                  </label>
-                </div>
+            {/* ── Bottom tabs: Báo cáo / Vật tư / ĐGRR / BBKT ── */}
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="flex border-b border-gray-200 text-sm">
+                {([
+                  { key: 'report' as BottomTab, label: 'Báo cáo' },
+                  { key: 'materials' as BottomTab, label: 'Vật tư' },
+                  { key: 'risk' as BottomTab, label: 'Biểu mẫu ĐGRR' },
+                  { key: 'inspection' as BottomTab, label: 'Biểu mẫu BBKT' },
+                ]).map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`px-4 py-2.5 font-medium border-b-2 transition-colors ${
+                      activeTab === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
 
-              {/* Bình luận */}
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
-                <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-blue-600" />
-                  Bình luận
-                </h2>
+              <div className="p-6 text-sm">
+                {/* Báo cáo tab */}
+                {activeTab === 'report' && (
+                  <div className="space-y-2.5">
+                    <div className="flex gap-4">
+                      <div className="flex items-center flex-1">
+                        <label className={lbl} style={{ width: 160 }}>Thời gian chạy của thiết bị:</label>
+                        <input type="number" value={equipmentRunningHours} onChange={e => setEquipmentRunningHours(Number(e.target.value))} className={inp} />
+                        <span className="text-gray-500 text-sm ml-2 shrink-0">Giờ</span>
+                      </div>
+                      <div className="flex items-center flex-1">
+                        <label className={lbl} style={{ width: 190 }}>Thời gian hiện tại của thiết bị:</label>
+                        <input type="number" value={currentEquipmentHours} onChange={e => setCurrentEquipmentHours(Number(e.target.value))} className={inp} />
+                        <span className="text-gray-500 text-sm ml-2 shrink-0">Giờ</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="flex items-center flex-1">
+                        <label className={lbl} style={{ width: 160 }}>Ngày hoàn thành: <span className="text-red-500">*</span></label>
+                        <input type="date" value={completionDate} onChange={e => setCompletionDate(e.target.value)} className={inp} />
+                      </div>
+                      <div className="flex items-center flex-1">
+                        <label className={lbl} style={{ width: 190 }}>Thời gian thực hiện:</label>
+                        <input type="number" value={actualDuration} onChange={e => setActualDuration(Number(e.target.value))} className={inp} />
+                        <span className="text-gray-500 text-sm ml-2 shrink-0">Giờ</span>
+                      </div>
+                    </div>
+                    <div className="flex items-start">
+                      <label className={`${lbl} pt-1.5`} style={{ width: 160 }}>Báo cáo công việc:</label>
+                      <textarea rows={3} value={reportText} onChange={e => setReportText(e.target.value)} placeholder="Nhập thông tin" className={`${inp} resize-y`} />
+                    </div>
+                    <div className="flex items-center gap-2 pl-[160px]">
+                      <Paperclip size={14} className="text-gray-400" />
+                      <button className="text-sm text-blue-600 hover:underline">Đính kèm tệp tin</button>
+                    </div>
+                  </div>
+                )}
 
-                {/* Comment list */}
-                {comments.length > 0 && (
-                  <div className="space-y-3 mb-3 max-h-48 overflow-y-auto">
-                    {comments.map((c, i) => (
-                      <div key={i} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <User className="w-3 h-3 text-gray-400" />
-                          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{c.author}</span>
-                          <span className="text-xs text-gray-400">
-                            {format(parseISO(c.date), 'dd/MM/yyyy HH:mm', { locale: vi })}
-                          </span>
+                {/* Vật tư tab */}
+                {activeTab === 'materials' && (
+                  <div className="space-y-3">
+                    {task.requiredSpareParts && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 mb-1">Vật tư yêu cầu (từ lịch bảo trì)</p>
+                        <div className="bg-blue-50 rounded p-2 text-sm text-gray-700">
+                          {typeof task.requiredSpareParts === 'string'
+                            ? task.requiredSpareParts
+                            : task.requiredSpareParts.map(sp => `${sp.materialName || sp.materialCode || 'Item'} x${sp.quantityRequired}`).join(', ')
+                          }
                         </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{c.text}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 mb-1">Vật tư đã sử dụng</p>
+                      <textarea rows={4} value={sparePartsUsed} onChange={e => setSparePartsUsed(e.target.value)} placeholder="Nhập danh sách vật tư..." className={`${inp} resize-y`} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Biểu mẫu ĐGRR tab */}
+                {activeTab === 'risk' && (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center">
+                      <label className={lbl} style={{ width: 120 }}>Mức độ rủi ro:</label>
+                      <select value={riskLevel} onChange={e => setRiskLevel(e.target.value)} className={inp}>
+                        <option value="LOW">Thấp</option>
+                        <option value="MEDIUM">Trung bình</option>
+                        <option value="HIGH">Cao</option>
+                        <option value="CRITICAL">Nghiêm trọng</option>
+                      </select>
+                    </div>
+                    <div className="flex items-start">
+                      <label className={`${lbl} pt-1.5`} style={{ width: 120 }}>Mô tả rủi ro:</label>
+                      <textarea rows={3} value={riskDescription} onChange={e => setRiskDescription(e.target.value)} placeholder="Mô tả các rủi ro tiềm ẩn..." className={`${inp} resize-y`} />
+                    </div>
+                    <div className="flex items-start">
+                      <label className={`${lbl} pt-1.5`} style={{ width: 120 }}>Biện pháp giảm thiểu:</label>
+                      <textarea rows={3} value={mitigationMeasures} onChange={e => setMitigationMeasures(e.target.value)} placeholder="Các biện pháp..." className={`${inp} resize-y`} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Biểu mẫu BBKT tab */}
+                {activeTab === 'inspection' && (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center">
+                      <label className={lbl} style={{ width: 120 }}>Kết quả kiểm tra:</label>
+                      <select value={inspectionResult} onChange={e => setInspectionResult(e.target.value as 'PASS' | 'FAIL' | '')} className={inp}>
+                        <option value="">-- Chọn kết quả --</option>
+                        <option value="PASS">Đạt</option>
+                        <option value="FAIL">Không đạt</option>
+                      </select>
+                    </div>
+                    <div className="flex items-start">
+                      <label className={`${lbl} pt-1.5`} style={{ width: 120 }}>Ghi chú:</label>
+                      <textarea rows={4} value={inspectionNotes} onChange={e => setInspectionNotes(e.target.value)} placeholder="Nhập ghi chú kiểm tra..." className={`${inp} resize-y`} />
+                    </div>
+                    <div className="flex items-center gap-2 pl-[120px]">
+                      <Paperclip size={14} className="text-gray-400" />
+                      <button className="text-sm text-blue-600 hover:underline">Đính kèm biên bản</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ════════ RIGHT: Thông tin chung + Bình luận + Lịch sử ════════ */}
+          <div className="w-80 shrink-0 space-y-4">
+
+            {/* Thông tin chung */}
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50"><span className="text-sm font-semibold text-gray-700">Thông tin chung</span></div>
+              <div className="px-4 py-3 space-y-3 text-sm">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={reportCompleted} onChange={e => setReportCompleted(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
+                  <span className="text-gray-700">Xác nhận hoàn thành báo cáo</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={isCbm} onChange={e => setIsCbm(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
+                  <span className="text-gray-700">CBM</span>
+                </label>
+                <div className="flex items-center">
+                  <label className="text-gray-500 w-28 text-right pr-3 shrink-0">Ngày báo cáo:</label>
+                  <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className={inp} />
+                </div>
+                <div className="flex items-center">
+                  <label className="text-gray-500 w-28 text-right pr-3 shrink-0">Trạng thái:</label>
+                  <input type="text" readOnly value={statusLabel} className={inpRo} />
+                </div>
+                <div className="flex items-center">
+                  <label className="text-gray-500 w-28 text-right pr-3 shrink-0">Ngày đến hạn:</label>
+                  <input type="date" readOnly value={task.nextDueAt ? task.nextDueAt.substring(0, 10) : ''} className={inpRo} />
+                </div>
+                <div className="flex items-center">
+                  <label className="text-gray-500 w-28 text-right pr-3 shrink-0">Độ ưu tiên:</label>
+                  <input type="text" readOnly value={priorityLabel} className={inpRo} />
+                </div>
+                <div className="flex items-center">
+                  <label className="text-gray-500 w-28 text-right pr-3 shrink-0">Người thực hiện:</label>
+                  <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} className={inp}>
+                    <option value="">-- Chọn --</option>
+                    {crewMembers.map(c => <option key={c.id} value={c.fullName}>{c.fullName} - {c.rank?.rankName || ''}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center">
+                  <label className="text-gray-500 w-28 text-right pr-3 shrink-0">Người nhận BC:</label>
+                  <select value={reportReceiver} onChange={e => setReportReceiver(e.target.value)} className={inp}>
+                    <option value="">-- Chọn --</option>
+                    {crewMembers.map(c => <option key={c.id} value={c.fullName}>{c.fullName} - {c.rank?.rankName || ''}</option>)}
+                  </select>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={hasRiskAssessment} onChange={e => setHasRiskAssessment(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
+                  <span className="text-gray-700">Đánh giá rủi ro công việc</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Bình luận */}
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50"><span className="text-sm font-semibold text-gray-700">Bình luận</span></div>
+              <div className="px-4 py-3">
+                {comments.length > 0 && (
+                  <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
+                    {comments.map((c, i) => (
+                      <div key={i} className="bg-gray-50 rounded p-2">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <User size={12} className="text-gray-400" />
+                          <span className="text-xs font-medium text-gray-700">{c.author}</span>
+                          <span className="text-xs text-gray-400">{format(parseISO(c.date), 'dd/MM/yyyy HH:mm', { locale: vi })}</span>
+                        </div>
+                        <p className="text-sm text-gray-600">{c.text}</p>
                       </div>
                     ))}
                   </div>
                 )}
-
-                {/* Comment input */}
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                    placeholder="Nhập bình luận..."
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-1 focus:ring-blue-500"
+                    onChange={e => setCommentText(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAddComment()}
+                    placeholder="Nhập bình luận tại đây (Shift + enter: Xuống dòng)"
+                    className="flex-1 border rounded px-2 py-1.5 text-sm"
                   />
-                  <button
-                    onClick={handleAddComment}
-                    className="px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 flex items-center gap-1"
-                  >
-                    <Send className="w-3 h-3" />
-                    Gửi
+                  <button onClick={handleAddComment} className="border rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-1">
+                    <Send size={12} /> Bình luận
                   </button>
                 </div>
               </div>
+            </div>
 
-              {/* Lịch sử công việc */}
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
-                <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <History className="w-4 h-4 text-blue-600" />
-                  Lịch sử công việc
-                </h2>
-
+            {/* Lịch sử công việc */}
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50"><span className="text-sm font-semibold text-gray-700">Lịch sử công việc</span></div>
+              <div className="px-4 py-3">
                 {statusHistory.length === 0 ? (
-                  <p className="text-sm text-gray-400 italic">Chưa có lịch sử thay đổi</p>
+                  <p className="text-sm text-gray-400 italic">Chưa có lịch sử</p>
                 ) : (
-                  <div className="relative pl-4">
-                    {/* Timeline line */}
-                    <div className="absolute left-[7px] top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700" />
-
-                    <div className="space-y-4">
-                      {statusHistory.map((entry, i) => {
-                        const toInfo = STATUS_LABELS[entry.toStatus] || { label: entry.toStatus, bg: 'bg-gray-100', text: 'text-gray-600' }
-                        return (
-                          <div key={i} className="relative flex gap-3">
-                            {/* Timeline dot */}
-                            <div className={`w-3.5 h-3.5 rounded-full border-2 border-white dark:border-gray-800 z-10 flex-shrink-0 mt-0.5 ${toInfo.bg.replace('100', '500')}`} />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${toInfo.bg} ${toInfo.text}`}>
-                                  {toInfo.label}
-                                </span>
-                                <span className="text-xs text-gray-400">
-                                  {format(parseISO(entry.changedAt), 'dd/MM/yyyy HH:mm', { locale: vi })}
-                                </span>
-                              </div>
-                              {entry.changedByName && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                  bởi {entry.changedByName}
-                                </p>
-                              )}
-                              {entry.notes && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 italic">
-                                  {entry.notes}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
+                  <div className="space-y-2.5 relative pl-4">
+                    <div className="absolute left-[5px] top-1 bottom-1 w-px bg-gray-200" />
+                    {statusHistory.map((entry, i) => (
+                      <div key={i} className="relative flex items-start gap-2.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-gray-400 border-2 border-white z-10 shrink-0 mt-1" />
+                        <div className="text-sm">
+                          <span className="text-gray-700">{entry.changedByName || entry.changedBy}</span>
+                          <span className="text-gray-400 ml-1.5">
+                            {format(parseISO(entry.changedAt), 'dd/MM/yyyy HH:mm:ss', { locale: vi })}
+                          </span>
+                          {entry.notes && <p className="text-xs text-gray-400 mt-0.5">{entry.notes}</p>}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

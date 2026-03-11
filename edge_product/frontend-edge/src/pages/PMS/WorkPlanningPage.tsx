@@ -9,9 +9,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   Table2, Calendar, BarChart3, LayoutGrid,
   Search, ChevronRight, ChevronDown, ChevronLeft,
-  Eye, Pencil, Trash2, ClipboardList,
+  Eye, Pencil, Trash2,
   RefreshCw, Download, Clock,
-  CheckCircle
+  CheckCircle, ChevronsUpDown, FolderOpen
 } from 'lucide-react';
 import { parseISO, format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, addDays, getDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -126,8 +126,14 @@ export default function WorkPlanningPage() {
   const [taskTypeFilter, setTaskTypeFilter] = useState<Set<string>>(new Set(['adhoc', 'periodic']));
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
 
+  // === Column filters ===
+  const [colFilterCode, setColFilterCode] = useState('');
+  const [colFilterEquip, setColFilterEquip] = useState('');
+  const [colFilterName, setColFilterName] = useState('');
+  const [colFilterDesc, setColFilterDesc] = useState('');
+
   // === Table state ===
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery] = useState('');
   const [tablePage, setTablePage] = useState(1);
   const [tablePageSize, setTablePageSize] = useState(10);
   const [sortField, setSortField] = useState<string>('');
@@ -273,6 +279,12 @@ export default function WorkPlanningPage() {
         task.taskDescription.toLowerCase().includes(q)
       );
     }
+
+    // Column filters
+    if (colFilterCode) f = f.filter(t => t.taskId.toLowerCase().includes(colFilterCode.toLowerCase()));
+    if (colFilterEquip) f = f.filter(t => (t.equipmentName || t.equipmentGroupName || '').toLowerCase().includes(colFilterEquip.toLowerCase()));
+    if (colFilterName) f = f.filter(t => t.taskType.toLowerCase().includes(colFilterName.toLowerCase()));
+    if (colFilterDesc) f = f.filter(t => t.taskDescription.toLowerCase().includes(colFilterDesc.toLowerCase()));
 
     return f;
   }, [tasks, selectedAssetIds, dateFrom, dateTo, crewFilter, taskTypeFilter, statusFilter, searchQuery, assets]);
@@ -490,36 +502,64 @@ export default function WorkPlanningPage() {
 
   // ===================== RENDER =====================
   return (
-    <div className="h-full flex flex-col bg-gray-50">
-      {/* === TOP BAR === */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <ClipboardList className="w-6 h-6 text-blue-600" />
-            <h1 className="text-xl font-bold text-gray-900">Danh sách công việc của tôi</h1>
-            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold">
-              {filteredTasks.length}
-            </span>
+    <div className="h-full w-full flex flex-col overflow-hidden bg-white">
+      {/* === HEADER ROW 1: titles === */}
+      <div className="flex flex-shrink-0 border-b border-gray-200">
+        {/* Header trái: root tree */}
+        <button
+          onClick={() => setSelectedAssetIds(new Set())}
+          className={`w-64 flex-shrink-0 flex items-center gap-1.5 px-3 py-3 text-sm font-semibold border-r border-gray-200 ${
+            selectedAssetIds.size === 0
+              ? 'bg-blue-800 text-white'
+              : 'text-gray-700 hover:bg-gray-50 bg-white'
+          }`}
+        >
+          <FolderOpen className="w-4 h-4 flex-shrink-0" />
+          <span className="flex-1 text-left truncate">Tất cả thiết bị ({assets.length})</span>
+        </button>
+
+        {/* Header phải: title + action buttons */}
+        <div className="flex-1 flex items-center justify-between px-4 py-3 bg-white">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-700">≡ Danh sách công việc của tôi</span>
+            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{filteredTasks.length}</span>
             {isBackgroundRefreshing && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs text-blue-600">
+              <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs text-blue-600">
                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
                 Đang đồng bộ...
               </div>
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => loadData(true)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Làm mới">
-              <RefreshCw className={`w-4 h-4 ${isBackgroundRefreshing ? 'animate-spin' : ''}`} />
+            <button onClick={() => loadData(true)} className="p-1.5 border border-gray-300 rounded text-gray-500 hover:bg-gray-50" title="Làm mới">
+              <RefreshCw className={`w-3.5 h-3.5 ${isBackgroundRefreshing ? 'animate-spin' : ''}`} />
             </button>
-            <button onClick={handleExportExcel} className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-              <Download className="w-4 h-4" />
+            <button onClick={handleExportExcel} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
+              <Download className="w-3.5 h-3.5" />
               Xuất báo cáo
+            </button>
+            <button onClick={() => setIsAddScheduleModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">
+              Thêm mới
             </button>
           </div>
         </div>
+      </div>
 
-        {/* === TAB BAR === */}
-        <div className="flex items-center gap-1 mt-3 border-b border-gray-200 -mb-4">
+      {/* === HEADER ROW 2: search + tab bar === */}
+      <div className="flex flex-shrink-0 border-b border-gray-200">
+        <div className="w-64 flex-shrink-0 border-r border-gray-200 bg-white flex items-center px-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm..."
+              value={treeSearch}
+              onChange={e => setTreeSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+        <div className="flex-1 flex items-center gap-1 px-4 bg-white">
           {([
             { key: 'table' as ViewTab, label: 'Bảng', icon: Table2 },
             { key: 'calendar' as ViewTab, label: 'Lịch', icon: Calendar },
@@ -529,13 +569,13 @@ export default function WorkPlanningPage() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
                 activeTab === tab.key
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <tab.icon className="w-4 h-4" />
+              <tab.icon className="w-3.5 h-3.5" />
               {tab.label}
             </button>
           ))}
@@ -545,32 +585,9 @@ export default function WorkPlanningPage() {
       {/* === BODY: LEFT PANEL + CONTENT === */}
       <div className="flex flex-1 overflow-hidden">
         {/* === LEFT PANEL: Equipment Tree + Filters === */}
-        <div className="w-80 flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto">
-          {/* Equipment Tree */}
-          <div className="p-3 border-b border-gray-200">
-            <div className="flex items-center gap-2 mb-2">
-              <input
-                type="checkbox"
-                checked={selectedAssetIds.size === 0}
-                onChange={() => setSelectedAssetIds(new Set())}
-                className="w-4 h-4 text-blue-600 rounded"
-              />
-              <span className="text-sm font-semibold text-gray-900">Thiết bị</span>
-            </div>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm..."
-                value={treeSearch}
-                onChange={e => setTreeSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* Tree nodes */}
-          <div className="p-2 max-h-[300px] overflow-y-auto text-xs">
+        <div className="w-64 flex-shrink-0 border-r border-gray-200 flex flex-col bg-white">
+          {/* Tree nodes - scrollable */}
+          <div className="flex-1 overflow-y-auto text-xs">
             {tree.filter(n => !treeSearch || n.assetName.toLowerCase().includes(treeSearch.toLowerCase()) || n.assetCode.toLowerCase().includes(treeSearch.toLowerCase())).map(node => (
               <TreeNode
                 key={node.id}
@@ -585,15 +602,17 @@ export default function WorkPlanningPage() {
             ))}
           </div>
 
-          {/* Filters */}
-          <div className="border-t border-gray-200 p-3 space-y-3">
-            {/* Date range */}
+          {/* Filters - fixed at bottom */}
+          <div className="flex-shrink-0 border-t border-gray-200 p-3 space-y-3">
+            {/* Ngày bắt đầu */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Ngày bắt đầu</label>
-              <div className="flex gap-1">
-                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500" placeholder="Từ ngày" />
-                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500" placeholder="Đến ngày" />
-              </div>
+              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500" />
+            </div>
+            {/* Ngày kết thúc */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Ngày kết thúc</label>
+              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Người thực hiện</label>
@@ -651,166 +670,224 @@ export default function WorkPlanningPage() {
         </div>
 
         {/* === MAIN CONTENT === */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 flex flex-col overflow-hidden">
           {/* ============ TAB: BẢNG ============ */}
           {activeTab === 'table' && (
-            <div className="p-4">
-              {/* Search bar for table */}
-              <div className="flex items-center gap-3 mb-3">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm mã CV, thiết bị, mô tả..."
-                    value={searchQuery}
-                    onChange={e => { setSearchQuery(e.target.value); setTablePage(1); }}
-                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Table */}
+              <div className="flex-1 overflow-auto">
+                <table className="min-w-full text-sm border-collapse">
+                  <thead className="sticky top-0 z-10">
+                    {/* Row 1: headers */}
+                    <tr className="bg-blue-50">
+                      <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">TT</th>
+                      <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">
+                        <input type="checkbox" className="rounded text-blue-600" />
+                      </th>
+                      <th className="min-w-[140px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('taskId')}>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-semibold text-gray-600">Mã công việc</span>
+                          <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="min-w-[180px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('equipmentName')}>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-semibold text-gray-600">Tên thiết bị</span>
+                          <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="min-w-[140px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('taskType')}>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-semibold text-gray-600">Tên công việc</span>
+                          <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="min-w-[200px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('taskDescription')}>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-semibold text-gray-600">Mô tả công việc</span>
+                          <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="w-24 px-3 py-2 text-center border-b border-r border-gray-200">
+                        <span className="text-xs font-semibold text-gray-600">Đánh giá<br/>rủi ro</span>
+                      </th>
+                      <th className="w-28 px-3 py-2 text-center border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('priority')}>
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-xs font-semibold text-gray-600">Độ ưu tiên</span>
+                          <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="w-28 px-3 py-2 text-center border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('status')}>
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-xs font-semibold text-gray-600">Trạng thái</span>
+                          <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="w-24 px-3 py-2 text-center border-b border-r border-gray-200">
+                        <span className="text-xs font-semibold text-gray-600">Loại</span>
+                      </th>
+                      <th className="w-24 px-3 py-2 border-b border-gray-200">
+                        <span className="text-xs font-semibold text-gray-600"></span>
+                      </th>
+                    </tr>
+                    {/* Row 2: column filters */}
+                    <tr className="bg-white border-b border-gray-200">
+                      <th className="border-r border-gray-200"></th>
+                      <th className="border-r border-gray-200"></th>
+                      <th className="px-2 py-1 border-r border-gray-200">
+                        <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
+                          <span className="text-gray-400 text-xs select-none">→</span>
+                          <input type="text" value={colFilterCode} onChange={e => { setColFilterCode(e.target.value); setTablePage(1); }} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                          <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="px-2 py-1 border-r border-gray-200">
+                        <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
+                          <span className="text-gray-400 text-xs select-none">→</span>
+                          <input type="text" value={colFilterEquip} onChange={e => { setColFilterEquip(e.target.value); setTablePage(1); }} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                          <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="px-2 py-1 border-r border-gray-200">
+                        <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
+                          <span className="text-gray-400 text-xs select-none">→</span>
+                          <input type="text" value={colFilterName} onChange={e => { setColFilterName(e.target.value); setTablePage(1); }} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                          <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="px-2 py-1 border-r border-gray-200">
+                        <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
+                          <span className="text-gray-400 text-xs select-none">→</span>
+                          <input type="text" value={colFilterDesc} onChange={e => { setColFilterDesc(e.target.value); setTablePage(1); }} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                          <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </th>
+                      <th className="border-r border-gray-200"></th>
+                      <th className="px-2 py-1 border-r border-gray-200">
+                        <select className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white">
+                          <option value="">Tìm kiếm</option>
+                          {Object.entries(PRIORITY_LABELS).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+                        </select>
+                      </th>
+                      <th className="px-2 py-1 border-r border-gray-200">
+                        <select className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white">
+                          <option value="">Tìm kiếm</option>
+                          {Object.entries(STATUS_LABELS).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+                        </select>
+                      </th>
+                      <th className="px-2 py-1 border-r border-gray-200">
+                        <select className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white">
+                          <option value="">Tìm kiếm</option>
+                          <option>Đột xuất</option>
+                          <option>Định kỳ</option>
+                        </select>
+                      </th>
+                      <th className="border-gray-200"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {pagedTasks.length === 0 ? (
+                      <tr><td colSpan={11} className="px-4 py-12 text-center text-gray-400">Không có công việc nào</td></tr>
+                    ) : (
+                      pagedTasks.map((task, idx) => {
+                        const pri = PRIORITY_LABELS[task.priority] || PRIORITY_LABELS.NORMAL;
+                        const sts = STATUS_LABELS[task.status] || STATUS_LABELS.SCHEDULED;
+                        return (
+                          <tr key={task.id} className={`hover:bg-blue-50 ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
+                            <td className="px-2 py-2 text-center text-xs text-gray-500 border-r border-gray-100">
+                              {(tablePage - 1) * tablePageSize + idx + 1}
+                            </td>
+                            <td className="px-2 py-2 text-center border-r border-gray-100">
+                              <input type="checkbox" className="rounded text-blue-600" />
+                            </td>
+                            <td className="px-3 py-2 border-r border-gray-100">
+                              <button onClick={() => navigate(`/pms/work-report/${task.id}`)} className="flex items-center gap-1 text-blue-600 hover:underline font-medium text-xs text-left">
+                                <ChevronRight className="w-3 h-3 flex-shrink-0" />
+                                {task.taskId}
+                              </button>
+                            </td>
+                            <td className="px-3 py-2 text-xs text-gray-600 border-r border-gray-100">
+                              <span className="truncate block max-w-[180px]" title={task.equipmentName || task.equipmentGroupName || ''}>
+                                {task.equipmentName || task.equipmentGroupName || '—'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-xs text-gray-600 border-r border-gray-100">{task.taskType}</td>
+                            <td className="px-3 py-2 text-xs text-gray-500 border-r border-gray-100 max-w-[200px]">
+                              <span className="truncate block" title={task.taskDescription}>{task.taskDescription}</span>
+                            </td>
+                            <td className="px-3 py-2 text-center border-r border-gray-100">
+                              <CheckCircle className="w-4 h-4 text-green-500 mx-auto" />
+                            </td>
+                            <td className="px-3 py-2 text-center border-r border-gray-100">
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded whitespace-nowrap ${pri.bg} ${pri.text}`}>
+                                {pri.label}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-center border-r border-gray-100">
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded whitespace-nowrap ${sts.bg} ${sts.text}`}>
+                                {sts.label}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-center text-xs text-gray-500 border-r border-gray-100">
+                              {task.taskType === 'AD_HOC' || task.taskType === 'CORRECTIVE' ? 'Đột xuất' : 'Định kỳ'}
+                            </td>
+                            <td className="px-2 py-2">
+                              <div className="flex items-center justify-center gap-0.5">
+                                <button onClick={() => navigate(`/pms/work-report/${task.id}`)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Xem">
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                                <button onClick={() => navigate(`/pms/work-report/${task.id}`)} className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title="Sửa">
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Xóa" onClick={() => handleTaskDelete(task.id)}>
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
 
-              {/* Table */}
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-blue-600 text-white">
-                        <th className="px-3 py-2.5 text-left font-medium w-12">TT</th>
-                        <th className="px-3 py-2.5 text-left font-medium w-10">
-                          <input type="checkbox" className="w-3.5 h-3.5 rounded" />
-                        </th>
-                        <th className="px-3 py-2.5 text-left font-medium cursor-pointer hover:bg-blue-700" onClick={() => handleSort('taskId')}>
-                          <span className="flex items-center gap-1">Mã công việc {sortField === 'taskId' && (sortDir === 'asc' ? '↑' : '↓')}</span>
-                        </th>
-                        <th className="px-3 py-2.5 text-left font-medium cursor-pointer hover:bg-blue-700" onClick={() => handleSort('equipmentName')}>
-                          <span className="flex items-center gap-1">Tên thiết bị {sortField === 'equipmentName' && (sortDir === 'asc' ? '↑' : '↓')}</span>
-                        </th>
-                        <th className="px-3 py-2.5 text-left font-medium cursor-pointer hover:bg-blue-700" onClick={() => handleSort('taskType')}>
-                          <span className="flex items-center gap-1">Tên công việc {sortField === 'taskType' && (sortDir === 'asc' ? '↑' : '↓')}</span>
-                        </th>
-                        <th className="px-3 py-2.5 text-left font-medium cursor-pointer hover:bg-blue-700" onClick={() => handleSort('taskDescription')}>
-                          <span className="flex items-center gap-1">Mô tả công việc {sortField === 'taskDescription' && (sortDir === 'asc' ? '↑' : '↓')}</span>
-                        </th>
-                        <th className="px-3 py-2.5 text-center font-medium">Đánh giá rủi ro</th>
-                        <th className="px-3 py-2.5 text-center font-medium cursor-pointer hover:bg-blue-700" onClick={() => handleSort('priority')}>
-                          <span className="flex items-center justify-center gap-1">Độ ưu tiên {sortField === 'priority' && (sortDir === 'asc' ? '↑' : '↓')}</span>
-                        </th>
-                        <th className="px-3 py-2.5 text-center font-medium cursor-pointer hover:bg-blue-700" onClick={() => handleSort('status')}>
-                          <span className="flex items-center justify-center gap-1">Trạng thái {sortField === 'status' && (sortDir === 'asc' ? '↑' : '↓')}</span>
-                        </th>
-                        <th className="px-3 py-2.5 text-center font-medium">Loại</th>
-                        <th className="px-3 py-2.5 text-center font-medium w-28">Thao tác</th>
-                      </tr>
-                      {/* Filter row */}
-                      <tr className="bg-gray-50 border-b border-gray-200">
-                        <td className="px-3 py-1.5">—</td>
-                        <td className="px-3 py-1.5"></td>
-                        <td className="px-3 py-1.5"><input type="text" placeholder="Tìm ki..." className="w-full px-2 py-1 text-xs border border-gray-300 rounded" /></td>
-                        <td className="px-3 py-1.5"><input type="text" placeholder="Tìm ki..." className="w-full px-2 py-1 text-xs border border-gray-300 rounded" /></td>
-                        <td className="px-3 py-1.5"><input type="text" placeholder="Tìm kiếm" className="w-full px-2 py-1 text-xs border border-gray-300 rounded" /></td>
-                        <td className="px-3 py-1.5"><input type="text" placeholder="Tìm kiếm" className="w-full px-2 py-1 text-xs border border-gray-300 rounded" /></td>
-                        <td className="px-3 py-1.5"></td>
-                        <td className="px-3 py-1.5"><select className="w-full px-1 py-1 text-xs border border-gray-300 rounded"><option>Tìm kiếm</option></select></td>
-                        <td className="px-3 py-1.5"><select className="w-full px-1 py-1 text-xs border border-gray-300 rounded"><option>Tìm kiếm</option></select></td>
-                        <td className="px-3 py-1.5"><select className="w-full px-1 py-1 text-xs border border-gray-300 rounded"><option>Tìm ki...</option></select></td>
-                        <td></td>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pagedTasks.length === 0 ? (
-                        <tr><td colSpan={11} className="text-center py-12 text-gray-400">Không có công việc nào</td></tr>
-                      ) : (
-                        pagedTasks.map((task, idx) => {
-                          const pri = PRIORITY_LABELS[task.priority] || PRIORITY_LABELS.NORMAL;
-                          const sts = STATUS_LABELS[task.status] || STATUS_LABELS.SCHEDULED;
-                          return (
-                            <tr key={task.id} className={`border-b border-gray-100 hover:bg-blue-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                              <td className="px-3 py-2.5 text-gray-500">{(tablePage - 1) * tablePageSize + idx + 1}</td>
-                              <td className="px-3 py-2.5">
-                                <input type="checkbox" className="w-3.5 h-3.5 rounded text-blue-600" />
-                              </td>
-                              <td className="px-3 py-2.5">
-                                <button onClick={() => navigate(`/pms/work-report/${task.id}`)} className="text-blue-600 hover:text-blue-800 hover:underline font-medium">
-                                  {task.taskId}
-                                </button>
-                              </td>
-                              <td className="px-3 py-2.5 text-gray-700 max-w-[180px] truncate" title={task.equipmentName || task.equipmentGroupName || ''}>
-                                {task.equipmentName || task.equipmentGroupName || '—'}
-                              </td>
-                              <td className="px-3 py-2.5 text-gray-700">{task.taskType}</td>
-                              <td className="px-3 py-2.5 text-gray-600 max-w-[200px] truncate" title={task.taskDescription}>
-                                {task.taskDescription}
-                              </td>
-                              <td className="px-3 py-2.5 text-center">
-                                <CheckCircle className="w-4 h-4 text-green-500 mx-auto" />
-                              </td>
-                              <td className="px-3 py-2.5 text-center">
-                                <span className={`inline-block px-2.5 py-1 rounded text-xs font-medium ${pri.bg} ${pri.text}`}>
-                                  {pri.label}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2.5 text-center">
-                                <span className={`inline-block px-2.5 py-1 rounded text-xs font-medium ${sts.bg} ${sts.text}`}>
-                                  {sts.label}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2.5 text-center text-xs text-gray-500">
-                                {task.taskType === 'AD_HOC' || task.taskType === 'CORRECTIVE' ? 'Đột xuất' : 'Định kỳ'}
-                              </td>
-                              <td className="px-3 py-2.5">
-                                <div className="flex items-center justify-center gap-1">
-                                  <button onClick={() => navigate(`/pms/work-report/${task.id}`)} className="p-1 text-gray-400 hover:text-blue-600 rounded" title="Xem">
-                                    <Eye className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button onClick={() => navigate(`/pms/work-report/${task.id}`)} className="p-1 text-gray-400 hover:text-amber-600 rounded" title="Sửa">
-                                    <Pencil className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button className="p-1 text-gray-400 hover:text-red-600 rounded" title="Xóa" onClick={() => handleTaskDelete(task.id)}>
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
+              {/* Pagination (matches AssetsPage) */}
+              <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
+                <div>
+                  <select value={tablePageSize} onChange={e => { setTablePageSize(Number(e.target.value)); setTablePage(1); }} className="border border-gray-300 rounded px-2 py-1 text-xs">
+                    <option value={10}>10 / trang</option>
+                    <option value={20}>20 / trang</option>
+                    <option value={50}>50 / trang</option>
+                  </select>
                 </div>
-
-                {/* Pagination */}
-                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
-                  <div className="flex items-center gap-2">
-                    <select value={tablePageSize} onChange={e => { setTablePageSize(Number(e.target.value)); setTablePage(1); }} className="px-2 py-1 text-xs border border-gray-300 rounded">
-                      <option value={10}>10 / trang</option>
-                      <option value={20}>20 / trang</option>
-                      <option value={50}>50 / trang</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <span>Trang số {tablePage} của {totalPages} ({sortedFilteredTasks.length} bản ghi)</span>
-                    <div className="flex items-center gap-1">
-                      <button disabled={tablePage <= 1} onClick={() => setTablePage(p => p - 1)} className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50">‹</button>
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        const page = Math.max(1, Math.min(tablePage - 2, totalPages - 4)) + i;
-                        if (page > totalPages) return null;
-                        return (
-                          <button key={page} onClick={() => setTablePage(page)} className={`px-2 py-1 border rounded text-xs ${page === tablePage ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 hover:bg-gray-100'}`}>
-                            {page}
-                          </button>
-                        );
-                      })}
-                      <button disabled={tablePage >= totalPages} onClick={() => setTablePage(p => p + 1)} className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50">›</button>
-                    </div>
-                    <span>Đi đến trang</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={totalPages}
-                      className="w-12 px-1 py-1 text-xs border border-gray-300 rounded text-center"
-                      onKeyDown={e => { if (e.key === 'Enter') { const v = Number((e.target as HTMLInputElement).value); if (v >= 1 && v <= totalPages) setTablePage(v); }}}
-                    />
-                  </div>
+                <div className="flex items-center gap-1">
+                  <span className="mr-2">Trang {tablePage}/{totalPages} ({sortedFilteredTasks.length} bản ghi)</span>
+                  <button disabled={tablePage <= 1} onClick={() => setTablePage(p => p - 1)} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">‹</button>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let page: number;
+                    if (totalPages <= 5) page = i + 1;
+                    else if (tablePage <= 3) page = i + 1;
+                    else if (tablePage >= totalPages - 2) page = totalPages - 4 + i;
+                    else page = tablePage - 2 + i;
+                    if (page > totalPages || page < 1) return null;
+                    return (
+                      <button key={page} onClick={() => setTablePage(page)} className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${page === tablePage ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}>
+                        {page}
+                      </button>
+                    );
+                  })}
+                  <button disabled={tablePage >= totalPages} onClick={() => setTablePage(p => p + 1)} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">›</button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>Đi đến trang</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={totalPages}
+                    className="w-12 border border-gray-300 rounded px-1 py-1 text-center text-xs"
+                    onKeyDown={e => { if (e.key === 'Enter') { const v = Number((e.target as HTMLInputElement).value); if (v >= 1 && v <= totalPages) setTablePage(v); }}}
+                  />
                 </div>
               </div>
             </div>
