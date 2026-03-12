@@ -9,18 +9,18 @@ namespace MaritimeEdge.Controllers.Maintenance;
 
 [ApiController]
 [Route("api/maintenance-schedules")]
-public class MaintenanceScheduleController : ControllerBase
+public class WorkItemConfigController : ControllerBase
 {
     private readonly IMaintenanceScheduleRepository _scheduleRepository;
     private readonly IEquipmentAssetRepository _assetRepository;
     private readonly EdgeDbContext _context;
-    private readonly ILogger<MaintenanceScheduleController> _logger;
+    private readonly ILogger<WorkItemConfigController> _logger;
 
-    public MaintenanceScheduleController(
+    public WorkItemConfigController(
         IMaintenanceScheduleRepository scheduleRepository,
         IEquipmentAssetRepository assetRepository,
         EdgeDbContext context,
-        ILogger<MaintenanceScheduleController> logger)
+        ILogger<WorkItemConfigController> logger)
     {
         _scheduleRepository = scheduleRepository;
         _assetRepository = assetRepository;
@@ -459,10 +459,11 @@ public class MaintenanceScheduleController : ControllerBase
                 IntervalType = dto.IntervalType,
                 IntervalHours = dto.IntervalHours,
                 IntervalDays = dto.IntervalDays,
-                DaysBeforeDue = validatedDaysBeforeDue, // Use validated value
+                DaysBeforeDue = validatedDaysBeforeDue,
                 Priority = dto.Priority,
                 EstimatedDurationHours = dto.EstimatedDurationHours,
                 AutoGenerate = dto.AutoGenerate,
+                Instructions = dto.Instructions,
                 IsActive = true
             };
 
@@ -508,6 +509,12 @@ public class MaintenanceScheduleController : ControllerBase
             }
 
             _logger.LogInformation("Created maintenance schedule {ScheduleCode}", created.ScheduleCode);
+
+            // Immediately generate initial task so it appears in the Bảng tab
+            if (created.AutoGenerate && created.NextDueDate.HasValue)
+            {
+                await GenerateInitialTask(created, isPerAsset, firstAsset, dto);
+            }
 
             var resultDto = await MapToDtoAsync(created);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, resultDto);
@@ -670,6 +677,7 @@ public class MaintenanceScheduleController : ControllerBase
             schedule.DaysBeforeDue = validatedDaysBeforeDue;
             schedule.Priority = dto.Priority;
             schedule.AutoGenerate = dto.AutoGenerate;
+            schedule.Instructions = dto.Instructions;
 
             // Update nullable fields - only if provided
             if (dto.IntervalHours.HasValue) schedule.IntervalHours = dto.IntervalHours;
@@ -728,8 +736,8 @@ public class MaintenanceScheduleController : ControllerBase
                     templates.Count, updated.ScheduleCode);
             }
 
-            // AUTO-UPDATE EXISTING TASKS: Sync checklist changes to active tasks
-            await SyncChecklistToActiveTasks(id, updated.ScheduleCode);
+            // AUTO-UPDATE EXISTING TASKS: Sync ALL fields + checklist to active tasks
+            await SyncTaskFieldsFromSchedule(updated, isPerAsset, firstAsset, dto);
 
             _logger.LogInformation("Updated maintenance schedule {ScheduleCode}", updated.ScheduleCode);
 
@@ -979,6 +987,363 @@ public class MaintenanceScheduleController : ControllerBase
         if (!hasChecklist) return "MISSING_CHECKLIST";
 
         return (priority == "HIGH" || priority == "CRITICAL") ? "PENDING_APPROVAL" : "PENDING";
+    }
+
+    /// <summary>
+    /// Sync ALL task fields from updated schedule config to active tasks in Bảng tab.
+    /// Updates: description, priority, equipment info, spare parts, interval, checklist.
+    /// Handles both per-asset and group-based schedules.
+    /// </summary>
+    private async Task SyncTaskFieldsFromSchedule(MaintenanceSchedule schedule, bool isPerAsset, EquipmentAsset firstAsset, CreateMaintenanceScheduleDto dto)
+    {
+        try
+        {
+            // Find all active tasks for this schedule
+            var activeTasks = await _context.MaintenanceTasks
+                .Where(t => !t.IsDeleted &&
+                           t.ScheduleId == schedule.Id &&
+                           t.Status != "IN_PROGRESS" &&
+                           t.Status != "COMPLETED" &&
+                           t.Status != "CANCELLED")
+                .ToListAsync();
+
+            if (!activeTasks.Any())
+            {
+                _logger.LogDebug("No active tasks found for schedule {ScheduleCode}, creating initial task", schedule.ScheduleCode);
+                // If no task exists yet, create one
+                await GenerateInitialTask(schedule, isPerAsset, firstAsset, dto);
+                return;
+            }
+
+            // Build spare parts JSON
+            string? sparePartsJson = null;
+            if (dto.RequiredSpareParts != null && dto.RequiredSpareParts.Count > 0)
+            {
+                var spareParts = await _context.ScheduleSpareParts
+                    .Where(sp => sp.ScheduleId == schedule.Id)
+                    .ToListAsync();
+                var materialIds = spareParts.Select(sp => sp.MaterialItemId).ToList();
+                var materials = await _context.MaterialItems
+                    .Where(m => materialIds.Contains(m.Id))
+                    .ToDictionaryAsync(m => m.Id, m => new { m.ItemCode, m.Name });
+                sparePartsJson = System.Text.Json.JsonSerializer.Serialize(
+                    spareParts.Select(sp => new
+                    {
+                        materialItemId = sp.MaterialItemId,
+                        materialCode = materials.ContainsKey(sp.MaterialItemId) ? materials[sp.MaterialItemId].ItemCode : "",
+                        materialName = materials.ContainsKey(sp.MaterialItemId) ? materials[sp.MaterialItemId].Name : "Unknown",
+                        quantityRequired = sp.QuantityRequired,
+                        isMandatory = sp.IsMandatory
+                    }),
+                    new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+            }
+
+            // Get checklist templates
+            var checklistTemplates = await _context.ScheduleChecklistTemplates
+                .Where(t => t.ScheduleId == schedule.Id)
+                .OrderBy(t => t.SequenceOrder)
+                .ToListAsync();
+
+            // Get group info if needed
+            EquipmentGroup? group = null;
+            List<EquipmentAsset> assetsForChecklist;
+            if (isPerAsset)
+            {
+                assetsForChecklist = new List<EquipmentAsset> { firstAsset };
+            }
+            else
+            {
+                group = await _context.EquipmentGroups.FindAsync(schedule.EquipmentGroupId!.Value);
+                var groupMembers = await _context.EquipmentGroupMembers
+                    .Where(egm => egm.GroupId == schedule.EquipmentGroupId!.Value)
+                    .Include(egm => egm.Asset)
+                    .ToListAsync();
+                assetsForChecklist = groupMembers
+                    .Select(m => m.Asset)
+                    .Where(a => a != null && a.IsActive)
+                    .Cast<EquipmentAsset>()
+                    .ToList();
+            }
+
+            // Parse crew config for PIC assignment
+            var (picName, _) = await ParseCrewFromInstructions(dto.Instructions);
+
+            // Strip META/CREW HTML comments from instructions for clean task description
+            var cleanInstructions = StripMetaTags(dto.Instructions);
+
+            int tasksUpdated = 0;
+            foreach (var task in activeTasks)
+            {
+                // Update task fields from schedule
+                task.TaskDescription = string.IsNullOrWhiteSpace(cleanInstructions)
+                    ? schedule.ScheduleName
+                    : schedule.ScheduleName + "\n\n" + cleanInstructions;
+                task.Priority = schedule.Priority ?? "MEDIUM";
+                task.IntervalHours = schedule.IntervalHours;
+                task.IntervalDays = schedule.IntervalDays;
+                task.TaskType = schedule.IntervalType ?? "RUNNING_HOURS";
+                task.RequiredSpareParts = sparePartsJson;
+                task.EquipmentGroupId = isPerAsset ? null : schedule.EquipmentGroupId;
+                task.EquipmentGroupName = isPerAsset ? null : group?.GroupName;
+                task.EquipmentAssetId = isPerAsset ? firstAsset.Id : (Guid?)null;
+                task.EquipmentAssetName = isPerAsset ? firstAsset.AssetName : null;
+                task.EquipmentId = isPerAsset ? firstAsset.AssetCode : null;
+                task.EquipmentName = isPerAsset ? firstAsset.AssetName : group?.GroupName;
+                if (!string.IsNullOrWhiteSpace(picName))
+                    task.AssignedTo = picName;
+                if (schedule.NextDueDate.HasValue)
+                    task.NextDueAt = schedule.NextDueDate.Value;
+
+                // Remove existing checklist items
+                var existingItems = await _context.TaskChecklistItems
+                    .Where(ci => ci.TaskId == task.TaskId)
+                    .ToListAsync();
+                _context.TaskChecklistItems.RemoveRange(existingItems);
+
+                // Add new checklist items from templates
+                if (checklistTemplates.Any())
+                {
+                    foreach (var asset in assetsForChecklist)
+                    {
+                        foreach (var template in checklistTemplates)
+                        {
+                            _context.TaskChecklistItems.Add(new TaskChecklistItem
+                            {
+                                TaskId = task.TaskId,
+                                AssetId = asset.Id,
+                                AssetCode = asset.AssetCode,
+                                AssetName = asset.AssetName,
+                                SequenceOrder = template.SequenceOrder,
+                                CheckpointDescription = template.CheckpointDescription,
+                                RequiresReading = template.RequiresReading,
+                                NormalRangeMin = template.NormalRangeMin,
+                                NormalRangeMax = template.NormalRangeMax,
+                                Unit = template.Unit,
+                                IsCompleted = false,
+                                CreatedAt = DateTime.UtcNow
+                            });
+                        }
+                    }
+                }
+
+                // Update task status
+                var hasChecklist = checklistTemplates.Any();
+                var newStatus = DetermineTaskStatus(task.AssignedTo, hasChecklist, task.Priority);
+                task.Status = newStatus;
+                task.UpdatedAt = DateTime.UtcNow;
+                tasksUpdated++;
+            }
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Synced {Count} active tasks from updated schedule {ScheduleCode}", tasksUpdated, schedule.ScheduleCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error syncing task fields from schedule {ScheduleCode}", schedule.ScheduleCode);
+            // Don't throw - schedule update should still succeed
+        }
+    }
+
+    /// <summary>
+    /// Generate initial MaintenanceTask immediately after schedule creation
+    /// so it appears in the Bảng tab without waiting for the background scheduler.
+    /// </summary>
+    private async Task GenerateInitialTask(MaintenanceSchedule schedule, bool isPerAsset, EquipmentAsset firstAsset, CreateMaintenanceScheduleDto dto)
+    {
+        try
+        {
+            // Build spare parts JSON from DTO (already saved to DB)
+            string? sparePartsJson = null;
+            if (dto.RequiredSpareParts != null && dto.RequiredSpareParts.Count > 0)
+            {
+                var spareParts = await _context.ScheduleSpareParts
+                    .Where(sp => sp.ScheduleId == schedule.Id)
+                    .ToListAsync();
+                var materialIds = spareParts.Select(sp => sp.MaterialItemId).ToList();
+                var materials = await _context.MaterialItems
+                    .Where(m => materialIds.Contains(m.Id))
+                    .ToDictionaryAsync(m => m.Id, m => new { m.ItemCode, m.Name });
+                sparePartsJson = System.Text.Json.JsonSerializer.Serialize(
+                    spareParts.Select(sp => new
+                    {
+                        materialItemId = sp.MaterialItemId,
+                        materialCode = materials.ContainsKey(sp.MaterialItemId) ? materials[sp.MaterialItemId].ItemCode : "",
+                        materialName = materials.ContainsKey(sp.MaterialItemId) ? materials[sp.MaterialItemId].Name : "Unknown",
+                        quantityRequired = sp.QuantityRequired,
+                        isMandatory = sp.IsMandatory
+                    }),
+                    new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+            }
+
+            // Build task ID
+            string identifierCode;
+            EquipmentGroup? group = null;
+            List<EquipmentAsset> assetsForChecklist;
+
+            if (isPerAsset)
+            {
+                identifierCode = firstAsset.AssetCode;
+                assetsForChecklist = new List<EquipmentAsset> { firstAsset };
+            }
+            else
+            {
+                group = await _context.EquipmentGroups.FindAsync(schedule.EquipmentGroupId!.Value);
+                identifierCode = group?.GroupCode ?? "GRP";
+                var groupMembers = await _context.EquipmentGroupMembers
+                    .Where(egm => egm.GroupId == schedule.EquipmentGroupId!.Value)
+                    .Include(egm => egm.Asset)
+                    .ToListAsync();
+                assetsForChecklist = groupMembers
+                    .Select(m => m.Asset)
+                    .Where(a => a != null && a.IsActive)
+                    .Cast<EquipmentAsset>()
+                    .ToList();
+            }
+
+            var taskId = $"SCHED-{schedule.ScheduleCode}-{identifierCode}-{DateTime.UtcNow:yyyyMMdd}";
+
+            // Check if task already exists
+            if (await _context.MaintenanceTasks.AnyAsync(t => t.TaskId == taskId))
+            {
+                _logger.LogDebug("Task {TaskId} already exists, skipping initial generation", taskId);
+                return;
+            }
+
+            var hasChecklistTemplates = await _context.ScheduleChecklistTemplates
+                .AnyAsync(t => t.ScheduleId == schedule.Id);
+
+            // Strip META/CREW HTML comments from instructions for clean task description
+            var cleanInstructions = StripMetaTags(dto.Instructions);
+
+            var task = new MaintenanceTask
+            {
+                TaskId = taskId,
+                TaskTypeId = null,
+                ScheduleId = schedule.Id,
+                EquipmentGroupId = isPerAsset ? null : schedule.EquipmentGroupId,
+                EquipmentGroupName = isPerAsset ? null : group?.GroupName,
+                EquipmentAssetId = isPerAsset ? firstAsset.Id : (Guid?)null,
+                EquipmentAssetName = isPerAsset ? firstAsset.AssetName : null,
+                EquipmentId = isPerAsset ? firstAsset.AssetCode : null,
+                EquipmentName = isPerAsset ? firstAsset.AssetName : group?.GroupName,
+                TaskType = schedule.IntervalType ?? "RUNNING_HOURS",
+                TaskDescription = string.IsNullOrWhiteSpace(cleanInstructions)
+                    ? schedule.ScheduleName
+                    : schedule.ScheduleName + "\n\n" + cleanInstructions,
+                IntervalHours = schedule.IntervalHours,
+                IntervalDays = schedule.IntervalDays,
+                LastDoneAt = schedule.LastExecutedAt,
+                NextDueAt = schedule.NextDueDate!.Value,
+                RunningHoursAtLastDone = schedule.LastExecutedRunningHours,
+                Priority = schedule.Priority ?? "MEDIUM",
+                Status = "SCHEDULED",
+                RequiredSpareParts = sparePartsJson,
+                Notes = $"Auto-generated from schedule: {schedule.ScheduleCode}",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            // Parse crew config to set PIC
+            var (picName, _) = await ParseCrewFromInstructions(dto.Instructions);
+            if (!string.IsNullOrWhiteSpace(picName))
+                task.AssignedTo = picName;
+
+            _context.MaintenanceTasks.Add(task);
+
+            // Create checklist items from templates
+            var checklistTemplates = await _context.ScheduleChecklistTemplates
+                .Where(t => t.ScheduleId == schedule.Id)
+                .OrderBy(t => t.SequenceOrder)
+                .ToListAsync();
+
+            if (checklistTemplates.Any())
+            {
+                foreach (var asset in assetsForChecklist)
+                {
+                    foreach (var template in checklistTemplates)
+                    {
+                        _context.TaskChecklistItems.Add(new TaskChecklistItem
+                        {
+                            TaskId = task.TaskId,
+                            AssetId = asset.Id,
+                            AssetCode = asset.AssetCode,
+                            AssetName = asset.AssetName,
+                            SequenceOrder = template.SequenceOrder,
+                            CheckpointDescription = template.CheckpointDescription,
+                            RequiresReading = template.RequiresReading,
+                            NormalRangeMin = template.NormalRangeMin,
+                            NormalRangeMax = template.NormalRangeMax,
+                            Unit = template.Unit,
+                            IsCompleted = false,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Generated initial task {TaskId} for new schedule {ScheduleCode}", taskId, schedule.ScheduleCode);
+        }
+        catch (Exception ex)
+        {
+            // Don't fail the schedule creation if task generation fails
+            _logger.LogError(ex, "Error generating initial task for schedule {ScheduleCode}. Task will be created by background scheduler.", schedule.ScheduleCode);
+        }
+    }
+
+    /// <summary>
+    /// Strip <!--META:...-->, <!--CREW:...--> HTML comment tags from text.
+    /// These are internal serialization markers, not user-visible content.
+    /// </summary>
+    private static string? StripMetaTags(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var cleaned = System.Text.RegularExpressions.Regex.Replace(text, @"<!--(META|CREW):.*?-->", "", System.Text.RegularExpressions.RegexOptions.Singleline).Trim();
+        return string.IsNullOrWhiteSpace(cleaned) ? null : cleaned;
+    }
+
+    /// <summary>
+    /// Parse CREW JSON from instructions to extract PIC and RECEIVER crew member names.
+    /// Format: <!--CREW:{"a":[{"crewId":"guid","role":"PIC"},{"crewId":"guid","role":"RECEIVER"},...]}-->
+    /// </summary>
+    private async Task<(string? picName, string? receiverName)> ParseCrewFromInstructions(string? instructions)
+    {
+        if (string.IsNullOrWhiteSpace(instructions)) return (null, null);
+        var match = System.Text.RegularExpressions.Regex.Match(instructions, @"<!--CREW:(.*?)-->", System.Text.RegularExpressions.RegexOptions.Singleline);
+        if (!match.Success) return (null, null);
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(match.Groups[1].Value);
+            var assignments = doc.RootElement.GetProperty("a");
+            string? picId = null, receiverId = null;
+            foreach (var a in assignments.EnumerateArray())
+            {
+                var role = a.GetProperty("role").GetString();
+                var crewId = a.GetProperty("crewId").GetString();
+                if (role == "PIC" && crewId != null) picId = crewId;
+                else if (role == "RECEIVER" && crewId != null) receiverId = crewId;
+            }
+
+            var idsToLookup = new List<Guid>();
+            if (Guid.TryParse(picId, out var picGuid)) idsToLookup.Add(picGuid);
+            if (Guid.TryParse(receiverId, out var recGuid)) idsToLookup.Add(recGuid);
+            if (!idsToLookup.Any()) return (null, null);
+
+            var crewMembers = await _context.CrewMembers
+                .Where(c => idsToLookup.Contains(c.Id))
+                .Select(c => new { c.Id, c.FullName })
+                .ToListAsync();
+
+            var picName = picGuid != Guid.Empty ? crewMembers.FirstOrDefault(c => c.Id == picGuid)?.FullName : null;
+            var receiverName = recGuid != Guid.Empty ? crewMembers.FirstOrDefault(c => c.Id == recGuid)?.FullName : null;
+            return (picName, receiverName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse CREW JSON from instructions");
+            return (null, null);
+        }
     }
 
     private void CalculateNextDueDate(MaintenanceSchedule schedule, EquipmentAsset asset)

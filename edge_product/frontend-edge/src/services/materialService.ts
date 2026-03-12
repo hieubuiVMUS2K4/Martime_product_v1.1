@@ -118,6 +118,21 @@ export interface MaterialItemEquipmentLink {
   equipmentCategory?: string
 }
 
+export interface EquipmentMaterialLink {
+  linkId: string
+  materialItemId: string
+  itemCode: string
+  name: string
+  unit: string
+  onHandQuantity: number
+  minStock?: number | null
+  specification?: string | null
+  notes?: string | null
+  linkedAt: string
+  /** If material was inherited from a parent equipment, this is the parent's ID */
+  inheritedFrom?: string | null
+}
+
 export interface ItemActivityRequest {
   type: 'request'
   code: string
@@ -243,6 +258,9 @@ export const materialService = {
 
   getItemEquipment: (itemId: string) =>
     apiClient.get<MaterialItemEquipmentLink[]>(`/material/items/${itemId}/equipment`),
+
+  getMaterialsByEquipment: (equipmentAssetId: string) =>
+    apiClient.get<EquipmentMaterialLink[]>(`/material/items/by-equipment/${equipmentAssetId}`),
 
   assignEquipment: (dto: AssignEquipmentDto) =>
     apiClient.post<{ message: string; created: number; skipped: number }>(

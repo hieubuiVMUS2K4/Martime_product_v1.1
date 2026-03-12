@@ -32,7 +32,6 @@ import ApprovalDashboardPage from './pages/PMS/ApprovalDashboardPage'
 import DeferralManagementPage from './pages/PMS/DeferralManagementPage'
 import WorkPlanningPage from './pages/PMS/WorkPlanningPage'
 import WorkReportPage from './pages/PMS/WorkReportPage'
-import EquipmentGroupsPage from './pages/PMS/EquipmentGroupsPage'
 import { MaintenanceHistoryPage } from './pages/PMS/MaintenanceHistoryPage'
 import StoreLocationPage from './pages/StoreLocation/StoreLocationPage'
 import MaterialRequestPage from './pages/MaterialRequest/MaterialRequestPage'
@@ -122,7 +121,6 @@ function App() {
 
         {/* PMS Routes */}
         <Route path="pms/catalog/assets" element={<AssetsPage />} />
-        <Route path="pms/catalog/groups" element={<EquipmentGroupsPage />} />
         <Route path="pms/catalog/materials" element={<MaterialPage />} />
         <Route path="pms/catalog/store-locations" element={<StoreLocationPage />} />
         <Route path="pms/logistics/material-requests" element={<MaterialRequestPage />} />

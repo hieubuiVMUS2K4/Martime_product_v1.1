@@ -10,9 +10,9 @@ import {
   Table2, Calendar, BarChart3, LayoutGrid,
   Search, ChevronRight, ChevronDown, ChevronLeft,
   Eye, Pencil, Trash2,
-  RefreshCw, Download, Clock, Settings, Gauge, Plus, Save, ExternalLink,
+  RefreshCw, Clock, Settings, Gauge, Plus, Save, ExternalLink,
   CheckCircle, ChevronsUpDown, FolderOpen, ClipboardList, X as XIcon, Users, Package,
-  AlertTriangle, FileText, History, Upload
+  AlertTriangle, FileText, History, Upload, Link2
 } from 'lucide-react';
 import { parseISO, format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, addDays, getDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -246,6 +246,8 @@ export default function WorkPlanningPage() {
   const [cfgShowCreateTemplate, setCfgShowCreateTemplate] = useState(false);
   const [cfgTemplateName, setCfgTemplateName] = useState('');
   const [cfgShowChecklistTemplate, setCfgShowChecklistTemplate] = useState(false);
+  // Track which materialItemIds are already linked to the selected equipment
+  const [cfgLinkedMaterialIds, setCfgLinkedMaterialIds] = useState<Set<string>>(new Set());
   const cfgDefaultForm: CreateMaintenanceScheduleDto = {
     scheduleCode: '', equipmentGroupId: '', equipmentAssetId: undefined, taskTypeId: 1,
     scheduleName: '', intervalType: 'RUNNING_HOURS', intervalDays: undefined, intervalHours: undefined,
@@ -356,6 +358,7 @@ export default function WorkPlanningPage() {
     setCfgRequireRiskAssessment(false);
     setCfgRiskFile(null);
     setCfgRiskFileName('');
+    setCfgLinkedMaterialIds(new Set());
   };
 
   const cfgLoadForEdit = (schedule: MaintenanceSchedule) => {
@@ -432,19 +435,10 @@ export default function WorkPlanningPage() {
     submitData.intervalDays = undefined;
     submitData.autoGenerate = true;
     // Map tree selection → equipmentAssetId or equipmentGroupId
-    if (cfgTreeSelectedIds.size === 1) {
-      submitData.equipmentAssetId = [...cfgTreeSelectedIds][0];
-      delete submitData.equipmentGroupId;
-    } else {
-      const selectedAssets = assets.filter(a => cfgTreeSelectedIds.has(a.id));
-      const groupIds = [...new Set(selectedAssets.map(a => a.equipmentGroupId).filter(Boolean))];
-      if (groupIds.length === 1) {
-        submitData.equipmentGroupId = groupIds[0];
-        delete submitData.equipmentAssetId;
-      } else {
-        toast.error('Thiết bị đã chọn thuộc nhiều nhóm khác nhau'); return;
-      }
-    }
+    // Always per-asset: create one work item per selected equipment
+    const selectedAssetIds = [...cfgTreeSelectedIds];
+    submitData.equipmentAssetId = selectedAssetIds[0]; // first one for single or first call
+    delete submitData.equipmentGroupId;
     // Serialize META (CBM, risk, inspection) into instructions
     const metaObj: Record<string, any> = {};
     if (cfgIsCbm) metaObj.cbm = true;
@@ -466,8 +460,33 @@ export default function WorkPlanningPage() {
         await maintenanceScheduleService.update(cfgEditingId, submitData);
         toast.success('Đã cập nhật cấu hình bảo trì');
       } else {
-        await maintenanceScheduleService.create(submitData);
-        toast.success('Đã tạo cấu hình bảo trì mới');
+        // Create one work item per selected equipment
+        const allAssetIds = [...cfgTreeSelectedIds];
+        let successCount = 0;
+        const errors: string[] = [];
+        for (let i = 0; i < allAssetIds.length; i++) {
+          const assetId = allAssetIds[i];
+          const perAssetData = { ...submitData, equipmentAssetId: assetId };
+          delete perAssetData.equipmentGroupId;
+          // Unique scheduleCode per equipment (append suffix if multiple)
+          if (allAssetIds.length > 1) {
+            perAssetData.scheduleCode = `${cfgForm.scheduleCode}-${i + 1}`;
+          }
+          try {
+            await maintenanceScheduleService.create(perAssetData);
+            successCount++;
+          } catch (err: any) {
+            const msg = err.response?.data?.error || err.message || 'Lỗi';
+            errors.push(`${perAssetData.scheduleCode}: ${msg}`);
+          }
+        }
+        if (successCount > 0) {
+          toast.success(`Đã tạo ${successCount}/${allAssetIds.length} đầu công việc`);
+        }
+        if (errors.length > 0) {
+          toast.error(`Lỗi: ${errors.join('; ')}`);
+        }
+        if (successCount === 0) throw new Error('Tất cả đều thất bại');
       }
       await loadSchedules();
       loadGanttData();
@@ -489,6 +508,18 @@ export default function WorkPlanningPage() {
   };
   const cfgUpdateSparePart = (i: number, field: keyof CreateScheduleSparePartDto, val: any) => {
     setCfgForm(f => { const u = [...(f.requiredSpareParts || [])]; u[i] = { ...u[i], [field]: val }; return { ...f, requiredSpareParts: u }; });
+  };
+  // Assign a manually-added material to the selected equipment
+  const cfgAssignMaterialToEquipment = async (materialItemId: string) => {
+    if (!materialItemId || cfgTreeSelectedIds.size === 0) return;
+    try {
+      const eqIds = [...cfgTreeSelectedIds];
+      await materialService.assignEquipment({ materialItemIds: [materialItemId], equipmentAssetIds: eqIds });
+      setCfgLinkedMaterialIds(prev => new Set([...prev, materialItemId]));
+      toast.success('Đã gán vật tư vào thiết bị');
+    } catch {
+      toast.error('Không thể gán vật tư vào thiết bị');
+    }
   };
   const cfgAddChecklist = () => {
     setCfgForm(f => ({ ...f, checklistItemTemplates: [...(f.checklistItemTemplates || []), { sequenceOrder: (f.checklistItemTemplates?.length || 0) + 1, checkpointDescription: '', requiresReading: false }] }));
@@ -560,6 +591,37 @@ export default function WorkPlanningPage() {
       materialService.getItems().then(setCfgMaterials).catch(console.error);
     }
   }, [activeTab]);
+
+  // Config: auto-populate spare parts when equipment selection changes
+  useEffect(() => {
+    if (cfgTreeSelectedIds.size === 0) {
+      setCfgLinkedMaterialIds(new Set());
+      return;
+    }
+    // Fetch materials linked to all selected equipment
+    const eqIds = [...cfgTreeSelectedIds];
+    Promise.all(eqIds.map(id => materialService.getMaterialsByEquipment(id).catch(() => [])))
+      .then(results => {
+        const allLinked = results.flat();
+        // Deduplicate by materialItemId
+        const seen = new Map<string, typeof allLinked[0]>();
+        allLinked.forEach(m => { if (!seen.has(m.materialItemId)) seen.set(m.materialItemId, m); });
+        const linkedIds = new Set(seen.keys());
+        setCfgLinkedMaterialIds(linkedIds);
+        // Only auto-populate if spare parts list is currently empty (new config, not editing)
+        setCfgForm(prev => {
+          if (prev.requiredSpareParts && prev.requiredSpareParts.length > 0) return prev;
+          if (seen.size === 0) return prev;
+          const autoRows = [...seen.values()].map(m => ({
+            materialItemId: m.materialItemId,
+            quantityRequired: 1,
+            isMandatory: true,
+          }));
+          return { ...prev, requiredSpareParts: autoRows };
+        });
+      })
+      .catch(console.error);
+  }, [cfgTreeSelectedIds]);
 
   // Config: selected equipment names from tree
   const cfgSelectedEquipmentNames = useMemo(() => {
@@ -742,8 +804,8 @@ export default function WorkPlanningPage() {
 
     // Column filters
     if (colFilterCode) f = f.filter(t => t.taskId.toLowerCase().includes(colFilterCode.toLowerCase()));
-    if (colFilterEquip) f = f.filter(t => (t.equipmentName || t.equipmentGroupName || '').toLowerCase().includes(colFilterEquip.toLowerCase()));
-    if (colFilterName) f = f.filter(t => t.taskType.toLowerCase().includes(colFilterName.toLowerCase()));
+    if (colFilterEquip) f = f.filter(t => (t.equipmentName || t.equipmentAssetName || t.equipmentGroupName || '').toLowerCase().includes(colFilterEquip.toLowerCase()));
+    if (colFilterName) f = f.filter(t => (t.taskDescription?.split('\n')[0] || t.taskType).toLowerCase().includes(colFilterName.toLowerCase()));
     if (colFilterDesc) f = f.filter(t => t.taskDescription.toLowerCase().includes(colFilterDesc.toLowerCase()));
 
     return f;
@@ -779,8 +841,8 @@ export default function WorkPlanningPage() {
       const data = sortedFilteredTasks.map((task, idx) => ({
         'TT': idx + 1,
         'Mã công việc': task.taskId,
-        'Tên thiết bị': task.equipmentName || task.equipmentGroupName || '',
-        'Tên công việc': task.taskType,
+        'Tên thiết bị': task.equipmentName || task.equipmentAssetName || task.equipmentGroupName || '',
+        'Tên công việc': task.taskDescription?.split('\n')[0] || task.taskType,
         'Mô tả công việc': task.taskDescription,
         'Độ ưu tiên': PRIORITY_LABELS[task.priority]?.label || task.priority,
         'Trạng thái': STATUS_LABELS[task.status]?.label || task.status,
@@ -845,8 +907,8 @@ export default function WorkPlanningPage() {
       let va: any, vb: any;
       switch (sortField) {
         case 'taskId': va = a.taskId; vb = b.taskId; break;
-        case 'equipmentName': va = a.equipmentName || a.equipmentGroupName || ''; vb = b.equipmentName || b.equipmentGroupName || ''; break;
-        case 'taskType': va = a.taskType; vb = b.taskType; break;
+        case 'equipmentName': va = a.equipmentName || a.equipmentAssetName || a.equipmentGroupName || ''; vb = b.equipmentName || b.equipmentAssetName || b.equipmentGroupName || ''; break;
+        case 'taskType': va = a.taskDescription?.split('\n')[0] || a.taskType; vb = b.taskDescription?.split('\n')[0] || b.taskType; break;
         case 'taskDescription': va = a.taskDescription; vb = b.taskDescription; break;
         case 'priority': va = a.priority; vb = b.priority; break;
         case 'status': va = a.status; vb = b.status; break;
@@ -1007,13 +1069,6 @@ export default function WorkPlanningPage() {
           <div className="flex items-center gap-2">
             <button onClick={() => loadData(true)} className="p-1.5 border border-gray-300 rounded text-gray-500 hover:bg-gray-50" title="Làm mới">
               <RefreshCw className={`w-3.5 h-3.5 ${isBackgroundRefreshing ? 'animate-spin' : ''}`} />
-            </button>
-            <button onClick={handleExportExcel} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
-              <Download className="w-3.5 h-3.5" />
-              Xuất báo cáo
-            </button>
-            <button onClick={() => setIsAddScheduleModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">
-              Thêm mới
             </button>
           </div>
         </div>
@@ -1294,13 +1349,19 @@ export default function WorkPlanningPage() {
                               </button>
                             </td>
                             <td className="px-3 py-2 text-xs text-gray-600 border-r border-gray-100">
-                              <span className="truncate block max-w-[180px]" title={task.equipmentName || task.equipmentGroupName || ''}>
-                                {task.equipmentName || task.equipmentGroupName || '—'}
+                              <span className="truncate block max-w-[180px]" title={task.equipmentName || task.equipmentAssetName || task.equipmentGroupName || ''}>
+                                {task.equipmentName || task.equipmentAssetName || task.equipmentGroupName || '—'}
                               </span>
                             </td>
-                            <td className="px-3 py-2 text-xs text-gray-600 border-r border-gray-100">{task.taskType}</td>
+                            <td className="px-3 py-2 text-xs text-gray-600 border-r border-gray-100">
+                              <span className="truncate block max-w-[140px]" title={task.taskDescription?.split('\n')[0] || task.taskType}>
+                                {task.taskDescription?.split('\n')[0] || task.taskType}
+                              </span>
+                            </td>
                             <td className="px-3 py-2 text-xs text-gray-500 border-r border-gray-100 max-w-[200px]">
-                              <span className="truncate block" title={task.taskDescription}>{task.taskDescription}</span>
+                              <span className="truncate block" title={task.taskDescription?.replace(/<!--(META|CREW):.*?-->/gs, '').trim()}>
+                                {task.taskDescription?.split('\n').slice(1).join('\n').replace(/<!--(META|CREW):.*?-->/gs, '').trim() || ''}
+                              </span>
                             </td>
                             <td className="px-3 py-2 text-center border-r border-gray-100">
                               <CheckCircle className="w-4 h-4 text-green-500 mx-auto" />
@@ -2081,25 +2142,30 @@ export default function WorkPlanningPage() {
                             <col style={{ width: '70px' }} />
                             <col style={{ width: '28px' }} />
                             <col style={{ width: '28px' }} />
+                            <col style={{ width: '28px' }} />
                           </colgroup>
-                          <thead className="bg-blue-50">
+                          <thead className="bg-blue-50 sticky top-0">
                             <tr>
                               <th className="px-1 py-1.5 text-left text-xs">TT</th>
                               <th className="px-1.5 py-1.5 text-left text-xs">Vật tư <span className="text-red-500">*</span></th>
                               <th className="px-1 py-1.5 text-right text-xs">ROB</th>
                               <th className="px-1 py-1.5 text-right text-xs">Cần <span className="text-red-500">*</span></th>
                               <th className="px-0.5 py-1.5 text-center text-xs"></th>
+                              <th className="px-0.5 py-1.5 text-center text-xs" title="Gán thiết bị"><Link2 size={11} className="inline text-gray-400" /></th>
                               <th className="px-0.5 py-1.5"></th>
                             </tr>
                           </thead>
                           <tbody>
                             {(!cfgForm.requiredSpareParts || cfgForm.requiredSpareParts.length === 0) ? (
-                              <tr><td colSpan={6} className="text-center py-4 text-gray-400 text-xs">Chưa có vật tư</td></tr>
+                              <tr><td colSpan={7} className="text-center py-4 text-gray-400 text-xs">
+                                {cfgTreeSelectedIds.size > 0 ? 'Thiết bị chưa được gán vật tư. Thêm dòng và gán bên dưới.' : 'Chưa có vật tư'}
+                              </td></tr>
                             ) : cfgForm.requiredSpareParts.map((part, i) => {
                               const mat = cfgMaterials.find(m => m.id.toString() === part.materialItemId);
                               const rob = mat?.onHandQuantity ?? 0;
                               const needsMore = mat && part.quantityRequired > rob;
                               const isLow = mat && rob <= (mat.minStock || 0);
+                              const isLinked = part.materialItemId ? cfgLinkedMaterialIds.has(part.materialItemId) : false;
                               return (
                                 <tr key={i} className={`border-b ${needsMore ? 'bg-red-50/50' : ''}`}>
                                   <td className="px-1.5 py-1 text-gray-500 text-xs">{i + 1}</td>
@@ -2123,6 +2189,17 @@ export default function WorkPlanningPage() {
                                     ) : mat ? (
                                       <span className="text-green-500"><CheckCircle size={13} /></span>
                                     ) : null}
+                                  </td>
+                                  <td className="px-0.5 py-1 text-center">
+                                    {part.materialItemId && cfgTreeSelectedIds.size > 0 && (
+                                      isLinked ? (
+                                        <span className="text-green-500" title="Đã gán vào thiết bị"><Link2 size={12} /></span>
+                                      ) : (
+                                        <button type="button" onClick={() => cfgAssignMaterialToEquipment(part.materialItemId)} title="Gán vật tư vào thiết bị" className="text-amber-500 hover:text-amber-700">
+                                          <Save size={12} />
+                                        </button>
+                                      )
+                                    )}
                                   </td>
                                   <td className="px-0.5 py-1 text-center">
                                     <button type="button" onClick={() => cfgRemoveSparePart(i)} className="text-red-400 hover:text-red-600"><Trash2 size={13} /></button>

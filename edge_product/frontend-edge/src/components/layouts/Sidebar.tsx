@@ -54,7 +54,6 @@ const getNavigation = (t: (key: string) => string) => [
         icon: FolderOpen, 
         children: [
           { name: t('nav.equipmentAssets'), to: '/pms/catalog/assets', icon: Settings },
-          { name: t('nav.equipmentGroups'), to: '/pms/catalog/groups', icon: Boxes },
           { name: t('nav.materials'), to: '/pms/catalog/materials', icon: Boxes },
           { name: t('nav.storeLocations'), to: '/pms/catalog/store-locations', icon: Warehouse },
         ]

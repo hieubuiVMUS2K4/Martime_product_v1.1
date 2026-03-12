@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { MaintenanceTask, CrewMember, TaskStatusHistory } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
+import { maintenanceScheduleService } from '../../services/maintenance-schedule.service'
 import { format, parseISO } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -97,11 +98,28 @@ export default function WorkReportPage() {
       setTask(data)
 
       // Populate form from existing task data
-      setDescription(data.taskDescription || '')
+      setDescription((data.taskDescription?.split('\n').slice(1).join('\n') || '').replace(/<!--(META|CREW):.*?-->/gs, '').trim())
       setStartDate(data.startedAt ? data.startedAt.substring(0, 16) : '')
       setEndDate(data.completedAt ? data.completedAt.substring(0, 16) : '')
       setAssignedTo(data.assignedTo || '')
       setReportText(data.notes || '')
+
+      // Load receiver from schedule's crew config
+      if (data.scheduleId) {
+        try {
+          const schedule = await maintenanceScheduleService.getById(data.scheduleId)
+          const crewMatch = schedule.instructions?.match(/<!--CREW:(.*?)-->/s)
+          if (crewMatch) {
+            const parsed = JSON.parse(crewMatch[1])
+            const receiverAssignment = (parsed.a || []).find((a: any) => a.role === 'RECEIVER')
+            if (receiverAssignment) {
+              const crewRes = await maritimeService.crew.getAll({ isOnboard: true })
+              const receiverCrew = (crewRes.data || []).find((c: any) => c.id === receiverAssignment.crewId)
+              if (receiverCrew) setReportReceiver(receiverCrew.fullName)
+            }
+          }
+        } catch {}
+      }
       setSparePartsUsed(data.sparePartsUsed || '')
       setIsCbm(data.taskType === 'CONDITION')
       setEquipmentRunningHours(data.actualRunningHours || 0)
@@ -299,7 +317,7 @@ export default function WorkReportPage() {
                 </div>
                 <div className="flex items-center flex-1">
                   <label className={lbl} style={{ width: 110 }}>Tên công việc:</label>
-                  <input type="text" readOnly value={task.taskDescription || ''} className={inpRo} />
+                  <input type="text" readOnly value={task.taskDescription?.split('\n')[0] || ''} className={inpRo} />
                 </div>
               </div>
               {/* Row 2: Ngày bắt đầu + Ngày kết thúc */}
@@ -322,11 +340,11 @@ export default function WorkReportPage() {
               <div className="flex gap-4">
                 <div className="flex items-center flex-1">
                   <label className={lbl} style={{ width: 110 }}>Mã thiết bị:</label>
-                  <input type="text" readOnly value={task.equipmentId || task.equipmentGroupId || ''} className={inpRo} />
+                  <input type="text" readOnly value={task.equipmentId || task.equipmentAssetId || ''} className={inpRo} />
                 </div>
                 <div className="flex items-center flex-1">
                   <label className={lbl} style={{ width: 110 }}>Tên thiết bị:</label>
-                  <input type="text" readOnly value={task.equipmentName || task.equipmentGroupName || ''} className={inpRo} />
+                  <input type="text" readOnly value={task.equipmentName || task.equipmentAssetName || task.equipmentGroupName || ''} className={inpRo} />
                 </div>
               </div>
               {/* Row 5: Mô tả thiết bị */}
@@ -416,17 +434,39 @@ export default function WorkReportPage() {
               {/* Vật tư tab */}
               {activeTab === 'materials' && (
                 <div className="space-y-3">
-                  {task.requiredSpareParts && (
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 mb-1">Vật tư yêu cầu (từ lịch bảo trì)</p>
-                      <div className="bg-blue-50 rounded p-2 text-sm text-gray-700">
-                        {typeof task.requiredSpareParts === 'string'
-                          ? task.requiredSpareParts
-                          : task.requiredSpareParts.map(sp => `${sp.materialName || sp.materialCode || 'Item'} x${sp.quantityRequired}`).join(', ')
-                        }
+                  {task.requiredSpareParts && (() => {
+                    let parts: Array<{materialName?: string; materialCode?: string; quantityRequired?: number; isMandatory?: boolean}> = []
+                    if (typeof task.requiredSpareParts === 'string') {
+                      try { parts = JSON.parse(task.requiredSpareParts) } catch { parts = [] }
+                    } else {
+                      parts = task.requiredSpareParts as any[]
+                    }
+                    return parts.length > 0 ? (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 mb-1">Vật tư yêu cầu (từ lịch bảo trì)</p>
+                        <table className="w-full text-xs border border-gray-200 rounded">
+                          <thead className="bg-blue-50">
+                            <tr>
+                              <th className="px-2 py-1 text-left border-b">Mã vật tư</th>
+                              <th className="px-2 py-1 text-left border-b">Tên vật tư</th>
+                              <th className="px-2 py-1 text-center border-b">SL</th>
+                              <th className="px-2 py-1 text-center border-b">Bắt buộc</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {parts.map((sp, i) => (
+                              <tr key={i} className="border-b border-gray-100">
+                                <td className="px-2 py-1 text-gray-600">{sp.materialCode || '—'}</td>
+                                <td className="px-2 py-1">{sp.materialName || 'Item'}</td>
+                                <td className="px-2 py-1 text-center">{sp.quantityRequired || 1}</td>
+                                <td className="px-2 py-1 text-center">{sp.isMandatory ? '✓' : ''}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
-                    </div>
-                  )}
+                    ) : null
+                  })()}
                   <div>
                     <p className="text-xs font-semibold text-gray-500 mb-1">Vật tư đã sử dụng</p>
                     <textarea rows={4} value={sparePartsUsed} onChange={e => setSparePartsUsed(e.target.value)} placeholder="Nhập danh sách vật tư..." className={`${inp} resize-y`} />

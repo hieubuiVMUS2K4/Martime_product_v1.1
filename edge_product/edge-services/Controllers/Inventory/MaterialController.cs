@@ -848,6 +848,85 @@ public class MaterialController : ControllerBase
     // ======== MATERIAL-EQUIPMENT ASSIGNMENT ========
 
     /// <summary>
+    /// Get all materials linked to a specific equipment asset (reverse lookup).
+    /// Also traverses ancestor equipment (via parentId) so materials assigned
+    /// to any parent node in the hierarchy are included.
+    /// </summary>
+    [HttpGet("items/by-equipment/{equipmentAssetId}")]
+    public async Task<IActionResult> GetMaterialsByEquipment(Guid equipmentAssetId)
+    {
+        try
+        {
+            var asset = await _context.EquipmentAssets.AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == equipmentAssetId && a.IsActive);
+            if (asset is null) return NotFound(new { error = "Equipment not found" });
+
+            // Collect this asset + all ancestors (traverse parentId up the tree)
+            var ancestorIds = new List<Guid> { equipmentAssetId };
+            var current = asset;
+            var visited = new HashSet<Guid> { equipmentAssetId };
+            while (current.ParentId.HasValue && !visited.Contains(current.ParentId.Value))
+            {
+                ancestorIds.Add(current.ParentId.Value);
+                visited.Add(current.ParentId.Value);
+                current = await _context.EquipmentAssets.AsNoTracking()
+                    .FirstOrDefaultAsync(a => a.Id == current.ParentId.Value);
+                if (current is null) break;
+            }
+
+            // Find all material links for this asset + all ancestors
+            var links = await _context.MaterialItemEquipments
+                .AsNoTracking()
+                .Where(x => ancestorIds.Contains(x.EquipmentAssetId))
+                .ToListAsync();
+
+            if (links.Count == 0) return Ok(Array.Empty<object>());
+
+            // Deduplicate by MaterialItemId (prefer the most specific link - closest to the asset)
+            var deduped = links
+                .GroupBy(l => l.MaterialItemId)
+                .Select(g => g.OrderBy(l => ancestorIds.IndexOf(l.EquipmentAssetId)).First())
+                .ToList();
+
+            var matIds = deduped.Select(x => x.MaterialItemId).ToList();
+            var materials = await _context.MaterialItems
+                .AsNoTracking()
+                .Where(m => matIds.Contains(m.Id) && m.IsActive)
+                .ToListAsync();
+
+            var result = deduped
+                .Select(l =>
+                {
+                    var mat = materials.FirstOrDefault(m => m.Id == l.MaterialItemId);
+                    if (mat is null) return null;
+                    return new
+                    {
+                        linkId = l.Id,
+                        materialItemId = mat.Id,
+                        itemCode = mat.ItemCode,
+                        name = mat.Name,
+                        unit = mat.Unit,
+                        onHandQuantity = mat.OnHandQuantity,
+                        minStock = mat.MinStock,
+                        specification = mat.Specification,
+                        notes = l.Notes,
+                        linkedAt = l.CreatedAt,
+                        inheritedFrom = l.EquipmentAssetId != equipmentAssetId ? l.EquipmentAssetId : (Guid?)null
+                    };
+                })
+                .Where(x => x != null)
+                .ToList();
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting materials for equipment {Id}", equipmentAssetId);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
     /// Get equipment link counts for all material items (bulk)
     /// </summary>
     [HttpGet("items/equipment-counts")]

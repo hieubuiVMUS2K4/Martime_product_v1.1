@@ -399,6 +399,13 @@ export interface MaintenanceTask {
   equipmentGroupId?: string
   equipmentGroupName?: string
   
+  // NEW: Per-asset fields (from per-equipment schedules)
+  equipmentAssetId?: string
+  equipmentAssetName?: string
+  
+  // Schedule reference
+  scheduleId?: string
+  
   taskType: string
   taskDescription: string
   intervalHours?: number
