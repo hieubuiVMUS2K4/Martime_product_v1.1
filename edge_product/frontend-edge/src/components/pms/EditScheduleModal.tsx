@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, ClipboardList } from 'lucide-react';
+import { X, Plus, Trash2, ClipboardList, Search } from 'lucide-react';
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
 import { equipmentGroupService } from '@/services/equipment-group.service';
+import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { materialService } from '@/services/materialService';
-import type { MaintenanceSchedule, CreateScheduleSparePartDto, EquipmentGroup, ChecklistItemTemplateDto } from '@/types/pms.types';
+import type { MaintenanceSchedule, CreateScheduleSparePartDto, EquipmentGroup, ChecklistItemTemplateDto, EquipmentAsset } from '@/types/pms.types';
 import type { MaterialItem } from '@/types/maritime.types';
 import { toast } from 'sonner';
 
@@ -21,10 +22,15 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
   const [loading, setLoading] = useState(false);
   const [groups, setGroups] = useState<EquipmentGroup[]>([]);
   const [groupAssets, setGroupAssets] = useState<any[]>([]);
+  const [allAssets, setAllAssets] = useState<EquipmentAsset[]>([]);
   const [materialItems, setMaterialItems] = useState<MaterialItem[]>([]);
+  const [isAssetMode, setIsAssetMode] = useState(false);
+  const [assetSearch, setAssetSearch] = useState('');
+  const [showAssetDropdown, setShowAssetDropdown] = useState(false);
   const [formData, setFormData] = useState({
     scheduleCode: '',
-    equipmentGroupId: '',
+    equipmentGroupId: '' as string | undefined,
+    equipmentAssetId: undefined as string | undefined,
     taskTypeId: 1,
     scheduleName: '',
     intervalType: 'CALENDAR' as 'CALENDAR' | 'RUNNING_HOURS' | 'HYBRID',
@@ -37,15 +43,29 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
     checklistItemTemplates: [] as ChecklistItemTemplateDto[]
   });
 
+  // Selected asset display info
+  const selectedAsset = allAssets.find(a => a.id === formData.equipmentAssetId);
+
+  // Filtered asset list for search dropdown
+  const filteredAssets = allAssets.filter(a => {
+    if (!assetSearch) return true;
+    const s = assetSearch.toLowerCase();
+    return a.assetCode.toLowerCase().includes(s) || a.assetName.toLowerCase().includes(s);
+  }).slice(0, 20);
+
   useEffect(() => {
     if (isOpen) {
       loadGroups();
+      loadAllAssets();
       loadMaterialItems();
       if (schedule) {
+        const scheduleIsAssetMode = !!schedule.equipmentAssetId;
+        setIsAssetMode(scheduleIsAssetMode);
         // Pre-fill form with existing schedule data
         setFormData({
           scheduleCode: schedule.scheduleCode,
-          equipmentGroupId: schedule.equipmentGroupId,
+          equipmentGroupId: schedule.equipmentGroupId || '',
+          equipmentAssetId: schedule.equipmentAssetId || undefined,
           taskTypeId: schedule.taskTypeId || 1,
           scheduleName: schedule.scheduleName,
           intervalType: schedule.intervalType as any,
@@ -82,6 +102,15 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
       setGroups(data);
     } catch (error) {
       console.error('Error loading groups:', error);
+    }
+  };
+
+  const loadAllAssets = async () => {
+    try {
+      const data = await equipmentAssetService.getAll();
+      setAllAssets(data);
+    } catch (error) {
+      console.error('Error loading assets:', error);
     }
   };
 
@@ -164,9 +193,21 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
 
     if (!schedule) return;
 
-    if (!formData.scheduleCode || !formData.equipmentGroupId || !formData.scheduleName) {
-      toast.error('Please fill in all required fields');
+    if (!formData.scheduleCode || !formData.scheduleName) {
+      toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
       return;
+    }
+
+    if (isAssetMode) {
+      if (!formData.equipmentAssetId) {
+        toast.error('Vui lòng chọn thiết bị');
+        return;
+      }
+    } else {
+      if (!formData.equipmentGroupId) {
+        toast.error('Vui lòng chọn nhóm thiết bị');
+        return;
+      }
     }
 
     if (formData.intervalType === 'CALENDAR' && !formData.intervalDays) {
@@ -183,9 +224,10 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
       setLoading(true);
       
       // Update schedule via API
-      await maintenanceScheduleService.update(schedule.id, {
+      const submitData = {
         scheduleCode: formData.scheduleCode,
-        equipmentGroupId: formData.equipmentGroupId,
+        equipmentGroupId: isAssetMode ? undefined : formData.equipmentGroupId,
+        equipmentAssetId: isAssetMode ? formData.equipmentAssetId : undefined,
         taskTypeId: formData.taskTypeId,
         scheduleName: formData.scheduleName,
         intervalType: formData.intervalType,
@@ -196,7 +238,8 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
         autoGenerate: formData.autoGenerate,
         requiredSpareParts: formData.requiredSpareParts,
         checklistItemTemplates: formData.checklistItemTemplates
-      });
+      };
+      await maintenanceScheduleService.update(schedule.id, submitData);
 
       toast.success('Schedule updated successfully');
       onSuccess();
@@ -213,6 +256,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
     setFormData({
       scheduleCode: '',
       equipmentGroupId: '',
+      equipmentAssetId: undefined,
       taskTypeId: 1,
       scheduleName: '',
       intervalType: 'CALENDAR',
@@ -224,6 +268,9 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
       requiredSpareParts: [],
       checklistItemTemplates: []
     });
+    setIsAssetMode(false);
+    setAssetSearch('');
+    setShowAssetDropdown(false);
     onClose();
   };
 
@@ -265,37 +312,130 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Equipment Group <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Đối tượng bảo trì <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={formData.equipmentGroupId}
-                  onChange={(e) => {
-                    setFormData({ ...formData, equipmentGroupId: e.target.value });
-                    if (e.target.value) loadGroupAssets(e.target.value);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Select Equipment Group</option>
-                  {groups.map(group => (
-                    <option key={group.id} value={group.id}>
-                      {group.groupCode} - {group.groupName}
-                    </option>
-                  ))}
-                </select>
-                {groupAssets.length > 0 && (
-                  <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-sm font-medium text-blue-900 mb-2">
-                      {groupAssets.length} asset(s) in this group:
-                    </p>
-                    <div className="space-y-1">
-                      {groupAssets.map((asset) => (
-                        <div key={asset.id} className="text-xs text-blue-700">
-                          • {asset.assetCode} - {asset.assetName} {asset.location && `(${asset.location})`}
-                        </div>
+                {/* Toggle Switch */}
+                <div className="flex items-center gap-3 mb-3 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                  <span className={`text-sm font-medium ${!isAssetMode ? 'text-blue-700' : 'text-gray-400'}`}>Nhóm thiết bị</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAssetMode(!isAssetMode);
+                      setFormData({ ...formData, equipmentGroupId: '', equipmentAssetId: undefined });
+                      setAssetSearch('');
+                      setShowAssetDropdown(false);
+                      setGroupAssets([]);
+                    }}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${isAssetMode ? 'bg-teal-600' : 'bg-blue-600'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isAssetMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                  <span className={`text-sm font-medium ${isAssetMode ? 'text-teal-700' : 'text-gray-400'}`}>Thiết bị đơn lẻ</span>
+                </div>
+
+                {/* Group mode */}
+                {!isAssetMode && (
+                  <>
+                    <select
+                      value={formData.equipmentGroupId || ''}
+                      onChange={(e) => {
+                        setFormData({ ...formData, equipmentGroupId: e.target.value });
+                        if (e.target.value) loadGroupAssets(e.target.value);
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      required={!isAssetMode}
+                    >
+                      <option value="">Chọn nhóm thiết bị</option>
+                      {groups.map(group => (
+                        <option key={group.id} value={group.id}>
+                          {group.groupCode} - {group.groupName}
+                        </option>
                       ))}
+                    </select>
+                    {groupAssets.length > 0 && (
+                      <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-sm font-medium text-blue-900 mb-2">
+                          {groupAssets.length} thiết bị trong nhóm:
+                        </p>
+                        <div className="space-y-1">
+                          {groupAssets.map((asset: any) => (
+                            <div key={asset.id} className="text-xs text-blue-700">
+                              • {asset.assetCode} - {asset.assetName} {asset.location && `(${asset.location})`}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Asset mode — searchable dropdown */}
+                {isAssetMode && (
+                  <div className="relative">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={selectedAsset ? `${selectedAsset.assetCode} - ${selectedAsset.assetName}` : assetSearch}
+                        onChange={(e) => {
+                          setAssetSearch(e.target.value);
+                          setFormData({ ...formData, equipmentAssetId: undefined });
+                          setShowAssetDropdown(true);
+                        }}
+                        onFocus={() => {
+                          if (!formData.equipmentAssetId) setShowAssetDropdown(true);
+                        }}
+                        placeholder="Tìm theo mã hoặc tên thiết bị..."
+                        className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                      />
+                      {formData.equipmentAssetId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, equipmentAssetId: undefined });
+                            setAssetSearch('');
+                            setShowAssetDropdown(true);
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
+                    {showAssetDropdown && !formData.equipmentAssetId && (
+                      <div className="absolute z-20 mt-1 w-full max-h-48 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+                        {filteredAssets.length === 0 ? (
+                          <div className="px-4 py-3 text-sm text-gray-500">Không tìm thấy thiết bị</div>
+                        ) : (
+                          filteredAssets.map(asset => (
+                            <button
+                              key={asset.id}
+                              type="button"
+                              onClick={() => {
+                                setFormData({ ...formData, equipmentAssetId: asset.id });
+                                setAssetSearch('');
+                                setShowAssetDropdown(false);
+                              }}
+                              className="w-full text-left px-4 py-2 hover:bg-teal-50 text-sm border-b border-gray-50 last:border-b-0"
+                            >
+                              <span className="font-medium text-gray-900">{asset.assetCode}</span>
+                              <span className="text-gray-500 ml-2">{asset.assetName}</span>
+                              {asset.currentRunningHours != null && (
+                                <span className="text-xs text-gray-400 ml-2">({asset.currentRunningHours} hrs)</span>
+                              )}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                    {selectedAsset && (
+                      <div className="mt-2 p-2 bg-teal-50 border border-teal-200 rounded-lg text-xs text-teal-800">
+                        <span className="font-medium">{selectedAsset.assetCode}</span> — {selectedAsset.assetName}
+                        {selectedAsset.category && <span className="ml-2 text-teal-600">({selectedAsset.category})</span>}
+                        {selectedAsset.currentRunningHours != null && <span className="ml-2">• {selectedAsset.currentRunningHours} hrs</span>}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -67,15 +67,29 @@ export function ViewScheduleModal({ isOpen, schedule, onClose }: ViewScheduleMod
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Equipment Group</label>
-                <p className="text-sm text-gray-900">
-                  {schedule.groupName || schedule.groupCode}
-                  {schedule.assetCount !== undefined && schedule.assetCount > 0 && (
-                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                      {schedule.assetCount} {schedule.assetCount === 1 ? 'asset' : 'assets'}
-                    </span>
-                  )}
-                </p>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Đối tượng bảo trì</label>
+                {schedule.equipmentAssetId ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center w-5 h-5 bg-teal-100 text-teal-700 rounded text-[10px] font-bold">A</span>
+                    <p className="text-sm text-gray-900">
+                      {schedule.assetCode && <span className="font-medium">{schedule.assetCode}</span>}
+                      {schedule.assetName && <span className="ml-1">{schedule.assetName}</span>}
+                      {!schedule.assetCode && !schedule.assetName && <span className="text-gray-400">Thiết bị đơn lẻ</span>}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center w-5 h-5 bg-indigo-100 text-indigo-700 rounded text-[10px] font-bold">G</span>
+                    <p className="text-sm text-gray-900">
+                      {schedule.groupName || schedule.groupCode}
+                      {schedule.assetCount !== undefined && schedule.assetCount > 0 && (
+                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          {schedule.assetCount} thiết bị
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Task Type</label>

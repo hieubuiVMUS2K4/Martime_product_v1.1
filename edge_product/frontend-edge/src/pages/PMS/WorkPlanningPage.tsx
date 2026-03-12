@@ -10,25 +10,77 @@ import {
   Table2, Calendar, BarChart3, LayoutGrid,
   Search, ChevronRight, ChevronDown, ChevronLeft,
   Eye, Pencil, Trash2,
-  RefreshCw, Download, Clock, Settings, Gauge, Plus, Wrench, Edit2, Save, ExternalLink,
-  CheckCircle, ChevronsUpDown, FolderOpen
+  RefreshCw, Download, Clock, Settings, Gauge, Plus, Save, ExternalLink,
+  CheckCircle, ChevronsUpDown, FolderOpen, ClipboardList, X as XIcon, Users, Package,
+  AlertTriangle, FileText, History, Upload
 } from 'lucide-react';
 import { parseISO, format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, addDays, getDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { maritimeService } from '@/services/maritime.service';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
+import { materialService } from '@/services/materialService';
 import { KanbanBoard } from '@/components/maintenance/KanbanBoard';
 import { AddScheduleModal } from '@/components/pms/AddScheduleModal';
-import { EditScheduleModal } from '@/components/pms/EditScheduleModal';
-import { ViewScheduleModal } from '@/components/pms/ViewScheduleModal';
+
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
-import type { MaintenanceTask, CrewMember } from '@/types/maritime.types';
-import type { EquipmentAsset, MaintenanceSchedule } from '@/types/pms.types';
+import type { MaintenanceTask, CrewMember, MaterialItem } from '@/types/maritime.types';
+import type { EquipmentAsset, MaintenanceSchedule, CreateMaintenanceScheduleDto, CreateScheduleSparePartDto, ChecklistItemTemplateDto } from '@/types/pms.types';
 
 type ViewTab = 'table' | 'calendar' | 'gantt' | 'kanban' | 'counter' | 'config';
+
+// Checklist templates for common equipment
+const CHECKLIST_TEMPLATES: Record<string, { label: string; items: { desc: string; reading?: boolean; unit?: string; min?: number; max?: number }[] }> = {
+  MAIN_ENGINE: {
+    label: 'Máy chính (Main Engine)',
+    items: [
+      { desc: 'Kiểm tra mức dầu bôi trơn', reading: true, unit: 'mm', min: 60, max: 90 },
+      { desc: 'Kiểm tra áp suất dầu bôi trơn', reading: true, unit: 'bar', min: 3, max: 6 },
+      { desc: 'Kiểm tra nhiệt độ nước làm mát', reading: true, unit: '°C', min: 70, max: 85 },
+      { desc: 'Kiểm tra rò rỉ nhiên liệu và dầu', reading: false },
+      { desc: 'Kiểm tra hệ thống lọc dầu', reading: false },
+      { desc: 'Kiểm tra dây curoa / khớp nối', reading: false },
+      { desc: 'Ghi nhận giờ chạy máy', reading: true, unit: 'giờ' },
+      { desc: 'Kiểm tra hệ thống thoát khí', reading: false },
+    ]
+  },
+  GENERATOR: {
+    label: 'Máy phát điện (Generator)',
+    items: [
+      { desc: 'Kiểm tra điện áp đầu ra', reading: true, unit: 'V', min: 380, max: 440 },
+      { desc: 'Kiểm tra tần số', reading: true, unit: 'Hz', min: 59, max: 61 },
+      { desc: 'Kiểm tra dòng điện tải', reading: true, unit: 'A' },
+      { desc: 'Kiểm tra mức dầu bôi trơn', reading: true, unit: 'mm', min: 60, max: 90 },
+      { desc: 'Kiểm tra nhiệt độ vỏ máy', reading: true, unit: '°C', min: 40, max: 80 },
+      { desc: 'Kiểm tra tiếng ồn bất thường', reading: false },
+      { desc: 'Kiểm tra kết nối dây dẫn điện', reading: false },
+      { desc: 'Vệ sinh bộ lọc gió', reading: false },
+    ]
+  },
+  PUMP: {
+    label: 'Bơm (Pump)',
+    items: [
+      { desc: 'Kiểm tra áp suất đầu vào/ra', reading: true, unit: 'bar' },
+      { desc: 'Kiểm tra rò rỉ phớt/gioăng', reading: false },
+      { desc: 'Kiểm tra độ rung', reading: true, unit: 'mm/s', min: 0, max: 4.5 },
+      { desc: 'Kiểm tra nhiệt độ ổ trục', reading: true, unit: '°C', min: 30, max: 70 },
+      { desc: 'Bôi trơn ổ trục', reading: false },
+    ]
+  },
+  COMPRESSOR: {
+    label: 'Máy nén khí (Compressor)',
+    items: [
+      { desc: 'Kiểm tra áp suất bình chứa', reading: true, unit: 'bar', min: 25, max: 30 },
+      { desc: 'Xả nước ngưng bình chứa', reading: false },
+      { desc: 'Kiểm tra van an toàn', reading: false },
+      { desc: 'Kiểm tra mức dầu bôi trơn', reading: true, unit: 'mm' },
+      { desc: 'Kiểm tra dây curoa', reading: false },
+      { desc: 'Vệ sinh bộ lọc gió', reading: false },
+    ]
+  }
+};
 
 // === Equipment Tree Helpers ===
 function buildTree(items: EquipmentAsset[]): EquipmentAsset[] {
@@ -163,18 +215,7 @@ export default function WorkPlanningPage() {
   // === Schedule Config state ===
   const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [selectedSchedule, setSelectedSchedule] = useState<MaintenanceSchedule | null>(null);
-  const [scheduleSearch, setScheduleSearch] = useState('');
-  const [schedulePriorityFilter, setSchedulePriorityFilter] = useState('');
-  const [scheduleIntervalFilter, setScheduleIntervalFilter] = useState('');
-  const [schedulePage, setSchedulePage] = useState(1);
-  const schedulePageSize = 10;
-  const [scheduleFilterCode, setScheduleFilterCode] = useState('');
-  const [scheduleFilterName, setScheduleFilterName] = useState('');
-  const [scheduleSortField, setScheduleSortField] = useState<string>('');
-  const [scheduleSortDir, setScheduleSortDir] = useState<'asc' | 'desc'>('asc');
+
 
   // === Counter state ===
   const [counterEditing, setCounterEditing] = useState<Record<string, number>>({});
@@ -183,6 +224,35 @@ export default function WorkPlanningPage() {
   const [counterFilterName, setCounterFilterName] = useState('');
   const [counterSortField, setCounterSortField] = useState<string>('');
   const [counterSortDir, setCounterSortDir] = useState<'asc' | 'desc'>('asc');
+
+  // === Config inline form state ===
+  const [cfgEditingId, setCfgEditingId] = useState<string | null>(null);
+  const [cfgMaterials, setCfgMaterials] = useState<MaterialItem[]>([]);
+  const [cfgSaving, setCfgSaving] = useState(false);
+  const [cfgListSearch, setCfgListSearch] = useState('');
+  const [cfgTreeSelectedIds, setCfgTreeSelectedIds] = useState<Set<string>>(new Set());
+  const [cfgShowHistory, setCfgShowHistory] = useState(false);
+  // New: CBM, Risk Assessment, Inspection
+  const [cfgIsCbm, setCfgIsCbm] = useState(false);
+  const [cfgRequireRiskAssessment, setCfgRequireRiskAssessment] = useState(false);
+  const [cfgRiskFile, setCfgRiskFile] = useState<File | null>(null);
+  const [cfgRiskFileName, setCfgRiskFileName] = useState('');
+  // Crew planning state
+  const [cfgCrewAssignments, setCfgCrewAssignments] = useState<{crewId: string; role: string}[]>([]);
+  const [cfgCrewSearch, setCfgCrewSearch] = useState('');
+  const [cfgActiveCrewDrop, setCfgActiveCrewDrop] = useState<string | null>(null);
+  const [cfgShowSupportPanel, setCfgShowSupportPanel] = useState(false);
+  const [cfgSupportSearch, setCfgSupportSearch] = useState('');
+  const [cfgShowCreateTemplate, setCfgShowCreateTemplate] = useState(false);
+  const [cfgTemplateName, setCfgTemplateName] = useState('');
+  const [cfgShowChecklistTemplate, setCfgShowChecklistTemplate] = useState(false);
+  const cfgDefaultForm: CreateMaintenanceScheduleDto = {
+    scheduleCode: '', equipmentGroupId: '', equipmentAssetId: undefined, taskTypeId: 1,
+    scheduleName: '', intervalType: 'RUNNING_HOURS', intervalDays: undefined, intervalHours: undefined,
+    daysBeforeDue: 7, priority: 'MEDIUM', estimatedDurationHours: undefined, autoGenerate: true,
+    instructions: '', requiredSpareParts: [], checklistItemTemplates: []
+  };
+  const [cfgForm, setCfgForm] = useState<CreateMaintenanceScheduleDto>({ ...cfgDefaultForm });
 
   // === Build equipment tree ===
   const tree = useMemo(() => buildTree(assets), [assets]);
@@ -258,71 +328,289 @@ export default function WorkPlanningPage() {
     }
   }, []);
 
-  // Schedule config filtered/paginated
-  const filteredSchedules = useMemo(() => {
-    let result = schedules.filter(schedule => {
-      const matchesSearch =
-        schedule.scheduleCode.toLowerCase().includes(scheduleSearch.toLowerCase()) ||
-        schedule.scheduleName.toLowerCase().includes(scheduleSearch.toLowerCase());
-      const matchesPriority = !schedulePriorityFilter || schedule.priority === schedulePriorityFilter;
-      const matchesInterval = !scheduleIntervalFilter || schedule.intervalType === scheduleIntervalFilter;
-      const matchesCode = !scheduleFilterCode || schedule.scheduleCode.toLowerCase().includes(scheduleFilterCode.toLowerCase());
-      const matchesName = !scheduleFilterName || schedule.scheduleName.toLowerCase().includes(scheduleFilterName.toLowerCase());
-      return matchesSearch && matchesPriority && matchesInterval && matchesCode && matchesName;
-    });
-    if (scheduleSortField) {
-      result = [...result].sort((a, b) => {
-        let va: any, vb: any;
-        switch (scheduleSortField) {
-          case 'scheduleCode': va = a.scheduleCode; vb = b.scheduleCode; break;
-          case 'scheduleName': va = a.scheduleName; vb = b.scheduleName; break;
-          case 'target': va = a.equipmentAssetId ? a.assetName : a.groupName; vb = b.equipmentAssetId ? b.assetName : b.groupName; break;
-          case 'intervalType': va = a.intervalType; vb = b.intervalType; break;
-          case 'priority': va = a.priority; vb = b.priority; break;
-          default: va = ''; vb = '';
-        }
-        if (va == null) va = '';
-        if (vb == null) vb = '';
-        const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
-        return scheduleSortDir === 'asc' ? cmp : -cmp;
-      });
-    }
-    return result;
-  }, [schedules, scheduleSearch, schedulePriorityFilter, scheduleIntervalFilter, scheduleFilterCode, scheduleFilterName, scheduleSortField, scheduleSortDir]);
-
-  useEffect(() => { setSchedulePage(1); }, [scheduleSearch, schedulePriorityFilter, scheduleIntervalFilter, scheduleFilterCode, scheduleFilterName]);
-
-  const handleScheduleSort = (field: string) => {
-    if (scheduleSortField === field) setScheduleSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setScheduleSortField(field); setScheduleSortDir('asc'); }
-  };
-
-  const scheduleTotalPages = Math.ceil(filteredSchedules.length / schedulePageSize);
-  const paginatedSchedules = filteredSchedules.slice((schedulePage - 1) * schedulePageSize, schedulePage * schedulePageSize);
-
-  const getIntervalDisplay = (schedule: MaintenanceSchedule) => {
-    const parts = [];
-    if (schedule.intervalDays) parts.push(`${schedule.intervalDays} ngày`);
-    if (schedule.intervalHours) parts.push(`${schedule.intervalHours} giờ`);
-    return parts.join(' hoặc ');
-  };
-
-  const handleScheduleEdit = (schedule: MaintenanceSchedule) => {
-    setSelectedSchedule(schedule);
-    setShowEditModal(true);
-  };
-
   const handleScheduleDelete = async (schedule: MaintenanceSchedule) => {
-    if (!confirm(`Bạn có chắc muốn xóa lịch "${schedule.scheduleName}"?`)) return;
+    if (!confirm(`Bạn có chắc muốn xóa cấu hình "${schedule.scheduleName}"?`)) return;
     try {
       await maintenanceScheduleService.delete(schedule.id);
       await loadSchedules();
-      toast.success('Đã xóa lịch bảo trì');
+      if (cfgEditingId === schedule.id) cfgReset();
+      toast.success('Đã xóa cấu hình bảo trì');
     } catch (error) {
       console.error('Error deleting schedule:', error);
-      toast.error('Không thể xóa lịch');
+      toast.error('Không thể xóa cấu hình');
     }
   };
+
+  // Config inline form helpers
+  const cfgReset = () => {
+    setCfgEditingId(null);
+    setCfgForm({ ...cfgDefaultForm });
+    setCfgTreeSelectedIds(new Set());
+    setCfgCrewAssignments([]);
+    setCfgCrewSearch('');
+    setCfgActiveCrewDrop(null);
+    setCfgSupportSearch('');
+    setCfgShowSupportPanel(false);
+    setCfgShowHistory(false);
+    setCfgIsCbm(false);
+    setCfgRequireRiskAssessment(false);
+    setCfgRiskFile(null);
+    setCfgRiskFileName('');
+  };
+
+  const cfgLoadForEdit = (schedule: MaintenanceSchedule) => {
+    setCfgEditingId(schedule.id);
+    // Populate tree selection from saved equipment
+    if (schedule.equipmentAssetId) {
+      setCfgTreeSelectedIds(new Set([schedule.equipmentAssetId]));
+    } else if (schedule.equipmentGroupId) {
+      const groupAssets = assets.filter(a => a.equipmentGroupId === schedule.equipmentGroupId);
+      setCfgTreeSelectedIds(new Set(groupAssets.map(a => a.id)));
+    } else {
+      setCfgTreeSelectedIds(new Set());
+    }
+    // Parse crew data from instructions
+    let crewData: {crewId: string; role: string}[] = [];
+    let cleanInstructions = schedule.instructions || '';
+    const crewMatch = cleanInstructions.match(/<!--CREW:(.*?)-->/s);
+    if (crewMatch) {
+      try {
+        const parsed = JSON.parse(crewMatch[1]);
+        crewData = parsed.a || [];
+      } catch {}
+      cleanInstructions = cleanInstructions.replace(/<!--CREW:.*?-->/s, '').trim();
+    }
+    setCfgCrewAssignments(crewData);
+    setCfgCrewSearch('');
+    setCfgActiveCrewDrop(null);
+    // Parse META (CBM, risk, inspection) from instructions
+    const metaMatch = cleanInstructions.match(/<!--META:(.*?)-->/s);
+    if (metaMatch) {
+      try {
+        const meta = JSON.parse(metaMatch[1]);
+        setCfgIsCbm(meta.cbm || false);
+        setCfgRequireRiskAssessment(meta.reqRisk || false);
+        setCfgRiskFileName(meta.riskFile || '');
+      } catch {}
+      cleanInstructions = cleanInstructions.replace(/<!--META:.*?-->/s, '').trim();
+    } else {
+      setCfgIsCbm(false);
+      setCfgRequireRiskAssessment(false);
+      setCfgRiskFileName('');
+    }
+    setCfgForm({
+      scheduleCode: schedule.scheduleCode,
+      equipmentGroupId: schedule.equipmentGroupId || '',
+      equipmentAssetId: schedule.equipmentAssetId,
+      taskTypeId: schedule.taskTypeId || 1,
+      scheduleName: schedule.scheduleName,
+      intervalType: 'RUNNING_HOURS',
+      intervalDays: undefined,
+      intervalHours: schedule.intervalHours,
+      daysBeforeDue: schedule.daysBeforeDue || 7,
+      priority: schedule.priority || 'MEDIUM',
+      estimatedDurationHours: schedule.estimatedDurationHours,
+      autoGenerate: true,
+      instructions: cleanInstructions,
+      requiredSpareParts: schedule.requiredSpareParts?.map(sp => ({
+        materialItemId: sp.materialItemId, quantityRequired: sp.quantityRequired, isMandatory: sp.isMandatory ?? true
+      })) || [],
+      checklistItemTemplates: schedule.checklistItemTemplates?.map(t => ({
+        sequenceOrder: t.sequenceOrder, checkpointDescription: t.checkpointDescription,
+        requiresReading: t.requiresReading, normalRangeMin: t.normalRangeMin, normalRangeMax: t.normalRangeMax, unit: t.unit
+      })) || []
+    });
+  };
+
+  const cfgSubmit = async () => {
+    if (!cfgForm.scheduleCode || !cfgForm.scheduleName) { toast.error('Vui lòng điền mã và tên đầu mục bảo trì'); return; }
+    if (cfgTreeSelectedIds.size === 0) { toast.error('Vui lòng chọn thiết bị từ cây bên trái'); return; }
+    if (!cfgForm.intervalHours) { toast.error('Vui lòng chỉ định mốc giờ chạy'); return; }
+
+    const submitData = { ...cfgForm };
+    submitData.intervalType = 'RUNNING_HOURS';
+    submitData.intervalDays = undefined;
+    submitData.autoGenerate = true;
+    // Map tree selection → equipmentAssetId or equipmentGroupId
+    if (cfgTreeSelectedIds.size === 1) {
+      submitData.equipmentAssetId = [...cfgTreeSelectedIds][0];
+      delete submitData.equipmentGroupId;
+    } else {
+      const selectedAssets = assets.filter(a => cfgTreeSelectedIds.has(a.id));
+      const groupIds = [...new Set(selectedAssets.map(a => a.equipmentGroupId).filter(Boolean))];
+      if (groupIds.length === 1) {
+        submitData.equipmentGroupId = groupIds[0];
+        delete submitData.equipmentAssetId;
+      } else {
+        toast.error('Thiết bị đã chọn thuộc nhiều nhóm khác nhau'); return;
+      }
+    }
+    // Serialize META (CBM, risk, inspection) into instructions
+    const metaObj: Record<string, any> = {};
+    if (cfgIsCbm) metaObj.cbm = true;
+    if (cfgRequireRiskAssessment) metaObj.reqRisk = true;
+    if (cfgRiskFileName) metaObj.riskFile = cfgRiskFileName;
+    if (cfgRiskFile) metaObj.riskFileSize = cfgRiskFile.size;
+    if (Object.keys(metaObj).length > 0) {
+      submitData.instructions = ((submitData.instructions || '') + `\n<!--META:${JSON.stringify(metaObj)}-->`).trim();
+    }
+    // Serialize crew planning data into instructions
+    if (cfgCrewAssignments.length > 0) {
+      const crewJson = JSON.stringify({ a: cfgCrewAssignments });
+      submitData.instructions = ((submitData.instructions || '') + `\n<!--CREW:${crewJson}-->`).trim();
+    }
+
+    try {
+      setCfgSaving(true);
+      if (cfgEditingId) {
+        await maintenanceScheduleService.update(cfgEditingId, submitData);
+        toast.success('Đã cập nhật cấu hình bảo trì');
+      } else {
+        await maintenanceScheduleService.create(submitData);
+        toast.success('Đã tạo cấu hình bảo trì mới');
+      }
+      await loadSchedules();
+      loadGanttData();
+      loadData(false);
+      cfgReset();
+    } catch (error: any) {
+      const msg = error.response?.data?.error || error.response?.data?.message || 'Lỗi khi lưu';
+      toast.error(msg);
+    } finally {
+      setCfgSaving(false);
+    }
+  };
+
+  const cfgAddSparePart = () => {
+    setCfgForm(f => ({ ...f, requiredSpareParts: [...(f.requiredSpareParts || []), { materialItemId: '', quantityRequired: 1, isMandatory: true }] }));
+  };
+  const cfgRemoveSparePart = (i: number) => {
+    setCfgForm(f => { const u = [...(f.requiredSpareParts || [])]; u.splice(i, 1); return { ...f, requiredSpareParts: u }; });
+  };
+  const cfgUpdateSparePart = (i: number, field: keyof CreateScheduleSparePartDto, val: any) => {
+    setCfgForm(f => { const u = [...(f.requiredSpareParts || [])]; u[i] = { ...u[i], [field]: val }; return { ...f, requiredSpareParts: u }; });
+  };
+  const cfgAddChecklist = () => {
+    setCfgForm(f => ({ ...f, checklistItemTemplates: [...(f.checklistItemTemplates || []), { sequenceOrder: (f.checklistItemTemplates?.length || 0) + 1, checkpointDescription: '', requiresReading: false }] }));
+  };
+  const cfgRemoveChecklist = (i: number) => {
+    setCfgForm(f => { const u = [...(f.checklistItemTemplates || [])]; u.splice(i, 1); u.forEach((it, idx) => { it.sequenceOrder = idx + 1; }); return { ...f, checklistItemTemplates: u }; });
+  };
+  const cfgUpdateChecklist = (i: number, field: keyof ChecklistItemTemplateDto, val: any) => {
+    setCfgForm(f => { const u = [...(f.checklistItemTemplates || [])]; u[i] = { ...u[i], [field]: val }; return { ...f, checklistItemTemplates: u }; });
+  };
+
+  // Checklist template helper
+  const cfgApplyChecklistTemplate = (templateKey: string) => {
+    let tpl = CHECKLIST_TEMPLATES[templateKey];
+    if (!tpl) {
+      try { const custom = JSON.parse(localStorage.getItem('pms_custom_templates') || '{}'); tpl = custom[templateKey]; } catch {}
+    }
+    if (!tpl) return;
+    const startOrder = (cfgForm.checklistItemTemplates?.length || 0) + 1;
+    const newItems: ChecklistItemTemplateDto[] = tpl.items.map((item, idx) => ({
+      sequenceOrder: startOrder + idx,
+      checkpointDescription: item.desc,
+      requiresReading: item.reading || false,
+      normalRangeMin: item.min,
+      normalRangeMax: item.max,
+      unit: item.unit
+    }));
+    setCfgForm(f => ({ ...f, checklistItemTemplates: [...(f.checklistItemTemplates || []), ...newItems] }));
+    setCfgShowChecklistTemplate(false);
+    toast.success(`Đã thêm ${newItems.length} bước từ mẫu "${tpl.label}"`);
+  };
+
+  // Config crew helpers
+  const cfgAddCrew = (crewId: string, role: string = 'SUPPORT') => {
+    if (cfgCrewAssignments.some(a => a.crewId === crewId)) return;
+    setCfgCrewAssignments(prev => [...prev, { crewId, role }]);
+    setCfgCrewSearch('');
+    setCfgActiveCrewDrop(null);
+  };
+  const cfgRemoveCrew = (i: number) => {
+    setCfgCrewAssignments(prev => { const u = [...prev]; u.splice(i, 1); return u; });
+  };
+
+  const cfgSaveAsTemplate = () => {
+    if (!cfgForm.checklistItemTemplates?.length) { toast.error('Chưa có bước kiểm tra để tạo mẫu'); return; }
+    setCfgTemplateName('');
+    setCfgShowCreateTemplate(true);
+  };
+
+  const cfgConfirmSaveTemplate = () => {
+    if (!cfgTemplateName.trim()) { toast.error('Vui lòng nhập tên mẫu'); return; }
+    const key = 'CUSTOM_' + Date.now();
+    const saved = JSON.parse(localStorage.getItem('pms_custom_templates') || '{}');
+    saved[key] = {
+      label: cfgTemplateName.trim(),
+      items: cfgForm.checklistItemTemplates!.map(t => ({
+        desc: t.checkpointDescription, reading: t.requiresReading, min: t.normalRangeMin, max: t.normalRangeMax, unit: t.unit
+      }))
+    };
+    localStorage.setItem('pms_custom_templates', JSON.stringify(saved));
+    toast.success(`Đã lưu mẫu "${cfgTemplateName.trim()}"`);
+    setCfgShowCreateTemplate(false);
+    setCfgTemplateName('');
+  };
+
+  // Config: load materials when switching to config tab
+  useEffect(() => {
+    if (activeTab === 'config') {
+      materialService.getItems().then(setCfgMaterials).catch(console.error);
+    }
+  }, [activeTab]);
+
+  // Config: selected equipment names from tree
+  const cfgSelectedEquipmentNames = useMemo(() => {
+    return assets.filter(a => cfgTreeSelectedIds.has(a.id)).map(a => ({ id: a.id, code: a.assetCode, name: a.assetName }));
+  }, [assets, cfgTreeSelectedIds]);
+
+  // Config: schedules filtered for left list
+  const cfgListItems = useMemo(() => {
+    if (!cfgListSearch) return schedules;
+    const s = cfgListSearch.toLowerCase();
+    return schedules.filter(sch => sch.scheduleCode.toLowerCase().includes(s) || sch.scheduleName.toLowerCase().includes(s));
+  }, [schedules, cfgListSearch]);
+
+  // Config: crew filtered for dropdown (deduplicated by id)
+  const cfgFilteredCrew = useMemo(() => {
+    const seen = new Set<string>();
+    let list = crewList.filter(c => {
+      if (!c.isOnboard || seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
+    const assigned = new Set(cfgCrewAssignments.map(a => a.crewId));
+    list = list.filter(c => !assigned.has(c.id));
+    if (cfgCrewSearch) {
+      const s = cfgCrewSearch.toLowerCase();
+      list = list.filter(c => c.fullName.toLowerCase().includes(s) || (c.rank?.rankCode || '').toLowerCase().includes(s));
+    }
+    return list.slice(0, 15);
+  }, [crewList, cfgCrewAssignments, cfgCrewSearch]);
+
+  // Config: crew grouped by department for SUPPORT tree selection
+  const cfgCrewByDept = useMemo(() => {
+    const seen = new Set<string>();
+    const assigned = new Set(cfgCrewAssignments.map(a => a.crewId));
+    let list = crewList.filter(c => {
+      if (!c.isOnboard || seen.has(c.id) || assigned.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
+    if (cfgSupportSearch) {
+      const s = cfgSupportSearch.toLowerCase();
+      list = list.filter(c => c.fullName.toLowerCase().includes(s) || (c.rank?.rankCode || '').toLowerCase().includes(s) || (c.department || '').toLowerCase().includes(s));
+    }
+    const groups: Record<string, typeof list> = {};
+    list.forEach(c => {
+      const dept = c.department || 'Khác';
+      if (!groups[dept]) groups[dept] = [];
+      groups[dept].push(c);
+    });
+    return groups;
+  }, [crewList, cfgCrewAssignments, cfgSupportSearch]);
 
   // Counter helpers
   const counterAssets = useMemo(() => {
@@ -362,19 +650,6 @@ export default function WorkPlanningPage() {
   };
 
   // Config helpers: count tasks per schedule code, next due info
-  const scheduleTaskCounts = useMemo(() => {
-    const map = new Map<string, number>();
-    tasks.forEach(t => {
-      if (t.notes) {
-        const match = t.notes.match(/Auto-generated from schedule: ([\w-]+)/);
-        if (match?.[1]) {
-          map.set(match[1], (map.get(match[1]) || 0) + 1);
-        }
-      }
-    });
-    return map;
-  }, [tasks]);
-
   // Navigate from config to table with filter by schedule code
   const viewScheduleTasks = (scheduleCode: string) => {
     setColFilterCode('');
@@ -613,6 +888,20 @@ export default function WorkPlanningPage() {
     });
   };
 
+  const toggleCfgAssetSelection = (node: EquipmentAsset) => {
+    const ids = getDescendantIds(node);
+    setCfgTreeSelectedIds(prev => {
+      const n = new Set(prev);
+      const allSelected = [...ids].every(id => n.has(id));
+      if (allSelected) {
+        ids.forEach(id => n.delete(id));
+      } else {
+        ids.forEach(id => n.add(id));
+      }
+      return n;
+    });
+  };
+
   const handleSort = (field: string) => {
     if (sortField === field) {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -692,9 +981,9 @@ export default function WorkPlanningPage() {
       <div className="flex flex-shrink-0 border-b border-gray-200">
         {/* Header trái: root tree */}
         <button
-          onClick={() => setSelectedAssetIds(new Set())}
+          onClick={() => activeTab === 'config' ? setCfgTreeSelectedIds(new Set()) : setSelectedAssetIds(new Set())}
           className={`w-64 flex-shrink-0 flex items-center gap-1.5 px-3 py-3 text-sm font-semibold border-r border-gray-200 ${
-            selectedAssetIds.size === 0
+            (activeTab === 'config' ? cfgTreeSelectedIds.size === 0 : selectedAssetIds.size === 0)
               ? 'bg-blue-800 text-white'
               : 'text-gray-700 hover:bg-gray-50 bg-white'
           }`}
@@ -791,9 +1080,9 @@ export default function WorkPlanningPage() {
                 key={node.id}
                 node={node}
                 expanded={expandedNodes}
-                selected={selectedAssetIds}
+                selected={activeTab === 'config' ? cfgTreeSelectedIds : selectedAssetIds}
                 onToggle={toggleExpand}
-                onSelect={toggleAssetSelection}
+                onSelect={activeTab === 'config' ? toggleCfgAssetSelection : toggleAssetSelection}
                 search={treeSearch}
                 level={0}
               />
@@ -1425,236 +1714,547 @@ export default function WorkPlanningPage() {
 
           {/* ============ TAB: CẤU HÌNH ============ */}
           {activeTab === 'config' && (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {scheduleLoading ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              ) : (
-                <div className="flex-1 overflow-auto">
-                  <table className="min-w-full text-sm border-collapse">
-                    <thead className="sticky top-0 z-10">
-                      {/* Row 1: sortable headers */}
-                      <tr className="bg-blue-50">
-                        <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">TT</th>
-                        <th className="min-w-[100px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleScheduleSort('scheduleCode')}>
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-xs font-semibold text-gray-600">Mã</span>
-                            <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+            <div className="flex-1 flex flex-col overflow-hidden bg-white">
+              {/* Header bar */}
+              <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2.5">
+                <h3 className="text-sm font-semibold text-gray-700">
+                  {cfgEditingId ? `Chỉnh sửa: ${cfgForm.scheduleCode}` : 'Thêm mới cấu hình bảo trì'}
+                </h3>
+                <div className="flex items-center gap-2">
+                  {cfgEditingId && (
+                    <>
+                      <button onClick={() => { const sch = schedules.find(s => s.id === cfgEditingId); if (sch) viewScheduleTasks(sch.scheduleCode); }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
+                        <ExternalLink className="w-3.5 h-3.5" /> Xem công việc
+                      </button>
+                      <button onClick={() => { if (cfgEditingId && confirm('Xóa cấu hình này?')) { handleScheduleDelete(schedules.find(s => s.id === cfgEditingId)!); } }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-red-300 rounded text-red-600 hover:bg-red-50">
+                        <Trash2 className="w-3.5 h-3.5" /> Xóa
+                      </button>
+                    </>
+                  )}
+                  <button type="button" onClick={cfgReset} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
+                    <XIcon className="w-3.5 h-3.5" /> {cfgEditingId ? 'Hủy' : 'Đặt lại'}
+                  </button>
+                  <div className="relative">
+                    <button type="button" onClick={() => setCfgShowHistory(!cfgShowHistory)} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded ${cfgShowHistory ? 'border-blue-400 text-blue-700 bg-blue-50' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+                      <History className="w-3.5 h-3.5" /> Lịch sử cấu hình
+                    </button>
+                    {cfgShowHistory && (
+                      <div className="absolute right-0 top-full z-40 mt-1 w-[560px] bg-white border border-gray-200 shadow-xl rounded-lg overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
+                          <span className="text-xs font-semibold text-gray-700">Danh sách cấu hình ({schedules.length})</span>
+                          <div className="relative">
+                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+                            <input type="text" value={cfgListSearch} onChange={e => setCfgListSearch(e.target.value)} placeholder="Tìm cấu hình..." className="pl-7 pr-2 py-1 text-[11px] border border-gray-300 rounded w-44" />
                           </div>
-                        </th>
-                        <th className="min-w-[180px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleScheduleSort('scheduleName')}>
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-xs font-semibold text-gray-600">Tên lịch</span>
-                            <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                          </div>
-                        </th>
-                        <th className="min-w-[160px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleScheduleSort('target')}>
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-xs font-semibold text-gray-600">Đối tượng</span>
-                            <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                          </div>
-                        </th>
-                        <th className="w-28 px-3 py-2 text-center border-b border-r border-gray-200 cursor-pointer" onClick={() => handleScheduleSort('intervalType')}>
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="text-xs font-semibold text-gray-600">Loại chu kỳ</span>
-                            <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                          </div>
-                        </th>
-                        <th className="w-24 px-3 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">Chu kỳ</th>
-                        <th className="w-24 px-3 py-2 text-center border-b border-r border-gray-200 cursor-pointer" onClick={() => handleScheduleSort('priority')}>
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="text-xs font-semibold text-gray-600">Độ ưu tiên</span>
-                            <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                          </div>
-                        </th>
-                        <th className="w-20 px-3 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">Số task</th>
-                        <th className="w-20 px-3 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">Tự động</th>
-                        <th className="w-24 px-2 py-2 text-center border-b border-gray-200">
-                          <button
-                            onClick={() => setIsAddScheduleModalOpen(true)}
-                            className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 mx-auto"
-                            title="Thêm lịch bảo trì mới"
-                          >
-                            <Plus className="w-3 h-3" />
-                            Thêm
-                          </button>
-                        </th>
-                      </tr>
-                      {/* Row 2: column filters */}
-                      <tr className="bg-white border-b border-gray-200">
-                        <th className="border-r border-gray-200"></th>
-                        <th className="px-2 py-1 border-r border-gray-200">
-                          <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
-                            <span className="text-gray-400 text-xs select-none">→</span>
-                            <input type="text" value={scheduleFilterCode} onChange={e => setScheduleFilterCode(e.target.value)} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
-                            <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                          </div>
-                        </th>
-                        <th className="px-2 py-1 border-r border-gray-200">
-                          <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
-                            <span className="text-gray-400 text-xs select-none">→</span>
-                            <input type="text" value={scheduleFilterName} onChange={e => setScheduleFilterName(e.target.value)} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
-                            <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                          </div>
-                        </th>
-                        <th className="border-r border-gray-200"></th>
-                        <th className="px-2 py-1 border-r border-gray-200">
-                          <select value={scheduleIntervalFilter} onChange={e => setScheduleIntervalFilter(e.target.value)} className="w-full text-xs border border-gray-200 rounded px-1 py-0.5 bg-white">
-                            <option value="">Tất cả</option>
-                            <option value="CALENDAR">Calendar</option>
-                            <option value="RUNNING_HOURS">Running Hours</option>
-                            <option value="HYBRID">Hybrid</option>
-                          </select>
-                        </th>
-                        <th className="border-r border-gray-200"></th>
-                        <th className="px-2 py-1 border-r border-gray-200">
-                          <select value={schedulePriorityFilter} onChange={e => setSchedulePriorityFilter(e.target.value)} className="w-full text-xs border border-gray-200 rounded px-1 py-0.5 bg-white">
-                            <option value="">Tất cả</option>
-                            <option value="CRITICAL">Critical</option>
-                            <option value="HIGH">High</option>
-                            <option value="MEDIUM">Medium</option>
-                            <option value="LOW">Low</option>
-                          </select>
-                        </th>
-                        <th className="border-r border-gray-200"></th>
-                        <th className="border-r border-gray-200"></th>
-                        <th className="border-gray-200"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {paginatedSchedules.length === 0 ? (
-                        <tr>
-                          <td colSpan={10} className="px-4 py-12 text-center text-gray-400">
-                            {schedules.length === 0 ? (
-                              <div>
-                                <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                                <p className="text-sm">Chưa có lịch bảo trì nào</p>
-                                <button onClick={() => setIsAddScheduleModalOpen(true)} className="mt-1 text-xs text-blue-600 hover:underline">+ Thêm lịch đầu tiên</button>
-                              </div>
-                            ) : 'Không tìm thấy kết quả phù hợp'}
-                          </td>
-                        </tr>
-                      ) : (
-                        paginatedSchedules.map((schedule, idx) => {
-                          const taskCount = scheduleTaskCounts.get(schedule.scheduleCode) || 0;
-                          const isAssetSchedule = !!schedule.equipmentAssetId;
-                          return (
-                            <tr key={schedule.id} className={`hover:bg-blue-50 ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
-                              <td className="px-2 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{(schedulePage - 1) * schedulePageSize + idx + 1}</td>
-                              <td className="px-3 py-2 text-xs font-medium text-gray-900 border-r border-gray-100">{schedule.scheduleCode}</td>
-                              <td className="px-3 py-2 text-xs text-gray-900 border-r border-gray-100">
-                                <span className="truncate block max-w-[180px]" title={schedule.scheduleName}>{schedule.scheduleName}</span>
-                              </td>
-                              <td className="px-3 py-2 text-xs border-r border-gray-100">
-                                {isAssetSchedule ? (
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="inline-flex items-center justify-center w-4 h-4 bg-teal-100 text-teal-700 rounded text-[9px] font-bold flex-shrink-0" title="Thiết bị đơn lẻ">A</span>
-                                    <span className="text-gray-700 truncate" title={`${schedule.assetCode} - ${schedule.assetName}`}>{schedule.assetCode} - {schedule.assetName}</span>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="inline-flex items-center justify-center w-4 h-4 bg-indigo-100 text-indigo-700 rounded text-[9px] font-bold flex-shrink-0" title="Nhóm thiết bị">G</span>
-                                    <span className="text-gray-700 truncate" title={`${schedule.groupCode} - ${schedule.groupName}`}>{schedule.groupName || schedule.groupCode}</span>
-                                    {schedule.assetCount ? <span className="text-[10px] text-gray-400 flex-shrink-0">({schedule.assetCount})</span> : null}
-                                  </div>
-                                )}
-                              </td>
-                              <td className="px-3 py-2 text-center border-r border-gray-100">
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded ${
-                                  schedule.intervalType === 'CALENDAR' ? 'bg-blue-100 text-blue-800' :
-                                  schedule.intervalType === 'RUNNING_HOURS' ? 'bg-amber-100 text-amber-800' :
-                                  'bg-purple-100 text-purple-800'
-                                }`}>
-                                  {schedule.intervalType === 'CALENDAR' && <Calendar className="w-2.5 h-2.5" />}
-                                  {schedule.intervalType === 'RUNNING_HOURS' && <Clock className="w-2.5 h-2.5" />}
-                                  {schedule.intervalType === 'HYBRID' && <Wrench className="w-2.5 h-2.5" />}
-                                  {schedule.intervalType === 'CALENDAR' ? 'Lịch' : schedule.intervalType === 'RUNNING_HOURS' ? 'Giờ chạy' : 'Kết hợp'}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2 text-center text-xs text-gray-600 border-r border-gray-100">{getIntervalDisplay(schedule)}</td>
-                              <td className="px-3 py-2 text-center border-r border-gray-100">
-                                <span className={`px-2 py-0.5 text-[10px] font-medium rounded ${
-                                  schedule.priority === 'CRITICAL' ? 'bg-red-100 text-red-800' :
-                                  schedule.priority === 'HIGH' ? 'bg-orange-100 text-orange-800' :
-                                  schedule.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-blue-100 text-blue-800'
-                                }`}>
-                                  {schedule.priority}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2 text-center border-r border-gray-100">
-                                {taskCount > 0 ? (
-                                  <button
-                                    onClick={() => viewScheduleTasks(schedule.scheduleCode)}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-semibold rounded hover:bg-green-200 transition-colors"
-                                    title={`Xem ${taskCount} công việc được tạo từ lịch này`}
-                                  >
-                                    {taskCount}
-                                    <ExternalLink className="w-2.5 h-2.5" />
-                                  </button>
-                                ) : (
-                                  <span className="text-xs text-gray-400">0</span>
-                                )}
-                              </td>
-                              <td className="px-3 py-2 text-center text-xs border-r border-gray-100">
-                                {schedule.autoGenerate ? (
-                                  <span className="text-green-600 font-medium">✓</span>
-                                ) : (
-                                  <span className="text-gray-400">-</span>
-                                )}
-                              </td>
-                              <td className="px-2 py-2">
-                                <div className="flex items-center justify-center gap-0.5">
-                                  <button onClick={() => { setSelectedSchedule(schedule); setShowViewModal(true); }} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Xem chi tiết">
-                                    <Eye className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button onClick={() => handleScheduleEdit(schedule)} className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title="Sửa">
-                                    <Edit2 className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button onClick={() => handleScheduleDelete(schedule)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Xóa">
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Config Pagination */}
-              <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
-                <span>{filteredSchedules.length}/{schedules.length} lịch</span>
-                {scheduleTotalPages > 1 && (
-                  <div className="flex items-center gap-1">
-                    <button disabled={schedulePage <= 1} onClick={() => setSchedulePage(p => p - 1)} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">‹</button>
-                    {Array.from({ length: Math.min(5, scheduleTotalPages) }, (_, i) => {
-                      let page: number;
-                      if (scheduleTotalPages <= 5) page = i + 1;
-                      else if (schedulePage <= 3) page = i + 1;
-                      else if (schedulePage >= scheduleTotalPages - 2) page = scheduleTotalPages - 4 + i;
-                      else page = schedulePage - 2 + i;
-                      if (page > scheduleTotalPages || page < 1) return null;
-                      return (
-                        <button key={page} onClick={() => setSchedulePage(page)} className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${page === schedulePage ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}>
-                          {page}
-                        </button>
-                      );
-                    })}
-                    <button disabled={schedulePage >= scheduleTotalPages} onClick={() => setSchedulePage(p => p + 1)} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">›</button>
+                        </div>
+                        <div className="max-h-72 overflow-y-auto">
+                          {scheduleLoading ? (
+                            <div className="flex items-center justify-center py-6"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div></div>
+                          ) : cfgListItems.length === 0 ? (
+                            <div className="text-center py-6 text-xs text-gray-400">{schedules.length === 0 ? 'Chưa có cấu hình' : 'Không tìm thấy'}</div>
+                          ) : (
+                            <table className="w-full text-xs">
+                              <thead className="bg-blue-50 sticky top-0">
+                                <tr>
+                                  <th className="px-2 py-1.5 text-left w-28">Mã</th>
+                                  <th className="px-2 py-1.5 text-left">Tên</th>
+                                  <th className="px-2 py-1.5 text-center w-16">Ưu tiên</th>
+                                  <th className="px-2 py-1.5 text-center w-14">Giờ</th>
+                                  <th className="px-2 py-1.5 w-14"></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {cfgListItems.map(sch => (
+                                  <tr key={sch.id} className={`border-b hover:bg-blue-50 cursor-pointer ${cfgEditingId === sch.id ? 'bg-blue-50' : ''}`} onClick={() => { cfgLoadForEdit(sch); setCfgShowHistory(false); }}>
+                                    <td className="px-2 py-1.5 font-medium text-gray-900">{sch.scheduleCode}</td>
+                                    <td className="px-2 py-1.5 text-gray-700 truncate max-w-[200px]">{sch.scheduleName}</td>
+                                    <td className="px-2 py-1.5 text-center">
+                                      <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${sch.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' : sch.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' : sch.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'}`}>{sch.priority}</span>
+                                    </td>
+                                    <td className="px-2 py-1.5 text-center text-gray-500">{sch.intervalHours || '—'}</td>
+                                    <td className="px-2 py-1.5 text-center">
+                                      <button onClick={e => { e.stopPropagation(); if (confirm('Xóa cấu hình này?')) handleScheduleDelete(sch); }} className="text-gray-400 hover:text-red-600"><Trash2 size={12} /></button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
+                  <button type="button" onClick={cfgSubmit} disabled={cfgSaving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+                    {cfgSaving ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    {cfgEditingId ? 'Cập nhật' : 'Lưu cấu hình'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-auto">
+                {/* ═══ 2-COLUMN LAYOUT: LEFT (Thông tin + Thời gian) | RIGHT (Nhân lực + Vật tư + Hạng mục) ═══ */}
+                <div className="grid grid-cols-2" style={{ minHeight: '100%' }}>
+
+                  {/* ════════ LEFT COLUMN ════════ */}
+                  <div className="border-r border-gray-200 flex flex-col">
+                    {/* ── Thông tin chung ── */}
+                    <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
+                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Settings size={14} /> Thông tin chung</span>
+                    </div>
+                    <div className="px-3 py-3 space-y-2.5 text-sm border-b border-gray-200">
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Mã cấu hình <span className="text-red-500">*</span></label>
+                          <input type="text" value={cfgForm.scheduleCode} onChange={e => setCfgForm(f => ({ ...f, scheduleCode: e.target.value }))} placeholder="SCH-ME-001" className="w-full border border-gray-300 px-2.5 py-1.5 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Độ ưu tiên</label>
+                          <select value={cfgForm.priority} onChange={e => setCfgForm(f => ({ ...f, priority: e.target.value }))} className="w-full border border-gray-300 px-2.5 py-1.5 bg-white text-sm">
+                            <option value="CRITICAL">Critical — Rất cao</option>
+                            <option value="HIGH">High — Cao</option>
+                            <option value="MEDIUM">Medium — Trung bình</option>
+                            <option value="LOW">Low — Thấp</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Tên bảo trì <span className="text-red-500">*</span></label>
+                        <input type="text" value={cfgForm.scheduleName} onChange={e => setCfgForm(f => ({ ...f, scheduleName: e.target.value }))} placeholder="Thay dầu bôi trơn máy chính" className="w-full border border-gray-300 px-2.5 py-1.5 text-sm" />
+                      </div>
+                      {/* Thiết bị */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Thiết bị <span className="text-red-500">*</span> <span className="text-[10px] text-gray-400 font-normal">— tick từ cây bên trái</span></label>
+                        {cfgSelectedEquipmentNames.length === 0 ? (
+                          <div className="px-2.5 py-2 border border-dashed border-gray-300 rounded text-xs text-gray-400 text-center">
+                            Chưa chọn thiết bị. Vui lòng tick từ cây thiết bị bên trái.
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {cfgSelectedEquipmentNames.slice(0, 8).map(eq => (
+                              <span key={eq.id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-[11px] text-blue-800">
+                                {eq.code}
+                                <button type="button" onClick={() => setCfgTreeSelectedIds(prev => { const n = new Set(prev); n.delete(eq.id); return n; })} className="text-blue-400 hover:text-red-500">
+                                  <XIcon size={10} />
+                                </button>
+                              </span>
+                            ))}
+                            {cfgSelectedEquipmentNames.length > 8 && (
+                              <span className="text-[10px] text-gray-500 self-center">+{cfgSelectedEquipmentNames.length - 8} khác</span>
+                            )}
+                            {cfgSelectedEquipmentNames.length > 1 && (
+                              <span className="text-[10px] bg-teal-50 text-teal-700 px-1.5 py-0.5 rounded self-center">Nhóm ({cfgSelectedEquipmentNames.length})</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Hướng dẫn kỹ thuật</label>
+                        <textarea value={cfgForm.instructions || ''} onChange={e => setCfgForm(f => ({ ...f, instructions: e.target.value }))} placeholder="Mô tả quy trình, lưu ý an toàn..." rows={2} className="w-full border border-gray-300 px-2.5 py-1.5 text-sm resize-none" />
+                      </div>
+                      <div className="flex items-center gap-6 pt-1">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={cfgIsCbm} onChange={e => setCfgIsCbm(e.target.checked)} className="w-3.5 h-3.5 rounded text-blue-600 border-gray-300" />
+                          <span className="text-xs text-gray-700">CBM <span className="text-[10px] text-gray-400">(Bảo trì theo tình trạng)</span></span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={cfgRequireRiskAssessment} onChange={e => setCfgRequireRiskAssessment(e.target.checked)} className="w-3.5 h-3.5 rounded text-blue-600 border-gray-300" />
+                          <span className="text-xs text-gray-700">Yêu cầu ĐGRR</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* ── Đánh giá rủi ro (ĐGRR) ── */}
+                    {cfgRequireRiskAssessment && (
+                      <>
+                        <div className="px-3 py-2 bg-orange-50 border-b border-orange-200">
+                          <span className="text-sm font-semibold text-orange-800 flex items-center gap-2"><AlertTriangle size={14} /> Đánh giá rủi ro (ĐGRR)</span>
+                        </div>
+                        <div className="px-3 py-3 border-b border-gray-200">
+                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Tài liệu đánh giá rủi ro (PDF)</label>
+                          {cfgRiskFileName ? (
+                            <div className="flex items-center gap-2 p-2 border border-orange-200 bg-orange-50/50 rounded">
+                              <FileText size={16} className="text-orange-600 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <span className="text-xs font-medium text-gray-900 truncate block">{cfgRiskFileName}</span>
+                                <span className="text-[10px] text-gray-400">PDF</span>
+                              </div>
+                              <button type="button" onClick={() => { setCfgRiskFile(null); setCfgRiskFileName(''); }} className="text-red-400 hover:text-red-600 shrink-0"><XIcon size={14} /></button>
+                            </div>
+                          ) : (
+                            <label className="flex flex-col items-center gap-1.5 p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-colors">
+                              <Upload size={20} className="text-gray-400" />
+                              <span className="text-xs text-gray-500">Nhấn để chọn file PDF</span>
+                              <span className="text-[10px] text-gray-400">Chỉ chấp nhận file .pdf</span>
+                              <input type="file" accept=".pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) { setCfgRiskFile(f); setCfgRiskFileName(f.name); } e.target.value = ''; }} />
+                            </label>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {/* ── Cấu hình thời gian ── */}
+                    <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
+                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Clock size={14} /> Cấu hình thời gian</span>
+                    </div>
+                    <div className="px-3 py-3 space-y-2.5 text-sm">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Mốc giờ chạy (Running Hours) <span className="text-red-500">*</span></label>
+                        <div className="flex items-center gap-1.5">
+                          <input type="number" value={cfgForm.intervalHours ?? ''} onChange={e => setCfgForm(f => ({ ...f, intervalHours: parseInt(e.target.value) || undefined }))} min={1} placeholder="500" className="flex-1 border border-gray-300 px-2.5 py-1.5 text-sm" />
+                          <span className="text-xs text-gray-500">giờ</span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Cảnh báo trước</label>
+                          <div className="flex items-center gap-1.5">
+                            <input type="number" value={cfgForm.daysBeforeDue ?? ''} onChange={e => setCfgForm(f => ({ ...f, daysBeforeDue: parseInt(e.target.value) || 7 }))} min={1} className="flex-1 border border-gray-300 px-2.5 py-1.5 text-sm" />
+                            <span className="text-xs text-gray-500">ngày</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">TG thực hiện ước tính</label>
+                          <div className="flex items-center gap-1.5">
+                            <input type="number" value={cfgForm.estimatedDurationHours ?? ''} onChange={e => setCfgForm(f => ({ ...f, estimatedDurationHours: parseFloat(e.target.value) || undefined }))} min={0.5} step={0.5} placeholder="3" className="flex-1 border border-gray-300 px-2.5 py-1.5 text-sm" />
+                            <span className="text-xs text-gray-500">giờ</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ════════ RIGHT COLUMN ════════ */}
+                  <div className="flex flex-col overflow-hidden">
+                    {/* ── Nhân lực ── */}
+                    <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
+                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Users size={14} /> Nhân lực</span>
+                    </div>
+                    <div className="px-4 py-3 space-y-4 border-b border-gray-200">
+                      {/* PIC */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">PIC</span>
+                          <span className="text-xs text-gray-500">Người chịu trách nhiệm chính</span>
+                        </div>
+                        {(() => {
+                          const picAssign = cfgCrewAssignments.find(a => a.role === 'PIC');
+                          const picCrew = picAssign ? crewList.find(c => c.id === picAssign.crewId) : null;
+                          if (picAssign && picCrew) {
+                            return (
+                              <div className="flex items-center gap-2 p-2 border border-blue-200 bg-blue-50/50 rounded text-sm">
+                                <div className="flex-1 min-w-0">
+                                  <span className="font-medium text-gray-900">{picCrew.fullName}</span>
+                                  <span className="text-gray-400 ml-1.5 text-xs">{typeof picCrew.rank === 'string' ? picCrew.rank : picCrew.rank?.rankCode || ''}</span>
+                                  {picCrew.department && <span className="text-gray-400 ml-1.5 text-xs">• {picCrew.department}</span>}
+                                </div>
+                                <button type="button" onClick={() => { const idx = cfgCrewAssignments.findIndex(a => a.role === 'PIC'); if (idx >= 0) cfgRemoveCrew(idx); }} className="text-red-400 hover:text-red-600 shrink-0">
+                                  <XIcon size={14} />
+                                </button>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div className="relative">
+                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                              <input type="text" value={cfgActiveCrewDrop === 'PIC' ? cfgCrewSearch : ''} onChange={e => { setCfgCrewSearch(e.target.value); setCfgActiveCrewDrop('PIC'); }} onFocus={() => { setCfgActiveCrewDrop('PIC'); setCfgCrewSearch(''); }} onBlur={() => setTimeout(() => setCfgActiveCrewDrop(null), 200)} placeholder="Tìm và chọn PIC..." className="w-full pl-8 border border-gray-300 py-2 text-sm rounded" />
+                              {cfgActiveCrewDrop === 'PIC' && cfgFilteredCrew.length > 0 && (
+                                <div className="absolute z-30 mt-1 w-full max-h-36 overflow-auto bg-white border border-gray-200 shadow-lg rounded">
+                                  {cfgFilteredCrew.map(c => (
+                                    <button key={c.id} type="button" onMouseDown={() => { cfgAddCrew(c.id, 'PIC'); setCfgActiveCrewDrop(null); }} className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm border-b border-gray-50">
+                                      <span className="font-medium text-gray-900">{c.fullName}</span>
+                                      <span className="text-gray-400 text-xs ml-1.5">{typeof c.rank === 'string' ? c.rank : c.rank?.rankCode || ''} • {c.department || ''}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                      {/* Support Team */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold bg-gray-100 text-gray-700 px-2 py-0.5 rounded">SUPPORT</span>
+                            <span className="text-xs text-gray-500">Hỗ trợ (nhiều người)</span>
+                          </div>
+                          <button type="button" onClick={() => { setCfgShowSupportPanel(!cfgShowSupportPanel); setCfgSupportSearch(''); }} className={`text-xs px-2.5 py-0.5 rounded border ${cfgShowSupportPanel ? 'border-blue-400 text-blue-700 bg-blue-50' : 'border-gray-300 text-gray-500 hover:bg-gray-50'}`}>
+                            {cfgShowSupportPanel ? 'Đóng' : '+ Thêm'}
+                          </button>
+                        </div>
+                        {cfgCrewAssignments.filter(a => a.role === 'SUPPORT').length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-2">
+                            {cfgCrewAssignments.map((assign, i) => {
+                              if (assign.role !== 'SUPPORT') return null;
+                              const crew = crewList.find(c => c.id === assign.crewId);
+                              return (
+                                <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs">
+                                  <span className="font-medium text-gray-800">{crew?.fullName || '?'}</span>
+                                  <span className="text-gray-400">{typeof crew?.rank === 'string' ? crew.rank : crew?.rank?.rankCode || ''}</span>
+                                  <button type="button" onClick={() => cfgRemoveCrew(i)} className="text-red-400 hover:text-red-600 ml-0.5"><XIcon size={12} /></button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {cfgShowSupportPanel && (
+                          <div className="border border-gray-200 rounded bg-white">
+                            <div className="px-2.5 py-2 border-b border-gray-100">
+                              <div className="relative">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                                <input type="text" value={cfgSupportSearch} onChange={e => setCfgSupportSearch(e.target.value)} placeholder="Tìm thuyền viên..." className="w-full pl-8 border border-gray-200 py-1.5 text-sm rounded" />
+                              </div>
+                            </div>
+                            <div className="max-h-44 overflow-y-auto">
+                              {Object.entries(cfgCrewByDept).length === 0 ? (
+                                <div className="px-3 py-3 text-center text-gray-400 text-xs">Không còn thuyền viên</div>
+                              ) : Object.entries(cfgCrewByDept).map(([dept, members]) => (
+                                <div key={dept}>
+                                  <div className="px-2.5 py-1 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100 sticky top-0">{dept} <span className="text-gray-400 font-normal">({members.length})</span></div>
+                                  {members.map(c => (
+                                    <button key={c.id} type="button" onClick={() => cfgAddCrew(c.id, 'SUPPORT')} className="w-full text-left px-3 py-1.5 hover:bg-blue-50 text-sm border-b border-gray-50 flex items-center gap-2">
+                                      <Plus size={12} className="text-blue-400 shrink-0" />
+                                      <span className="font-medium text-gray-900">{c.fullName}</span>
+                                      <span className="text-gray-400 text-xs">{typeof c.rank === 'string' ? c.rank : c.rank?.rankCode || ''}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {/* Receiver */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded">RECEIVER</span>
+                          <span className="text-xs text-gray-500">Người nhận báo cáo</span>
+                        </div>
+                        {(() => {
+                          const recvAssign = cfgCrewAssignments.find(a => a.role === 'RECEIVER');
+                          const recvCrew = recvAssign ? crewList.find(c => c.id === recvAssign.crewId) : null;
+                          if (recvAssign && recvCrew) {
+                            return (
+                              <div className="flex items-center gap-2 p-2 border border-amber-200 bg-amber-50/50 rounded text-sm">
+                                <div className="flex-1 min-w-0">
+                                  <span className="font-medium text-gray-900">{recvCrew.fullName}</span>
+                                  <span className="text-gray-400 ml-1.5 text-xs">{typeof recvCrew.rank === 'string' ? recvCrew.rank : recvCrew.rank?.rankCode || ''}</span>
+                                  {recvCrew.department && <span className="text-gray-400 ml-1.5 text-xs">• {recvCrew.department}</span>}
+                                </div>
+                                <button type="button" onClick={() => { const idx = cfgCrewAssignments.findIndex(a => a.role === 'RECEIVER'); if (idx >= 0) cfgRemoveCrew(idx); }} className="text-red-400 hover:text-red-600 shrink-0">
+                                  <XIcon size={14} />
+                                </button>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div className="relative">
+                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                              <input type="text" value={cfgActiveCrewDrop === 'RECEIVER' ? cfgCrewSearch : ''} onChange={e => { setCfgCrewSearch(e.target.value); setCfgActiveCrewDrop('RECEIVER'); }} onFocus={() => { setCfgActiveCrewDrop('RECEIVER'); setCfgCrewSearch(''); }} onBlur={() => setTimeout(() => setCfgActiveCrewDrop(null), 200)} placeholder="Tìm và chọn người nhận BC..." className="w-full pl-8 border border-gray-300 py-2 text-sm rounded" />
+                              {cfgActiveCrewDrop === 'RECEIVER' && cfgFilteredCrew.length > 0 && (
+                                <div className="absolute z-30 mt-1 w-full max-h-36 overflow-auto bg-white border border-gray-200 shadow-lg rounded">
+                                  {cfgFilteredCrew.map(c => (
+                                    <button key={c.id} type="button" onMouseDown={() => { cfgAddCrew(c.id, 'RECEIVER'); setCfgActiveCrewDrop(null); }} className="w-full text-left px-3 py-2 hover:bg-amber-50 text-sm border-b border-gray-50">
+                                      <span className="font-medium text-gray-900">{c.fullName}</span>
+                                      <span className="text-gray-400 text-xs ml-1.5">{typeof c.rank === 'string' ? c.rank : c.rank?.rankCode || ''} • {c.department || ''}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* ── Vật tư tiêu dùng ── */}
+                    <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 shrink-0">
+                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Package size={14} /> Vật tư tiêu dùng</span>
+                    </div>
+                    <div className="border-b border-gray-200 flex flex-col" style={{ maxHeight: '200px' }}>
+                      <div className="overflow-auto flex-1">
+                        <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
+                          <colgroup>
+                            <col style={{ width: '28px' }} />
+                            <col />
+                            <col style={{ width: '60px' }} />
+                            <col style={{ width: '70px' }} />
+                            <col style={{ width: '28px' }} />
+                            <col style={{ width: '28px' }} />
+                          </colgroup>
+                          <thead className="bg-blue-50">
+                            <tr>
+                              <th className="px-1 py-1.5 text-left text-xs">TT</th>
+                              <th className="px-1.5 py-1.5 text-left text-xs">Vật tư <span className="text-red-500">*</span></th>
+                              <th className="px-1 py-1.5 text-right text-xs">ROB</th>
+                              <th className="px-1 py-1.5 text-right text-xs">Cần <span className="text-red-500">*</span></th>
+                              <th className="px-0.5 py-1.5 text-center text-xs"></th>
+                              <th className="px-0.5 py-1.5"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(!cfgForm.requiredSpareParts || cfgForm.requiredSpareParts.length === 0) ? (
+                              <tr><td colSpan={6} className="text-center py-4 text-gray-400 text-xs">Chưa có vật tư</td></tr>
+                            ) : cfgForm.requiredSpareParts.map((part, i) => {
+                              const mat = cfgMaterials.find(m => m.id.toString() === part.materialItemId);
+                              const rob = mat?.onHandQuantity ?? 0;
+                              const needsMore = mat && part.quantityRequired > rob;
+                              const isLow = mat && rob <= (mat.minStock || 0);
+                              return (
+                                <tr key={i} className={`border-b ${needsMore ? 'bg-red-50/50' : ''}`}>
+                                  <td className="px-1.5 py-1 text-gray-500 text-xs">{i + 1}</td>
+                                  <td className="px-1.5 py-1">
+                                    <select value={part.materialItemId} onChange={e => cfgUpdateSparePart(i, 'materialItemId', e.target.value)} className="w-full border border-gray-300 px-1 py-0.5 text-xs truncate" style={{ maxWidth: '100%' }}>
+                                      <option value="">-- Chọn --</option>
+                                      {cfgMaterials.map(m => <option key={m.id} value={m.id}>{m.itemCode} - {m.name}</option>)}
+                                    </select>
+                                  </td>
+                                  <td className={`px-1.5 py-1 text-right text-xs ${isLow ? 'text-orange-600 font-medium' : 'text-gray-500'}`}>
+                                    {mat ? rob : '—'}
+                                  </td>
+                                  <td className="px-1.5 py-1">
+                                    <input type="number" value={part.quantityRequired} onChange={e => cfgUpdateSparePart(i, 'quantityRequired', parseFloat(e.target.value) || 1)} min={0.001} step={0.001} className={`w-full border px-1 py-0.5 text-xs text-right ${needsMore ? 'border-red-300 bg-red-50' : 'border-gray-300'}`} />
+                                  </td>
+                                  <td className="px-0.5 py-1 text-center">
+                                    {needsMore ? (
+                                      <span className="text-red-600" title={`Thiếu ${(part.quantityRequired - rob).toFixed(1)} ${mat?.unit || ''}`}><AlertTriangle size={13} /></span>
+                                    ) : mat && isLow ? (
+                                      <span className="text-orange-500" title="Tồn kho thấp"><AlertTriangle size={13} /></span>
+                                    ) : mat ? (
+                                      <span className="text-green-500"><CheckCircle size={13} /></span>
+                                    ) : null}
+                                  </td>
+                                  <td className="px-0.5 py-1 text-center">
+                                    <button type="button" onClick={() => cfgRemoveSparePart(i)} className="text-red-400 hover:text-red-600"><Trash2 size={13} /></button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="px-3 py-1.5 border-t border-gray-100 shrink-0">
+                        <button type="button" onClick={cfgAddSparePart} className="flex items-center gap-1 text-blue-600 text-xs hover:text-blue-800">
+                          <Plus size={12} /> Thêm dòng
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* ── Hạng mục kiểm tra ── */}
+                    <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between shrink-0">
+                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><ClipboardList size={14} /> Hạng mục kiểm tra</span>
+                      <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <button type="button" onClick={cfgSaveAsTemplate} className="flex items-center gap-1.5 px-2.5 py-1 text-xs border border-teal-300 rounded text-teal-700 hover:bg-teal-50">
+                            <Plus size={12} /> Tạo mẫu
+                          </button>
+                          {cfgShowCreateTemplate && (
+                            <div className="absolute right-0 z-40 mt-1 w-72 bg-white border border-gray-200 shadow-xl rounded-lg overflow-hidden">
+                              <div className="flex items-center justify-between px-3 py-2 bg-teal-50 border-b border-teal-200">
+                                <span className="text-xs font-semibold text-teal-800">Lưu mẫu checklist</span>
+                                <button type="button" onClick={() => setCfgShowCreateTemplate(false)} className="text-gray-400 hover:text-gray-600"><XIcon size={14} /></button>
+                              </div>
+                              <div className="px-3 py-3 space-y-2.5">
+                                <div>
+                                  <label className="block text-[10px] font-medium text-gray-600 mb-1">Tên mẫu <span className="text-red-500">*</span></label>
+                                  <input type="text" value={cfgTemplateName} onChange={e => setCfgTemplateName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') cfgConfirmSaveTemplate(); }} placeholder="VD: Kiểm tra bơm hàng ngày" autoFocus className="w-full border border-gray-300 px-2.5 py-1.5 text-xs rounded" />
+                                </div>
+                                <div className="text-[10px] text-gray-500 bg-gray-50 px-2 py-1.5 rounded">
+                                  Sẽ lưu <span className="font-semibold text-gray-700">{cfgForm.checklistItemTemplates?.length || 0}</span> bước kiểm tra vào mẫu
+                                </div>
+                                <div className="flex items-center justify-end gap-2">
+                                  <button type="button" onClick={() => setCfgShowCreateTemplate(false)} className="px-3 py-1 text-xs text-gray-500 border border-gray-300 rounded hover:bg-gray-50">Hủy</button>
+                                  <button type="button" onClick={cfgConfirmSaveTemplate} className="px-3 py-1 text-xs bg-teal-600 text-white rounded hover:bg-teal-700">Lưu mẫu</button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="relative">
+                          <button type="button" onClick={() => setCfgShowChecklistTemplate(!cfgShowChecklistTemplate)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs border border-gray-300 rounded text-gray-600 hover:bg-white">
+                            <FileText size={12} /> Chọn từ mẫu
+                          </button>
+                          {cfgShowChecklistTemplate && (() => {
+                            const customTemplates = (() => { try { return JSON.parse(localStorage.getItem('pms_custom_templates') || '{}'); } catch { return {}; } })();
+                            const allTemplates = { ...CHECKLIST_TEMPLATES, ...customTemplates };
+                            return (
+                              <div className="absolute right-0 z-30 mt-1 w-64 bg-white border border-gray-200 shadow-lg rounded">
+                                <div className="px-3 py-2 border-b border-gray-100 text-xs font-semibold text-gray-600">Chọn mẫu</div>
+                                {Object.entries(allTemplates).map(([key, tpl]: [string, any]) => (
+                                  <button key={key} type="button" onClick={() => cfgApplyChecklistTemplate(key)}
+                                    className="w-full text-left px-3 py-2 hover:bg-blue-50 text-xs border-b border-gray-50 flex items-center justify-between">
+                                    <span className="font-medium text-gray-900">{tpl.label}</span>
+                                    <span className="flex items-center gap-1.5">
+                                      {key.startsWith('CUSTOM_') && <span className="text-[9px] bg-teal-50 text-teal-600 px-1 rounded">Tùy chỉnh</span>}
+                                      <span className="text-gray-400">{tpl.items.length} bước</span>
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col" style={{ maxHeight: '250px' }}>
+                      <div className="overflow-auto flex-1">
+                        <table className="w-full text-sm">
+                          <thead className="bg-blue-50 sticky top-0">
+                            <tr>
+                              <th className="px-2 py-2 text-left w-10">TT</th>
+                              <th className="px-2 py-2 text-left">Mô tả bước kiểm tra <span className="text-red-500">*</span></th>
+                              <th className="px-2 py-2 text-center w-20">Đo giá trị</th>
+                              <th className="px-2 py-2 text-right w-16">Min</th>
+                              <th className="px-2 py-2 text-right w-16">Max</th>
+                              <th className="px-2 py-2 text-left w-16">Đơn vị</th>
+                              <th className="px-2 py-2 w-8"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(!cfgForm.checklistItemTemplates || cfgForm.checklistItemTemplates.length === 0) ? (
+                              <tr><td colSpan={7} className="text-center py-6 text-gray-400 text-xs">Không có dữ liệu</td></tr>
+                            ) : cfgForm.checklistItemTemplates.map((item, i) => (
+                              <tr key={i} className="border-b">
+                                <td className="px-2 py-1.5 text-gray-500 text-xs">{item.sequenceOrder}</td>
+                                <td className="px-2 py-1.5">
+                                  <input type="text" value={item.checkpointDescription} onChange={e => cfgUpdateChecklist(i, 'checkpointDescription', e.target.value)} placeholder="Mô tả bước kiểm tra..." className="w-full border border-gray-300 px-1.5 py-1 text-xs" />
+                                </td>
+                                <td className="px-2 py-1.5 text-center">
+                                  <input type="checkbox" checked={item.requiresReading || false} onChange={e => cfgUpdateChecklist(i, 'requiresReading', e.target.checked)} className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded" />
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  {item.requiresReading && <input type="number" value={item.normalRangeMin ?? ''} onChange={e => cfgUpdateChecklist(i, 'normalRangeMin', parseFloat(e.target.value) || undefined)} placeholder="—" step={0.01} className="w-full border border-gray-300 px-1 py-1 text-xs text-right" />}
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  {item.requiresReading && <input type="number" value={item.normalRangeMax ?? ''} onChange={e => cfgUpdateChecklist(i, 'normalRangeMax', parseFloat(e.target.value) || undefined)} placeholder="—" step={0.01} className="w-full border border-gray-300 px-1 py-1 text-xs text-right" />}
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  {item.requiresReading && <input type="text" value={item.unit ?? ''} onChange={e => cfgUpdateChecklist(i, 'unit', e.target.value)} placeholder="°C" className="w-full border border-gray-300 px-1 py-1 text-xs" />}
+                                </td>
+                                <td className="px-2 py-1.5 text-center">
+                                  <button type="button" onClick={() => cfgRemoveChecklist(i)} className="text-red-400 hover:text-red-600"><Trash2 size={13} /></button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="px-3 py-1.5 border-t border-gray-100 shrink-0">
+                        <button type="button" onClick={cfgAddChecklist} className="flex items-center gap-1 text-blue-600 text-xs hover:text-blue-800">
+                          <Plus size={12} /> Thêm bước
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Modals */}
+      {/* Modals - keep AddScheduleModal for the + button in other tabs */}
       <AddScheduleModal
         isOpen={isAddScheduleModalOpen}
         onClose={() => setIsAddScheduleModalOpen(false)}
@@ -1664,17 +2264,6 @@ export default function WorkPlanningPage() {
           loadSchedules();
           setIsAddScheduleModalOpen(false);
         }}
-      />
-      <EditScheduleModal
-        isOpen={showEditModal}
-        schedule={selectedSchedule}
-        onClose={() => { setShowEditModal(false); setSelectedSchedule(null); }}
-        onSuccess={() => { loadSchedules(); loadGanttData(); }}
-      />
-      <ViewScheduleModal
-        isOpen={showViewModal}
-        schedule={selectedSchedule}
-        onClose={() => { setShowViewModal(false); setSelectedSchedule(null); }}
       />
     </div>
   );
