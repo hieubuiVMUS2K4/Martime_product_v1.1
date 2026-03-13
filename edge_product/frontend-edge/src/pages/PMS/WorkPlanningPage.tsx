@@ -200,13 +200,6 @@ export default function WorkPlanningPage() {
   // === Gantt state ===
   // ganttTasks now derived from filteredTasks via useMemo (ganttTasksFromFiltered)
 
-  // === Kanban state === 
-  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem('kanban_visible_columns');
-    if (saved) return new Set(JSON.parse(saved));
-    return new Set(['scheduled', 'upcoming', 'due', 'overdue', 'in-progress', 'pending-approval', 'rectify', 'completed', 'deferrals']);
-  });
-
   // === Modals ===
   const [isAddScheduleModalOpen, setIsAddScheduleModalOpen] = useState(false);
 
@@ -848,30 +841,6 @@ export default function WorkPlanningPage() {
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [filteredTasks]);
 
-  // === Kanban handlers ===
-  const handleTaskUpdate = async (taskId: string, newStatus: string) => {
-    try {
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus as any } : t));
-      await maritimeService.maintenance.updateStatus(taskId, newStatus);
-      await loadData(false);
-    } catch (error: any) {
-      toast.error('Không thể cập nhật trạng thái');
-      await loadData(false);
-    }
-  };
-
-  const handleTaskDelete = async (taskId: string) => {
-    try {
-      setTasks(prev => prev.filter(t => t.id !== taskId));
-      await maritimeService.maintenance.delete(taskId);
-      toast.success('Đã xóa công việc');
-      await loadData(false);
-    } catch (error: any) {
-      toast.error('Không thể xóa công việc');
-      await loadData(false);
-    }
-  };
-
   // === Export Excel ===
   const handleExportExcel = () => {
     try {
@@ -1068,11 +1037,6 @@ export default function WorkPlanningPage() {
     const cw = 100 / days.length;
     return { start: si * cw, width: Math.max(cw * 0.8, (ei - si + 1) * cw) };
   };
-
-  // Save kanban columns
-  useEffect(() => {
-    localStorage.setItem('kanban_visible_columns', JSON.stringify([...visibleColumns]));
-  }, [visibleColumns]);
 
   if (loading) {
     return (
@@ -1706,13 +1670,6 @@ export default function WorkPlanningPage() {
             <div className="p-4">
               <KanbanBoard
                 tasks={filteredTasks}
-                onTaskUpdate={handleTaskUpdate}
-                onTaskDelete={handleTaskDelete}
-                onTaskClick={(id) => navigate(`/pms/work-report/${id}`)}
-                onAddTask={() => setIsAddScheduleModalOpen(true)}
-                crewList={crewList}
-                visibleColumns={visibleColumns}
-                onVisibleColumnsChange={setVisibleColumns}
               />
             </div>
           )}

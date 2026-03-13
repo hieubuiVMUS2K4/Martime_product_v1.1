@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -29,11 +30,22 @@ class CompleteTaskScreen extends StatefulWidget {
   State<CompleteTaskScreen> createState() => _CompleteTaskScreenState();
 }
 
-class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
+class _CompleteTaskScreenState extends State<CompleteTaskScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _runningHoursController = TextEditingController();
   final _sparePartsController = TextEditingController();
   final _notesController = TextEditingController();
+  final _startDateController = TextEditingController();
+  final _endDateController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  
+  // Tab controller for Work Report layout
+  late TabController _tabController;
+  
+  // Date format
+  static final _dateFormat = DateFormat('dd MMM yyyy');
+  static final _dateTimeFormat = DateFormat('dd MMM yyyy HH:mm');
   
   // Photo Upload State
   final List<String> _photoUrls = [];
@@ -172,10 +184,16 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize tab controller (3 tabs: Report, Checklist, Materials)
+    _tabController = TabController(length: 3, vsync: this);
+    
     // Pre-fill running hours if available
     if (widget.task.runningHoursAtLastDone != null) {
       _runningHoursController.text = widget.task.runningHoursAtLastDone.toString();
     }
+    // Pre-fill description
+    _descriptionController.text = widget.task.taskDescription;
+    
     // Initialize local checklist state from task
     _checklistItems = List.from(widget.task.checklistItems);
     
@@ -396,15 +414,17 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
   @override
   void dispose() {
     // Save draft states before disposing (user might return later)
-    // Use unawaited to avoid blocking dispose
-    // Note: These are fire-and-forget operations
     _saveDraftFormData();
     _saveDraftSparePartsSync();
     _saveDraftChecklistStateSync();
     
+    _tabController.dispose();
     _runningHoursController.dispose();
     _sparePartsController.dispose();
     _notesController.dispose();
+    _startDateController.dispose();
+    _endDateController.dispose();
+    _descriptionController.dispose();
     // Clear cached photo bytes
     _cachedPhotoBytes.clear();
     super.dispose();
@@ -658,256 +678,101 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
   Widget build(BuildContext context) {
     final syncProvider = Provider.of<SyncProvider>(context);
     final l10n = AppLocalizations.of(context);
+    final completedCount = _checklistItems.where((i) => i.isCompleted).length;
+    final abnormalCount = _checklistItems.where((i) => i.isAbnormal).length;
+    final notCheckedCount = _checklistItems.where((i) => !i.isCompleted).length;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.completeTask),
+        title: const Text('Báo cáo công việc'),
+        actions: [
+          // Save draft
+          IconButton(
+            icon: const Icon(Icons.save_outlined),
+            tooltip: l10n.save,
+            onPressed: () async {
+              await _saveDraftFormData();
+              await _saveDraftChecklistState();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Đã lưu nháp'),
+                    duration: Duration(seconds: 1),
+                    backgroundColor: Colors.blue,
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(
+              icon: const Icon(Icons.description, size: 20),
+              text: 'Báo cáo',
+            ),
+            Tab(
+              icon: Badge(
+                label: Text('$completedCount/${_checklistItems.length}'),
+                backgroundColor: completedCount == _checklistItems.length && _checklistItems.isNotEmpty
+                    ? Colors.green : Colors.orange,
+                child: const Icon(Icons.checklist, size: 20),
+              ),
+              text: 'Kiểm tra',
+            ),
+            Tab(
+              icon: Badge(
+                isLabelVisible: _actuallyUsedSpareParts.isNotEmpty,
+                label: Text('${_actuallyUsedSpareParts.length}'),
+                child: const Icon(Icons.build, size: 20),
+              ),
+              text: 'Vật tư',
+            ),
+          ],
+        ),
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Task Info Card
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.task.displayName,
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${l10n.taskId}: ${widget.task.taskId}',
-                              style: TextStyle(color: Colors.grey.shade600),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              widget.task.taskDescription,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Checklist Progress Section
-                    if (_checklistItems.isNotEmpty) ...[
-                      _buildChecklistSection(context, l10n),
-                      const SizedBox(height: 24),
-                    ],
-
-                    // Required Spare Parts Section (display only - reference)
-                    if (widget.task.sparePartsUsed != null && widget.task.sparePartsUsed!.isNotEmpty) ...[
-                      _buildRequiredSparePartsSection(context),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Actually Used Spare Parts Section (user selects from inventory)
-                    _buildActuallyUsedSparePartsSection(context),
-                    const SizedBox(height: 24),
-
-                    // Offline Warning
-                    if (!syncProvider.isOnline)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          border: Border.all(color: Colors.orange.shade300),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.cloud_off, color: Colors.orange.shade700),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                l10n.offlineTaskWillSync,
-                                style: TextStyle(color: Colors.orange.shade900),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    // Running Hours Field
-                    Text(
-                      l10n.runningHoursRequired,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _runningHoursController,
-                      decoration: InputDecoration(
-                        hintText: l10n.enterCurrentRunningHours,
-                        prefixIcon: const Icon(Icons.access_time),
-                        suffixText: l10n.hours,
-                        border: const OutlineInputBorder(),
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                      ],
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return l10n.pleaseEnterRunningHours;
-                        }
-                        final hours = double.tryParse(value);
-                        if (hours == null || hours < 0) {
-                          return l10n.pleaseEnterValidNumber;
-                        }
-                        if (widget.task.runningHoursAtLastDone != null &&
-                            hours < widget.task.runningHoursAtLastDone!) {
-                          return l10n.runningHoursCannotBeLess(widget.task.runningHoursAtLastDone!);
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Photos Section
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                // Task Info Header (always visible)
+                _buildTaskInfoHeader(context, l10n),
+                
+                // Offline Warning
+                if (!syncProvider.isOnline)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    color: Colors.orange.shade50,
+                    child: Row(
                       children: [
-                        Text(
-                          l10n.reportPhotos,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        if (widget.task.requiredPhotos > 0)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: _photoUrls.length >= widget.task.requiredPhotos
-                                  ? Colors.green.shade50
-                                  : Colors.orange.shade50,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: _photoUrls.length >= widget.task.requiredPhotos
-                                    ? Colors.green
-                                    : Colors.orange,
-                              ),
-                            ),
-                            child: Text(
-                              l10n.photosRequired(_photoUrls.length, widget.task.requiredPhotos),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: _photoUrls.length >= widget.task.requiredPhotos
-                                    ? Colors.green.shade700
-                                    : Colors.orange.shade700,
-                              ),
-                            ),
+                        Icon(Icons.cloud_off, color: Colors.orange.shade700, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            l10n.offlineTaskWillSync,
+                            style: TextStyle(fontSize: 12, color: Colors.orange.shade900),
                           ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    
-                    // Photo Grid
-                    if (_photoUrls.isNotEmpty)
-                      Container(
-                        height: 100,
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _photoUrls.length,
-                          cacheExtent: 100, // Giới hạn cache để giảm memory
-                          itemBuilder: (context, index) {
-                            return _buildPhotoThumbnail(index);
-                          },
-                        ),
-                      ),
+                  ),
 
-                    // Add Photo Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: (_isUploadingPhoto || _photoUrls.length >= 5)
-                            ? null
-                            : _showImageSourceActionSheet,
-                        icon: _isUploadingPhoto 
-                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Icon(Icons.add_a_photo),
-                        label: Text(_photoUrls.length >= 5 ? l10n.maxPhotosReached(5) : l10n.uploadPhotoOrTake),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          side: BorderSide(color: _photoUrls.length >= 5 ? Colors.grey : Theme.of(context).primaryColor),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Notes Field
-                    Text(
-                      l10n.notes,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _notesController,
-                      decoration: InputDecoration(
-                        hintText: l10n.addAdditionalNotes,
-                        prefixIcon: const Icon(Icons.notes),
-                        border: const OutlineInputBorder(),
-                      ),
-                      maxLines: 4,
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // Submit Button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submitCompletion,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(
-                                l10n.completeTask,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-                  ],
+                // Tab content
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildReportTab(context, l10n),
+                      _buildChecklistTab(context, l10n, completedCount, abnormalCount, notCheckedCount),
+                      _buildMaterialsTab(context, l10n),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
 
@@ -920,70 +785,652 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
             ),
         ],
       ),
+      // Bottom Submit Button
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: _isSubmitting ? null : _submitCompletion,
+                icon: _isSubmitting
+                    ? const SizedBox(
+                        height: 18, width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.send, size: 20),
+                label: Text(
+                  'Hoàn thành báo cáo',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 2,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
-  /// Build Checklist Progress Section
-  Widget _buildChecklistSection(BuildContext context, AppLocalizations l10n) {
-    final items = _checklistItems;
-    final completedCount = items.where((item) => item.isCompleted).length;
-    final progress = items.isEmpty ? 0.0 : completedCount / items.length;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Text(
-                    'Checklist Progress',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
+  /// Task Info Header — always visible above tabs (mirrors Edge Work Report header)
+  Widget _buildTaskInfoHeader(BuildContext context, AppLocalizations l10n) {
+    final task = widget.task;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Task code + Status + Priority row
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  task.taskId,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: progress == 1.0 ? Colors.green.shade100 : Colors.orange.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: task.statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: task.statusColor.withOpacity(0.4)),
+                ),
+                child: Text(
+                  _statusLabel(task.status),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: task.statusColor),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: task.priorityColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  _priorityLabel(task.priority),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: task.priorityColor),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          // Task name
+          Text(
+            task.displayName,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          // Equipment info row
+          if (task.equipmentId != null || task.equipmentName != null)
+            Row(
+              children: [
+                Icon(Icons.settings, size: 14, color: Colors.grey.shade500),
+                const SizedBox(width: 4),
+                Expanded(
                   child: Text(
-                    '$completedCount/${items.length}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: progress == 1.0 ? Colors.green.shade700 : Colors.orange.shade700,
-                    ),
+                    '${task.equipmentId ?? ''} — ${task.equipmentName ?? ''}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            // Progress bar
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 8,
-                backgroundColor: Colors.grey.shade200,
-                valueColor: AlwaysStoppedAnimation(
-                  progress == 1.0 ? Colors.green : Colors.orange,
+          const SizedBox(height: 4),
+          // Due date + Report date
+          Row(
+            children: [
+              Icon(Icons.event, size: 14, color: Colors.grey.shade500),
+              const SizedBox(width: 4),
+              Text(
+                '${l10n.dueDate}: ${_formatDate(task.nextDueAt)}',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              const Spacer(),
+              Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade500),
+              const SizedBox(width: 4),
+              Text(
+                'Ngày BĐ: ${_dateFormat.format(DateTime.now())}',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Tab 1: Báo cáo (Report) — running hours, notes, photos
+  Widget _buildReportTab(BuildContext context, AppLocalizations l10n) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Task Description
+          Text(
+            'Mô tả công việc',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            width: double.infinity,
+            child: Text(
+              widget.task.taskDescription.isNotEmpty 
+                  ? widget.task.taskDescription 
+                  : '—',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.5),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Running Hours Field
+          Text(
+            l10n.runningHoursRequired,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _runningHoursController,
+            decoration: InputDecoration(
+              hintText: l10n.enterCurrentRunningHours,
+              prefixIcon: const Icon(Icons.access_time, size: 20),
+              suffixText: l10n.hours,
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+            ],
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return l10n.pleaseEnterRunningHours;
+              }
+              final hours = double.tryParse(value);
+              if (hours == null || hours < 0) {
+                return l10n.pleaseEnterValidNumber;
+              }
+              if (widget.task.runningHoursAtLastDone != null &&
+                  hours < widget.task.runningHoursAtLastDone!) {
+                return l10n.runningHoursCannotBeLess(widget.task.runningHoursAtLastDone!);
+              }
+              return null;
+            },
+          ),
+
+          const SizedBox(height: 20),
+
+          // Notes Field
+          Text(
+            l10n.notes,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _notesController,
+            decoration: InputDecoration(
+              hintText: l10n.addAdditionalNotes,
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            ),
+            maxLines: 4,
+          ),
+
+          const SizedBox(height: 20),
+
+          // Photos Section
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                l10n.reportPhotos,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              if (widget.task.requiredPhotos > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _photoUrls.length >= widget.task.requiredPhotos
+                        ? Colors.green.shade50 : Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: _photoUrls.length >= widget.task.requiredPhotos
+                          ? Colors.green : Colors.orange,
+                    ),
+                  ),
+                  child: Text(
+                    l10n.photosRequired(_photoUrls.length, widget.task.requiredPhotos),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: _photoUrls.length >= widget.task.requiredPhotos
+                          ? Colors.green.shade700 : Colors.orange.shade700,
+                    ),
+                  ),
                 ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          
+          // Photo Grid
+          if (_photoUrls.isNotEmpty)
+            Container(
+              height: 100,
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _photoUrls.length,
+                cacheExtent: 100,
+                itemBuilder: (context, index) => _buildPhotoThumbnail(index),
               ),
             ),
-            const SizedBox(height: 16),
-            // Checklist items - now interactive
-            ...items.asMap().entries.map((entry) => _buildChecklistItem(entry.value, entry.key)),
+
+          // Add Photo Button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: (_isUploadingPhoto || _photoUrls.length >= 5)
+                  ? null : _showImageSourceActionSheet,
+              icon: _isUploadingPhoto
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.add_a_photo, size: 18),
+              label: Text(_photoUrls.length >= 5 ? l10n.maxPhotosReached(5) : l10n.uploadPhotoOrTake),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  /// Tab 2: Hạng mục kiểm tra (Checklist) — table-like UI mirroring Edge
+  Widget _buildChecklistTab(
+    BuildContext context,
+    AppLocalizations l10n,
+    int completedCount,
+    int abnormalCount,
+    int notCheckedCount,
+  ) {
+    if (_checklistItems.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.checklist, size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            Text(l10n.noChecklistYet, style: TextStyle(color: Colors.grey.shade500)),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Summary bar (Đạt / Chưa kiểm tra / Bất thường)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+          ),
+          child: Row(
+            children: [
+              _buildChecklistStat('Đạt', completedCount, Colors.green),
+              const SizedBox(width: 16),
+              _buildChecklistStat('Chưa KT', notCheckedCount, Colors.grey),
+              const SizedBox(width: 16),
+              _buildChecklistStat('Bất thường', abnormalCount, Colors.red),
+              const Spacer(),
+              // Progress
+              Text(
+                '${(completedCount / _checklistItems.length * 100).toStringAsFixed(0)}%',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: completedCount == _checklistItems.length ? Colors.green : Colors.orange,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Checklist items as cards (table-like)
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(12),
+            itemCount: _checklistItems.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final item = _checklistItems[index];
+              return _buildChecklistCard(item, index, l10n);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChecklistStat(String label, int count, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8, height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$label: $count',
+          style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
+
+  /// Checklist item card — mirrors Edge table row (TT / Mã TB / Tên TB / Giá trị đo / Tình trạng / Bất thường / Ghi chú)
+  Widget _buildChecklistCard(TaskChecklistItem item, int index, AppLocalizations l10n) {
+    final statusText = item.isCompleted
+        ? (item.isAbnormal ? 'Bất thường' : 'Đạt')
+        : 'Chưa kiểm tra';
+    final statusColor = item.isCompleted
+        ? (item.isAbnormal ? Colors.red : Colors.green)
+        : Colors.grey;
+
+    return InkWell(
+      onTap: _isTogglingChecklist ? null : () => _toggleChecklistItem(index),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: item.isCompleted
+                ? (item.isAbnormal ? Colors.red.shade200 : Colors.green.shade200)
+                : Colors.grey.shade200,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row 1: Sequence + Asset Code + Asset Name + Status icon
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Sequence number
+                Container(
+                  width: 28, height: 28,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusColor),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Asset info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.assetCode,
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
+                      ),
+                      Text(
+                        item.assetName,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: item.isCompleted ? Colors.grey.shade600 : Colors.black87,
+                          decoration: item.isCompleted ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                      if (item.checkpointDescription != null && item.checkpointDescription!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            item.checkpointDescription!,
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                // Status icon
+                Icon(
+                  item.isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
+                  color: statusColor,
+                  size: 24,
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Row 2: Measured value + Status + Abnormal flag
+            Row(
+              children: [
+                // Measured value
+                if (item.requiresReading)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: item.readingValue != null
+                          ? (item.isAbnormal ? Colors.red.shade50 : Colors.blue.shade50)
+                          : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: item.readingValue != null
+                            ? (item.isAbnormal ? Colors.red.shade300 : Colors.blue.shade300)
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.straighten, size: 14,
+                          color: item.isAbnormal ? Colors.red : Colors.blue,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          item.readingValue != null
+                              ? '${item.readingValue} ${item.unit ?? ''}'
+                              : l10n.enterMeasuredValue,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: item.isAbnormal ? Colors.red : Colors.blue.shade700,
+                          ),
+                        ),
+                        if (item.minValue != null && item.maxValue != null) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            '(${item.minValue}-${item.maxValue})',
+                            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                
+                if (item.requiresReading) const SizedBox(width: 8),
+                
+                // Status badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    statusText,
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor),
+                  ),
+                ),
+                
+                // Abnormal badge
+                if (item.isAbnormal) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.red.shade300),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.warning_amber, size: 12, color: Colors.red),
+                        SizedBox(width: 2),
+                        Text('BT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
+                
+                // Mandatory badge
+                if (item.isMandatory && !item.isCompleted) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade100,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      l10n.required,
+                      style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            
+            // Remarks
+            if (item.remarks != null && item.remarks!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(Icons.comment, size: 14, color: Colors.grey.shade400),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      item.remarks!,
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+
+  /// Tab 3: Vật tư (Materials)
+  Widget _buildMaterialsTab(BuildContext context, AppLocalizations l10n) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Required Spare Parts Section (display only - reference)
+          if (_requiredSpareParts.isNotEmpty) ...[
+            _buildRequiredSparePartsSection(context),
+            const SizedBox(height: 16),
+          ],
+
+          // Actually Used Spare Parts Section (user selects from inventory)
+          _buildActuallyUsedSparePartsSection(context),
+        ],
+      ),
+    );
+  }
+
+  String _statusLabel(String status) {
+    const labels = {
+      'SCHEDULED': 'Chưa bắt đầu',
+      'DUE': 'Đến hạn',
+      'OVERDUE': 'Quá hạn',
+      'IN_PROGRESS': 'Đang thực hiện',
+      'PENDING_APPROVAL': 'Chờ duyệt',
+      'RECTIFY': 'Trả hoàn',
+      'COMPLETED': 'Hoàn thành',
+      'CANCELLED': 'Hủy bỏ',
+    };
+    return labels[status] ?? status;
+  }
+
+  String _priorityLabel(String priority) {
+    const labels = {
+      'CRITICAL': 'Rất cao',
+      'HIGH': 'Cao',
+      'NORMAL': 'Trung bình',
+      'LOW': 'Thấp',
+    };
+    return labels[priority] ?? priority;
+  }
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return '—';
+    try {
+      return _dateFormat.format(DateTime.parse(dateStr));
+    } catch (_) {
+      return dateStr;
+    }
+  }
+
+  /// Checklist Section — kept for compatibility but now used inside checklistTab
+  /// (No longer used directly — _buildChecklistTab replaces this)
 
   Future<void> _toggleChecklistItem(int index) async {
     if (_isTogglingChecklist) return;
@@ -1191,119 +1638,8 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
     }
   }
 
-  Widget _buildChecklistItem(TaskChecklistItem item, int index) {
-    return InkWell(
-      onTap: _isTogglingChecklist ? null : () => _toggleChecklistItem(index),
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Checkbox icon - tappable
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                item.isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
-                color: item.isCompleted 
-                    ? Colors.green 
-                    : (item.isMandatory ? Colors.orange : Colors.grey),
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.assetName,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
-                            decoration: item.isCompleted ? TextDecoration.lineThrough : null,
-                            color: item.isCompleted ? Colors.grey : Colors.black87,
-                          ),
-                        ),
-                      ),
-                      if (item.isMandatory && !item.isCompleted)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade100,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            AppLocalizations.of(context).required,
-                            style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                    ],
-                  ),
-                  if (item.checkpointDescription != null && item.checkpointDescription!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        item.checkpointDescription!,
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                      ),
-                    ),
-                  if (item.requiresReading) ...[
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: item.isCompleted
-                            ? (item.isAbnormal ? Colors.red.shade50 : Colors.blue.shade50)
-                            : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: item.isCompleted
-                              ? (item.isAbnormal ? Colors.red.shade300 : Colors.blue.shade300)
-                              : Colors.grey.shade300,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.straighten,
-                            size: 14,
-                            color: item.isAbnormal ? Colors.red : Colors.blue,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            item.readingValue != null
-                                ? '${item.readingValue} ${item.unit ?? ''}'
-                                : AppLocalizations.of(context).enterMeasuredValue,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: item.isAbnormal ? Colors.red : Colors.blue.shade700,
-                            ),
-                          ),
-                          if (item.minValue != null && item.maxValue != null) ...[
-                            const SizedBox(width: 8),
-                            Text(
-                              '(${item.minValue}-${item.maxValue})',
-                              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  /// Old checklist item widget — replaced by _buildChecklistCard
+  /// Kept as reference, no longer called
 
   /// Build Required Spare Parts Section - DISPLAY ONLY
   Widget _buildRequiredSparePartsSection(BuildContext context) {

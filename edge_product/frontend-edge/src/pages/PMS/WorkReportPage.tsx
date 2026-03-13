@@ -11,10 +11,13 @@ import {
   User,
   AlertTriangle,
   PlayCircle,
+  ShieldCheck,
+  RotateCcw,
 } from 'lucide-react'
-import { MaintenanceTask, CrewMember, TaskStatusHistory } from '../../types/maritime.types'
+import { MaintenanceTask, CrewMember, TaskStatusHistory, TaskChecklistItem } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { maintenanceScheduleService } from '../../services/maintenance-schedule.service'
+import { verifyTask, type VerifyTaskDto } from '../../services/maintenance.service'
 import { equipmentAssetService } from '../../services/equipment-asset.service'
 import { format, parseISO } from 'date-fns'
 import { vi } from 'date-fns/locale'
@@ -38,7 +41,7 @@ const PRIORITY_LABELS: Record<string, string> = {
   LOW: 'Thấp',
 }
 
-type BottomTab = 'report' | 'materials' | 'risk' | 'inspection'
+type BottomTab = 'report' | 'checklist' | 'materials' | 'risk' | 'inspection'
 
 export default function WorkReportPage() {
   const { id } = useParams<{ id: string }>()
@@ -81,6 +84,14 @@ export default function WorkReportPage() {
   // Bottom tab
   const [activeTab, setActiveTab] = useState<BottomTab>('report')
 
+  // Checklist items (mapped from config, status pushed from mobile)
+  const [checklistItems, setChecklistItems] = useState<TaskChecklistItem[]>([])
+
+  // Approval state
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [verifying, setVerifying] = useState(false)
+
   // ============================================================
   // DATA LOADING
   // ============================================================
@@ -88,6 +99,7 @@ export default function WorkReportPage() {
     if (id) {
       loadTask()
       loadCrew()
+      loadChecklist()
     }
   }, [id])
 
@@ -150,6 +162,17 @@ export default function WorkReportPage() {
       navigate('/pms/work-planning')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadChecklist = async () => {
+    if (!id) return
+    try {
+      const items = await maritimeService.maintenance.getChecklist(id)
+      setChecklistItems(items || [])
+    } catch {
+      // Checklist may not exist for this task
+      setChecklistItems([])
     }
   }
 
@@ -233,6 +256,43 @@ export default function WorkReportPage() {
     navigate('/pms/work-planning')
   }
 
+  const handleApprove = async () => {
+    if (!task) return
+    try {
+      setVerifying(true)
+      const dto: VerifyTaskDto = { action: 'APPROVE', notes: reportText || undefined }
+      await verifyTask(task.id, dto)
+      toast.success('Đã phê duyệt công việc')
+      await loadTask()
+    } catch (error) {
+      console.error('Approve failed:', error)
+      toast.error('Phê duyệt thất bại')
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  const handleReject = async () => {
+    if (!task || !rejectionReason.trim()) {
+      toast.error('Vui lòng nhập lý do trả hoàn')
+      return
+    }
+    try {
+      setVerifying(true)
+      const dto: VerifyTaskDto = { action: 'REJECT', rejectionReason }
+      await verifyTask(task.id, dto)
+      toast.success('Đã trả hoàn công việc')
+      setShowRejectModal(false)
+      setRejectionReason('')
+      await loadTask()
+    } catch (error) {
+      console.error('Reject failed:', error)
+      toast.error('Trả hoàn thất bại')
+    } finally {
+      setVerifying(false)
+    }
+  }
+
   const handleAddComment = () => {
     if (!commentText.trim()) return
     setComments(prev => [
@@ -293,19 +353,21 @@ export default function WorkReportPage() {
           <button onClick={handleCancel} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
             <X className="w-3.5 h-3.5" /> Hủy bỏ
           </button>
-          {(task.status === 'SCHEDULED' || task.status === 'DUE' || task.status === 'OVERDUE') && (
-            <button onClick={handleStartTask} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
-              <PlayCircle className="w-3.5 h-3.5" /> Tiếp tục
-            </button>
-          )}
+          <button onClick={handleStartTask} disabled={!(['SCHEDULED', 'DUE', 'OVERDUE', 'RECTIFY'].includes(task.status)) || saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+            <PlayCircle className="w-3.5 h-3.5" /> Tiếp tục
+          </button>
           <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-800 text-white rounded hover:bg-gray-900 disabled:opacity-50">
             <Save className="w-3.5 h-3.5" /> {saving ? 'Đang lưu...' : 'Lưu lại'}
           </button>
-          {task.status === 'IN_PROGRESS' && (
-            <button onClick={handleComplete} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">
-              <CheckCircle className="w-3.5 h-3.5" /> Hoàn thành
-            </button>
-          )}
+          <button onClick={handleComplete} disabled={task.status !== 'IN_PROGRESS' || saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+            <CheckCircle className="w-3.5 h-3.5" /> Hoàn thành
+          </button>
+          <button onClick={() => setShowRejectModal(true)} disabled={task.status !== 'PENDING_APPROVAL' || verifying} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed">
+            <RotateCcw className="w-3.5 h-3.5" /> Trả hoàn
+          </button>
+          <button onClick={handleApprove} disabled={task.status !== 'PENDING_APPROVAL' || verifying} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+            <ShieldCheck className="w-3.5 h-3.5" /> {verifying ? 'Đang xử lý...' : 'Phê duyệt'}
+          </button>
         </div>
       </div>
 
@@ -389,6 +451,7 @@ export default function WorkReportPage() {
             <div className="flex border-b border-gray-200 text-sm">
               {([
                 { key: 'report' as BottomTab, label: 'Báo cáo' },
+                { key: 'checklist' as BottomTab, label: 'Hạng mục kiểm tra' },
                 { key: 'materials' as BottomTab, label: 'Vật tư' },
                 { key: 'risk' as BottomTab, label: 'Biểu mẫu ĐGRR' },
                 { key: 'inspection' as BottomTab, label: 'Biểu mẫu BBKT' },
@@ -440,6 +503,63 @@ export default function WorkReportPage() {
                     <Paperclip size={14} className="text-gray-400" />
                     <button className="text-sm text-blue-600 hover:underline">Đính kèm tệp tin</button>
                   </div>
+                </div>
+              )}
+
+              {/* Hạng mục kiểm tra tab */}
+              {activeTab === 'checklist' && (
+                <div>
+                  {checklistItems.length === 0 && !task.checklistItems?.length ? (
+                    <p className="text-sm text-gray-400 italic">Không có hạng mục kiểm tra cho công việc này</p>
+                  ) : (
+                    <table className="w-full text-xs border border-gray-200 rounded">
+                      <thead className="bg-blue-50">
+                        <tr>
+                          <th className="w-10 px-2 py-1.5 text-center border-b border-r border-gray-200">TT</th>
+                          <th className="px-2 py-1.5 text-left border-b border-r border-gray-200">Mã thiết bị</th>
+                          <th className="px-2 py-1.5 text-left border-b border-r border-gray-200">Tên thiết bị</th>
+                          <th className="w-20 px-2 py-1.5 text-center border-b border-r border-gray-200">Giá trị đo</th>
+                          <th className="w-24 px-2 py-1.5 text-center border-b border-r border-gray-200">Tình trạng</th>
+                          <th className="w-20 px-2 py-1.5 text-center border-b border-r border-gray-200">Bất thường</th>
+                          <th className="px-2 py-1.5 text-left border-b border-gray-200">Ghi chú</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(checklistItems.length > 0 ? checklistItems : task.checklistItems || []).map((item, i) => (
+                          <tr key={item.id} className={`border-b border-gray-100 ${item.isAbnormal ? 'bg-red-50' : ''}`}>
+                            <td className="px-2 py-1.5 text-center text-gray-500 border-r border-gray-200">{i + 1}</td>
+                            <td className="px-2 py-1.5 text-gray-600 border-r border-gray-200">{item.assetCode}</td>
+                            <td className="px-2 py-1.5 border-r border-gray-200">{item.assetName}</td>
+                            <td className="px-2 py-1.5 text-center border-r border-gray-200">{item.readingValue ?? '—'}</td>
+                            <td className="px-2 py-1.5 text-center border-r border-gray-200">
+                              {item.isCompleted ? (
+                                <span className="inline-flex items-center gap-1 text-green-600">
+                                  <CheckCircle size={12} /> Đạt
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">Chưa kiểm tra</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-1.5 text-center border-r border-gray-200">
+                              {item.isAbnormal ? (
+                                <span className="text-red-600 font-medium">Có</span>
+                              ) : item.isCompleted ? (
+                                <span className="text-green-600">Không</span>
+                              ) : '—'}
+                            </td>
+                            <td className="px-2 py-1.5 text-gray-600">{item.remarks || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  {(checklistItems.length > 0 || (task.checklistItems?.length ?? 0) > 0) && (
+                    <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+                      <span>Đạt: <strong className="text-green-600">{(checklistItems.length > 0 ? checklistItems : task.checklistItems || []).filter(i => i.isCompleted).length}</strong></span>
+                      <span>Chưa kiểm tra: <strong className="text-gray-600">{(checklistItems.length > 0 ? checklistItems : task.checklistItems || []).filter(i => !i.isCompleted).length}</strong></span>
+                      <span>Bất thường: <strong className="text-red-600">{(checklistItems.length > 0 ? checklistItems : task.checklistItems || []).filter(i => i.isAbnormal).length}</strong></span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -647,6 +767,38 @@ export default function WorkReportPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Rejection Modal ── */}
+      {showRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-800">Trả hoàn công việc</h3>
+              <button onClick={() => setShowRejectModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-4 py-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Lý do trả hoàn <span className="text-red-500">*</span></label>
+              <textarea
+                value={rejectionReason}
+                onChange={e => setRejectionReason(e.target.value)}
+                placeholder="Nhập lý do trả hoàn..."
+                rows={4}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+              />
+            </div>
+            <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+              <button onClick={() => setShowRejectModal(false)} className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-100">
+                Hủy
+              </button>
+              <button onClick={handleReject} disabled={verifying || !rejectionReason.trim()} className="px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50">
+                {verifying ? 'Đang xử lý...' : 'Xác nhận trả hoàn'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
