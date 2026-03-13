@@ -567,8 +567,10 @@ public class WorkItemConfigController : ControllerBase
 
             foreach (var schedule in schedules)
             {
-                var group = await _context.EquipmentGroups.FindAsync(schedule.EquipmentGroupId);
-                if (group == null) continue;
+                if (!schedule.EquipmentAssetId.HasValue) continue;
+
+                var asset = await _context.EquipmentAssets.FindAsync(schedule.EquipmentAssetId);
+                var assetName = asset?.AssetName ?? "Unknown Asset";
 
                 // Calculate next due date if not set
                 var nextDueDate = schedule.NextDueDate ?? CalculateNextDueDateFromInterval(schedule);
@@ -579,7 +581,7 @@ public class WorkItemConfigController : ControllerBase
                 {
                     ScheduleId = schedule.Id,
                     ScheduleName = schedule.ScheduleName,
-                    AssetName = group.GroupName,
+                    AssetName = assetName,
                     NextDueDate = nextDueDate,
                     NextDueRunningHours = schedule.NextDueRunningHours,
                     DaysUntilDue = daysUntilDue,

@@ -198,10 +198,7 @@ export default function WorkPlanningPage() {
   const [calendarDate, setCalendarDate] = useState(new Date());
 
   // === Gantt state ===
-  const [ganttTasks, setGanttTasks] = useState<GanttTask[]>([]);
-  type GanttViewMode = 'day' | 'week' | 'month' | 'quarter';
-  const [ganttViewMode, setGanttViewMode] = useState<GanttViewMode>('month');
-  const [ganttDate, setGanttDate] = useState(new Date());
+  // ganttTasks now derived from filteredTasks via useMemo (ganttTasksFromFiltered)
 
   // === Kanban state === 
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
@@ -286,34 +283,6 @@ export default function WorkPlanningPage() {
     } finally {
       if (showSpinner) setLoading(false);
       else setIsBackgroundRefreshing(false);
-    }
-  }, []);
-
-  // Load gantt data
-  const loadGanttData = useCallback(async () => {
-    try {
-      const previews = await maintenanceScheduleService.getPreview();
-      const gTasks: GanttTask[] = previews.map(p => {
-        const dueDate = p.nextDueDate ? new Date(p.nextDueDate) : addDays(new Date(), 30);
-        const today = new Date(); today.setHours(0,0,0,0);
-        const dueDt = new Date(dueDate); dueDt.setHours(0,0,0,0);
-        const daysUntil = Math.ceil((dueDt.getTime() - today.getTime()) / 86400000);
-        const leadTimeDays = p.daysBeforeDue || 7;
-        const startDate = addDays(dueDate, -leadTimeDays);
-        const isOverdue = daysUntil < 0;
-        let progress = 0;
-        if (isOverdue) progress = 100;
-        else if (daysUntil <= leadTimeDays) progress = Math.min(95, ((leadTimeDays - daysUntil) / leadTimeDays) * 100);
-        let nextDueDate: Date | undefined;
-        if (p.intervalType && p.intervalValue) {
-          const intDays = p.intervalType === 'RUNNING_HOURS' ? Math.ceil((p.intervalValue || 30) / 12) : (p.intervalValue || 30);
-          nextDueDate = addDays(dueDate, intDays);
-        }
-        return { id: p.scheduleId, name: p.scheduleName, groupName: p.assetName, dueDate, startDate, workDurationDays: Math.ceil((p.estimatedDurationHours || 4) / 8), leadTimeDays, priority: p.priority, isOverdue, daysUntilDue: daysUntil, intervalType: p.intervalType, intervalValue: p.intervalValue, progress, nextDueDate, hasNextDue: !!nextDueDate };
-      }).sort((a,b) => a.dueDate.getTime() - b.dueDate.getTime());
-      setGanttTasks(gTasks);
-    } catch (err) {
-      console.error('Error loading gantt data:', err);
     }
   }, []);
 
@@ -509,7 +478,6 @@ export default function WorkPlanningPage() {
         if (successCount === 0) throw new Error('Tất cả đều thất bại');
       }
       await loadSchedules();
-      loadGanttData();
       loadData(false);
       cfgReset();
     } catch (error: any) {
@@ -767,11 +735,10 @@ export default function WorkPlanningPage() {
 
   useEffect(() => {
     loadData(true);
-    loadGanttData();
     loadSchedules();
     const iv = setInterval(() => loadData(false), 15000);
     return () => clearInterval(iv);
-  }, [loadData, loadGanttData, loadSchedules]);
+  }, [loadData, loadSchedules]);
 
   // === Filter tasks ===
   const filteredTasks = useMemo(() => {
@@ -836,6 +803,50 @@ export default function WorkPlanningPage() {
 
     return f;
   }, [tasks, selectedAssetIds, dateFrom, dateTo, crewFilter, taskTypeFilter, statusFilter, searchQuery, assets]);
+
+  // Gantt data — derived from filteredTasks (same source as Bảng/Lịch/Kanban)
+  const ganttTasksFromFiltered = useMemo((): GanttTask[] => {
+    const WORK_HOURS_PER_DAY = 8;
+    return filteredTasks
+      .filter(t => t.nextDueAt)
+      .map(t => {
+        const dueDate = parseISO(t.nextDueAt);
+        const today = new Date(); today.setHours(0,0,0,0);
+        const dueDt = new Date(dueDate); dueDt.setHours(0,0,0,0);
+        const daysUntil = Math.ceil((dueDt.getTime() - today.getTime()) / 86400000);
+        const isRunningHours = !!t.intervalHours && !t.intervalDays;
+
+        const leadTimeDays = isRunningHours ? 1 : 7;
+        const startDate = addDays(dueDate, -leadTimeDays);
+        const isOverdue = t.status === 'OVERDUE' || daysUntil < 0;
+        let progress = 0;
+        if (t.status === 'COMPLETED') progress = 100;
+        else if (t.status === 'IN_PROGRESS') progress = 50;
+        else if (isOverdue) progress = 100;
+        else if (daysUntil <= leadTimeDays) progress = Math.min(95, ((leadTimeDays - daysUntil) / leadTimeDays) * 100);
+
+        const workDurationDays = isRunningHours ? 1
+          : t.estimatedDuration ? Math.max(1, Math.ceil(t.estimatedDuration / WORK_HOURS_PER_DAY))
+          : 1;
+
+        return {
+          id: t.id,
+          name: t.taskDescription || t.taskId,
+          groupName: t.equipmentAssetName || t.equipmentName || '',
+          dueDate,
+          startDate,
+          workDurationDays,
+          leadTimeDays,
+          priority: t.priority,
+          isOverdue,
+          daysUntilDue: daysUntil,
+          intervalType: isRunningHours ? 'RUNNING_HOURS' : 'CALENDAR',
+          intervalValue: t.intervalHours || t.intervalDays,
+          progress,
+        };
+      })
+      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  }, [filteredTasks]);
 
   // === Kanban handlers ===
   const handleTaskUpdate = async (taskId: string, newStatus: string) => {
@@ -1032,13 +1043,13 @@ export default function WorkPlanningPage() {
   // === Gantt helpers ===
   const ganttDays = useMemo(() => {
     const days: Date[] = [];
-    const start = new Date(ganttDate);
-    if (ganttViewMode === 'month' || ganttViewMode === 'quarter') start.setDate(1);
+    const start = new Date();
+    start.setMonth(start.getMonth() - 2);
+    start.setDate(1);
     start.setHours(0,0,0,0);
-    const count = ganttViewMode === 'day' ? 7 : ganttViewMode === 'week' ? 14 : ganttViewMode === 'month' ? 60 : 90;
-    for (let i = 0; i < count; i++) { const d = new Date(start); d.setDate(d.getDate() + i); days.push(d); }
+    for (let i = 0; i < 365; i++) { const d = new Date(start); d.setDate(d.getDate() + i); days.push(d); }
     return days;
-  }, [ganttDate, ganttViewMode]);
+  }, []);
 
   const getGanttWorkPeriod = (task: GanttTask, days: Date[]): { start: number; width: number } | null => {
     const sd = new Date(task.startDate); sd.setHours(0,0,0,0);
@@ -1569,113 +1580,122 @@ export default function WorkPlanningPage() {
 
           {/* ============ TAB: GANTT ============ */}
           {activeTab === 'gantt' && (
-            <div className="p-4 space-y-4">
-              {/* Gantt controls */}
-              <div className="bg-white rounded-lg border border-gray-200 p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    {(['day', 'week', 'month', 'quarter'] as GanttViewMode[]).map(mode => (
-                      <button key={mode} onClick={() => setGanttViewMode(mode)}
-                        className={`px-3 py-1.5 rounded text-xs font-medium ${ganttViewMode === mode ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                        {mode === 'day' ? 'Ngày' : mode === 'week' ? 'Tuần' : mode === 'month' ? 'Tháng' : 'Quý'}
-                      </button>
-                    ))}
+            <div className="flex flex-col h-full overflow-hidden">
+              {/* Gantt chart — fixed height, split scroll */}
+              <div className="flex-1 flex overflow-hidden border-t border-gray-200">
+                {/* LEFT: Fixed table */}
+                <div className="flex-shrink-0 flex flex-col border-r border-gray-300" style={{ width: '680px' }}>
+                  {/* Left header */}
+                  <div className="flex-shrink-0 flex bg-gray-50 border-b border-gray-300" style={{ height: '40px' }}>
+                    <div className="w-[200px] px-3 flex items-center text-xs font-semibold text-gray-700 border-r border-gray-200">Tên công việc</div>
+                    <div className="w-[90px] px-2 flex items-center justify-center text-xs font-semibold text-gray-700 border-r border-gray-200">Ngày bắt đầu</div>
+                    <div className="w-[60px] px-2 flex items-center justify-center text-xs font-semibold text-gray-700 border-r border-gray-200">Thời gian</div>
+                    <div className="w-[160px] px-2 flex items-center text-xs font-semibold text-gray-700 border-r border-gray-200">Thiết bị</div>
+                    <div className="w-[80px] px-2 flex items-center justify-center text-xs font-semibold text-gray-700 border-r border-gray-200">Loại CV</div>
+                    <div className="w-[90px] px-2 flex items-center justify-center text-xs font-semibold text-gray-700">Người TH</div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => { const d = new Date(ganttDate); d.setMonth(d.getMonth() - 1); setGanttDate(d); }} className="p-1.5 hover:bg-gray-100 rounded">
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <span className="text-sm font-medium text-gray-700 min-w-[180px] text-center">
-                      {format(ganttDays[0], 'dd/MM/yyyy')} - {format(ganttDays[ganttDays.length-1], 'dd/MM/yyyy')}
-                    </span>
-                    <button onClick={() => { const d = new Date(ganttDate); d.setMonth(d.getMonth() + 1); setGanttDate(d); }} className="p-1.5 hover:bg-gray-100 rounded">
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => setGanttDate(new Date())} className="px-3 py-1.5 text-xs bg-gray-100 rounded hover:bg-gray-200 font-medium">
-                      Hôm nay
-                    </button>
+                  {/* Left body — scroll Y synced */}
+                  <div className="flex-1 overflow-y-auto overflow-x-hidden" id="gantt-left-body" onScroll={(e) => {
+                    const rightBody = document.getElementById('gantt-right-body');
+                    if (rightBody) rightBody.scrollTop = e.currentTarget.scrollTop;
+                  }}>
+                    {ganttTasksFromFiltered.length === 0 ? (
+                      <div className="text-center py-12 text-gray-400 text-sm">Không có công việc nào</div>
+                    ) : (
+                      ganttTasksFromFiltered.map((task, idx) => {
+                        const srcTask = filteredTasks.find(t => t.id === task.id);
+                        const taskName = srcTask?.taskDescription?.split('\n')[0] || task.name;
+                        const startDateStr = format(task.dueDate, 'yyyy-MM-dd');
+                        const durationStr = task.workDurationDays + ' ngày';
+                        const equipName = task.groupName;
+                        const taskType = srcTask?.taskType === 'AD_HOC' || srcTask?.taskType === 'CORRECTIVE' ? 'Đột xuất' : 'Định kỳ';
+                        const assignee = srcTask?.assignedTo || '';
+                        return (
+                          <div key={task.id} className={`flex border-b border-gray-100 hover:bg-blue-50/40 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`} style={{ height: '36px' }}>
+                            <div className="w-[200px] px-3 flex items-center text-xs text-gray-900 truncate border-r border-gray-100 gap-1.5">
+                              <FileText className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                              <span className="truncate">{taskName}</span>
+                            </div>
+                            <div className="w-[90px] px-2 flex items-center justify-center text-[11px] text-gray-600 border-r border-gray-100">{startDateStr}</div>
+                            <div className="w-[60px] px-2 flex items-center justify-center text-[11px] text-gray-600 border-r border-gray-100">{durationStr}</div>
+                            <div className="w-[160px] px-2 flex items-center text-[11px] text-gray-700 truncate border-r border-gray-100">{equipName}</div>
+                            <div className="w-[80px] px-2 flex items-center justify-center border-r border-gray-100">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${taskType === 'Đột xuất' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>{taskType}</span>
+                            </div>
+                            <div className="w-[90px] px-2 flex items-center justify-center text-[11px] text-gray-600 truncate">{assignee}</div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
-              </div>
 
-              {/* Legend */}
-              <div className="bg-white rounded-lg border border-gray-200 p-3 flex items-center gap-4 flex-wrap">
-                <span className="text-xs font-medium text-gray-600">Độ ưu tiên:</span>
-                {Object.entries(PRIORITY_COLORS).filter(([k]) => k !== 'NORMAL').map(([key, val]) => (
-                  <div key={key} className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded" style={{ backgroundColor: val.bar }}></div>
-                    <span className="text-xs text-gray-600">{PRIORITY_LABELS[key]?.label || key}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Gantt chart */}
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  {/* Timeline header */}
-                  <div className="flex border-b-2 border-gray-300">
-                    <div className="w-72 flex-shrink-0 bg-gray-50 border-r-2 border-gray-300 p-3">
-                      <div className="text-xs font-semibold text-gray-700">Công việc / Nhóm thiết bị</div>
-                    </div>
-                    <div className="flex-1 min-w-[700px] bg-white">
-                      <div className="flex">
-                        {ganttDays.filter((_,i) => ganttViewMode === 'day' ? true : i % 7 === 0).map((day, i) => {
+                {/* RIGHT: Scrollable timeline */}
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {/* Right header + body share horizontal scroll */}
+                  <div className="flex-1 overflow-x-auto overflow-y-hidden" id="gantt-right-wrapper">
+                    <div style={{ width: `${ganttDays.length * 40}px`, minWidth: '100%' }}>
+                      {/* Timeline header */}
+                      <div className="flex bg-gray-50 border-b border-gray-300 sticky top-0 z-10" style={{ height: '40px' }}>
+                        {ganttDays.map((day, i) => {
                           const isToday = isSameDay(day, new Date());
+                          const dow = day.getDay(); // 0=Sun
+                          const shortDay = dow === 0 ? 'CN' : `T${dow + 1}`;
+                          const isWeekend = dow === 0 || dow === 6;
                           return (
-                            <div key={i} className={`flex-1 border-r border-gray-200 px-1 py-2 text-center ${isToday ? 'bg-blue-50' : 'bg-gray-50'}`}>
-                              <div className="text-[10px] font-semibold text-gray-700">{format(day, ganttViewMode === 'day' ? 'EEE' : 'dd/MM', { locale: vi })}</div>
-                              <div className="text-[10px] text-gray-400">{format(day, ganttViewMode === 'day' ? 'dd/MM' : 'EEE', { locale: vi })}</div>
+                            <div key={i} className={`flex flex-col items-center justify-center border-r border-gray-200 ${isToday ? 'bg-blue-50' : isWeekend ? 'bg-gray-100/50' : ''}`} style={{ width: '40px', flexShrink: 0 }}>
+                              <div className="text-[11px] font-semibold text-gray-700 leading-none">{format(day, 'dd')}</div>
+                              <div className={`text-[9px] leading-none mt-0.5 ${isWeekend ? 'text-red-400' : 'text-gray-400'}`}>{shortDay}</div>
                             </div>
                           );
                         })}
                       </div>
+                      {/* Timeline body — scroll Y synced */}
+                      <div className="overflow-y-auto" id="gantt-right-body" style={{ height: 'calc(100% - 40px)' }} onScroll={(e) => {
+                        const leftBody = document.getElementById('gantt-left-body');
+                        if (leftBody) leftBody.scrollTop = e.currentTarget.scrollTop;
+                      }}>
+                        {ganttTasksFromFiltered.length === 0 ? (
+                          <div style={{ height: '200px' }} />
+                        ) : (
+                          ganttTasksFromFiltered.map((task, idx) => {
+                            const dayWidth = 40;
+                            const firstDay = ganttDays[0]; firstDay.setHours(0,0,0,0);
+                            const taskDue = new Date(task.dueDate); taskDue.setHours(0,0,0,0);
+                            const taskStart = new Date(task.startDate); taskStart.setHours(0,0,0,0);
+
+                            const startOffset = Math.max(0, Math.floor((taskStart.getTime() - firstDay.getTime()) / 86400000));
+                            const dueOffset = Math.floor((taskDue.getTime() - firstDay.getTime()) / 86400000);
+                            const barLeft = dueOffset * dayWidth;
+                            const barWidth = Math.max(task.workDurationDays * dayWidth, dayWidth);
+
+                            return (
+                              <div key={task.id} className={`relative border-b border-gray-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`} style={{ height: '36px' }}>
+                                {/* Today line */}
+                                {(() => {
+                                  const td = new Date(); td.setHours(0,0,0,0);
+                                  const todayOffset = Math.floor((td.getTime() - firstDay.getTime()) / 86400000);
+                                  if (todayOffset >= 0 && todayOffset < ganttDays.length) {
+                                    return <div className="absolute top-0 bottom-0 w-0.5 bg-red-400 z-10" style={{ left: `${todayOffset * dayWidth + dayWidth / 2}px` }} />;
+                                  }
+                                  return null;
+                                })()}
+                                {/* Bar */}
+                                {barLeft >= 0 && (
+                                  <div className="absolute top-1/2 -translate-y-1/2 rounded-sm" style={{
+                                    left: `${barLeft}px`,
+                                    width: `${barWidth}px`,
+                                    height: '20px',
+                                    backgroundColor: '#5BC0DE',
+                                  }} />
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
                   </div>
-
-                  {/* Task rows */}
-                  {ganttTasks.length === 0 ? (
-                    <div className="text-center py-12 text-gray-400 text-sm">Không có lịch bảo trì nào</div>
-                  ) : (
-                    ganttTasks.map((task, idx) => {
-                      const wp = getGanttWorkPeriod(task, ganttDays);
-                      const pri = PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.NORMAL;
-                      return (
-                        <div key={task.id} className={`flex border-b border-gray-100 hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                          <div className="w-72 flex-shrink-0 border-r-2 border-gray-200 p-3" style={{ backgroundColor: pri.bg }}>
-                            <div className="text-xs font-semibold text-gray-900 truncate">{task.name}</div>
-                            <div className="text-[10px] text-gray-500 truncate mt-0.5">{task.groupName}</div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium text-white" style={{ backgroundColor: pri.bar }}>
-                                {PRIORITY_LABELS[task.priority]?.label || task.priority}
-                              </span>
-                              {task.isOverdue ? (
-                                <span className="text-[10px] text-red-600 font-medium flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />Quá hạn</span>
-                              ) : (
-                                <span className="text-[10px] text-gray-500">{task.daysUntilDue} ngày còn lại</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex-1 min-w-[700px] relative" style={{ minHeight: '60px' }}>
-                            {/* Today line */}
-                            {(() => {
-                              const td = new Date(); td.setHours(0,0,0,0);
-                              for (let i = 0; i < ganttDays.length; i++) {
-                                const gd = new Date(ganttDays[i]); gd.setHours(0,0,0,0);
-                                if (gd.getTime() === td.getTime()) {
-                                  return <div className="absolute top-0 bottom-0 w-0.5 bg-blue-400 z-10" style={{ left: `${(i / ganttDays.length) * 100}%` }} />;
-                                }
-                              }
-                              return null;
-                            })()}
-                            {/* Work period bar */}
-                            {wp && (
-                              <div className="absolute top-1/2 -translate-y-1/2 rounded h-5" style={{ left: `${wp.start}%`, width: `${wp.width}%`, backgroundColor: pri.bar, opacity: 0.7 }} />
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
                 </div>
               </div>
             </div>
@@ -2418,7 +2438,6 @@ export default function WorkPlanningPage() {
         onClose={() => setIsAddScheduleModalOpen(false)}
         onSuccess={() => {
           loadData(true);
-          loadGanttData();
           loadSchedules();
           setIsAddScheduleModalOpen(false);
         }}
