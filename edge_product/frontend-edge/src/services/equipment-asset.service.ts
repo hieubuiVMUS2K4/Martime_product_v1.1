@@ -55,9 +55,10 @@ export const equipmentAssetService = {
     return response.data;
   },
 
-  async updateRunningHours(id: string, runningHours: number): Promise<void> {
-    await axios.patch(`${API_BASE_URL}/equipment-assets/${id}/running-hours`, runningHours, {
+  async updateRunningHours(id: string, runningHours: number): Promise<{ triggeredTasks: number }> {
+    const response = await axios.patch(`${API_BASE_URL}/equipment-assets/${id}/running-hours`, runningHours, {
       headers: { 'Content-Type': 'application/json' }
     });
+    return response.data;
   }
 };

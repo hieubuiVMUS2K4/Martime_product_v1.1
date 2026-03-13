@@ -168,7 +168,6 @@ namespace MaritimeEdge
             builder.Services.AddScoped<IShipDataService, ShipDataService>();
 
             // Add Background Services
-            builder.Services.AddHostedService<MaritimeEdge.Services.Maintenance.MaintenanceSchedulerService>();
             builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.TelemetrySimulatorService>();
             builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.SignalKDataCollectorService>();
             builder.Services.AddHostedService<MaritimeEdge.Services.Core.DataCleanupService>();

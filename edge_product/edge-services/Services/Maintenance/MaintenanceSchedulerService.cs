@@ -1,6 +1,7 @@
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using MaritimeEdge.Repositories;
+using MaritimeEdge.Constants;
 using Microsoft.EntityFrameworkCore;
 
 namespace MaritimeEdge.Services.Maintenance;
@@ -264,14 +265,14 @@ public class MaintenanceSchedulerService : BackgroundService
     }
 
     /// <summary>
-    /// Auto-correct task statuses based on due dates (PMS Workflow v2.0):
-    /// - SCHEDULED → DUE (when due date is today)
-    /// - SCHEDULED → OVERDUE (when past due date)
+    /// Auto-correct task statuses based on due dates (PMS Workflow v3.0):
+    /// - SCHEDULED → UPCOMING (within DaysBeforeDue window)
+    /// - SCHEDULED/UPCOMING → DUE (when due date is today)
+    /// - SCHEDULED/UPCOMING → OVERDUE (when past due date)  
     /// - DUE → OVERDUE (when past due date)
-    /// - OVERDUE → DUE/SCHEDULED (if due date was extended via deferral)
+    /// - OVERDUE → DUE/UPCOMING/SCHEDULED (if due date was extended via deferral)
     /// Does NOT touch: IN_PROGRESS, PENDING_APPROVAL, RECTIFY, COMPLETED
     /// Does NOT touch: MISSING_* statuses (these are validation warnings, not workflow statuses)
-    /// NOTE: Kanban board filters by next_due_at, not by status. MISSING_* tasks still appear in OVERDUE/DUE columns.
     /// </summary>
     private async Task AutoCorrectTaskStatuses()
     {
@@ -283,8 +284,8 @@ public class MaintenanceSchedulerService : BackgroundService
             var now = DateTime.UtcNow;
             var today = now.Date;
 
-            // Get all tasks that need status correction (exclude MISSING_* - they are validation warnings)
-            var statusesToProcess = new[] { "SCHEDULED", "DUE", "PENDING", "OVERDUE" };
+            // Get all tasks that need status correction
+            var statusesToProcess = new[] { "SCHEDULED", "UPCOMING", "DUE", "PENDING", "OVERDUE" };
             var tasks = await context.MaintenanceTasks
                 .Where(t => !t.IsDeleted && statusesToProcess.Contains(t.Status))
                 .ToListAsync();
@@ -298,16 +299,31 @@ public class MaintenanceSchedulerService : BackgroundService
                 var isDue = dueDate <= today;
                 string? newStatus = null;
 
+                // Check UPCOMING window: within DaysBeforeDue days (default 7)
+                var isUpcoming = false;
+                if (!isDue && !isOverdue && task.ScheduleId.HasValue)
+                {
+                    var schedule = await context.MaintenanceSchedules
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(s => s.Id == task.ScheduleId.Value);
+                    if (schedule != null)
+                    {
+                        var windowDays = schedule.DaysBeforeDue > 0 ? schedule.DaysBeforeDue : 7;
+                        var daysUntilDue = (dueDate - today).TotalDays;
+                        isUpcoming = daysUntilDue <= windowDays;
+                    }
+                }
+
                 if (task.Status == "SCHEDULED")
                 {
-                    if (isOverdue)
-                    {
-                        newStatus = "OVERDUE";
-                    }
-                    else if (isDue)
-                    {
-                        newStatus = "DUE";
-                    }
+                    if (isOverdue) newStatus = "OVERDUE";
+                    else if (isDue) newStatus = "DUE";
+                    else if (isUpcoming) newStatus = "UPCOMING";
+                }
+                else if (task.Status == "UPCOMING")
+                {
+                    if (isOverdue) newStatus = "OVERDUE";
+                    else if (isDue) newStatus = "DUE";
                 }
                 else if (task.Status == "DUE" && isOverdue)
                 {
@@ -320,7 +336,7 @@ public class MaintenanceSchedulerService : BackgroundService
                 else if (task.Status == "OVERDUE" && !isOverdue)
                 {
                     // Due date was extended (e.g., via approved deferral)
-                    newStatus = isDue ? "DUE" : "SCHEDULED";
+                    newStatus = isDue ? "DUE" : (isUpcoming ? "UPCOMING" : "SCHEDULED");
                 }
 
                 if (newStatus != null && newStatus != task.Status)
@@ -336,7 +352,7 @@ public class MaintenanceSchedulerService : BackgroundService
             if (correctedCount > 0)
             {
                 await context.SaveChangesAsync();
-                _logger.LogInformation("Auto-corrected {Count} task statuses based on due dates", correctedCount);
+                _logger.LogInformation("Auto-corrected {Count} task statuses", correctedCount);
             }
             else
             {
@@ -813,9 +829,9 @@ public class MaintenanceSchedulerService : BackgroundService
             var baseHours = schedule.LastExecutedRunningHours ?? asset.CurrentRunningHours ?? 0;
             schedule.NextDueRunningHours = baseHours + schedule.IntervalHours.Value;
             
-            // Estimate calendar date based on average 10 hours per day
+            // Estimate calendar date
             var hoursRemaining = schedule.NextDueRunningHours.Value - (asset.CurrentRunningHours ?? 0);
-            var daysRemaining = (int)(hoursRemaining / 10.0);
+            var daysRemaining = (int)Math.Max(hoursRemaining / MaintenanceConstants.AVERAGE_HOURS_PER_DAY, 1);
             schedule.NextDueDate = DateTime.UtcNow.AddDays(daysRemaining);
         }
         else if (schedule.IntervalType == "HYBRID")
@@ -838,7 +854,7 @@ public class MaintenanceSchedulerService : BackgroundService
                 schedule.NextDueRunningHours = baseHours + schedule.IntervalHours.Value;
                 
                 var hoursRemaining = schedule.NextDueRunningHours.Value - (asset.CurrentRunningHours ?? 0);
-                var daysRemaining = (int)(hoursRemaining / 10.0);
+                var daysRemaining = (int)Math.Max(hoursRemaining / MaintenanceConstants.AVERAGE_HOURS_PER_DAY, 1);
                 runningHoursDue = DateTime.UtcNow.AddDays(daysRemaining);
             }
 

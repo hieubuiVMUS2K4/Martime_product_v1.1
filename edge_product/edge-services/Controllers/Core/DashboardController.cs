@@ -45,7 +45,7 @@ public class DashboardController : ControllerBase
 
             var pendingMaintenance = await _context.MaintenanceTasks
                 .AsNoTracking()
-                .Where(m => !m.IsDeleted && (m.Status == MTaskStatus.PENDING || m.Status == MTaskStatus.OVERDUE))
+                .Where(m => !m.IsDeleted && (m.Status == MTaskStatus.DUE || m.Status == MTaskStatus.UPCOMING || m.Status == MTaskStatus.OVERDUE))
                 .CountAsync();
 
             // 4. Calculate fuel level (mock for now - TODO: from tank_levels)

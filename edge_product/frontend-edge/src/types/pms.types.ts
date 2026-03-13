@@ -57,6 +57,7 @@ export interface MaintenanceSchedule {
   taskTypeId: number;
   taskTypeName?: string;
   scheduleName: string;
+  maintenanceCategory?: 'PERIODIC' | 'AD_HOC';
   intervalType: 'CALENDAR' | 'RUNNING_HOURS' | 'HYBRID';
   intervalHours?: number;
   intervalDays?: number;
@@ -91,6 +92,7 @@ export interface CreateMaintenanceScheduleDto {
   equipmentAssetId?: string;
   taskTypeId: number;
   scheduleName: string;
+  maintenanceCategory?: 'PERIODIC' | 'AD_HOC';
   intervalType: 'CALENDAR' | 'RUNNING_HOURS' | 'HYBRID';
   intervalHours?: number;
   intervalDays?: number;

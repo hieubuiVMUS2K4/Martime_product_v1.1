@@ -3846,6 +3846,13 @@ public class MaintenanceSchedule
     public string ScheduleName { get; set; } = string.Empty;
     
     /// <summary>
+    /// Maintenance category: PERIODIC (recurring, triggered by counter) or AD_HOC (one-time, immediate)
+    /// </summary>
+    [Required]
+    [MaxLength(20)]
+    public string MaintenanceCategory { get; set; } = "PERIODIC";
+    
+    /// <summary>
     /// Interval type: RUNNING_HOURS, CALENDAR, HYBRID
     /// </summary>
     [Required]

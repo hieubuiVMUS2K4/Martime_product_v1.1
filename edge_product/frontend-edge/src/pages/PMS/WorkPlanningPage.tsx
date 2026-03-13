@@ -137,6 +137,7 @@ const PRIORITY_COLORS: Record<string, { bg: string; bar: string; text: string }>
 
 const STATUS_LABELS: Record<string, { label: string; bg: string; text: string }> = {
   SCHEDULED: { label: 'Đã lên lịch', bg: 'bg-slate-100', text: 'text-slate-700' },
+  UPCOMING: { label: 'Sắp đến hạn', bg: 'bg-yellow-100', text: 'text-yellow-700' },
   DUE: { label: 'Đến hạn', bg: 'bg-blue-100', text: 'text-blue-700' },
   OVERDUE: { label: 'Quá hạn', bg: 'bg-red-100', text: 'text-red-700' },
   IN_PROGRESS: { label: 'Đang thực hiện', bg: 'bg-amber-100', text: 'text-amber-700' },
@@ -206,7 +207,7 @@ export default function WorkPlanningPage() {
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
     const saved = localStorage.getItem('kanban_visible_columns');
     if (saved) return new Set(JSON.parse(saved));
-    return new Set(['scheduled', 'due', 'overdue', 'in-progress', 'pending-approval', 'rectify', 'completed', 'deferrals']);
+    return new Set(['scheduled', 'upcoming', 'due', 'overdue', 'in-progress', 'pending-approval', 'rectify', 'completed', 'deferrals']);
   });
 
   // === Modals ===
@@ -250,7 +251,7 @@ export default function WorkPlanningPage() {
   const [cfgLinkedMaterialIds, setCfgLinkedMaterialIds] = useState<Set<string>>(new Set());
   const cfgDefaultForm: CreateMaintenanceScheduleDto = {
     scheduleCode: '', equipmentGroupId: '', equipmentAssetId: undefined, taskTypeId: 1,
-    scheduleName: '', intervalType: 'RUNNING_HOURS', intervalDays: undefined, intervalHours: undefined,
+    scheduleName: '', maintenanceCategory: 'PERIODIC', intervalType: 'RUNNING_HOURS', intervalDays: undefined, intervalHours: undefined,
     daysBeforeDue: 7, priority: 'MEDIUM', estimatedDurationHours: undefined, autoGenerate: true,
     instructions: '', requiredSpareParts: [], checklistItemTemplates: []
   };
@@ -407,8 +408,9 @@ export default function WorkPlanningPage() {
       equipmentAssetId: schedule.equipmentAssetId,
       taskTypeId: schedule.taskTypeId || 1,
       scheduleName: schedule.scheduleName,
-      intervalType: 'RUNNING_HOURS',
-      intervalDays: undefined,
+      maintenanceCategory: schedule.maintenanceCategory || 'PERIODIC',
+      intervalType: schedule.intervalType || 'RUNNING_HOURS',
+      intervalDays: schedule.intervalDays,
       intervalHours: schedule.intervalHours,
       daysBeforeDue: schedule.daysBeforeDue || 7,
       priority: schedule.priority || 'MEDIUM',
@@ -428,11 +430,21 @@ export default function WorkPlanningPage() {
   const cfgSubmit = async () => {
     if (!cfgForm.scheduleCode || !cfgForm.scheduleName) { toast.error('Vui lòng điền mã và tên đầu mục bảo trì'); return; }
     if (cfgTreeSelectedIds.size === 0) { toast.error('Vui lòng chọn thiết bị từ cây bên trái'); return; }
-    if (!cfgForm.intervalHours) { toast.error('Vui lòng chỉ định mốc giờ chạy'); return; }
+    if (cfgForm.maintenanceCategory !== 'AD_HOC') {
+      if (cfgForm.intervalType === 'RUNNING_HOURS' && !cfgForm.intervalHours) { toast.error('Vui lòng chỉ định mốc giờ chạy'); return; }
+      if (cfgForm.intervalType === 'CALENDAR' && !cfgForm.intervalDays) { toast.error('Vui lòng chỉ định chu kỳ (ngày)'); return; }
+    }
 
     const submitData = { ...cfgForm };
-    submitData.intervalType = 'RUNNING_HOURS';
-    submitData.intervalDays = undefined;
+    if (submitData.maintenanceCategory === 'AD_HOC') {
+      submitData.intervalType = 'CALENDAR';
+      submitData.intervalDays = 0;
+      submitData.intervalHours = undefined;
+    } else if (submitData.intervalType === 'CALENDAR') {
+      submitData.intervalHours = undefined;
+    } else {
+      submitData.intervalDays = undefined;
+    }
     submitData.autoGenerate = true;
     // Map tree selection → equipmentAssetId or equipmentGroupId
     // Always per-asset: create one work item per selected equipment
@@ -727,10 +739,16 @@ export default function WorkPlanningPage() {
     if (newHours === undefined) return;
     setCounterSaving(prev => new Set(prev).add(assetId));
     try {
-      await equipmentAssetService.updateRunningHours(assetId, newHours);
+      const res = await equipmentAssetService.updateRunningHours(assetId, newHours);
       setAssets(prev => prev.map(a => a.id === assetId ? { ...a, currentRunningHours: newHours, lastRunningHoursUpdate: new Date().toISOString() } : a));
       setCounterEditing(prev => { const n = { ...prev }; delete n[assetId]; return n; });
-      toast.success('Đã cập nhật giờ chạy');
+      const triggered = res?.triggeredTasks || 0;
+      if (triggered > 0) {
+        toast.success(`Đã cập nhật giờ chạy — ${triggered} công việc chuyển sang ĐẾN HẠN`);
+        loadData(false); // Refresh task list to show newly DUE tasks
+      } else {
+        toast.success('Đã cập nhật giờ chạy');
+      }
     } catch (error) {
       console.error('Error updating running hours:', error);
       toast.error('Không thể cập nhật giờ chạy');
@@ -984,10 +1002,14 @@ export default function WorkPlanningPage() {
     const map = new Map<string, MaintenanceTask[]>();
     filteredTasks.forEach(task => {
       if (task.nextDueAt) {
-        const dateKey = format(parseISO(task.nextDueAt), 'yyyy-MM-dd');
-        const list = map.get(dateKey) || [];
-        list.push(task);
-        map.set(dateKey, list);
+        const dueDate = parseISO(task.nextDueAt);
+        const durationDays = task.estimatedDuration || 1; // estimatedDuration is in days
+        for (let d = 0; d < durationDays; d++) {
+          const dateKey = format(addDays(dueDate, d), 'yyyy-MM-dd');
+          const list = map.get(dateKey) || [];
+          list.push(task);
+          map.set(dateKey, list);
+        }
       }
     });
     return map;
@@ -1490,16 +1512,22 @@ export default function WorkPlanningPage() {
                         </div>
                         <div className="space-y-0.5">
                           {dayTasks.slice(0, 3).map(task => {
-                            const colors = PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.NORMAL;
+                            // Use status-based color for UPCOMING/OVERDUE, priority-based for others
+                            const statusOverride: Record<string, { bg: string; text: string }> = {
+                              UPCOMING: { bg: '#FEF3C7', text: '#92400E' },
+                              OVERDUE: { bg: '#FEE2E2', text: '#991B1B' },
+                            };
+                            const override = statusOverride[task.status];
+                            const colors = override || PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.NORMAL;
                             return (
                               <button
                                 key={task.id}
                                 onClick={() => navigate(`/pms/work-report/${task.id}`)}
                                 className="w-full text-left px-1.5 py-0.5 rounded text-[10px] truncate hover:opacity-80 transition-opacity"
                                 style={{ backgroundColor: colors.bg, color: colors.text }}
-                                title={`${task.taskId} - ${task.taskDescription}`}
+                                title={`${task.taskId} - ${task.taskDescription}${task.status === 'UPCOMING' ? ' ⚠️ Sắp đến hạn' : ''}`}
                               >
-                                {task.taskId}
+                                {task.status === 'UPCOMING' ? '⚠️ ' : ''}{task.taskId}
                               </button>
                             );
                           })}
@@ -1819,6 +1847,7 @@ export default function WorkPlanningPage() {
                                 <tr>
                                   <th className="px-2 py-1.5 text-left w-28">Mã</th>
                                   <th className="px-2 py-1.5 text-left">Tên</th>
+                                  <th className="px-2 py-1.5 text-center w-16">Loại</th>
                                   <th className="px-2 py-1.5 text-center w-16">Ưu tiên</th>
                                   <th className="px-2 py-1.5 text-center w-14">Giờ</th>
                                   <th className="px-2 py-1.5 w-14"></th>
@@ -1829,6 +1858,9 @@ export default function WorkPlanningPage() {
                                   <tr key={sch.id} className={`border-b hover:bg-blue-50 cursor-pointer ${cfgEditingId === sch.id ? 'bg-blue-50' : ''}`} onClick={() => { cfgLoadForEdit(sch); setCfgShowHistory(false); }}>
                                     <td className="px-2 py-1.5 font-medium text-gray-900">{sch.scheduleCode}</td>
                                     <td className="px-2 py-1.5 text-gray-700 truncate max-w-[200px]">{sch.scheduleName}</td>
+                                    <td className="px-2 py-1.5 text-center">
+                                      <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${sch.maintenanceCategory === 'AD_HOC' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>{sch.maintenanceCategory === 'AD_HOC' ? 'Đột xuất' : 'Định kỳ'}</span>
+                                    </td>
                                     <td className="px-2 py-1.5 text-center">
                                       <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${sch.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' : sch.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' : sch.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'}`}>{sch.priority}</span>
                                     </td>
@@ -1876,6 +1908,19 @@ export default function WorkPlanningPage() {
                             <option value="MEDIUM">Medium — Trung bình</option>
                             <option value="LOW">Low — Thấp</option>
                           </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Loại bảo trì</label>
+                        <div className="flex gap-4">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="maintenanceCategory" value="PERIODIC" checked={cfgForm.maintenanceCategory === 'PERIODIC'} onChange={() => setCfgForm(f => ({ ...f, maintenanceCategory: 'PERIODIC' }))} className="w-3.5 h-3.5 text-blue-600" />
+                            <span className="text-xs text-gray-700">Định kỳ <span className="text-[10px] text-gray-400">(theo giờ chạy/lịch)</span></span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="maintenanceCategory" value="AD_HOC" checked={cfgForm.maintenanceCategory === 'AD_HOC'} onChange={() => setCfgForm(f => ({ ...f, maintenanceCategory: 'AD_HOC' }))} className="w-3.5 h-3.5 text-orange-600" />
+                            <span className="text-xs text-gray-700">Đột xuất <span className="text-[10px] text-gray-400">(thực hiện ngay)</span></span>
+                          </label>
                         </div>
                       </div>
                       <div>
@@ -1954,34 +1999,55 @@ export default function WorkPlanningPage() {
                     )}
 
                     {/* ── Cấu hình thời gian ── */}
+                    {cfgForm.maintenanceCategory !== 'AD_HOC' && (<>
                     <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
                       <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Clock size={14} /> Cấu hình thời gian</span>
                     </div>
                     <div className="px-3 py-3 space-y-2.5 text-sm">
+                      {/* Loại chu kỳ */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Mốc giờ chạy (Running Hours) <span className="text-red-500">*</span></label>
-                        <div className="flex items-center gap-1.5">
-                          <input type="number" value={cfgForm.intervalHours ?? ''} onChange={e => setCfgForm(f => ({ ...f, intervalHours: parseInt(e.target.value) || undefined }))} min={1} placeholder="500" className="flex-1 border border-gray-300 px-2.5 py-1.5 text-sm" />
-                          <span className="text-xs text-gray-500">giờ</span>
-                        </div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Loại chu kỳ <span className="text-red-500">*</span></label>
+                        <select value={cfgForm.intervalType} onChange={e => setCfgForm(f => ({ ...f, intervalType: e.target.value, ...(e.target.value === 'CALENDAR' ? { intervalHours: undefined, daysBeforeDue: 7 } : { intervalDays: undefined, daysBeforeDue: 70 }) }))} className="w-full border border-gray-300 px-2.5 py-1.5 text-sm bg-white">
+                          <option value="RUNNING_HOURS">Theo giờ chạy (Running Hours)</option>
+                          <option value="CALENDAR">Theo lịch (Calendar)</option>
+                        </select>
                       </div>
+                      {/* Dynamic: Running Hours hoặc Calendar Days */}
+                      {cfgForm.intervalType === 'RUNNING_HOURS' ? (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Mốc giờ chạy (Running Hours) <span className="text-red-500">*</span></label>
+                          <div className="flex items-center gap-1.5">
+                            <input type="number" value={cfgForm.intervalHours ?? ''} onChange={e => setCfgForm(f => ({ ...f, intervalHours: parseInt(e.target.value) || undefined }))} min={1} placeholder="500" className="flex-1 border border-gray-300 px-2.5 py-1.5 text-sm" />
+                            <span className="text-xs text-gray-500">giờ</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Chu kỳ <span className="text-red-500">*</span></label>
+                          <div className="flex items-center gap-1.5">
+                            <input type="number" value={cfgForm.intervalDays ?? ''} onChange={e => setCfgForm(f => ({ ...f, intervalDays: parseInt(e.target.value) || undefined }))} min={1} placeholder="30" className="flex-1 border border-gray-300 px-2.5 py-1.5 text-sm" />
+                            <span className="text-xs text-gray-500">ngày</span>
+                          </div>
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-2.5">
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">Cảnh báo trước</label>
                           <div className="flex items-center gap-1.5">
-                            <input type="number" value={cfgForm.daysBeforeDue ?? ''} onChange={e => setCfgForm(f => ({ ...f, daysBeforeDue: parseInt(e.target.value) || 7 }))} min={1} className="flex-1 border border-gray-300 px-2.5 py-1.5 text-sm" />
-                            <span className="text-xs text-gray-500">ngày</span>
+                            <input type="number" value={cfgForm.daysBeforeDue ?? ''} onChange={e => setCfgForm(f => ({ ...f, daysBeforeDue: parseInt(e.target.value) || (f.intervalType === 'RUNNING_HOURS' ? 70 : 7) }))} min={1} placeholder={cfgForm.intervalType === 'RUNNING_HOURS' ? '70' : '7'} className="flex-1 border border-gray-300 px-2.5 py-1.5 text-sm" />
+                            <span className="text-xs text-gray-500">{cfgForm.intervalType === 'RUNNING_HOURS' ? 'giờ' : 'ngày'}</span>
                           </div>
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">TG thực hiện ước tính</label>
                           <div className="flex items-center gap-1.5">
-                            <input type="number" value={cfgForm.estimatedDurationHours ?? ''} onChange={e => setCfgForm(f => ({ ...f, estimatedDurationHours: parseFloat(e.target.value) || undefined }))} min={0.5} step={0.5} placeholder="3" className="flex-1 border border-gray-300 px-2.5 py-1.5 text-sm" />
-                            <span className="text-xs text-gray-500">giờ</span>
+                            <input type="number" value={cfgForm.estimatedDurationHours ?? ''} onChange={e => setCfgForm(f => ({ ...f, estimatedDurationHours: parseFloat(e.target.value) || undefined }))} min={1} step={1} placeholder="3" className="flex-1 border border-gray-300 px-2.5 py-1.5 text-sm" />
+                            <span className="text-xs text-gray-500">ngày</span>
                           </div>
                         </div>
                       </div>
                     </div>
+                    </>)}
                   </div>
 
                   {/* ════════ RIGHT COLUMN ════════ */}

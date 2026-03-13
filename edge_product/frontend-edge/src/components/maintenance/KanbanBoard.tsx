@@ -34,7 +34,7 @@ interface KanbanBoardProps {
 }
 
 // PMS Workflow v2.0 - Column order follows task lifecycle
-export type ColumnId = 'scheduled' | 'due' | 'overdue' | 'in-progress' | 'pending-approval' | 'rectify' | 'completed' | string
+export type ColumnId = 'scheduled' | 'upcoming' | 'due' | 'overdue' | 'in-progress' | 'pending-approval' | 'rectify' | 'completed' | string
 
 interface Column {
   id: string
@@ -67,6 +67,13 @@ const columns: Column[] = [
     color: 'from-slate-500 to-slate-600',
     gradient: 'bg-gradient-to-br from-slate-500 to-slate-600',
     icon: <Calendar className="w-4 h-4" />
+  },
+  {
+    id: 'upcoming',
+    title: 'Sắp đến hạn',
+    color: 'from-yellow-500 to-yellow-600',
+    gradient: 'bg-gradient-to-br from-yellow-500 to-amber-500',
+    icon: <Clock className="w-4 h-4" />
   },
   {
     id: 'due',
@@ -499,6 +506,7 @@ export function KanbanBoard({
     switch (task.status) {
       // New PMS Workflow statuses
       case 'SCHEDULED': return 'scheduled'
+      case 'UPCOMING': return 'upcoming'
       case 'DUE': return 'due'
       case 'OVERDUE': return 'overdue'
       case 'IN_PROGRESS': return 'in-progress'
@@ -646,6 +654,7 @@ export function KanbanBoard({
     // Map column to DB status - PMS Workflow v2.0
     const statusMap: Record<string, string> = {
       'scheduled': 'SCHEDULED',
+      'upcoming': 'UPCOMING',
       'due': 'DUE',
       'overdue': 'OVERDUE',
       'deferrals': 'DEFERRALS', // Virtual column - not a real status
@@ -716,9 +725,14 @@ export function KanbanBoard({
       return
     }
     
-    // Rule 3: Cannot manually move TO SCHEDULED (system auto-sets on creation)
+    // Rule 3: Cannot manually move TO SCHEDULED or UPCOMING (system auto-sets)
     if (newStatus === 'SCHEDULED' && currentStatus !== 'DUE') {
       toast.error('⚠️ Không thể kéo sang SCHEDULED!')
+      return
+    }
+
+    if (newStatus === 'UPCOMING') {
+      toast.error('⚠️ Không thể kéo sang Sắp đến hạn! Hệ thống tự động chuyển khi vào vùng đệm.')
       return
     }
     

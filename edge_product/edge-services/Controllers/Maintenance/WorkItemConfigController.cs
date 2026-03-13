@@ -1,3 +1,4 @@
+using MaritimeEdge.Constants;
 using MaritimeEdge.Data;
 using MaritimeEdge.DTOs;
 using MaritimeEdge.Models;
@@ -431,17 +432,18 @@ public class WorkItemConfigController : ControllerBase
             if (await _scheduleRepository.ScheduleCodeExistsAsync(dto.ScheduleCode))
                 return BadRequest(new { error = $"Schedule code '{dto.ScheduleCode}' already exists" });
 
-            // Validate interval
-            if (dto.IntervalType == "RUNNING_HOURS" && !dto.IntervalHours.HasValue)
+            // Validate interval (skip for AD_HOC — one-time tasks don't need intervals)
+            bool isAdHoc = dto.MaintenanceCategory == "AD_HOC";
+            if (!isAdHoc && dto.IntervalType == "RUNNING_HOURS" && !dto.IntervalHours.HasValue)
                 return BadRequest(new { error = "IntervalHours is required for RUNNING_HOURS interval type" });
             
-            if (dto.IntervalType == "CALENDAR" && !dto.IntervalDays.HasValue)
+            if (!isAdHoc && dto.IntervalType == "CALENDAR" && !dto.IntervalDays.HasValue)
                 return BadRequest(new { error = "IntervalDays is required for CALENDAR interval type" });
 
             // ISM Code Compliance: Validate and auto-correct lead time based on priority
-            // For RUNNING_HOURS: Convert hours to estimated days (÷ 10 hrs/day) for lead time validation
+            // For RUNNING_HOURS: Convert hours to estimated days for lead time validation
             var effectiveIntervalDays = dto.IntervalType == "RUNNING_HOURS" && dto.IntervalHours.HasValue
-                ? (int)Math.Ceiling(dto.IntervalHours.Value / 10.0)
+                ? (int)Math.Ceiling(dto.IntervalHours.Value / MaintenanceConstants.AVERAGE_HOURS_PER_DAY)
                 : dto.IntervalDays;
 
             var validatedDaysBeforeDue = ValidateAndCorrectLeadTime(
@@ -456,6 +458,7 @@ public class WorkItemConfigController : ControllerBase
                 EquipmentGroupId = dto.EquipmentGroupId,
                 EquipmentAssetId = dto.EquipmentAssetId,
                 ScheduleName = dto.ScheduleName,
+                MaintenanceCategory = dto.MaintenanceCategory ?? "PERIODIC",
                 IntervalType = dto.IntervalType,
                 IntervalHours = dto.IntervalHours,
                 IntervalDays = dto.IntervalDays,
@@ -650,16 +653,17 @@ public class WorkItemConfigController : ControllerBase
                 await _scheduleRepository.ScheduleCodeExistsAsync(dto.ScheduleCode))
                 return BadRequest(new { error = $"Schedule code '{dto.ScheduleCode}' already exists" });
 
-            // Validate interval
-            if (dto.IntervalType == "RUNNING_HOURS" && !dto.IntervalHours.HasValue)
+            // Validate interval (skip for AD_HOC)
+            bool isAdHocUpdate = dto.MaintenanceCategory == "AD_HOC";
+            if (!isAdHocUpdate && dto.IntervalType == "RUNNING_HOURS" && !dto.IntervalHours.HasValue)
                 return BadRequest(new { error = "IntervalHours is required for RUNNING_HOURS interval type" });
             
-            if (dto.IntervalType == "CALENDAR" && !dto.IntervalDays.HasValue)
+            if (!isAdHocUpdate && dto.IntervalType == "CALENDAR" && !dto.IntervalDays.HasValue)
                 return BadRequest(new { error = "IntervalDays is required for CALENDAR interval type" });
 
             // ISM Code Compliance: Validate and auto-correct lead time based on priority
             var effectiveIntervalDays = dto.IntervalType == "RUNNING_HOURS" && dto.IntervalHours.HasValue
-                ? (int)Math.Ceiling(dto.IntervalHours.Value / 10.0)
+                ? (int)Math.Ceiling(dto.IntervalHours.Value / MaintenanceConstants.AVERAGE_HOURS_PER_DAY)
                 : dto.IntervalDays;
 
             var validatedDaysBeforeDue = ValidateAndCorrectLeadTime(
@@ -673,6 +677,7 @@ public class WorkItemConfigController : ControllerBase
             schedule.EquipmentGroupId = isPerAsset ? null : dto.EquipmentGroupId;
             schedule.EquipmentAssetId = isPerAsset ? dto.EquipmentAssetId : null;
             schedule.ScheduleName = dto.ScheduleName;
+            schedule.MaintenanceCategory = dto.MaintenanceCategory ?? "PERIODIC";
             schedule.IntervalType = dto.IntervalType;
             schedule.DaysBeforeDue = validatedDaysBeforeDue;
             schedule.Priority = dto.Priority;
@@ -830,6 +835,7 @@ public class WorkItemConfigController : ControllerBase
             GroupName = group?.GroupName,
             AssetCount = schedule.EquipmentAssetId.HasValue ? 1 : groupMembersCount,
             ScheduleName = schedule.ScheduleName,
+            MaintenanceCategory = schedule.MaintenanceCategory,
             IntervalType = schedule.IntervalType,
             IntervalHours = schedule.IntervalHours,
             IntervalDays = schedule.IntervalDays,
@@ -1083,6 +1089,7 @@ public class WorkItemConfigController : ControllerBase
                 task.IntervalDays = schedule.IntervalDays;
                 task.TaskType = schedule.IntervalType ?? "RUNNING_HOURS";
                 task.RequiredSpareParts = sparePartsJson;
+                task.EstimatedDuration = schedule.EstimatedDurationHours.HasValue ? (int)schedule.EstimatedDurationHours.Value : task.EstimatedDuration;
                 task.EquipmentGroupId = isPerAsset ? null : schedule.EquipmentGroupId;
                 task.EquipmentGroupName = isPerAsset ? null : group?.GroupName;
                 task.EquipmentAssetId = isPerAsset ? firstAsset.Id : (Guid?)null;
@@ -1236,7 +1243,8 @@ public class WorkItemConfigController : ControllerBase
                 NextDueAt = schedule.NextDueDate!.Value,
                 RunningHoursAtLastDone = schedule.LastExecutedRunningHours,
                 Priority = schedule.Priority ?? "MEDIUM",
-                Status = "SCHEDULED",
+                Status = schedule.MaintenanceCategory == "AD_HOC" ? "DUE" : "SCHEDULED",
+                EstimatedDuration = schedule.EstimatedDurationHours.HasValue ? (int)schedule.EstimatedDurationHours.Value : (int?)null,
                 RequiredSpareParts = sparePartsJson,
                 Notes = $"Auto-generated from schedule: {schedule.ScheduleCode}",
                 CreatedAt = DateTime.UtcNow,
@@ -1348,6 +1356,13 @@ public class WorkItemConfigController : ControllerBase
 
     private void CalculateNextDueDate(MaintenanceSchedule schedule, EquipmentAsset asset)
     {
+        // AD_HOC: due immediately
+        if (schedule.MaintenanceCategory == "AD_HOC")
+        {
+            schedule.NextDueDate = DateTime.UtcNow;
+            return;
+        }
+        
         if (schedule.IntervalType == "CALENDAR" && schedule.IntervalDays.HasValue)
         {
             var baseDate = schedule.LastExecutedAt ?? DateTime.UtcNow;
@@ -1358,9 +1373,9 @@ public class WorkItemConfigController : ControllerBase
             var baseHours = schedule.LastExecutedRunningHours ?? asset.CurrentRunningHours ?? 0;
             schedule.NextDueRunningHours = baseHours + schedule.IntervalHours.Value;
             
-            // Estimate calendar date based on average 10 hours per day
+            // Estimate calendar date based on average hours per day
             var hoursRemaining = schedule.NextDueRunningHours.Value - (asset.CurrentRunningHours ?? 0);
-            var daysRemaining = (int)(hoursRemaining / 10.0);
+            var daysRemaining = (int)(hoursRemaining / MaintenanceConstants.AVERAGE_HOURS_PER_DAY);
             schedule.NextDueDate = DateTime.UtcNow.AddDays(daysRemaining);
         }
         else if (schedule.IntervalType == "HYBRID")
@@ -1381,7 +1396,7 @@ public class WorkItemConfigController : ControllerBase
                 schedule.NextDueRunningHours = baseHours + schedule.IntervalHours.Value;
                 
                 var hoursRemaining = schedule.NextDueRunningHours.Value - (asset.CurrentRunningHours ?? 0);
-                var daysRemaining = (int)(hoursRemaining / 10.0);
+                var daysRemaining = (int)(hoursRemaining / MaintenanceConstants.AVERAGE_HOURS_PER_DAY);
                 runningHoursDue = DateTime.UtcNow.AddDays(daysRemaining);
             }
 

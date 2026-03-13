@@ -27,6 +27,9 @@ public class MaintenanceScheduleDto
     [MaxLength(200)]
     public string ScheduleName { get; set; } = string.Empty;
     
+    [MaxLength(20)]
+    public string MaintenanceCategory { get; set; } = "PERIODIC";
+    
     [Required]
     [MaxLength(20)]
     public string IntervalType { get; set; } = "CALENDAR";
@@ -83,6 +86,9 @@ public class CreateMaintenanceScheduleDto
     [Required]
     [MaxLength(200)]
     public string ScheduleName { get; set; } = string.Empty;
+    
+    [MaxLength(20)]
+    public string MaintenanceCategory { get; set; } = "PERIODIC";
     
     [Required]
     [MaxLength(20)]

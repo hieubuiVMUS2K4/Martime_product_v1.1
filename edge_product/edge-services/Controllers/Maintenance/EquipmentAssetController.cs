@@ -1,3 +1,4 @@
+using MaritimeEdge.Constants;
 using MaritimeEdge.DTOs;
 using MaritimeEdge.Models;
 using MaritimeEdge.Repositories;
@@ -294,13 +295,92 @@ public class EquipmentAssetController : ControllerBase
         {
             await _assetRepository.UpdateRunningHoursAsync(id, runningHours);
             _logger.LogInformation("Updated running hours for asset {Id}: {Hours}", id, runningHours);
-            return NoContent();
+            
+            // Check PERIODIC schedules and promote SCHEDULED → DUE if threshold reached
+            var triggeredCount = await CheckAndPromoteTasksByRunningHours(id, runningHours);
+            if (triggeredCount > 0)
+                _logger.LogInformation("Promoted {Count} tasks to DUE for asset {Id} at {Hours}h", triggeredCount, id, runningHours);
+            
+            return Ok(new { triggeredTasks = triggeredCount });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating running hours for asset {Id}", id);
             return StatusCode(500, new { error = "Internal server error" });
         }
+    }
+
+    /// <summary>
+    /// Check all PERIODIC/RUNNING_HOURS schedules for this asset.
+    /// This is the SOLE mechanism for promoting RUNNING_HOURS tasks.
+    /// Promote tasks based on running hours:
+    ///   SCHEDULED → UPCOMING (within window)
+    ///   SCHEDULED/UPCOMING → DUE (threshold reached)
+    ///   DUE → OVERDUE (threshold exceeded by > buffer)
+    /// </summary>
+    private async Task<int> CheckAndPromoteTasksByRunningHours(Guid assetId, double currentRunningHours)
+    {
+        // Find all active PERIODIC schedules for this asset with RUNNING_HOURS interval
+        var schedules = await _context.MaintenanceSchedules
+            .Where(s => s.IsActive &&
+                        s.EquipmentAssetId == assetId &&
+                        s.MaintenanceCategory == "PERIODIC" &&
+                        s.IntervalType == "RUNNING_HOURS" &&
+                        s.NextDueRunningHours.HasValue)
+            .ToListAsync();
+
+        if (!schedules.Any()) return 0;
+
+        int promoted = 0;
+        foreach (var schedule in schedules)
+        {
+            var nextDueRH = schedule.NextDueRunningHours!.Value;
+
+            // Find active task for this schedule (SCHEDULED, UPCOMING, or DUE status)
+            var task = await _context.MaintenanceTasks
+                .FirstOrDefaultAsync(t => !t.IsDeleted &&
+                                         t.ScheduleId == schedule.Id &&
+                                         (t.Status == "SCHEDULED" || t.Status == "UPCOMING" || t.Status == "DUE"));
+
+            if (task == null) continue;
+
+            var hoursUntilDue = nextDueRH - currentRunningHours;
+
+            if (currentRunningHours >= nextDueRH)
+            {
+                // Running hours reached or exceeded threshold
+                var newStatus = hoursUntilDue < -(schedule.IntervalHours ?? 500) * 0.1 ? "OVERDUE" : "DUE";
+                if (task.Status != newStatus)
+                {
+                    var oldStatus = task.Status;
+                    task.Status = newStatus;
+                    task.UpdatedAt = DateTime.UtcNow;
+                    promoted++;
+                    _logger.LogInformation("Task {TaskId} promoted {Old} → {New}: currentRH={Current} vs nextDueRH={NextDue}",
+                        task.TaskId, oldStatus, newStatus, currentRunningHours, nextDueRH);
+                }
+            }
+            else if (task.Status == "SCHEDULED")
+            {
+                // DaysBeforeDue for RUNNING_HOURS stores the window directly in hours
+                // (user enters hours in the config form, no conversion needed)
+                var windowHours = schedule.DaysBeforeDue > 0 ? (double)schedule.DaysBeforeDue : MaintenanceConstants.MINIMUM_UPCOMING_WINDOW_HOURS;
+
+                if (hoursUntilDue <= windowHours)
+                {
+                    task.Status = "UPCOMING";
+                    task.UpdatedAt = DateTime.UtcNow;
+                    promoted++;
+                    _logger.LogInformation("Task {TaskId} promoted SCHEDULED → UPCOMING: {HoursLeft}h remaining (window={Window}h)",
+                        task.TaskId, hoursUntilDue, windowHours);
+                }
+            }
+        }
+
+        if (promoted > 0)
+            await _context.SaveChangesAsync();
+
+        return promoted;
     }
 
     private static EquipmentAssetDto MapToDto(EquipmentAsset asset)

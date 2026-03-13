@@ -10,10 +10,15 @@ namespace MaritimeEdge.Constants;
 /// </summary>
 public static class TaskStatus
 {
+    // PMS lifecycle statuses
+    public const string SCHEDULED = "SCHEDULED";             // Auto-generated, not yet in window
+    public const string UPCOMING = "UPCOMING";               // Within DaysBeforeDue / WindowHours — "Sắp đến hạn"
+    public const string DUE = "DUE";                         // Due date reached — ready for execution
+    public const string OVERDUE = "OVERDUE";                 // Past due date
+    
     // Basic statuses
     public const string PENDING = "PENDING";
     public const string IN_PROGRESS = "IN_PROGRESS";
-    public const string OVERDUE = "OVERDUE";
     public const string COMPLETED = "COMPLETED";
     
     // Extended workflow statuses (Kanban board)
@@ -45,6 +50,24 @@ public static class TaskCategory
     public const string ELECTRICAL = "ELECTRICAL";
     public const string NAVIGATION = "NAVIGATION";
     public const string GENERAL = "GENERAL";
+}
+
+/// <summary>
+/// Constants cho Maintenance operations
+/// </summary>
+public static class MaintenanceConstants
+{
+    /// <summary>
+    /// Average running hours per day used to estimate calendar dates from running hours.
+    /// TODO: Make configurable per ship via ShipConfiguration.
+    /// </summary>
+    public const double AVERAGE_HOURS_PER_DAY = 10.0;
+
+    /// <summary>
+    /// Default window in hours for UPCOMING status when DaysBeforeDue-based calculation
+    /// gives a lower value. Minimum 50 running hours buffer.
+    /// </summary>
+    public const double MINIMUM_UPCOMING_WINDOW_HOURS = 50.0;
 }
 
 /// <summary>

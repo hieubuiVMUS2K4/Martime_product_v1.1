@@ -376,6 +376,7 @@ export interface ServiceRecord {
 // Task Status - Updated v2.0 (PMS Workflow)
 export type MaintenanceTaskStatus = 
   | 'SCHEDULED'      // Auto-generated, not yet due
+  | 'UPCOMING'       // Within DaysBeforeDue window — "Sắp đến hạn"
   | 'DUE'           // Ready for execution
   | 'OVERDUE'       // Past due date
   | 'IN_PROGRESS'   // Crew working on it
