@@ -12,7 +12,7 @@ import {
   Eye, Pencil, Trash2,
   RefreshCw, Clock, Settings, Gauge, Plus, Save, ExternalLink,
   CheckCircle, ChevronsUpDown, FolderOpen, ClipboardList, X as XIcon, Users, Package,
-  AlertTriangle, FileText, History, Upload, Link2
+  AlertTriangle, FileText, History, Upload, Link2, Copy
 } from 'lucide-react';
 import { parseISO, format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, addDays, getDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -425,6 +425,14 @@ export default function WorkPlanningPage() {
         requiresReading: t.requiresReading, normalRangeMin: t.normalRangeMin, normalRangeMax: t.normalRangeMax, unit: t.unit
       })) || []
     });
+  };
+
+  // Sao chép cấu hình làm mẫu (tạo mới, không sửa config gốc)
+  const cfgCopyAsTemplate = (schedule: MaintenanceSchedule) => {
+    cfgLoadForEdit(schedule);
+    setCfgEditingId(null); // Quan trọng: không ở chế độ Sửa → submit sẽ tạo mới
+    setCfgForm(f => ({ ...f, scheduleCode: `${f.scheduleCode}-COPY` }));
+    toast.success('Đã sao chép cấu hình làm mẫu — chỉnh sửa rồi Lưu để tạo mới');
   };
 
   const cfgSubmit = async () => {
@@ -1000,10 +1008,16 @@ export default function WorkPlanningPage() {
 
   const tasksByDate = useMemo(() => {
     const map = new Map<string, MaintenanceTask[]>();
+    const WORK_HOURS_PER_DAY = 8;
     filteredTasks.forEach(task => {
       if (task.nextDueAt) {
         const dueDate = parseISO(task.nextDueAt);
-        const durationDays = task.estimatedDuration || 1; // estimatedDuration is in days
+        const isRunningHours = !!task.intervalHours && !task.intervalDays;
+        // RUNNING_HOURS: chỉ hiện 1 ngày (mốc ước tính, counter mới là trigger thực)
+        // CALENDAR: span theo estimatedDuration (giờ → ngày làm việc)
+        const durationDays = isRunningHours ? 1
+          : task.estimatedDuration ? Math.max(1, Math.ceil(task.estimatedDuration / WORK_HOURS_PER_DAY))
+          : 1;
         for (let d = 0; d < durationDays; d++) {
           const dateKey = format(addDays(dueDate, d), 'yyyy-MM-dd');
           const list = map.get(dateKey) || [];
@@ -1865,8 +1879,9 @@ export default function WorkPlanningPage() {
                                       <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${sch.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' : sch.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' : sch.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'}`}>{sch.priority}</span>
                                     </td>
                                     <td className="px-2 py-1.5 text-center text-gray-500">{sch.intervalHours || '—'}</td>
-                                    <td className="px-2 py-1.5 text-center">
-                                      <button onClick={e => { e.stopPropagation(); if (confirm('Xóa cấu hình này?')) handleScheduleDelete(sch); }} className="text-gray-400 hover:text-red-600"><Trash2 size={12} /></button>
+                                    <td className="px-2 py-1.5 text-center flex items-center gap-1">
+                                      <button title="Sao chép làm mẫu" onClick={e => { e.stopPropagation(); cfgCopyAsTemplate(sch); setCfgShowHistory(false); }} className="text-gray-400 hover:text-blue-600"><Copy size={12} /></button>
+                                      <button title="Xóa" onClick={e => { e.stopPropagation(); if (confirm('Xóa cấu hình này?')) handleScheduleDelete(sch); }} className="text-gray-400 hover:text-red-600"><Trash2 size={12} /></button>
                                     </td>
                                   </tr>
                                 ))}
@@ -2042,7 +2057,7 @@ export default function WorkPlanningPage() {
                           <label className="block text-xs font-medium text-gray-600 mb-1">TG thực hiện ước tính</label>
                           <div className="flex items-center gap-1.5">
                             <input type="number" value={cfgForm.estimatedDurationHours ?? ''} onChange={e => setCfgForm(f => ({ ...f, estimatedDurationHours: parseFloat(e.target.value) || undefined }))} min={1} step={1} placeholder="3" className="flex-1 border border-gray-300 px-2.5 py-1.5 text-sm" />
-                            <span className="text-xs text-gray-500">ngày</span>
+                            <span className="text-xs text-gray-500">giờ</span>
                           </div>
                         </div>
                       </div>

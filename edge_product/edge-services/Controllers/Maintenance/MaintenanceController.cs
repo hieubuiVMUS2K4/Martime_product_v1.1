@@ -440,6 +440,8 @@ public class MaintenanceController : ControllerBase
                 .Include(t => t.EquipmentGroup)
                 .Include(t => t.ChecklistItems.OrderBy(ci => ci.SequenceOrder))
                 .Include(t => t.DeferralRequests.Where(d => d.Status == "PENDING"))
+                .Include(t => t.StatusHistory.OrderByDescending(sh => sh.ChangedAt))
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
             
             if (task == null)
@@ -572,7 +574,21 @@ public class MaintenanceController : ControllerBase
             task.OriginNode,
             
             // Related data
-            ChecklistItems = task.ChecklistItems
+            ChecklistItems = task.ChecklistItems,
+            StatusHistory = (task.StatusHistory ?? new List<TaskStatusHistory>())
+                .OrderByDescending(sh => sh.ChangedAt)
+                .Select(sh => new
+                {
+                    sh.Id,
+                    sh.FromStatus,
+                    sh.ToStatus,
+                    sh.ChangedBy,
+                    ChangedByName = sh.ChangedBy,
+                    sh.ChangedAt,
+                    sh.Reason,
+                    sh.Notes,
+                    sh.DeviceType
+                })
         };
     }
 

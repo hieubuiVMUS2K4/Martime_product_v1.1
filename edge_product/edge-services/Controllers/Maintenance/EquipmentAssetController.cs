@@ -293,6 +293,12 @@ public class EquipmentAssetController : ControllerBase
     {
         try
         {
+            // Snapshot trước khi update: dùng để tính tốc độ chạy thực tế
+            var asset = await _context.EquipmentAssets.FindAsync(id);
+            if (asset == null) return NotFound();
+            var previousRH = asset.CurrentRunningHours ?? 0;
+            var lastUpdate = asset.LastRunningHoursUpdate;
+
             await _assetRepository.UpdateRunningHoursAsync(id, runningHours);
             _logger.LogInformation("Updated running hours for asset {Id}: {Hours}", id, runningHours);
             
@@ -300,6 +306,9 @@ public class EquipmentAssetController : ControllerBase
             var triggeredCount = await CheckAndPromoteTasksByRunningHours(id, runningHours);
             if (triggeredCount > 0)
                 _logger.LogInformation("Promoted {Count} tasks to DUE for asset {Id} at {Hours}h", triggeredCount, id, runningHours);
+
+            // Recalc NextDueDate cho các RUNNING_HOURS schedules dựa trên tốc độ chạy thực
+            await RecalcNextDueDateByActualRate(id, runningHours, previousRH, lastUpdate);
             
             return Ok(new { triggeredTasks = triggeredCount });
         }
@@ -381,6 +390,58 @@ public class EquipmentAssetController : ControllerBase
             await _context.SaveChangesAsync();
 
         return promoted;
+    }
+
+    /// <summary>
+    /// Recalc NextDueDate cho tất cả RUNNING_HOURS schedules dựa trên tốc độ chạy thực tế.
+    /// avgHoursPerDay = (newRH - oldRH) / daysSinceLastUpdate
+    /// NextDueDate = now + (NextDueRH - currentRH) / avgHoursPerDay
+    /// Fallback: nếu không đủ dữ liệu (lần cập nhật đầu tiên) → dùng AVERAGE_HOURS_PER_DAY
+    /// </summary>
+    private async Task RecalcNextDueDateByActualRate(Guid assetId, double currentRH, double previousRH, DateTime? lastUpdate)
+    {
+        // Tính tốc độ chạy thực tế (giờ/ngày)
+        double avgHoursPerDay = MaintenanceConstants.AVERAGE_HOURS_PER_DAY; // fallback
+        if (lastUpdate.HasValue && currentRH > previousRH)
+        {
+            var daysSinceLastUpdate = (DateTime.UtcNow - lastUpdate.Value).TotalDays;
+            if (daysSinceLastUpdate >= 0.04) // ít nhất ~1 giờ giữa 2 lần update
+            {
+                var calculatedRate = (currentRH - previousRH) / daysSinceLastUpdate;
+                if (calculatedRate > 0.5) // ít nhất 0.5h/ngày để tránh chia bé quá → ngày quá xa
+                    avgHoursPerDay = calculatedRate;
+            }
+        }
+
+        var schedules = await _context.MaintenanceSchedules
+            .Where(s => s.IsActive &&
+                        s.EquipmentAssetId == assetId &&
+                        s.MaintenanceCategory == "PERIODIC" &&
+                        s.IntervalType == "RUNNING_HOURS" &&
+                        s.NextDueRunningHours.HasValue)
+            .ToListAsync();
+
+        if (!schedules.Any()) return;
+
+        foreach (var schedule in schedules)
+        {
+            var hoursRemaining = schedule.NextDueRunningHours!.Value - currentRH;
+            if (hoursRemaining <= 0)
+            {
+                // Đã đến/quá hạn → NextDueDate = bây giờ
+                schedule.NextDueDate = DateTime.UtcNow;
+            }
+            else
+            {
+                var daysRemaining = (int)Math.Max(Math.Ceiling(hoursRemaining / avgHoursPerDay), 1);
+                schedule.NextDueDate = DateTime.UtcNow.AddDays(daysRemaining);
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        _logger.LogInformation(
+            "Recalculated NextDueDate for {Count} schedules on asset {AssetId} (rate={Rate:F1}h/day, prevRH={Prev}, newRH={New})",
+            schedules.Count, assetId, avgHoursPerDay, previousRH, currentRH);
     }
 
     private static EquipmentAssetDto MapToDto(EquipmentAsset asset)

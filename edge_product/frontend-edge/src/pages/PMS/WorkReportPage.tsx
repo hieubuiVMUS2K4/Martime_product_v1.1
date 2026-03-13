@@ -15,6 +15,7 @@ import {
 import { MaintenanceTask, CrewMember, TaskStatusHistory } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { maintenanceScheduleService } from '../../services/maintenance-schedule.service'
+import { equipmentAssetService } from '../../services/equipment-asset.service'
 import { format, parseISO } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -123,7 +124,18 @@ export default function WorkReportPage() {
       setSparePartsUsed(data.sparePartsUsed || '')
       setIsCbm(data.taskType === 'CONDITION')
       setEquipmentRunningHours(data.actualRunningHours || 0)
-      setCurrentEquipmentHours(data.runningHoursAtLastDone || 0)
+
+      // Auto-fill "Thời gian hiện tại của thiết bị" từ counter thực tế
+      if (data.equipmentAssetId && !data.runningHoursAtLastDone) {
+        try {
+          const asset = await equipmentAssetService.getById(data.equipmentAssetId)
+          setCurrentEquipmentHours(asset.currentRunningHours ?? 0)
+        } catch {
+          setCurrentEquipmentHours(0)
+        }
+      } else {
+        setCurrentEquipmentHours(data.runningHoursAtLastDone || 0)
+      }
       setActualDuration(data.actualDuration || 0)
       setCompletionDate(data.completedAt ? data.completedAt.substring(0, 10) : '')
       setReportCompleted(data.checklistCompleted || false)

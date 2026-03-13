@@ -429,7 +429,7 @@ export interface MaintenanceTask {
   startedAt?: string
   startedBy?: string
   actualRunningHours?: number
-  estimatedDuration?: number // minutes
+  estimatedDuration?: number // hours
   actualDuration?: number // minutes
   
   // ============ REPORT DATA ============
