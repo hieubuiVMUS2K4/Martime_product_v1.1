@@ -22,6 +22,7 @@ class TaskProvider with ChangeNotifier {
   String? _error;
   
   // PERFORMANCE: Cached filtered lists - invalidated on task list change
+  List<MaintenanceTask>? _cachedNotStartedTasks;
   List<MaintenanceTask>? _cachedDueTasks;
   List<MaintenanceTask>? _cachedScheduledTasks;
   List<MaintenanceTask>? _cachedPendingTasks;
@@ -30,6 +31,7 @@ class TaskProvider with ChangeNotifier {
   List<MaintenanceTask>? _cachedPendingApprovalTasks;
   List<MaintenanceTask>? _cachedCompletedTasks;
   List<MaintenanceTask>? _cachedOverdueTasks;
+  List<MaintenanceTask>? _cachedAllActiveTasks;
   
   // Checklist state for currently viewed task
   List<TaskChecklistItem> _currentChecklist = [];
@@ -61,6 +63,7 @@ class TaskProvider with ChangeNotifier {
   
   /// PERFORMANCE: Invalidate all cached filtered lists
   void _invalidateFilterCaches() {
+    _cachedNotStartedTasks = null;
     _cachedDueTasks = null;
     _cachedScheduledTasks = null;
     _cachedPendingTasks = null;
@@ -69,6 +72,19 @@ class TaskProvider with ChangeNotifier {
     _cachedPendingApprovalTasks = null;
     _cachedCompletedTasks = null;
     _cachedOverdueTasks = null;
+    _cachedAllActiveTasks = null;
+  }
+  
+  // Tab "Chưa bắt đầu" - UPCOMING + SCHEDULED + MISSING_* (CACHED)
+  List<MaintenanceTask> get notStartedTasks {
+    _cachedNotStartedTasks ??= _tasks.where((t) => t.isNotStarted).toList();
+    return _cachedNotStartedTasks!;
+  }
+  
+  // Tab "Tất cả" - All active (non-completed, non-cancelled) tasks (CACHED)
+  List<MaintenanceTask> get allActiveTasks {
+    _cachedAllActiveTasks ??= _tasks.where((t) => !t.isCompleted && !t.isCancelled).toList();
+    return _cachedAllActiveTasks!;
   }
   
   // Tab "Đến hạn" - chỉ hiện tasks có status DUE (CACHED)
@@ -185,7 +201,6 @@ class TaskProvider with ChangeNotifier {
     double? runningHours,
     String? sparePartsUsed,
     String? notes,
-    List<String>? photoUrls,
   }) async {
     _isLoading = true;
     _error = null;
@@ -197,7 +212,6 @@ class TaskProvider with ChangeNotifier {
         completedRunningHours: runningHours,
         sparePartsUsed: sparePartsUsed,
         notes: notes,
-        photoUrls: photoUrls,
       );
       // Refresh tasks after completing
       await fetchMyTasks(forceRefresh: true);

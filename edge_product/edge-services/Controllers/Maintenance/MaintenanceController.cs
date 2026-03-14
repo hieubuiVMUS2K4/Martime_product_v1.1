@@ -657,6 +657,57 @@ public class MaintenanceController : ControllerBase
     }
 
     /// <summary>
+    /// PATCH /api/maintenance/tasks/{id}
+    /// Partial update for work report - only updates provided fields
+    /// </summary>
+    [HttpPatch("tasks/{id}")]
+    public async Task<IActionResult> PatchTask(Guid id, [FromBody] System.Text.Json.JsonElement patchData)
+    {
+        try
+        {
+            var existing = await _context.MaintenanceTasks.FindAsync(id);
+            if (existing == null || existing.IsDeleted)
+            {
+                return NotFound(new { error = "Maintenance task not found", id });
+            }
+
+            // Only update fields that are present in the request
+            if (patchData.TryGetProperty("taskDescription", out var desc))
+                existing.TaskDescription = desc.GetString() ?? existing.TaskDescription;
+            if (patchData.TryGetProperty("notes", out var notes))
+                existing.Notes = notes.GetString();
+            if (patchData.TryGetProperty("sparePartsUsed", out var spareParts))
+                existing.SparePartsUsed = spareParts.GetString();
+            if (patchData.TryGetProperty("assignedTo", out var assigned))
+                existing.AssignedTo = assigned.GetString();
+            if (patchData.TryGetProperty("actualRunningHours", out var runHours) && runHours.ValueKind == System.Text.Json.JsonValueKind.Number)
+                existing.ActualRunningHours = runHours.GetDouble();
+            if (patchData.TryGetProperty("actualDuration", out var dur) && dur.ValueKind == System.Text.Json.JsonValueKind.Number)
+                existing.ActualDuration = dur.GetInt32();
+            if (patchData.TryGetProperty("checklistCompleted", out var chk) && chk.ValueKind == System.Text.Json.JsonValueKind.True || chk.ValueKind == System.Text.Json.JsonValueKind.False)
+                existing.ChecklistCompleted = chk.GetBoolean();
+            if (patchData.TryGetProperty("priority", out var pri))
+                existing.Priority = pri.GetString() ?? existing.Priority;
+            if (patchData.TryGetProperty("assignedDepartment", out var dept))
+                existing.AssignedDepartment = dept.GetString();
+
+            existing.UpdatedAt = DateTime.UtcNow;
+            existing.IsSynced = false;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Patched maintenance task: {Id} - {TaskId}", id, existing.TaskId);
+
+            return Ok(existing);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error patching task {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
     /// PATCH /api/maintenance/tasks/{id}/status
     /// Quick status update for Kanban board drag-and-drop
     /// </summary>

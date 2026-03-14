@@ -167,14 +167,12 @@ class TaskRepository {
     required String taskId,
     String? notes,
     String? sparePartsUsed,
-    List<String>? photoUrls,
     double? completedRunningHours,
   }) async {
     final dto = SubmitTaskDto(
       taskId: taskId,
       notes: notes,
       sparePartsUsed: sparePartsUsed,
-      photoUrls: photoUrls,
       completedRunningHours: completedRunningHours,
     );
 

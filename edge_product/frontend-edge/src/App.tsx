@@ -29,7 +29,6 @@ import AssetsPage from './pages/PMS/AssetsPage'
 import MasterSchedulePage from './pages/PMS/MasterSchedulePage'
 import UnassignedTasksPage from './pages/PMS/UnassignedTasksPage'
 import ApprovalDashboardPage from './pages/PMS/ApprovalDashboardPage'
-import DeferralManagementPage from './pages/PMS/DeferralManagementPage'
 import WorkPlanningPage from './pages/PMS/WorkPlanningPage'
 import WorkReportPage from './pages/PMS/WorkReportPage'
 import { MaintenanceHistoryPage } from './pages/PMS/MaintenanceHistoryPage'
@@ -130,7 +129,6 @@ function App() {
         <Route path="pms/master-schedule" element={<MasterSchedulePage />} />
         <Route path="pms/unassigned-tasks" element={<UnassignedTasksPage />} />
         <Route path="pms/approval-dashboard" element={<ApprovalDashboardPage />} />
-        <Route path="pms/deferrals" element={<DeferralManagementPage />} />
         <Route path="pms/maintenance-history" element={<MaintenanceHistoryPage />} />
         <Route path="pms/work-planning" element={<WorkPlanningPage />} />
         <Route path="pms/work-report/:id" element={<WorkReportPage />} />

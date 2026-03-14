@@ -1089,7 +1089,7 @@ public class WorkItemConfigController : ControllerBase
                 task.Priority = schedule.Priority ?? "MEDIUM";
                 task.IntervalHours = schedule.IntervalHours;
                 task.IntervalDays = schedule.IntervalDays;
-                task.TaskType = schedule.IntervalType ?? "RUNNING_HOURS";
+                task.TaskType = (schedule.MaintenanceCategory == "AD_HOC" || schedule.MaintenanceCategory == "CORRECTIVE") ? schedule.MaintenanceCategory : (schedule.IntervalType ?? "RUNNING_HOURS");
                 task.RequiredSpareParts = sparePartsJson;
                 task.EstimatedDuration = schedule.EstimatedDurationHours.HasValue ? (int)schedule.EstimatedDurationHours.Value : task.EstimatedDuration;
                 task.EquipmentGroupId = isPerAsset ? null : schedule.EquipmentGroupId;
@@ -1235,7 +1235,7 @@ public class WorkItemConfigController : ControllerBase
                 EquipmentAssetName = isPerAsset ? firstAsset.AssetName : null,
                 EquipmentId = isPerAsset ? firstAsset.AssetCode : null,
                 EquipmentName = isPerAsset ? firstAsset.AssetName : group?.GroupName,
-                TaskType = schedule.IntervalType ?? "RUNNING_HOURS",
+                TaskType = (schedule.MaintenanceCategory == "AD_HOC" || schedule.MaintenanceCategory == "CORRECTIVE") ? schedule.MaintenanceCategory : (schedule.IntervalType ?? "RUNNING_HOURS"),
                 TaskDescription = string.IsNullOrWhiteSpace(cleanInstructions)
                     ? schedule.ScheduleName
                     : schedule.ScheduleName + "\n\n" + cleanInstructions,

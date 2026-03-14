@@ -13,12 +13,15 @@ import {
   PlayCircle,
   ShieldCheck,
   RotateCcw,
+  Clock,
 } from 'lucide-react'
-import { MaintenanceTask, CrewMember, TaskStatusHistory, TaskChecklistItem } from '../../types/maritime.types'
+import { materialService } from '../../services/materialService'
+import { MaintenanceTask, CrewMember, TaskStatusHistory, TaskChecklistItem, MaterialItem } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { maintenanceScheduleService } from '../../services/maintenance-schedule.service'
-import { verifyTask, type VerifyTaskDto } from '../../services/maintenance.service'
+import { verifyTask, submitTask, startTask, type VerifyTaskDto, type SubmitTaskDto } from '../../services/maintenance.service'
 import { equipmentAssetService } from '../../services/equipment-asset.service'
+import DeferralReviewModal from '@/components/pms/DeferralReviewModal'
 import { format, parseISO } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -76,6 +79,7 @@ export default function WorkReportPage() {
 
   const [inspectionNotes, setInspectionNotes] = useState('')
   const [inspectionResult, setInspectionResult] = useState<'PASS' | 'FAIL' | ''>('')
+  const [showDeferralModal, setShowDeferralModal] = useState(false)
 
   // Comment state
   const [commentText, setCommentText] = useState('')
@@ -86,6 +90,12 @@ export default function WorkReportPage() {
 
   // Checklist items (mapped from config, status pushed from mobile)
   const [checklistItems, setChecklistItems] = useState<TaskChecklistItem[]>([])
+  const [togglingChecklist, setTogglingChecklist] = useState<string | null>(null)
+
+  // Materials state
+  const [materialItems, setMaterialItems] = useState<MaterialItem[]>([])
+  const [usedSpareParts, setUsedSpareParts] = useState<Array<{materialItemId: string; materialCode: string; materialName: string; quantityUsed: number; unit: string; onHandQuantity: number}>>([])
+  const [materialSearch, setMaterialSearch] = useState('')
 
   // Approval state
   const [showRejectModal, setShowRejectModal] = useState(false)
@@ -100,6 +110,7 @@ export default function WorkReportPage() {
       loadTask()
       loadCrew()
       loadChecklist()
+      loadMaterials()
     }
   }, [id])
 
@@ -185,6 +196,117 @@ export default function WorkReportPage() {
     }
   }
 
+  const loadMaterials = async () => {
+    try {
+      const items = await materialService.getItems()
+      setMaterialItems(items || [])
+    } catch {
+      setMaterialItems([])
+    }
+  }
+
+  // Parse existing spare parts used from task
+  useEffect(() => {
+    if (task?.sparePartsUsed) {
+      try {
+        const parsed = typeof task.sparePartsUsed === 'string' ? JSON.parse(task.sparePartsUsed) : task.sparePartsUsed
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setUsedSpareParts(parsed.map((p: any) => ({
+            materialItemId: p.materialItemId || '',
+            materialCode: p.materialCode || '',
+            materialName: p.materialName || '',
+            quantityUsed: p.quantityUsed || 0,
+            unit: p.unit || 'PCS',
+            onHandQuantity: p.onHandQuantity || 0,
+          })))
+        }
+      } catch {}
+    }
+  }, [task?.sparePartsUsed])
+
+  // Checklist toggle handler
+  const handleToggleChecklist = async (item: TaskChecklistItem) => {
+    if (!task) return
+    setTogglingChecklist(item.id)
+    try {
+      await maritimeService.maintenance.updateChecklistItem(task.taskId, item.id, {
+        isCompleted: !item.isCompleted,
+        readingValue: item.readingValue,
+        remarks: item.remarks,
+        isAbnormal: item.isAbnormal,
+      })
+      setChecklistItems(prev => prev.map(ci =>
+        ci.id === item.id ? { ...ci, isCompleted: !ci.isCompleted, completedAt: !ci.isCompleted ? new Date().toISOString() : undefined } : ci
+      ))
+    } catch (err) {
+      console.error('Toggle checklist failed:', err)
+      toast.error('Cập nhật hạng mục thất bại')
+    } finally {
+      setTogglingChecklist(null)
+    }
+  }
+
+  // Checklist inline edit
+  const handleChecklistFieldUpdate = async (item: TaskChecklistItem, field: 'readingValue' | 'remarks' | 'isAbnormal', value: any) => {
+    if (!task) return
+    const update: any = { isCompleted: item.isCompleted }
+    update[field] = value
+    try {
+      await maritimeService.maintenance.updateChecklistItem(task.taskId, item.id, update)
+      setChecklistItems(prev => prev.map(ci =>
+        ci.id === item.id ? { ...ci, [field]: value } : ci
+      ))
+    } catch {
+      toast.error('Cập nhật thất bại')
+    }
+  }
+
+  // Spare parts management
+  const handleAddSparePart = (mat: MaterialItem) => {
+    if (usedSpareParts.find(p => p.materialItemId === mat.id)) {
+      toast.error('Vật tư đã được thêm')
+      return
+    }
+    setUsedSpareParts(prev => [...prev, {
+      materialItemId: mat.id,
+      materialCode: mat.itemCode,
+      materialName: mat.name,
+      quantityUsed: 1,
+      unit: mat.unit,
+      onHandQuantity: mat.onHandQuantity,
+    }])
+    setMaterialSearch('')
+  }
+
+  const handleRemoveSparePart = (materialItemId: string) => {
+    setUsedSpareParts(prev => prev.filter(p => p.materialItemId !== materialItemId))
+  }
+
+  const handleSparePartQtyChange = (materialItemId: string, qty: number) => {
+    setUsedSpareParts(prev => prev.map(p =>
+      p.materialItemId === materialItemId ? { ...p, quantityUsed: Math.max(0, qty) } : p
+    ))
+  }
+
+  // Sync spare parts to sparePartsUsed string for save
+  useEffect(() => {
+    if (usedSpareParts.length > 0) {
+      setSparePartsUsed(JSON.stringify(usedSpareParts))
+    } else {
+      setSparePartsUsed('')
+    }
+  }, [usedSpareParts])
+
+  // Filtered materials for dropdown
+  const filteredMaterials = useMemo(() => {
+    if (!materialSearch.trim()) return []
+    const q = materialSearch.toLowerCase()
+    return materialItems.filter(m =>
+      (m.itemCode?.toLowerCase().includes(q) || m.name?.toLowerCase().includes(q)) &&
+      !usedSpareParts.find(p => p.materialItemId === m.id)
+    ).slice(0, 10)
+  }, [materialSearch, materialItems, usedSpareParts])
+
   // ============================================================
   // STATUS HISTORY (from task data)
   // ============================================================
@@ -199,8 +321,8 @@ export default function WorkReportPage() {
     if (!task) return
     try {
       setSaving(true)
-      await maritimeService.maintenance.update(task.id, {
-        taskDescription: description,
+      await maritimeService.maintenance.patch(task.id, {
+        taskDescription: description ? `${task.taskDescription?.split('\n')[0] || ''}\n${description}` : task.taskDescription,
         notes: reportText,
         sparePartsUsed,
         assignedTo,
@@ -210,9 +332,10 @@ export default function WorkReportPage() {
       })
       toast.success('Đã lưu báo cáo công việc')
       await loadTask()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Save failed:', error)
-      toast.error('Lưu báo cáo thất bại')
+      const msg = error?.response?.data?.error || error?.message || 'Lưu báo cáo thất bại'
+      toast.error(msg)
     } finally {
       setSaving(false)
     }
@@ -222,16 +345,17 @@ export default function WorkReportPage() {
     if (!task) return
     try {
       setSaving(true)
-      await maritimeService.maintenance.completeTask(task.id, {
-        completedBy: assignedTo || 'System',
-        notes: reportText,
-        sparePartsUsed,
-      })
-      toast.success('Đã hoàn thành công việc')
+      const dto: SubmitTaskDto = {
+        notes: reportText || undefined,
+        sparePartsUsed: sparePartsUsed || undefined,
+      }
+      await submitTask(task.id, dto)
+      toast.success('Đã gửi báo cáo chờ phê duyệt')
       await loadTask()
-    } catch (error) {
-      console.error('Complete failed:', error)
-      toast.error('Hoàn thành thất bại')
+    } catch (error: any) {
+      console.error('Submit failed:', error)
+      const msg = error?.response?.data?.error || 'Gửi báo cáo thất bại'
+      toast.error(msg)
     } finally {
       setSaving(false)
     }
@@ -241,12 +365,13 @@ export default function WorkReportPage() {
     if (!task) return
     try {
       setSaving(true)
-      await maritimeService.maintenance.updateStatus(task.id, 'IN_PROGRESS')
+      await startTask(task.id)
       toast.success('Đã bắt đầu công việc')
       await loadTask()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Start failed:', error)
-      toast.error('Bắt đầu thất bại')
+      const msg = error?.response?.data?.error || 'Bắt đầu thất bại'
+      toast.error(msg)
     } finally {
       setSaving(false)
     }
@@ -353,14 +478,14 @@ export default function WorkReportPage() {
           <button onClick={handleCancel} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
             <X className="w-3.5 h-3.5" /> Hủy bỏ
           </button>
-          <button onClick={handleStartTask} disabled={!(['SCHEDULED', 'DUE', 'OVERDUE', 'RECTIFY'].includes(task.status)) || saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+          <button onClick={handleStartTask} disabled={!(['SCHEDULED', 'UPCOMING', 'DUE', 'OVERDUE', 'RECTIFY', 'MISSING_PIC', 'MISSING_CHECKLIST', 'MISSING_BOTH'].includes(task.status)) || saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
             <PlayCircle className="w-3.5 h-3.5" /> Tiếp tục
           </button>
           <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-800 text-white rounded hover:bg-gray-900 disabled:opacity-50">
             <Save className="w-3.5 h-3.5" /> {saving ? 'Đang lưu...' : 'Lưu lại'}
           </button>
           <button onClick={handleComplete} disabled={task.status !== 'IN_PROGRESS' || saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
-            <CheckCircle className="w-3.5 h-3.5" /> Hoàn thành
+            <Send className="w-3.5 h-3.5" /> Hoàn thành
           </button>
           <button onClick={() => setShowRejectModal(true)} disabled={task.status !== 'PENDING_APPROVAL' || verifying} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed">
             <RotateCcw className="w-3.5 h-3.5" /> Trả hoàn
@@ -370,6 +495,27 @@ export default function WorkReportPage() {
           </button>
         </div>
       </div>
+
+      {/* ── Deferral Banner ── */}
+      {task.hasPendingDeferral && (
+        <div className="flex-shrink-0 bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center gap-3">
+          <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+          <div className="text-sm text-amber-800 flex-1">
+            <span className="font-semibold">Yêu cầu xin hoãn đang chờ duyệt</span>
+            {task.pendingDeferral && (
+              <span className="ml-2 text-amber-700">
+                — Lý do: {task.pendingDeferral.reason?.substring(0, 80)}{(task.pendingDeferral.reason?.length || 0) > 80 ? '...' : ''}
+                {task.pendingDeferral.proposedDueDate && (
+                  <> · Ngày đề xuất: {format(parseISO(task.pendingDeferral.proposedDueDate), 'dd/MM/yyyy')}</>
+                )}
+              </span>
+            )}
+          </div>
+          <button onClick={() => setShowDeferralModal(true)} className="px-2.5 py-1 text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 rounded whitespace-nowrap">
+            Xem chi tiết
+          </button>
+        </div>
+      )}
 
       {/* ── Body ── */}
       <div className="flex flex-1 overflow-hidden">
@@ -507,9 +653,12 @@ export default function WorkReportPage() {
               )}
 
               {/* Hạng mục kiểm tra tab */}
-              {activeTab === 'checklist' && (
+              {activeTab === 'checklist' && (() => {
+                const items = checklistItems.length > 0 ? checklistItems : task.checklistItems || []
+                const canEdit = ['IN_PROGRESS', 'RECTIFY'].includes(task.status)
+                return (
                 <div>
-                  {checklistItems.length === 0 && !task.checklistItems?.length ? (
+                  {items.length === 0 ? (
                     <p className="text-sm text-gray-400 italic">Không có hạng mục kiểm tra cho công việc này</p>
                   ) : (
                     <table className="w-full text-xs border border-gray-200 rounded">
@@ -518,54 +667,114 @@ export default function WorkReportPage() {
                           <th className="w-10 px-2 py-1.5 text-center border-b border-r border-gray-200">TT</th>
                           <th className="px-2 py-1.5 text-left border-b border-r border-gray-200">Mã thiết bị</th>
                           <th className="px-2 py-1.5 text-left border-b border-r border-gray-200">Tên thiết bị</th>
-                          <th className="w-20 px-2 py-1.5 text-center border-b border-r border-gray-200">Giá trị đo</th>
-                          <th className="w-24 px-2 py-1.5 text-center border-b border-r border-gray-200">Tình trạng</th>
+                          <th className="w-24 px-2 py-1.5 text-center border-b border-r border-gray-200">Giá trị đo</th>
+                          <th className="w-20 px-2 py-1.5 text-center border-b border-r border-gray-200">Hoàn thành</th>
                           <th className="w-20 px-2 py-1.5 text-center border-b border-r border-gray-200">Bất thường</th>
                           <th className="px-2 py-1.5 text-left border-b border-gray-200">Ghi chú</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {(checklistItems.length > 0 ? checklistItems : task.checklistItems || []).map((item, i) => (
+                        {items.map((item, i) => (
                           <tr key={item.id} className={`border-b border-gray-100 ${item.isAbnormal ? 'bg-red-50' : ''}`}>
                             <td className="px-2 py-1.5 text-center text-gray-500 border-r border-gray-200">{i + 1}</td>
                             <td className="px-2 py-1.5 text-gray-600 border-r border-gray-200">{item.assetCode}</td>
                             <td className="px-2 py-1.5 border-r border-gray-200">{item.assetName}</td>
-                            <td className="px-2 py-1.5 text-center border-r border-gray-200">{item.readingValue ?? '—'}</td>
                             <td className="px-2 py-1.5 text-center border-r border-gray-200">
-                              {item.isCompleted ? (
-                                <span className="inline-flex items-center gap-1 text-green-600">
-                                  <CheckCircle size={12} /> Đạt
-                                </span>
+                              {canEdit ? (
+                                <input
+                                  type="number"
+                                  className="w-20 px-1 py-0.5 text-xs border border-gray-300 rounded text-center"
+                                  value={item.readingValue ?? ''}
+                                  onChange={e => {
+                                    const val = e.target.value ? parseFloat(e.target.value) : undefined
+                                    setChecklistItems(prev => prev.map(ci => ci.id === item.id ? { ...ci, readingValue: val } : ci))
+                                  }}
+                                  onBlur={e => {
+                                    const val = e.target.value ? parseFloat(e.target.value) : undefined
+                                    handleChecklistFieldUpdate(item, 'readingValue', val)
+                                  }}
+                                />
                               ) : (
-                                <span className="text-gray-400">Chưa kiểm tra</span>
+                                <span>{item.readingValue ?? '—'}</span>
                               )}
                             </td>
                             <td className="px-2 py-1.5 text-center border-r border-gray-200">
-                              {item.isAbnormal ? (
-                                <span className="text-red-600 font-medium">Có</span>
-                              ) : item.isCompleted ? (
-                                <span className="text-green-600">Không</span>
-                              ) : '—'}
+                              {canEdit ? (
+                                <button
+                                  onClick={() => handleToggleChecklist(item)}
+                                  disabled={togglingChecklist === item.id}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-colors ${
+                                    item.isCompleted
+                                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                  } ${togglingChecklist === item.id ? 'opacity-50' : ''}`}
+                                >
+                                  <CheckCircle size={12} /> {item.isCompleted ? 'Đạt' : 'Chưa'}
+                                </button>
+                              ) : (
+                                item.isCompleted ? (
+                                  <span className="inline-flex items-center gap-1 text-green-600"><CheckCircle size={12} /> Đạt</span>
+                                ) : (
+                                  <span className="text-gray-400">Chưa</span>
+                                )
+                              )}
                             </td>
-                            <td className="px-2 py-1.5 text-gray-600">{item.remarks || '—'}</td>
+                            <td className="px-2 py-1.5 text-center border-r border-gray-200">
+                              {canEdit ? (
+                                <button
+                                  onClick={() => handleChecklistFieldUpdate(item, 'isAbnormal', !item.isAbnormal)}
+                                  className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                    item.isAbnormal ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {item.isAbnormal ? 'Có' : 'Không'}
+                                </button>
+                              ) : (
+                                item.isAbnormal ? (
+                                  <span className="text-red-600 font-medium">Có</span>
+                                ) : item.isCompleted ? (
+                                  <span className="text-green-600">Không</span>
+                                ) : '—'
+                              )}
+                            </td>
+                            <td className="px-2 py-1.5 border-gray-200">
+                              {canEdit ? (
+                                <input
+                                  type="text"
+                                  className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded"
+                                  value={item.remarks || ''}
+                                  onChange={e => {
+                                    setChecklistItems(prev => prev.map(ci => ci.id === item.id ? { ...ci, remarks: e.target.value } : ci))
+                                  }}
+                                  onBlur={e => handleChecklistFieldUpdate(item, 'remarks', e.target.value)}
+                                  placeholder="Nhập ghi chú..."
+                                />
+                              ) : (
+                                <span className="text-gray-600">{item.remarks || '—'}</span>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   )}
-                  {(checklistItems.length > 0 || (task.checklistItems?.length ?? 0) > 0) && (
+                  {items.length > 0 && (
                     <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
-                      <span>Đạt: <strong className="text-green-600">{(checklistItems.length > 0 ? checklistItems : task.checklistItems || []).filter(i => i.isCompleted).length}</strong></span>
-                      <span>Chưa kiểm tra: <strong className="text-gray-600">{(checklistItems.length > 0 ? checklistItems : task.checklistItems || []).filter(i => !i.isCompleted).length}</strong></span>
-                      <span>Bất thường: <strong className="text-red-600">{(checklistItems.length > 0 ? checklistItems : task.checklistItems || []).filter(i => i.isAbnormal).length}</strong></span>
+                      <span>Đạt: <strong className="text-green-600">{items.filter(i => i.isCompleted).length}</strong></span>
+                      <span>Chưa kiểm tra: <strong className="text-gray-600">{items.filter(i => !i.isCompleted).length}</strong></span>
+                      <span>Bất thường: <strong className="text-red-600">{items.filter(i => i.isAbnormal).length}</strong></span>
                     </div>
                   )}
                 </div>
-              )}
+                )
+              })()}
 
               {/* Vật tư tab */}
-              {activeTab === 'materials' && (
+              {activeTab === 'materials' && (() => {
+                const canEdit = ['IN_PROGRESS', 'RECTIFY'].includes(task.status)
+                return (
                 <div className="space-y-3">
+                  {/* Required spare parts from schedule (read-only) */}
                   {task.requiredSpareParts && (() => {
                     let parts: Array<{materialName?: string; materialCode?: string; quantityRequired?: number; isMandatory?: boolean}> = []
                     if (typeof task.requiredSpareParts === 'string') {
@@ -599,12 +808,92 @@ export default function WorkReportPage() {
                       </div>
                     ) : null
                   })()}
+
+                  {/* Used spare parts - interactive */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-500 mb-1">Vật tư đã sử dụng</p>
-                    <textarea rows={4} value={sparePartsUsed} onChange={e => setSparePartsUsed(e.target.value)} placeholder="Nhập danh sách vật tư..." className={`${inp} resize-y`} />
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs font-semibold text-gray-500">Vật tư đã sử dụng</p>
+                      {canEdit && (
+                        <div className="relative">
+                          <input
+                            type="text"
+                            className="w-56 px-2 py-1 text-xs border border-gray-300 rounded"
+                            placeholder="Tìm vật tư để thêm..."
+                            value={materialSearch}
+                            onChange={e => setMaterialSearch(e.target.value)}
+                          />
+                          {filteredMaterials.length > 0 && (
+                            <div className="absolute z-10 top-full left-0 w-80 mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-48 overflow-auto">
+                              {filteredMaterials.map(mat => (
+                                <button
+                                  key={mat.id}
+                                  className="w-full text-left px-2 py-1.5 text-xs hover:bg-blue-50 border-b border-gray-100 last:border-0"
+                                  onClick={() => handleAddSparePart(mat)}
+                                >
+                                  <span className="font-medium text-gray-700">{mat.itemCode}</span>
+                                  <span className="ml-2 text-gray-600">{mat.name}</span>
+                                  <span className="ml-2 text-gray-400">(Tồn: {mat.onHandQuantity} {mat.unit})</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {usedSpareParts.length > 0 ? (
+                      <table className="w-full text-xs border border-gray-200 rounded">
+                        <thead className="bg-green-50">
+                          <tr>
+                            <th className="px-2 py-1 text-left border-b">Mã vật tư</th>
+                            <th className="px-2 py-1 text-left border-b">Tên vật tư</th>
+                            <th className="w-24 px-2 py-1 text-center border-b">SL sử dụng</th>
+                            <th className="px-2 py-1 text-center border-b">Đơn vị</th>
+                            <th className="px-2 py-1 text-center border-b">Tồn kho</th>
+                            {canEdit && <th className="w-16 px-2 py-1 text-center border-b"></th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {usedSpareParts.map((sp) => (
+                            <tr key={sp.materialItemId} className="border-b border-gray-100">
+                              <td className="px-2 py-1 text-gray-600">{sp.materialCode || '—'}</td>
+                              <td className="px-2 py-1">{sp.materialName || 'Item'}</td>
+                              <td className="px-2 py-1 text-center">
+                                {canEdit ? (
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    className="w-16 px-1 py-0.5 text-xs border border-gray-300 rounded text-center"
+                                    value={sp.quantityUsed}
+                                    onChange={e => handleSparePartQtyChange(sp.materialItemId, Number(e.target.value))}
+                                  />
+                                ) : (
+                                  sp.quantityUsed ?? 0
+                                )}
+                              </td>
+                              <td className="px-2 py-1 text-center">{sp.unit || 'PCS'}</td>
+                              <td className="px-2 py-1 text-center">{sp.onHandQuantity ?? '—'}</td>
+                              {canEdit && (
+                                <td className="px-2 py-1 text-center">
+                                  <button
+                                    onClick={() => handleRemoveSparePart(sp.materialItemId)}
+                                    className="text-red-500 hover:text-red-700"
+                                    title="Xóa"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p className="text-xs text-gray-400 italic">Chưa có dữ liệu vật tư sử dụng</p>
+                    )}
                   </div>
                 </div>
-              )}
+                )
+              })()}
 
               {/* Biểu mẫu ĐGRR tab */}
               {activeTab === 'risk' && (
@@ -677,6 +966,9 @@ export default function WorkReportPage() {
             <div className="flex items-center">
               <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">Trạng thái:</label>
               <input type="text" readOnly value={statusLabel} className={inpRo} />
+              {task.hasPendingDeferral && (
+                <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-700 whitespace-nowrap">⏳ Xin hoãn</span>
+              )}
             </div>
             <div className="flex items-center">
               <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">Ngày đến hạn:</label>
@@ -799,6 +1091,13 @@ export default function WorkReportPage() {
           </div>
         </div>
       )}
+
+      <DeferralReviewModal
+        open={showDeferralModal}
+        onClose={() => setShowDeferralModal(false)}
+        taskId={id}
+        onReviewed={() => loadTask()}
+      />
     </div>
   )
 }

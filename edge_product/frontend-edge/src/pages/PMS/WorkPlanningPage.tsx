@@ -186,6 +186,9 @@ export default function WorkPlanningPage() {
   const [colFilterEquip, setColFilterEquip] = useState('');
   const [colFilterName, setColFilterName] = useState('');
   const [colFilterDesc, setColFilterDesc] = useState('');
+  const [colFilterPriority, setColFilterPriority] = useState('');
+  const [colFilterStatus, setColFilterStatus] = useState('');
+  const [colFilterType, setColFilterType] = useState('');
 
   // === Table state ===
   const [searchQuery] = useState('');
@@ -793,9 +796,15 @@ export default function WorkPlanningPage() {
     if (colFilterEquip) f = f.filter(t => (t.equipmentName || t.equipmentAssetName || t.equipmentGroupName || '').toLowerCase().includes(colFilterEquip.toLowerCase()));
     if (colFilterName) f = f.filter(t => (t.taskDescription?.split('\n')[0] || t.taskType).toLowerCase().includes(colFilterName.toLowerCase()));
     if (colFilterDesc) f = f.filter(t => t.taskDescription.toLowerCase().includes(colFilterDesc.toLowerCase()));
+    if (colFilterPriority) f = f.filter(t => t.priority === colFilterPriority);
+    if (colFilterStatus) f = f.filter(t => t.status === colFilterStatus);
+    if (colFilterType) {
+      if (colFilterType === 'adhoc') f = f.filter(t => t.taskType === 'AD_HOC' || t.taskType === 'CORRECTIVE');
+      else f = f.filter(t => t.taskType !== 'AD_HOC' && t.taskType !== 'CORRECTIVE');
+    }
 
     return f;
-  }, [tasks, selectedAssetIds, dateFrom, dateTo, crewFilter, taskTypeFilter, statusFilter, searchQuery, assets]);
+  }, [tasks, selectedAssetIds, dateFrom, dateTo, crewFilter, taskTypeFilter, statusFilter, searchQuery, assets, colFilterCode, colFilterEquip, colFilterName, colFilterDesc, colFilterPriority, colFilterStatus, colFilterType]);
 
   // Gantt data — derived from filteredTasks (same source as Bảng/Lịch/Kanban)
   const ganttTasksFromFiltered = useMemo((): GanttTask[] => {
@@ -1317,22 +1326,22 @@ export default function WorkPlanningPage() {
                       </th>
                       <th className="border-r border-gray-200"></th>
                       <th className="px-2 py-1 border-r border-gray-200">
-                        <select className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white">
+                        <select value={colFilterPriority} onChange={e => { setColFilterPriority(e.target.value); setTablePage(1); }} className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white">
                           <option value="">Tìm kiếm</option>
                           {Object.entries(PRIORITY_LABELS).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
                         </select>
                       </th>
                       <th className="px-2 py-1 border-r border-gray-200">
-                        <select className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white">
+                        <select value={colFilterStatus} onChange={e => { setColFilterStatus(e.target.value); setTablePage(1); }} className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white">
                           <option value="">Tìm kiếm</option>
                           {Object.entries(STATUS_LABELS).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
                         </select>
                       </th>
                       <th className="px-2 py-1 border-r border-gray-200">
-                        <select className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white">
+                        <select value={colFilterType} onChange={e => { setColFilterType(e.target.value); setTablePage(1); }} className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white">
                           <option value="">Tìm kiếm</option>
-                          <option>Đột xuất</option>
-                          <option>Định kỳ</option>
+                          <option value="adhoc">Đột xuất</option>
+                          <option value="periodic">Định kỳ</option>
                         </select>
                       </th>
                       <th className="border-gray-200"></th>
@@ -1386,6 +1395,11 @@ export default function WorkPlanningPage() {
                               <span className={`px-2 py-0.5 text-xs font-medium rounded whitespace-nowrap ${sts.bg} ${sts.text}`}>
                                 {sts.label}
                               </span>
+                              {task.hasPendingDeferral && (
+                                <span className="ml-1 px-2 py-0.5 text-xs font-medium rounded whitespace-nowrap bg-amber-100 text-amber-700">
+                                  Xin hoãn
+                                </span>
+                              )}
                             </td>
                             <td className="px-3 py-2 text-center text-xs text-gray-500 border-r border-gray-100">
                               {task.taskType === 'AD_HOC' || task.taskType === 'CORRECTIVE' ? 'Đột xuất' : 'Định kỳ'}
@@ -2399,6 +2413,7 @@ export default function WorkPlanningPage() {
           setIsAddScheduleModalOpen(false);
         }}
       />
+
     </div>
   );
 }

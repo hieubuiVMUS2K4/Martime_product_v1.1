@@ -18,6 +18,7 @@ import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { MaintenanceTask } from '@/types/maintenance.types';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
+import DeferralReviewModal from '@/components/pms/DeferralReviewModal';
 
 export default function ApprovalDashboardPage() {
   const { t } = useTranslationSafe();
@@ -27,6 +28,7 @@ export default function ApprovalDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [showDeferralModal, setShowDeferralModal] = useState(false);
   
   // Filter state
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
@@ -228,7 +230,7 @@ export default function ApprovalDashboardPage() {
 
         <div 
           className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:bg-yellow-50 hover:border-yellow-300 transition-colors"
-          onClick={() => navigate('/pms/deferrals')}
+          onClick={() => setShowDeferralModal(true)}
           title="Click to manage deferral requests"
         >
           <div className="flex items-center gap-3">
@@ -558,6 +560,12 @@ export default function ApprovalDashboardPage() {
           </div>
         </div>
       )}
+
+      <DeferralReviewModal
+        open={showDeferralModal}
+        onClose={() => setShowDeferralModal(false)}
+        onReviewed={() => loadData()}
+      />
     </div>
   );
 }

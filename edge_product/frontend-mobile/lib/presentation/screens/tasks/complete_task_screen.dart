@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
 import '../../../data/models/maintenance_task.dart';
 import '../../../data/models/task_checklist_item.dart';
 import '../../../data/repositories/task_repository.dart';
@@ -47,11 +44,6 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
   static final _dateFormat = DateFormat('dd MMM yyyy');
   static final _dateTimeFormat = DateFormat('dd MMM yyyy HH:mm');
   
-  // Photo Upload State
-  final List<String> _photoUrls = [];
-  bool _isUploadingPhoto = false;
-  final ImagePicker _picker = ImagePicker();
-
   bool _isSubmitting = false;
   
   // Checklist state - local copy that can be toggled
@@ -63,123 +55,6 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
   
   // Actually used spare parts (selected from inventory)
   List<Map<String, dynamic>> _actuallyUsedSpareParts = [];
-
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-      setState(() => _isUploadingPhoto = true);
-      
-      // Production settings: Compress heavily for maritime bandwidth
-      // Target: ~150KB per image for fast upload over satellite
-      final XFile? image = await _picker.pickImage(
-        source: source,
-        imageQuality: 35, // Aggressive compression for bandwidth
-        maxWidth: 800,    // Smaller dimension for faster transfer
-        maxHeight: 600,
-      );
-
-      if (image != null) {
-        final File imageFile = File(image.path);
-        final Uint8List imageBytes = await imageFile.readAsBytes();
-        final int imageSize = imageBytes.length;
-        
-        // Check size - should be under 300KB after compression
-        if (imageSize > 300 * 1024) {
-          if (mounted) {
-            final l10n = AppLocalizations.of(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(l10n.imageStillLarge(_formatBytes(imageSize))),
-                backgroundColor: Colors.orange,
-                duration: const Duration(seconds: 1),
-              ),
-            );
-          }
-          // Try picking again with even more compression
-          final XFile? recompressed = await _picker.pickImage(
-            source: source,
-            imageQuality: 20,
-            maxWidth: 640,
-            maxHeight: 480,
-          );
-          if (recompressed != null) {
-            final recompressedBytes = await File(recompressed.path).readAsBytes();
-            _addImageToList(recompressedBytes, recompressed.path);
-            return;
-          }
-        }
-        
-        _addImageToList(imageBytes, image.path);
-      }
-    } catch (e) {
-      if (mounted) {
-        final l10n = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.errorSelectingPhoto(e.toString()))),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isUploadingPhoto = false);
-      }
-    }
-  }
-
-  void _addImageToList(Uint8List imageBytes, String path) {
-    final String base64Image = base64Encode(imageBytes);
-    final String extension = path.split('.').last.toLowerCase();
-    final String mimeType = extension == 'png' ? 'image/png' : 'image/jpeg';
-    final String dataUrl = 'data:$mimeType;base64,$base64Image';
-    
-    setState(() {
-      _photoUrls.add(dataUrl);
-    });
-    
-    if (mounted) {
-      final l10n = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.photoAdded(_photoUrls.length, _formatBytes(imageBytes.length))),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 1),
-        ),
-      );
-    }
-  }
-
-  String _formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-
-  void _showImageSourceActionSheet() {
-    final l10n = AppLocalizations.of(context);
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_camera),
-              title: Text(l10n.takePhoto),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: Text(l10n.selectFromGallery),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.gallery);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   @override
   void initState() {
@@ -425,8 +300,6 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
     _startDateController.dispose();
     _endDateController.dispose();
     _descriptionController.dispose();
-    // Clear cached photo bytes
-    _cachedPhotoBytes.clear();
     super.dispose();
   }
   
@@ -469,125 +342,9 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
     }
   }
 
-  // Cache để tránh decode base64 nhiều lần
-  final Map<int, Uint8List> _cachedPhotoBytes = {};
-
-  Widget _buildPhotoThumbnail(int index) {
-    final path = _photoUrls[index];
-    final isBase64 = path.startsWith('data:image');
-    
-    Widget imageWidget;
-    
-    if (isBase64) {
-      // Sử dụng cache để tránh decode lại
-      if (!_cachedPhotoBytes.containsKey(index)) {
-        try {
-          final base64Data = path.split(',').last;
-          _cachedPhotoBytes[index] = base64Decode(base64Data);
-        } catch (e) {
-          _cachedPhotoBytes[index] = Uint8List(0);
-        }
-      }
-      
-      final bytes = _cachedPhotoBytes[index]!;
-      if (bytes.isEmpty) {
-        imageWidget = const Center(
-          child: Icon(Icons.broken_image, color: Colors.grey),
-        );
-      } else {
-        imageWidget = Image.memory(
-          bytes,
-          fit: BoxFit.cover,
-          width: 100,
-          height: 100,
-          cacheWidth: 100, // Giảm memory bằng cách resize
-          cacheHeight: 100,
-          gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => const Center(
-            child: Icon(Icons.broken_image, color: Colors.grey),
-          ),
-        );
-      }
-    } else {
-      // File path - hiếm khi xảy ra
-      imageWidget = Image.file(
-        File(path),
-        fit: BoxFit.cover,
-        width: 100,
-        height: 100,
-        cacheWidth: 100,
-        cacheHeight: 100,
-        errorBuilder: (_, __, ___) => const Center(
-          child: Icon(Icons.broken_image, color: Colors.grey),
-        ),
-      );
-    }
-    
-    return Stack(
-      children: [
-        Container(
-          width: 100,
-          height: 100,
-          margin: const EdgeInsets.only(right: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade300),
-            color: Colors.grey.shade100,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: imageWidget,
-          ),
-        ),
-        Positioned(
-          top: 4,
-          right: 12,
-          child: InkWell(
-            onTap: () {
-              setState(() {
-                _photoUrls.removeAt(index);
-                _cachedPhotoBytes.remove(index);
-                // Re-index cached photos
-                final newCache = <int, Uint8List>{};
-                _cachedPhotoBytes.forEach((key, value) {
-                  if (key > index) {
-                    newCache[key - 1] = value;
-                  } else {
-                    newCache[key] = value;
-                  }
-                });
-                _cachedPhotoBytes.clear();
-                _cachedPhotoBytes.addAll(newCache);
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.close, size: 12, color: Colors.white),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Future<void> _submitCompletion() async {
     final l10n = AppLocalizations.of(context);
     if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    // Validate photos
-    if (widget.task.requiredPhotos > 0 && _photoUrls.length < widget.task.requiredPhotos) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.minPhotosRequired(widget.task.requiredPhotos, _photoUrls.length)),
-          backgroundColor: Colors.red,
-        ),
-      );
       return;
     }
 
@@ -612,7 +369,6 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
-        photoUrls: _photoUrls.isNotEmpty ? _photoUrls : null,
       );
 
       // Trigger sync if online
@@ -1007,71 +763,6 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             ),
             maxLines: 4,
-          ),
-
-          const SizedBox(height: 20),
-
-          // Photos Section
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                l10n.reportPhotos,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              if (widget.task.requiredPhotos > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _photoUrls.length >= widget.task.requiredPhotos
-                        ? Colors.green.shade50 : Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: _photoUrls.length >= widget.task.requiredPhotos
-                          ? Colors.green : Colors.orange,
-                    ),
-                  ),
-                  child: Text(
-                    l10n.photosRequired(_photoUrls.length, widget.task.requiredPhotos),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: _photoUrls.length >= widget.task.requiredPhotos
-                          ? Colors.green.shade700 : Colors.orange.shade700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          
-          // Photo Grid
-          if (_photoUrls.isNotEmpty)
-            Container(
-              height: 100,
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _photoUrls.length,
-                cacheExtent: 100,
-                itemBuilder: (context, index) => _buildPhotoThumbnail(index),
-              ),
-            ),
-
-          // Add Photo Button
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: (_isUploadingPhoto || _photoUrls.length >= 5)
-                  ? null : _showImageSourceActionSheet,
-              icon: _isUploadingPhoto
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.add_a_photo, size: 18),
-              label: Text(_photoUrls.length >= 5 ? l10n.maxPhotosReached(5) : l10n.uploadPhotoOrTake),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-              ),
-            ),
           ),
 
           const SizedBox(height: 24),

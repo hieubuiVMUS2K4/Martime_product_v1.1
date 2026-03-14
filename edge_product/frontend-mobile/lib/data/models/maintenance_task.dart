@@ -304,6 +304,7 @@ class MaintenanceTask extends Equatable {
   bool get canFixAndContinue => isRectify;
   bool get hasEnoughPhotos => photosUploaded >= requiredPhotos;
 
+  bool get isUpcoming => status == 'UPCOMING';
   bool get isScheduled => status == 'SCHEDULED';
   bool get isDue => status == 'DUE';
   bool get isOverdueStatus => status == 'OVERDUE';
@@ -316,6 +317,9 @@ class MaintenanceTask extends Equatable {
   bool get isMissingChecklist => status == 'MISSING_CHECKLIST';
   bool get isMissingBoth => status == 'MISSING_BOTH';
   bool get hasMissingStatus => isMissingPic || isMissingChecklist || isMissingBoth;
+
+  /// Not started = UPCOMING, SCHEDULED, or MISSING_* (tasks not yet actionable or pending setup)
+  bool get isNotStarted => isUpcoming || isScheduled || hasMissingStatus;
 
   /// Start is allowed by backend for DUE/OVERDUE/RECTIFY/MISSING_*, but blocked if hasPendingDeferral
   /// Tasks with MISSING_* status can be started at any time (crew can self-assign)
@@ -345,12 +349,28 @@ class MaintenanceTask extends Equatable {
     if (isOverdueStatus || (isOverdue && !isCompleted)) return Colors.red.shade700;
     if (isInProgress) return Colors.blue.shade700;
     if (isCompleted) return Colors.green.shade700;
-    if (isDue || isScheduled) return Colors.grey.shade700;
+    if (isDue) return Colors.teal.shade700;
+    if (isUpcoming || isScheduled) return Colors.blueGrey.shade600;
+    if (hasMissingStatus) return Colors.purple.shade600;
     return Colors.grey.shade600;
   }
   
   String get statusText {
-    return status;
+    switch (status) {
+      case 'UPCOMING': return 'Sắp tới';
+      case 'SCHEDULED': return 'Đã lên kế hoạch';
+      case 'DUE': return 'Đến hạn';
+      case 'OVERDUE': return 'Quá hạn';
+      case 'IN_PROGRESS': return 'Đang thực hiện';
+      case 'PENDING_APPROVAL': return 'Chờ duyệt';
+      case 'RECTIFY': return 'Cần sửa';
+      case 'COMPLETED': return 'Hoàn thành';
+      case 'CANCELLED': return 'Đã hủy';
+      case 'MISSING_PIC': return 'Thiếu PIC';
+      case 'MISSING_CHECKLIST': return 'Thiếu checklist';
+      case 'MISSING_BOTH': return 'Thiếu PIC & checklist';
+      default: return status;
+    }
   }
 
   /// Get display name - prefers equipment name, falls back to group name

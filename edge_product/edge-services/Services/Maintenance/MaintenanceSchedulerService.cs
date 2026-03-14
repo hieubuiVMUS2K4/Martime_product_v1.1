@@ -672,7 +672,7 @@ public class MaintenanceSchedulerService : BackgroundService
                 EquipmentId = null,
                 EquipmentName = null,
                 
-                TaskType = schedule.IntervalType,
+                TaskType = (schedule.MaintenanceCategory == "AD_HOC" || schedule.MaintenanceCategory == "CORRECTIVE") ? schedule.MaintenanceCategory : schedule.IntervalType,
                 TaskDescription = schedule.ScheduleName + "\n\n" + (schedule.Instructions ?? ""),
                 IntervalHours = schedule.IntervalHours,
                 IntervalDays = schedule.IntervalDays,
