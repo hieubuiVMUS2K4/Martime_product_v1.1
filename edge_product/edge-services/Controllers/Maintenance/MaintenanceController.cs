@@ -292,6 +292,8 @@ public class MaintenanceController : ControllerBase
             }
 
             // Filter by assignedTo (crew name or ID)
+            // Also include tasks where crew is SUPPORT/RECEIVER via schedule's Instructions (<!--CREW:...-->)
+            CrewMember? matchedCrew = null;
             if (!string.IsNullOrWhiteSpace(assignedTo))
             {
                 query = query.Where(t => t.AssignedTo != null && t.AssignedTo.Contains(assignedTo));
@@ -299,18 +301,28 @@ public class MaintenanceController : ControllerBase
             else if (!string.IsNullOrWhiteSpace(crewId))
             {
                 // If crewId is provided, try to find matching crew member
-                var crew = await _context.CrewMembers
+                matchedCrew = await _context.CrewMembers
                     .AsNoTracking()
                     .FirstOrDefaultAsync(c => c.CrewId == crewId);
                 
-                if (crew != null)
+                if (matchedCrew != null)
                 {
-                    // Match by full name or crew ID (chính xác hơn)
-                    // Task phải có AssignedTo chứa CrewId HOẶC FullName của crew member
-                    query = query.Where(t => t.AssignedTo != null && 
-                        (t.AssignedTo.Contains(crew.CrewId) || t.AssignedTo.Contains(crew.FullName)));
+                    var crewGuidStr = matchedCrew.Id.ToString();
                     
-                    _logger.LogInformation("Filtering tasks for crew: {CrewId} - {FullName}", crew.CrewId, crew.FullName);
+                    // Find schedules where this crew appears in CREW metadata (SUPPORT/RECEIVER/PIC)
+                    var scheduleIdsWithCrew = await _context.MaintenanceSchedules
+                        .AsNoTracking()
+                        .Where(s => s.Instructions != null && s.Instructions.Contains(crewGuidStr))
+                        .Select(s => s.Id)
+                        .ToListAsync();
+                    
+                    // Match by AssignedTo (PIC) OR by schedule's crew metadata (SUPPORT/RECEIVER)
+                    query = query.Where(t => 
+                        (t.AssignedTo != null && (t.AssignedTo.Contains(matchedCrew.CrewId) || t.AssignedTo.Contains(matchedCrew.FullName))) ||
+                        (t.ScheduleId != null && scheduleIdsWithCrew.Contains(t.ScheduleId.Value)));
+                    
+                    _logger.LogInformation("Filtering tasks for crew: {CrewId} - {FullName} (PIC + {ScheduleCount} schedules with SUPPORT/RECEIVER role)", 
+                        matchedCrew.CrewId, matchedCrew.FullName, scheduleIdsWithCrew.Count);
                 }
                 else
                 {
@@ -418,10 +430,70 @@ public class MaintenanceController : ControllerBase
                 })
                 .ToListAsync();
 
-            _logger.LogInformation("Retrieved {Count} tasks (optimized) for crew: {CrewId}/{AssignedTo}, includeCompleted: {IncludeCompleted}", 
-                tasks.Count, crewId, assignedTo, includeCompleted);
+            // Post-process: Add crewRole field for the requesting crew member
+            var crewGuid = matchedCrew?.Id.ToString() ?? "";
+            var crewIdStr = matchedCrew?.CrewId ?? assignedTo ?? "";
+            var crewFullName = matchedCrew?.FullName ?? "";
+            
+            // Pre-load schedule instructions for role lookup (CREW metadata is in schedule, not task)
+            var scheduleIds = tasks.Where(t => t.ScheduleId != null).Select(t => t.ScheduleId!.Value).Distinct().ToList();
+            var scheduleInstructions = scheduleIds.Count > 0 
+                ? await _context.MaintenanceSchedules
+                    .AsNoTracking()
+                    .Where(s => scheduleIds.Contains(s.Id) && s.Instructions != null)
+                    .Select(s => new { s.Id, s.Instructions })
+                    .ToDictionaryAsync(s => s.Id, s => s.Instructions ?? "")
+                : new Dictionary<Guid, string>();
+            
+            var tasksWithRole = tasks.Select(t => {
+                var role = "PIC"; // default
+                if (matchedCrew != null || !string.IsNullOrWhiteSpace(crewId))
+                {
+                    // Check if this crew is PIC (in AssignedTo)
+                    var isPic = t.AssignedTo != null && 
+                        (t.AssignedTo.Contains(crewIdStr) || (!string.IsNullOrWhiteSpace(crewFullName) && t.AssignedTo.Contains(crewFullName)));
+                    
+                    if (isPic)
+                    {
+                        role = "PIC";
+                    }
+                    else if (!string.IsNullOrWhiteSpace(crewGuid) && t.ScheduleId != null 
+                        && scheduleInstructions.TryGetValue(t.ScheduleId.Value, out var instructions))
+                    {
+                        // Parse role from <!--CREW:{"a":[{"crewId":"guid","role":"SUPPORT"}]}--> in schedule Instructions
+                        role = ParseCrewRoleFromDescription(instructions, crewGuid);
+                    }
+                }
+                return new {
+                    t.Id, t.TaskId, t.TaskTypeId, t.EquipmentId, t.EquipmentName,
+                    t.EquipmentGroupId, t.EquipmentGroupName, t.ScheduleId,
+                    t.TaskType, t.TaskDescription, t.IntervalHours, t.IntervalDays,
+                    t.LastDoneAt, t.NextDueAt, t.RunningHoursAtLastDone, t.Priority,
+                    t.Status, t.AssignedTo, t.AssignedDepartment,
+                    t.HasPendingDeferral, t.DeferralCount, t.LastDeferredAt, t.LastDeferredBy,
+                    t.StartedAt, t.StartedBy, t.ActualRunningHours,
+                    t.EstimatedDuration, t.ActualDuration,
+                    t.ChecklistCompleted, t.PhotosUploaded, t.RequiredPhotos,
+                    t.Notes, t.RequiredSpareParts, t.SparePartsUsed,
+                    t.SubmittedAt, t.SubmittedBy, t.VerifiedAt, t.VerifiedBy,
+                    t.VerificationResult, t.VerificationNotes,
+                    t.RejectionReason, t.RejectionCount, t.LastRejectedAt, t.LastRejectedBy,
+                    t.RejectionHistory, t.CompletedAt, t.CompletedBy,
+                    t.CancelledAt, t.CancelledBy, t.CancellationReason,
+                    t.IsCms, t.ApprovedBy, t.ApprovedAt,
+                    t.IsDeleted, t.DeletedAt, t.DeletedBy, t.DeletionReason,
+                    t.IsSynced, t.SyncedAt, t.CreatedAt, t.UpdatedAt, t.OriginNode,
+                    t.EquipmentGroup,
+                    t.ChecklistItemsCount, t.ChecklistCompletedCount,
+                    t.ChecklistItems, t.DeferralRequests, t.StatusHistory,
+                    CrewRole = role
+                };
+            }).ToList();
 
-            return Ok(tasks);
+            _logger.LogInformation("Retrieved {Count} tasks (optimized) for crew: {CrewId}/{AssignedTo}, includeCompleted: {IncludeCompleted}", 
+                tasksWithRole.Count, crewId, assignedTo, includeCompleted);
+
+            return Ok(tasksWithRole);
         }
         catch (Exception ex)
         {
@@ -1487,5 +1559,37 @@ public class MaintenanceController : ControllerBase
             _logger.LogError(ex, "Error validating equipment availability for task {TaskId}", task.TaskId);
             return (true, null); // Allow on error to not block workflow
         }
+    }
+
+    /// <summary>
+    /// Parse crew role from <!--CREW:{"a":[{"crewId":"guid","role":"SUPPORT"}]}--> in task description
+    /// </summary>
+    private static string ParseCrewRoleFromDescription(string? description, string crewGuid)
+    {
+        if (string.IsNullOrWhiteSpace(description) || string.IsNullOrWhiteSpace(crewGuid))
+            return "SUPPORT";
+
+        var match = System.Text.RegularExpressions.Regex.Match(description, @"<!--CREW:(.*?)-->");
+        if (!match.Success) return "SUPPORT";
+
+        try
+        {
+            var json = System.Text.Json.JsonDocument.Parse(match.Groups[1].Value);
+            if (json.RootElement.TryGetProperty("a", out var arr))
+            {
+                foreach (var item in arr.EnumerateArray())
+                {
+                    if (item.TryGetProperty("crewId", out var id) && 
+                        string.Equals(id.GetString(), crewGuid, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (item.TryGetProperty("role", out var role))
+                            return role.GetString() ?? "SUPPORT";
+                    }
+                }
+            }
+        }
+        catch { /* malformed JSON */ }
+
+        return "SUPPORT";
     }
 }

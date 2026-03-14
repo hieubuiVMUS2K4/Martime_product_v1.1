@@ -219,6 +219,30 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   ),
                 ),
               
+              // SUPPORT/RECEIVER role: view-only banner
+              if (!widget.task.isPic)
+                Container(
+                  width: double.infinity,
+                  color: Colors.blueGrey.shade50,
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  child: Row(
+                    children: [
+                      Icon(Icons.visibility, color: Colors.blueGrey.shade400, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Vai trò: ${widget.task.crewRole} — Chỉ xem',
+                          style: TextStyle(
+                            color: Colors.blueGrey.shade600,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               // Rejection Info
               if (widget.task.isRectify) ...[
                 const SizedBox(height: 16),
@@ -1035,7 +1059,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          if (widget.task.isInProgress || isCompleted) {
+          if ((widget.task.isInProgress || isCompleted) && widget.task.isPic) {
             _showQuickChecklistDialog(item, index);
           }
         },
@@ -1962,6 +1986,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   Widget? _buildBottomActionBar(BuildContext context, TaskProvider taskProvider) {
     final l10n = AppLocalizations.of(context);
     
+    // Don't show action bar for SUPPORT/RECEIVER crew (read-only)
+    if (!widget.task.isPic) {
+      return null;
+    }
+
     // Don't show action bar for completed tasks
     if (widget.task.isCompleted) {
       return null;

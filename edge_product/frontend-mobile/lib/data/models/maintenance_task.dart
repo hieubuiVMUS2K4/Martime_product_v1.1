@@ -76,6 +76,9 @@ class MaintenanceTask extends Equatable {
   // Optimized: Checklist summary for list view (without loading full items)
   final int checklistItemsCount;
   final int checklistCompletedCount;
+
+  // Crew role for this user on this task (PIC, SUPPORT, RECEIVER)
+  final String crewRole;
   
   const MaintenanceTask({
     required this.id,
@@ -130,6 +133,7 @@ class MaintenanceTask extends Equatable {
     this.verificationResult,
     this.checklistItemsCount = 0,
     this.checklistCompletedCount = 0,
+    this.crewRole = 'PIC',
   });
   
   factory MaintenanceTask.fromJson(Map<String, dynamic> json) {
@@ -193,6 +197,7 @@ class MaintenanceTask extends Equatable {
       // Optimized checklist summary from API
       checklistItemsCount: json['checklistItemsCount'] ?? (json['checklistItems'] as List?)?.length ?? 0,
       checklistCompletedCount: json['checklistCompletedCount'] ?? (json['checklistItems'] as List?)?.where((i) => i['isCompleted'] == true).length ?? 0,
+      crewRole: json['crewRole']?.toString() ?? 'PIC',
     );
   }
   
@@ -250,6 +255,7 @@ class MaintenanceTask extends Equatable {
       'verificationResult': verificationResult,
       'checklistItemsCount': checklistItemsCount,
       'checklistCompletedCount': checklistCompletedCount,
+      'crewRole': crewRole,
     };
   }
   
@@ -300,8 +306,9 @@ class MaintenanceTask extends Equatable {
   // Workflow helpers
   bool get isRectify => status == 'RECTIFY';
   bool get isPendingApproval => status == 'PENDING_APPROVAL';
-  bool get canRequestDeferral => status == 'DUE' || status == 'OVERDUE' || status == 'SCHEDULED' || hasMissingStatus;
-  bool get canFixAndContinue => isRectify;
+  bool get isPic => crewRole == 'PIC';
+  bool get canRequestDeferral => isPic && (status == 'DUE' || status == 'OVERDUE' || status == 'SCHEDULED' || hasMissingStatus);
+  bool get canFixAndContinue => isPic && isRectify;
   bool get hasEnoughPhotos => photosUploaded >= requiredPhotos;
 
   bool get isUpcoming => status == 'UPCOMING';
@@ -323,7 +330,7 @@ class MaintenanceTask extends Equatable {
 
   /// Start is allowed by backend for DUE/OVERDUE/RECTIFY/MISSING_*, but blocked if hasPendingDeferral
   /// Tasks with MISSING_* status can be started at any time (crew can self-assign)
-  bool get canStart => (isDue || isOverdueStatus || isRectify || hasMissingStatus) && !hasPendingDeferral;
+  bool get canStart => isPic && (isDue || isOverdueStatus || isRectify || hasMissingStatus) && !hasPendingDeferral;
   
   /// Check if this task uses the new TaskType system
   bool get hasTaskType => taskTypeId != null;
@@ -395,5 +402,6 @@ class MaintenanceTask extends Equatable {
     assignedTo, assignedDepartment,
     requiredSpareParts, sparePartsUsed,
     checklistItemsCount, checklistCompletedCount,
+    crewRole,
   ];
 }
