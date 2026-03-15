@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+﻿import React, { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Send, MessageSquare, Clock, AlertOctagon, AlertTriangle,
@@ -65,8 +65,8 @@ export const AssignmentDetailPage: React.FC = () => {
       title: `Chuyển trạng thái`,
       message: `Chuyển sang "${statusLabel[newStatus] || newStatus}"${isCancelling ? '. Vui lòng cung cấp lý do.' : '. Bạn có thể thêm lý do (không bắt buộc).'}`,
       variant: isCancelling ? 'danger' : 'warning',
-      confirmText: statusLabel[newStatus] || newStatus,
-      showInput: true,
+      confirmLabel: statusLabel[newStatus] || newStatus,
+      withInput: true,
       inputPlaceholder: 'Lý do...',
       inputRequired: isCancelling,
     });

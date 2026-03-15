@@ -115,6 +115,30 @@ namespace ProductApi.Data
         public DbSet<SignOnRecord> SignOnRecords { get; set; } = null!;
         public DbSet<SignOffRecord> SignOffRecords { get; set; } = null!;
 
+        // ============================================================
+        // PMS — PLANNED MAINTENANCE SYSTEM (Phase 8)
+        // ============================================================
+        public DbSet<EquipmentAsset> EquipmentAssets { get; set; } = null!;
+        public DbSet<EquipmentGroup> EquipmentGroups { get; set; } = null!;
+        public DbSet<EquipmentGroupMember> EquipmentGroupMembers { get; set; } = null!;
+        public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; } = null!;
+        public DbSet<ScheduleSparePart> ScheduleSpareParts { get; set; } = null!;
+        public DbSet<ScheduleChecklistTemplate> ScheduleChecklistTemplates { get; set; } = null!;
+        public DbSet<MaintenanceHistory> MaintenanceHistories { get; set; } = null!;
+
+        // ============================================================
+        // MATERIALS — VẬT TƯ (Phase 8)
+        // ============================================================
+        public DbSet<MaterialCategory> MaterialCategories { get; set; } = null!;
+        public DbSet<MaterialItem> MaterialItems { get; set; } = null!;
+        public DbSet<MaterialItemEquipment> MaterialItemEquipments { get; set; } = null!;
+        public DbSet<StoreLocation> StoreLocations { get; set; } = null!;
+        public DbSet<MaterialRequest> MaterialRequests { get; set; } = null!;
+        public DbSet<MaterialRequestItem> MaterialRequestItems { get; set; } = null!;
+        public DbSet<StockReceipt> StockReceipts { get; set; } = null!;
+        public DbSet<StockReceiptItem> StockReceiptItems { get; set; } = null!;
+        public DbSet<InventoryStock> InventoryStocks { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -994,6 +1018,141 @@ namespace ProductApi.Data
                     .WithMany()
                     .HasForeignKey(e => e.SignOnRecordId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // ============================================================
+            // PMS ENTITY CONFIGURATIONS
+            // ============================================================
+
+            modelBuilder.Entity<EquipmentAsset>(entity =>
+            {
+                entity.ToTable("equipment_assets");
+                entity.HasIndex(e => e.AssetCode).IsUnique();
+                entity.HasOne(e => e.Parent)
+                    .WithMany(e => e.Children)
+                    .HasForeignKey(e => e.ParentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<EquipmentGroup>(entity =>
+            {
+                entity.ToTable("equipment_groups");
+                entity.HasIndex(e => e.GroupCode).IsUnique();
+            });
+
+            modelBuilder.Entity<EquipmentGroupMember>(entity =>
+            {
+                entity.ToTable("equipment_group_members");
+                entity.HasOne(e => e.Group)
+                    .WithMany(g => g.Members)
+                    .HasForeignKey(e => e.GroupId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Asset)
+                    .WithMany()
+                    .HasForeignKey(e => e.AssetId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => new { e.GroupId, e.AssetId }).IsUnique();
+            });
+
+            modelBuilder.Entity<MaintenanceSchedule>(entity =>
+            {
+                entity.ToTable("maintenance_schedules");
+                entity.HasIndex(e => e.ScheduleCode).IsUnique();
+            });
+
+            modelBuilder.Entity<ScheduleSparePart>(entity =>
+            {
+                entity.ToTable("schedule_spare_parts");
+            });
+
+            modelBuilder.Entity<ScheduleChecklistTemplate>(entity =>
+            {
+                entity.ToTable("schedule_checklist_templates");
+            });
+
+            modelBuilder.Entity<MaintenanceHistory>(entity =>
+            {
+                entity.ToTable("maintenance_histories");
+            });
+
+            // ============================================================
+            // MATERIALS ENTITY CONFIGURATIONS
+            // ============================================================
+
+            modelBuilder.Entity<MaterialCategory>(entity =>
+            {
+                entity.ToTable("material_categories");
+                entity.HasIndex(e => e.CategoryCode).IsUnique();
+            });
+
+            modelBuilder.Entity<MaterialItem>(entity =>
+            {
+                entity.ToTable("material_items");
+                entity.HasIndex(e => e.ItemCode).IsUnique();
+                entity.Property(e => e.UnitCost).HasPrecision(18, 4);
+            });
+
+            modelBuilder.Entity<MaterialItemEquipment>(entity =>
+            {
+                entity.ToTable("material_item_equipments");
+                entity.HasIndex(e => new { e.MaterialItemId, e.EquipmentAssetId }).IsUnique();
+            });
+
+            modelBuilder.Entity<StoreLocation>(entity =>
+            {
+                entity.ToTable("store_locations");
+                entity.HasIndex(e => e.LocationCode).IsUnique();
+                entity.HasOne(e => e.Parent)
+                    .WithMany(e => e.Children)
+                    .HasForeignKey(e => e.ParentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<MaterialRequest>(entity =>
+            {
+                entity.ToTable("material_requests");
+                entity.HasIndex(e => e.RequestCode).IsUnique();
+            });
+
+            modelBuilder.Entity<MaterialRequestItem>(entity =>
+            {
+                entity.ToTable("material_request_items");
+                entity.Property(e => e.QuantityOnHand).HasPrecision(18, 4);
+                entity.Property(e => e.QuantityRequested).HasPrecision(18, 4);
+                entity.HasOne(e => e.Request)
+                    .WithMany(r => r.Items)
+                    .HasForeignKey(e => e.RequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<StockReceipt>(entity =>
+            {
+                entity.ToTable("stock_receipts");
+                entity.HasIndex(e => e.ReceiptCode).IsUnique();
+                entity.HasOne(e => e.MaterialRequest)
+                    .WithMany()
+                    .HasForeignKey(e => e.MaterialRequestId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<StockReceiptItem>(entity =>
+            {
+                entity.ToTable("stock_receipt_items");
+                entity.Property(e => e.QuantityRequested).HasPrecision(18, 4);
+                entity.Property(e => e.QuantityReceived).HasPrecision(18, 4);
+                entity.Property(e => e.UnitCost).HasPrecision(18, 4);
+                entity.HasOne(e => e.Receipt)
+                    .WithMany(r => r.Items)
+                    .HasForeignKey(e => e.ReceiptId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<InventoryStock>(entity =>
+            {
+                entity.ToTable("inventory_stocks");
+                entity.HasIndex(e => new { e.MaterialItemId, e.StoreLocationId }).IsUnique();
+                entity.Property(e => e.Quantity).HasPrecision(18, 4);
+                entity.Property(e => e.UnitCost).HasPrecision(18, 4);
             });
         }
     }

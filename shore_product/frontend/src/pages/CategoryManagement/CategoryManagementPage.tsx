@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Card, CardHeader, CardBody, Button, Modal, Input } from '../../components/common';
 import { useToast } from '../../components/common/Toast';
 import { useConfirmDialog } from '../../components/common/ConfirmDialog';
@@ -68,7 +68,7 @@ export const CategoryManagementPage: React.FC = () => {
       title: 'Xóa mục',
       message: `Bạn có chắc chắn muốn xóa mục có mã ${code}?`,
       variant: 'danger',
-      confirmText: 'Xóa',
+      confirmLabel: 'Xóa',
     });
     if (result.confirmed) {
       toast.success(`Đã xóa thành công mục ${code}!`);

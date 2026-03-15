@@ -340,16 +340,19 @@ export const VesselDetailPage: React.FC = () => {
         return <MachineryTab vessel={vessel} />;
 
       case 'shipowner':
-        return <ShipownerTab vessel={vessel} formData={formData} onChange={handleChange} />;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return <ShipownerTab vessel={vessel} formData={formData} onChange={handleChange as any} />;
 
       case 'charterer':
-        return <ChartererTab vessel={vessel} formData={formData} onChange={handleChange} />;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return <ChartererTab vessel={vessel} formData={formData} onChange={handleChange as any} />;
 
       case 'class-flag-state':
         return <ClassFlagStateTab vessel={vessel} />;
 
       case 'insurance':
-        return <InsuranceTab vessel={vessel} formData={formData} onChange={handleChange} />;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return <InsuranceTab vessel={vessel} formData={formData} onChange={handleChange as any} />;
 
       case 'radio-comm':
         return <RadioCommTab vessel={vessel} />;

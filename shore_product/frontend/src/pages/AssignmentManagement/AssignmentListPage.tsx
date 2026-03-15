@@ -64,7 +64,7 @@ export const AssignmentListPage: React.FC = () => {
   const stats = useMemo(() => {
     const s = { total: assignments.length, active: 0, blockers: 0, pending: 0 };
     assignments.forEach(a => {
-      if (ACTIVE_STATUSES.includes(a.status)) s.active++;
+      if (ACTIVE_STATUSES.includes(a.status as typeof ACTIVE_STATUSES[number])) s.active++;
       if (a.blockerCount > 0) s.blockers++;
       if (a.status === AssignmentStatus.PENDING_CREW_CONFIRMATION) s.pending++;
     });

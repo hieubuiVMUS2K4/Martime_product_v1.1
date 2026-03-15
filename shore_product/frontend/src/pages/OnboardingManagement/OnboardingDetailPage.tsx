@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Ship, Calendar, User, CheckCircle2, Circle,
@@ -80,8 +80,8 @@ export const OnboardingDetailPage: React.FC = () => {
       title: 'Waive checklist item',
       message: `Are you sure you want to waive "${item.title}"? Please provide a reason.`,
       variant: 'warning',
-      confirmText: 'Waive',
-      showInput: true,
+      confirmLabel: 'Waive',
+      withInput: true,
       inputPlaceholder: 'Waiver reason...',
       inputRequired: true,
     });

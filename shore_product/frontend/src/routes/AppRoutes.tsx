@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { TopNavLayout } from '../components/layout';
 import { CategoryManagementPage, CrewListPage, CrewDetailPage, CertificateMonitorPage, MasterSchedulePage, VesselsPage, ReportPage, VesselReportDetailPage } from '../pages';
@@ -13,13 +13,24 @@ import { ExternalRequestListPage, ExternalRequestDetailPage } from '../pages/Ext
 import { TravelListPage, TravelDetailPage } from '../pages/TravelManagement';
 import { OnboardDashboardPage } from '../pages/OnboardManagement';
 
+// PMS pages
+import AssetsPage from '../pages/PMS/AssetsPage';
+import WorkPlanningPage from '../pages/PMS/WorkPlanningPage';
+
+// Materials pages
+import { MaterialPage } from '../pages/Materials/MaterialPage';
+import StoreLocationPage from '../pages/Materials/StoreLocationPage';
+import MaterialRequestPage from '../pages/Materials/MaterialRequestPage';
+import StockReceiptPage from '../pages/Materials/StockReceiptPage';
+import InventoryPage from '../pages/Materials/InventoryPage';
+
 /**
  * Main application routes
  * 
- * Cấu trúc:
+ * Cáº¥u trĂºc:
  * - / -> redirect to /report
- * - TopNavLayout bao bọc tất cả các page với thanh điều hướng ngang
- * - Các route con render trong <Outlet /> của TopNavLayout
+ * - TopNavLayout bao bá»c táº¥t cáº£ cĂ¡c page vá»›i thanh Ä‘iá»u hÆ°á»›ng ngang
+ * - CĂ¡c route con render trong <Outlet /> cá»§a TopNavLayout
  */
 export const AppRoutes: React.FC = () => {
   return (
@@ -53,6 +64,17 @@ export const AppRoutes: React.FC = () => {
         <Route path="/travel" element={<TravelListPage />} />
         <Route path="/travel/:id" element={<TravelDetailPage />} />
         <Route path="/onboard-events" element={<OnboardDashboardPage />} />
+
+        {/* PMS - Bao tri tau */}
+        <Route path="/pms/assets" element={<AssetsPage />} />
+        <Route path="/pms/work-planning" element={<WorkPlanningPage />} />
+
+        {/* Materials - Vat tu */}
+        <Route path="/materials" element={<MaterialPage />} />
+        <Route path="/materials/store-locations" element={<StoreLocationPage />} />
+        <Route path="/materials/requests" element={<MaterialRequestPage />} />
+        <Route path="/materials/receipts" element={<StockReceiptPage />} />
+        <Route path="/materials/inventory" element={<InventoryPage />} />
       </Route>
       
       {/* 404 */}

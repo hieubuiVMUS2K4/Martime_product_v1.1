@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plane, MapPin, Clock, Plus, Trash2, History } from 'lucide-react';
 import { useTravelRequest, useTravelHistory } from '../../hooks/useTravel';
@@ -39,8 +39,8 @@ export default function TravelDetailPage() {
         title: 'Hủy yêu cầu di chuyển',
         message: 'Vui lòng cung cấp lý do hủy.',
         variant: 'danger',
-        confirmText: 'Hủy yêu cầu',
-        showInput: true,
+        confirmLabel: 'Hủy yêu cầu',
+        withInput: true,
         inputPlaceholder: 'Lý do hủy...',
         inputRequired: true,
       });

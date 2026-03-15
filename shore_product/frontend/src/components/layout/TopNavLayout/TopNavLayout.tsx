@@ -1,38 +1,94 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+﻿import React, { useState, useRef, useEffect } from 'react';
+import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { Anchor, Bell, Menu, X, Ship, ChevronDown, Check } from 'lucide-react';
 import { useVessel } from '../../../contexts/VesselContext';
 import './TopNavLayout.css';
 
+// Simple flat nav items
 const navItems = [
-  { path: '/crew',      label: 'Thuyền viên' },
-  { path: '/vessels',   label: 'Danh sách tàu' },
-  { path: '/onboarding', label: 'Onboarding' },
+  { path: '/crew',               label: 'Thuyền viên' },
+  { path: '/vessels',            label: 'Danh sách tàu' },
+  { path: '/onboarding',         label: 'Onboarding' },
   { path: '/verification-queue', label: 'Xác minh' },
-  { path: '/compliance', label: 'Tuân thủ' },
-  { path: '/assignments', label: 'Phân công' },
-  { path: '/external-requests', label: 'Tuyển ngoài' },
-  { path: '/travel', label: 'Di chuyển' },
-  { path: '/onboard-events', label: 'Onboard' },
-  { path: '/report', label: 'Báo cáo' },
-  { path: '/sync',      label: 'Đồng bộ' },
+  { path: '/compliance',         label: 'Tuân thủ' },
+  { path: '/assignments',        label: 'Phân công' },
+  { path: '/external-requests',  label: 'Tuyển ngoài' },
+  { path: '/travel',             label: 'Di chuyển' },
+  { path: '/onboard-events',     label: 'Onboard' },
+  { path: '/report',             label: 'Báo cáo' },
+  { path: '/sync',               label: 'Đồng bộ' },
+];
+
+// Dropdown menus with grouped items
+const dropdownMenus = [
+  {
+    label: 'PMS',
+    basePaths: ['/pms'],
+    groups: [
+      {
+        label: 'Thiết bị',
+        items: [
+          { path: '/pms/assets',        label: 'Danh sách thiết bị' },
+        ],
+      },
+      {
+        label: 'Bảo trì',
+        items: [
+          { path: '/pms/work-planning', label: 'Kế hoạch bảo trì' },
+        ],
+      },
+    ],
+  },
+  {
+    label: 'Vật tư',
+    basePaths: ['/materials'],
+    groups: [
+      {
+        label: 'Danh mục',
+        items: [
+          { path: '/materials',                 label: 'Vật tư' },
+          { path: '/materials/store-locations', label: 'Kho' },
+        ],
+      },
+      {
+        label: 'Xuất nhập',
+        items: [
+          { path: '/materials/requests',  label: 'Yêu cầu vật tư' },
+          { path: '/materials/receipts',  label: 'Nhập kho' },
+          { path: '/materials/inventory', label: 'Tồn kho' },
+        ],
+      },
+    ],
+  },
 ];
 
 export const TopNavLayout: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [vesselDropdownOpen, setVesselDropdownOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const { vessels, selectedVessel, selectVessel, isLoading } = useVessel();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const navDropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const location = useLocation();
 
+  // Close vessel dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setVesselDropdownOpen(false);
       }
+      // Close nav dropdowns
+      const clickedInsideNav = Object.values(navDropdownRefs.current).some(
+        ref => ref && ref.contains(e.target as Node)
+      );
+      if (!clickedInsideNav) setOpenMenu(null);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Close nav dropdown on route change
+  useEffect(() => { setOpenMenu(null); setMobileMenuOpen(false); }, [location.pathname]);
 
   return (
     <div className="app-shell">
@@ -47,6 +103,7 @@ export const TopNavLayout: React.FC = () => {
 
           {/* Desktop Nav Links */}
           <nav className="topnav-links">
+            {/* Flat items */}
             {navItems.map((item) => (
               <NavLink
                 key={item.path}
@@ -58,6 +115,48 @@ export const TopNavLayout: React.FC = () => {
                 {item.label}
               </NavLink>
             ))}
+
+            {/* Dropdown menus */}
+            {dropdownMenus.map((menu) => {
+              const isActive = menu.basePaths.some(p => location.pathname.startsWith(p));
+              const isOpen = openMenu === menu.label;
+              return (
+                <div
+                  key={menu.label}
+                  className="topnav-dropdown-wrap"
+                  ref={el => { navDropdownRefs.current[menu.label] = el; }}
+                >
+                  <button
+                    className={`topnav-link topnav-dropdown-btn ${isActive ? 'topnav-link--active' : ''}`}
+                    onClick={() => setOpenMenu(isOpen ? null : menu.label)}
+                  >
+                    {menu.label}
+                    <ChevronDown size={12} className={`nav-chevron ${isOpen ? 'nav-chevron--open' : ''}`} />
+                  </button>
+
+                  {isOpen && (
+                    <div className="topnav-dropdown-panel">
+                      {menu.groups.map((group) => (
+                        <div key={group.label} className="topnav-dropdown-group">
+                          <div className="topnav-dropdown-group-label">{group.label}</div>
+                          {group.items.map((item) => (
+                            <NavLink
+                              key={item.path}
+                              to={item.path}
+                              className={({ isActive }) =>
+                                `topnav-dropdown-item ${isActive ? 'topnav-dropdown-item--active' : ''}`
+                              }
+                            >
+                              {item.label}
+                            </NavLink>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </nav>
 
           {/* Vessel Selector */}
@@ -136,6 +235,22 @@ export const TopNavLayout: React.FC = () => {
                 {item.label}
               </NavLink>
             ))}
+            {dropdownMenus.flatMap(menu =>
+              menu.groups.flatMap(group =>
+                group.items.map(item => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) =>
+                      `topnav-mobile-link ${isActive ? 'topnav-mobile-link--active' : ''}`
+                    }
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {item.label}
+                  </NavLink>
+                ))
+              )
+            )}
           </div>
         )}
       </header>

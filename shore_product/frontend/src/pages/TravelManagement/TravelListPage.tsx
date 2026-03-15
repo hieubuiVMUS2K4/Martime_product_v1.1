@@ -39,7 +39,9 @@ export default function TravelListPage() {
 
   const stats = {
     total: travels.length,
-    active: travels.filter(t => [TravelRequestStatus.Pending, TravelRequestStatus.BookingInProgress, TravelRequestStatus.Booked, TravelRequestStatus.InTransit].includes(t.status as typeof TravelRequestStatus[keyof typeof TravelRequestStatus])).length,
+    active: travels.filter(t => [TravelRequestStatus.Pending, TravelRequestStatus.BookingInProgress, TravelRequestStatus.Booked, TravelRequestStatus.InTransit]
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .includes(t.status as any)).length,
     inTransit: travels.filter(t => t.status === TravelRequestStatus.InTransit).length,
     completed: travels.filter(t => t.status === TravelRequestStatus.Completed).length,
   };

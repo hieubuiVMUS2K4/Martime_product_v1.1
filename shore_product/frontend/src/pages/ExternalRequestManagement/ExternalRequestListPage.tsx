@@ -50,7 +50,8 @@ export default function ExternalRequestListPage() {
     total: requests.length,
     active: requests.filter(r =>
       [ExternalRequestStatus.Sent, ExternalRequestStatus.Viewed, ExternalRequestStatus.InProgress, ExternalRequestStatus.CandidateSubmitted]
-        .includes(r.status as typeof ExternalRequestStatus[keyof typeof ExternalRequestStatus])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .includes(r.status as any)
     ).length,
     candidates: requests.reduce((sum, r) => sum + r.candidateCount, 0),
     shortlisted: requests.reduce((sum, r) => sum + r.shortlistedCount, 0),
