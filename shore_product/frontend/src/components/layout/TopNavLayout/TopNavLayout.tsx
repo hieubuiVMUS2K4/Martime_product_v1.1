@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Anchor, Bell, Menu, X } from 'lucide-react';
+import { Anchor, Bell, Menu, X, Ship, ChevronDown, Check } from 'lucide-react';
+import { useVessel } from '../../../contexts/VesselContext';
 import './TopNavLayout.css';
 
 const navItems = [
@@ -19,6 +20,19 @@ const navItems = [
 
 export const TopNavLayout: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [vesselDropdownOpen, setVesselDropdownOpen] = useState(false);
+  const { vessels, selectedVessel, selectVessel, isLoading } = useVessel();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setVesselDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="app-shell">
@@ -45,6 +59,49 @@ export const TopNavLayout: React.FC = () => {
               </NavLink>
             ))}
           </nav>
+
+          {/* Vessel Selector */}
+          <div className="vessel-selector" ref={dropdownRef}>
+            <button
+              className={`vessel-selector-btn ${selectedVessel ? 'vessel-selector-btn--active' : ''}`}
+              onClick={() => setVesselDropdownOpen(!vesselDropdownOpen)}
+              title="Chọn tàu"
+            >
+              <Ship size={14} />
+              <span className="vessel-selector-label">
+                {isLoading ? 'Đang tải...' : selectedVessel ? selectedVessel.name : 'Tất cả tàu'}
+              </span>
+              <ChevronDown size={12} className={`vessel-chevron ${vesselDropdownOpen ? 'vessel-chevron--open' : ''}`} />
+            </button>
+            {vesselDropdownOpen && (
+              <div className="vessel-dropdown">
+                <div className="vessel-dropdown-header">Chọn tàu</div>
+                <button
+                  className={`vessel-dropdown-item ${!selectedVessel ? 'vessel-dropdown-item--active' : ''}`}
+                  onClick={() => { selectVessel(null); setVesselDropdownOpen(false); }}
+                >
+                  <Ship size={13} />
+                  <span>Tất cả tàu (Fleet)</span>
+                  {!selectedVessel && <Check size={13} className="vessel-check" />}
+                </button>
+                <div className="vessel-dropdown-divider" />
+                {vessels.map(v => (
+                  <button
+                    key={v.id}
+                    className={`vessel-dropdown-item ${selectedVessel?.id === v.id ? 'vessel-dropdown-item--active' : ''}`}
+                    onClick={() => { selectVessel(v.id); setVesselDropdownOpen(false); }}
+                  >
+                    <Ship size={13} />
+                    <div className="vessel-dropdown-info">
+                      <span className="vessel-dropdown-name">{v.name}</span>
+                      <span className="vessel-dropdown-imo">IMO: {v.imo}</span>
+                    </div>
+                    {selectedVessel?.id === v.id && <Check size={13} className="vessel-check" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Right side actions */}
           <div className="topnav-actions">

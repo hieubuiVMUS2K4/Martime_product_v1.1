@@ -27,6 +27,7 @@ import { useTranslationSafe } from '@/contexts/I18nContext';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import type { MaintenanceTask, CrewMember, MaterialItem } from '@/types/maritime.types';
+import { parseTaskScheduleInfo } from '@/types/maritime.types';
 import type { EquipmentAsset, MaintenanceSchedule, CreateMaintenanceScheduleDto, CreateScheduleSparePartDto, ChecklistItemTemplateDto } from '@/types/pms.types';
 
 type ViewTab = 'table' | 'calendar' | 'gantt' | 'kanban' | 'counter' | 'config';
@@ -157,7 +158,19 @@ const PRIORITY_LABELS: Record<string, { label: string; bg: string; text: string 
 
 export default function WorkPlanningPage() {
   const navigate = useNavigate();
-  useTranslationSafe();
+  const { t } = useTranslationSafe();
+
+  // === Translated label helpers ===
+  const STATUS_KEY_MAP: Record<string, string> = {
+    SCHEDULED: 'scheduled', UPCOMING: 'upcoming', DUE: 'due', OVERDUE: 'overdue',
+    IN_PROGRESS: 'inProgress', PENDING_APPROVAL: 'pendingApproval', RECTIFY: 'rectify',
+    COMPLETED: 'completed', CANCELLED: 'cancelled',
+  };
+  const PRIORITY_KEY_MAP: Record<string, string> = {
+    CRITICAL: 'critical', HIGH: 'high', NORMAL: 'normal', MEDIUM: 'medium', LOW: 'low',
+  };
+  const getStatusLabel = (status: string) => t(`pms.workPlanning.status.${STATUS_KEY_MAP[status] || 'scheduled'}`);
+  const getPriorityLabel = (priority: string) => t(`pms.workPlanning.priority.${PRIORITY_KEY_MAP[priority] || 'normal'}`);
 
   // === View state ===
   const [activeTab, setActiveTab] = useState<ViewTab>('table');
@@ -168,6 +181,7 @@ export default function WorkPlanningPage() {
   const [assets, setAssets] = useState<EquipmentAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   // === Equipment tree state ===
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
@@ -275,7 +289,7 @@ export default function WorkPlanningPage() {
       setAssets(assetsRes);
     } catch (err) {
       console.error('Error loading work planning data:', err);
-      toast.error('Không thể tải dữ liệu công việc');
+      toast.error(t('pms.workPlanning.toast.loadFailed'));
     } finally {
       if (showSpinner) setLoading(false);
       else setIsBackgroundRefreshing(false);
@@ -290,22 +304,22 @@ export default function WorkPlanningPage() {
       setSchedules(data);
     } catch (error) {
       console.error('Error loading schedules:', error);
-      toast.error('Không thể tải cấu hình lịch');
+      toast.error(t('pms.workPlanning.toast.scheduleLoadFailed'));
     } finally {
       setScheduleLoading(false);
     }
   }, []);
 
   const handleScheduleDelete = async (schedule: MaintenanceSchedule) => {
-    if (!confirm(`Bạn có chắc muốn xóa cấu hình "${schedule.scheduleName}"?`)) return;
+    if (!confirm(`${t('pms.workPlanning.toast.confirmDeleteConfig')} "${schedule.scheduleName}"?`)) return;
     try {
       await maintenanceScheduleService.delete(schedule.id);
       await loadSchedules();
       if (cfgEditingId === schedule.id) cfgReset();
-      toast.success('Đã xóa cấu hình bảo trì');
+      toast.success(t('pms.workPlanning.toast.configDeleted'));
     } catch (error) {
       console.error('Error deleting schedule:', error);
-      toast.error('Không thể xóa cấu hình');
+      toast.error(t('pms.workPlanning.toast.configDeleteFailed'));
     }
   };
 
@@ -397,15 +411,15 @@ export default function WorkPlanningPage() {
     cfgLoadForEdit(schedule);
     setCfgEditingId(null); // Quan trọng: không ở chế độ Sửa → submit sẽ tạo mới
     setCfgForm(f => ({ ...f, scheduleCode: `${f.scheduleCode}-COPY` }));
-    toast.success('Đã sao chép cấu hình làm mẫu — chỉnh sửa rồi Lưu để tạo mới');
+    toast.success(t('pms.workPlanning.toast.configCopied'));
   };
 
   const cfgSubmit = async () => {
-    if (!cfgForm.scheduleCode || !cfgForm.scheduleName) { toast.error('Vui lòng điền mã và tên đầu mục bảo trì'); return; }
-    if (cfgTreeSelectedIds.size === 0) { toast.error('Vui lòng chọn thiết bị từ cây bên trái'); return; }
+    if (!cfgForm.scheduleCode || !cfgForm.scheduleName) { toast.error(t('pms.workPlanning.toast.fillCodeAndName')); return; }
+    if (cfgTreeSelectedIds.size === 0) { toast.error(t('pms.workPlanning.toast.selectEquipment')); return; }
     if (cfgForm.maintenanceCategory !== 'AD_HOC') {
-      if (cfgForm.intervalType === 'RUNNING_HOURS' && !cfgForm.intervalHours) { toast.error('Vui lòng chỉ định mốc giờ chạy'); return; }
-      if (cfgForm.intervalType === 'CALENDAR' && !cfgForm.intervalDays) { toast.error('Vui lòng chỉ định chu kỳ (ngày)'); return; }
+      if (cfgForm.intervalType === 'RUNNING_HOURS' && !cfgForm.intervalHours) { toast.error(t('pms.workPlanning.toast.specifyRunningHours')); return; }
+      if (cfgForm.intervalType === 'CALENDAR' && !cfgForm.intervalDays) { toast.error(t('pms.workPlanning.toast.specifyInterval')); return; }
     }
 
     const submitData = { ...cfgForm };
@@ -443,7 +457,7 @@ export default function WorkPlanningPage() {
       setCfgSaving(true);
       if (cfgEditingId) {
         await maintenanceScheduleService.update(cfgEditingId, submitData);
-        toast.success('Đã cập nhật cấu hình bảo trì');
+        toast.success(t('pms.workPlanning.toast.configUpdated'));
       } else {
         // Create one work item per selected equipment
         const allAssetIds = [...cfgTreeSelectedIds];
@@ -461,23 +475,23 @@ export default function WorkPlanningPage() {
             await maintenanceScheduleService.create(perAssetData);
             successCount++;
           } catch (err: any) {
-            const msg = err.response?.data?.error || err.message || 'Lỗi';
+            const msg = err.response?.data?.error || err.message || t('pms.workPlanning.toast.error');
             errors.push(`${perAssetData.scheduleCode}: ${msg}`);
           }
         }
         if (successCount > 0) {
-          toast.success(`Đã tạo ${successCount}/${allAssetIds.length} đầu công việc`);
+          toast.success(t('pms.workPlanning.toast.tasksCreated', { success: String(successCount), total: String(allAssetIds.length) }));
         }
         if (errors.length > 0) {
-          toast.error(`Lỗi: ${errors.join('; ')}`);
+          toast.error(`${t('pms.workPlanning.toast.error')}: ${errors.join('; ')}`);
         }
-        if (successCount === 0) throw new Error('Tất cả đều thất bại');
+        if (successCount === 0) throw new Error(t('pms.workPlanning.toast.allFailed'));
       }
       await loadSchedules();
       loadData(false);
       cfgReset();
     } catch (error: any) {
-      const msg = error.response?.data?.error || error.response?.data?.message || 'Lỗi khi lưu';
+      const msg = error.response?.data?.error || error.response?.data?.message || t('pms.workPlanning.toast.saveFailed');
       toast.error(msg);
     } finally {
       setCfgSaving(false);
@@ -500,9 +514,9 @@ export default function WorkPlanningPage() {
       const eqIds = [...cfgTreeSelectedIds];
       await materialService.assignEquipment({ materialItemIds: [materialItemId], equipmentAssetIds: eqIds });
       setCfgLinkedMaterialIds(prev => new Set([...prev, materialItemId]));
-      toast.success('Đã gán vật tư vào thiết bị');
+      toast.success(t('pms.workPlanning.toast.materialLinked'));
     } catch {
-      toast.error('Không thể gán vật tư vào thiết bị');
+      toast.error(t('pms.workPlanning.toast.materialLinkFailed'));
     }
   };
   const cfgAddChecklist = () => {
@@ -548,13 +562,13 @@ export default function WorkPlanningPage() {
   };
 
   const cfgSaveAsTemplate = () => {
-    if (!cfgForm.checklistItemTemplates?.length) { toast.error('Chưa có bước kiểm tra để tạo mẫu'); return; }
+    if (!cfgForm.checklistItemTemplates?.length) { toast.error(t('pms.workPlanning.toast.noChecklistForTemplate')); return; }
     setCfgTemplateName('');
     setCfgShowCreateTemplate(true);
   };
 
   const cfgConfirmSaveTemplate = () => {
-    if (!cfgTemplateName.trim()) { toast.error('Vui lòng nhập tên mẫu'); return; }
+    if (!cfgTemplateName.trim()) { toast.error(t('pms.workPlanning.toast.enterTemplateName')); return; }
     const key = 'CUSTOM_' + Date.now();
     const saved = JSON.parse(localStorage.getItem('pms_custom_templates') || '{}');
     saved[key] = {
@@ -706,6 +720,28 @@ export default function WorkPlanningPage() {
     setTablePage(1);
   };
 
+  // Jump from Table tab → Config tab to edit PIC/Receiver/Support for a task's schedule
+  const handleEditTaskConfig = (task: MaintenanceTask) => {
+    // 1. Find schedule directly by scheduleId
+    let schedule = schedules.find(s => s.id === task.scheduleId);
+    // 2. Fallback: match via scheduleCode embedded in task notes
+    if (!schedule) {
+      const { scheduleCode } = parseTaskScheduleInfo(task);
+      if (scheduleCode) schedule = schedules.find(s => s.scheduleCode === scheduleCode);
+    }
+    // 3. Fallback: match by taskId prefix (taskId = scheduleCode + suffix like '-1', '-2')
+    if (!schedule) {
+      const prefix = task.taskId?.replace(/-\d+$/, '');
+      if (prefix) schedule = schedules.find(s => s.scheduleCode === prefix || task.taskId?.startsWith(s.scheduleCode));
+    }
+    if (!schedule) {
+      toast.error(t('pms.workPlanning.toast.scheduleNotFound'));
+      return;
+    }
+    cfgLoadForEdit(schedule);
+    setActiveTab('config');
+  };
+
   const handleCounterSave = async (assetId: string) => {
     const newHours = counterEditing[assetId];
     if (newHours === undefined) return;
@@ -716,14 +752,14 @@ export default function WorkPlanningPage() {
       setCounterEditing(prev => { const n = { ...prev }; delete n[assetId]; return n; });
       const triggered = res?.triggeredTasks || 0;
       if (triggered > 0) {
-        toast.success(`Đã cập nhật giờ chạy — ${triggered} công việc chuyển sang ĐẾN HẠN`);
+        toast.success(t('pms.workPlanning.toast.hoursUpdateTriggered', { count: String(triggered) }));
         loadData(false); // Refresh task list to show newly DUE tasks
       } else {
-        toast.success('Đã cập nhật giờ chạy');
+        toast.success(t('pms.workPlanning.toast.hoursUpdated'));
       }
     } catch (error) {
       console.error('Error updating running hours:', error);
-      toast.error('Không thể cập nhật giờ chạy');
+      toast.error(t('pms.workPlanning.toast.hoursUpdateFailed'));
     } finally {
       setCounterSaving(prev => { const n = new Set(prev); n.delete(assetId); return n; });
     }
@@ -736,9 +772,32 @@ export default function WorkPlanningPage() {
     return () => clearInterval(iv);
   }, [loadData, loadSchedules]);
 
+  // === Split active vs history tasks ===
+  const HISTORY_DAYS = 7;
+  const { activeTasks, historyTasks } = useMemo(() => {
+    const now = new Date();
+    const active: MaintenanceTask[] = [];
+    const history: MaintenanceTask[] = [];
+    for (const task of tasks) {
+      if (
+        (task.status === 'COMPLETED' || task.status === 'CANCELLED') &&
+        task.completedAt
+      ) {
+        const completedDate = parseISO(task.completedAt);
+        const daysSinceCompleted = Math.floor((now.getTime() - completedDate.getTime()) / 86400000);
+        if (daysSinceCompleted >= HISTORY_DAYS) {
+          history.push(task);
+          continue;
+        }
+      }
+      active.push(task);
+    }
+    return { activeTasks: active, historyTasks: history };
+  }, [tasks]);
+
   // === Filter tasks ===
   const filteredTasks = useMemo(() => {
-    let f = [...tasks];
+    let f = showHistory ? [...historyTasks] : [...activeTasks];
 
     // Equipment filter (from tree selection)
     if (selectedAssetIds.size > 0) {
@@ -804,7 +863,7 @@ export default function WorkPlanningPage() {
     }
 
     return f;
-  }, [tasks, selectedAssetIds, dateFrom, dateTo, crewFilter, taskTypeFilter, statusFilter, searchQuery, assets, colFilterCode, colFilterEquip, colFilterName, colFilterDesc, colFilterPriority, colFilterStatus, colFilterType]);
+  }, [showHistory, activeTasks, historyTasks, selectedAssetIds, dateFrom, dateTo, crewFilter, taskTypeFilter, statusFilter, searchQuery, assets, colFilterCode, colFilterEquip, colFilterName, colFilterDesc, colFilterPriority, colFilterStatus, colFilterType]);
 
   // Gantt data — derived from filteredTasks (same source as Bảng/Lịch/Kanban)
   const ganttTasksFromFiltered = useMemo((): GanttTask[] => {
@@ -854,19 +913,19 @@ export default function WorkPlanningPage() {
   const handleExportExcel = () => {
     try {
       const data = sortedFilteredTasks.map((task, idx) => ({
-        'TT': idx + 1,
-        'Mã công việc': task.taskId,
-        'Tên thiết bị': task.equipmentName || task.equipmentAssetName || task.equipmentGroupName || '',
-        'Tên công việc': task.taskDescription?.split('\n')[0] || task.taskType,
-        'Mô tả công việc': task.taskDescription,
-        'Độ ưu tiên': PRIORITY_LABELS[task.priority]?.label || task.priority,
-        'Trạng thái': STATUS_LABELS[task.status]?.label || task.status,
-        'Loại': (task.taskType === 'AD_HOC' || task.taskType === 'CORRECTIVE') ? 'Đột xuất' : 'Định kỳ',
-        'Ngày đến hạn': task.nextDueAt ? format(parseISO(task.nextDueAt), 'dd/MM/yyyy') : '',
-        'Người thực hiện': task.assignedTo ? (crewList.find(c => c.crewId === task.assignedTo)?.fullName || task.assignedTo) : '',
-        'Ngày bắt đầu': task.startedAt ? format(parseISO(task.startedAt), 'dd/MM/yyyy HH:mm') : '',
-        'Ngày hoàn thành': task.completedAt ? format(parseISO(task.completedAt), 'dd/MM/yyyy HH:mm') : '',
-        'Ghi chú': task.notes || '',
+        [t('pms.workPlanning.table.index')]: idx + 1,
+        [t('pms.workPlanning.export.taskCode')]: task.taskId,
+        [t('pms.workPlanning.export.equipmentName')]: task.equipmentName || task.equipmentAssetName || task.equipmentGroupName || '',
+        [t('pms.workPlanning.export.taskName')]: task.taskDescription?.split('\n')[0] || task.taskType,
+        [t('pms.workPlanning.export.taskDescription')]: task.taskDescription,
+        [t('pms.workPlanning.export.priority')]: getPriorityLabel(task.priority),
+        [t('pms.workPlanning.export.status')]: getStatusLabel(task.status),
+        [t('pms.workPlanning.export.type')]: (task.taskType === 'AD_HOC' || task.taskType === 'CORRECTIVE') ? t('pms.workPlanning.filters.adhoc') : t('pms.workPlanning.filters.periodic'),
+        [t('pms.workPlanning.export.dueDate')]: task.nextDueAt ? format(parseISO(task.nextDueAt), 'dd/MM/yyyy') : '',
+        [t('pms.workPlanning.export.assignee')]: task.assignedTo ? (crewList.find(c => c.crewId === task.assignedTo)?.fullName || task.assignedTo) : '',
+        [t('pms.workPlanning.export.startDate')]: task.startedAt ? format(parseISO(task.startedAt), 'dd/MM/yyyy HH:mm') : '',
+        [t('pms.workPlanning.export.completedDate')]: task.completedAt ? format(parseISO(task.completedAt), 'dd/MM/yyyy HH:mm') : '',
+        [t('pms.workPlanning.export.notes')]: task.notes || '',
       }));
 
       const ws = XLSX.utils.json_to_sheet(data);
@@ -889,29 +948,31 @@ export default function WorkPlanningPage() {
       ];
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Danh sách công việc');
+      XLSX.utils.book_append_sheet(wb, ws, t('pms.workPlanning.export.sheetName'));
 
       // Summary sheet
+      const statsLabel = t('pms.workPlanning.export.statsLabel');
+      const countLabel = t('pms.workPlanning.export.count');
       const summaryData = [
-        { 'Thống kê': 'Tổng số công việc', 'Số lượng': sortedFilteredTasks.length },
-        { 'Thống kê': 'Đã lên lịch', 'Số lượng': sortedFilteredTasks.filter(t => t.status === 'SCHEDULED').length },
-        { 'Thống kê': 'Đến hạn', 'Số lượng': sortedFilteredTasks.filter(t => t.status === 'DUE').length },
-        { 'Thống kê': 'Quá hạn', 'Số lượng': sortedFilteredTasks.filter(t => t.status === 'OVERDUE').length },
-        { 'Thống kê': 'Đang thực hiện', 'Số lượng': sortedFilteredTasks.filter(t => t.status === 'IN_PROGRESS').length },
-        { 'Thống kê': 'Chờ duyệt', 'Số lượng': sortedFilteredTasks.filter(t => t.status === 'PENDING_APPROVAL').length },
-        { 'Thống kê': 'Hoàn thành', 'Số lượng': sortedFilteredTasks.filter(t => t.status === 'COMPLETED').length },
-        { 'Thống kê': 'Hủy bỏ', 'Số lượng': sortedFilteredTasks.filter(t => t.status === 'CANCELLED').length },
+        { [statsLabel]: t('pms.workPlanning.export.total'), [countLabel]: sortedFilteredTasks.length },
+        { [statsLabel]: getStatusLabel('SCHEDULED'), [countLabel]: sortedFilteredTasks.filter(t => t.status === 'SCHEDULED').length },
+        { [statsLabel]: getStatusLabel('DUE'), [countLabel]: sortedFilteredTasks.filter(t => t.status === 'DUE').length },
+        { [statsLabel]: getStatusLabel('OVERDUE'), [countLabel]: sortedFilteredTasks.filter(t => t.status === 'OVERDUE').length },
+        { [statsLabel]: getStatusLabel('IN_PROGRESS'), [countLabel]: sortedFilteredTasks.filter(t => t.status === 'IN_PROGRESS').length },
+        { [statsLabel]: getStatusLabel('PENDING_APPROVAL'), [countLabel]: sortedFilteredTasks.filter(t => t.status === 'PENDING_APPROVAL').length },
+        { [statsLabel]: getStatusLabel('COMPLETED'), [countLabel]: sortedFilteredTasks.filter(t => t.status === 'COMPLETED').length },
+        { [statsLabel]: getStatusLabel('CANCELLED'), [countLabel]: sortedFilteredTasks.filter(t => t.status === 'CANCELLED').length },
       ];
       const ws2 = XLSX.utils.json_to_sheet(summaryData);
       ws2['!cols'] = [{ wch: 25 }, { wch: 12 }];
-      XLSX.utils.book_append_sheet(wb, ws2, 'Thống kê');
+      XLSX.utils.book_append_sheet(wb, ws2, t('pms.workPlanning.export.statsSheet'));
 
       const filename = `Danh_sach_cong_viec_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`;
       XLSX.writeFile(wb, filename);
-      toast.success(`Đã xuất báo cáo: ${filename}`);
+      toast.success(t('pms.workPlanning.toast.exportSuccess', { filename }));
     } catch (err) {
       console.error('Export error:', err);
-      toast.error('Không thể xuất báo cáo');
+      toast.error(t('pms.workPlanning.toast.exportFailed'));
     }
   };
 
@@ -1051,7 +1112,7 @@ export default function WorkPlanningPage() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="ml-3 text-gray-600">Đang tải dữ liệu...</p>
+        <p className="ml-3 text-gray-600">{t('pms.workPlanning.loading')}</p>
       </div>
     );
   }
@@ -1071,23 +1132,40 @@ export default function WorkPlanningPage() {
           }`}
         >
           <FolderOpen className="w-4 h-4 flex-shrink-0" />
-          <span className="flex-1 text-left truncate">Tất cả thiết bị ({assets.length})</span>
+          <span className="flex-1 text-left truncate">{t('pms.workPlanning.allEquipment')} ({assets.length})</span>
         </button>
 
         {/* Header phải: title + action buttons */}
         <div className="flex-1 flex items-center justify-between px-4 py-3 bg-white">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-700">≡ Danh sách công việc của tôi</span>
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{filteredTasks.length}</span>
+            <span className="text-sm font-semibold text-gray-700">
+              {showHistory ? `≡ ${t('pms.workPlanning.taskHistory')}` : `≡ ${t('pms.workPlanning.myTaskList')}`}
+            </span>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${showHistory ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-700'}`}>{filteredTasks.length}</span>
+            {historyTasks.length > 0 && !showHistory && (
+              <span className="text-xs text-gray-400">+{historyTasks.length} {t('pms.workPlanning.archived')}</span>
+            )}
             {isBackgroundRefreshing && (
               <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs text-blue-600">
                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-                Đang đồng bộ...
+                {t('pms.workPlanning.syncing')}
               </div>
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => loadData(true)} className="p-1.5 border border-gray-300 rounded text-gray-500 hover:bg-gray-50" title="Làm mới">
+            <button
+              onClick={() => { setShowHistory(h => !h); setTablePage(1); }}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded border transition-colors ${
+                showHistory
+                  ? 'bg-gray-700 text-white border-gray-700 hover:bg-gray-600'
+                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+              }`}
+              title={showHistory ? t('pms.workPlanning.backToTasks') : t('pms.workPlanning.viewHistory')}
+            >
+              <History className="w-3.5 h-3.5" />
+              {showHistory ? t('pms.workPlanning.currentTasks') : t('pms.workPlanning.history')}
+            </button>
+            <button onClick={() => loadData(true)} className="p-1.5 border border-gray-300 rounded text-gray-500 hover:bg-gray-50" title={t('pms.workPlanning.refresh')}>
               <RefreshCw className={`w-3.5 h-3.5 ${isBackgroundRefreshing ? 'animate-spin' : ''}`} />
             </button>
           </div>
@@ -1101,7 +1179,7 @@ export default function WorkPlanningPage() {
             <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-gray-400" />
             <input
               type="text"
-              placeholder="Tìm kiếm..."
+              placeholder={t('pms.workPlanning.searchPlaceholder')}
               value={treeSearch}
               onChange={e => setTreeSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -1110,12 +1188,12 @@ export default function WorkPlanningPage() {
         </div>
         <div className="flex-1 flex items-center gap-1 px-4 bg-white">
           {([
-            { key: 'table' as ViewTab, label: 'Bảng', icon: Table2 },
-            { key: 'calendar' as ViewTab, label: 'Lịch', icon: Calendar },
-            { key: 'gantt' as ViewTab, label: 'Gantt chart', icon: BarChart3 },
-            { key: 'kanban' as ViewTab, label: 'Kanban', icon: LayoutGrid },
-            { key: 'counter' as ViewTab, label: 'Counter', icon: Gauge },
-            { key: 'config' as ViewTab, label: 'Cấu hình', icon: Settings },
+            { key: 'table' as ViewTab, label: t('pms.workPlanning.tabs.table'), icon: Table2 },
+            { key: 'calendar' as ViewTab, label: t('pms.workPlanning.tabs.calendar'), icon: Calendar },
+            { key: 'gantt' as ViewTab, label: t('pms.workPlanning.tabs.gantt'), icon: BarChart3 },
+            { key: 'kanban' as ViewTab, label: t('pms.workPlanning.tabs.kanban'), icon: LayoutGrid },
+            { key: 'counter' as ViewTab, label: t('pms.workPlanning.tabs.counter'), icon: Gauge },
+            { key: 'config' as ViewTab, label: t('pms.workPlanning.tabs.config'), icon: Settings },
           ]).map(tab => (
             <button
               key={tab.key}
@@ -1131,12 +1209,12 @@ export default function WorkPlanningPage() {
               {/* Tooltip for Counter & Config */}
               {tab.key === 'counter' && (
                 <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 hidden group-hover:block w-64 px-3 py-2 bg-gray-800 text-white text-[10px] rounded-lg shadow-lg leading-relaxed pointer-events-none">
-                  Cập nhật giờ chạy máy (Running Hours). Khi đạt ngưỡng, hệ thống tự động tạo công việc bảo trì.
+                  {t('pms.workPlanning.counter.tooltip')}
                 </div>
               )}
               {tab.key === 'config' && (
                 <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 hidden group-hover:block w-64 px-3 py-2 bg-gray-800 text-white text-[10px] rounded-lg shadow-lg leading-relaxed pointer-events-none">
-                  Định nghĩa hạng mục bảo trì định kỳ/đột xuất. Kết quả hiển thị trên Bảng, Lịch, Gantt và Kanban.
+                  {t('pms.workPlanning.config.tooltip')}
                 </div>
               )}
             </button>
@@ -1168,18 +1246,18 @@ export default function WorkPlanningPage() {
           <div className="flex-shrink-0 border-t border-gray-200 p-3 space-y-3">
             {/* Ngày bắt đầu */}
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Ngày bắt đầu</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">{t('pms.workPlanning.filters.dateFrom')}</label>
               <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500" />
             </div>
             {/* Ngày kết thúc */}
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Ngày kết thúc</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">{t('pms.workPlanning.filters.dateTo')}</label>
               <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Người thực hiện</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">{t('pms.workPlanning.filters.assignee')}</label>
               <select value={crewFilter} onChange={e => setCrwFilter(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
-                <option value="">Tất cả</option>
+                <option value="">{t('pms.workPlanning.filters.all')}</option>
                 {crewList.map(c => (
                   <option key={c.crewId} value={c.crewId}>{c.fullName}</option>
                 ))}
@@ -1188,33 +1266,33 @@ export default function WorkPlanningPage() {
 
             {/* Task type */}
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Loại công việc</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">{t('pms.workPlanning.filters.taskType')}</label>
               <div className="flex gap-3">
                 <label className="flex items-center gap-1.5 text-xs">
                   <input type="checkbox" checked={taskTypeFilter.has('adhoc')} onChange={() => {
                     setTaskTypeFilter(prev => { const n = new Set(prev); n.has('adhoc') ? n.delete('adhoc') : n.add('adhoc'); return n; });
                   }} className="w-3.5 h-3.5 text-blue-600 rounded" />
-                  Đột xuất
+                  {t('pms.workPlanning.filters.adhoc')}
                 </label>
                 <label className="flex items-center gap-1.5 text-xs">
                   <input type="checkbox" checked={taskTypeFilter.has('periodic')} onChange={() => {
                     setTaskTypeFilter(prev => { const n = new Set(prev); n.has('periodic') ? n.delete('periodic') : n.add('periodic'); return n; });
                   }} className="w-3.5 h-3.5 text-blue-600 rounded" />
-                  Định kỳ
+                  {t('pms.workPlanning.filters.periodic')}
                 </label>
               </div>
             </div>
 
             {/* Status filter */}
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Trạng thái công việc</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">{t('pms.workPlanning.filters.taskStatus')}</label>
               <div className="grid grid-cols-2 gap-1">
                 {Object.entries(STATUS_LABELS).slice(0, 6).map(([key, val]) => (
                   <label key={key} className="flex items-center gap-1.5 text-xs">
                     <input type="checkbox" checked={statusFilter.has(key)} onChange={() => {
                       setStatusFilter(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
                     }} className="w-3.5 h-3.5 text-blue-600 rounded" />
-                    {val.label}
+                    {getStatusLabel(key)}
                   </label>
                 ))}
               </div>
@@ -1226,7 +1304,7 @@ export default function WorkPlanningPage() {
               className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700"
             >
               <Search className="w-3.5 h-3.5" />
-              Tìm kiếm
+              {t('pms.workPlanning.search')}
             </button>
           </div>
         </div>
@@ -1248,45 +1326,45 @@ export default function WorkPlanningPage() {
                       </th>
                       <th className="min-w-[140px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('taskId')}>
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-semibold text-gray-600">Mã công việc</span>
+                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.taskCode')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="min-w-[180px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('equipmentName')}>
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-semibold text-gray-600">Tên thiết bị</span>
+                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.equipmentName')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="min-w-[140px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('taskType')}>
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-semibold text-gray-600">Tên công việc</span>
+                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.taskName')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="min-w-[200px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('taskDescription')}>
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-semibold text-gray-600">Mô tả công việc</span>
+                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.taskDescription')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="w-24 px-3 py-2 text-center border-b border-r border-gray-200">
-                        <span className="text-xs font-semibold text-gray-600">Đánh giá<br/>rủi ro</span>
+                        <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.riskAssessment')}</span>
                       </th>
                       <th className="w-28 px-3 py-2 text-center border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('priority')}>
                         <div className="flex items-center justify-center gap-1">
-                          <span className="text-xs font-semibold text-gray-600">Độ ưu tiên</span>
+                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.priority')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="w-28 px-3 py-2 text-center border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('status')}>
                         <div className="flex items-center justify-center gap-1">
-                          <span className="text-xs font-semibold text-gray-600">Trạng thái</span>
+                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.status')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="w-24 px-3 py-2 text-center border-b border-r border-gray-200">
-                        <span className="text-xs font-semibold text-gray-600">Loại</span>
+                        <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.type')}</span>
                       </th>
                       <th className="w-24 px-3 py-2 border-b border-gray-200">
                         <span className="text-xs font-semibold text-gray-600"></span>
@@ -1299,49 +1377,49 @@ export default function WorkPlanningPage() {
                       <th className="px-2 py-1 border-r border-gray-200">
                         <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
                           <span className="text-gray-400 text-xs select-none">→</span>
-                          <input type="text" value={colFilterCode} onChange={e => { setColFilterCode(e.target.value); setTablePage(1); }} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                          <input type="text" value={colFilterCode} onChange={e => { setColFilterCode(e.target.value); setTablePage(1); }} placeholder={t('pms.workPlanning.table.searchPlaceholder')} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
                           <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="px-2 py-1 border-r border-gray-200">
                         <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
                           <span className="text-gray-400 text-xs select-none">→</span>
-                          <input type="text" value={colFilterEquip} onChange={e => { setColFilterEquip(e.target.value); setTablePage(1); }} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                          <input type="text" value={colFilterEquip} onChange={e => { setColFilterEquip(e.target.value); setTablePage(1); }} placeholder={t('pms.workPlanning.table.searchPlaceholder')} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
                           <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="px-2 py-1 border-r border-gray-200">
                         <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
                           <span className="text-gray-400 text-xs select-none">→</span>
-                          <input type="text" value={colFilterName} onChange={e => { setColFilterName(e.target.value); setTablePage(1); }} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                          <input type="text" value={colFilterName} onChange={e => { setColFilterName(e.target.value); setTablePage(1); }} placeholder={t('pms.workPlanning.table.searchPlaceholder')} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
                           <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="px-2 py-1 border-r border-gray-200">
                         <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
                           <span className="text-gray-400 text-xs select-none">→</span>
-                          <input type="text" value={colFilterDesc} onChange={e => { setColFilterDesc(e.target.value); setTablePage(1); }} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                          <input type="text" value={colFilterDesc} onChange={e => { setColFilterDesc(e.target.value); setTablePage(1); }} placeholder={t('pms.workPlanning.table.searchPlaceholder')} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
                           <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="border-r border-gray-200"></th>
                       <th className="px-2 py-1 border-r border-gray-200">
                         <select value={colFilterPriority} onChange={e => { setColFilterPriority(e.target.value); setTablePage(1); }} className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white">
-                          <option value="">Tìm kiếm</option>
-                          {Object.entries(PRIORITY_LABELS).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+                          <option value="">{t('pms.workPlanning.table.searchPlaceholder')}</option>
+                          {Object.entries(PRIORITY_LABELS).map(([k,v])=><option key={k} value={k}>{getPriorityLabel(k)}</option>)}
                         </select>
                       </th>
                       <th className="px-2 py-1 border-r border-gray-200">
                         <select value={colFilterStatus} onChange={e => { setColFilterStatus(e.target.value); setTablePage(1); }} className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white">
-                          <option value="">Tìm kiếm</option>
-                          {Object.entries(STATUS_LABELS).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+                          <option value="">{t('pms.workPlanning.table.searchPlaceholder')}</option>
+                          {Object.entries(STATUS_LABELS).map(([k,v])=><option key={k} value={k}>{getStatusLabel(k)}</option>)}
                         </select>
                       </th>
                       <th className="px-2 py-1 border-r border-gray-200">
                         <select value={colFilterType} onChange={e => { setColFilterType(e.target.value); setTablePage(1); }} className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white">
-                          <option value="">Tìm kiếm</option>
-                          <option value="adhoc">Đột xuất</option>
-                          <option value="periodic">Định kỳ</option>
+                          <option value="">{t('pms.workPlanning.table.searchPlaceholder')}</option>
+                          <option value="adhoc">{t('pms.workPlanning.filters.adhoc')}</option>
+                          <option value="periodic">{t('pms.workPlanning.filters.periodic')}</option>
                         </select>
                       </th>
                       <th className="border-gray-200"></th>
@@ -1349,7 +1427,7 @@ export default function WorkPlanningPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {pagedTasks.length === 0 ? (
-                      <tr><td colSpan={11} className="px-4 py-12 text-center text-gray-400">Không có công việc nào</td></tr>
+                      <tr><td colSpan={11} className="px-4 py-12 text-center text-gray-400">{t('pms.workPlanning.table.noTasks')}</td></tr>
                     ) : (
                       pagedTasks.map((task, idx) => {
                         const pri = PRIORITY_LABELS[task.priority] || PRIORITY_LABELS.NORMAL;
@@ -1388,31 +1466,31 @@ export default function WorkPlanningPage() {
                             </td>
                             <td className="px-3 py-2 text-center border-r border-gray-100">
                               <span className={`px-2 py-0.5 text-xs font-medium rounded whitespace-nowrap ${pri.bg} ${pri.text}`}>
-                                {pri.label}
+                                {getPriorityLabel(task.priority)}
                               </span>
                             </td>
                             <td className="px-3 py-2 text-center border-r border-gray-100">
                               <span className={`px-2 py-0.5 text-xs font-medium rounded whitespace-nowrap ${sts.bg} ${sts.text}`}>
-                                {sts.label}
+                                {getStatusLabel(task.status)}
                               </span>
                               {task.hasPendingDeferral && (
                                 <span className="ml-1 px-2 py-0.5 text-xs font-medium rounded whitespace-nowrap bg-amber-100 text-amber-700">
-                                  Xin hoãn
+                                  {t('pms.workPlanning.table.deferralPending')}
                                 </span>
                               )}
                             </td>
                             <td className="px-3 py-2 text-center text-xs text-gray-500 border-r border-gray-100">
-                              {task.taskType === 'AD_HOC' || task.taskType === 'CORRECTIVE' ? 'Đột xuất' : 'Định kỳ'}
+                              {task.taskType === 'AD_HOC' || task.taskType === 'CORRECTIVE' ? t('pms.workPlanning.filters.adhoc') : t('pms.workPlanning.filters.periodic')}
                             </td>
                             <td className="px-2 py-2">
                               <div className="flex items-center justify-center gap-0.5">
-                                <button onClick={() => navigate(`/pms/work-report/${task.id}`)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Xem">
+                                <button onClick={() => navigate(`/pms/work-report/${task.id}`)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded" title={t('pms.workPlanning.table.view')}>
                                   <Eye className="w-3.5 h-3.5" />
                                 </button>
-                                <button onClick={() => navigate(`/pms/work-report/${task.id}`)} className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title="Sửa">
+                                <button onClick={() => handleEditTaskConfig(task)} className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title={t('pms.workPlanning.table.editConfig')}>
                                   <Pencil className="w-3.5 h-3.5" />
                                 </button>
-                                <button className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Xóa" onClick={() => handleTaskDelete(task.id)}>
+                                <button className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title={t('pms.workPlanning.table.delete')} onClick={() => handleTaskDelete(task.id)}>
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
@@ -1429,13 +1507,13 @@ export default function WorkPlanningPage() {
               <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
                 <div>
                   <select value={tablePageSize} onChange={e => { setTablePageSize(Number(e.target.value)); setTablePage(1); }} className="border border-gray-300 rounded px-2 py-1 text-xs">
-                    <option value={10}>10 / trang</option>
-                    <option value={20}>20 / trang</option>
-                    <option value={50}>50 / trang</option>
+                    <option value={10}>{t('pms.workPlanning.pagination.perPage', { count: '10' })}</option>
+                    <option value={20}>{t('pms.workPlanning.pagination.perPage', { count: '20' })}</option>
+                    <option value={50}>{t('pms.workPlanning.pagination.perPage', { count: '50' })}</option>
                   </select>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="mr-2">Trang {tablePage}/{totalPages} ({sortedFilteredTasks.length} bản ghi)</span>
+                  <span className="mr-2">{t('pms.workPlanning.pagination.page', { current: String(tablePage), total: String(totalPages), records: String(sortedFilteredTasks.length) })}</span>
                   <button disabled={tablePage <= 1} onClick={() => setTablePage(p => p - 1)} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">‹</button>
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let page: number;
@@ -1453,7 +1531,7 @@ export default function WorkPlanningPage() {
                   <button disabled={tablePage >= totalPages} onClick={() => setTablePage(p => p + 1)} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">›</button>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span>Đi đến trang</span>
+                  <span>{t('pms.workPlanning.pagination.goToPage')}</span>
                   <input
                     type="number"
                     min={1}
@@ -1483,7 +1561,7 @@ export default function WorkPlanningPage() {
                   </button>
                 </div>
                 <button onClick={() => setCalendarDate(new Date())} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                  Hôm nay
+                  {t('pms.workPlanning.calendar.today')}
                 </button>
               </div>
 
@@ -1491,7 +1569,7 @@ export default function WorkPlanningPage() {
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 {/* Day headers */}
                 <div className="grid grid-cols-7 bg-blue-600 text-white text-sm font-medium">
-                  {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map(d => (
+                  {t('pms.workPlanning.calendar.weekDays').split(',').map(d => (
                     <div key={d} className="px-2 py-2 text-center">{d}</div>
                   ))}
                 </div>
@@ -1528,14 +1606,14 @@ export default function WorkPlanningPage() {
                                 onClick={() => navigate(`/pms/work-report/${task.id}`)}
                                 className="w-full text-left px-1.5 py-0.5 rounded text-[10px] truncate hover:opacity-80 transition-opacity"
                                 style={{ backgroundColor: colors.bg, color: colors.text }}
-                                title={`${task.taskId} - ${task.taskDescription}${task.status === 'UPCOMING' ? ' ⚠️ Sắp đến hạn' : ''}`}
+                                title={`${task.taskId} - ${task.taskDescription}${task.status === 'UPCOMING' ? ` ⚠️ ${t('pms.workPlanning.calendar.upcomingTooltip')}` : ''}`}
                               >
                                 {task.status === 'UPCOMING' ? '⚠️ ' : ''}{task.taskId}
                               </button>
                             );
                           })}
                           {dayTasks.length > 3 && (
-                            <div className="text-[10px] text-gray-400 text-center">+{dayTasks.length - 3} khác</div>
+                            <div className="text-[10px] text-gray-400 text-center">{t('pms.workPlanning.calendar.moreItems', { count: dayTasks.length - 3 })}</div>
                           )}
                         </div>
                       </div>
@@ -1549,7 +1627,7 @@ export default function WorkPlanningPage() {
                 {Object.entries(PRIORITY_COLORS).filter(([k]) => k !== 'NORMAL').map(([key, val]) => (
                   <div key={key} className="flex items-center gap-1.5">
                     <div className="w-3 h-3 rounded" style={{ backgroundColor: val.bar }}></div>
-                    <span className="text-xs text-gray-600">{PRIORITY_LABELS[key]?.label || key}</span>
+                    <span className="text-xs text-gray-600">{getPriorityLabel(key)}</span>
                   </div>
                 ))}
               </div>
@@ -1565,12 +1643,12 @@ export default function WorkPlanningPage() {
                 <div className="flex-shrink-0 flex flex-col border-r border-gray-300" style={{ width: '680px' }}>
                   {/* Left header */}
                   <div className="flex-shrink-0 flex bg-gray-50 border-b border-gray-300" style={{ height: '40px' }}>
-                    <div className="w-[200px] px-3 flex items-center text-xs font-semibold text-gray-700 border-r border-gray-200">Tên công việc</div>
-                    <div className="w-[90px] px-2 flex items-center justify-center text-xs font-semibold text-gray-700 border-r border-gray-200">Ngày bắt đầu</div>
-                    <div className="w-[60px] px-2 flex items-center justify-center text-xs font-semibold text-gray-700 border-r border-gray-200">Thời gian</div>
-                    <div className="w-[160px] px-2 flex items-center text-xs font-semibold text-gray-700 border-r border-gray-200">Thiết bị</div>
-                    <div className="w-[80px] px-2 flex items-center justify-center text-xs font-semibold text-gray-700 border-r border-gray-200">Loại CV</div>
-                    <div className="w-[90px] px-2 flex items-center justify-center text-xs font-semibold text-gray-700">Người TH</div>
+                    <div className="w-[200px] px-3 flex items-center text-xs font-semibold text-gray-700 border-r border-gray-200">{t('pms.workPlanning.gantt.taskName')}</div>
+                    <div className="w-[90px] px-2 flex items-center justify-center text-xs font-semibold text-gray-700 border-r border-gray-200">{t('pms.workPlanning.gantt.startDate')}</div>
+                    <div className="w-[60px] px-2 flex items-center justify-center text-xs font-semibold text-gray-700 border-r border-gray-200">{t('pms.workPlanning.gantt.duration')}</div>
+                    <div className="w-[160px] px-2 flex items-center text-xs font-semibold text-gray-700 border-r border-gray-200">{t('pms.workPlanning.gantt.equipment')}</div>
+                    <div className="w-[80px] px-2 flex items-center justify-center text-xs font-semibold text-gray-700 border-r border-gray-200">{t('pms.workPlanning.gantt.taskType')}</div>
+                    <div className="w-[90px] px-2 flex items-center justify-center text-xs font-semibold text-gray-700">{t('pms.workPlanning.gantt.assignee')}</div>
                   </div>
                   {/* Left body — scroll Y synced */}
                   <div className="flex-1 overflow-y-auto overflow-x-hidden" id="gantt-left-body" onScroll={(e) => {
@@ -1578,15 +1656,16 @@ export default function WorkPlanningPage() {
                     if (rightBody) rightBody.scrollTop = e.currentTarget.scrollTop;
                   }}>
                     {ganttTasksFromFiltered.length === 0 ? (
-                      <div className="text-center py-12 text-gray-400 text-sm">Không có công việc nào</div>
+                      <div className="text-center py-12 text-gray-400 text-sm">{t('pms.workPlanning.gantt.noTasks')}</div>
                     ) : (
                       ganttTasksFromFiltered.map((task, idx) => {
                         const srcTask = filteredTasks.find(t => t.id === task.id);
                         const taskName = srcTask?.taskDescription?.split('\n')[0] || task.name;
                         const startDateStr = format(task.dueDate, 'yyyy-MM-dd');
-                        const durationStr = task.workDurationDays + ' ngày';
+                        const durationStr = t('pms.workPlanning.gantt.daysUnit', { count: task.workDurationDays });
                         const equipName = task.groupName;
-                        const taskType = srcTask?.taskType === 'AD_HOC' || srcTask?.taskType === 'CORRECTIVE' ? 'Đột xuất' : 'Định kỳ';
+                        const isAdhoc = srcTask?.taskType === 'AD_HOC' || srcTask?.taskType === 'CORRECTIVE';
+                        const taskTypeLabel = isAdhoc ? t('pms.workPlanning.gantt.adhoc') : t('pms.workPlanning.gantt.periodic');
                         const assignee = srcTask?.assignedTo || '';
                         return (
                           <div key={task.id} className={`flex border-b border-gray-100 hover:bg-blue-50/40 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`} style={{ height: '36px' }}>
@@ -1598,7 +1677,7 @@ export default function WorkPlanningPage() {
                             <div className="w-[60px] px-2 flex items-center justify-center text-[11px] text-gray-600 border-r border-gray-100">{durationStr}</div>
                             <div className="w-[160px] px-2 flex items-center text-[11px] text-gray-700 truncate border-r border-gray-100">{equipName}</div>
                             <div className="w-[80px] px-2 flex items-center justify-center border-r border-gray-100">
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${taskType === 'Đột xuất' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>{taskType}</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${isAdhoc ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>{taskTypeLabel}</span>
                             </div>
                             <div className="w-[90px] px-2 flex items-center justify-center text-[11px] text-gray-600 truncate">{assignee}</div>
                           </div>
@@ -1618,8 +1697,9 @@ export default function WorkPlanningPage() {
                         {ganttDays.map((day, i) => {
                           const isToday = isSameDay(day, new Date());
                           const dow = day.getDay(); // 0=Sun
-                          const shortDay = dow === 0 ? 'CN' : `T${dow + 1}`;
                           const isWeekend = dow === 0 || dow === 6;
+                          const ganttWeekDays = t('pms.workPlanning.gantt.weekDays').split(',');
+                          const shortDay = ganttWeekDays[dow];
                           return (
                             <div key={i} className={`flex flex-col items-center justify-center border-r border-gray-200 ${isToday ? 'bg-blue-50' : isWeekend ? 'bg-gray-100/50' : ''}`} style={{ width: '40px', flexShrink: 0 }}>
                               <div className="text-[11px] font-semibold text-gray-700 leading-none">{format(day, 'dd')}</div>
@@ -1696,29 +1776,29 @@ export default function WorkPlanningPage() {
                   <thead className="sticky top-0 z-10">
                     {/* Row 1: headers */}
                     <tr className="bg-blue-50">
-                      <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">TT</th>
+                      <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">{t('pms.workPlanning.table.index')}</th>
                       <th className="min-w-[130px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleCounterSort('assetCode')}>
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-semibold text-gray-600">Mã thiết bị</span>
+                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.counter.assetCode')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="min-w-[200px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleCounterSort('assetName')}>
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-semibold text-gray-600">Tên thiết bị</span>
+                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.counter.assetName')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="w-36 px-3 py-2 text-center border-b border-r border-gray-200 cursor-pointer" onClick={() => handleCounterSort('currentRunningHours')}>
                         <div className="flex items-center justify-center gap-1">
-                          <span className="text-xs font-semibold text-gray-600">Giờ chạy hiện tại</span>
+                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.counter.currentHours')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
-                      <th className="w-36 px-3 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">Giờ chạy mới</th>
+                      <th className="w-36 px-3 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">{t('pms.workPlanning.counter.newHours')}</th>
                       <th className="w-44 px-3 py-2 text-center border-b border-r border-gray-200 cursor-pointer" onClick={() => handleCounterSort('lastRunningHoursUpdate')}>
                         <div className="flex items-center justify-center gap-1">
-                          <span className="text-xs font-semibold text-gray-600">Cập nhật lần cuối</span>
+                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.counter.lastUpdate')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
@@ -1732,14 +1812,14 @@ export default function WorkPlanningPage() {
                       <th className="px-2 py-1 border-r border-gray-200">
                         <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
                           <span className="text-gray-400 text-xs select-none">→</span>
-                          <input type="text" value={counterFilterCode} onChange={e => setCounterFilterCode(e.target.value)} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                          <input type="text" value={counterFilterCode} onChange={e => setCounterFilterCode(e.target.value)} placeholder={t('pms.workPlanning.table.searchPlaceholder')} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
                           <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="px-2 py-1 border-r border-gray-200">
                         <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
                           <span className="text-gray-400 text-xs select-none">→</span>
-                          <input type="text" value={counterFilterName} onChange={e => setCounterFilterName(e.target.value)} placeholder="Tìm kiếm" className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                          <input type="text" value={counterFilterName} onChange={e => setCounterFilterName(e.target.value)} placeholder={t('pms.workPlanning.table.searchPlaceholder')} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
                           <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
@@ -1751,7 +1831,7 @@ export default function WorkPlanningPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {filteredCounterAssets.length === 0 ? (
-                      <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-400">Không có thiết bị nào</td></tr>
+                      <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-400">{t('pms.workPlanning.counter.noAssets')}</td></tr>
                     ) : (
                       filteredCounterAssets.map((asset, idx) => (
                         <tr key={asset.id} className={`hover:bg-blue-50 ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
@@ -1782,7 +1862,7 @@ export default function WorkPlanningPage() {
                                 onClick={() => handleCounterSave(asset.id)}
                                 disabled={counterEditing[asset.id] === undefined || counterSaving.has(asset.id)}
                                 className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded disabled:opacity-40 disabled:cursor-not-allowed"
-                                title="Lưu giờ chạy"
+                                title={t('pms.workPlanning.counter.saveHours')}
                               >
                                 {counterSaving.has(asset.id) ? (
                                   <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -1801,7 +1881,7 @@ export default function WorkPlanningPage() {
 
               {/* Counter pagination area */}
               <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
-                <span>{filteredCounterAssets.length} thiết bị</span>
+                <span>{t('pms.workPlanning.counter.totalAssets', { count: filteredCounterAssets.length })}</span>
               </div>
             </div>
           )}
@@ -1812,49 +1892,49 @@ export default function WorkPlanningPage() {
               {/* Header bar */}
               <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2.5">
                 <h3 className="text-sm font-semibold text-gray-700">
-                  {cfgEditingId ? `Chỉnh sửa: ${cfgForm.scheduleCode}` : 'Thêm mới cấu hình bảo trì'}
+                  {cfgEditingId ? t('pms.workPlanning.config.editTitle', { code: cfgForm.scheduleCode }) : t('pms.workPlanning.config.addNew')}
                 </h3>
                 <div className="flex items-center gap-2">
                   {cfgEditingId && (
                     <>
                       <button onClick={() => { const sch = schedules.find(s => s.id === cfgEditingId); if (sch) viewScheduleTasks(sch.scheduleCode); }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
-                        <ExternalLink className="w-3.5 h-3.5" /> Xem công việc
+                        <ExternalLink className="w-3.5 h-3.5" /> {t('pms.workPlanning.config.viewTasks')}
                       </button>
-                      <button onClick={() => { if (cfgEditingId && confirm('Xóa cấu hình này?')) { handleScheduleDelete(schedules.find(s => s.id === cfgEditingId)!); } }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-red-300 rounded text-red-600 hover:bg-red-50">
-                        <Trash2 className="w-3.5 h-3.5" /> Xóa
+                      <button onClick={() => { if (cfgEditingId && confirm(t('pms.workPlanning.config.confirmDelete'))) { handleScheduleDelete(schedules.find(s => s.id === cfgEditingId)!); } }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-red-300 rounded text-red-600 hover:bg-red-50">
+                        <Trash2 className="w-3.5 h-3.5" /> {t('pms.workPlanning.config.deleteConfig')}
                       </button>
                     </>
                   )}
                   <button type="button" onClick={cfgReset} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
-                    <XIcon className="w-3.5 h-3.5" /> {cfgEditingId ? 'Hủy' : 'Đặt lại'}
+                    <XIcon className="w-3.5 h-3.5" /> {cfgEditingId ? t('pms.workPlanning.config.cancel') : t('pms.workPlanning.config.reset')}
                   </button>
                   <div className="relative">
                     <button type="button" onClick={() => setCfgShowHistory(!cfgShowHistory)} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded ${cfgShowHistory ? 'border-blue-400 text-blue-700 bg-blue-50' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-                      <History className="w-3.5 h-3.5" /> Lịch sử cấu hình
+                      <History className="w-3.5 h-3.5" /> {t('pms.workPlanning.config.configHistory')}
                     </button>
                     {cfgShowHistory && (
                       <div className="absolute right-0 top-full z-40 mt-1 w-[560px] bg-white border border-gray-200 shadow-xl rounded-lg overflow-hidden">
                         <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
-                          <span className="text-xs font-semibold text-gray-700">Danh sách cấu hình ({schedules.length})</span>
+                          <span className="text-xs font-semibold text-gray-700">{t('pms.workPlanning.config.configList', { count: schedules.length })}</span>
                           <div className="relative">
                             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
-                            <input type="text" value={cfgListSearch} onChange={e => setCfgListSearch(e.target.value)} placeholder="Tìm cấu hình..." className="pl-7 pr-2 py-1 text-[11px] border border-gray-300 rounded w-44" />
+                            <input type="text" value={cfgListSearch} onChange={e => setCfgListSearch(e.target.value)} placeholder={t('pms.workPlanning.config.searchPlaceholder')} className="pl-7 pr-2 py-1 text-[11px] border border-gray-300 rounded w-44" />
                           </div>
                         </div>
                         <div className="max-h-72 overflow-y-auto">
                           {scheduleLoading ? (
                             <div className="flex items-center justify-center py-6"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div></div>
                           ) : cfgListItems.length === 0 ? (
-                            <div className="text-center py-6 text-xs text-gray-400">{schedules.length === 0 ? 'Chưa có cấu hình' : 'Không tìm thấy'}</div>
+                            <div className="text-center py-6 text-xs text-gray-400">{schedules.length === 0 ? t('pms.workPlanning.config.noConfig') : t('pms.workPlanning.config.notFound')}</div>
                           ) : (
                             <table className="w-full text-xs">
                               <thead className="bg-blue-50 sticky top-0">
                                 <tr>
-                                  <th className="px-2 py-1.5 text-left w-28">Mã</th>
-                                  <th className="px-2 py-1.5 text-left">Tên</th>
-                                  <th className="px-2 py-1.5 text-center w-16">Loại</th>
-                                  <th className="px-2 py-1.5 text-center w-16">Ưu tiên</th>
-                                  <th className="px-2 py-1.5 text-center w-14">Giờ</th>
+                                  <th className="px-2 py-1.5 text-left w-28">{t('pms.workPlanning.config.code')}</th>
+                                  <th className="px-2 py-1.5 text-left">{t('pms.workPlanning.config.name')}</th>
+                                  <th className="px-2 py-1.5 text-center w-16">{t('pms.workPlanning.config.type')}</th>
+                                  <th className="px-2 py-1.5 text-center w-16">{t('pms.workPlanning.config.priorityCol')}</th>
+                                  <th className="px-2 py-1.5 text-center w-14">{t('pms.workPlanning.config.hours')}</th>
                                   <th className="px-2 py-1.5 w-14"></th>
                                 </tr>
                               </thead>
@@ -1864,15 +1944,15 @@ export default function WorkPlanningPage() {
                                     <td className="px-2 py-1.5 font-medium text-gray-900">{sch.scheduleCode}</td>
                                     <td className="px-2 py-1.5 text-gray-700 truncate max-w-[200px]">{sch.scheduleName}</td>
                                     <td className="px-2 py-1.5 text-center">
-                                      <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${sch.maintenanceCategory === 'AD_HOC' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>{sch.maintenanceCategory === 'AD_HOC' ? 'Đột xuất' : 'Định kỳ'}</span>
+                                      <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${sch.maintenanceCategory === 'AD_HOC' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>{sch.maintenanceCategory === 'AD_HOC' ? t('pms.workPlanning.config.adhoc') : t('pms.workPlanning.config.periodic')}</span>
                                     </td>
                                     <td className="px-2 py-1.5 text-center">
                                       <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${sch.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' : sch.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' : sch.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'}`}>{sch.priority}</span>
                                     </td>
                                     <td className="px-2 py-1.5 text-center text-gray-500">{sch.intervalHours || '—'}</td>
                                     <td className="px-2 py-1.5 text-center flex items-center gap-1">
-                                      <button title="Sao chép làm mẫu" onClick={e => { e.stopPropagation(); cfgCopyAsTemplate(sch); setCfgShowHistory(false); }} className="text-gray-400 hover:text-blue-600"><Copy size={12} /></button>
-                                      <button title="Xóa" onClick={e => { e.stopPropagation(); if (confirm('Xóa cấu hình này?')) handleScheduleDelete(sch); }} className="text-gray-400 hover:text-red-600"><Trash2 size={12} /></button>
+                                      <button title={t('pms.workPlanning.config.copyAsTemplate')} onClick={e => { e.stopPropagation(); cfgCopyAsTemplate(sch); setCfgShowHistory(false); }} className="text-gray-400 hover:text-blue-600"><Copy size={12} /></button>
+                                      <button title={t('pms.workPlanning.config.deleteConfig')} onClick={e => { e.stopPropagation(); if (confirm(t('pms.workPlanning.config.confirmDelete'))) handleScheduleDelete(sch); }} className="text-gray-400 hover:text-red-600"><Trash2 size={12} /></button>
                                     </td>
                                   </tr>
                                 ))}
@@ -1885,7 +1965,7 @@ export default function WorkPlanningPage() {
                   </div>
                   <button type="button" onClick={cfgSubmit} disabled={cfgSaving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
                     {cfgSaving ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                    {cfgEditingId ? 'Cập nhật' : 'Lưu cấu hình'}
+                    {cfgEditingId ? t('pms.workPlanning.config.update') : t('pms.workPlanning.config.saveConfig')}
                   </button>
                 </div>
               </div>
@@ -1898,47 +1978,47 @@ export default function WorkPlanningPage() {
                   <div className="border-r border-gray-200 flex flex-col">
                     {/* ── Thông tin chung ── */}
                     <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
-                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Settings size={14} /> Thông tin chung</span>
+                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Settings size={14} /> {t('pms.workPlanning.config.generalInfo')}</span>
                     </div>
                     <div className="px-3 py-3 space-y-2.5 text-sm border-b border-gray-200">
                       <div className="grid grid-cols-2 gap-2.5">
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Mã cấu hình <span className="text-red-500">*</span></label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.workPlanning.config.configCode')} <span className="text-red-500">*</span></label>
                           <input type="text" value={cfgForm.scheduleCode} onChange={e => setCfgForm(f => ({ ...f, scheduleCode: e.target.value }))} placeholder="SCH-ME-001" className="w-full border border-gray-300 px-2.5 py-1.5 text-sm" />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Độ ưu tiên</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.workPlanning.config.priority')}</label>
                           <select value={cfgForm.priority} onChange={e => setCfgForm(f => ({ ...f, priority: e.target.value }))} className="w-full border border-gray-300 px-2.5 py-1.5 bg-white text-sm">
-                            <option value="CRITICAL">Critical — Rất cao</option>
-                            <option value="HIGH">High — Cao</option>
-                            <option value="MEDIUM">Medium — Trung bình</option>
-                            <option value="LOW">Low — Thấp</option>
+                            <option value="CRITICAL">{t('pms.workPlanning.config.priorityCritical')}</option>
+                            <option value="HIGH">{t('pms.workPlanning.config.priorityHigh')}</option>
+                            <option value="MEDIUM">{t('pms.workPlanning.config.priorityMedium')}</option>
+                            <option value="LOW">{t('pms.workPlanning.config.priorityLow')}</option>
                           </select>
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Loại bảo trì</label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.workPlanning.config.maintenanceType')}</label>
                         <div className="flex gap-4">
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input type="radio" name="maintenanceCategory" value="PERIODIC" checked={cfgForm.maintenanceCategory === 'PERIODIC'} onChange={() => setCfgForm(f => ({ ...f, maintenanceCategory: 'PERIODIC' }))} className="w-3.5 h-3.5 text-blue-600" />
-                            <span className="text-xs text-gray-700">Định kỳ <span className="text-[10px] text-gray-400">(theo giờ chạy/lịch)</span></span>
+                            <span className="text-xs text-gray-700">{t('pms.workPlanning.config.periodicLabel')} <span className="text-[10px] text-gray-400">({t('pms.workPlanning.config.periodicDesc')})</span></span>
                           </label>
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input type="radio" name="maintenanceCategory" value="AD_HOC" checked={cfgForm.maintenanceCategory === 'AD_HOC'} onChange={() => setCfgForm(f => ({ ...f, maintenanceCategory: 'AD_HOC' }))} className="w-3.5 h-3.5 text-orange-600" />
-                            <span className="text-xs text-gray-700">Đột xuất <span className="text-[10px] text-gray-400">(thực hiện ngay)</span></span>
+                            <span className="text-xs text-gray-700">{t('pms.workPlanning.config.adhocLabel')} <span className="text-[10px] text-gray-400">({t('pms.workPlanning.config.adhocDesc')})</span></span>
                           </label>
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Tên bảo trì <span className="text-red-500">*</span></label>
-                        <input type="text" value={cfgForm.scheduleName} onChange={e => setCfgForm(f => ({ ...f, scheduleName: e.target.value }))} placeholder="Thay dầu bôi trơn máy chính" className="w-full border border-gray-300 px-2.5 py-1.5 text-sm" />
+                        <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.workPlanning.config.maintenanceName')} <span className="text-red-500">*</span></label>
+                        <input type="text" value={cfgForm.scheduleName} onChange={e => setCfgForm(f => ({ ...f, scheduleName: e.target.value }))} placeholder={t('pms.workPlanning.config.namePlaceholder')} className="w-full border border-gray-300 px-2.5 py-1.5 text-sm" />
                       </div>
                       {/* Thiết bị */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Thiết bị <span className="text-red-500">*</span> <span className="text-[10px] text-gray-400 font-normal">— tick từ cây bên trái</span></label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.workPlanning.config.equipment')} <span className="text-red-500">*</span> <span className="text-[10px] text-gray-400 font-normal">— {t('pms.workPlanning.config.selectFromTree')}</span></label>
                         {cfgSelectedEquipmentNames.length === 0 ? (
                           <div className="px-2.5 py-2 border border-dashed border-gray-300 rounded text-xs text-gray-400 text-center">
-                            Chưa chọn thiết bị. Vui lòng tick từ cây thiết bị bên trái.
+                            {t('pms.workPlanning.config.noEquipmentSelected')}
                           </div>
                         ) : (
                           <div className="flex flex-wrap gap-1.5">
@@ -1951,26 +2031,26 @@ export default function WorkPlanningPage() {
                               </span>
                             ))}
                             {cfgSelectedEquipmentNames.length > 8 && (
-                              <span className="text-[10px] text-gray-500 self-center">+{cfgSelectedEquipmentNames.length - 8} khác</span>
+                              <span className="text-[10px] text-gray-500 self-center">+{cfgSelectedEquipmentNames.length - 8} {t('pms.workPlanning.config.more')}</span>
                             )}
                             {cfgSelectedEquipmentNames.length > 1 && (
-                              <span className="text-[10px] bg-teal-50 text-teal-700 px-1.5 py-0.5 rounded self-center">Nhóm ({cfgSelectedEquipmentNames.length})</span>
+                              <span className="text-[10px] bg-teal-50 text-teal-700 px-1.5 py-0.5 rounded self-center">{t('pms.workPlanning.config.group', { count: cfgSelectedEquipmentNames.length })}</span>
                             )}
                           </div>
                         )}
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Hướng dẫn kỹ thuật</label>
-                        <textarea value={cfgForm.instructions || ''} onChange={e => setCfgForm(f => ({ ...f, instructions: e.target.value }))} placeholder="Mô tả quy trình, lưu ý an toàn..." rows={2} className="w-full border border-gray-300 px-2.5 py-1.5 text-sm resize-none" />
+                        <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.workPlanning.config.technicalInstructions')}</label>
+                        <textarea value={cfgForm.instructions || ''} onChange={e => setCfgForm(f => ({ ...f, instructions: e.target.value }))} placeholder={t('pms.workPlanning.config.instructionPlaceholder')} rows={2} className="w-full border border-gray-300 px-2.5 py-1.5 text-sm resize-none" />
                       </div>
                       <div className="flex items-center gap-6 pt-1">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input type="checkbox" checked={cfgIsCbm} onChange={e => setCfgIsCbm(e.target.checked)} className="w-3.5 h-3.5 rounded text-blue-600 border-gray-300" />
-                          <span className="text-xs text-gray-700">CBM <span className="text-[10px] text-gray-400">(Bảo trì theo tình trạng)</span></span>
+                          <span className="text-xs text-gray-700">CBM <span className="text-[10px] text-gray-400">({t('pms.workPlanning.config.cbm')})</span></span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input type="checkbox" checked={cfgRequireRiskAssessment} onChange={e => setCfgRequireRiskAssessment(e.target.checked)} className="w-3.5 h-3.5 rounded text-blue-600 border-gray-300" />
-                          <span className="text-xs text-gray-700">Yêu cầu ĐGRR</span>
+                          <span className="text-xs text-gray-700">{t('pms.workPlanning.config.requireRiskAssessment')}</span>
                         </label>
                       </div>
                     </div>
@@ -1979,10 +2059,10 @@ export default function WorkPlanningPage() {
                     {cfgRequireRiskAssessment && (
                       <>
                         <div className="px-3 py-2 bg-orange-50 border-b border-orange-200">
-                          <span className="text-sm font-semibold text-orange-800 flex items-center gap-2"><AlertTriangle size={14} /> Đánh giá rủi ro (ĐGRR)</span>
+                          <span className="text-sm font-semibold text-orange-800 flex items-center gap-2"><AlertTriangle size={14} /> {t('pms.workPlanning.config.riskAssessment')}</span>
                         </div>
                         <div className="px-3 py-3 border-b border-gray-200">
-                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Tài liệu đánh giá rủi ro (PDF)</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1.5">{t('pms.workPlanning.config.riskDocument')}</label>
                           {cfgRiskFileName ? (
                             <div className="flex items-center gap-2 p-2 border border-orange-200 bg-orange-50/50 rounded">
                               <FileText size={16} className="text-orange-600 shrink-0" />
@@ -1995,8 +2075,8 @@ export default function WorkPlanningPage() {
                           ) : (
                             <label className="flex flex-col items-center gap-1.5 p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-colors">
                               <Upload size={20} className="text-gray-400" />
-                              <span className="text-xs text-gray-500">Nhấn để chọn file PDF</span>
-                              <span className="text-[10px] text-gray-400">Chỉ chấp nhận file .pdf</span>
+                              <span className="text-xs text-gray-500">{t('pms.workPlanning.config.clickToUploadPdf')}</span>
+                              <span className="text-[10px] text-gray-400">{t('pms.workPlanning.config.pdfOnly')}</span>
                               <input type="file" accept=".pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) { setCfgRiskFile(f); setCfgRiskFileName(f.name); } e.target.value = ''; }} />
                             </label>
                           )}
@@ -2007,48 +2087,48 @@ export default function WorkPlanningPage() {
                     {/* ── Cấu hình thời gian ── */}
                     {cfgForm.maintenanceCategory !== 'AD_HOC' && (<>
                     <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
-                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Clock size={14} /> Cấu hình thời gian</span>
+                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Clock size={14} /> {t('pms.workPlanning.config.timeConfig')}</span>
                     </div>
                     <div className="px-3 py-3 space-y-2.5 text-sm">
                       {/* Loại chu kỳ */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Loại chu kỳ <span className="text-red-500">*</span></label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.workPlanning.config.intervalType')} <span className="text-red-500">*</span></label>
                         <select value={cfgForm.intervalType} onChange={e => setCfgForm(f => ({ ...f, intervalType: e.target.value, ...(e.target.value === 'CALENDAR' ? { intervalHours: undefined, daysBeforeDue: 7 } : { intervalDays: undefined, daysBeforeDue: 70 }) }))} className="w-full border border-gray-300 px-2.5 py-1.5 text-sm bg-white">
-                          <option value="RUNNING_HOURS">Theo giờ chạy (Running Hours)</option>
-                          <option value="CALENDAR">Theo lịch (Calendar)</option>
+                          <option value="RUNNING_HOURS">{t('pms.workPlanning.config.runningHours')}</option>
+                          <option value="CALENDAR">{t('pms.workPlanning.config.calendarType')}</option>
                         </select>
                       </div>
                       {/* Dynamic: Running Hours hoặc Calendar Days */}
                       {cfgForm.intervalType === 'RUNNING_HOURS' ? (
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Mốc giờ chạy (Running Hours) <span className="text-red-500">*</span></label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.workPlanning.config.runningHoursThreshold')} <span className="text-red-500">*</span></label>
                           <div className="flex items-center gap-1.5">
                             <input type="number" value={cfgForm.intervalHours ?? ''} onChange={e => setCfgForm(f => ({ ...f, intervalHours: parseInt(e.target.value) || undefined }))} min={1} placeholder="500" className="flex-1 border border-gray-300 px-2.5 py-1.5 text-sm" />
-                            <span className="text-xs text-gray-500">giờ</span>
+                            <span className="text-xs text-gray-500">{t('pms.workPlanning.config.hoursUnit')}</span>
                           </div>
                         </div>
                       ) : (
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Chu kỳ <span className="text-red-500">*</span></label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.workPlanning.config.interval')} <span className="text-red-500">*</span></label>
                           <div className="flex items-center gap-1.5">
                             <input type="number" value={cfgForm.intervalDays ?? ''} onChange={e => setCfgForm(f => ({ ...f, intervalDays: parseInt(e.target.value) || undefined }))} min={1} placeholder="30" className="flex-1 border border-gray-300 px-2.5 py-1.5 text-sm" />
-                            <span className="text-xs text-gray-500">ngày</span>
+                            <span className="text-xs text-gray-500">{t('pms.workPlanning.config.daysUnit')}</span>
                           </div>
                         </div>
                       )}
                       <div className="grid grid-cols-2 gap-2.5">
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Cảnh báo trước</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.workPlanning.config.warningBefore')}</label>
                           <div className="flex items-center gap-1.5">
                             <input type="number" value={cfgForm.daysBeforeDue ?? ''} onChange={e => setCfgForm(f => ({ ...f, daysBeforeDue: parseInt(e.target.value) || (f.intervalType === 'RUNNING_HOURS' ? 70 : 7) }))} min={1} placeholder={cfgForm.intervalType === 'RUNNING_HOURS' ? '70' : '7'} className="flex-1 border border-gray-300 px-2.5 py-1.5 text-sm" />
-                            <span className="text-xs text-gray-500">{cfgForm.intervalType === 'RUNNING_HOURS' ? 'giờ' : 'ngày'}</span>
+                            <span className="text-xs text-gray-500">{cfgForm.intervalType === 'RUNNING_HOURS' ? t('pms.workPlanning.config.hoursUnit') : t('pms.workPlanning.config.daysUnit')}</span>
                           </div>
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">TG thực hiện ước tính</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.workPlanning.config.estimatedDuration')}</label>
                           <div className="flex items-center gap-1.5">
                             <input type="number" value={cfgForm.estimatedDurationHours ?? ''} onChange={e => setCfgForm(f => ({ ...f, estimatedDurationHours: parseFloat(e.target.value) || undefined }))} min={1} step={1} placeholder="3" className="flex-1 border border-gray-300 px-2.5 py-1.5 text-sm" />
-                            <span className="text-xs text-gray-500">giờ</span>
+                            <span className="text-xs text-gray-500">{t('pms.workPlanning.config.hoursUnit')}</span>
                           </div>
                         </div>
                       </div>
@@ -2060,14 +2140,14 @@ export default function WorkPlanningPage() {
                   <div className="flex flex-col overflow-hidden">
                     {/* ── Nhân lực ── */}
                     <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
-                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Users size={14} /> Nhân lực</span>
+                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Users size={14} /> {t('pms.workPlanning.config.crew')}</span>
                     </div>
                     <div className="px-4 py-3 space-y-4 border-b border-gray-200">
                       {/* PIC */}
                       <div>
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">PIC</span>
-                          <span className="text-xs text-gray-500">Người chịu trách nhiệm chính</span>
+                          <span className="text-xs text-gray-500">{t('pms.workPlanning.config.picRole')}</span>
                         </div>
                         {(() => {
                           const picAssign = cfgCrewAssignments.find(a => a.role === 'PIC');
@@ -2089,7 +2169,7 @@ export default function WorkPlanningPage() {
                           return (
                             <div className="relative">
                               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                              <input type="text" value={cfgActiveCrewDrop === 'PIC' ? cfgCrewSearch : ''} onChange={e => { setCfgCrewSearch(e.target.value); setCfgActiveCrewDrop('PIC'); }} onFocus={() => { setCfgActiveCrewDrop('PIC'); setCfgCrewSearch(''); }} onBlur={() => setTimeout(() => setCfgActiveCrewDrop(null), 200)} placeholder="Tìm và chọn PIC..." className="w-full pl-8 border border-gray-300 py-2 text-sm rounded" />
+                              <input type="text" value={cfgActiveCrewDrop === 'PIC' ? cfgCrewSearch : ''} onChange={e => { setCfgCrewSearch(e.target.value); setCfgActiveCrewDrop('PIC'); }} onFocus={() => { setCfgActiveCrewDrop('PIC'); setCfgCrewSearch(''); }} onBlur={() => setTimeout(() => setCfgActiveCrewDrop(null), 200)} placeholder={t('pms.workPlanning.config.searchPic')} className="w-full pl-8 border border-gray-300 py-2 text-sm rounded" />
                               {cfgActiveCrewDrop === 'PIC' && cfgFilteredCrew.length > 0 && (
                                 <div className="absolute z-30 mt-1 w-full max-h-36 overflow-auto bg-white border border-gray-200 shadow-lg rounded">
                                   {cfgFilteredCrew.map(c => (
@@ -2109,10 +2189,10 @@ export default function WorkPlanningPage() {
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-semibold bg-gray-100 text-gray-700 px-2 py-0.5 rounded">SUPPORT</span>
-                            <span className="text-xs text-gray-500">Hỗ trợ (nhiều người)</span>
+                            <span className="text-xs text-gray-500">{t('pms.workPlanning.config.supportMultiple')}</span>
                           </div>
                           <button type="button" onClick={() => { setCfgShowSupportPanel(!cfgShowSupportPanel); setCfgSupportSearch(''); }} className={`text-xs px-2.5 py-0.5 rounded border ${cfgShowSupportPanel ? 'border-blue-400 text-blue-700 bg-blue-50' : 'border-gray-300 text-gray-500 hover:bg-gray-50'}`}>
-                            {cfgShowSupportPanel ? 'Đóng' : '+ Thêm'}
+                            {cfgShowSupportPanel ? t('pms.workPlanning.config.close') : t('pms.workPlanning.config.addMore')}
                           </button>
                         </div>
                         {cfgCrewAssignments.filter(a => a.role === 'SUPPORT').length > 0 && (
@@ -2135,12 +2215,12 @@ export default function WorkPlanningPage() {
                             <div className="px-2.5 py-2 border-b border-gray-100">
                               <div className="relative">
                                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                                <input type="text" value={cfgSupportSearch} onChange={e => setCfgSupportSearch(e.target.value)} placeholder="Tìm thuyền viên..." className="w-full pl-8 border border-gray-200 py-1.5 text-sm rounded" />
+                                <input type="text" value={cfgSupportSearch} onChange={e => setCfgSupportSearch(e.target.value)} placeholder={t('pms.workPlanning.config.searchCrew')} className="w-full pl-8 border border-gray-200 py-1.5 text-sm rounded" />
                               </div>
                             </div>
                             <div className="max-h-44 overflow-y-auto">
                               {Object.entries(cfgCrewByDept).length === 0 ? (
-                                <div className="px-3 py-3 text-center text-gray-400 text-xs">Không còn thuyền viên</div>
+                                <div className="px-3 py-3 text-center text-gray-400 text-xs">{t('pms.workPlanning.config.noCrew')}</div>
                               ) : Object.entries(cfgCrewByDept).map(([dept, members]) => (
                                 <div key={dept}>
                                   <div className="px-2.5 py-1 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100 sticky top-0">{dept} <span className="text-gray-400 font-normal">({members.length})</span></div>
@@ -2161,7 +2241,7 @@ export default function WorkPlanningPage() {
                       <div>
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-xs font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded">RECEIVER</span>
-                          <span className="text-xs text-gray-500">Người nhận báo cáo</span>
+                          <span className="text-xs text-gray-500">{t('pms.workPlanning.config.receiverRole')}</span>
                         </div>
                         {(() => {
                           const recvAssign = cfgCrewAssignments.find(a => a.role === 'RECEIVER');
@@ -2183,7 +2263,7 @@ export default function WorkPlanningPage() {
                           return (
                             <div className="relative">
                               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                              <input type="text" value={cfgActiveCrewDrop === 'RECEIVER' ? cfgCrewSearch : ''} onChange={e => { setCfgCrewSearch(e.target.value); setCfgActiveCrewDrop('RECEIVER'); }} onFocus={() => { setCfgActiveCrewDrop('RECEIVER'); setCfgCrewSearch(''); }} onBlur={() => setTimeout(() => setCfgActiveCrewDrop(null), 200)} placeholder="Tìm và chọn người nhận BC..." className="w-full pl-8 border border-gray-300 py-2 text-sm rounded" />
+                              <input type="text" value={cfgActiveCrewDrop === 'RECEIVER' ? cfgCrewSearch : ''} onChange={e => { setCfgCrewSearch(e.target.value); setCfgActiveCrewDrop('RECEIVER'); }} onFocus={() => { setCfgActiveCrewDrop('RECEIVER'); setCfgCrewSearch(''); }} onBlur={() => setTimeout(() => setCfgActiveCrewDrop(null), 200)} placeholder={t('pms.workPlanning.config.searchReceiver')} className="w-full pl-8 border border-gray-300 py-2 text-sm rounded" />
                               {cfgActiveCrewDrop === 'RECEIVER' && cfgFilteredCrew.length > 0 && (
                                 <div className="absolute z-30 mt-1 w-full max-h-36 overflow-auto bg-white border border-gray-200 shadow-lg rounded">
                                   {cfgFilteredCrew.map(c => (
@@ -2202,7 +2282,7 @@ export default function WorkPlanningPage() {
 
                     {/* ── Vật tư tiêu dùng ── */}
                     <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 shrink-0">
-                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Package size={14} /> Vật tư tiêu dùng</span>
+                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Package size={14} /> {t('pms.workPlanning.config.materials')}</span>
                     </div>
                     <div className="border-b border-gray-200 flex flex-col" style={{ maxHeight: '200px' }}>
                       <div className="overflow-auto flex-1">
@@ -2219,18 +2299,18 @@ export default function WorkPlanningPage() {
                           <thead className="bg-blue-50 sticky top-0">
                             <tr>
                               <th className="px-1 py-1.5 text-left text-xs">TT</th>
-                              <th className="px-1.5 py-1.5 text-left text-xs">Vật tư <span className="text-red-500">*</span></th>
+                              <th className="px-1.5 py-1.5 text-left text-xs">{t('pms.workPlanning.config.material')} <span className="text-red-500">*</span></th>
                               <th className="px-1 py-1.5 text-right text-xs">ROB</th>
-                              <th className="px-1 py-1.5 text-right text-xs">Cần <span className="text-red-500">*</span></th>
+                              <th className="px-1 py-1.5 text-right text-xs">{t('pms.workPlanning.config.required')} <span className="text-red-500">*</span></th>
                               <th className="px-0.5 py-1.5 text-center text-xs"></th>
-                              <th className="px-0.5 py-1.5 text-center text-xs" title="Gán thiết bị"><Link2 size={11} className="inline text-gray-400" /></th>
+                              <th className="px-0.5 py-1.5 text-center text-xs" title={t('pms.workPlanning.config.assignEquipment')}><Link2 size={11} className="inline text-gray-400" /></th>
                               <th className="px-0.5 py-1.5"></th>
                             </tr>
                           </thead>
                           <tbody>
                             {(!cfgForm.requiredSpareParts || cfgForm.requiredSpareParts.length === 0) ? (
                               <tr><td colSpan={7} className="text-center py-4 text-gray-400 text-xs">
-                                {cfgTreeSelectedIds.size > 0 ? 'Thiết bị chưa được gán vật tư. Thêm dòng và gán bên dưới.' : 'Chưa có vật tư'}
+                                {cfgTreeSelectedIds.size > 0 ? t('pms.workPlanning.config.noMaterialsAssigned') : t('pms.workPlanning.config.noMaterials')}
                               </td></tr>
                             ) : cfgForm.requiredSpareParts.map((part, i) => {
                               const mat = cfgMaterials.find(m => m.id.toString() === part.materialItemId);
@@ -2243,7 +2323,7 @@ export default function WorkPlanningPage() {
                                   <td className="px-1.5 py-1 text-gray-500 text-xs">{i + 1}</td>
                                   <td className="px-1.5 py-1">
                                     <select value={part.materialItemId} onChange={e => cfgUpdateSparePart(i, 'materialItemId', e.target.value)} className="w-full border border-gray-300 px-1 py-0.5 text-xs truncate" style={{ maxWidth: '100%' }}>
-                                      <option value="">-- Chọn --</option>
+                                      <option value="">{t('pms.workPlanning.config.selectOption')}</option>
                                       {cfgMaterials.map(m => <option key={m.id} value={m.id}>{m.itemCode} - {m.name}</option>)}
                                     </select>
                                   </td>
@@ -2257,7 +2337,7 @@ export default function WorkPlanningPage() {
                                     {needsMore ? (
                                       <span className="text-red-600" title={`Thiếu ${(part.quantityRequired - rob).toFixed(1)} ${mat?.unit || ''}`}><AlertTriangle size={13} /></span>
                                     ) : mat && isLow ? (
-                                      <span className="text-orange-500" title="Tồn kho thấp"><AlertTriangle size={13} /></span>
+                                      <span className="text-orange-500" title={t('pms.workPlanning.config.lowStock')}><AlertTriangle size={13} /></span>
                                     ) : mat ? (
                                       <span className="text-green-500"><CheckCircle size={13} /></span>
                                     ) : null}
@@ -2265,9 +2345,9 @@ export default function WorkPlanningPage() {
                                   <td className="px-0.5 py-1 text-center">
                                     {part.materialItemId && cfgTreeSelectedIds.size > 0 && (
                                       isLinked ? (
-                                        <span className="text-green-500" title="Đã gán vào thiết bị"><Link2 size={12} /></span>
+                                        <span className="text-green-500" title={t('pms.workPlanning.config.assignedToEquipment')}><Link2 size={12} /></span>
                                       ) : (
-                                        <button type="button" onClick={() => cfgAssignMaterialToEquipment(part.materialItemId)} title="Gán vật tư vào thiết bị" className="text-amber-500 hover:text-amber-700">
+                                        <button type="button" onClick={() => cfgAssignMaterialToEquipment(part.materialItemId)} title={t('pms.workPlanning.config.assignMaterialToEquipment')} className="text-amber-500 hover:text-amber-700">
                                           <Save size={12} />
                                         </button>
                                       )
@@ -2284,36 +2364,36 @@ export default function WorkPlanningPage() {
                       </div>
                       <div className="px-3 py-1.5 border-t border-gray-100 shrink-0">
                         <button type="button" onClick={cfgAddSparePart} className="flex items-center gap-1 text-blue-600 text-xs hover:text-blue-800">
-                          <Plus size={12} /> Thêm dòng
+                          <Plus size={12} /> {t('pms.workPlanning.config.addRow')}
                         </button>
                       </div>
                     </div>
 
                     {/* ── Hạng mục kiểm tra ── */}
                     <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between shrink-0">
-                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><ClipboardList size={14} /> Hạng mục kiểm tra</span>
+                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><ClipboardList size={14} /> {t('pms.workPlanning.config.checklist')}</span>
                       <div className="flex items-center gap-2">
                         <div className="relative">
                           <button type="button" onClick={cfgSaveAsTemplate} className="flex items-center gap-1.5 px-2.5 py-1 text-xs border border-teal-300 rounded text-teal-700 hover:bg-teal-50">
-                            <Plus size={12} /> Tạo mẫu
+                            <Plus size={12} /> {t('pms.workPlanning.config.createTemplate')}
                           </button>
                           {cfgShowCreateTemplate && (
                             <div className="absolute right-0 z-40 mt-1 w-72 bg-white border border-gray-200 shadow-xl rounded-lg overflow-hidden">
                               <div className="flex items-center justify-between px-3 py-2 bg-teal-50 border-b border-teal-200">
-                                <span className="text-xs font-semibold text-teal-800">Lưu mẫu checklist</span>
+                                <span className="text-xs font-semibold text-teal-800">{t('pms.workPlanning.config.saveChecklistTemplate')}</span>
                                 <button type="button" onClick={() => setCfgShowCreateTemplate(false)} className="text-gray-400 hover:text-gray-600"><XIcon size={14} /></button>
                               </div>
                               <div className="px-3 py-3 space-y-2.5">
                                 <div>
-                                  <label className="block text-[10px] font-medium text-gray-600 mb-1">Tên mẫu <span className="text-red-500">*</span></label>
-                                  <input type="text" value={cfgTemplateName} onChange={e => setCfgTemplateName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') cfgConfirmSaveTemplate(); }} placeholder="VD: Kiểm tra bơm hàng ngày" autoFocus className="w-full border border-gray-300 px-2.5 py-1.5 text-xs rounded" />
+                                  <label className="block text-[10px] font-medium text-gray-600 mb-1">{t('pms.workPlanning.config.templateName')} <span className="text-red-500">*</span></label>
+                                  <input type="text" value={cfgTemplateName} onChange={e => setCfgTemplateName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') cfgConfirmSaveTemplate(); }} placeholder={t('pms.workPlanning.config.templateNamePlaceholder')} autoFocus className="w-full border border-gray-300 px-2.5 py-1.5 text-xs rounded" />
                                 </div>
                                 <div className="text-[10px] text-gray-500 bg-gray-50 px-2 py-1.5 rounded">
-                                  Sẽ lưu <span className="font-semibold text-gray-700">{cfgForm.checklistItemTemplates?.length || 0}</span> bước kiểm tra vào mẫu
+                                  {t('pms.workPlanning.config.templateStepCount', { count: cfgForm.checklistItemTemplates?.length || 0 })}
                                 </div>
                                 <div className="flex items-center justify-end gap-2">
-                                  <button type="button" onClick={() => setCfgShowCreateTemplate(false)} className="px-3 py-1 text-xs text-gray-500 border border-gray-300 rounded hover:bg-gray-50">Hủy</button>
-                                  <button type="button" onClick={cfgConfirmSaveTemplate} className="px-3 py-1 text-xs bg-teal-600 text-white rounded hover:bg-teal-700">Lưu mẫu</button>
+                                  <button type="button" onClick={() => setCfgShowCreateTemplate(false)} className="px-3 py-1 text-xs text-gray-500 border border-gray-300 rounded hover:bg-gray-50">{t('pms.workPlanning.config.cancel')}</button>
+                                  <button type="button" onClick={cfgConfirmSaveTemplate} className="px-3 py-1 text-xs bg-teal-600 text-white rounded hover:bg-teal-700">{t('pms.workPlanning.config.saveTemplate')}</button>
                                 </div>
                               </div>
                             </div>
@@ -2321,21 +2401,21 @@ export default function WorkPlanningPage() {
                         </div>
                         <div className="relative">
                           <button type="button" onClick={() => setCfgShowChecklistTemplate(!cfgShowChecklistTemplate)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs border border-gray-300 rounded text-gray-600 hover:bg-white">
-                            <FileText size={12} /> Chọn từ mẫu
+                            <FileText size={12} /> {t('pms.workPlanning.config.selectFromTemplate')}
                           </button>
                           {cfgShowChecklistTemplate && (() => {
                             const customTemplates = (() => { try { return JSON.parse(localStorage.getItem('pms_custom_templates') || '{}'); } catch { return {}; } })();
                             const allTemplates = { ...CHECKLIST_TEMPLATES, ...customTemplates };
                             return (
                               <div className="absolute right-0 z-30 mt-1 w-64 bg-white border border-gray-200 shadow-lg rounded">
-                                <div className="px-3 py-2 border-b border-gray-100 text-xs font-semibold text-gray-600">Chọn mẫu</div>
+                                <div className="px-3 py-2 border-b border-gray-100 text-xs font-semibold text-gray-600">{t('pms.workPlanning.config.selectTemplate')}</div>
                                 {Object.entries(allTemplates).map(([key, tpl]: [string, any]) => (
                                   <button key={key} type="button" onClick={() => cfgApplyChecklistTemplate(key)}
                                     className="w-full text-left px-3 py-2 hover:bg-blue-50 text-xs border-b border-gray-50 flex items-center justify-between">
                                     <span className="font-medium text-gray-900">{tpl.label}</span>
                                     <span className="flex items-center gap-1.5">
-                                      {key.startsWith('CUSTOM_') && <span className="text-[9px] bg-teal-50 text-teal-600 px-1 rounded">Tùy chỉnh</span>}
-                                      <span className="text-gray-400">{tpl.items.length} bước</span>
+                                      {key.startsWith('CUSTOM_') && <span className="text-[9px] bg-teal-50 text-teal-600 px-1 rounded">{t('pms.workPlanning.config.custom')}</span>}
+                                      <span className="text-gray-400">{t('pms.workPlanning.config.steps', { count: tpl.items.length })}</span>
                                     </span>
                                   </button>
                                 ))}
@@ -2351,22 +2431,22 @@ export default function WorkPlanningPage() {
                           <thead className="bg-blue-50 sticky top-0">
                             <tr>
                               <th className="px-2 py-2 text-left w-10">TT</th>
-                              <th className="px-2 py-2 text-left">Mô tả bước kiểm tra <span className="text-red-500">*</span></th>
-                              <th className="px-2 py-2 text-center w-20">Đo giá trị</th>
+                              <th className="px-2 py-2 text-left">{t('pms.workPlanning.config.stepDescription')} <span className="text-red-500">*</span></th>
+                              <th className="px-2 py-2 text-center w-20">{t('pms.workPlanning.config.measureValue')}</th>
                               <th className="px-2 py-2 text-right w-16">Min</th>
                               <th className="px-2 py-2 text-right w-16">Max</th>
-                              <th className="px-2 py-2 text-left w-16">Đơn vị</th>
+                              <th className="px-2 py-2 text-left w-16">{t('pms.workPlanning.config.unit')}</th>
                               <th className="px-2 py-2 w-8"></th>
                             </tr>
                           </thead>
                           <tbody>
                             {(!cfgForm.checklistItemTemplates || cfgForm.checklistItemTemplates.length === 0) ? (
-                              <tr><td colSpan={7} className="text-center py-6 text-gray-400 text-xs">Không có dữ liệu</td></tr>
+                              <tr><td colSpan={7} className="text-center py-6 text-gray-400 text-xs">{t('pms.workPlanning.config.noData')}</td></tr>
                             ) : cfgForm.checklistItemTemplates.map((item, i) => (
                               <tr key={i} className="border-b">
                                 <td className="px-2 py-1.5 text-gray-500 text-xs">{item.sequenceOrder}</td>
                                 <td className="px-2 py-1.5">
-                                  <input type="text" value={item.checkpointDescription} onChange={e => cfgUpdateChecklist(i, 'checkpointDescription', e.target.value)} placeholder="Mô tả bước kiểm tra..." className="w-full border border-gray-300 px-1.5 py-1 text-xs" />
+                                  <input type="text" value={item.checkpointDescription} onChange={e => cfgUpdateChecklist(i, 'checkpointDescription', e.target.value)} placeholder={t('pms.workPlanning.config.stepDescPlaceholder')} className="w-full border border-gray-300 px-1.5 py-1 text-xs" />
                                 </td>
                                 <td className="px-2 py-1.5 text-center">
                                   <input type="checkbox" checked={item.requiresReading || false} onChange={e => cfgUpdateChecklist(i, 'requiresReading', e.target.checked)} className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded" />
@@ -2390,7 +2470,7 @@ export default function WorkPlanningPage() {
                       </div>
                       <div className="px-3 py-1.5 border-t border-gray-100 shrink-0">
                         <button type="button" onClick={cfgAddChecklist} className="flex items-center gap-1 text-blue-600 text-xs hover:text-blue-800">
-                          <Plus size={12} /> Thêm bước
+                          <Plus size={12} /> {t('pms.workPlanning.config.addStep')}
                         </button>
                       </div>
                     </div>
