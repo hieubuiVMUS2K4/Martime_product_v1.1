@@ -30,6 +30,7 @@ export interface CreateEquipmentAssetDto {
   assetCode: string;
   assetName: string;
   category: string;
+  parentId?: string;
   manufacturer?: string;
   model?: string;
   serialNumber?: string;

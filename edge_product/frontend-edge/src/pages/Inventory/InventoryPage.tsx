@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, ChevronRight, ChevronDown, Package, DollarSign, AlertTriangle, ChevronsUpDown, Download, Clock, ClipboardList, SlidersHorizontal, X, Plus, Minus } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Search, ChevronRight, ChevronDown, Package, DollarSign, AlertTriangle, ChevronsUpDown, Download, Clock, ClipboardList, X, Plus, Edit2, Save, FolderOpen } from 'lucide-react';
 import { inventoryService } from '@/services/inventory.service';
 import { storeLocationService } from '@/services/store-location.service';
 import { materialService } from '@/services/materialService';
@@ -55,10 +55,21 @@ export default function InventoryPage() {
   const [declareItems, setDeclareItems] = useState<{ materialItemId: string; storeLocationId: string; quantity: number; unitCost: number; itemName?: string }[]>([]);
   const [allMaterials, setAllMaterials] = useState<MaterialItem[]>([]);
 
-  const [showAdjust, setShowAdjust] = useState(false);
-  const [adjustItem, setAdjustItem] = useState<InventoryStockItem | null>(null);
-  const [adjustQty, setAdjustQty] = useState<number>(0);
-  const [adjustReason, setAdjustReason] = useState('');
+  // Edit mode
+  const [editMode, setEditMode] = useState(false);
+
+  // Right-click context menu (edit mode tree)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string | null } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+
+  // Inline create location
+  const [inlineNew, setInlineNew] = useState<{ parentId: string | null } | null>(null);
+  const [inlineNewName, setInlineNewName] = useState('');
+
+  // Selected location for editing (edit mode)
+  const [selectedEditLocation, setSelectedEditLocation] = useState<TreeNode | null>(null);
+  const [editLocForm, setEditLocForm] = useState({ name: '', description: '', address: '', managerName: '', phone: '', email: '' });
+  const [editLocSaving, setEditLocSaving] = useState(false);
 
   const tree = useMemo(() => buildTree(locations), [locations]);
 
@@ -164,43 +175,110 @@ export default function InventoryPage() {
     } catch (e: any) { alert(e?.response?.data?.error || 'Khai báo thất bại'); }
   };
 
-  // ── Adjust ──
-  const openAdjust = (item: InventoryStockItem) => {
-    setAdjustItem(item);
-    setAdjustQty(0);
-    setAdjustReason('');
-    setShowAdjust(true);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [contextMenu]);
+
+  const selectEditLocation = (node: TreeNode) => {
+    setSelectedEditLocation(node);
+    setEditLocForm({
+      name: node.name || '',
+      description: node.description || '',
+      address: node.address || '',
+      managerName: node.managerName || '',
+      phone: node.phone || '',
+      email: node.email || '',
+    });
   };
 
-  const handleAdjust = async () => {
-    if (!adjustItem || adjustQty === 0) return;
+  const handleSaveLocation = async () => {
+    if (!selectedEditLocation) return;
+    setEditLocSaving(true);
     try {
-      await inventoryService.adjust({
-        materialItemId: adjustItem.materialItemId,
-        storeLocationId: adjustItem.storeLocationId,
-        adjustQuantity: adjustQty,
-        reason: adjustReason || undefined,
+      await storeLocationService.update(selectedEditLocation.id, {
+        locationCode: selectedEditLocation.locationCode || selectedEditLocation.name.toUpperCase().replace(/\s+/g, '-').slice(0, 20),
+        name: editLocForm.name,
+        description: editLocForm.description || null,
+        address: editLocForm.address || null,
+        managerName: editLocForm.managerName || null,
+        phone: editLocForm.phone || null,
+        email: editLocForm.email || null,
+        parentId: selectedEditLocation.parentId || null,
       });
-      setShowAdjust(false);
-      loadData();
-    } catch (e: any) { alert(e?.response?.data?.error || 'Điều chỉnh thất bại'); }
+      const locs = await storeLocationService.getAll();
+      setLocations(locs);
+      setExpandedNodes(new Set(locs.map((l: { id: string }) => l.id)));
+      // update selected node name in state
+      setSelectedEditLocation(prev => prev ? { ...prev, name: editLocForm.name } : null);
+    } catch (e: any) { alert(e?.response?.data?.error || 'Lưu thất bại'); }
+    finally { setEditLocSaving(false); }
   };
+
+  const startInlineNew = (parentId: string | null) => {
+    setContextMenu(null);
+    setInlineNew({ parentId });
+    setInlineNewName('');
+    if (parentId) setExpandedNodes(prev => new Set([...prev, parentId]));
+  };
+
+  const handleInlineNewKeyDown = async (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') { setInlineNew(null); setInlineNewName(''); return; }
+    if (e.key !== 'Enter') return;
+    const name = inlineNewName.trim();
+    if (!name) return;
+    try {
+      await storeLocationService.create({ locationCode: name.toUpperCase().replace(/\s+/g, '-').slice(0, 20) + '-' + Date.now().toString(36).slice(-4), name, parentId: inlineNew?.parentId || undefined });
+      setInlineNew(null);
+      setInlineNewName('');
+      const locs = await storeLocationService.getAll();
+      setLocations(locs);
+      setExpandedNodes(new Set(locs.map((l: { id: string }) => l.id)));
+    } catch (e: any) { alert(e?.response?.data?.error || 'Tạo kho thất bại'); }
+  };
+
+  const handleDeleteLocation = async (nodeId: string) => {
+    setContextMenu(null);
+    if (!window.confirm('Xóa kho này? (Chỉ xóa được kho rỗng)')) return;
+    try {
+      await storeLocationService.delete(nodeId);
+      if (selectedLocationId === nodeId) setSelectedLocationId(null);
+      const locs = await storeLocationService.getAll();
+      setLocations(locs);
+    } catch (e: any) { alert(e?.response?.data?.error || 'Xóa thất bại'); }
+  };
+
 
   const totalPages = Math.ceil(total / pageSize);
   const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
   const renderTreeNode = (node: TreeNode, depth: number = 0) => {
-    const hasChildren = node.children.length > 0;
+    const hasChildren = node.children.length > 0 || (inlineNew?.parentId === node.id);
     const isExpanded = expandedNodes.has(node.id);
     const isSelected = selectedLocationId === node.id;
     const stats = locationStats.get(node.id);
 
     return (
-      <div key={node.id}>
+      <div key={node.id} data-loc-node="true">
         <div
           className={`flex items-center gap-1.5 py-1.5 px-2 rounded cursor-pointer text-sm hover:bg-blue-50 ${isSelected ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
-          onClick={() => selectLocation(isSelected ? null : node.id)}
+          onClick={() => {
+            if (editMode) {
+              selectEditLocation(node);
+            } else {
+              selectLocation(isSelected ? null : node.id);
+            }
+          }}
+          onContextMenu={editMode ? (e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, nodeId: node.id }); } : undefined}
         >
           {hasChildren ? (
             <button onClick={e => { e.stopPropagation(); toggleExpand(node.id); }} className="p-0.5">
@@ -214,6 +292,20 @@ export default function InventoryPage() {
             <span className="text-xs bg-gray-100 text-gray-500 px-1.5 rounded">{stats.itemCount}</span>
           )}
         </div>
+        {/* Inline create child */}
+        {inlineNew?.parentId === node.id && (
+          <div style={{ paddingLeft: `${(depth + 1) * 16 + 8}px` }} className="py-1 pr-2">
+            <input
+              autoFocus
+              type="text"
+              value={inlineNewName}
+              onChange={e => setInlineNewName(e.target.value)}
+              onKeyDown={handleInlineNewKeyDown}
+              placeholder="Tên kho... (Enter lưu, Esc hủy)"
+              className="w-full px-2 py-1 text-xs border border-blue-400 rounded outline-none bg-blue-50"
+            />
+          </div>
+        )}
         {hasChildren && isExpanded && node.children.map(child => renderTreeNode(child, depth + 1))}
       </div>
     );
@@ -268,6 +360,16 @@ export default function InventoryPage() {
                 <button onClick={openDeclare} className="flex items-center gap-1 px-2.5 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 text-gray-600">
                   <ClipboardList size={13} /> Khai báo tồn kho
                 </button>
+                <button
+                  onClick={() => { setEditMode(m => !m); setSelectedEditLocation(null); }}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-xs border rounded font-medium ${
+                    editMode
+                      ? 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600'
+                      : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Edit2 size={13} /> {editMode ? 'Thoát chỉnh sửa' : 'Chỉnh sửa'}
+                </button>
               </div>
             </div>
           )}
@@ -276,14 +378,136 @@ export default function InventoryPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left Panel - Location Tree */}
-        <div className="w-56 border-r border-gray-200 bg-white overflow-y-auto flex-shrink-0">
+        <div
+          className="w-56 border-r border-gray-200 bg-white overflow-y-auto flex-shrink-0"
+          onContextMenu={editMode ? (e) => {
+            // Only trigger if click is NOT on a tree node
+            if ((e.target as HTMLElement).closest('[data-loc-node]')) return;
+            e.preventDefault();
+            setContextMenu({ x: e.clientX, y: e.clientY, nodeId: null });
+          } : undefined}
+        >
           <div className="p-1">
             {tree.map(node => renderTreeNode(node))}
+            {/* Inline create root location */}
+            {inlineNew?.parentId === null && (
+              <div className="px-2 py-1">
+                <input
+                  autoFocus
+                  type="text"
+                  value={inlineNewName}
+                  onChange={e => setInlineNewName(e.target.value)}
+                  onKeyDown={handleInlineNewKeyDown}
+                  placeholder="Tên kho mới... (Enter lưu, Esc hủy)"
+                  className="w-full px-2 py-1 text-xs border border-blue-400 rounded outline-none bg-blue-50"
+                />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right Panel - Table */}
+        {/* Right Panel - table (view mode) OR location edit form (edit mode) */}
         <div className="flex-1 flex flex-col overflow-hidden">
+          {editMode ? (
+            /* ── EDIT MODE: form chỉnh sửa thông tin kho ── */
+            <>
+              {!selectedEditLocation ? (
+                <div className="flex-1 flex items-center justify-center text-gray-400">
+                  <div className="text-center">
+                    <FolderOpen className="w-14 h-14 mx-auto mb-3 opacity-20" />
+                    <p className="text-sm font-medium text-gray-500">Chọn một kho trong cây bên trái để chỉnh sửa</p>
+                    <p className="text-xs mt-2 text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full inline-block">
+                      Chuột phải vào cây để thêm / xóa kho
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {/* Form header */}
+                  <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FolderOpen className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                      <span className="font-mono text-xs text-gray-400 flex-shrink-0 bg-gray-100 px-1.5 py-0.5 rounded">{selectedEditLocation.locationCode}</span>
+                      <span className="font-semibold text-sm text-gray-800 truncate">{selectedEditLocation.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleDeleteLocation(selectedEditLocation.id)}
+                        className="px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded hover:bg-red-50 flex items-center gap-1"
+                      >
+                        <X size={13} /> Xóa kho
+                      </button>
+                      <button
+                        onClick={handleSaveLocation}
+                        disabled={editLocSaving}
+                        className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        <Save size={13} /> {editLocSaving ? 'Đang lưu...' : 'Lưu'}
+                      </button>
+                    </div>
+                  </div>
+                  {/* Form fields */}
+                  <div className="flex-1 overflow-y-auto p-5">
+                    <div className="grid grid-cols-2 gap-4 max-w-2xl">
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Tên kho <span className="text-red-400">*</span></label>
+                        <input
+                          value={editLocForm.name}
+                          onChange={e => setEditLocForm(f => ({ ...f, name: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Mô tả</label>
+                        <textarea
+                          value={editLocForm.description}
+                          onChange={e => setEditLocForm(f => ({ ...f, description: e.target.value }))}
+                          rows={3}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Địa chỉ / Vị trí</label>
+                        <input
+                          value={editLocForm.address}
+                          onChange={e => setEditLocForm(f => ({ ...f, address: e.target.value }))}
+                          placeholder="Engine Room, Deck A..."
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Người phụ trách</label>
+                        <input
+                          value={editLocForm.managerName}
+                          onChange={e => setEditLocForm(f => ({ ...f, managerName: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Số điện thoại</label>
+                        <input
+                          value={editLocForm.phone}
+                          onChange={e => setEditLocForm(f => ({ ...f, phone: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                        <input
+                          type="email"
+                          value={editLocForm.email}
+                          onChange={e => setEditLocForm(f => ({ ...f, email: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            /* ── VIEW MODE: table ── */
+            <>
           {/* Table */}
           <div className="flex-1 overflow-auto">
             <table className="min-w-full text-sm border-collapse">
@@ -376,7 +600,7 @@ export default function InventoryPage() {
                 ) : items.length === 0 ? (
                   <tr><td colSpan={11} className="text-center py-8 text-gray-400">Không có dữ liệu tồn kho</td></tr>
                 ) : items.map((row, idx) => (
-                  <tr key={row.id} className={`hover:bg-blue-50 ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
+                  <tr key={row.id} className={`hover:bg-blue-50 cursor-pointer ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
                     <td className="px-2 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{(currentPage - 1) * pageSize + idx + 1}</td>
                     <td className="px-3 py-2 text-xs font-medium border-r border-gray-100">{row.itemCode}</td>
                     <td className="px-3 py-2 text-xs border-r border-gray-100">{row.itemName}</td>
@@ -389,10 +613,10 @@ export default function InventoryPage() {
                     <td className="px-3 py-2 text-gray-400 text-xs border-r border-gray-100">{row.updatedAt?.slice(0, 10)}</td>
                     <td className="px-2 py-2 text-center">
                       <button
-                        onClick={() => openAdjust(row)}
-                        className="p-1 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded" title="Điều chỉnh tồn kho"
+                        onClick={() => setEditMode(true)}
+                        className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Chỉnh sửa"
                       >
-                        <SlidersHorizontal className="w-3.5 h-3.5" />
+                        <Edit2 className="w-3.5 h-3.5" />
                       </button>
                     </td>
                   </tr>
@@ -431,6 +655,8 @@ export default function InventoryPage() {
               <input type="number" min={1} max={totalPages || 1} value={currentPage} onChange={e => { const v = Number(e.target.value); if (v >= 1 && v <= (totalPages || 1)) setCurrentPage(v); }} className="w-12 border border-gray-300 rounded px-1 py-1 text-center text-xs" />
             </div>
           </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -570,58 +796,40 @@ export default function InventoryPage() {
         </div>
       )}
 
-      {/* ── ADJUST MODAL ── */}
-      {showAdjust && adjustItem && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-[420px]">
-            <div className="flex items-center justify-between px-5 py-3 border-b bg-slate-700 rounded-t-lg">
-              <h3 className="text-sm font-semibold text-white">Điều chỉnh tồn kho</h3>
-              <button onClick={() => setShowAdjust(false)} className="text-gray-300 hover:text-white"><X size={18} /></button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div>
-                <label className="text-xs font-medium text-gray-600">Vật tư</label>
-                <div className="text-sm font-semibold mt-1">{adjustItem.itemCode} - {adjustItem.itemName}</div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600">Vị trí kho</label>
-                <div className="text-sm mt-1">{adjustItem.locationName}</div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600">Tồn hiện tại</label>
-                <div className="text-sm font-semibold mt-1">{fmt(adjustItem.quantity)}</div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600 block mb-1">Điều chỉnh số lượng</label>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setAdjustQty(q => q - 1)} className="w-8 h-8 flex items-center justify-center border rounded hover:bg-red-50 text-red-600"><Minus size={14} /></button>
-                  <input
-                    type="number"
-                    value={adjustQty}
-                    onChange={e => setAdjustQty(Number(e.target.value))}
-                    className="w-24 border border-gray-300 rounded px-2 py-1.5 text-sm text-center"
-                  />
-                  <button onClick={() => setAdjustQty(q => q + 1)} className="w-8 h-8 flex items-center justify-center border rounded hover:bg-green-50 text-green-600"><Plus size={14} /></button>
-                  <span className="text-xs text-gray-500">→ Tồn mới: <strong>{fmt(adjustItem.quantity + adjustQty)}</strong></span>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600 block mb-1">Lý do</label>
-                <input
-                  type="text" value={adjustReason}
-                  onChange={e => setAdjustReason(e.target.value)}
-                  placeholder="Kiểm kê, hư hỏng, sai số..."
-                  className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 px-5 py-3 border-t">
-              <button onClick={() => setShowAdjust(false)} className="px-4 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50">Hủy</button>
-              <button onClick={handleAdjust} disabled={adjustQty === 0} className="px-4 py-1.5 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40">Điều chỉnh</button>
-            </div>
-          </div>
+      {/* ── CONTEXT MENU (edit mode) ── */}
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="fixed z-50 bg-white border border-gray-200 rounded shadow-lg py-1 min-w-[180px] text-sm"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+        >
+          {contextMenu.nodeId ? (
+            <>
+              <button
+                onClick={() => startInlineNew(contextMenu.nodeId)}
+                className="w-full text-left px-4 py-2 hover:bg-blue-50 text-gray-700 flex items-center gap-2"
+              >
+                <Plus size={13} className="text-blue-600" /> Thêm kho con
+              </button>
+              <div className="border-t border-gray-100 my-1" />
+              <button
+                onClick={() => handleDeleteLocation(contextMenu.nodeId!)}
+                className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"
+              >
+                <X size={13} /> Xóa kho này
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => startInlineNew(null)}
+              className="w-full text-left px-4 py-2 hover:bg-blue-50 text-gray-700 flex items-center gap-2"
+            >
+              <Plus size={13} className="text-blue-600" /> Thêm kho gốc
+            </button>
+          )}
         </div>
       )}
+
     </div>
   );
 }
