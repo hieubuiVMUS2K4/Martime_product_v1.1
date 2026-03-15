@@ -127,15 +127,15 @@ public class CrewMember : ISyncableEntity
     // ============================================
 
     /// <summary>
-    /// Onboard review status: PendingReview, Approved, Rejected.
+    /// Onboard review status: PendingReview, Approved, OnHold.
     /// Set to "PendingReview" when shore assigns crew to this vessel.
-    /// Captain/admin reviews and approves/rejects on edge.
+    /// Captain/admin reviews and approves or puts on hold on edge.
     /// </summary>
     [MaxLength(20)]
     public string? OnboardStatus { get; set; }
 
     /// <summary>
-    /// When the onboard status was last changed (approved/rejected).
+    /// When the onboard status was last changed (approved/on-hold).
     /// </summary>
     public DateTime? OnboardStatusChangedAt { get; set; }
 
@@ -144,6 +144,28 @@ public class CrewMember : ISyncableEntity
     /// </summary>
     [MaxLength(100)]
     public string? OnboardStatusChangedBy { get; set; }
+
+    /// <summary>
+    /// JSON checklist of sections reviewed by edge.
+    /// e.g. {"personalInfo":true,"physicalDetails":false,...}
+    /// </summary>
+    public string? ReviewChecklist { get; set; }
+
+    /// <summary>
+    /// Message from edge to shore about missing/incomplete sections.
+    /// </summary>
+    public string? ReviewNotes { get; set; }
+
+    /// <summary>
+    /// JSON describing fields changed by edge.
+    /// e.g. [{"field":"phoneNumber","oldValue":"+84...","newValue":"+84...","changedAt":"..."}]
+    /// </summary>
+    public string? EdgeChanges { get; set; }
+
+    /// <summary>
+    /// Whether shore has viewed/acknowledged the edge changes.
+    /// </summary>
+    public bool EdgeChangesViewed { get; set; } = false;
 
     // ============================================
     // ISyncableEntity implementation

@@ -314,10 +314,13 @@ export const CrewListPage: React.FC = () => {
                       : <span className="cl-muted">Pool</span>}
                   </td>
                   <td className="cl-cell-status">
-                    <span className={`cl-status-badge ${m.isOnboard ? 'cl-status-badge--on' : m.onboardStatus === 'PendingReview' ? 'cl-status-badge--pending' : m.onboardStatus === 'Rejected' ? 'cl-status-badge--rejected' : 'cl-status-badge--off'}`}>
+                    <span className={`cl-status-badge ${m.isOnboard ? 'cl-status-badge--on' : m.onboardStatus === 'PendingReview' ? 'cl-status-badge--pending' : m.onboardStatus === 'OnHold' ? 'cl-status-badge--hold' : m.onboardStatus === 'Rejected' ? 'cl-status-badge--rejected' : 'cl-status-badge--off'}`}>
                       <span className="cl-status-badge__dot" />
-                      {m.isOnboard ? 'Onboard' : m.onboardStatus === 'PendingReview' ? 'Đang duyệt' : m.onboardStatus === 'Rejected' ? 'Từ chối' : 'Pool'}
+                      {m.isOnboard ? 'Onboard' : m.onboardStatus === 'PendingReview' ? 'Đang duyệt' : m.onboardStatus === 'OnHold' ? 'Tạm giữ' : m.onboardStatus === 'Rejected' ? 'Từ chối' : 'Pool'}
                     </span>
+                    {m.edgeChanges && !m.edgeChangesViewed && (() => {
+                      try { const c = JSON.parse(m.edgeChanges!); return c.length > 0 ? <span className="cl-changes-badge" title={`${c.length} thay đổi từ tàu`}>{c.length}</span> : null } catch { return null }
+                    })()}
                   </td>
                   <td className="cl-muted">{fmtDate(m.embarkDate)}</td>
                   <td className="cl-muted">{fmtDate(m.contractEnd)}</td>

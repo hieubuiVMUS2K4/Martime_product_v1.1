@@ -52,6 +52,13 @@ export interface CrewMember {
   isSynced?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  // Review workflow fields (synced from edge)
+  onboardStatusChangedAt?: string;
+  onboardStatusChangedBy?: string;
+  reviewChecklist?: string;
+  reviewNotes?: string;
+  edgeChanges?: string;
+  edgeChangesViewed?: boolean;
 }
 
 export interface CrewDetail extends CrewMember {

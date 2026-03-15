@@ -1,0 +1,548 @@
+Building...
+info: Program[0]
+      Attempting database creation (Attempt 1/5)...
+warn: Microsoft.EntityFrameworkCore.Model.Validation[10625]
+      The foreign key property 'ServiceRecord.CrewMemberId1' was created in shadow state because a conflicting property with the simple name 'CrewMemberId' exists in the entity type, but is either not mapped, is already used for another relationship, or is incompatible with the associated primary key type. See https://aka.ms/efcore-relationships for information on mapping relationships in EF Core.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (33ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT CASE WHEN COUNT(*) = 0 THEN FALSE ELSE TRUE END
+FROM pg_class AS cls
+JOIN pg_namespace AS ns ON ns.oid = cls.relnamespace
+WHERE
+        cls.relkind IN ('r', 'v', 'm', 'f', 'p') AND
+        ns.nspname NOT IN ('pg_catalog', 'information_schema') AND
+        -- Exclude tables which are members of PG extensions
+        NOT EXISTS (
+            SELECT 1 FROM pg_depend WHERE
+                classid=(
+                    SELECT cls.oid
+                    FROM pg_class AS cls
+                             JOIN pg_namespace AS ns ON ns.oid = cls.relnamespace
+                    WHERE relname='pg_class' AND ns.nspname='pg_catalog'
+                ) AND
+                objid=cls.oid AND
+                deptype IN ('e', 'x')
+        )
+info: Program[0]
+      Database creation/verification completed successfully.
+info: ProductApi.Services.AlertBackgroundService[0]
+      Alert Background Service started
+info: ProductApi.Services.AlertService[0]
+      Processing automatic alerts...
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (13ms) [Parameters=[@__timeoutThreshold_0='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      SELECT v."Id", v."AirdraftReductionMastFouled", v."Ais", v."AnchorChainPort", v."AnchorChainStarboard", v."AnchorChainStern", v."AnchorChainSternNA", v."AzimuthEngAftCount", v."AzimuthEngAftMaxPowerKW", v."AzimuthEngFwdCount", v."AzimuthEngFwdMaxPowerKW", v."BalesCbm", v."BallastWaterCbm", v."BareboatChartererCity", v."BareboatChartererContactPerson", v."BareboatChartererCountry", v."BareboatChartererEmail", v."BareboatChartererFax", v."BareboatChartererName", v."BareboatChartererPhone", v."BareboatChartererStreet", v."BareboatChartererTlx", v."BareboatChartererZip", v."BilgeWaterCbm", v."BlockCoefficient", v."BlockCoefficientNA", v."BowToBulbousBow", v."BowToManifold", v."BowthrusterNA", v."BreadthMoulded", v."BridgeToAft", v."BridgeToBow", v."BuildDate", v."CallSign", v."ChartererCity", v."ChartererContactPerson", v."ChartererCountry", v."ChartererEmail", v."ChartererFax", v."ChartererName", v."ChartererPhone", v."ChartererStreet", v."ChartererTlx", v."ChartererZip", v."ClassNotation", v."ClassRegisterNumber", v."ClassSocietyCity", v."ClassSocietyContactPerson", v."ClassSocietyCountry", v."ClassSocietyEmail", v."ClassSocietyFax", v."ClassSocietyName", v."ClassSocietyPhone", v."ClassSocietyStreet", v."ClassSocietyTlx", v."ClassSocietyZip", v."CompanyImoNumber", v."CreatedAt", v."CsoCity", v."CsoCountry", v."CsoEmail", v."CsoFax", v."CsoFirstName", v."CsoLastName", v."CsoPhone24h", v."CsoStreet", v."CsoTitle", v."CsoTlx", v."CsoZip", v."DDistance", v."DateOfRegistry", v."DeadWeight", v."DeckToManifold", v."DepthMoulded", v."DpaCity", v."DpaCountry", v."DpaEmail", v."DpaFax", v."DpaFirstName", v."DpaLastName", v."DpaPhone24h", v."DpaStreet", v."DpaTitle", v."DpaTlx", v."DpaZip", v."DraftFullBallast", v."DraftMoulded", v."DraftScantling", v."DscHF", v."DscMF", v."DscVHF", v."EmailAddress1", v."EmailAddress2", v."EpirbFrequency", v."EpirbMaker", v."EpirbModel", v."EpirbNumber", v."EpirbOperatingSystem", v."FieldOwnership", v."Flag", v."FlagStateCity", v."FlagStateContactPerson", v."FlagStateCountry", v."FlagStateEmail", v."FlagStateFax", v."FlagStateName", v."FlagStatePhone", v."FlagStateStreet", v."FlagStateTlx", v."FlagStateZip", v."FreshWaterAllowanceFwa", v."FreshWaterCbm", v."GrainCbm", v."GrossTonnage", v."GrossTonnageInternational", v."GrossTonnagePanamaCanal", v."GrossTonnageSuezCanal", v."GsmPhone", v."HMaxAirdraft", v."HarbourGeneratorMaker", v."HarbourGeneratorMaxPowerKW", v."HfoCbm", v."HmClubCity", v."HmClubContactPerson", v."HmClubCountry", v."HmClubEmail", v."HmClubFax", v."HmClubName", v."HmClubPhone", v."HmClubStreet", v."HmClubTlx", v."HmClubZip", v."IMO", v."InmarsatFax1", v."InmarsatFax2", v."InmarsatPhone1", v."InmarsatPhone2", v."InmarsatTelex1", v."InmarsatTelex2", v."IsActive", v."KeelLaidDate", v."LastEdgeSyncAt", v."LastShoreSyncAt", v."Lbp", v."LightShip", v."Loa", v."LubOilCbm", v."ManagingOwnerCity", v."ManagingOwnerContactPerson", v."ManagingOwnerCountry", v."ManagingOwnerEmail", v."ManagingOwnerFax", v."ManagingOwnerName", v."ManagingOwnerPhone", v."ManagingOwnerStreet", v."ManagingOwnerTlx", v."ManagingOwnerZip", v."ManifoldToBridge", v."ManifoldToKeel", v."ManifoldToWaterlineBallast", v."ManifoldToWaterlineLoaded", v."MaxAllowablePressurePsi", v."MaxLoadingRateShip", v."MaxPassengersAllowedOB", v."MaxPersonsAllowedOB", v."MdoCbm", v."MmsiNumber", v."Name", v."Navtex", v."NettTonnageInternational", v."NettTonnagePanamaCanal", v."NettTonnageSuezCanal", v."NoOfBallastTanks", v."NoOfCargoHolds", v."NoOfCrewSafeManning", v."NoOfHatches", v."NumberOfLines", v."OfficialNumber", v."OperatorCity", v."OperatorContactPerson", v."OperatorCountry", v."OperatorEmail", v."OperatorFax", v."OperatorName", v."OperatorPhone", v."OperatorStreet", v."OperatorTlx", v."OperatorZip", v."OtherRadioEquipment", v."OwnerImoNumber", v."PanamaCanalIdNumber", v."ParallelBodyBallast", v."ParallelBodyLoaded", v."PiClubCity", v."PiClubContactPerson", v."PiClubCountry", v."PiClubEmail", v."PiClubFax", v."PiClubName", v."PiClubPhone", v."PiClubStreet", v."PiClubTlx", v."PiClubZip", v."PortOfRegistry", v."PreviousFlag", v."PreviousName", v."QiPanamaCity", v."QiPanamaCountry", v."QiPanamaEmail", v."QiPanamaFax", v."QiPanamaFirstName", v."QiPanamaLastName", v."QiPanamaPhone24h", v."QiPanamaStreet", v."QiPanamaTitle", v."QiPanamaTlx", v."QiPanamaZip", v."QiUsaCity", v."QiUsaCountry", v."QiUsaEmail", v."QiUsaFax", v."QiUsaFirstName", v."QiUsaLastName", v."QiUsaPhone24h", v."QiUsaStreet", v."QiUsaTitle", v."QiUsaTlx", v."QiUsaZip", v."RadiotelegraphHF", v."RadiotelegraphMF", v."RadiotelegraphVHF", v."RadiotelephoneHF", v."RadiotelephoneMF", v."RadiotelephoneVHF", v."Radiotelex", v."SartTransponder", v."SeaAreaA1", v."SeaAreaA2", v."SeaAreaA3", v."SeaAreaA4", v."ServiceSpeedKts", v."SewageCbm", v."ShaftGeneratorNA", v."ShipownerCity", v."ShipownerContactPerson", v."ShipownerCountry", v."ShipownerEmail", v."ShipownerFax", v."ShipownerName", v."ShipownerPhone", v."ShipownerStreet", v."ShipownerTlx", v."ShipownerZip", v."ShipsideToManifold", v."ShipyardCountry", v."ShipyardName", v."SludgeCbm", v."SternToManifold", v."SternthrusterNA", v."SuezCanalIdNumber", v."TeuOnDeck", v."TeuTotal", v."TeuUnderDeck", v."TpcAtSummerDraft", v."UpdatedAt", v."VentingSystemShip", v."VesselType", v."VrpNumber", v."VrpType", v."YardNo", v."YearBuilt"
+      FROM "Vessels" AS v
+      WHERE v."IsActive" AND (NOT EXISTS (
+          SELECT 1
+          FROM "VesselPositions" AS v0
+          WHERE v."Id" = v0."VesselId") OR (
+          SELECT max(v1."Timestamp")
+          FROM "VesselPositions" AS v1
+          WHERE v."Id" = v1."VesselId") < @__timeoutThreshold_0)
+info: ProductApi.Services.Sync.CertificateExpiryMonitorService[0]
+      Certificate Expiry Monitor started.
+info: ProductApi.Services.Sync.SyncHealthMonitorService[0]
+      Sync Health Monitor started.
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5000
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: E:\NCKH\Martime_product_v1.1\shore_product\backend
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (33ms) [Parameters=[@__vesselIds_0='?' (DbType = Object), @__sixHoursAgo_1='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      SELECT DISTINCT v."VesselId"
+      FROM "VesselAlerts" AS v
+      WHERE v."VesselId" = ANY (@__vesselIds_0) AND v."AlertType" = 'POSITION_TIMEOUT' AND v."Timestamp" > @__sixHoursAgo_1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__vesselIds_0='?' (DbType = Object)], CommandType='Text', CommandTimeout='30']
+      SELECT v."VesselId", max(v."Timestamp") AS "LastTimestamp"
+      FROM "VesselPositions" AS v
+      WHERE v."VesselId" = ANY (@__vesselIds_0)
+      GROUP BY v."VesselId"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@__thirtyDaysFromNow_0='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."CertificateName", c."CertificateNumber", c."CertificateType", c."DocumentPath", c."ExpiryDate", c."IsValid", c."IssueDate", c."IssuingAuthority", c."VesselId", v."Id", v."AirdraftReductionMastFouled", v."Ais", v."AnchorChainPort", v."AnchorChainStarboard", v."AnchorChainStern", v."AnchorChainSternNA", v."AzimuthEngAftCount", v."AzimuthEngAftMaxPowerKW", v."AzimuthEngFwdCount", v."AzimuthEngFwdMaxPowerKW", v."BalesCbm", v."BallastWaterCbm", v."BareboatChartererCity", v."BareboatChartererContactPerson", v."BareboatChartererCountry", v."BareboatChartererEmail", v."BareboatChartererFax", v."BareboatChartererName", v."BareboatChartererPhone", v."BareboatChartererStreet", v."BareboatChartererTlx", v."BareboatChartererZip", v."BilgeWaterCbm", v."BlockCoefficient", v."BlockCoefficientNA", v."BowToBulbousBow", v."BowToManifold", v."BowthrusterNA", v."BreadthMoulded", v."BridgeToAft", v."BridgeToBow", v."BuildDate", v."CallSign", v."ChartererCity", v."ChartererContactPerson", v."ChartererCountry", v."ChartererEmail", v."ChartererFax", v."ChartererName", v."ChartererPhone", v."ChartererStreet", v."ChartererTlx", v."ChartererZip", v."ClassNotation", v."ClassRegisterNumber", v."ClassSocietyCity", v."ClassSocietyContactPerson", v."ClassSocietyCountry", v."ClassSocietyEmail", v."ClassSocietyFax", v."ClassSocietyName", v."ClassSocietyPhone", v."ClassSocietyStreet", v."ClassSocietyTlx", v."ClassSocietyZip", v."CompanyImoNumber", v."CreatedAt", v."CsoCity", v."CsoCountry", v."CsoEmail", v."CsoFax", v."CsoFirstName", v."CsoLastName", v."CsoPhone24h", v."CsoStreet", v."CsoTitle", v."CsoTlx", v."CsoZip", v."DDistance", v."DateOfRegistry", v."DeadWeight", v."DeckToManifold", v."DepthMoulded", v."DpaCity", v."DpaCountry", v."DpaEmail", v."DpaFax", v."DpaFirstName", v."DpaLastName", v."DpaPhone24h", v."DpaStreet", v."DpaTitle", v."DpaTlx", v."DpaZip", v."DraftFullBallast", v."DraftMoulded", v."DraftScantling", v."DscHF", v."DscMF", v."DscVHF", v."EmailAddress1", v."EmailAddress2", v."EpirbFrequency", v."EpirbMaker", v."EpirbModel", v."EpirbNumber", v."EpirbOperatingSystem", v."FieldOwnership", v."Flag", v."FlagStateCity", v."FlagStateContactPerson", v."FlagStateCountry", v."FlagStateEmail", v."FlagStateFax", v."FlagStateName", v."FlagStatePhone", v."FlagStateStreet", v."FlagStateTlx", v."FlagStateZip", v."FreshWaterAllowanceFwa", v."FreshWaterCbm", v."GrainCbm", v."GrossTonnage", v."GrossTonnageInternational", v."GrossTonnagePanamaCanal", v."GrossTonnageSuezCanal", v."GsmPhone", v."HMaxAirdraft", v."HarbourGeneratorMaker", v."HarbourGeneratorMaxPowerKW", v."HfoCbm", v."HmClubCity", v."HmClubContactPerson", v."HmClubCountry", v."HmClubEmail", v."HmClubFax", v."HmClubName", v."HmClubPhone", v."HmClubStreet", v."HmClubTlx", v."HmClubZip", v."IMO", v."InmarsatFax1", v."InmarsatFax2", v."InmarsatPhone1", v."InmarsatPhone2", v."InmarsatTelex1", v."InmarsatTelex2", v."IsActive", v."KeelLaidDate", v."LastEdgeSyncAt", v."LastShoreSyncAt", v."Lbp", v."LightShip", v."Loa", v."LubOilCbm", v."ManagingOwnerCity", v."ManagingOwnerContactPerson", v."ManagingOwnerCountry", v."ManagingOwnerEmail", v."ManagingOwnerFax", v."ManagingOwnerName", v."ManagingOwnerPhone", v."ManagingOwnerStreet", v."ManagingOwnerTlx", v."ManagingOwnerZip", v."ManifoldToBridge", v."ManifoldToKeel", v."ManifoldToWaterlineBallast", v."ManifoldToWaterlineLoaded", v."MaxAllowablePressurePsi", v."MaxLoadingRateShip", v."MaxPassengersAllowedOB", v."MaxPersonsAllowedOB", v."MdoCbm", v."MmsiNumber", v."Name", v."Navtex", v."NettTonnageInternational", v."NettTonnagePanamaCanal", v."NettTonnageSuezCanal", v."NoOfBallastTanks", v."NoOfCargoHolds", v."NoOfCrewSafeManning", v."NoOfHatches", v."NumberOfLines", v."OfficialNumber", v."OperatorCity", v."OperatorContactPerson", v."OperatorCountry", v."OperatorEmail", v."OperatorFax", v."OperatorName", v."OperatorPhone", v."OperatorStreet", v."OperatorTlx", v."OperatorZip", v."OtherRadioEquipment", v."OwnerImoNumber", v."PanamaCanalIdNumber", v."ParallelBodyBallast", v."ParallelBodyLoaded", v."PiClubCity", v."PiClubContactPerson", v."PiClubCountry", v."PiClubEmail", v."PiClubFax", v."PiClubName", v."PiClubPhone", v."PiClubStreet", v."PiClubTlx", v."PiClubZip", v."PortOfRegistry", v."PreviousFlag", v."PreviousName", v."QiPanamaCity", v."QiPanamaCountry", v."QiPanamaEmail", v."QiPanamaFax", v."QiPanamaFirstName", v."QiPanamaLastName", v."QiPanamaPhone24h", v."QiPanamaStreet", v."QiPanamaTitle", v."QiPanamaTlx", v."QiPanamaZip", v."QiUsaCity", v."QiUsaCountry", v."QiUsaEmail", v."QiUsaFax", v."QiUsaFirstName", v."QiUsaLastName", v."QiUsaPhone24h", v."QiUsaStreet", v."QiUsaTitle", v."QiUsaTlx", v."QiUsaZip", v."RadiotelegraphHF", v."RadiotelegraphMF", v."RadiotelegraphVHF", v."RadiotelephoneHF", v."RadiotelephoneMF", v."RadiotelephoneVHF", v."Radiotelex", v."SartTransponder", v."SeaAreaA1", v."SeaAreaA2", v."SeaAreaA3", v."SeaAreaA4", v."ServiceSpeedKts", v."SewageCbm", v."ShaftGeneratorNA", v."ShipownerCity", v."ShipownerContactPerson", v."ShipownerCountry", v."ShipownerEmail", v."ShipownerFax", v."ShipownerName", v."ShipownerPhone", v."ShipownerStreet", v."ShipownerTlx", v."ShipownerZip", v."ShipsideToManifold", v."ShipyardCountry", v."ShipyardName", v."SludgeCbm", v."SternToManifold", v."SternthrusterNA", v."SuezCanalIdNumber", v."TeuOnDeck", v."TeuTotal", v."TeuUnderDeck", v."TpcAtSummerDraft", v."UpdatedAt", v."VentingSystemShip", v."VesselType", v."VrpNumber", v."VrpType", v."YardNo", v."YearBuilt"
+      FROM "Certificates" AS c
+      INNER JOIN "Vessels" AS v ON c."VesselId" = v."Id"
+      WHERE c."IsValid" AND c."ExpiryDate" <= @__thirtyDaysFromNow_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (7ms) [Parameters=[@__recentThreshold_0='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      SELECT v."Id", v."AirdraftReductionMastFouled", v."Ais", v."AnchorChainPort", v."AnchorChainStarboard", v."AnchorChainStern", v."AnchorChainSternNA", v."AzimuthEngAftCount", v."AzimuthEngAftMaxPowerKW", v."AzimuthEngFwdCount", v."AzimuthEngFwdMaxPowerKW", v."BalesCbm", v."BallastWaterCbm", v."BareboatChartererCity", v."BareboatChartererContactPerson", v."BareboatChartererCountry", v."BareboatChartererEmail", v."BareboatChartererFax", v."BareboatChartererName", v."BareboatChartererPhone", v."BareboatChartererStreet", v."BareboatChartererTlx", v."BareboatChartererZip", v."BilgeWaterCbm", v."BlockCoefficient", v."BlockCoefficientNA", v."BowToBulbousBow", v."BowToManifold", v."BowthrusterNA", v."BreadthMoulded", v."BridgeToAft", v."BridgeToBow", v."BuildDate", v."CallSign", v."ChartererCity", v."ChartererContactPerson", v."ChartererCountry", v."ChartererEmail", v."ChartererFax", v."ChartererName", v."ChartererPhone", v."ChartererStreet", v."ChartererTlx", v."ChartererZip", v."ClassNotation", v."ClassRegisterNumber", v."ClassSocietyCity", v."ClassSocietyContactPerson", v."ClassSocietyCountry", v."ClassSocietyEmail", v."ClassSocietyFax", v."ClassSocietyName", v."ClassSocietyPhone", v."ClassSocietyStreet", v."ClassSocietyTlx", v."ClassSocietyZip", v."CompanyImoNumber", v."CreatedAt", v."CsoCity", v."CsoCountry", v."CsoEmail", v."CsoFax", v."CsoFirstName", v."CsoLastName", v."CsoPhone24h", v."CsoStreet", v."CsoTitle", v."CsoTlx", v."CsoZip", v."DDistance", v."DateOfRegistry", v."DeadWeight", v."DeckToManifold", v."DepthMoulded", v."DpaCity", v."DpaCountry", v."DpaEmail", v."DpaFax", v."DpaFirstName", v."DpaLastName", v."DpaPhone24h", v."DpaStreet", v."DpaTitle", v."DpaTlx", v."DpaZip", v."DraftFullBallast", v."DraftMoulded", v."DraftScantling", v."DscHF", v."DscMF", v."DscVHF", v."EmailAddress1", v."EmailAddress2", v."EpirbFrequency", v."EpirbMaker", v."EpirbModel", v."EpirbNumber", v."EpirbOperatingSystem", v."FieldOwnership", v."Flag", v."FlagStateCity", v."FlagStateContactPerson", v."FlagStateCountry", v."FlagStateEmail", v."FlagStateFax", v."FlagStateName", v."FlagStatePhone", v."FlagStateStreet", v."FlagStateTlx", v."FlagStateZip", v."FreshWaterAllowanceFwa", v."FreshWaterCbm", v."GrainCbm", v."GrossTonnage", v."GrossTonnageInternational", v."GrossTonnagePanamaCanal", v."GrossTonnageSuezCanal", v."GsmPhone", v."HMaxAirdraft", v."HarbourGeneratorMaker", v."HarbourGeneratorMaxPowerKW", v."HfoCbm", v."HmClubCity", v."HmClubContactPerson", v."HmClubCountry", v."HmClubEmail", v."HmClubFax", v."HmClubName", v."HmClubPhone", v."HmClubStreet", v."HmClubTlx", v."HmClubZip", v."IMO", v."InmarsatFax1", v."InmarsatFax2", v."InmarsatPhone1", v."InmarsatPhone2", v."InmarsatTelex1", v."InmarsatTelex2", v."IsActive", v."KeelLaidDate", v."LastEdgeSyncAt", v."LastShoreSyncAt", v."Lbp", v."LightShip", v."Loa", v."LubOilCbm", v."ManagingOwnerCity", v."ManagingOwnerContactPerson", v."ManagingOwnerCountry", v."ManagingOwnerEmail", v."ManagingOwnerFax", v."ManagingOwnerName", v."ManagingOwnerPhone", v."ManagingOwnerStreet", v."ManagingOwnerTlx", v."ManagingOwnerZip", v."ManifoldToBridge", v."ManifoldToKeel", v."ManifoldToWaterlineBallast", v."ManifoldToWaterlineLoaded", v."MaxAllowablePressurePsi", v."MaxLoadingRateShip", v."MaxPassengersAllowedOB", v."MaxPersonsAllowedOB", v."MdoCbm", v."MmsiNumber", v."Name", v."Navtex", v."NettTonnageInternational", v."NettTonnagePanamaCanal", v."NettTonnageSuezCanal", v."NoOfBallastTanks", v."NoOfCargoHolds", v."NoOfCrewSafeManning", v."NoOfHatches", v."NumberOfLines", v."OfficialNumber", v."OperatorCity", v."OperatorContactPerson", v."OperatorCountry", v."OperatorEmail", v."OperatorFax", v."OperatorName", v."OperatorPhone", v."OperatorStreet", v."OperatorTlx", v."OperatorZip", v."OtherRadioEquipment", v."OwnerImoNumber", v."PanamaCanalIdNumber", v."ParallelBodyBallast", v."ParallelBodyLoaded", v."PiClubCity", v."PiClubContactPerson", v."PiClubCountry", v."PiClubEmail", v."PiClubFax", v."PiClubName", v."PiClubPhone", v."PiClubStreet", v."PiClubTlx", v."PiClubZip", v."PortOfRegistry", v."PreviousFlag", v."PreviousName", v."QiPanamaCity", v."QiPanamaCountry", v."QiPanamaEmail", v."QiPanamaFax", v."QiPanamaFirstName", v."QiPanamaLastName", v."QiPanamaPhone24h", v."QiPanamaStreet", v."QiPanamaTitle", v."QiPanamaTlx", v."QiPanamaZip", v."QiUsaCity", v."QiUsaCountry", v."QiUsaEmail", v."QiUsaFax", v."QiUsaFirstName", v."QiUsaLastName", v."QiUsaPhone24h", v."QiUsaStreet", v."QiUsaTitle", v."QiUsaTlx", v."QiUsaZip", v."RadiotelegraphHF", v."RadiotelegraphMF", v."RadiotelegraphVHF", v."RadiotelephoneHF", v."RadiotelephoneMF", v."RadiotelephoneVHF", v."Radiotelex", v."SartTransponder", v."SeaAreaA1", v."SeaAreaA2", v."SeaAreaA3", v."SeaAreaA4", v."ServiceSpeedKts", v."SewageCbm", v."ShaftGeneratorNA", v."ShipownerCity", v."ShipownerContactPerson", v."ShipownerCountry", v."ShipownerEmail", v."ShipownerFax", v."ShipownerName", v."ShipownerPhone", v."ShipownerStreet", v."ShipownerTlx", v."ShipownerZip", v."ShipsideToManifold", v."ShipyardCountry", v."ShipyardName", v."SludgeCbm", v."SternToManifold", v."SternthrusterNA", v."SuezCanalIdNumber", v."TeuOnDeck", v."TeuTotal", v."TeuUnderDeck", v."TpcAtSummerDraft", v."UpdatedAt", v."VentingSystemShip", v."VesselType", v."VrpNumber", v."VrpType", v."YardNo", v."YearBuilt", t."Id", t."AverageSpeed", t."DistanceTraveled", t."FuelConsumed", t."FuelEfficiency", t."FuelType", t."ReportDate", t."VesselId"
+      FROM "Vessels" AS v
+      LEFT JOIN (
+          SELECT f0."Id", f0."AverageSpeed", f0."DistanceTraveled", f0."FuelConsumed", f0."FuelEfficiency", f0."FuelType", f0."ReportDate", f0."VesselId"
+          FROM "FuelConsumptions" AS f0
+          WHERE f0."ReportDate" >= @__recentThreshold_0
+      ) AS t ON v."Id" = t."VesselId"
+      WHERE v."IsActive" AND EXISTS (
+          SELECT 1
+          FROM "FuelConsumptions" AS f
+          WHERE v."Id" = f."VesselId" AND f."ReportDate" >= @__recentThreshold_0)
+      ORDER BY v."Id"
+info: ProductApi.Services.AlertService[0]
+      Completed automatic alert processing
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__threshold_0='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."ConsecutiveFailures", s."CreatedAt", s."CurrentNetworkType", s."ImoNumber", s."IsOnline", s."LastAcknowledgedId", s."LastError", s."LastErrorAt", s."LastHeartbeatAt", s."LastPullAt", s."LastPushAt", s."LastPushBatchSize", s."LastReceivedVersion", s."NodeId", s."PendingOutboxCount", s."ShipName", s."TotalDeliveredCount", s."TotalReceivedCount", s."UpdatedAt"
+      FROM sync_node_trackers AS s
+      WHERE s."IsOnline" AND (s."LastHeartbeatAt" IS NULL OR s."LastHeartbeatAt" < @__threshold_0)
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."ConsecutiveFailures", s."CreatedAt", s."CurrentNetworkType", s."ImoNumber", s."IsOnline", s."LastAcknowledgedId", s."LastError", s."LastErrorAt", s."LastHeartbeatAt", s."LastPullAt", s."LastPushAt", s."LastPushBatchSize", s."LastReceivedVersion", s."NodeId", s."PendingOutboxCount", s."ShipName", s."TotalDeliveredCount", s."TotalReceivedCount", s."UpdatedAt"
+      FROM sync_node_trackers AS s
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@__node_NodeId_0='?'], CommandType='Text', CommandTimeout='30']
+      SELECT count(*)::int
+      FROM sync_outbox AS s
+      WHERE s."DeliveredAt" IS NULL AND (s."TargetNode" = @__node_NodeId_0 OR s."TargetNode" = '*')
+warn: Microsoft.EntityFrameworkCore.Query[10102]
+      The query uses a row limiting operator ('Skip'/'Take') without an 'OrderBy' operator. This may lead to unpredictable results. If the 'Distinct' operator is used after 'OrderBy', then make sure to use the 'OrderBy' operator after 'Distinct' as the ordering would otherwise get erased.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@__cutoff_0='?' (DbType = DateTime), @__p_1='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."ActionType", s."CreatedAt", s."DeliveredAt", s."Payload", s."RecordKey", s."SyncVersion", s."TableName", s."TargetNode"
+      FROM sync_outbox AS s
+      WHERE s."DeliveredAt" IS NOT NULL AND s."DeliveredAt" < @__cutoff_0
+      LIMIT @__p_1
+warn: Microsoft.EntityFrameworkCore.Query[10102]
+      The query uses a row limiting operator ('Skip'/'Take') without an 'OrderBy' operator. This may lead to unpredictable results. If the 'Distinct' operator is used after 'OrderBy', then make sure to use the 'OrderBy' operator after 'Distinct' as the ordering would otherwise get erased.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__cutoff_0='?' (DbType = DateTime), @__p_1='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."IdempotencyKey", s."OriginNode", s."ProcessedAt", s."Status"
+      FROM sync_idempotency_records AS s
+      WHERE s."ProcessedAt" < @__cutoff_0
+      LIMIT @__p_1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT count(*)::int
+      FROM crew_members AS c
+      WHERE NOT (c."IsSynced") AND c."OriginNode" = 'SHORE'
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT count(*)::int
+      FROM crew_certificates AS c
+      WHERE NOT (c."IsSynced") AND c."OriginNode" = 'SHORE'
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT s."OriginNode" AS "NodeId", s."TableName", count(*) FILTER (WHERE s."Status" = 'SUCCESS') AS "TotalSynced", count(*) FILTER (WHERE s."Status" = 'CONFLICT') AS "TotalConflicts", count(*) FILTER (WHERE s."Status" = 'FAILED') AS "TotalFailed", max(s."ProcessedAt") AS "LastSyncAt", now() AS "SnapshotAt"
+      FROM sync_logs AS s
+      GROUP BY s."OriginNode", s."TableName"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."LastSyncAt", s."NodeId", s."SnapshotAt", s."TableName", s."TotalConflicts", s."TotalFailed", s."TotalSynced"
+      FROM sync_table_stats AS s
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@p0='?' (DbType = Int32), @p1='?' (DbType = Int32), @p2='?' (DbType = Int32), @p3='?' (DbType = Int32), @p4='?' (DbType = Int32), @p5='?' (DbType = Int32), @p6='?' (DbType = Int32), @p7='?' (DbType = DateTime), @p8='?', @p9='?' (DbType = DateTime), @p10='?', @p11='?' (DbType = Int64), @p12='?' (DbType = Int64), @p13='?' (DbType = Int64), @p14='?' (DbType = DateTime), @p15='?', @p16='?' (DbType = DateTime), @p17='?', @p18='?' (DbType = Int64), @p19='?' (DbType = Int64), @p20='?' (DbType = Int64), @p21='?' (DbType = DateTime), @p22='?', @p23='?' (DbType = DateTime), @p24='?', @p25='?' (DbType = Int64), @p26='?' (DbType = Int64), @p27='?' (DbType = Int64), @p28='?' (DbType = DateTime), @p29='?', @p30='?' (DbType = DateTime), @p31='?', @p32='?' (DbType = Int64), @p33='?' (DbType = Int64), @p34='?' (DbType = Int64), @p35='?' (DbType = DateTime), @p36='?', @p37='?' (DbType = DateTime), @p38='?', @p39='?' (DbType = Int64), @p40='?' (DbType = Int64), @p41='?' (DbType = Int64), @p42='?' (DbType = DateTime), @p43='?', @p44='?' (DbType = DateTime), @p45='?', @p46='?' (DbType = Int64), @p47='?' (DbType = Int64), @p48='?' (DbType = Int64), @p49='?' (DbType = DateTime), @p50='?', @p51='?' (DbType = DateTime), @p52='?', @p53='?' (DbType = Int64), @p54='?' (DbType = Int64), @p55='?' (DbType = Int64)], CommandType='Text', CommandTimeout='30']
+      DELETE FROM sync_table_stats
+      WHERE "Id" = @p0;
+      DELETE FROM sync_table_stats
+      WHERE "Id" = @p1;
+      DELETE FROM sync_table_stats
+      WHERE "Id" = @p2;
+      DELETE FROM sync_table_stats
+      WHERE "Id" = @p3;
+      DELETE FROM sync_table_stats
+      WHERE "Id" = @p4;
+      DELETE FROM sync_table_stats
+      WHERE "Id" = @p5;
+      DELETE FROM sync_table_stats
+      WHERE "Id" = @p6;
+      INSERT INTO sync_table_stats ("LastSyncAt", "NodeId", "SnapshotAt", "TableName", "TotalConflicts", "TotalFailed", "TotalSynced")
+      VALUES (@p7, @p8, @p9, @p10, @p11, @p12, @p13)
+      RETURNING "Id";
+      INSERT INTO sync_table_stats ("LastSyncAt", "NodeId", "SnapshotAt", "TableName", "TotalConflicts", "TotalFailed", "TotalSynced")
+      VALUES (@p14, @p15, @p16, @p17, @p18, @p19, @p20)
+      RETURNING "Id";
+      INSERT INTO sync_table_stats ("LastSyncAt", "NodeId", "SnapshotAt", "TableName", "TotalConflicts", "TotalFailed", "TotalSynced")
+      VALUES (@p21, @p22, @p23, @p24, @p25, @p26, @p27)
+      RETURNING "Id";
+      INSERT INTO sync_table_stats ("LastSyncAt", "NodeId", "SnapshotAt", "TableName", "TotalConflicts", "TotalFailed", "TotalSynced")
+      VALUES (@p28, @p29, @p30, @p31, @p32, @p33, @p34)
+      RETURNING "Id";
+      INSERT INTO sync_table_stats ("LastSyncAt", "NodeId", "SnapshotAt", "TableName", "TotalConflicts", "TotalFailed", "TotalSynced")
+      VALUES (@p35, @p36, @p37, @p38, @p39, @p40, @p41)
+      RETURNING "Id";
+      INSERT INTO sync_table_stats ("LastSyncAt", "NodeId", "SnapshotAt", "TableName", "TotalConflicts", "TotalFailed", "TotalSynced")
+      VALUES (@p42, @p43, @p44, @p45, @p46, @p47, @p48)
+      RETURNING "Id";
+      INSERT INTO sync_table_stats ("LastSyncAt", "NodeId", "SnapshotAt", "TableName", "TotalConflicts", "TotalFailed", "TotalSynced")
+      VALUES (@p49, @p50, @p51, @p52, @p53, @p54, @p55)
+      RETURNING "Id";
+fail: Microsoft.EntityFrameworkCore.Database.Command[20102]
+      Failed executing DbCommand (4ms) [Parameters=[@__p_1='?' (DbType = Int32), @__p_0='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT t."Id", t."ActivatedAt", t."CreatedAt", t."CreatedBy", t."CrewMemberId", t."DueDate", t."FlagState", t."InvitedAt", t."Notes", t."ReferenceVesselId", t."ReferenceVesselName", t."Status", t."StatusChangedAt", t."StatusChangedBy", t."UpdatedAt", t."VesselGroupCode", c."Id", c."Address", c."BloodGroup", c."CateringSize", c."ClothingSize", c."ContractEnd", c."CreatedAt", c."CrewId", c."DateOfBirth", c."Department", c."DisembarkDate", c."EducationCourse", c."EducationGraduationYear", c."EducationInstitution", c."EducationPeriodYears", c."EmailAddress", c."EmbarkDate", c."EmergencyContact", c."FullName", c."Height", c."IdCardNumber", c."IsCovidVaccinated", c."IsOnboard", c."IsSmoker", c."IsSynced", c."JoinDate", c."MaritalStatus", c."Nationality", c."NextOfKinAddress", c."NextOfKinName", c."NextOfKinPhone", c."NextOfKinRelation", c."Notes", c."OriginNode", c."PhoneNumber", c."PhotoUrl", c."PlaceOfBirth", c."PoolStatus", c."RankId", c."ShoeSize", c."Status", c."StatusChangedAt", c."StatusChangedBy", c."SyncVersion", c."UpdatedAt", c."Weight", o0."Id", o0."CompletedAt", o0."CompletedBy", o0."CompletionNotes", o0."CreatedAt", o0."Description", o0."IsMandatory", o0."ItemType", o0."OnboardingCaseId", o0."RequiredCertificateId", o0."RequiredDocumentType", o0."SortOrder", o0."SourceRuleId", o0."Status", o0."Title", o0."UpdatedAt", o0."WaivedBy", o0."WaiverReason"
+      FROM (
+          SELECT o."Id", o."ActivatedAt", o."CreatedAt", o."CreatedBy", o."CrewMemberId", o."DueDate", o."FlagState", o."InvitedAt", o."Notes", o."ReferenceVesselId", o."ReferenceVesselName", o."Status", o."StatusChangedAt", o."StatusChangedBy", o."UpdatedAt", o."VesselGroupCode"
+          FROM onboarding_cases AS o
+          WHERE o."Status" <> 'Cancelled'
+          ORDER BY o."CreatedAt" DESC
+          LIMIT @__p_1 OFFSET @__p_0
+      ) AS t
+      INNER JOIN crew_members AS c ON t."CrewMemberId" = c."Id"
+      LEFT JOIN onboarding_checklist_items AS o0 ON t."Id" = o0."OnboardingCaseId"
+      ORDER BY t."CreatedAt" DESC, t."Id", c."Id"
+fail: Microsoft.EntityFrameworkCore.Query[10100]
+      An exception occurred while iterating over the results of a query for context type 'ProductApi.Data.AppDbContext'.
+      Npgsql.PostgresException (0x80004005): 42P01: relation "onboarding_cases" does not exist
+      
+      POSITION: 1675
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+        Exception data:
+          Severity: ERROR
+          SqlState: 42P01
+          MessageText: relation "onboarding_cases" does not exist
+          Position: 1675
+          File: parse_relation.c
+          Line: 1392
+          Routine: parserOpenTable
+      Npgsql.PostgresException (0x80004005): 42P01: relation "onboarding_cases" does not exist
+      
+      POSITION: 1675
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+        Exception data:
+          Severity: ERROR
+          SqlState: 42P01
+          MessageText: relation "onboarding_cases" does not exist
+          Position: 1675
+          File: parse_relation.c
+          Line: 1392
+          Routine: parserOpenTable
+fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]
+      An unhandled exception has occurred while executing the request.
+      Npgsql.PostgresException (0x80004005): 42P01: relation "onboarding_cases" does not exist
+      
+      POSITION: 1675
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+         at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
+         at ProductApi.Services.CrewManagement.OnboardingService.GetActiveCasesAsync(String status, Int32 page, Int32 pageSize) in E:\NCKH\Martime_product_v1.1\shore_product\backend\Services\CrewManagement\OnboardingService.cs:line 132
+         at ProductApi.Controllers.CrewManagement.OnboardingController.GetActiveCases(String status, Int32 page, Int32 pageSize) in E:\NCKH\Martime_product_v1.1\shore_product\backend\Controllers\CrewManagement\OnboardingController.cs:line 63
+         at lambda_method399(Closure, Object)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+         at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+         at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+         at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.<Invoke>g__Awaited|10_0(ExceptionHandlerMiddlewareImpl middleware, HttpContext context, Task task)
+        Exception data:
+          Severity: ERROR
+          SqlState: 42P01
+          MessageText: relation "onboarding_cases" does not exist
+          Position: 1675
+          File: parse_relation.c
+          Line: 1392
+          Routine: parserOpenTable
+fail: Program[0]
+      Unhandled exception on GET /api/onboarding-cases
+      Npgsql.PostgresException (0x80004005): 42P01: relation "onboarding_cases" does not exist
+      
+      POSITION: 1675
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+         at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
+         at ProductApi.Services.CrewManagement.OnboardingService.GetActiveCasesAsync(String status, Int32 page, Int32 pageSize) in E:\NCKH\Martime_product_v1.1\shore_product\backend\Services\CrewManagement\OnboardingService.cs:line 132
+         at ProductApi.Controllers.CrewManagement.OnboardingController.GetActiveCases(String status, Int32 page, Int32 pageSize) in E:\NCKH\Martime_product_v1.1\shore_product\backend\Controllers\CrewManagement\OnboardingController.cs:line 63
+         at lambda_method399(Closure, Object)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+         at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+         at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+         at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.<Invoke>g__Awaited|10_0(ExceptionHandlerMiddlewareImpl middleware, HttpContext context, Task task)
+        Exception data:
+          Severity: ERROR
+          SqlState: 42P01
+          MessageText: relation "onboarding_cases" does not exist
+          Position: 1675
+          File: parse_relation.c
+          Line: 1392
+          Routine: parserOpenTable
+fail: Microsoft.EntityFrameworkCore.Database.Command[20102]
+      Failed executing DbCommand (2ms) [Parameters=[@__warningDate_0='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."CertificateId", c."CertificateNumber", c."CertificateOfCompetency", c."CountryId", c."CreatedAt", c."CrewMemberId", c."DocumentFilePath", c."ExpiryDate", c."IsSynced", c."IssueDate", c."IssuingAuthority", c."Notes", c."OriginNode", c."Status", c."SyncVersion", c."UpdatedAt", c0."Id", c0."Category", c0."CertificateCode", c0."CertificateName", c0."CreatedAt", c0."Description", c0."IsActive", c0."IsMandatory", c0."UpdatedAt", c0."ValidityPeriodMonths", c1."Id", c1."Address", c1."BloodGroup", c1."CateringSize", c1."ClothingSize", c1."ContractEnd", c1."CreatedAt", c1."CrewId", c1."DateOfBirth", c1."Department", c1."DisembarkDate", c1."EducationCourse", c1."EducationGraduationYear", c1."EducationInstitution", c1."EducationPeriodYears", c1."EmailAddress", c1."EmbarkDate", c1."EmergencyContact", c1."FullName", c1."Height", c1."IdCardNumber", c1."IsCovidVaccinated", c1."IsOnboard", c1."IsSmoker", c1."IsSynced", c1."JoinDate", c1."MaritalStatus", c1."Nationality", c1."NextOfKinAddress", c1."NextOfKinName", c1."NextOfKinPhone", c1."NextOfKinRelation", c1."Notes", c1."OriginNode", c1."PhoneNumber", c1."PhotoUrl", c1."PlaceOfBirth", c1."PoolStatus", c1."RankId", c1."ShoeSize", c1."Status", c1."StatusChangedAt", c1."StatusChangedBy", c1."SyncVersion", c1."UpdatedAt", c1."Weight", c2."Id", c2."CountryCode", c2."CountryName", c2."CreatedAt", c2."FlagImageUrl", c2."IsActive", c2."UpdatedAt"
+      FROM crew_certificates AS c
+      INNER JOIN certificates AS c0 ON c."CertificateId" = c0."Id"
+      INNER JOIN crew_members AS c1 ON c."CrewMemberId" = c1."Id"
+      LEFT JOIN countries AS c2 ON c."CountryId" = c2."Id"
+      WHERE c."ExpiryDate" <= @__warningDate_0
+fail: Microsoft.EntityFrameworkCore.Query[10100]
+      An exception occurred while iterating over the results of a query for context type 'ProductApi.Data.AppDbContext'.
+      Npgsql.PostgresException (0x80004005): 42703: column c1.PoolStatus does not exist
+      
+      POSITION: 1157
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+        Exception data:
+          Severity: ERROR
+          SqlState: 42703
+          MessageText: column c1.PoolStatus does not exist
+          Position: 1157
+          File: parse_relation.c
+          Line: 3665
+          Routine: errorMissingColumn
+      Npgsql.PostgresException (0x80004005): 42703: column c1.PoolStatus does not exist
+      
+      POSITION: 1157
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+        Exception data:
+          Severity: ERROR
+          SqlState: 42703
+          MessageText: column c1.PoolStatus does not exist
+          Position: 1157
+          File: parse_relation.c
+          Line: 3665
+          Routine: errorMissingColumn
+fail: ProductApi.Services.Sync.CertificateExpiryMonitorService[0]
+      Error in Certificate Expiry Monitor cycle
+      Npgsql.PostgresException (0x80004005): 42703: column c1.PoolStatus does not exist
+      
+      POSITION: 1157
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+         at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
+         at ProductApi.Services.Sync.CertificateExpiryMonitorService.CheckAndBroadcastExpiryStatusAsync(CancellationToken token) in E:\NCKH\Martime_product_v1.1\shore_product\backend\Services\Sync\CertificateExpiryMonitorService.cs:line 69
+         at ProductApi.Services.Sync.CertificateExpiryMonitorService.ExecuteAsync(CancellationToken stoppingToken) in E:\NCKH\Martime_product_v1.1\shore_product\backend\Services\Sync\CertificateExpiryMonitorService.cs:line 46
+        Exception data:
+          Severity: ERROR
+          SqlState: 42703
+          MessageText: column c1.PoolStatus does not exist
+          Position: 1157
+          File: parse_relation.c
+          Line: 3665
+          Routine: errorMissingColumn
+fail: Microsoft.EntityFrameworkCore.Database.Command[20102]
+      Failed executing DbCommand (2ms) [Parameters=[@__p_1='?' (DbType = Int32), @__p_0='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT t."Id", t."ActivatedAt", t."CreatedAt", t."CreatedBy", t."CrewMemberId", t."DueDate", t."FlagState", t."InvitedAt", t."Notes", t."ReferenceVesselId", t."ReferenceVesselName", t."Status", t."StatusChangedAt", t."StatusChangedBy", t."UpdatedAt", t."VesselGroupCode", c."Id", c."Address", c."BloodGroup", c."CateringSize", c."ClothingSize", c."ContractEnd", c."CreatedAt", c."CrewId", c."DateOfBirth", c."Department", c."DisembarkDate", c."EducationCourse", c."EducationGraduationYear", c."EducationInstitution", c."EducationPeriodYears", c."EmailAddress", c."EmbarkDate", c."EmergencyContact", c."FullName", c."Height", c."IdCardNumber", c."IsCovidVaccinated", c."IsOnboard", c."IsSmoker", c."IsSynced", c."JoinDate", c."MaritalStatus", c."Nationality", c."NextOfKinAddress", c."NextOfKinName", c."NextOfKinPhone", c."NextOfKinRelation", c."Notes", c."OriginNode", c."PhoneNumber", c."PhotoUrl", c."PlaceOfBirth", c."PoolStatus", c."RankId", c."ShoeSize", c."Status", c."StatusChangedAt", c."StatusChangedBy", c."SyncVersion", c."UpdatedAt", c."Weight", o0."Id", o0."CompletedAt", o0."CompletedBy", o0."CompletionNotes", o0."CreatedAt", o0."Description", o0."IsMandatory", o0."ItemType", o0."OnboardingCaseId", o0."RequiredCertificateId", o0."RequiredDocumentType", o0."SortOrder", o0."SourceRuleId", o0."Status", o0."Title", o0."UpdatedAt", o0."WaivedBy", o0."WaiverReason"
+      FROM (
+          SELECT o."Id", o."ActivatedAt", o."CreatedAt", o."CreatedBy", o."CrewMemberId", o."DueDate", o."FlagState", o."InvitedAt", o."Notes", o."ReferenceVesselId", o."ReferenceVesselName", o."Status", o."StatusChangedAt", o."StatusChangedBy", o."UpdatedAt", o."VesselGroupCode"
+          FROM onboarding_cases AS o
+          WHERE o."Status" <> 'Cancelled'
+          ORDER BY o."CreatedAt" DESC
+          LIMIT @__p_1 OFFSET @__p_0
+      ) AS t
+      INNER JOIN crew_members AS c ON t."CrewMemberId" = c."Id"
+      LEFT JOIN onboarding_checklist_items AS o0 ON t."Id" = o0."OnboardingCaseId"
+      ORDER BY t."CreatedAt" DESC, t."Id", c."Id"
+fail: Microsoft.EntityFrameworkCore.Query[10100]
+      An exception occurred while iterating over the results of a query for context type 'ProductApi.Data.AppDbContext'.
+      Npgsql.PostgresException (0x80004005): 42P01: relation "onboarding_cases" does not exist
+      
+      POSITION: 1675
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+        Exception data:
+          Severity: ERROR
+          SqlState: 42P01
+          MessageText: relation "onboarding_cases" does not exist
+          Position: 1675
+          File: parse_relation.c
+          Line: 1392
+          Routine: parserOpenTable
+      Npgsql.PostgresException (0x80004005): 42P01: relation "onboarding_cases" does not exist
+      
+      POSITION: 1675
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+        Exception data:
+          Severity: ERROR
+          SqlState: 42P01
+          MessageText: relation "onboarding_cases" does not exist
+          Position: 1675
+          File: parse_relation.c
+          Line: 1392
+          Routine: parserOpenTable
+fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]
+      An unhandled exception has occurred while executing the request.
+      Npgsql.PostgresException (0x80004005): 42P01: relation "onboarding_cases" does not exist
+      
+      POSITION: 1675
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+         at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
+         at ProductApi.Services.CrewManagement.OnboardingService.GetActiveCasesAsync(String status, Int32 page, Int32 pageSize) in E:\NCKH\Martime_product_v1.1\shore_product\backend\Services\CrewManagement\OnboardingService.cs:line 132
+         at ProductApi.Controllers.CrewManagement.OnboardingController.GetActiveCases(String status, Int32 page, Int32 pageSize) in E:\NCKH\Martime_product_v1.1\shore_product\backend\Controllers\CrewManagement\OnboardingController.cs:line 63
+         at lambda_method399(Closure, Object)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+         at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+         at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+         at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.<Invoke>g__Awaited|10_0(ExceptionHandlerMiddlewareImpl middleware, HttpContext context, Task task)
+        Exception data:
+          Severity: ERROR
+          SqlState: 42P01
+          MessageText: relation "onboarding_cases" does not exist
+          Position: 1675
+          File: parse_relation.c
+          Line: 1392
+          Routine: parserOpenTable
+fail: Program[0]
+      Unhandled exception on GET /api/onboarding-cases
+      Npgsql.PostgresException (0x80004005): 42P01: relation "onboarding_cases" does not exist
+      
+      POSITION: 1675
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+         at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
+         at ProductApi.Services.CrewManagement.OnboardingService.GetActiveCasesAsync(String status, Int32 page, Int32 pageSize) in E:\NCKH\Martime_product_v1.1\shore_product\backend\Services\CrewManagement\OnboardingService.cs:line 132
+         at ProductApi.Controllers.CrewManagement.OnboardingController.GetActiveCases(String status, Int32 page, Int32 pageSize) in E:\NCKH\Martime_product_v1.1\shore_product\backend\Controllers\CrewManagement\OnboardingController.cs:line 63
+         at lambda_method399(Closure, Object)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+         at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+         at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+         at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.<Invoke>g__Awaited|10_0(ExceptionHandlerMiddlewareImpl middleware, HttpContext context, Task task)
+        Exception data:
+          Severity: ERROR
+          SqlState: 42P01
+          MessageText: relation "onboarding_cases" does not exist
+          Position: 1675
+          File: parse_relation.c
+          Line: 1392
+          Routine: parserOpenTable

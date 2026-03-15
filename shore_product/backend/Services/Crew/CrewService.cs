@@ -289,7 +289,7 @@ public class CrewService : ICrewService
         if (request.EmbarkDate.HasValue) crew.EmbarkDate = ToUtc(request.EmbarkDate);
         if (request.DisembarkDate.HasValue) crew.DisembarkDate = ToUtc(request.DisembarkDate);
         if (request.ContractEnd.HasValue) crew.ContractEnd = ToUtc(request.ContractEnd);
-        if (request.IsOnboard.HasValue) crew.IsOnboard = request.IsOnboard.Value;
+        // IsOnboard is NOT updated here — managed by dedicated onboard/disembark endpoints
         if (request.VesselId.HasValue) crew.VesselId = request.VesselId;
         if (request.EmergencyContact != null) crew.EmergencyContact = request.EmergencyContact;
         if (request.EmailAddress != null) crew.EmailAddress = request.EmailAddress;
@@ -832,7 +832,13 @@ public class CrewService : ICrewService
             IsSynced = crew.IsSynced,
             CreatedAt = crew.CreatedAt,
             UpdatedAt = crew.UpdatedAt,
-            OnboardStatus = crew.OnboardStatus
+            OnboardStatus = crew.OnboardStatus,
+            OnboardStatusChangedAt = crew.OnboardStatusChangedAt,
+            OnboardStatusChangedBy = crew.OnboardStatusChangedBy,
+            ReviewChecklist = crew.ReviewChecklist,
+            ReviewNotes = crew.ReviewNotes,
+            EdgeChanges = crew.EdgeChanges,
+            EdgeChangesViewed = crew.EdgeChangesViewed
         };
     }
 
@@ -863,7 +869,14 @@ public class CrewService : ICrewService
             EducationPeriodYears = baseDto.EducationPeriodYears,
             EducationGraduationYear = baseDto.EducationGraduationYear,
             Notes = baseDto.Notes, IsSynced = baseDto.IsSynced,
-            CreatedAt = baseDto.CreatedAt, UpdatedAt = baseDto.UpdatedAt
+            CreatedAt = baseDto.CreatedAt, UpdatedAt = baseDto.UpdatedAt,
+            OnboardStatus = baseDto.OnboardStatus,
+            OnboardStatusChangedAt = baseDto.OnboardStatusChangedAt,
+            OnboardStatusChangedBy = baseDto.OnboardStatusChangedBy,
+            ReviewChecklist = baseDto.ReviewChecklist,
+            ReviewNotes = baseDto.ReviewNotes,
+            EdgeChanges = baseDto.EdgeChanges,
+            EdgeChangesViewed = baseDto.EdgeChangesViewed
         };
     }
 

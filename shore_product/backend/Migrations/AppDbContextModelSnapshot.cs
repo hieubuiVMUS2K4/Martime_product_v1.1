@@ -265,6 +265,12 @@ namespace productapi.Migrations
                     b.Property<DateTime?>("DisembarkDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("EdgeChanges")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("EdgeChangesViewed")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("EducationCourse")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -344,6 +350,13 @@ namespace productapi.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<DateTime?>("OnboardStatusChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OnboardStatusChangedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<string>("OriginNode")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -367,6 +380,12 @@ namespace productapi.Migrations
 
                     b.Property<int?>("RankId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("ReviewChecklist")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReviewNotes")
+                        .HasColumnType("text");
 
                     b.Property<string>("ShoeSize")
                         .HasMaxLength(10)

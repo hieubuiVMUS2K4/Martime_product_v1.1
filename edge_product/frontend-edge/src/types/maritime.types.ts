@@ -282,9 +282,13 @@ export interface CrewMember {
   createdAt: string
 
   // Onboard Review Status
-  onboardStatus?: string // 'PendingReview' | 'Approved' | 'Rejected'
+  onboardStatus?: string // 'PendingReview' | 'Approved' | 'OnHold'
   onboardStatusChangedAt?: string
   onboardStatusChangedBy?: string
+  reviewChecklist?: string // JSON checklist of verified sections
+  reviewNotes?: string // Notes about missing info for shore
+  edgeChanges?: string // JSON array of field changes made by edge
+  edgeChangesViewed?: boolean
 }
 
 // Certificate Types (Master Data)

@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Users, Shield, FileText, ExternalLink, ArrowDownCircle, ArrowRightCircle, Trash2, Pencil, Copy, XCircle, CheckCircle, Award, User, Search, Plus, Download, FileSpreadsheet, Clock, UserCheck, UserX } from 'lucide-react'
-import { toast } from 'react-toastify'
+import { Users, Shield, FileText, ExternalLink, ArrowDownCircle, ArrowRightCircle, Trash2, Pencil, Copy, XCircle, CheckCircle, Award, User, Search, Plus, Download, FileSpreadsheet, Clock, UserCheck } from 'lucide-react'
+import { toast } from 'sonner'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { CrewMember, CrewCertificate } from '../../types/maritime.types'
@@ -3412,7 +3412,7 @@ function InlinePendingReviewSection({
   pendingCrew,
   pendingLoading,
   onApprove,
-  onReject,
+  onReject: _onReject,
   onViewCrew,
 }: {
   pendingCrew: CrewMember[]
@@ -3422,22 +3422,11 @@ function InlinePendingReviewSection({
   onViewCrew: (id: string) => void
 }) {
   const [isExpanded, setIsExpanded] = useState(true)
-  const [rejectingId, setRejectingId] = useState<string | null>(null)
-  const [rejectReason, setRejectReason] = useState('')
   const [processingId, setProcessingId] = useState<string | null>(null)
 
   const handleApprove = async (id: string) => {
     setProcessingId(id)
     try { await onApprove(id) } finally { setProcessingId(null) }
-  }
-
-  const handleReject = async (id: string) => {
-    setProcessingId(id)
-    try { await onReject(id, rejectReason || undefined) } finally {
-      setProcessingId(null)
-      setRejectingId(null)
-      setRejectReason('')
-    }
   }
 
   if (pendingCrew.length === 0 && !pendingLoading) return null
@@ -3483,92 +3472,59 @@ function InlinePendingReviewSection({
                 </thead>
                 <tbody className="bg-white">
                   {pendingCrew.map((crew) => (
-                    <React.Fragment key={crew.id}>
-                      <tr className="border-b border-gray-100 hover:bg-amber-50/50 transition-colors">
-                        <td className="px-4 py-3 text-sm text-gray-900 font-medium border-r border-gray-200">
-                          <div className="truncate">{crew.crewId}</div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                              {crew.fullName?.charAt(0) || '?'}
-                            </div>
-                            <span className="truncate">{crew.fullName}</span>
+                    <tr key={crew.id} className="border-b border-gray-100 hover:bg-amber-50/50 transition-colors">
+                      <td className="px-4 py-3 text-sm text-gray-900 font-medium border-r border-gray-200">
+                        <div className="truncate">{crew.crewId}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                            {crew.fullName?.charAt(0) || '?'}
                           </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
-                          <div className="truncate">{crew.rank?.rankName || '-'}</div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200">
-                          <div className="truncate">{crew.countryName || 'N/A'}</div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200">
-                          <div className="truncate">{crew.department || 'N/A'}</div>
-                        </td>
-                        <td className="px-4 py-3 text-sm border-r border-gray-200">
+                          <span className="truncate">{crew.fullName}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
+                        <div className="truncate">{crew.rank?.rankName || '-'}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200">
+                        <div className="truncate">{crew.countryName || 'N/A'}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200">
+                        <div className="truncate">{crew.department || 'N/A'}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm border-r border-gray-200">
+                        {crew.onboardStatus === 'OnHold' ? (
+                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-700">
+                            On Hold
+                          </span>
+                        ) : (
                           <span className="px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-700">
                             Pending
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleApprove(crew.id)}
-                              disabled={processingId === crew.id}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-                            >
-                              <UserCheck className="w-3.5 h-3.5" />
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => setRejectingId(rejectingId === crew.id ? null : crew.id)}
-                              disabled={processingId === crew.id}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
-                            >
-                              <UserX className="w-3.5 h-3.5" />
-                              Reject
-                            </button>
-                            <button
-                              onClick={() => onViewCrew(crew.id)}
-                              className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-                              title="View full profile"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                      {/* Reject reason row */}
-                      {rejectingId === crew.id && (
-                        <tr className="bg-red-50 border-b border-red-200">
-                          <td colSpan={7} className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-red-700 whitespace-nowrap">Reason:</span>
-                              <input
-                                type="text"
-                                value={rejectReason}
-                                onChange={(e) => setRejectReason(e.target.value)}
-                                placeholder="e.g. Missing certificates, expired documents..."
-                                className="flex-1 px-3 py-1.5 border border-red-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                              />
-                              <button
-                                onClick={() => handleReject(crew.id)}
-                                disabled={processingId === crew.id}
-                                className="px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50"
-                              >
-                                Confirm
-                              </button>
-                              <button
-                                onClick={() => { setRejectingId(null); setRejectReason('') }}
-                                className="px-3 py-1.5 text-gray-600 text-sm rounded-lg hover:bg-gray-100"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleApprove(crew.id)}
+                            disabled={processingId === crew.id}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => onViewCrew(crew.id)}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-medium rounded-lg hover:bg-blue-100 transition-colors"
+                            title="View & verify details before approving"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            Review
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
               </table>

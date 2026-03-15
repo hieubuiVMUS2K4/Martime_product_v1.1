@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { toast } from 'react-toastify'
+import { toast } from 'sonner'
 import { useParams, useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft, 
@@ -66,6 +66,64 @@ export function CrewDetailPage() {
   const [loadingServiceRecords, setLoadingServiceRecords] = useState(false)
   const [showAddCertModal, setShowAddCertModal] = useState(false)
 
+  // Section review checklist for pending crew verification
+  const [sectionChecklist, setSectionChecklist] = useState<Record<string, boolean>>({
+    personalInfo: false,
+    physicalDetails: false,
+    employmentDates: false,
+    nextOfKin: false,
+    education: false,
+    contactInfo: false,
+    documents: false,
+  })
+  const [reviewProcessing, setReviewProcessing] = useState(false)
+  const [holdNotes, setHoldNotes] = useState('')
+  const [showHoldNotesInput, setShowHoldNotesInput] = useState(false)
+
+  const isPendingReview = crew?.onboardStatus === 'PendingReview' || crew?.onboardStatus === 'OnHold'
+
+  const toggleSectionCheck = (section: string) => {
+    setSectionChecklist(prev => ({ ...prev, [section]: !prev[section] }))
+  }
+
+  const allSectionsChecked = Object.values(sectionChecklist).every(v => v)
+  const checkedCount = Object.values(sectionChecklist).filter(v => v).length
+  const totalSections = Object.keys(sectionChecklist).length
+
+  const handleApproveReview = async () => {
+    if (!crew) return
+    setReviewProcessing(true)
+    try {
+      const result = await maritimeService.crew.approve(crew.id, JSON.stringify(sectionChecklist))
+      toast.success(result.message)
+      await loadCrewDetails()
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to approve crew')
+    } finally {
+      setReviewProcessing(false)
+    }
+  }
+
+  const handleHoldReview = async () => {
+    if (!crew) return
+    setReviewProcessing(true)
+    try {
+      const uncheckedSections = Object.entries(sectionChecklist)
+        .filter(([, checked]) => !checked)
+        .map(([section]) => section)
+      const autoNotes = `Missing/incomplete sections: ${uncheckedSections.join(', ')}${holdNotes ? `. Additional notes: ${holdNotes}` : ''}`
+      const result = await maritimeService.crew.hold(crew.id, JSON.stringify(sectionChecklist), autoNotes)
+      toast.success(result.message)
+      setShowHoldNotesInput(false)
+      setHoldNotes('')
+      await loadCrewDetails()
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to put crew on hold')
+    } finally {
+      setReviewProcessing(false)
+    }
+  }
+
   useEffect(() => {
     loadCrewDetails()
     loadRanks()
@@ -98,6 +156,14 @@ export function CrewDetailPage() {
       const crewData = await maritimeService.crew.getById(id)
       setCrew(crewData)
       setEditedCrew(crewData)
+      
+      // Initialize review checklist from existing data
+      if (crewData.reviewChecklist) {
+        try {
+          const parsed = JSON.parse(crewData.reviewChecklist)
+          setSectionChecklist(prev => ({ ...prev, ...parsed }))
+        } catch { /* ignore parse errors */ }
+      }
       
       // Load certificates
       setLoadingCertificates(true)
@@ -1114,6 +1180,26 @@ export function CrewDetailPage() {
 
   const age = calculateAge(editedCrew.dateOfBirth)
 
+  // Section verification checkbox component for pending review
+  const SectionCheckbox = ({ section, label: _label }: { section: string; label: string }) => {
+    if (!isPendingReview) return null
+    return (
+      <div className="flex items-center justify-end mt-3 pt-3 border-t border-gray-100">
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <span className={`text-xs font-medium ${sectionChecklist[section] ? 'text-green-600' : 'text-gray-400'}`}>
+            {sectionChecklist[section] ? '✓ Verified' : 'Mark as verified'}
+          </span>
+          <input
+            type="checkbox"
+            checked={sectionChecklist[section] || false}
+            onChange={() => toggleSectionCheck(section)}
+            className="w-5 h-5 text-green-600 border-2 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
+          />
+        </label>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
@@ -1157,6 +1243,71 @@ export function CrewDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Pending Review Banner */}
+      {isPendingReview && (
+        <div className="bg-amber-50 border-b-2 border-amber-300 px-6 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="px-3 py-1 text-sm font-bold rounded-full bg-amber-200 text-amber-800">
+                {crew.onboardStatus === 'OnHold' ? '⏸ ON HOLD' : '⏳ PENDING REVIEW'}
+              </span>
+              <span className="text-sm text-amber-700">
+                Verify each section below using the checkboxes ({checkedCount}/{totalSections} checked)
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {showHoldNotesInput ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={holdNotes}
+                    onChange={(e) => setHoldNotes(e.target.value)}
+                    placeholder="Additional notes for shore..."
+                    className="px-3 py-1.5 border border-amber-300 rounded text-sm w-72 focus:ring-2 focus:ring-amber-500"
+                  />
+                  <button
+                    onClick={handleHoldReview}
+                    disabled={reviewProcessing}
+                    className="px-4 py-1.5 bg-amber-600 text-white text-sm font-medium rounded hover:bg-amber-700 disabled:opacity-50"
+                  >
+                    Confirm Hold
+                  </button>
+                  <button
+                    onClick={() => { setShowHoldNotesInput(false); setHoldNotes('') }}
+                    className="px-3 py-1.5 text-gray-600 text-sm rounded hover:bg-gray-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setShowHoldNotesInput(true)}
+                    disabled={reviewProcessing || allSectionsChecked}
+                    className="px-4 py-1.5 bg-amber-500 text-white text-sm font-medium rounded hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={allSectionsChecked ? 'All sections verified - no need to hold' : 'Put on hold and notify shore of missing information'}
+                  >
+                    ⏸ Hold & Notify Shore
+                  </button>
+                  <button
+                    onClick={handleApproveReview}
+                    disabled={reviewProcessing}
+                    className="px-4 py-1.5 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 disabled:opacity-50"
+                  >
+                    ✓ Approve & Onboard
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+          {crew.reviewNotes && (
+            <div className="mt-2 text-sm text-amber-700 bg-amber-100 px-3 py-2 rounded">
+              <strong>Previous review notes:</strong> {crew.reviewNotes}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="bg-white border-b border-gray-300">
@@ -1498,6 +1649,7 @@ export function CrewDetailPage() {
                   </div>
                 </div>
               </div>
+              <SectionCheckbox section="personalInfo" label="Personal Information" />
             </div>
 
             {/* Physical Details & Preferences */}
@@ -1581,6 +1733,7 @@ export function CrewDetailPage() {
                   <label className="text-sm font-medium text-gray-700">COVID-19 Vaccinated</label>
                 </div>
               </div>
+              <SectionCheckbox section="physicalDetails" label="Physical Details" />
             </div>
 
             {/* Employment Dates */}
@@ -1632,6 +1785,7 @@ export function CrewDetailPage() {
                   />
                 </div>
               </div>
+              <SectionCheckbox section="employmentDates" label="Employment Dates" />
             </div>
 
             {/* Next of Kin */}
@@ -1690,6 +1844,7 @@ export function CrewDetailPage() {
                   />
                 </div>
               </div>
+              <SectionCheckbox section="nextOfKin" label="Next of Kin" />
             </div>
 
             {/* Education */}
@@ -1745,6 +1900,7 @@ export function CrewDetailPage() {
                   />
                 </div>
               </div>
+              <SectionCheckbox section="education" label="Education Background" />
             </div>
 
             {/* Contact Information */}
@@ -1786,6 +1942,7 @@ export function CrewDetailPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                 />
               </div>
+              <SectionCheckbox section="contactInfo" label="Contact Information" />
             </div>
           </div>
         )}
@@ -2257,6 +2414,11 @@ export function CrewDetailPage() {
                 )
               )}
             </div>
+            {isPendingReview && (
+              <div className="bg-white rounded-lg shadow-sm p-4">
+                <SectionCheckbox section="documents" label="Documents & Certificates" />
+              </div>
+            )}
           </div>
         )}
 

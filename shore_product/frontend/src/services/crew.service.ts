@@ -155,7 +155,27 @@ export const crewApi = {
   /** Delete service record */
   deleteServiceRecord: (recordId: string): Promise<void> =>
     request(`${BASE}/crew/service-records/${recordId}`, { method: 'DELETE' }),
+
+  // --- Edge Changes ---
+
+  /** Mark edge changes as viewed by shore */
+  markChangesViewed: (crewId: string): Promise<{ message: string }> =>
+    request(`${BASE}/crew/${crewId}/mark-changes-viewed`, { method: 'POST' }),
+
+  /** Get recent OnHold crew notifications (last 30 days) */
+  holdNotifications: (): Promise<HoldNotification[]> =>
+    request(`${BASE}/crew/hold-notifications`),
 };
+
+export interface HoldNotification {
+  id: string;
+  crewId: string;
+  fullName: string;
+  vesselId: string;
+  vesselName: string;
+  onboardStatusChangedAt: string;
+  onboardStatusChangedBy?: string;
+}
 
 // ============================================================
 // CERTIFICATES

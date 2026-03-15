@@ -71,6 +71,10 @@ public class CrewMemberDto
     public string? OnboardStatus { get; set; }
     public DateTime? OnboardStatusChangedAt { get; set; }
     public string? OnboardStatusChangedBy { get; set; }
+    public string? ReviewChecklist { get; set; }
+    public string? ReviewNotes { get; set; }
+    public string? EdgeChanges { get; set; }
+    public bool EdgeChangesViewed { get; set; }
 }
 
 /// <summary>

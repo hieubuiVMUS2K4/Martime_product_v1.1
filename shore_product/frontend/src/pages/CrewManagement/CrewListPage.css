@@ -238,7 +238,31 @@
 .cl-status-badge--pending .cl-status-badge__dot { background: #f59e0b; }
 .cl-status-badge--rejected { background: #fee2e2; color: #991b1b; }
 .cl-status-badge--rejected .cl-status-badge__dot { background: #ef4444; }
+.cl-status-badge--hold { background: #fed7aa; color: #c2410c; }
+.cl-status-badge--hold .cl-status-badge__dot { background: #f97316; }
 .cl-cell-status { white-space: nowrap; }
+
+/* Red badge for edge changes count */
+.cl-changes-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 9px;
+  line-height: 1;
+  animation: cl-badge-pulse 2s ease-in-out infinite;
+}
+@keyframes cl-badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
 
 /* --- Empty --- */
 .cl-empty {

@@ -93,6 +93,47 @@ public class CrewController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// GET /api/crew/hold-notifications
+    /// Returns crew members with OnHold status changed in the last 30 days,
+    /// ordered newest first. Used by the shore notification bell.
+    /// </summary>
+    [HttpGet("hold-notifications")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetHoldNotifications()
+    {
+        try
+        {
+            var cutoff = DateTime.UtcNow.AddDays(-30);
+            var results = await _context.CrewMembers
+                .AsNoTracking()
+                .Where(c => c.OnboardStatus == "OnHold" && c.OnboardStatusChangedAt >= cutoff)
+                .Join(_context.Vessels,
+                    c => c.VesselId,
+                    v => v.Id,
+                    (c, v) => new
+                    {
+                        c.Id,
+                        c.CrewId,
+                        c.FullName,
+                        VesselId = v.Id,
+                        VesselName = v.Name,
+                        c.OnboardStatusChangedAt,
+                        c.OnboardStatusChangedBy,
+                    })
+                .OrderByDescending(x => x.OnboardStatusChangedAt)
+                .Take(50)
+                .ToListAsync();
+
+            return Ok(results);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting hold notifications");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
     /// <summary>GET /api/crew/{id} — Get crew member by ID.</summary>
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
@@ -390,6 +431,34 @@ public class CrewController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting service record {RecordId}", recordId);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    // ============================================================
+    // EDGE CHANGES REVIEW ENDPOINTS
+    // ============================================================
+
+    /// <summary>POST /api/crew/{id}/mark-changes-viewed — Mark edge changes as viewed by shore.</summary>
+    [HttpPost("{id:guid}/mark-changes-viewed")]
+    [AllowAnonymous]
+    public async Task<IActionResult> MarkChangesViewed(Guid id)
+    {
+        try
+        {
+            var crew = await _context.CrewMembers.FindAsync(id);
+            if (crew == null) return NotFound(new { error = "Crew member not found" });
+
+            crew.EdgeChangesViewed = true;
+            crew.EdgeChanges = null;
+            crew.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Edge changes marked as viewed" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error marking changes viewed for crew {Id}", id);
             return StatusCode(500, new { error = "Internal server error" });
         }
     }
