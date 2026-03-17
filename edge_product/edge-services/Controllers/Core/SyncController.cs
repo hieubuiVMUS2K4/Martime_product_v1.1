@@ -326,7 +326,7 @@ public class SyncController : ControllerBase
             return BadRequest(new { error = "Cần chỉ định ít nhất một nhóm dữ liệu" });
 
         var validGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "ship_data", "crew", "voyage", "report" };
+            { "ship_data", "crew", "voyage", "report", "pms" };
         var unknown = request.Groups.Where(g => !validGroups.Contains(g)).ToList();
         if (unknown.Count > 0)
             return BadRequest(new { error = $"Nhóm không hợp lệ: {string.Join(", ", unknown)}" });
@@ -371,7 +371,7 @@ public class SyncController : ControllerBase
         }
 
         // Process groups in fixed dependency-safe order regardless of request order
-        var orderedGroups = new[] { "ship_data", "crew", "voyage", "report" }
+        var orderedGroups = new[] { "ship_data", "crew", "voyage", "report", "pms" }
             .Where(g => request.Groups.Contains(g, StringComparer.OrdinalIgnoreCase));
 
         var groupResults = new List<object>();
@@ -448,6 +448,61 @@ public class SyncController : ControllerBase
                         break;
                     }
 
+                    // ── pms: catalog master data first, then logistics documents ────────────────────
+                    case "pms":
+                    {
+                        // Catalog — master data (no FK deps between them)
+                        var equipmentGroups = await _context.EquipmentGroups.AsNoTracking().ToListAsync();
+                        foreach (var x in equipmentGroups) Enqueue("equipment_group", x.Id.ToString(), x);
+
+                        var materialCategories = await _context.MaterialCategories.AsNoTracking().ToListAsync();
+                        foreach (var x in materialCategories) Enqueue("material_category", x.Id.ToString(), x);
+
+                        var storeLocations = await _context.StoreLocations.AsNoTracking().ToListAsync();
+                        foreach (var x in storeLocations) Enqueue("store_location", x.Id.ToString(), x);
+
+                        // Equipment assets (depend on EquipmentGroup)
+                        var equipmentAssets = await _context.EquipmentAssets.AsNoTracking().ToListAsync();
+                        foreach (var x in equipmentAssets) Enqueue("equipment_asset", x.Id.ToString(), x);
+
+                        // Material items (depend on MaterialCategory)
+                        var materialItems = await _context.MaterialItems.AsNoTracking().ToListAsync();
+                        foreach (var x in materialItems) Enqueue("material_item", x.Id.ToString(), x);
+
+                        // Logistics — documents (depend on MaterialItem + StoreLocation)
+                        var materialRequests = await _context.MaterialRequests.AsNoTracking().ToListAsync();
+                        foreach (var x in materialRequests) Enqueue("material_request", x.Id.ToString(), x);
+
+                        var materialRequestItems = await _context.MaterialRequestItems.AsNoTracking().ToListAsync();
+                        foreach (var x in materialRequestItems) Enqueue("material_request_item", x.Id.ToString(), x);
+
+                        var stockReceipts = await _context.StockReceipts.AsNoTracking().ToListAsync();
+                        foreach (var x in stockReceipts) Enqueue("stock_receipt", x.Id.ToString(), x);
+
+                        var stockReceiptItems = await _context.StockReceiptItems.AsNoTracking().ToListAsync();
+                        foreach (var x in stockReceiptItems) Enqueue("stock_receipt_item", x.Id.ToString(), x);
+
+                        // Inventory (depends on MaterialItem + StoreLocation)
+                        var inventoryStocks = await _context.InventoryStocks.AsNoTracking().ToListAsync();
+                        foreach (var x in inventoryStocks) Enqueue("inventory_stock", x.Id.ToString(), x);
+
+                        // Material-Equipment mappings
+                        var materialItemEquipments = await _context.MaterialItemEquipments.AsNoTracking().ToListAsync();
+                        foreach (var x in materialItemEquipments) Enqueue("material_item_equipment", x.Id.ToString(), x);
+
+                        // Maintenance tasks (execution data — Edge is authority)
+                        var maintenanceTasks = await _context.MaintenanceTasks
+                            .Where(t => !t.IsDeleted)
+                            .AsNoTracking().ToListAsync();
+                        foreach (var x in maintenanceTasks) Enqueue("maintenance_task", x.Id.ToString(), x);
+
+                        // Maintenance history (completed work records)
+                        var maintenanceHistories = await _context.MaintenanceHistories.AsNoTracking().ToListAsync();
+                        foreach (var x in maintenanceHistories) Enqueue("maintenance_history", x.Id.ToString(), x);
+
+                        break;
+                    }
+
                     // ── report: ReportType (master) → MaritimeReport → NoonReport ──
                     case "report":
                     {
@@ -493,6 +548,7 @@ public class SyncController : ControllerBase
                     "crew"      => "Thuyền viên",
                     "voyage"    => "Chuyến đi",
                     "report"    => "Báo cáo",
+                    "pms"       => "PMS (Thiết bị / Vật tư / Kho)",
                     _           => group
                 },
                 count = toAdd.Count - before

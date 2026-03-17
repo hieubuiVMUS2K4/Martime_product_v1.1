@@ -143,10 +143,27 @@ public class SyncInboxService : ISyncInboxService
         ["sign_off_record"]      = typeof(SignOffRecord),
         ["crew_access_grant"]    = typeof(CrewAccessGrant),
 
-        // NOTE: logbooks (deck_log_book, engine_log_book, ...) and inventory
-        // (material_item, material_receipt, ...) are not yet in Shore's AppDbContext.
-        // Items with those table names will be received from Edge but skipped with a
-        // warning until Shore adds the corresponding models and migrations.
+        // PMS — Equipment
+        ["equipment_group"]        = typeof(ProductApi.Models.EquipmentGroup),
+        ["equipment_group_member"] = typeof(ProductApi.Models.EquipmentGroupMember),
+        ["equipment_asset"]        = typeof(ProductApi.Models.EquipmentAsset),
+
+        // Materials — Catalog
+        ["material_category"]      = typeof(ProductApi.Models.MaterialCategory),
+        ["material_item"]          = typeof(ProductApi.Models.MaterialItem),
+        ["material_item_equipment"]= typeof(ProductApi.Models.MaterialItemEquipment),
+        ["store_location"]         = typeof(ProductApi.Models.StoreLocation),
+
+        // Materials — Logistics
+        ["material_request"]       = typeof(ProductApi.Models.MaterialRequest),
+        ["material_request_item"]  = typeof(ProductApi.Models.MaterialRequestItem),
+        ["stock_receipt"]          = typeof(ProductApi.Models.StockReceipt),
+        ["stock_receipt_item"]     = typeof(ProductApi.Models.StockReceiptItem),
+        ["inventory_stock"]        = typeof(ProductApi.Models.InventoryStock),
+
+        // PMS — Maintenance Tasks (synced from Edge, read-only on Shore)
+        ["maintenance_task"]       = typeof(ProductApi.Models.MaintenanceTask),
+        ["maintenance_history"]    = typeof(ProductApi.Models.MaintenanceHistory),
     };
 
     public SyncInboxService(

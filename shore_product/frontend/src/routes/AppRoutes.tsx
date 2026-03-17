@@ -16,6 +16,7 @@ import { OnboardDashboardPage } from '../pages/OnboardManagement';
 // PMS pages
 import AssetsPage from '../pages/PMS/AssetsPage';
 import WorkPlanningPage from '../pages/PMS/WorkPlanningPage';
+import WorkReportPage from '../pages/PMS/WorkReportPage';
 
 // Materials pages
 import { MaterialPage } from '../pages/Materials/MaterialPage';
@@ -68,6 +69,7 @@ export const AppRoutes: React.FC = () => {
         {/* PMS - Bao tri tau */}
         <Route path="/pms/assets" element={<AssetsPage />} />
         <Route path="/pms/work-planning" element={<WorkPlanningPage />} />
+        <Route path="/pms/work-report/:id" element={<WorkReportPage />} />
 
         {/* Materials - Vat tu */}
         <Route path="/materials" element={<MaterialPage />} />
