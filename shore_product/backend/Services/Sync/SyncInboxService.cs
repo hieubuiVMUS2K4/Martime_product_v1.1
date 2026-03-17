@@ -448,6 +448,7 @@ public class SyncInboxService : ISyncInboxService
             {
                 CopyNonDefaultProperties(existing, resolution.ResolvedEntity!, entityType);
                 UpdateSyncMetadata(existing, item);
+                await ResolveCrewVesselIdAsync(existing);
             }
             return;
         }
@@ -456,7 +457,7 @@ public class SyncInboxService : ISyncInboxService
         UpdateSyncMetadata(entity, item);
 
         // Resolve any orphaned FK references (e.g. RankId pointing to a rank not yet on shore)
-        await ResolveOrphanedForeignKeysAsync(entityType, entity);
+        await ResolveOrphanedForeignKeysAsync(entityType, entity, item.Payload);
 
         await _context.AddAsync(entity);
 
@@ -590,6 +591,7 @@ public class SyncInboxService : ISyncInboxService
                 }
 
                 UpdateSyncMetadata(existing, item);
+                await ResolveCrewVesselIdAsync(existing);
             }
             else
             {
@@ -642,6 +644,7 @@ public class SyncInboxService : ISyncInboxService
         }
 
         UpdateSyncMetadata(existing, item);
+        await ResolveCrewVesselIdAsync(existing);
         _logger.LogDebug("Patched {Table}/{Key} from {Node}", 
             item.TableName, item.RecordKey, item.OriginNode);
     }
@@ -769,6 +772,24 @@ public class SyncInboxService : ISyncInboxService
     }
 
     /// <summary>
+    /// Auto-set VesselId from OriginNode (IMO) for crew members that don't have it set.
+    /// Called after sync processing to ensure crew are linked to the correct vessel.
+    /// </summary>
+    private async Task ResolveCrewVesselIdAsync(object entity)
+    {
+        if (entity is CrewMember crew && !crew.VesselId.HasValue
+            && !string.IsNullOrWhiteSpace(crew.OriginNode) && crew.OriginNode != "SHORE")
+        {
+            var vessel = await _context.Vessels.AsNoTracking()
+                .FirstOrDefaultAsync(v => v.IMO == crew.OriginNode);
+            if (vessel != null)
+            {
+                crew.VesselId = vessel.Id;
+            }
+        }
+    }
+
+    /// <summary>
     /// Force OriginNode to match the sync item metadata (vessel IMO).
     /// The edge DB may still have "SHIP_01" defaults, but the sync item
     /// correctly carries the vessel IMO. Always trust the item-level value.
@@ -805,23 +826,66 @@ public class SyncInboxService : ISyncInboxService
 
     /// <summary>
     /// For entities that reference master data (e.g. CrewMember.RankId → Ranks),
-    /// nulls out any FK values that don't resolve on shore.
-    /// Prevents FK constraint violations when master data hasn't synced to shore yet.
+    /// resolves FK values by RankCode when IDs don't match between edge and shore.
+    /// Falls back to null if no match found. Prevents FK constraint violations.
     /// </summary>
-    private async Task ResolveOrphanedForeignKeysAsync(Type entityType, object entity)
+    private async Task ResolveOrphanedForeignKeysAsync(Type entityType, object entity, string? rawPayload = null)
     {
         if (entityType == typeof(CrewMember))
         {
             var crew = (CrewMember)entity;
             if (crew.RankId.HasValue)
             {
-                var rankExists = await _context.Set<Rank>().AnyAsync(r => r.Id == crew.RankId.Value);
-                if (!rankExists)
+                var shoreRank = await _context.Set<Rank>().FirstOrDefaultAsync(r => r.Id == crew.RankId.Value);
+                if (shoreRank == null)
                 {
-                    _logger.LogWarning(
-                        "CrewMember {CrewId}: RankId {RankId} not found on shore — setting to null to avoid FK violation",
-                        crew.CrewId, crew.RankId);
-                    crew.RankId = null;
+                    // Edge RankId doesn't exist on shore (IDs differ between databases).
+                    // Try to resolve by RankCode from the embedded Rank in the raw payload.
+                    string? rankCode = null;
+                    if (!string.IsNullOrEmpty(rawPayload))
+                    {
+                        rankCode = ExtractRankCodeFromPayload(rawPayload);
+                    }
+
+                    if (!string.IsNullOrEmpty(rankCode))
+                    {
+                        var matchedRank = await _context.Set<Rank>()
+                            .FirstOrDefaultAsync(r => r.RankCode == rankCode);
+                        if (matchedRank != null)
+                        {
+                            _logger.LogInformation(
+                                "CrewMember {CrewId}: Resolved edge RankId {EdgeRankId} → shore RankId {ShoreRankId} via RankCode {RankCode}",
+                                crew.CrewId, crew.RankId, matchedRank.Id, rankCode);
+                            crew.RankId = matchedRank.Id;
+                        }
+                        else
+                        {
+                            _logger.LogWarning(
+                                "CrewMember {CrewId}: RankCode {RankCode} not found on shore — setting RankId to null",
+                                crew.CrewId, rankCode);
+                            crew.RankId = null;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "CrewMember {CrewId}: RankId {RankId} not found on shore and no RankCode in payload — setting to null",
+                            crew.CrewId, crew.RankId);
+                        crew.RankId = null;
+                    }
+                }
+            }
+
+            // Auto-set VesselId from OriginNode (IMO) if not already set
+            if (!crew.VesselId.HasValue && !string.IsNullOrWhiteSpace(crew.OriginNode) && crew.OriginNode != "SHORE")
+            {
+                var vessel = await _context.Vessels.AsNoTracking()
+                    .FirstOrDefaultAsync(v => v.IMO == crew.OriginNode);
+                if (vessel != null)
+                {
+                    crew.VesselId = vessel.Id;
+                    _logger.LogDebug("CrewMember {CrewId}: Auto-set VesselId from OriginNode {IMO}",
+                        crew.CrewId, crew.OriginNode);
                 }
             }
         }
@@ -880,6 +944,38 @@ public class SyncInboxService : ISyncInboxService
     /// Strips navigation-property objects and collections from a JSON payload, leaving only
     /// scalar values (string, number, boolean, null). This prevents EF entity graph objects
     /// (e.g. $.Rank embedded inside a CrewMember payload) from breaking System.Text.Json
+    /// <summary>
+    /// Extract RankCode from the embedded Rank navigation property in the raw payload.
+    /// The raw payload from edge may contain: "rank": { "rankCode": "AB", ... }
+    /// </summary>
+    private static string? ExtractRankCodeFromPayload(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            // Try common casing variants for the Rank property
+            foreach (var propName in new[] { "rank", "Rank" })
+            {
+                if (doc.RootElement.TryGetProperty(propName, out var rankElement)
+                    && rankElement.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var codePropName in new[] { "rankCode", "RankCode", "rank_code" })
+                    {
+                        if (rankElement.TryGetProperty(codePropName, out var codeElement)
+                            && codeElement.ValueKind == JsonValueKind.String)
+                        {
+                            return codeElement.GetString();
+                        }
+                    }
+                }
+            }
+        }
+        catch { /* payload is not valid JSON */ }
+        return null;
+    }
+
+    /// <summary>
+    /// Strips navigation-property objects/arrays from synced JSON payloads to avoid
     /// deserialization into the EF entity type.
     /// </summary>
     private static string StripNavigationProperties(string json)

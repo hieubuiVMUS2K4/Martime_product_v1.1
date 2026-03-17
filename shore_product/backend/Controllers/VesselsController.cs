@@ -52,13 +52,14 @@ namespace ProductApi.Controllers
             try
             {
                 var vessels = await _context.Vessels.AsNoTracking().ToListAsync();
+                var vesselIds = vessels.Select(v => v.Id).ToList();
                 var imos = vessels.Select(v => v.IMO).ToList();
 
-                // Crew counts grouped by OriginNode (= IMO)
+                // Crew counts grouped by VesselId
                 var crewTotals = await _context.CrewMembers
-                    .Where(c => imos.Contains(c.OriginNode))
-                    .GroupBy(c => c.OriginNode)
-                    .Select(g => new { Imo = g.Key, Total = g.Count(), Onboard = g.Count(c => c.IsOnboard) })
+                    .Where(c => c.VesselId.HasValue && vesselIds.Contains(c.VesselId.Value))
+                    .GroupBy(c => c.VesselId!.Value)
+                    .Select(g => new { VesselId = g.Key, Total = g.Count(), Onboard = g.Count(c => c.IsOnboard) })
                     .ToListAsync();
 
                 // Last sync per IMO
@@ -75,7 +76,7 @@ namespace ProductApi.Controllers
                     .Select(g => new { Imo = g.Key, Total = g.Count() })
                     .ToListAsync();
 
-                var crewDict   = crewTotals.ToDictionary(x => x.Imo);
+                var crewDict   = crewTotals.ToDictionary(x => x.VesselId);
                 var syncDict   = lastSyncs.ToDictionary(x => x.Imo);
                 var reportDict = reportCounts.ToDictionary(x => x.Imo);
 
@@ -83,8 +84,8 @@ namespace ProductApi.Controllers
                 {
                     VesselId     = v.Id,
                     Imo          = v.IMO,
-                    CrewTotal    = crewDict.TryGetValue(v.IMO, out var c)  ? c.Total    : 0,
-                    CrewOnboard  = crewDict.TryGetValue(v.IMO, out var c2) ? c2.Onboard : 0,
+                    CrewTotal    = crewDict.TryGetValue(v.Id, out var c)   ? c.Total    : 0,
+                    CrewOnboard  = crewDict.TryGetValue(v.Id, out var c2)  ? c2.Onboard : 0,
                     ReportsTotal = reportDict.TryGetValue(v.IMO, out var r) ? r.Total    : 0,
                     LastSyncAt   = syncDict.TryGetValue(v.IMO, out var s)  ? s.LastSync : (DateTime?)null,
                 });

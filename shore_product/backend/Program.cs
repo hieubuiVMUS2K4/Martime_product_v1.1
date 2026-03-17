@@ -164,6 +164,54 @@ using (var scope = app.Services.CreateScope())
                 CREATE UNIQUE INDEX IF NOT EXISTS ""IX_voyage_reviews_VoyageId"" ON voyage_reviews (""VoyageId"");
                 CREATE INDEX IF NOT EXISTS ""IX_voyage_reviews_ReviewStatus"" ON voyage_reviews (""ReviewStatus"");
             ");
+            await db.Database.ExecuteSqlRawAsync(@"
+                ALTER TABLE crew_members
+                ADD COLUMN IF NOT EXISTS ""VesselId"" uuid;
+
+                CREATE INDEX IF NOT EXISTS ""IX_crew_members_VesselId"" ON crew_members (""VesselId"");
+
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1
+                        FROM information_schema.tables
+                        WHERE table_schema = 'public' AND table_name = 'crew_assignments'
+                    ) THEN
+                        UPDATE crew_members AS cm
+                        SET ""VesselId"" = src.""VesselId""
+                        FROM (
+                            SELECT DISTINCT ON (ca.""CrewMemberId"")
+                                ca.""CrewMemberId"",
+                                ca.""VesselId""
+                            FROM crew_assignments AS ca
+                            WHERE ca.""Status"" IN (
+                                'OnBoarded',
+                                'ReadyToJoin',
+                                'TravelInProgress',
+                                'Confirmed',
+                                'PendingCrewConfirmation',
+                                'Proposed',
+                                'Draft'
+                            )
+                            ORDER BY
+                                ca.""CrewMemberId"",
+                                CASE ca.""Status""
+                                    WHEN 'OnBoarded' THEN 1
+                                    WHEN 'ReadyToJoin' THEN 2
+                                    WHEN 'TravelInProgress' THEN 3
+                                    WHEN 'Confirmed' THEN 4
+                                    WHEN 'PendingCrewConfirmation' THEN 5
+                                    WHEN 'Proposed' THEN 6
+                                    WHEN 'Draft' THEN 7
+                                    ELSE 99
+                                END,
+                                COALESCE(ca.""ActualStartDate"", ca.""PlannedStartDate"", ca.""UpdatedAt"", ca.""CreatedAt"") DESC
+                        ) AS src
+                        WHERE cm.""Id"" = src.""CrewMemberId""
+                          AND cm.""VesselId"" IS NULL;
+                    END IF;
+                END $$;
+            ");
             logger.LogInformation("Database migration/verification completed successfully.");
             break;
         }
