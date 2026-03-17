@@ -12,6 +12,14 @@ import { AssignmentListPage, AssignmentDetailPage, PlanningBoardPage } from '../
 import { ExternalRequestListPage, ExternalRequestDetailPage } from '../pages/ExternalRequestManagement';
 import { TravelListPage, TravelDetailPage } from '../pages/TravelManagement';
 import { OnboardDashboardPage } from '../pages/OnboardManagement';
+import AssetsPage from '../pages/PMS/AssetsPage';
+import WorkPlanningPage from '../pages/PMS/WorkPlanningPage';
+import WorkReportPage from '../pages/PMS/WorkReportPage';
+import { MaterialPage } from '../pages/Materials/MaterialPage';
+import StoreLocationPage from '../pages/Materials/StoreLocationPage';
+import MaterialRequestPage from '../pages/Materials/MaterialRequestPage';
+import StockReceiptPage from '../pages/Materials/StockReceiptPage';
+import InventoryPage from '../pages/Materials/InventoryPage';
 
 /**
  * Main application routes
@@ -54,6 +62,14 @@ export const AppRoutes: React.FC = () => {
         <Route path="/travel" element={<TravelListPage />} />
         <Route path="/travel/:id" element={<TravelDetailPage />} />
         <Route path="/onboard-events" element={<OnboardDashboardPage />} />
+        <Route path="/pms/assets" element={<AssetsPage />} />
+        <Route path="/pms/work-planning" element={<WorkPlanningPage />} />
+        <Route path="/pms/work-report/:id" element={<WorkReportPage />} />
+        <Route path="/materials" element={<MaterialPage />} />
+        <Route path="/materials/store-locations" element={<StoreLocationPage />} />
+        <Route path="/materials/requests" element={<MaterialRequestPage />} />
+        <Route path="/materials/receipts" element={<StockReceiptPage />} />
+        <Route path="/materials/inventory" element={<InventoryPage />} />
         <Route path="/voyages" element={<VoyageListPage />} />
         <Route path="/voyages/new" element={<VoyageFormPage />} />
         <Route path="/voyages/:id/edit" element={<VoyageFormPage />} />

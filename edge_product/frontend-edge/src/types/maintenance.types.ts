@@ -23,6 +23,10 @@ export interface MaintenanceTask {
   equipmentGroupId?: string;
   equipmentGroupName?: string;
   
+  // NEW: Per-asset fields
+  equipmentAssetId?: string;
+  equipmentAssetName?: string;
+  
   taskType: string; // RUNNING_HOURS, CALENDAR, CONDITION
   taskDescription: string;
   

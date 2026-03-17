@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Anchor, Bell, Menu, X, ChevronDown } from 'lucide-react';
+import { Anchor, Bell, Menu, X, ChevronDown, Ship, Check } from 'lucide-react';
 import { crewApi } from '../../../services/crew.service';
 import type { HoldNotification } from '../../../services/crew.service';
+import { useVessel } from '../../../contexts/VesselContext';
 import './TopNavLayout.css';
 
 const LAST_SEEN_KEY = 'hold_notifications_last_seen';
@@ -60,6 +61,8 @@ const navItems: NavItemDef[] = [
     ]
   },
   { type: 'link', path: '/voyages', label: 'Hải trình' },
+  { type: 'link', path: '/pms/assets', label: 'PMS' },
+  { type: 'link', path: '/materials', label: 'Vật tư' },
   { type: 'link', path: '/report', label: 'Báo cáo' },
   { type: 'link', path: '/sync',   label: 'Đồng bộ' },
 ];
@@ -67,12 +70,15 @@ const navItems: NavItemDef[] = [
 export const TopNavLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { vessels, selectedVessel, selectVessel, isLoading } = useVessel();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<HoldNotification[]>([]);
   const [bellOpen, setBellOpen] = useState(false);
   const [openDropdownIdx, setOpenDropdownIdx] = useState<number | null>(null);
+  const [vesselDropdownOpen, setVesselDropdownOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
   const navLinksRef = useRef<HTMLDivElement>(null);
+  const vesselDropdownRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter(
     n => new Date(n.onboardStatusChangedAt) > getLastSeenDate()
@@ -108,10 +114,19 @@ export const TopNavLayout: React.FC = () => {
       if (navLinksRef.current && !navLinksRef.current.contains(e.target as Node)) {
         setOpenDropdownIdx(null);
       }
+      if (vesselDropdownRef.current && !vesselDropdownRef.current.contains(e.target as Node)) {
+        setVesselDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  useEffect(() => {
+    setOpenDropdownIdx(null);
+    setMobileMenuOpen(false);
+    setVesselDropdownOpen(false);
+  }, [location.pathname]);
 
   const handleBellClick = () => {
     setBellOpen(prev => !prev);
@@ -220,6 +235,51 @@ export const TopNavLayout: React.FC = () => {
                 </div>
               );
             })}
+          </div>
+
+          <div className="vessel-selector" ref={vesselDropdownRef}>
+            <button
+              className={`vessel-selector-btn ${selectedVessel ? 'vessel-selector-btn--active' : ''}`}
+              onClick={() => setVesselDropdownOpen((prev) => !prev)}
+              title="Chọn tàu"
+              type="button"
+            >
+              <Ship size={14} />
+              <span className="vessel-selector-label">
+                {isLoading ? 'Đang tải...' : selectedVessel ? selectedVessel.name : 'Tất cả tàu'}
+              </span>
+              <ChevronDown size={12} className={`vessel-chevron ${vesselDropdownOpen ? 'vessel-chevron--open' : ''}`} />
+            </button>
+            {vesselDropdownOpen && (
+              <div className="vessel-dropdown">
+                <div className="vessel-dropdown-header">Chọn tàu</div>
+                <button
+                  className={`vessel-dropdown-item ${!selectedVessel ? 'vessel-dropdown-item--active' : ''}`}
+                  onClick={() => { selectVessel(null); setVesselDropdownOpen(false); }}
+                  type="button"
+                >
+                  <Ship size={13} />
+                  <span>Tất cả tàu (Fleet)</span>
+                  {!selectedVessel && <Check size={13} className="vessel-check" />}
+                </button>
+                <div className="vessel-dropdown-divider" />
+                {vessels.map((vessel) => (
+                  <button
+                    key={vessel.id}
+                    className={`vessel-dropdown-item ${selectedVessel?.id === vessel.id ? 'vessel-dropdown-item--active' : ''}`}
+                    onClick={() => { selectVessel(vessel.id); setVesselDropdownOpen(false); }}
+                    type="button"
+                  >
+                    <Ship size={13} />
+                    <div className="vessel-dropdown-info">
+                      <span className="vessel-dropdown-name">{vessel.name}</span>
+                      <span className="vessel-dropdown-imo">IMO: {vessel.imo}</span>
+                    </div>
+                    {selectedVessel?.id === vessel.id && <Check size={13} className="vessel-check" />}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Right side actions */}

@@ -318,6 +318,16 @@ export class MaritimeService {
     getOverdue: () => this.request<MaintenanceTask[]>('/maintenance/tasks/overdue'),
     getById: (id: string) => this.request<MaintenanceTask>(`/maintenance/tasks/${id}`),
     getChecklist: (id: string) => this.request<any[]>(`/maintenance/tasks/${id}/checklist`),
+    updateChecklistItem: (taskId: string, itemId: string, data: { isCompleted?: boolean; readingValue?: number | null; remarks?: string; isAbnormal?: boolean; completedBy?: string }) =>
+      this.request(`/maintenance/tasks/${taskId}/checklist/${itemId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    toggleChecklistItem: (taskId: string, itemId: string, data: { completedBy?: string; readingValue?: number | null; remarks?: string; isAbnormal?: boolean }) =>
+      this.request(`/maintenance/tasks/${taskId}/checklist/${itemId}/complete`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     create: (task: Partial<MaintenanceTask>) =>
       this.request<MaintenanceTask>('/maintenance/tasks', {
         method: 'POST',
@@ -327,6 +337,12 @@ export class MaritimeService {
       this.request<MaintenanceTask>(`/maintenance/tasks/${id}`, {
         method: 'PUT',
         body: JSON.stringify(task),
+      }),
+    // Partial update for work report fields
+    patch: (id: string, fields: Record<string, unknown>) =>
+      this.request<MaintenanceTask>(`/maintenance/tasks/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(fields),
       }),
     // Quick status update for Kanban drag-and-drop
     updateStatus: (id: string, status: string) =>

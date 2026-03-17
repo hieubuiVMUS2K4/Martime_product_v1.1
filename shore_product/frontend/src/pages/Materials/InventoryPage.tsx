@@ -1,0 +1,627 @@
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Search, ChevronRight, ChevronDown, Package, DollarSign, AlertTriangle, ChevronsUpDown, Download, Clock, ClipboardList, SlidersHorizontal, X, Plus, Minus } from 'lucide-react';
+import { inventoryService } from '@/services/inventory.service';
+import { storeLocationService } from '@/services/store-location.service';
+import { materialService } from '@/services/materialService';
+import { useTranslationSafe } from '@/contexts/I18nContext';
+import type { InventoryStockItem, InventorySummary, StoreLocation } from '@/types/pms.types';
+import type { MaterialItem } from '@/types/maritime.types';
+
+const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50];
+
+interface TreeNode extends StoreLocation {
+  children: TreeNode[];
+  itemCount?: number;
+  totalValue?: number;
+}
+
+function buildTree(locations: StoreLocation[]): TreeNode[] {
+  const map = new Map<string, TreeNode>();
+  locations.forEach(l => map.set(l.id, { ...l, children: [] }));
+  const roots: TreeNode[] = [];
+  map.forEach(node => {
+    if (node.parentId && map.has(node.parentId)) {
+      map.get(node.parentId)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  return roots;
+}
+
+export default function InventoryPage() {
+  const { t } = useTranslationSafe();
+  const [items, setItems] = useState<InventoryStockItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalValue, setTotalValue] = useState(0);
+  const [summary, setSummary] = useState<InventorySummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [searchQ, setSearchQ] = useState('');
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+  const [locations, setLocations] = useState<StoreLocation[]>([]);
+  const [locationStats, setLocationStats] = useState<Map<string, { itemCount: number; totalValue: number }>>(new Map());
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+
+  // Modal states
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyItems, setHistoryItems] = useState<{ date: string; type: string; itemCode: string; itemName: string; quantity: number; note: string }[]>([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const [showDeclare, setShowDeclare] = useState(false);
+  const [declareItems, setDeclareItems] = useState<{ materialItemId: string; storeLocationId: string; quantity: number; unitCost: number; itemName?: string }[]>([]);
+  const [allMaterials, setAllMaterials] = useState<MaterialItem[]>([]);
+
+  const [showAdjust, setShowAdjust] = useState(false);
+  const [adjustItem, setAdjustItem] = useState<InventoryStockItem | null>(null);
+  const [adjustQty, setAdjustQty] = useState<number>(0);
+  const [adjustReason, setAdjustReason] = useState('');
+
+  const tree = useMemo(() => buildTree(locations), [locations]);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await inventoryService.getAll({
+        page: currentPage, pageSize,
+        storeLocationId: selectedLocationId || undefined,
+        q: searchQ || undefined,
+      });
+      setItems(res.items);
+      setTotal(res.total);
+      setTotalValue(res.totalValue);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  }, [currentPage, pageSize, searchQ, selectedLocationId]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    const loadMeta = async () => {
+      const [locs, sum, byLoc] = await Promise.all([
+        storeLocationService.getAll(),
+        inventoryService.getSummary(),
+        inventoryService.getByLocation(),
+      ]);
+      setLocations(locs);
+      setSummary(sum);
+      const statsMap = new Map<string, { itemCount: number; totalValue: number }>();
+      byLoc.forEach((b: { locationId: string; itemCount: number; totalValue: number }) => statsMap.set(b.locationId, { itemCount: b.itemCount, totalValue: b.totalValue }));
+      setLocationStats(statsMap);
+      // expand all by default
+      setExpandedNodes(new Set(locs.map(l => l.id)));
+    };
+    loadMeta();
+  }, []);
+
+  const toggleExpand = (id: string) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectLocation = (id: string | null) => {
+    setSelectedLocationId(id);
+    setCurrentPage(1);
+  };
+
+  // ── Export Excel/CSV ──
+  const handleExport = async () => {
+    try {
+      const blob = await inventoryService.exportCsv(selectedLocationId || undefined);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `inventory-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { console.error(e); alert('Export failed'); }
+  };
+
+  // ── History ──
+  const openHistory = async () => {
+    setShowHistory(true);
+    setHistoryPage(1);
+    await loadHistory(1);
+  };
+
+  const loadHistory = async (page: number) => {
+    setHistoryLoading(true);
+    try {
+      const res = await inventoryService.getHistory({
+        storeLocationId: selectedLocationId || undefined,
+        page, pageSize: 20,
+      });
+      setHistoryItems(res.items);
+      setHistoryTotal(res.total);
+      setHistoryPage(page);
+    } catch (e) { console.error(e); }
+    finally { setHistoryLoading(false); }
+  };
+
+  // ── Declare ──
+  const openDeclare = async () => {
+    try {
+      const mats = await materialService.getItems();
+      setAllMaterials(mats);
+    } catch { setAllMaterials([]); }
+    setDeclareItems([{ materialItemId: '', storeLocationId: locations[0]?.id || '', quantity: 0, unitCost: 0 }]);
+    setShowDeclare(true);
+  };
+
+  const handleDeclare = async () => {
+    const valid = declareItems.filter(i => i.materialItemId && i.storeLocationId && i.quantity > 0);
+    if (valid.length === 0) { alert('Vui lòng nhập ít nhất 1 dòng hợp lệ'); return; }
+    try {
+      await inventoryService.declare(valid);
+      setShowDeclare(false);
+      loadData();
+    } catch (e: any) { alert(e?.response?.data?.error || 'Khai báo thất bại'); }
+  };
+
+  // ── Adjust ──
+  const openAdjust = (item: InventoryStockItem) => {
+    setAdjustItem(item);
+    setAdjustQty(0);
+    setAdjustReason('');
+    setShowAdjust(true);
+  };
+
+  const handleAdjust = async () => {
+    if (!adjustItem || adjustQty === 0) return;
+    try {
+      await inventoryService.adjust({
+        materialItemId: adjustItem.materialItemId,
+        storeLocationId: adjustItem.storeLocationId,
+        adjustQuantity: adjustQty,
+        reason: adjustReason || undefined,
+      });
+      setShowAdjust(false);
+      loadData();
+    } catch (e: any) { alert(e?.response?.data?.error || 'Điều chỉnh thất bại'); }
+  };
+
+  const totalPages = Math.ceil(total / pageSize);
+  const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+  const renderTreeNode = (node: TreeNode, depth: number = 0) => {
+    const hasChildren = node.children.length > 0;
+    const isExpanded = expandedNodes.has(node.id);
+    const isSelected = selectedLocationId === node.id;
+    const stats = locationStats.get(node.id);
+
+    return (
+      <div key={node.id}>
+        <div
+          className={`flex items-center gap-1.5 py-1.5 px-2 rounded cursor-pointer text-sm hover:bg-blue-50 ${isSelected ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
+          style={{ paddingLeft: `${depth * 16 + 8}px` }}
+          onClick={() => selectLocation(isSelected ? null : node.id)}
+        >
+          {hasChildren ? (
+            <button onClick={e => { e.stopPropagation(); toggleExpand(node.id); }} className="p-0.5">
+              {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+            </button>
+          ) : (
+            <span className="w-4" />
+          )}
+          <span className="truncate flex-1">{node.name}</span>
+          {stats && stats.itemCount > 0 && (
+            <span className="text-xs bg-gray-100 text-gray-500 px-1.5 rounded">{stats.itemCount}</span>
+          )}
+        </div>
+        {hasChildren && isExpanded && node.children.map(child => renderTreeNode(child, depth + 1))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="h-full w-full flex flex-col overflow-hidden bg-white">
+      {/* ── HEADER ROW ── */}
+      <div className="flex flex-shrink-0 border-b border-gray-200">
+        {/* Header trái: root node "Tất cả kho" */}
+        <button
+          onClick={() => selectLocation(null)}
+          className={`w-56 flex-shrink-0 flex items-center gap-1.5 px-3 py-3 text-sm font-semibold border-r border-gray-200 ${
+            !selectedLocationId
+              ? 'bg-blue-800 text-white'
+              : 'text-gray-700 hover:bg-gray-50 bg-white'
+          }`}
+        >
+          <Package className="w-4 h-4 flex-shrink-0" />
+          <span className="flex-1 text-left truncate">Tất cả kho ({summary?.totalItems || 0})</span>
+        </button>
+
+        {/* Header phải: title + summary badges */}
+        <div className="flex-1 flex items-center justify-between px-4 py-3 bg-white">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-700">
+              ≡ {t('inventory.title')}{selectedLocationId ? ` - ${locations.find(l => l.id === selectedLocationId)?.name}` : ''}
+            </span>
+          </div>
+          {summary && (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                <Package size={12} /> {summary.totalItems} mặt hàng
+              </div>
+              <div className="flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                <DollarSign size={12} /> USD {fmt(totalValue)}
+              </div>
+              {summary.lowStockCount > 0 && (
+                <div className="flex items-center gap-1 text-xs bg-red-50 text-red-700 px-2 py-0.5 rounded-full font-medium">
+                  <AlertTriangle size={12} /> {summary.lowStockCount} tồn thấp
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className="border-l border-gray-200 ml-1 pl-3 flex items-center gap-2">
+                <button onClick={handleExport} className="flex items-center gap-1 px-2.5 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 text-gray-600">
+                  <Download size={13} /> Xuất Excel
+                </button>
+                <button onClick={openHistory} className="flex items-center gap-1 px-2.5 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 text-gray-600">
+                  <Clock size={13} /> Lịch sử tồn kho
+                </button>
+                <button onClick={openDeclare} className="flex items-center gap-1 px-2.5 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 text-gray-600">
+                  <ClipboardList size={13} /> Khai báo tồn kho
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Panel - Location Tree */}
+        <div className="w-56 border-r border-gray-200 bg-white overflow-y-auto flex-shrink-0">
+          <div className="p-1">
+            {tree.map(node => renderTreeNode(node))}
+          </div>
+        </div>
+
+        {/* Right Panel - Table */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Table */}
+          <div className="flex-1 overflow-auto">
+            <table className="min-w-full text-sm border-collapse">
+              <thead className="sticky top-0 z-10">
+                {/* Row 1: Column headers + sort icons */}
+                <tr className="bg-blue-50">
+                  <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">TT</th>
+                  <th className="w-32 px-3 py-2 text-left border-b border-r border-gray-200">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-semibold text-gray-600">{t('inventory.itemCode')}</span>
+                      <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="min-w-[180px] px-3 py-2 text-left border-b border-r border-gray-200">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-semibold text-gray-600">{t('inventory.itemName')}</span>
+                      <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="w-36 px-3 py-2 text-left border-b border-r border-gray-200">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-semibold text-gray-600">Ghi chú</span>
+                      <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="w-32 px-3 py-2 text-left border-b border-r border-gray-200">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-semibold text-gray-600">{t('inventory.location')}</span>
+                      <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="w-24 px-3 py-2 text-right border-b border-r border-gray-200">
+                    <div className="flex items-center justify-end gap-1">
+                      <span className="text-xs font-semibold text-gray-600">{t('inventory.quantity')}</span>
+                      <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="w-24 px-3 py-2 text-right border-b border-r border-gray-200">
+                    <div className="flex items-center justify-end gap-1">
+                      <span className="text-xs font-semibold text-gray-600">{t('inventory.unitCost')}</span>
+                      <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="w-28 px-3 py-2 text-right border-b border-r border-gray-200">
+                    <div className="flex items-center justify-end gap-1">
+                      <span className="text-xs font-semibold text-gray-600">{t('inventory.totalValue')}</span>
+                      <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="w-16 px-3 py-2 text-left border-b border-r border-gray-200">
+                    <span className="text-xs font-semibold text-gray-600">ĐVT</span>
+                  </th>
+                  <th className="w-24 px-3 py-2 border-b border-r border-gray-200">
+                    <span className="text-xs font-semibold text-gray-600">Cập nhật</span>
+                  </th>
+                  <th className="w-20 px-2 py-2 border-b border-gray-200 text-center">
+                    <span className="text-xs font-semibold text-gray-600">Thao tác</span>
+                  </th>
+                </tr>
+                {/* Row 2: Column filters */}
+                <tr className="bg-white border-b border-gray-200">
+                  <th className="border-r border-gray-200"></th>
+                  <th className="px-2 py-1 border-r border-gray-200">
+                    <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
+                      <span className="text-gray-400 text-xs select-none">→</span>
+                      <input type="text" placeholder={t('common.search')} value={searchQ} onChange={e => { setSearchQ(e.target.value); setCurrentPage(1); }} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                      <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="px-2 py-1 border-r border-gray-200">
+                    <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
+                      <span className="text-gray-400 text-xs select-none">→</span>
+                      <input type="text" placeholder={t('common.search')} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                      <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </th>
+                  <th className="border-r border-gray-200"></th>
+                  <th className="border-r border-gray-200"></th>
+                  <th className="border-r border-gray-200"></th>
+                  <th className="border-r border-gray-200"></th>
+                  <th className="border-r border-gray-200"></th>
+                  <th className="border-r border-gray-200"></th>
+                  <th className="border-gray-200"></th>
+                  <th className="border-gray-200"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loading ? (
+                  <tr><td colSpan={11} className="text-center py-8 text-gray-400">Đang tải...</td></tr>
+                ) : items.length === 0 ? (
+                  <tr><td colSpan={11} className="text-center py-8 text-gray-400">Không có dữ liệu tồn kho</td></tr>
+                ) : items.map((row, idx) => (
+                  <tr key={row.id} className={`hover:bg-blue-50 ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
+                    <td className="px-2 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{(currentPage - 1) * pageSize + idx + 1}</td>
+                    <td className="px-3 py-2 text-xs font-medium border-r border-gray-100">{row.itemCode}</td>
+                    <td className="px-3 py-2 text-xs border-r border-gray-100">{row.itemName}</td>
+                    <td className="px-3 py-2 text-xs text-gray-500 truncate max-w-[150px] border-r border-gray-100">{row.notes || '—'}</td>
+                    <td className="px-3 py-2 text-xs text-gray-600 border-r border-gray-100">{row.locationName}</td>
+                    <td className="px-3 py-2 text-xs text-right font-semibold border-r border-gray-100">{fmt(row.quantity)}</td>
+                    <td className="px-3 py-2 text-xs text-right border-r border-gray-100">{fmt(row.unitCost)}</td>
+                    <td className="px-3 py-2 text-xs text-right font-semibold text-green-700 border-r border-gray-100">{fmt(row.totalValue)}</td>
+                    <td className="px-3 py-2 text-xs border-r border-gray-100">{row.unit}</td>
+                    <td className="px-3 py-2 text-gray-400 text-xs border-r border-gray-100">{row.updatedAt?.slice(0, 10)}</td>
+                    <td className="px-2 py-2 text-center">
+                      <button
+                        onClick={() => openAdjust(row)}
+                        className="p-1 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded" title="Điều chỉnh tồn kho"
+                      >
+                        <SlidersHorizontal className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── PAGINATION ── */}
+          <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
+            <div>
+              <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className="border border-gray-300 rounded px-2 py-1 text-xs">
+                {ITEMS_PER_PAGE_OPTIONS.map(n => <option key={n} value={n}>{n} / trang</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="mr-2">Trang {currentPage} / {totalPages || 1} ({total} bản ghi)</span>
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">‹</button>
+              {[...Array(Math.min(5, totalPages || 1))].map((_, i) => {
+                const tp = totalPages || 1;
+                let page: number;
+                if (tp <= 5) page = i + 1;
+                else if (currentPage <= 3) page = i + 1;
+                else if (currentPage >= tp - 2) page = tp - 4 + i;
+                else page = currentPage - 2 + i;
+                return (
+                  <button key={page} onClick={() => setCurrentPage(page)} className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${currentPage === page ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}>
+                    {page}
+                  </button>
+                );
+              })}
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))} disabled={currentPage >= (totalPages || 1)} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">›</button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>Đến trang</span>
+              <input type="number" min={1} max={totalPages || 1} value={currentPage} onChange={e => { const v = Number(e.target.value); if (v >= 1 && v <= (totalPages || 1)) setCurrentPage(v); }} className="w-12 border border-gray-300 rounded px-1 py-1 text-center text-xs" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── HISTORY MODAL ── */}
+      {showHistory && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-[700px] max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-3 border-b bg-slate-700 rounded-t-lg">
+              <h3 className="text-sm font-semibold text-white">Lịch sử tồn kho</h3>
+              <button onClick={() => setShowHistory(false)} className="text-gray-300 hover:text-white"><X size={18} /></button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              {historyLoading ? (
+                <div className="text-center py-8 text-gray-400">Đang tải...</div>
+              ) : historyItems.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">Chưa có lịch sử</div>
+              ) : (
+                <table className="min-w-full text-sm">
+                  <thead><tr className="bg-gray-50 text-xs text-gray-600">
+                    <th className="px-3 py-2 text-left">Ngày</th>
+                    <th className="px-3 py-2 text-left">Loại</th>
+                    <th className="px-3 py-2 text-left">Mã VT</th>
+                    <th className="px-3 py-2 text-left">Tên vật tư</th>
+                    <th className="px-3 py-2 text-right">Số lượng</th>
+                    <th className="px-3 py-2 text-left">Ghi chú</th>
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {historyItems.map((h, i) => (
+                      <tr key={i} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-xs">{h.date?.slice(0, 10)}</td>
+                        <td className="px-3 py-2">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${h.type === 'IN' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {h.type === 'IN' ? 'Nhập' : 'Xuất'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-xs font-medium">{h.itemCode}</td>
+                        <td className="px-3 py-2 text-xs">{h.itemName}</td>
+                        <td className="px-3 py-2 text-xs text-right font-semibold">{fmt(h.quantity)}</td>
+                        <td className="px-3 py-2 text-xs text-gray-500 truncate max-w-[120px]">{h.note || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            {historyTotal > 20 && (
+              <div className="flex items-center justify-center gap-2 px-4 py-2 border-t text-xs">
+                <button disabled={historyPage <= 1} onClick={() => loadHistory(historyPage - 1)} className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-40">← Trước</button>
+                <span>Trang {historyPage} / {Math.ceil(historyTotal / 20)}</span>
+                <button disabled={historyPage >= Math.ceil(historyTotal / 20)} onClick={() => loadHistory(historyPage + 1)} className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-40">Sau →</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── DECLARE MODAL ── */}
+      {showDeclare && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-[700px] max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-3 border-b bg-slate-700 rounded-t-lg">
+              <h3 className="text-sm font-semibold text-white">Khai báo tồn kho</h3>
+              <button onClick={() => setShowDeclare(false)} className="text-gray-300 hover:text-white"><X size={18} /></button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              <table className="min-w-full text-sm">
+                <thead><tr className="bg-gray-50 text-xs text-gray-600">
+                  <th className="px-2 py-2 text-left">Vật tư</th>
+                  <th className="px-2 py-2 text-left">Vị trí kho</th>
+                  <th className="px-2 py-2 text-right w-24">Số lượng</th>
+                  <th className="px-2 py-2 text-right w-28">Đơn giá (USD)</th>
+                  <th className="w-10"></th>
+                </tr></thead>
+                <tbody>
+                  {declareItems.map((item, idx) => (
+                    <tr key={idx} className="border-b border-gray-100">
+                      <td className="px-2 py-1">
+                        <select
+                          value={item.materialItemId}
+                          onChange={e => {
+                            const next = [...declareItems];
+                            next[idx].materialItemId = e.target.value;
+                            next[idx].itemName = allMaterials.find(m => m.id === e.target.value)?.name;
+                            setDeclareItems(next);
+                          }}
+                          className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                        >
+                          <option value="">-- Chọn vật tư --</option>
+                          {allMaterials.map(m => <option key={m.id} value={m.id}>{m.itemCode} - {m.name}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-2 py-1">
+                        <select
+                          value={item.storeLocationId}
+                          onChange={e => { const next = [...declareItems]; next[idx].storeLocationId = e.target.value; setDeclareItems(next); }}
+                          className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                        >
+                          <option value="">-- Chọn kho --</option>
+                          {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-2 py-1">
+                        <input
+                          type="number" min={0} value={item.quantity}
+                          onChange={e => { const next = [...declareItems]; next[idx].quantity = Number(e.target.value); setDeclareItems(next); }}
+                          className="w-full border border-gray-300 rounded px-2 py-1 text-xs text-right"
+                        />
+                      </td>
+                      <td className="px-2 py-1">
+                        <input
+                          type="number" min={0} step={0.01} value={item.unitCost}
+                          onChange={e => { const next = [...declareItems]; next[idx].unitCost = Number(e.target.value); setDeclareItems(next); }}
+                          className="w-full border border-gray-300 rounded px-2 py-1 text-xs text-right"
+                        />
+                      </td>
+                      <td className="px-1 py-1 text-center">
+                        {declareItems.length > 1 && (
+                          <button onClick={() => setDeclareItems(declareItems.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600"><X size={14} /></button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button
+                onClick={() => setDeclareItems([...declareItems, { materialItemId: '', storeLocationId: locations[0]?.id || '', quantity: 0, unitCost: 0 }])}
+                className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:underline"
+              >
+                <Plus size={13} /> Thêm dòng
+              </button>
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-3 border-t">
+              <button onClick={() => setShowDeclare(false)} className="px-4 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50">Hủy</button>
+              <button onClick={handleDeclare} className="px-4 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700">Khai báo</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ADJUST MODAL ── */}
+      {showAdjust && adjustItem && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-[420px]">
+            <div className="flex items-center justify-between px-5 py-3 border-b bg-slate-700 rounded-t-lg">
+              <h3 className="text-sm font-semibold text-white">Điều chỉnh tồn kho</h3>
+              <button onClick={() => setShowAdjust(false)} className="text-gray-300 hover:text-white"><X size={18} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-gray-600">Vật tư</label>
+                <div className="text-sm font-semibold mt-1">{adjustItem.itemCode} - {adjustItem.itemName}</div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Vị trí kho</label>
+                <div className="text-sm mt-1">{adjustItem.locationName}</div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Tồn hiện tại</label>
+                <div className="text-sm font-semibold mt-1">{fmt(adjustItem.quantity)}</div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Điều chỉnh số lượng</label>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setAdjustQty(q => q - 1)} className="w-8 h-8 flex items-center justify-center border rounded hover:bg-red-50 text-red-600"><Minus size={14} /></button>
+                  <input
+                    type="number"
+                    value={adjustQty}
+                    onChange={e => setAdjustQty(Number(e.target.value))}
+                    className="w-24 border border-gray-300 rounded px-2 py-1.5 text-sm text-center"
+                  />
+                  <button onClick={() => setAdjustQty(q => q + 1)} className="w-8 h-8 flex items-center justify-center border rounded hover:bg-green-50 text-green-600"><Plus size={14} /></button>
+                  <span className="text-xs text-gray-500">→ Tồn mới: <strong>{fmt(adjustItem.quantity + adjustQty)}</strong></span>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Lý do</label>
+                <input
+                  type="text" value={adjustReason}
+                  onChange={e => setAdjustReason(e.target.value)}
+                  placeholder="Kiểm kê, hư hỏng, sai số..."
+                  className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-3 border-t">
+              <button onClick={() => setShowAdjust(false)} className="px-4 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50">Hủy</button>
+              <button onClick={handleAdjust} disabled={adjustQty === 0} className="px-4 py-1.5 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40">Điều chỉnh</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import 'dart:convert';
-import 'dart:typed_data';
 import '../../../data/models/maintenance_task.dart';
 import '../../../data/models/create_deferral_request_dto.dart';
 import '../../providers/task_provider.dart';
@@ -40,11 +36,6 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
   // Common reasons for overdue tasks (more detailed)
   String? _selectedOverdueReason;
   List<String> _commonOverdueReasons = [];
-  
-  // Photo upload state (optional)
-  final List<String> _photoUrls = [];
-  bool _isUploadingPhoto = false;
-  final ImagePicker _picker = ImagePicker();
 
   @override
   void dispose() {
@@ -53,123 +44,6 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
     _rootCauseController.dispose();
     _preventiveMeasuresController.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-      setState(() => _isUploadingPhoto = true);
-      
-      // Production settings: Compress heavily for maritime bandwidth
-      // Target: ~150KB per image for fast upload over satellite
-      final XFile? image = await _picker.pickImage(
-        source: source,
-        imageQuality: 35, // Aggressive compression for bandwidth
-        maxWidth: 800,    // Smaller dimension for faster transfer
-        maxHeight: 600,
-      );
-
-      if (image != null) {
-        final File imageFile = File(image.path);
-        final Uint8List imageBytes = await imageFile.readAsBytes();
-        final int imageSize = imageBytes.length;
-        
-        // Check size - should be under 300KB after compression
-        if (imageSize > 300 * 1024) {
-          if (mounted) {
-            final l10n = AppLocalizations.of(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(l10n.imageStillLarge(_formatBytes(imageSize))),
-                backgroundColor: Colors.orange,
-                duration: const Duration(seconds: 1),
-              ),
-            );
-          }
-          // Try picking again with even more compression
-          final XFile? recompressed = await _picker.pickImage(
-            source: source,
-            imageQuality: 20,
-            maxWidth: 640,
-            maxHeight: 480,
-          );
-          if (recompressed != null) {
-            final recompressedBytes = await File(recompressed.path).readAsBytes();
-            _addImageToList(recompressedBytes, recompressed.path);
-            return;
-          }
-        }
-        
-        _addImageToList(imageBytes, image.path);
-      }
-    } catch (e) {
-      if (mounted) {
-        final l10n = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.errorSelectingPhoto(e.toString()))),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isUploadingPhoto = false);
-      }
-    }
-  }
-
-  void _addImageToList(Uint8List imageBytes, String path) {
-    final String base64Image = base64Encode(imageBytes);
-    final String extension = path.split('.').last.toLowerCase();
-    final String mimeType = extension == 'png' ? 'image/png' : 'image/jpeg';
-    final String dataUrl = 'data:$mimeType;base64,$base64Image';
-    
-    setState(() {
-      _photoUrls.add(dataUrl);
-    });
-    
-    if (mounted) {
-      final l10n = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.photoAdded(_photoUrls.length, _formatBytes(imageBytes.length))),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 1),
-        ),
-      );
-    }
-  }
-
-  String _formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-
-  void _showImageSourceActionSheet() {
-    final l10n = AppLocalizations.of(context);
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_camera),
-              title: Text(l10n.takePhoto),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: Text(l10n.selectFromGallery),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.gallery);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -223,7 +97,6 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
 
       print('📤 Creating deferral request for task ${widget.task.id}');
       print('   Reason: $finalReason');
-      print('   Photos: ${_photoUrls.length}');
       if (isOverdue) {
         print('   Root cause: ${_rootCauseController.text.trim()}');
         print('   Preventive measures: ${_preventiveMeasuresController.text.trim()}');
@@ -236,7 +109,7 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
         priority: _priority,
         rootCause: isOverdue ? _rootCauseController.text.trim() : null,
         preventiveMeasures: isOverdue ? _preventiveMeasuresController.text.trim() : null,
-        attachments: _photoUrls.isNotEmpty ? _photoUrls : null,
+        attachments: null,
       );
 
       await Provider.of<TaskProvider>(context, listen: false).createDeferralRequest(dto);
@@ -476,88 +349,6 @@ class _CreateDeferralScreenState extends State<CreateDeferralScreen> {
                 maxLines: 2,
               ),
               const SizedBox(height: 16),
-
-              // Photo upload section for OVERDUE (optional)
-              Text(
-                l10n.evidencePhotosOptional,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                l10n.evidencePhotosHint,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 12),
-              
-              // Photo thumbnails
-              if (_photoUrls.isNotEmpty)
-                SizedBox(
-                  height: 100,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _photoUrls.length,
-                    itemBuilder: (context, index) {
-                      return Stack(
-                        children: [
-                          Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey),
-                              borderRadius: BorderRadius.circular(8),
-                              image: DecorationImage(
-                                image: MemoryImage(
-                                  base64Decode(_photoUrls[index].split(',')[1])
-                                ),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            top: 4,
-                            right: 12,
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _photoUrls.removeAt(index);
-                                });
-                              },
-                              child: Container(
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.close,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              if (_photoUrls.isNotEmpty) const SizedBox(height: 12),
-              
-              // Add photo button
-              OutlinedButton.icon(
-                onPressed: _isUploadingPhoto ? null : _showImageSourceActionSheet,
-                icon: _isUploadingPhoto
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.add_photo_alternate),
-                label: Text(_isUploadingPhoto ? l10n.addingPhoto : l10n.addPhoto),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
             ],
 
             const SizedBox(height: 24),

@@ -84,6 +84,12 @@ public class EdgeDbContext : DbContext
     public DbSet<MaterialItem> MaterialItems { get; set; } = null!;
     public DbSet<MaterialReceipt> MaterialReceipts { get; set; } = null!;
     public DbSet<MaterialReceiptItem> MaterialReceiptItems { get; set; } = null!;
+    public DbSet<StoreLocation> StoreLocations { get; set; } = null!;
+    public DbSet<MaterialRequest> MaterialRequests { get; set; } = null!;
+    public DbSet<MaterialRequestItem> MaterialRequestItems { get; set; } = null!;
+    public DbSet<StockReceipt> StockReceipts { get; set; } = null!;
+    public DbSet<StockReceiptItem> StockReceiptItems { get; set; } = null!;
+    public DbSet<InventoryStock> InventoryStocks { get; set; } = null!;
 
     // Fuel Analytics (IMO DCS / EU MRV / CII Compliance)
     public DbSet<FuelAnalyticsSummary> FuelAnalyticsSummaries { get; set; } = null!;
@@ -118,6 +124,7 @@ public class EdgeDbContext : DbContext
     public DbSet<EquipmentAsset> EquipmentAssets { get; set; } = null!;
     public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; } = null!;
     public DbSet<ScheduleSparePart> ScheduleSpareParts { get; set; } = null!;
+    public DbSet<MaterialItemEquipment> MaterialItemEquipments { get; set; } = null!;
     public DbSet<ScheduleChecklistTemplate> ScheduleChecklistTemplates { get; set; } = null!;
     public DbSet<MaintenanceHistory> MaintenanceHistories { get; set; } = null!;
     public DbSet<EquipmentGroup> EquipmentGroups { get; set; } = null!;
@@ -1334,6 +1341,9 @@ public class EdgeDbContext : DbContext
             entity.HasIndex(e => e.AssignedDepartment)
                 .HasDatabaseName("idx_maintenance_department");
             
+            entity.HasIndex(e => e.EquipmentAssetId)
+                .HasDatabaseName("idx_maintenance_equipment_asset");
+            
             entity.HasIndex(e => e.HasPendingDeferral)
                 .HasDatabaseName("idx_maintenance_pending_deferral")
                 .HasFilter("has_pending_deferral = true");
@@ -1473,6 +1483,13 @@ public class EdgeDbContext : DbContext
             entity.HasIndex(e => e.AssetCode)
                 .IsUnique()
                 .HasDatabaseName("uk_equipment_assets_asset_code");
+
+            // Self-referencing hierarchy: parent -> children
+            entity.HasOne(e => e.Parent)
+                .WithMany(e => e.Children)
+                .HasForeignKey(e => e.ParentId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
         });
 
         // ========== EQUIPMENT GROUP MEMBERS ==========
@@ -1602,11 +1619,25 @@ public class EdgeDbContext : DbContext
             entity.Property(e => e.AutoGenerate)
                 .HasColumnName("auto_generate");
             
-            // Foreign key to equipment_groups
+            // Foreign key to equipment_groups (optional - for group-based schedules)
             entity.HasOne<EquipmentGroup>()
                 .WithMany()
                 .HasForeignKey(e => e.EquipmentGroupId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+            
+            // Foreign key to equipment_assets (optional - for per-equipment schedules)
+            entity.HasOne<EquipmentAsset>()
+                .WithMany()
+                .HasForeignKey(e => e.EquipmentAssetId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+            
+            entity.HasIndex(e => e.EquipmentAssetId)
+                .HasDatabaseName("idx_schedule_equipment_asset");
+            
+            entity.HasIndex(e => e.EquipmentGroupId)
+                .HasDatabaseName("idx_schedule_equipment_group");
         });
 
         // ========== CARGO OPERATIONS ==========
@@ -1949,8 +1980,105 @@ public class EdgeDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // ========== STORE LOCATIONS ==========
+        modelBuilder.Entity<StoreLocation>(entity =>
+        {
+            entity.ToTable("store_locations");
+
+            entity.HasIndex(e => e.LocationCode)
+                .IsUnique()
+                .HasDatabaseName("uk_store_locations_code");
+
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_store_location_active")
+                .HasFilter("is_active = true");
+
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_store_location_synced")
+                .HasFilter("is_synced = false");
+
+            // Self-referencing hierarchy: parent -> children
+            entity.HasOne(e => e.Parent)
+                .WithMany(e => e.Children)
+                .HasForeignKey(e => e.ParentId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+        });
+
         // ========== MATERIAL RECEIPT ITEMS ==========
         // Config đã có trong migration, không cần config lại ở đây
+
+        // ========== MATERIAL REQUESTS ==========
+        modelBuilder.Entity<MaterialRequest>(entity =>
+        {
+            entity.ToTable("material_requests");
+
+            entity.HasIndex(e => e.RequestCode)
+                .IsUnique()
+                .HasDatabaseName("uk_material_request_code");
+
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("idx_material_request_status");
+        });
+
+        modelBuilder.Entity<MaterialRequestItem>(entity =>
+        {
+            entity.ToTable("material_request_items");
+
+            entity.HasOne(e => e.Request)
+                .WithMany(e => e.Items)
+                .HasForeignKey(e => e.RequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(e => e.QuantityOnHand).HasColumnType("decimal(14,3)");
+            entity.Property(e => e.QuantityRequested).HasColumnType("decimal(14,3)");
+        });
+
+        // ========== STOCK RECEIPTS ==========
+        modelBuilder.Entity<StockReceipt>(entity =>
+        {
+            entity.ToTable("stock_receipts");
+
+            entity.HasIndex(e => e.ReceiptCode)
+                .IsUnique()
+                .HasDatabaseName("uk_stock_receipt_code");
+
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("idx_stock_receipt_status");
+
+            entity.HasOne(e => e.MaterialRequest)
+                .WithMany()
+                .HasForeignKey(e => e.MaterialRequestId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+        });
+
+        modelBuilder.Entity<StockReceiptItem>(entity =>
+        {
+            entity.ToTable("stock_receipt_items");
+
+            entity.HasOne(e => e.Receipt)
+                .WithMany(e => e.Items)
+                .HasForeignKey(e => e.ReceiptId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(e => e.QuantityRequested).HasColumnType("decimal(14,3)");
+            entity.Property(e => e.QuantityReceived).HasColumnType("decimal(14,3)");
+            entity.Property(e => e.UnitCost).HasColumnType("decimal(18,2)");
+        });
+
+        // ========== INVENTORY STOCK ==========
+        modelBuilder.Entity<InventoryStock>(entity =>
+        {
+            entity.ToTable("inventory_stock");
+
+            entity.HasIndex(e => new { e.MaterialItemId, e.StoreLocationId })
+                .IsUnique()
+                .HasDatabaseName("uk_inventory_material_location");
+
+            entity.Property(e => e.Quantity).HasColumnType("decimal(14,3)");
+            entity.Property(e => e.UnitCost).HasColumnType("decimal(18,2)");
+        });
 
         // ========== FUEL ANALYTICS SUMMARY ==========
         modelBuilder.Entity<FuelAnalyticsSummary>(entity =>

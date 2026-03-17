@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Ship, Shield, UserCheck, UserX, RefreshCw, Plus, Search } from 'lucide-react';
 import { useOnboardEvents, useAccessGrants, useSignOns, useSignOffs } from '../../hooks/useOnboard';
 import { onboardEventApi, accessGrantApi, signOnApi, signOffApi } from '../../services/onboard.service';
@@ -104,7 +104,7 @@ export const OnboardDashboardPage: React.FC = () => {
       title: 'Thu hồi quyền truy cập',
       message: 'Bạn có chắc muốn thu hồi quyền truy cập này?',
       variant: 'danger',
-      confirmText: 'Thu hồi',
+      confirmLabel: 'Thu hồi',
     });
     if (!result.confirmed) return;
     try {
@@ -121,7 +121,7 @@ export const OnboardDashboardPage: React.FC = () => {
       title: 'Tạm ngưng quyền truy cập',
       message: 'Bạn có chắc muốn tạm ngưng quyền truy cập này?',
       variant: 'warning',
-      confirmText: 'Tạm ngưng',
+      confirmLabel: 'Tạm ngưng',
     });
     if (!result.confirmed) return;
     try {

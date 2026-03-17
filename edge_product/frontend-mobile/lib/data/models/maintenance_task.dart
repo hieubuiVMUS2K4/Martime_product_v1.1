@@ -76,6 +76,9 @@ class MaintenanceTask extends Equatable {
   // Optimized: Checklist summary for list view (without loading full items)
   final int checklistItemsCount;
   final int checklistCompletedCount;
+
+  // Crew role for this user on this task (PIC, SUPPORT, RECEIVER)
+  final String crewRole;
   
   const MaintenanceTask({
     required this.id,
@@ -130,6 +133,7 @@ class MaintenanceTask extends Equatable {
     this.verificationResult,
     this.checklistItemsCount = 0,
     this.checklistCompletedCount = 0,
+    this.crewRole = 'PIC',
   });
   
   factory MaintenanceTask.fromJson(Map<String, dynamic> json) {
@@ -193,6 +197,7 @@ class MaintenanceTask extends Equatable {
       // Optimized checklist summary from API
       checklistItemsCount: json['checklistItemsCount'] ?? (json['checklistItems'] as List?)?.length ?? 0,
       checklistCompletedCount: json['checklistCompletedCount'] ?? (json['checklistItems'] as List?)?.where((i) => i['isCompleted'] == true).length ?? 0,
+      crewRole: json['crewRole']?.toString() ?? 'PIC',
     );
   }
   
@@ -250,6 +255,7 @@ class MaintenanceTask extends Equatable {
       'verificationResult': verificationResult,
       'checklistItemsCount': checklistItemsCount,
       'checklistCompletedCount': checklistCompletedCount,
+      'crewRole': crewRole,
     };
   }
   
@@ -300,10 +306,12 @@ class MaintenanceTask extends Equatable {
   // Workflow helpers
   bool get isRectify => status == 'RECTIFY';
   bool get isPendingApproval => status == 'PENDING_APPROVAL';
-  bool get canRequestDeferral => status == 'DUE' || status == 'OVERDUE' || status == 'SCHEDULED' || hasMissingStatus;
-  bool get canFixAndContinue => isRectify;
+  bool get isPic => crewRole == 'PIC';
+  bool get canRequestDeferral => isPic && (status == 'DUE' || status == 'OVERDUE' || status == 'SCHEDULED' || hasMissingStatus);
+  bool get canFixAndContinue => isPic && isRectify;
   bool get hasEnoughPhotos => photosUploaded >= requiredPhotos;
 
+  bool get isUpcoming => status == 'UPCOMING';
   bool get isScheduled => status == 'SCHEDULED';
   bool get isDue => status == 'DUE';
   bool get isOverdueStatus => status == 'OVERDUE';
@@ -317,9 +325,12 @@ class MaintenanceTask extends Equatable {
   bool get isMissingBoth => status == 'MISSING_BOTH';
   bool get hasMissingStatus => isMissingPic || isMissingChecklist || isMissingBoth;
 
+  /// Not started = UPCOMING, SCHEDULED, or MISSING_* (tasks not yet actionable or pending setup)
+  bool get isNotStarted => isUpcoming || isScheduled || hasMissingStatus;
+
   /// Start is allowed by backend for DUE/OVERDUE/RECTIFY/MISSING_*, but blocked if hasPendingDeferral
   /// Tasks with MISSING_* status can be started at any time (crew can self-assign)
-  bool get canStart => (isDue || isOverdueStatus || isRectify || hasMissingStatus) && !hasPendingDeferral;
+  bool get canStart => isPic && (isDue || isOverdueStatus || isRectify || hasMissingStatus) && !hasPendingDeferral;
   
   /// Check if this task uses the new TaskType system
   bool get hasTaskType => taskTypeId != null;
@@ -345,12 +356,28 @@ class MaintenanceTask extends Equatable {
     if (isOverdueStatus || (isOverdue && !isCompleted)) return Colors.red.shade700;
     if (isInProgress) return Colors.blue.shade700;
     if (isCompleted) return Colors.green.shade700;
-    if (isDue || isScheduled) return Colors.grey.shade700;
+    if (isDue) return Colors.teal.shade700;
+    if (isUpcoming || isScheduled) return Colors.blueGrey.shade600;
+    if (hasMissingStatus) return Colors.purple.shade600;
     return Colors.grey.shade600;
   }
   
   String get statusText {
-    return status;
+    switch (status) {
+      case 'UPCOMING': return 'Sắp tới';
+      case 'SCHEDULED': return 'Đã lên kế hoạch';
+      case 'DUE': return 'Đến hạn';
+      case 'OVERDUE': return 'Quá hạn';
+      case 'IN_PROGRESS': return 'Đang thực hiện';
+      case 'PENDING_APPROVAL': return 'Chờ duyệt';
+      case 'RECTIFY': return 'Cần sửa';
+      case 'COMPLETED': return 'Hoàn thành';
+      case 'CANCELLED': return 'Đã hủy';
+      case 'MISSING_PIC': return 'Thiếu PIC';
+      case 'MISSING_CHECKLIST': return 'Thiếu checklist';
+      case 'MISSING_BOTH': return 'Thiếu PIC & checklist';
+      default: return status;
+    }
   }
 
   /// Get display name - prefers equipment name, falls back to group name
@@ -375,5 +402,6 @@ class MaintenanceTask extends Equatable {
     assignedTo, assignedDepartment,
     requiredSpareParts, sparePartsUsed,
     checklistItemsCount, checklistCompletedCount,
+    crewRole,
   ];
 }

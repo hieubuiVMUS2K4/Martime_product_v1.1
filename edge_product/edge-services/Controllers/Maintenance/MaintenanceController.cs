@@ -28,11 +28,10 @@ public class MaintenanceController : ControllerBase
     }
 
     /// <summary>
-    /// Auto-correct task status based on due date AND running hours (PMS Workflow v2.0)
-    /// SCHEDULED tasks past due → DUE (if due today or in grace period) or OVERDUE (if past due)
-    /// DUE tasks past grace period → OVERDUE
-    /// For RUNNING_HOURS/HYBRID tasks: Also check if equipment reached NextDueRunningHours
-    /// Does not touch IN_PROGRESS, PENDING_APPROVAL, RECTIFY, or COMPLETED
+    /// Auto-correct task status based on calendar due date (PMS Workflow v3.0)
+    /// Only processes CALENDAR and AD_HOC tasks.
+    /// RUNNING_HOURS tasks are excluded — their status is managed by Counter (UpdateRunningHours API).
+    /// Reason: NextDueAt for RUNNING_HOURS is only an estimate. Only Counter is the "source of truth".
     /// </summary>
     private async Task<int> AutoCorrectTaskStatuses(List<MaintenanceTask> tasks)
     {
@@ -40,29 +39,48 @@ public class MaintenanceController : ControllerBase
         var today = now.Date;
         var tasksToUpdate = new List<MaintenanceTask>();
 
+        // Pre-load schedules for all tasks to avoid N+1 queries
+        var scheduleIds = tasks
+            .Where(t => t.ScheduleId.HasValue)
+            .Select(t => t.ScheduleId!.Value)
+            .Distinct()
+            .ToList();
+        var scheduleMap = await _context.MaintenanceSchedules
+            .AsNoTracking()
+            .Where(s => scheduleIds.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id);
+
         foreach (var task in tasks)
         {
-            // PMS Workflow v2.0: Handle SCHEDULED, DUE, and legacy PENDING/OVERDUE
-            var statusesToProcess = new[] { "SCHEDULED", "DUE", "PENDING", "OVERDUE" };
+            // Only process status that can be auto-corrected
+            var statusesToProcess = new[] { "SCHEDULED", "UPCOMING", "DUE", "PENDING", "OVERDUE" };
             
             if (!statusesToProcess.Contains(task.Status))
             {
                 continue; // Don't touch IN_PROGRESS, PENDING_APPROVAL, RECTIFY, COMPLETED
             }
 
-            // Check calendar-based due date
+            // Skip RUNNING_HOURS tasks — Counter is the sole trigger for these
+            if (task.ScheduleId.HasValue && scheduleMap.TryGetValue(task.ScheduleId.Value, out var schedule))
+            {
+                if (schedule.IntervalType == "RUNNING_HOURS")
+                    continue;
+            }
+
+            // Calendar-based check (for CALENDAR, AD_HOC, HYBRID, or tasks without schedule)
             var dueDate = task.NextDueAt.Date;
             var isOverdue = dueDate < today;
-            var isDue = dueDate <= today; // Due if today or past
+            var isDue = dueDate <= today;
 
-            // Check running hours-based due (for RUNNING_HOURS/HYBRID tasks)
-            var isRunningHoursDue = await IsRunningHoursDue(task);
-            
-            // Task is DUE if EITHER calendar OR running hours condition is met
-            if (isRunningHoursDue)
+            // Check UPCOMING window (calendar only: within DaysBeforeDue days)
+            var isUpcoming = false;
+            if (!isDue && !isOverdue)
             {
-                isDue = true;
-                isOverdue = true; // If running hours exceeded, treat as overdue
+                var windowDays = (task.ScheduleId.HasValue && scheduleMap.TryGetValue(task.ScheduleId.Value, out var sched) && sched.DaysBeforeDue > 0)
+                    ? sched.DaysBeforeDue
+                    : 7;
+                var daysUntilDue = (dueDate - today).TotalDays;
+                isUpcoming = daysUntilDue <= windowDays;
             }
 
             if (task.Status == "SCHEDULED")
@@ -77,6 +95,25 @@ public class MaintenanceController : ControllerBase
                     task.Status = "DUE";
                     tasksToUpdate.Add(task);
                 }
+                else if (isUpcoming)
+                {
+                    task.Status = "UPCOMING";
+                    tasksToUpdate.Add(task);
+                }
+            }
+            else if (task.Status == "UPCOMING")
+            {
+                if (isOverdue)
+                {
+                    task.Status = "OVERDUE";
+                    tasksToUpdate.Add(task);
+                }
+                else if (isDue)
+                {
+                    task.Status = "DUE";
+                    tasksToUpdate.Add(task);
+                }
+                // Stay UPCOMING if still in window
             }
             else if (task.Status == "DUE" && isOverdue)
             {
@@ -99,7 +136,7 @@ public class MaintenanceController : ControllerBase
             else if (task.Status == "OVERDUE" && !isOverdue)
             {
                 // Fix incorrectly marked OVERDUE tasks
-                task.Status = isDue ? "DUE" : "SCHEDULED";
+                task.Status = isDue ? "DUE" : (isUpcoming ? "UPCOMING" : "SCHEDULED");
                 tasksToUpdate.Add(task);
             }
         }
@@ -107,95 +144,10 @@ public class MaintenanceController : ControllerBase
         if (tasksToUpdate.Any())
         {
             await _context.SaveChangesAsync();
-            _logger.LogInformation("Auto-corrected {Count} task statuses (calendar + running hours check)", tasksToUpdate.Count);
+            _logger.LogInformation("Auto-corrected {Count} task statuses (calendar-based only, RUNNING_HOURS excluded)", tasksToUpdate.Count);
         }
 
         return tasksToUpdate.Count;
-    }
-
-    /// <summary>
-    /// Check if task is due based on running hours (for RUNNING_HOURS/HYBRID schedules)
-    /// Returns true if equipment has reached or exceeded NextDueRunningHours
-    /// </summary>
-    private async Task<bool> IsRunningHoursDue(MaintenanceTask task)
-    {
-        // Only check tasks linked to a schedule
-        if (!task.ScheduleId.HasValue)
-        {
-            return false;
-        }
-
-        // Load schedule to check interval type
-        var schedule = await _context.MaintenanceSchedules
-            .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == task.ScheduleId.Value);
-
-        if (schedule == null)
-        {
-            return false;
-        }
-
-        // Only relevant for RUNNING_HOURS and HYBRID schedules
-        if (schedule.IntervalType != "RUNNING_HOURS" && schedule.IntervalType != "HYBRID")
-        {
-            return false;
-        }
-
-        // Need NextDueRunningHours to compare
-        if (!schedule.NextDueRunningHours.HasValue)
-        {
-            return false;
-        }
-
-        // Find the primary equipment asset for this task
-        // Priority: 1) Legacy EquipmentId, 2) First asset in EquipmentGroupId
-        Guid? assetId = null;
-
-        if (!string.IsNullOrEmpty(task.EquipmentId) && Guid.TryParse(task.EquipmentId, out var legacyAssetId))
-        {
-            assetId = legacyAssetId;
-        }
-        else if (task.EquipmentGroupId.HasValue)
-        {
-            // Get first asset in group
-            var groupMember = await _context.EquipmentGroupMembers
-                .AsNoTracking()
-                .Where(m => m.GroupId == task.EquipmentGroupId.Value)
-                .OrderBy(m => m.SequenceOrder)
-                .FirstOrDefaultAsync();
-            
-            assetId = groupMember?.AssetId;
-        }
-
-        if (!assetId.HasValue)
-        {
-            return false;
-        }
-
-        // Load asset to get CurrentRunningHours
-        var asset = await _context.EquipmentAssets
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == assetId.Value);
-
-        if (asset == null || !asset.CurrentRunningHours.HasValue)
-        {
-            return false;
-        }
-
-        // Check if equipment has reached the running hours threshold
-        var isDueByRunningHours = asset.CurrentRunningHours.Value >= schedule.NextDueRunningHours.Value;
-
-        if (isDueByRunningHours)
-        {
-            _logger.LogInformation(
-                "Task {TaskId} is DUE by running hours: Current={Current}h, NextDue={NextDue}h",
-                task.TaskId,
-                asset.CurrentRunningHours.Value,
-                schedule.NextDueRunningHours.Value
-            );
-        }
-
-        return isDueByRunningHours;
     }
 
     [HttpGet("tasks")]
@@ -233,7 +185,7 @@ public class MaintenanceController : ControllerBase
             var totalCount = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
-            _logger.LogInformation("🔍 GetAllTasks - Total: {Total}, Page: {Page}/{TotalPages}", 
+            _logger.LogDebug("GetAllTasks - Total: {Total}, Page: {Page}/{TotalPages}", 
                 totalCount, page, totalPages);
 
             // Get paginated data with related data
@@ -241,17 +193,12 @@ public class MaintenanceController : ControllerBase
                 .Include(t => t.EquipmentGroup)
                 .Include(t => t.ChecklistItems)
                 .Include(t => t.DeferralRequests.Where(d => d.Status == "PENDING"))
+                .AsSplitQuery()
                 .OrderBy(t => t.NextDueAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
-            var pendingApprovalTasks = tasks.Where(t => t.Status == "PENDING_APPROVAL").ToList();
-            _logger.LogInformation("📋 PENDING_APPROVAL tasks returned: {Count}. Tasks: {Tasks}", 
-                pendingApprovalTasks.Count,
-                string.Join(", ", pendingApprovalTasks.Select(t => $"{t.TaskId}(defer:{t.DeferralCount})")));
-
-            // Map tasks with pending deferral
             var mappedTasks = tasks.Select(MapTaskWithPendingDeferral).ToList();
 
             return Ok(new
@@ -345,6 +292,8 @@ public class MaintenanceController : ControllerBase
             }
 
             // Filter by assignedTo (crew name or ID)
+            // Also include tasks where crew is SUPPORT/RECEIVER via schedule's Instructions (<!--CREW:...-->)
+            CrewMember? matchedCrew = null;
             if (!string.IsNullOrWhiteSpace(assignedTo))
             {
                 query = query.Where(t => t.AssignedTo != null && t.AssignedTo.Contains(assignedTo));
@@ -352,18 +301,28 @@ public class MaintenanceController : ControllerBase
             else if (!string.IsNullOrWhiteSpace(crewId))
             {
                 // If crewId is provided, try to find matching crew member
-                var crew = await _context.CrewMembers
+                matchedCrew = await _context.CrewMembers
                     .AsNoTracking()
                     .FirstOrDefaultAsync(c => c.CrewId == crewId);
                 
-                if (crew != null)
+                if (matchedCrew != null)
                 {
-                    // Match by full name or crew ID (chính xác hơn)
-                    // Task phải có AssignedTo chứa CrewId HOẶC FullName của crew member
-                    query = query.Where(t => t.AssignedTo != null && 
-                        (t.AssignedTo.Contains(crew.CrewId) || t.AssignedTo.Contains(crew.FullName)));
+                    var crewGuidStr = matchedCrew.Id.ToString();
                     
-                    _logger.LogInformation("Filtering tasks for crew: {CrewId} - {FullName}", crew.CrewId, crew.FullName);
+                    // Find schedules where this crew appears in CREW metadata (SUPPORT/RECEIVER/PIC)
+                    var scheduleIdsWithCrew = await _context.MaintenanceSchedules
+                        .AsNoTracking()
+                        .Where(s => s.Instructions != null && s.Instructions.Contains(crewGuidStr))
+                        .Select(s => s.Id)
+                        .ToListAsync();
+                    
+                    // Match by AssignedTo (PIC) OR by schedule's crew metadata (SUPPORT/RECEIVER)
+                    query = query.Where(t => 
+                        (t.AssignedTo != null && (t.AssignedTo.Contains(matchedCrew.CrewId) || t.AssignedTo.Contains(matchedCrew.FullName))) ||
+                        (t.ScheduleId != null && scheduleIdsWithCrew.Contains(t.ScheduleId.Value)));
+                    
+                    _logger.LogInformation("Filtering tasks for crew: {CrewId} - {FullName} (PIC + {ScheduleCount} schedules with SUPPORT/RECEIVER role)", 
+                        matchedCrew.CrewId, matchedCrew.FullName, scheduleIdsWithCrew.Count);
                 }
                 else
                 {
@@ -471,10 +430,70 @@ public class MaintenanceController : ControllerBase
                 })
                 .ToListAsync();
 
-            _logger.LogInformation("Retrieved {Count} tasks (optimized) for crew: {CrewId}/{AssignedTo}, includeCompleted: {IncludeCompleted}", 
-                tasks.Count, crewId, assignedTo, includeCompleted);
+            // Post-process: Add crewRole field for the requesting crew member
+            var crewGuid = matchedCrew?.Id.ToString() ?? "";
+            var crewIdStr = matchedCrew?.CrewId ?? assignedTo ?? "";
+            var crewFullName = matchedCrew?.FullName ?? "";
+            
+            // Pre-load schedule instructions for role lookup (CREW metadata is in schedule, not task)
+            var scheduleIds = tasks.Where(t => t.ScheduleId != null).Select(t => t.ScheduleId!.Value).Distinct().ToList();
+            var scheduleInstructions = scheduleIds.Count > 0 
+                ? await _context.MaintenanceSchedules
+                    .AsNoTracking()
+                    .Where(s => scheduleIds.Contains(s.Id) && s.Instructions != null)
+                    .Select(s => new { s.Id, s.Instructions })
+                    .ToDictionaryAsync(s => s.Id, s => s.Instructions ?? "")
+                : new Dictionary<Guid, string>();
+            
+            var tasksWithRole = tasks.Select(t => {
+                var role = "PIC"; // default
+                if (matchedCrew != null || !string.IsNullOrWhiteSpace(crewId))
+                {
+                    // Check if this crew is PIC (in AssignedTo)
+                    var isPic = t.AssignedTo != null && 
+                        (t.AssignedTo.Contains(crewIdStr) || (!string.IsNullOrWhiteSpace(crewFullName) && t.AssignedTo.Contains(crewFullName)));
+                    
+                    if (isPic)
+                    {
+                        role = "PIC";
+                    }
+                    else if (!string.IsNullOrWhiteSpace(crewGuid) && t.ScheduleId != null 
+                        && scheduleInstructions.TryGetValue(t.ScheduleId.Value, out var instructions))
+                    {
+                        // Parse role from <!--CREW:{"a":[{"crewId":"guid","role":"SUPPORT"}]}--> in schedule Instructions
+                        role = ParseCrewRoleFromDescription(instructions, crewGuid);
+                    }
+                }
+                return new {
+                    t.Id, t.TaskId, t.TaskTypeId, t.EquipmentId, t.EquipmentName,
+                    t.EquipmentGroupId, t.EquipmentGroupName, t.ScheduleId,
+                    t.TaskType, t.TaskDescription, t.IntervalHours, t.IntervalDays,
+                    t.LastDoneAt, t.NextDueAt, t.RunningHoursAtLastDone, t.Priority,
+                    t.Status, t.AssignedTo, t.AssignedDepartment,
+                    t.HasPendingDeferral, t.DeferralCount, t.LastDeferredAt, t.LastDeferredBy,
+                    t.StartedAt, t.StartedBy, t.ActualRunningHours,
+                    t.EstimatedDuration, t.ActualDuration,
+                    t.ChecklistCompleted, t.PhotosUploaded, t.RequiredPhotos,
+                    t.Notes, t.RequiredSpareParts, t.SparePartsUsed,
+                    t.SubmittedAt, t.SubmittedBy, t.VerifiedAt, t.VerifiedBy,
+                    t.VerificationResult, t.VerificationNotes,
+                    t.RejectionReason, t.RejectionCount, t.LastRejectedAt, t.LastRejectedBy,
+                    t.RejectionHistory, t.CompletedAt, t.CompletedBy,
+                    t.CancelledAt, t.CancelledBy, t.CancellationReason,
+                    t.IsCms, t.ApprovedBy, t.ApprovedAt,
+                    t.IsDeleted, t.DeletedAt, t.DeletedBy, t.DeletionReason,
+                    t.IsSynced, t.SyncedAt, t.CreatedAt, t.UpdatedAt, t.OriginNode,
+                    t.EquipmentGroup,
+                    t.ChecklistItemsCount, t.ChecklistCompletedCount,
+                    t.ChecklistItems, t.DeferralRequests, t.StatusHistory,
+                    CrewRole = role
+                };
+            }).ToList();
 
-            return Ok(tasks);
+            _logger.LogInformation("Retrieved {Count} tasks (optimized) for crew: {CrewId}/{AssignedTo}, includeCompleted: {IncludeCompleted}", 
+                tasksWithRole.Count, crewId, assignedTo, includeCompleted);
+
+            return Ok(tasksWithRole);
         }
         catch (Exception ex)
         {
@@ -493,6 +512,8 @@ public class MaintenanceController : ControllerBase
                 .Include(t => t.EquipmentGroup)
                 .Include(t => t.ChecklistItems.OrderBy(ci => ci.SequenceOrder))
                 .Include(t => t.DeferralRequests.Where(d => d.Status == "PENDING"))
+                .Include(t => t.StatusHistory.OrderByDescending(sh => sh.ChangedAt))
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
             
             if (task == null)
@@ -550,8 +571,13 @@ public class MaintenanceController : ControllerBase
             task.TaskId,
             task.TaskType,
             task.TaskDescription,
+            task.EquipmentId,
+            task.EquipmentName,
             task.EquipmentGroupId,
-            EquipmentGroupName = task.EquipmentGroup?.GroupName,
+            EquipmentGroupName = task.EquipmentGroup?.GroupName ?? task.EquipmentGroupName,
+            task.EquipmentAssetId,
+            task.EquipmentAssetName,
+            task.ScheduleId,
             task.IntervalHours,
             task.IntervalDays,
             task.LastDoneAt,
@@ -620,7 +646,21 @@ public class MaintenanceController : ControllerBase
             task.OriginNode,
             
             // Related data
-            ChecklistItems = task.ChecklistItems
+            ChecklistItems = task.ChecklistItems,
+            StatusHistory = (task.StatusHistory ?? new List<TaskStatusHistory>())
+                .OrderByDescending(sh => sh.ChangedAt)
+                .Select(sh => new
+                {
+                    sh.Id,
+                    sh.FromStatus,
+                    sh.ToStatus,
+                    sh.ChangedBy,
+                    ChangedByName = sh.ChangedBy,
+                    sh.ChangedAt,
+                    sh.Reason,
+                    sh.Notes,
+                    sh.DeviceType
+                })
         };
     }
 
@@ -684,6 +724,57 @@ public class MaintenanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating task {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// PATCH /api/maintenance/tasks/{id}
+    /// Partial update for work report - only updates provided fields
+    /// </summary>
+    [HttpPatch("tasks/{id}")]
+    public async Task<IActionResult> PatchTask(Guid id, [FromBody] System.Text.Json.JsonElement patchData)
+    {
+        try
+        {
+            var existing = await _context.MaintenanceTasks.FindAsync(id);
+            if (existing == null || existing.IsDeleted)
+            {
+                return NotFound(new { error = "Maintenance task not found", id });
+            }
+
+            // Only update fields that are present in the request
+            if (patchData.TryGetProperty("taskDescription", out var desc))
+                existing.TaskDescription = desc.GetString() ?? existing.TaskDescription;
+            if (patchData.TryGetProperty("notes", out var notes))
+                existing.Notes = notes.GetString();
+            if (patchData.TryGetProperty("sparePartsUsed", out var spareParts))
+                existing.SparePartsUsed = spareParts.GetString();
+            if (patchData.TryGetProperty("assignedTo", out var assigned))
+                existing.AssignedTo = assigned.GetString();
+            if (patchData.TryGetProperty("actualRunningHours", out var runHours) && runHours.ValueKind == System.Text.Json.JsonValueKind.Number)
+                existing.ActualRunningHours = runHours.GetDouble();
+            if (patchData.TryGetProperty("actualDuration", out var dur) && dur.ValueKind == System.Text.Json.JsonValueKind.Number)
+                existing.ActualDuration = dur.GetInt32();
+            if (patchData.TryGetProperty("checklistCompleted", out var chk) && chk.ValueKind == System.Text.Json.JsonValueKind.True || chk.ValueKind == System.Text.Json.JsonValueKind.False)
+                existing.ChecklistCompleted = chk.GetBoolean();
+            if (patchData.TryGetProperty("priority", out var pri))
+                existing.Priority = pri.GetString() ?? existing.Priority;
+            if (patchData.TryGetProperty("assignedDepartment", out var dept))
+                existing.AssignedDepartment = dept.GetString();
+
+            existing.UpdatedAt = DateTime.UtcNow;
+            existing.IsSynced = false;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Patched maintenance task: {Id} - {TaskId}", id, existing.TaskId);
+
+            return Ok(existing);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error patching task {Id}", id);
             return StatusCode(500, new { error = "Internal server error" });
         }
     }
@@ -984,6 +1075,30 @@ public class MaintenanceController : ControllerBase
         // Define valid transitions for extended workflow
         var validTransitions = new Dictionary<string, HashSet<string>>
         {
+            // SCHEDULED → UPCOMING (window), DUE (due date), OVERDUE (past due), CANCELLED
+            [MTaskStatus.SCHEDULED] = new HashSet<string> {
+                MTaskStatus.UPCOMING,
+                MTaskStatus.DUE,
+                MTaskStatus.OVERDUE,
+                MTaskStatus.CANCELLED
+            },
+
+            // UPCOMING → DUE (due date reached), IN_PROGRESS (start early), CANCELLED
+            [MTaskStatus.UPCOMING] = new HashSet<string> {
+                MTaskStatus.DUE,
+                MTaskStatus.OVERDUE,
+                MTaskStatus.IN_PROGRESS,
+                MTaskStatus.CANCELLED
+            },
+
+            // DUE → IN_PROGRESS (start), OVERDUE (past due), COMPLETED (direct), CANCELLED
+            [MTaskStatus.DUE] = new HashSet<string> {
+                MTaskStatus.IN_PROGRESS,
+                MTaskStatus.OVERDUE,
+                MTaskStatus.COMPLETED,
+                MTaskStatus.CANCELLED
+            },
+
             // TASK (new, unassigned) can go to: PENDING_APPROVAL (HIGH/CRITICAL), PENDING (LOW/NORMAL), REJECTED (direct reject)
             [MTaskStatus.TASK] = new HashSet<string> { 
                 MTaskStatus.PENDING_APPROVAL, 
@@ -1444,5 +1559,37 @@ public class MaintenanceController : ControllerBase
             _logger.LogError(ex, "Error validating equipment availability for task {TaskId}", task.TaskId);
             return (true, null); // Allow on error to not block workflow
         }
+    }
+
+    /// <summary>
+    /// Parse crew role from <!--CREW:{"a":[{"crewId":"guid","role":"SUPPORT"}]}--> in task description
+    /// </summary>
+    private static string ParseCrewRoleFromDescription(string? description, string crewGuid)
+    {
+        if (string.IsNullOrWhiteSpace(description) || string.IsNullOrWhiteSpace(crewGuid))
+            return "SUPPORT";
+
+        var match = System.Text.RegularExpressions.Regex.Match(description, @"<!--CREW:(.*?)-->");
+        if (!match.Success) return "SUPPORT";
+
+        try
+        {
+            var json = System.Text.Json.JsonDocument.Parse(match.Groups[1].Value);
+            if (json.RootElement.TryGetProperty("a", out var arr))
+            {
+                foreach (var item in arr.EnumerateArray())
+                {
+                    if (item.TryGetProperty("crewId", out var id) && 
+                        string.Equals(id.GetString(), crewGuid, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (item.TryGetProperty("role", out var role))
+                            return role.GetString() ?? "SUPPORT";
+                    }
+                }
+            }
+        }
+        catch { /* malformed JSON */ }
+
+        return "SUPPORT";
     }
 }

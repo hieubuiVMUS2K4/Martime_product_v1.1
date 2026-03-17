@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { Button, Input, Select, Modal, StatusBadge } from '../../components/common';
 import { useToast } from '../../components/common/Toast';
 import { useConfirmDialog } from '../../components/common/ConfirmDialog';
@@ -199,7 +199,7 @@ export const WorkAssignmentPage: React.FC = () => {
       title: 'Xóa kế hoạch',
       message: 'Bạn có chắc chắn muốn xóa kế hoạch này?',
       variant: 'danger',
-      confirmText: 'Xóa',
+      confirmLabel: 'Xóa',
     });
     if (result.confirmed) {
       setWorkPlans(workPlans.filter((p) => p.id !== id));

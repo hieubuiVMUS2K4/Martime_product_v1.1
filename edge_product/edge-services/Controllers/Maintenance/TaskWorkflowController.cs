@@ -376,6 +376,31 @@ public class TaskWorkflowController : ControllerBase
                     task.NextDueAt = DateTime.UtcNow.AddDays(task.IntervalDays.Value);
                 }
 
+                // === UPDATE EQUIPMENT RUNNING HOURS ===
+                // When crew submits running hours on mobile, sync back to equipment asset
+                var reportedHours = task.RunningHoursAtLastDone ?? task.ActualRunningHours;
+                if (reportedHours.HasValue && reportedHours.Value > 0 && task.EquipmentAssetId.HasValue)
+                {
+                    var equipmentAsset = await _context.EquipmentAssets
+                        .FirstOrDefaultAsync(a => a.Id == task.EquipmentAssetId.Value);
+                    
+                    if (equipmentAsset != null)
+                    {
+                        var previousHours = equipmentAsset.CurrentRunningHours ?? 0;
+                        // Only update if reported hours are higher (prevent accidental decrease)
+                        if (reportedHours.Value > previousHours)
+                        {
+                            equipmentAsset.CurrentRunningHours = reportedHours.Value;
+                            equipmentAsset.LastRunningHoursUpdate = DateTime.UtcNow;
+                            equipmentAsset.UpdatedAt = DateTime.UtcNow;
+                            
+                            _logger.LogInformation(
+                                "Updated equipment {AssetCode} running hours: {Prev} → {New} (from task {TaskId})",
+                                equipmentAsset.AssetCode, previousHours, reportedHours.Value, task.TaskId);
+                        }
+                    }
+                }
+
                 task.UpdatedAt = DateTime.UtcNow;
 
                 // Add status history

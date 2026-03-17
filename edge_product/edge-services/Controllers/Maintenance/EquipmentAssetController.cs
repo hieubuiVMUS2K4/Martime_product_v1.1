@@ -1,3 +1,4 @@
+using MaritimeEdge.Constants;
 using MaritimeEdge.DTOs;
 using MaritimeEdge.Models;
 using MaritimeEdge.Repositories;
@@ -292,15 +293,155 @@ public class EquipmentAssetController : ControllerBase
     {
         try
         {
+            // Snapshot trước khi update: dùng để tính tốc độ chạy thực tế
+            var asset = await _context.EquipmentAssets.FindAsync(id);
+            if (asset == null) return NotFound();
+            var previousRH = asset.CurrentRunningHours ?? 0;
+            var lastUpdate = asset.LastRunningHoursUpdate;
+
             await _assetRepository.UpdateRunningHoursAsync(id, runningHours);
             _logger.LogInformation("Updated running hours for asset {Id}: {Hours}", id, runningHours);
-            return NoContent();
+            
+            // Check PERIODIC schedules and promote SCHEDULED → DUE if threshold reached
+            var triggeredCount = await CheckAndPromoteTasksByRunningHours(id, runningHours);
+            if (triggeredCount > 0)
+                _logger.LogInformation("Promoted {Count} tasks to DUE for asset {Id} at {Hours}h", triggeredCount, id, runningHours);
+
+            // Recalc NextDueDate cho các RUNNING_HOURS schedules dựa trên tốc độ chạy thực
+            await RecalcNextDueDateByActualRate(id, runningHours, previousRH, lastUpdate);
+            
+            return Ok(new { triggeredTasks = triggeredCount });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating running hours for asset {Id}", id);
             return StatusCode(500, new { error = "Internal server error" });
         }
+    }
+
+    /// <summary>
+    /// Check all PERIODIC/RUNNING_HOURS schedules for this asset.
+    /// This is the SOLE mechanism for promoting RUNNING_HOURS tasks.
+    /// Promote tasks based on running hours:
+    ///   SCHEDULED → UPCOMING (within window)
+    ///   SCHEDULED/UPCOMING → DUE (threshold reached)
+    ///   DUE → OVERDUE (threshold exceeded by > buffer)
+    /// </summary>
+    private async Task<int> CheckAndPromoteTasksByRunningHours(Guid assetId, double currentRunningHours)
+    {
+        // Find all active PERIODIC schedules for this asset with RUNNING_HOURS interval
+        var schedules = await _context.MaintenanceSchedules
+            .Where(s => s.IsActive &&
+                        s.EquipmentAssetId == assetId &&
+                        s.MaintenanceCategory == "PERIODIC" &&
+                        s.IntervalType == "RUNNING_HOURS" &&
+                        s.NextDueRunningHours.HasValue)
+            .ToListAsync();
+
+        if (!schedules.Any()) return 0;
+
+        int promoted = 0;
+        foreach (var schedule in schedules)
+        {
+            var nextDueRH = schedule.NextDueRunningHours!.Value;
+
+            // Find active task for this schedule (SCHEDULED, UPCOMING, or DUE status)
+            var task = await _context.MaintenanceTasks
+                .FirstOrDefaultAsync(t => !t.IsDeleted &&
+                                         t.ScheduleId == schedule.Id &&
+                                         (t.Status == "SCHEDULED" || t.Status == "UPCOMING" || t.Status == "DUE"));
+
+            if (task == null) continue;
+
+            var hoursUntilDue = nextDueRH - currentRunningHours;
+
+            if (currentRunningHours >= nextDueRH)
+            {
+                // Running hours reached or exceeded threshold
+                var newStatus = hoursUntilDue < -(schedule.IntervalHours ?? 500) * 0.1 ? "OVERDUE" : "DUE";
+                if (task.Status != newStatus)
+                {
+                    var oldStatus = task.Status;
+                    task.Status = newStatus;
+                    task.UpdatedAt = DateTime.UtcNow;
+                    promoted++;
+                    _logger.LogInformation("Task {TaskId} promoted {Old} → {New}: currentRH={Current} vs nextDueRH={NextDue}",
+                        task.TaskId, oldStatus, newStatus, currentRunningHours, nextDueRH);
+                }
+            }
+            else if (task.Status == "SCHEDULED")
+            {
+                // DaysBeforeDue for RUNNING_HOURS stores the window directly in hours
+                // (user enters hours in the config form, no conversion needed)
+                var windowHours = schedule.DaysBeforeDue > 0 ? (double)schedule.DaysBeforeDue : MaintenanceConstants.MINIMUM_UPCOMING_WINDOW_HOURS;
+
+                if (hoursUntilDue <= windowHours)
+                {
+                    task.Status = "UPCOMING";
+                    task.UpdatedAt = DateTime.UtcNow;
+                    promoted++;
+                    _logger.LogInformation("Task {TaskId} promoted SCHEDULED → UPCOMING: {HoursLeft}h remaining (window={Window}h)",
+                        task.TaskId, hoursUntilDue, windowHours);
+                }
+            }
+        }
+
+        if (promoted > 0)
+            await _context.SaveChangesAsync();
+
+        return promoted;
+    }
+
+    /// <summary>
+    /// Recalc NextDueDate cho tất cả RUNNING_HOURS schedules dựa trên tốc độ chạy thực tế.
+    /// avgHoursPerDay = (newRH - oldRH) / daysSinceLastUpdate
+    /// NextDueDate = now + (NextDueRH - currentRH) / avgHoursPerDay
+    /// Fallback: nếu không đủ dữ liệu (lần cập nhật đầu tiên) → dùng AVERAGE_HOURS_PER_DAY
+    /// </summary>
+    private async Task RecalcNextDueDateByActualRate(Guid assetId, double currentRH, double previousRH, DateTime? lastUpdate)
+    {
+        // Tính tốc độ chạy thực tế (giờ/ngày)
+        double avgHoursPerDay = MaintenanceConstants.AVERAGE_HOURS_PER_DAY; // fallback
+        if (lastUpdate.HasValue && currentRH > previousRH)
+        {
+            var daysSinceLastUpdate = (DateTime.UtcNow - lastUpdate.Value).TotalDays;
+            if (daysSinceLastUpdate >= 0.04) // ít nhất ~1 giờ giữa 2 lần update
+            {
+                var calculatedRate = (currentRH - previousRH) / daysSinceLastUpdate;
+                if (calculatedRate > 0.5) // ít nhất 0.5h/ngày để tránh chia bé quá → ngày quá xa
+                    avgHoursPerDay = calculatedRate;
+            }
+        }
+
+        var schedules = await _context.MaintenanceSchedules
+            .Where(s => s.IsActive &&
+                        s.EquipmentAssetId == assetId &&
+                        s.MaintenanceCategory == "PERIODIC" &&
+                        s.IntervalType == "RUNNING_HOURS" &&
+                        s.NextDueRunningHours.HasValue)
+            .ToListAsync();
+
+        if (!schedules.Any()) return;
+
+        foreach (var schedule in schedules)
+        {
+            var hoursRemaining = schedule.NextDueRunningHours!.Value - currentRH;
+            if (hoursRemaining <= 0)
+            {
+                // Đã đến/quá hạn → NextDueDate = bây giờ
+                schedule.NextDueDate = DateTime.UtcNow;
+            }
+            else
+            {
+                var daysRemaining = (int)Math.Max(Math.Ceiling(hoursRemaining / avgHoursPerDay), 1);
+                schedule.NextDueDate = DateTime.UtcNow.AddDays(daysRemaining);
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        _logger.LogInformation(
+            "Recalculated NextDueDate for {Count} schedules on asset {AssetId} (rate={Rate:F1}h/day, prevRH={Prev}, newRH={New})",
+            schedules.Count, assetId, avgHoursPerDay, previousRH, currentRH);
     }
 
     private static EquipmentAssetDto MapToDto(EquipmentAsset asset)
@@ -318,6 +459,7 @@ public class EquipmentAssetController : ControllerBase
             CurrentRunningHours = asset.CurrentRunningHours,
             LastRunningHoursUpdate = asset.LastRunningHoursUpdate,
             EquipmentGroupId = asset.EquipmentGroupId,
+            ParentId = asset.ParentId,
             Location = asset.Location,
             Criticality = asset.Criticality,
             Status = asset.Status,
@@ -325,5 +467,27 @@ public class EquipmentAssetController : ControllerBase
             Notes = asset.Notes,
             IsActive = asset.IsActive
         };
+    }
+
+    /// <summary>
+    /// Get all equipment assets as a flat list with parentId (frontend builds the tree)
+    /// </summary>
+    [HttpGet("tree")]
+    public async Task<ActionResult<List<EquipmentAssetDto>>> GetTree()
+    {
+        try
+        {
+            var assets = await _context.EquipmentAssets
+                .Where(a => a.IsActive)
+                .OrderBy(a => a.AssetCode)
+                .ToListAsync();
+
+            return Ok(assets.Select(MapToDto).ToList());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting equipment asset tree");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
     }
 }

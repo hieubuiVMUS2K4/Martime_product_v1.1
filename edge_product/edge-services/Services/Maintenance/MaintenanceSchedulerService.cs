@@ -1,6 +1,7 @@
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using MaritimeEdge.Repositories;
+using MaritimeEdge.Constants;
 using Microsoft.EntityFrameworkCore;
 
 namespace MaritimeEdge.Services.Maintenance;
@@ -264,14 +265,14 @@ public class MaintenanceSchedulerService : BackgroundService
     }
 
     /// <summary>
-    /// Auto-correct task statuses based on due dates (PMS Workflow v2.0):
-    /// - SCHEDULED → DUE (when due date is today)
-    /// - SCHEDULED → OVERDUE (when past due date)
+    /// Auto-correct task statuses based on due dates (PMS Workflow v3.0):
+    /// - SCHEDULED → UPCOMING (within DaysBeforeDue window)
+    /// - SCHEDULED/UPCOMING → DUE (when due date is today)
+    /// - SCHEDULED/UPCOMING → OVERDUE (when past due date)  
     /// - DUE → OVERDUE (when past due date)
-    /// - OVERDUE → DUE/SCHEDULED (if due date was extended via deferral)
+    /// - OVERDUE → DUE/UPCOMING/SCHEDULED (if due date was extended via deferral)
     /// Does NOT touch: IN_PROGRESS, PENDING_APPROVAL, RECTIFY, COMPLETED
     /// Does NOT touch: MISSING_* statuses (these are validation warnings, not workflow statuses)
-    /// NOTE: Kanban board filters by next_due_at, not by status. MISSING_* tasks still appear in OVERDUE/DUE columns.
     /// </summary>
     private async Task AutoCorrectTaskStatuses()
     {
@@ -283,8 +284,8 @@ public class MaintenanceSchedulerService : BackgroundService
             var now = DateTime.UtcNow;
             var today = now.Date;
 
-            // Get all tasks that need status correction (exclude MISSING_* - they are validation warnings)
-            var statusesToProcess = new[] { "SCHEDULED", "DUE", "PENDING", "OVERDUE" };
+            // Get all tasks that need status correction
+            var statusesToProcess = new[] { "SCHEDULED", "UPCOMING", "DUE", "PENDING", "OVERDUE" };
             var tasks = await context.MaintenanceTasks
                 .Where(t => !t.IsDeleted && statusesToProcess.Contains(t.Status))
                 .ToListAsync();
@@ -298,16 +299,31 @@ public class MaintenanceSchedulerService : BackgroundService
                 var isDue = dueDate <= today;
                 string? newStatus = null;
 
+                // Check UPCOMING window: within DaysBeforeDue days (default 7)
+                var isUpcoming = false;
+                if (!isDue && !isOverdue && task.ScheduleId.HasValue)
+                {
+                    var schedule = await context.MaintenanceSchedules
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(s => s.Id == task.ScheduleId.Value);
+                    if (schedule != null)
+                    {
+                        var windowDays = schedule.DaysBeforeDue > 0 ? schedule.DaysBeforeDue : 7;
+                        var daysUntilDue = (dueDate - today).TotalDays;
+                        isUpcoming = daysUntilDue <= windowDays;
+                    }
+                }
+
                 if (task.Status == "SCHEDULED")
                 {
-                    if (isOverdue)
-                    {
-                        newStatus = "OVERDUE";
-                    }
-                    else if (isDue)
-                    {
-                        newStatus = "DUE";
-                    }
+                    if (isOverdue) newStatus = "OVERDUE";
+                    else if (isDue) newStatus = "DUE";
+                    else if (isUpcoming) newStatus = "UPCOMING";
+                }
+                else if (task.Status == "UPCOMING")
+                {
+                    if (isOverdue) newStatus = "OVERDUE";
+                    else if (isDue) newStatus = "DUE";
                 }
                 else if (task.Status == "DUE" && isOverdue)
                 {
@@ -320,7 +336,7 @@ public class MaintenanceSchedulerService : BackgroundService
                 else if (task.Status == "OVERDUE" && !isOverdue)
                 {
                     // Due date was extended (e.g., via approved deferral)
-                    newStatus = isDue ? "DUE" : "SCHEDULED";
+                    newStatus = isDue ? "DUE" : (isUpcoming ? "UPCOMING" : "SCHEDULED");
                 }
 
                 if (newStatus != null && newStatus != task.Status)
@@ -336,7 +352,7 @@ public class MaintenanceSchedulerService : BackgroundService
             if (correctedCount > 0)
             {
                 await context.SaveChangesAsync();
-                _logger.LogInformation("Auto-corrected {Count} task statuses based on due dates", correctedCount);
+                _logger.LogInformation("Auto-corrected {Count} task statuses", correctedCount);
             }
             else
             {
@@ -365,10 +381,10 @@ public class MaintenanceSchedulerService : BackgroundService
 
             int tasksGenerated = 0;
             
-            // P1 FIX: Batch load all equipment group members ONCE to avoid N+1 queries
-            // Instead of querying inside foreach loop (N queries), we query once here
+            // Batch load all equipment group members ONCE to avoid N+1 queries
             var scheduleGroupIds = schedules
-                .Select(s => s.EquipmentGroupId)
+                .Where(s => s.EquipmentGroupId.HasValue)
+                .Select(s => s.EquipmentGroupId!.Value)
                 .Distinct()
                 .ToList();
             
@@ -377,12 +393,25 @@ public class MaintenanceSchedulerService : BackgroundService
                 .Include(egm => egm.Asset)
                 .ToListAsync();
             
-            // P1 FIX: Create lookup dictionary for O(1) access
+            // Create lookup dictionary for O(1) access
             var groupMembersLookup = allGroupMembers
                 .GroupBy(egm => egm.GroupId)
                 .ToDictionary(g => g.Key, g => g.ToList());
             
-            // P1 FIX: Helper function to get asset from pre-loaded data
+            // Batch load assets for per-equipment schedules
+            var scheduleAssetIds = schedules
+                .Where(s => s.EquipmentAssetId.HasValue)
+                .Select(s => s.EquipmentAssetId!.Value)
+                .Distinct()
+                .ToList();
+            
+            var assetLookup = scheduleAssetIds.Any()
+                ? await context.EquipmentAssets
+                    .Where(a => scheduleAssetIds.Contains(a.Id))
+                    .ToDictionaryAsync(a => a.Id, a => a)
+                : new Dictionary<Guid, EquipmentAsset>();
+            
+            // Helper function to get asset from pre-loaded data
             EquipmentAsset? GetPrimaryAssetForGroup(Guid groupId)
             {
                 if (!groupMembersLookup.TryGetValue(groupId, out var members))
@@ -400,8 +429,15 @@ public class MaintenanceSchedulerService : BackgroundService
                 if (!schedule.NextDueDate.HasValue)
                 {
                     // Calculate next due date if not set
-                    // P1 FIX: Use pre-loaded data instead of querying in loop
-                    var asset = GetPrimaryAssetForGroup(schedule.EquipmentGroupId);
+                    EquipmentAsset? asset = null;
+                    if (schedule.EquipmentAssetId.HasValue)
+                    {
+                        assetLookup.TryGetValue(schedule.EquipmentAssetId.Value, out asset);
+                    }
+                    else if (schedule.EquipmentGroupId.HasValue)
+                    {
+                        asset = GetPrimaryAssetForGroup(schedule.EquipmentGroupId.Value);
+                    }
                     
                     if (asset != null)
                     {
@@ -423,10 +459,14 @@ public class MaintenanceSchedulerService : BackgroundService
                         "Recalculating next occurrence to prevent immediate OVERDUE tasks.",
                         schedule.ScheduleCode, schedule.NextDueDate.Value.ToString("yyyy-MM-dd"), Math.Abs(daysUntilDue));
                     
-                    // P1 FIX: Use pre-loaded data instead of querying in loop
-                    var asset = GetPrimaryAssetForGroup(schedule.EquipmentGroupId);
+                    // Use pre-loaded data: per-asset schedule or group-based
+                    EquipmentAsset? pastDueAsset = null;
+                    if (schedule.EquipmentAssetId.HasValue)
+                        assetLookup.TryGetValue(schedule.EquipmentAssetId.Value, out pastDueAsset);
+                    else if (schedule.EquipmentGroupId.HasValue)
+                        pastDueAsset = GetPrimaryAssetForGroup(schedule.EquipmentGroupId.Value);
                     
-                    if (asset != null && schedule.IntervalDays.HasValue)
+                    if (pastDueAsset != null && schedule.IntervalDays.HasValue)
                     {
                         // Skip forward to next future occurrence
                         var intervalDays = schedule.IntervalDays.Value;
@@ -515,42 +555,60 @@ public class MaintenanceSchedulerService : BackgroundService
     {
         try
         {
-            // Get equipment group
-            var group = await context.EquipmentGroups.FindAsync(schedule.EquipmentGroupId);
-            if (group == null)
+            bool isPerAsset = schedule.EquipmentAssetId.HasValue;
+            
+            EquipmentGroup? group = null;
+            EquipmentAsset? singleAsset = null;
+            List<EquipmentGroupMember> groupMembers = new();
+            
+            if (isPerAsset)
             {
-                _logger.LogWarning("Equipment group not found for schedule {ScheduleCode}", schedule.ScheduleCode);
+                // Per-equipment schedule: get the single asset
+                singleAsset = await context.EquipmentAssets.FindAsync(schedule.EquipmentAssetId!.Value);
+                if (singleAsset == null || !singleAsset.IsActive)
+                {
+                    _logger.LogWarning("Equipment asset not found or inactive for schedule {ScheduleCode}", schedule.ScheduleCode);
+                    return;
+                }
+            }
+            else if (schedule.EquipmentGroupId.HasValue)
+            {
+                // Group-based schedule: get group and members
+                group = await context.EquipmentGroups.FindAsync(schedule.EquipmentGroupId.Value);
+                if (group == null)
+                {
+                    _logger.LogWarning("Equipment group not found for schedule {ScheduleCode}", schedule.ScheduleCode);
+                    return;
+                }
+
+                groupMembers = await context.EquipmentGroupMembers
+                    .Where(egm => egm.GroupId == schedule.EquipmentGroupId.Value)
+                    .Include(egm => egm.Asset)
+                    .ToListAsync();
+
+                if (!groupMembers.Any())
+                {
+                    _logger.LogWarning("No assets found in group {GroupCode} for schedule {ScheduleCode}", 
+                        group.GroupCode, schedule.ScheduleCode);
+                    return;
+                }
+            }
+            else
+            {
+                _logger.LogWarning("Schedule {ScheduleCode} has neither EquipmentGroupId nor EquipmentAssetId", schedule.ScheduleCode);
                 return;
             }
-
-            // Get all assets in the group
-            var groupMembers = await context.EquipmentGroupMembers
-                .Where(egm => egm.GroupId == schedule.EquipmentGroupId)
-                .Include(egm => egm.Asset)
-                .ToListAsync();
-
-            if (!groupMembers.Any())
-            {
-                _logger.LogWarning("No assets found in group {GroupCode} for schedule {ScheduleCode}", 
-                    group.GroupCode, schedule.ScheduleCode);
-                return;
-            }
-
-            // Note: TaskType is optional in PMS Planning v2.0
-            // Tasks are generated from Equipment Groups → Schedules directly
 
             // Get spare parts requirements with material details
             var spareParts = await context.ScheduleSpareParts
                 .Where(sp => sp.ScheduleId == schedule.Id)
                 .ToListAsync();
 
-            // Get material details for spare parts
             var materialIds = spareParts.Select(sp => sp.MaterialItemId).ToList();
             var materials = await context.MaterialItems
                 .Where(m => materialIds.Contains(m.Id))
                 .ToDictionaryAsync(m => m.Id, m => new { m.ItemCode, m.Name });
 
-            // Build spare parts JSON with full material info
             var sparePartsJson = spareParts.Any()
                 ? System.Text.Json.JsonSerializer.Serialize(spareParts.Select(sp => new
                 {
@@ -562,16 +620,11 @@ public class MaintenanceSchedulerService : BackgroundService
                 }), new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase })
                 : null;
 
-            // === NEW APPROACH: Create ONE task for the entire equipment group ===
-            // Create unique task ID with group code
-            var taskId = $"SCHED-{schedule.ScheduleCode}-{group.GroupCode}-{DateTime.UtcNow:yyyyMMdd}";
+            // Create unique task ID
+            var identifierCode = isPerAsset ? singleAsset!.AssetCode : group!.GroupCode;
+            var taskId = $"SCHED-{schedule.ScheduleCode}-{identifierCode}-{DateTime.UtcNow:yyyyMMdd}";
 
-            // CRITICAL FIX: Check by TaskId directly to prevent duplicate key violations
-            // TaskId format includes date (yyyyMMdd), so multiple runs in same day generate same TaskId
-            // We must check for ANY task with this TaskId (including COMPLETED/CANCELLED)
-            // Only create new task if:
-            // 1. No task with this TaskId exists, OR
-            // 2. Existing task is from a PREVIOUS day (which means TaskId is different)
+            // Check for existing task to prevent duplicate key violations
             var existingTask = await context.MaintenanceTasks
                 .FirstOrDefaultAsync(t => t.TaskId == taskId);
             
@@ -583,41 +636,43 @@ public class MaintenanceSchedulerService : BackgroundService
                 return;
             }
 
-            // Determine task assignee (PIC) for entire group using department-aware 4-tier waterfall
-            var assignedTo = await DetermineGroupPIC(context, schedule, group);
+            // Determine PIC
+            string? assignedTo = null;
+            if (isPerAsset)
+            {
+                // For per-asset: use schedule defaults
+                assignedTo = schedule.AssignedToCrewId;
+            }
+            else
+            {
+                assignedTo = await DetermineGroupPIC(context, schedule, group!);
+            }
 
-            // Check if checklist templates exist (for validation)
             var hasChecklistTemplates = await context.ScheduleChecklistTemplates
                 .AnyAsync(t => t.ScheduleId == schedule.Id);
 
-            // Determine initial status with validation:
-            // 1. Validate checklist existence
-            // 2. Validate PIC assignment
-            // 3. Set SCHEDULED for valid tasks (PMS Workflow v2.0)
             string initialStatus = DetermineTaskStatus(assignedTo, hasChecklistTemplates, schedule.Priority);
-            
-            _logger.LogDebug(
-                "Task status determined: {Status} (HasPIC: {HasPIC}, HasChecklist: {HasChecklist}, Priority: {Priority})",
-                initialStatus, !string.IsNullOrWhiteSpace(assignedTo), hasChecklistTemplates, schedule.Priority);
 
-            // Create maintenance task for entire group
+            // Create maintenance task
             var task = new MaintenanceTask
             {
                 TaskId = taskId,
-                TaskTypeId = null, // PMS Planning v2.0: Not using old TaskType system
-                
-                // CRITICAL: Link to schedule for cascade delete
+                TaskTypeId = null,
                 ScheduleId = schedule.Id,
                 
-                // NEW: Group-based fields
-                EquipmentGroupId = group.Id,
-                EquipmentGroupName = group.GroupName,
+                // Group-based fields
+                EquipmentGroupId = isPerAsset ? null : group!.Id,
+                EquipmentGroupName = isPerAsset ? null : group!.GroupName,
                 
-                // LEGACY: Keep null for group-based tasks (backward compatibility)
+                // Per-asset fields
+                EquipmentAssetId = isPerAsset ? singleAsset!.Id : (Guid?)null,
+                EquipmentAssetName = isPerAsset ? singleAsset!.AssetName : null,
+                
+                // Legacy fields
                 EquipmentId = null,
                 EquipmentName = null,
                 
-                TaskType = schedule.IntervalType,
+                TaskType = (schedule.MaintenanceCategory == "AD_HOC" || schedule.MaintenanceCategory == "CORRECTIVE") ? schedule.MaintenanceCategory : schedule.IntervalType,
                 TaskDescription = schedule.ScheduleName + "\n\n" + (schedule.Instructions ?? ""),
                 IntervalHours = schedule.IntervalHours,
                 IntervalDays = schedule.IntervalDays,
@@ -625,39 +680,44 @@ public class MaintenanceSchedulerService : BackgroundService
                 NextDueAt = schedule.NextDueDate!.Value,
                 RunningHoursAtLastDone = schedule.LastExecutedRunningHours,
                 Priority = schedule.Priority,
-                Status = initialStatus, // SCHEDULED, MISSING_*, based on validation (PMS Workflow v2.0)
-                AssignedTo = assignedTo, // Auto-assigned based on waterfall logic (null if unassigned)
-                RequiredSpareParts = sparePartsJson, // From schedule config - not yet used
-                SparePartsUsed = null, // Will be filled when crew completes the task
-                Notes = $"Auto-generated from schedule: {schedule.ScheduleCode} (Group: {group.GroupName})",
+                Status = initialStatus,
+                AssignedTo = assignedTo,
+                RequiredSpareParts = sparePartsJson,
+                SparePartsUsed = null,
+                Notes = isPerAsset
+                    ? $"Auto-generated from schedule: {schedule.ScheduleCode} (Asset: {singleAsset!.AssetName})"
+                    : $"Auto-generated from schedule: {schedule.ScheduleCode} (Group: {group!.GroupName})",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
 
             context.MaintenanceTasks.Add(task);
 
-            // Create checklist items for each asset in group
-            // CLONE from schedule_checklist_templates (PMS Planning v2.0)
+            // Create checklist items
             var checklistTemplates = await context.ScheduleChecklistTemplates
                 .Where(t => t.ScheduleId == schedule.Id)
                 .OrderBy(t => t.SequenceOrder)
                 .ToListAsync();
 
             _logger.LogInformation(
-                "📋 Generating task for schedule {ScheduleCode} (ID: {ScheduleId}): Found {Count} checklist templates",
-                schedule.ScheduleCode, schedule.Id, checklistTemplates.Count);
+                "Generating task for schedule {ScheduleCode}: {Mode} mode, {Count} checklist templates",
+                schedule.ScheduleCode, isPerAsset ? "per-asset" : "group", checklistTemplates.Count);
+
+            // Build list of assets to create checklist items for
+            var assetsForChecklist = isPerAsset
+                ? new List<EquipmentAsset> { singleAsset! }
+                : groupMembers
+                    .Select(m => m.Asset)
+                    .Where(a => a != null && a.IsActive)
+                    .Cast<EquipmentAsset>()
+                    .ToList();
 
             if (checklistTemplates.Any())
             {
-                // Use templates: Create checklist items for each asset based on templates
-                foreach (var member in groupMembers)
+                foreach (var asset in assetsForChecklist)
                 {
-                    var asset = member.Asset;
-                    if (asset == null || !asset.IsActive) continue;
-
                     foreach (var template in checklistTemplates)
                     {
-                        // Clone template values
                         var checklistItem = new TaskChecklistItem
                         {
                             TaskId = task.TaskId,
@@ -674,7 +734,7 @@ public class MaintenanceSchedulerService : BackgroundService
                             CreatedAt = DateTime.UtcNow
                         };
 
-                        // ASSET-SPECIFIC OVERRIDE: Check if asset has custom technical specs
+                        // Asset-specific override from TechnicalSpecs
                         if (!string.IsNullOrWhiteSpace(asset.TechnicalSpecs))
                         {
                             try
@@ -682,8 +742,6 @@ public class MaintenanceSchedulerService : BackgroundService
                                 var specs = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(asset.TechnicalSpecs);
                                 if (specs != null)
                                 {
-                                    // Override ranges if asset has specific values
-                                    // Format: { "oilLevel_min": 80, "oilLevel_max": 100, "temperature_min": 70, "temperature_max": 90 }
                                     var checkpointKey = template.CheckpointDescription
                                         .ToLower()
                                         .Replace(" ", "_")
@@ -692,17 +750,11 @@ public class MaintenanceSchedulerService : BackgroundService
                                         .Replace("inspect_", "");
 
                                     if (specs.TryGetValue($"{checkpointKey}_min", out var minVal))
-                                    {
                                         checklistItem.NormalRangeMin = Convert.ToDouble(minVal);
-                                    }
                                     if (specs.TryGetValue($"{checkpointKey}_max", out var maxVal))
-                                    {
                                         checklistItem.NormalRangeMax = Convert.ToDouble(maxVal);
-                                    }
                                     if (specs.TryGetValue($"{checkpointKey}_unit", out var unitVal))
-                                    {
                                         checklistItem.Unit = unitVal.ToString();
-                                    }
                                 }
                             }
                             catch (Exception ex)
@@ -717,26 +769,22 @@ public class MaintenanceSchedulerService : BackgroundService
                 
                 _logger.LogInformation(
                     "Cloned {TemplateCount} checklist templates × {AssetCount} assets = {TotalItems} checklist items for task {TaskId}",
-                    checklistTemplates.Count, 
-                    groupMembers.Count(m => m.Asset != null && m.Asset.IsActive),
-                    checklistTemplates.Count * groupMembers.Count(m => m.Asset != null && m.Asset.IsActive),
-                    taskId);
+                    checklistTemplates.Count, assetsForChecklist.Count,
+                    checklistTemplates.Count * assetsForChecklist.Count, taskId);
             }
             else
             {
-                // No templates: Create simple checklist items (backward compatibility)
-                foreach (var member in groupMembers)
+                // No templates: Create simple checklist items
+                int seq = 0;
+                foreach (var asset in assetsForChecklist)
                 {
-                    var asset = member.Asset;
-                    if (asset == null || !asset.IsActive) continue;
-
                     var checklistItem = new TaskChecklistItem
                     {
                         TaskId = task.TaskId,
                         AssetId = asset.Id,
                         AssetCode = asset.AssetCode,
                         AssetName = asset.AssetName,
-                        SequenceOrder = member.SequenceOrder,
+                        SequenceOrder = seq++,
                         IsCompleted = false,
                         CreatedAt = DateTime.UtcNow
                     };
@@ -746,10 +794,18 @@ public class MaintenanceSchedulerService : BackgroundService
 
             await context.SaveChangesAsync();
             
-            var assetCount = groupMembers.Count(m => m.Asset != null && m.Asset.IsActive);
-            _logger.LogInformation(
-                "Generated group task {TaskId} for schedule {ScheduleCode} (Group: {GroupName}, {AssetCount} assets)",
-                taskId, schedule.ScheduleCode, group.GroupName, assetCount);
+            if (isPerAsset)
+            {
+                _logger.LogInformation(
+                    "Generated per-asset task {TaskId} for schedule {ScheduleCode} (Asset: {AssetName})",
+                    taskId, schedule.ScheduleCode, singleAsset!.AssetName);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Generated group task {TaskId} for schedule {ScheduleCode} (Group: {GroupName}, {AssetCount} assets)",
+                    taskId, schedule.ScheduleCode, group!.GroupName, assetsForChecklist.Count);
+            }
         }
         catch (Exception ex)
         {
@@ -773,9 +829,9 @@ public class MaintenanceSchedulerService : BackgroundService
             var baseHours = schedule.LastExecutedRunningHours ?? asset.CurrentRunningHours ?? 0;
             schedule.NextDueRunningHours = baseHours + schedule.IntervalHours.Value;
             
-            // Estimate calendar date based on average 10 hours per day
+            // Estimate calendar date
             var hoursRemaining = schedule.NextDueRunningHours.Value - (asset.CurrentRunningHours ?? 0);
-            var daysRemaining = (int)(hoursRemaining / 10.0);
+            var daysRemaining = (int)Math.Max(hoursRemaining / MaintenanceConstants.AVERAGE_HOURS_PER_DAY, 1);
             schedule.NextDueDate = DateTime.UtcNow.AddDays(daysRemaining);
         }
         else if (schedule.IntervalType == "HYBRID")
@@ -798,7 +854,7 @@ public class MaintenanceSchedulerService : BackgroundService
                 schedule.NextDueRunningHours = baseHours + schedule.IntervalHours.Value;
                 
                 var hoursRemaining = schedule.NextDueRunningHours.Value - (asset.CurrentRunningHours ?? 0);
-                var daysRemaining = (int)(hoursRemaining / 10.0);
+                var daysRemaining = (int)Math.Max(hoursRemaining / MaintenanceConstants.AVERAGE_HOURS_PER_DAY, 1);
                 runningHoursDue = DateTime.UtcNow.AddDays(daysRemaining);
             }
 

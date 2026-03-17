@@ -14,7 +14,7 @@ export const PortSelect: React.FC<PortSelectProps> = ({ value, onChange, placeho
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Sync external value
   useEffect(() => { setQuery(value || ''); }, [value]);

@@ -35,7 +35,7 @@ class _TaskListScreenState extends State<TaskListScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
     WidgetsBinding.instance.addObserver(this);
     
     // Fetch tasks on init
@@ -170,6 +170,18 @@ class _TaskListScreenState extends State<TaskListScreen>
             ),
             tabs: [
               _buildTab(
+                label: 'Tất cả',
+                count: taskProvider.allActiveTasks.length,
+                icon: Icons.list_alt,
+                isSmallScreen: isSmallScreen,
+              ),
+              _buildTab(
+                label: 'Chưa bắt đầu',
+                count: taskProvider.notStartedTasks.length,
+                icon: Icons.schedule,
+                isSmallScreen: isSmallScreen,
+              ),
+              _buildTab(
                 label: l10n.statusDue,
                 count: taskProvider.dueTasks.length,
                 icon: Icons.event_available,
@@ -185,12 +197,6 @@ class _TaskListScreenState extends State<TaskListScreen>
                 label: l10n.statusOverdue,
                 count: taskProvider.overdueTasks.length,
                 icon: Icons.warning,
-                isSmallScreen: isSmallScreen,
-              ),
-              _buildTab(
-                label: l10n.statusRectify,
-                count: taskProvider.rectifyTasks.length,
-                icon: Icons.build_circle,
                 isSmallScreen: isSmallScreen,
               ),
               _buildTab(
@@ -252,10 +258,11 @@ class _TaskListScreenState extends State<TaskListScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
+                _buildTaskList(taskProvider.allActiveTasks, taskProvider, 'all'),
+                _buildTaskList(taskProvider.notStartedTasks, taskProvider, 'not_started'),
                 _buildTaskList(taskProvider.dueTasks, taskProvider, 'due'),
                 _buildTaskList(taskProvider.inProgressTasks, taskProvider, 'in_progress'),
                 _buildTaskList(taskProvider.overdueTasks, taskProvider, 'overdue'),
-                _buildTaskList(taskProvider.rectifyTasks, taskProvider, 'rectify'),
                 _buildTaskList(taskProvider.pendingApprovalTasks, taskProvider, 'pending_approval'),
                 _buildTaskList(taskProvider.completedTasks, taskProvider, 'completed'),
               ],
@@ -297,6 +304,15 @@ class _TaskListScreenState extends State<TaskListScreen>
       
       if (_searchQuery.isEmpty) {
         switch (tabType) {
+          case 'all':
+            emptyMessage = l10n.noTasksAvailable;
+            emptySubtitle = l10n.noTasksInCategory;
+            break;
+          case 'not_started':
+            emptyMessage = 'Không có công việc chưa bắt đầu';
+            emptySubtitle = 'Tất cả công việc đã được bắt đầu';
+            break;
+          case 'due':
           case 'pending':
             emptyMessage = l10n.noPendingTasks;
             emptySubtitle = l10n.allTasksStartedOrCompleted;

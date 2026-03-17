@@ -26,14 +26,16 @@ import { FuelAnalyticsPage } from './pages/FuelAnalytics'
 
 // PMS Pages
 import AssetsPage from './pages/PMS/AssetsPage'
-import ScheduleConfigPage from './pages/PMS/ScheduleConfigPage'
 import MasterSchedulePage from './pages/PMS/MasterSchedulePage'
 import UnassignedTasksPage from './pages/PMS/UnassignedTasksPage'
 import ApprovalDashboardPage from './pages/PMS/ApprovalDashboardPage'
-import DeferralManagementPage from './pages/PMS/DeferralManagementPage'
 import WorkPlanningPage from './pages/PMS/WorkPlanningPage'
-import EquipmentGroupsPage from './pages/PMS/EquipmentGroupsPage'
+import WorkReportPage from './pages/PMS/WorkReportPage'
 import { MaintenanceHistoryPage } from './pages/PMS/MaintenanceHistoryPage'
+import StoreLocationPage from './pages/StoreLocation/StoreLocationPage'
+import MaterialRequestPage from './pages/MaterialRequest/MaterialRequestPage'
+import StockReceiptPage from './pages/StockReceipt/StockReceiptPage'
+import InventoryPage from './pages/Inventory/InventoryPage'
 
 // Reporting Pages
 import { ReportingDashboard } from './pages/Reporting/ReportingDashboard'
@@ -97,7 +99,7 @@ function App() {
         <Route path="ship-data" element={<ShipDataPage />} />
         <Route path="compliance" element={<CompliancePage />} />
         <Route path="sync" element={<SyncPage />} />
-        <Route path="materials" element={<MaterialPage />} />
+
         <Route path="fuel-analytics" element={<FuelAnalyticsPage />} />
         
         {/* Logbook Routes */}
@@ -117,15 +119,19 @@ function App() {
         <Route path="safety/drills" element={<DrillTimelinePage />} />
 
         {/* PMS Routes */}
-        <Route path="pms/assets" element={<AssetsPage />} />
-        <Route path="pms/groups" element={<EquipmentGroupsPage />} />
-        <Route path="pms/schedules" element={<ScheduleConfigPage />} />
+        <Route path="pms/catalog/assets" element={<AssetsPage />} />
+        <Route path="pms/catalog/materials" element={<MaterialPage />} />
+        <Route path="pms/catalog/store-locations" element={<StoreLocationPage />} />
+        <Route path="pms/logistics/material-requests" element={<MaterialRequestPage />} />
+        <Route path="pms/logistics/stock-receipts" element={<StockReceiptPage />} />
+        <Route path="pms/logistics/inventory" element={<InventoryPage />} />
+        {/* Schedule Config is now integrated into Work Planning page as "Cấu hình" tab */}
         <Route path="pms/master-schedule" element={<MasterSchedulePage />} />
         <Route path="pms/unassigned-tasks" element={<UnassignedTasksPage />} />
         <Route path="pms/approval-dashboard" element={<ApprovalDashboardPage />} />
-        <Route path="pms/deferrals" element={<DeferralManagementPage />} />
         <Route path="pms/maintenance-history" element={<MaintenanceHistoryPage />} />
         <Route path="pms/work-planning" element={<WorkPlanningPage />} />
+        <Route path="pms/work-report/:id" element={<WorkReportPage />} />
         
         {/* Reporting Routes */}
         {/* System Routes */}

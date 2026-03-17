@@ -12728,6 +12728,17 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("VoyagePlanLeg");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.EquipmentAsset", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.EquipmentAsset", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_equipment_assets_equipment_assets_parent_id");
+
+                    b.Navigation("Parent");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.EquipmentGroupMember", b =>
                 {
                     b.HasOne("MaritimeEdge.Models.EquipmentAsset", "Asset")

@@ -3,7 +3,7 @@ import {
   RefreshCw, Cloud, Clock, AlertTriangle,
   CheckCircle2, XCircle, Loader2, Database, ArrowUpDown,
   Wifi, WifiOff, Send, ChevronDown, ChevronUp, RotateCcw, Users, ArrowRight,
-  Ship, FileText, Navigation, Calendar
+  Ship, FileText, Navigation, Calendar, Package
 } from 'lucide-react'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 import { syncService } from '@/services/maritime.service'
@@ -293,6 +293,7 @@ function SyncConfirmModal({
 const SNAPSHOT_GROUPS = [
   { id: 'ship_data', label: 'Thông tin tàu',  desc: 'Thông số kỹ thuật & đặc điểm tàu (1 bản ghi)',                    icon: Ship,       dateFilter: false, color: 'blue'    },
   { id: 'crew',      label: 'Thuyền viên',    desc: 'Crew, chứng chỉ, hồ sơ, danh mục tham chiếu',                   icon: Users,      dateFilter: false, color: 'emerald' },
+  { id: 'pms',       label: 'PMS - Thiết bị / Vật tư / Kho', desc: 'Thiết bị, vật tư, kho, phiếu nhập, yêu cầu vật tư, tồn kho',  icon: Package,    dateFilter: false, color: 'orange'  },
   { id: 'voyage',    label: 'Chuyến đi',      desc: 'Hành trình, cảng ghé, trạng thái chuyến đi',                    icon: Navigation, dateFilter: true,  color: 'violet'  },
   { id: 'report',    label: 'Báo cáo',        desc: 'Báo cáo hàng hải, noon report (cần Chuyến đi trước)',           icon: FileText,   dateFilter: true,  color: 'amber'   },
 ] as const
@@ -302,6 +303,7 @@ type GroupId = typeof SNAPSHOT_GROUPS[number]['id']
 const BORDER_MAP: Record<string, string> = {
   blue:    'border-blue-300 bg-blue-50',
   emerald: 'border-emerald-300 bg-emerald-50',
+  orange:  'border-orange-300 bg-orange-50',
   violet:  'border-violet-300 bg-violet-50',
   amber:   'border-amber-300 bg-amber-50',
 }

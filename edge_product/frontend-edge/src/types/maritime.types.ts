@@ -386,6 +386,7 @@ export interface ServiceRecord {
 // Task Status - Updated v2.0 (PMS Workflow)
 export type MaintenanceTaskStatus = 
   | 'SCHEDULED'      // Auto-generated, not yet due
+  | 'UPCOMING'       // Within DaysBeforeDue window — "Sắp đến hạn"
   | 'DUE'           // Ready for execution
   | 'OVERDUE'       // Past due date
   | 'IN_PROGRESS'   // Crew working on it
@@ -409,6 +410,13 @@ export interface MaintenanceTask {
   equipmentGroupId?: string
   equipmentGroupName?: string
   
+  // NEW: Per-asset fields (from per-equipment schedules)
+  equipmentAssetId?: string
+  equipmentAssetName?: string
+  
+  // Schedule reference
+  scheduleId?: string
+  
   taskType: string
   taskDescription: string
   intervalHours?: number
@@ -431,7 +439,7 @@ export interface MaintenanceTask {
   startedAt?: string
   startedBy?: string
   actualRunningHours?: number
-  estimatedDuration?: number // minutes
+  estimatedDuration?: number // hours
   actualDuration?: number // minutes
   
   // ============ REPORT DATA ============
@@ -921,6 +929,7 @@ export interface MaterialItem {
   unitCost?: number | null;
   currency: string;
   notes?: string | null;
+  imageUrl?: string | null;
   isActive: boolean;
   isSynced: boolean;
   createdAt: string;

@@ -54,9 +54,9 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
       final dio = ApiClient().dio;
       dio.options.baseUrl = url;
       
-      // Test with a simple GET to /swagger (or health endpoint)
+      // Test with health endpoint
       final response = await dio.get(
-        '/swagger/index.html',
+        '/api/health',
         options: Options(
           validateStatus: (status) => status != null && status < 500,
         ),

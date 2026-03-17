@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useVerificationQueue } from '../../hooks/useCrewManagement';
 import { documentApi } from '../../services/crewManagement.service';
@@ -44,8 +44,8 @@ export const VerificationQueuePage: React.FC = () => {
       title: 'Reject Document',
       message: `Reject "${task.documentType}" from ${task.crewName}? Please provide a reason.`,
       variant: 'danger',
-      confirmText: 'Reject',
-      showInput: true,
+      confirmLabel: 'Reject',
+      withInput: true,
       inputPlaceholder: 'Rejection reason...',
       inputRequired: true,
     });

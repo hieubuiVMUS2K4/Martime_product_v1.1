@@ -174,18 +174,23 @@ export const VoyageDetailPage: React.FC = () => {
   if (loading) return <div className="voyage-loading">Đang tải chi tiết voyage...</div>;
   if (error || !voyage) return <div className="voyage-error">{error || 'Không tìm thấy voyage.'}</div>;
 
+  const currentVoyage = voyage;
+
   /* ─── Render Helpers ─── */
 
-  function renderGenericRows(rows: Array<Record<string, unknown>>, fields: string[]) {
+  function renderGenericRows(rows: Array<Record<string, unknown> | object>, fields: string[]) {
     if (rows.length === 0) return <div className="voyage-empty">Chưa có dữ liệu.</div>;
     return (
       <div className="voyage-list">
-        {rows.map((row, i) => (
-          <div className="voyage-list-item" key={String(row.id ?? i)}>
-            <strong>{fields.map((f) => row[f]).filter(Boolean).join(' • ') || 'Item'}</strong>
-            <span>{Object.entries(row).slice(0, 4).map(([k, v]) => `${k}: ${String(v ?? '—')}`).join(' | ')}</span>
+        {rows.map((row, i) => {
+          const record = row as Record<string, unknown>;
+          return (
+          <div className="voyage-list-item" key={String(record.id ?? i)}>
+            <strong>{fields.map((f) => record[f]).filter(Boolean).join(' • ') || 'Item'}</strong>
+            <span>{Object.entries(record).slice(0, 4).map(([k, v]) => `${k}: ${String(v ?? '—')}`).join(' | ')}</span>
           </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
@@ -198,40 +203,40 @@ export const VoyageDetailPage: React.FC = () => {
           <div className="voyage-panel">
             <h3>📋 Thông tin chính</h3>
             <div className="voyage-meta-grid">
-              <div className="voyage-meta-item"><span>Cảng đi</span><strong>{voyage.departurePort || '—'}</strong></div>
-              <div className="voyage-meta-item"><span>Cảng đến</span><strong>{voyage.arrivalPort || '—'}</strong></div>
-              <div className="voyage-meta-item"><span>Khởi hành</span><strong>{formatDateTime(voyage.departureTime)}</strong></div>
-              <div className="voyage-meta-item"><span>Dự kiến đến</span><strong>{formatDateTime(voyage.arrivalTime)}</strong></div>
-              <div className="voyage-meta-item"><span>Bắt đầu thực tế</span><strong>{formatDateTime(voyage.commencedAt)}</strong></div>
-              <div className="voyage-meta-item"><span>Hoàn thành</span><strong>{formatDateTime(voyage.completedAt)}</strong></div>
-              <div className="voyage-meta-item"><span>Hô hiệu</span><strong>{voyage.callSign || '—'}</strong></div>
-              <div className="voyage-meta-item"><span>Tài chính đóng</span><strong>{formatDateTime(voyage.financialClosedAt)}</strong></div>
+              <div className="voyage-meta-item"><span>Cảng đi</span><strong>{currentVoyage.departurePort || '—'}</strong></div>
+              <div className="voyage-meta-item"><span>Cảng đến</span><strong>{currentVoyage.arrivalPort || '—'}</strong></div>
+              <div className="voyage-meta-item"><span>Khởi hành</span><strong>{formatDateTime(currentVoyage.departureTime)}</strong></div>
+              <div className="voyage-meta-item"><span>Dự kiến đến</span><strong>{formatDateTime(currentVoyage.arrivalTime)}</strong></div>
+              <div className="voyage-meta-item"><span>Bắt đầu thực tế</span><strong>{formatDateTime(currentVoyage.commencedAt)}</strong></div>
+              <div className="voyage-meta-item"><span>Hoàn thành</span><strong>{formatDateTime(currentVoyage.completedAt)}</strong></div>
+              <div className="voyage-meta-item"><span>Hô hiệu</span><strong>{currentVoyage.callSign || '—'}</strong></div>
+              <div className="voyage-meta-item"><span>Tài chính đóng</span><strong>{formatDateTime(currentVoyage.financialClosedAt)}</strong></div>
             </div>
           </div>
 
           <div className="voyage-panel">
             <h3>📊 Tổng quan tài chính</h3>
             <div className="voyage-meta-grid">
-              <div className="voyage-meta-item"><span>Khoảng cách KH</span><strong>{formatNumber(voyage.plannedDistance)} NM</strong></div>
-              <div className="voyage-meta-item"><span>Khoảng cách TT</span><strong>{formatNumber(voyage.distanceTraveled)} NM</strong></div>
-              <div className="voyage-meta-item"><span>Nhiên liệu KH</span><strong>{formatNumber(voyage.plannedFuelConsumption)} MT</strong></div>
-              <div className="voyage-meta-item"><span>Nhiên liệu TT</span><strong>{formatNumber(voyage.fuelConsumed)} MT</strong></div>
-              <div className="voyage-meta-item"><span>Lợi nhuận ước tính</span><strong style={{ color: 'var(--color-success, #0d6e3f)' }}>{formatCurrency(voyage.estimatedProfitMargin)}</strong></div>
-              <div className="voyage-meta-item"><span>Lợi nhuận thực tế</span><strong style={{ color: 'var(--color-success, #0d6e3f)' }}>{formatCurrency(voyage.actualProfitMargin)}</strong></div>
+              <div className="voyage-meta-item"><span>Khoảng cách KH</span><strong>{formatNumber(currentVoyage.plannedDistance)} NM</strong></div>
+              <div className="voyage-meta-item"><span>Khoảng cách TT</span><strong>{formatNumber(currentVoyage.distanceTraveled)} NM</strong></div>
+              <div className="voyage-meta-item"><span>Nhiên liệu KH</span><strong>{formatNumber(currentVoyage.plannedFuelConsumption)} MT</strong></div>
+              <div className="voyage-meta-item"><span>Nhiên liệu TT</span><strong>{formatNumber(currentVoyage.fuelConsumed)} MT</strong></div>
+              <div className="voyage-meta-item"><span>Lợi nhuận ước tính</span><strong style={{ color: 'var(--color-success, #0d6e3f)' }}>{formatCurrency(currentVoyage.estimatedProfitMargin)}</strong></div>
+              <div className="voyage-meta-item"><span>Lợi nhuận thực tế</span><strong style={{ color: 'var(--color-success, #0d6e3f)' }}>{formatCurrency(currentVoyage.actualProfitMargin)}</strong></div>
             </div>
           </div>
         </section>
 
-        {voyage.voyageInstructions && (
-          <section className="voyage-panel"><h3>Voyage Instructions</h3><div style={{ whiteSpace: 'pre-wrap' }}>{voyage.voyageInstructions}</div></section>
+        {currentVoyage.voyageInstructions && (
+          <section className="voyage-panel"><h3>Voyage Instructions</h3><div style={{ whiteSpace: 'pre-wrap' }}>{currentVoyage.voyageInstructions}</div></section>
         )}
 
         <section className="voyage-section-grid">
           <div className="voyage-grid-panel">
-            <h3>🗺️ Chặng hải trình ({voyage.planLegs.length})</h3>
+            <h3>🗺️ Chặng hải trình ({currentVoyage.planLegs.length})</h3>
             <div className="voyage-list">
-              {voyage.planLegs.length === 0 && <div className="voyage-empty">Chưa có leg.</div>}
-              {voyage.planLegs.map((item) => (
+              {currentVoyage.planLegs.length === 0 && <div className="voyage-empty">Chưa có leg.</div>}
+              {currentVoyage.planLegs.map((item) => (
                 <div className="voyage-list-item" key={item.id}>
                   <strong>Leg {item.sequence}: {item.fromPortCode || item.fromPortName || '—'} → {item.toPortCode || item.toPortName || '—'}</strong>
                   <span>{item.legType} | Dep: {formatDateTime(item.plannedDepartureTime)} | Arr: {formatDateTime(item.plannedArrivalTime)} | Dist: {formatNumber(item.plannedDistance)} NM</span>
@@ -241,10 +246,10 @@ export const VoyageDetailPage: React.FC = () => {
           </div>
 
           <div className="voyage-grid-panel">
-            <h3>📜 Lịch sử trạng thái ({voyage.statusHistory.length})</h3>
+            <h3>📜 Lịch sử trạng thái ({currentVoyage.statusHistory.length})</h3>
             <div className="voyage-list">
-              {voyage.statusHistory.length === 0 && <div className="voyage-empty">Chưa có lịch sử.</div>}
-              {voyage.statusHistory.map((item) => (
+              {currentVoyage.statusHistory.length === 0 && <div className="voyage-empty">Chưa có lịch sử.</div>}
+              {currentVoyage.statusHistory.map((item) => (
                 <div className="voyage-list-item" key={item.id}>
                   <strong>{item.fromStatus || '—'} → {item.toStatus}</strong>
                   <span>{item.changedBy} • {formatDateTime(item.changedAt)}{item.notes ? ` • ${item.notes}` : ''}</span>
@@ -254,10 +259,10 @@ export const VoyageDetailPage: React.FC = () => {
           </div>
 
           <div className="voyage-grid-panel">
-            <h3>⚓ Cảng ghé ({voyage.portCalls.length})</h3>
+            <h3>⚓ Cảng ghé ({currentVoyage.portCalls.length})</h3>
             <div className="voyage-list">
-              {voyage.portCalls.length === 0 && <div className="voyage-empty">Chưa có port call.</div>}
-              {voyage.portCalls.map((item) => (
+              {currentVoyage.portCalls.length === 0 && <div className="voyage-empty">Chưa có port call.</div>}
+              {currentVoyage.portCalls.map((item) => (
                 <div className="voyage-list-item" key={item.id}>
                   <strong>{item.sequence}. {item.portName} ({item.portCode})</strong>
                   <span>{item.callType} | ATA: {formatDateTime(item.arrivalTime)} | ATD: {formatDateTime(item.departureTime)} | Berth: {item.berthNumber || '—'}</span>
@@ -269,21 +274,21 @@ export const VoyageDetailPage: React.FC = () => {
           <div className="voyage-grid-panel">
             <h3>📌 Phạm vi hoạt động</h3>
             <div className="voyage-list">
-              <div className="voyage-list-item"><strong>Crew Assignments</strong><span>{voyage.crewAssignments.length} assignment</span></div>
-              <div className="voyage-list-item"><strong>Voyage Logs</strong><span>{voyage.logEntries.length} log entry</span></div>
-              <div className="voyage-list-item"><strong>Cargo Operations</strong><span>{voyage.cargoOperations.length} operation</span></div>
-              <div className="voyage-list-item"><strong>Cargo Plans</strong><span>{voyage.cargoPlans.length} plan item</span></div>
-              <div className="voyage-list-item"><strong>Bunker Plans</strong><span>{voyage.bunkerPlans.length} plan item</span></div>
-              <div className="voyage-list-item"><strong>Crew Change Plans</strong><span>{voyage.crewChangePlans.length} plan item</span></div>
+              <div className="voyage-list-item"><strong>Crew Assignments</strong><span>{currentVoyage.crewAssignments.length} assignment</span></div>
+              <div className="voyage-list-item"><strong>Voyage Logs</strong><span>{currentVoyage.logEntries.length} log entry</span></div>
+              <div className="voyage-list-item"><strong>Cargo Operations</strong><span>{currentVoyage.cargoOperations.length} operation</span></div>
+              <div className="voyage-list-item"><strong>Cargo Plans</strong><span>{currentVoyage.cargoPlans.length} plan item</span></div>
+              <div className="voyage-list-item"><strong>Bunker Plans</strong><span>{currentVoyage.bunkerPlans.length} plan item</span></div>
+              <div className="voyage-list-item"><strong>Crew Change Plans</strong><span>{currentVoyage.crewChangePlans.length} plan item</span></div>
             </div>
           </div>
 
-          <div className="voyage-grid-panel"><h3>📦 Kế hoạch hàng hóa</h3>{renderGenericRows(voyage.cargoPlans, ['operationType', 'cargoType', 'portName'])}</div>
-          <div className="voyage-grid-panel"><h3>⛽ Bunker / Đổi crew</h3>{renderGenericRows([...voyage.bunkerPlans, ...voyage.crewChangePlans], ['fuelType', 'changeType', 'portName'])}</div>
-          <div className="voyage-grid-panel"><h3>💰 Chi phí / Doanh thu ước tính</h3>{renderGenericRows([...voyage.costEstimates, ...voyage.revenueEstimates], ['costCategory', 'revenueCategory', 'description'])}</div>
-          <div className="voyage-grid-panel"><h3>💳 Chi phí / Tạm ứng</h3>{renderGenericRows([...voyage.expenseRequests, ...voyage.advancePayments], ['requestNumber', 'advanceNumber', 'status'])}</div>
-          <div className="voyage-grid-panel"><h3>📈 Giải ngân / Doanh thu thực</h3>{renderGenericRows([...voyage.disbursements, ...voyage.actualRevenues], ['disbursementNumber', 'revenueNumber', 'status'])}</div>
-          <div className="voyage-grid-panel"><h3>✅ Quyết toán</h3>{renderGenericRows(voyage.settlements, ['settlementNumber', 'status', 'preparedBy'])}</div>
+          <div className="voyage-grid-panel"><h3>📦 Kế hoạch hàng hóa</h3>{renderGenericRows(currentVoyage.cargoPlans, ['operationType', 'cargoType', 'portName'])}</div>
+          <div className="voyage-grid-panel"><h3>⛽ Bunker / Đổi crew</h3>{renderGenericRows([...currentVoyage.bunkerPlans, ...currentVoyage.crewChangePlans], ['fuelType', 'changeType', 'portName'])}</div>
+          <div className="voyage-grid-panel"><h3>💰 Chi phí / Doanh thu ước tính</h3>{renderGenericRows([...currentVoyage.costEstimates, ...currentVoyage.revenueEstimates], ['costCategory', 'revenueCategory', 'description'])}</div>
+          <div className="voyage-grid-panel"><h3>💳 Chi phí / Tạm ứng</h3>{renderGenericRows([...currentVoyage.expenseRequests, ...currentVoyage.advancePayments], ['requestNumber', 'advanceNumber', 'status'])}</div>
+          <div className="voyage-grid-panel"><h3>📈 Giải ngân / Doanh thu thực</h3>{renderGenericRows([...currentVoyage.disbursements, ...currentVoyage.actualRevenues], ['disbursementNumber', 'revenueNumber', 'status'])}</div>
+          <div className="voyage-grid-panel"><h3>✅ Quyết toán</h3>{renderGenericRows(currentVoyage.settlements, ['settlementNumber', 'status', 'preparedBy'])}</div>
         </section>
       </>
     );
