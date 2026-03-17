@@ -1280,10 +1280,22 @@ public class EdgeDbContext : DbContext
             
             entity.HasIndex(e => e.RankId)
                 .HasDatabaseName("idx_crew_rank_id");
+
+            entity.HasIndex(e => e.CountryId)
+                .HasDatabaseName("idx_crew_country_id");
+            
+            entity.HasOne(e => e.Country)
+                .WithMany()
+                .HasForeignKey(e => e.CountryId)
+                .OnDelete(DeleteBehavior.SetNull);
             
             entity.HasIndex(e => e.IsSynced)
                 .HasDatabaseName("idx_crew_synced")
                 .HasFilter("is_synced = false");
+
+            entity.HasIndex(e => e.OnboardStatus)
+                .HasDatabaseName("idx_crew_onboard_status")
+                .HasFilter("onboard_status IS NOT NULL");
         });
 
         // ========== MAINTENANCE TASKS ==========

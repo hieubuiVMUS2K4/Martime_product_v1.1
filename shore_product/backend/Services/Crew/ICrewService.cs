@@ -64,4 +64,17 @@ public interface ICrewService
 
     /// <summary>Delete a service record.</summary>
     Task<bool> DeleteServiceRecordAsync(Guid recordId);
+
+    // ============================================================
+    // STATS
+    // ============================================================
+
+    /// <summary>Get fleet-wide crew counts: total, onboard, pool, pendingReview.</summary>
+    Task<(int Total, int Onboard, int Pool, int PendingReview)> GetCrewStatsAsync();
+
+    /// <summary>Assign a crew member to a vessel (set VesselId, IsOnboard=true, EmbarkDate).</summary>
+    Task<CrewMemberDto?> AssignToVesselAsync(Guid crewId, Guid vesselId);
+
+    /// <summary>Unassign a crew member from vessel (set VesselId=null, IsOnboard=false, DisembarkDate).</summary>
+    Task<CrewMemberDto?> UnassignFromVesselAsync(Guid crewId);
 }

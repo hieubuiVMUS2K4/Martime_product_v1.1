@@ -509,16 +509,86 @@ public class SyncInboxService : ISyncInboxService
 
         if (incomingEntity != null)
         {
+            // ── Delta-safe guard ──────────────────────────────────────
+            // Deserializing a partial JSON (e.g. {"Weight":80}) into a full entity
+            // fills DEFAULTS for missing fields (bool→false, int→0, DateTime→MinValue).
+            // The conflict resolver may then apply those defaults, overwriting real data
+            // (e.g. IsOnboard true→false). We parse the actual JSON keys and snapshot
+            // non-payload value-type properties so we can restore them afterwards.
+            HashSet<string> payloadKeys;
+            try
+            {
+                using var jd = JsonDocument.Parse(item.Payload);
+                payloadKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var jp in jd.RootElement.EnumerateObject())
+                    payloadKeys.Add(jp.Name);
+            }
+            catch { payloadKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase); }
+
+            // Snapshot non-payload value-type properties on existing entity
+            var savedValueTypes = new Dictionary<string, object?>();
+            foreach (var prop in existing.GetType().GetProperties())
+            {
+                if (!prop.CanRead || !prop.CanWrite) continue;
+                if (prop.Name == "Id") continue;
+                // Only protect non-nullable value types (bool, int, DateTime…)
+                if (!prop.PropertyType.IsValueType || Nullable.GetUnderlyingType(prop.PropertyType) != null) continue;
+                // Check if this property was actually in the payload (PascalCase, camelCase, or snake_case)
+                var camel = char.ToLowerInvariant(prop.Name[0]) + prop.Name.Substring(1);
+                var snake = System.Text.RegularExpressions.Regex.Replace(prop.Name, "([A-Z])", "_$1").TrimStart('_').ToLowerInvariant();
+                if (!payloadKeys.Contains(prop.Name) && !payloadKeys.Contains(camel) && !payloadKeys.Contains(snake))
+                {
+                    savedValueTypes[prop.Name] = prop.GetValue(existing);
+                }
+            }
+
             var resolution = _conflictResolver.Resolve(item.TableName, existing, incomingEntity, item.OriginNode);
             if (resolution.ShouldApply)
             {
+                // Restore value-type properties that were NOT in the payload
+                // (conflict resolver may have overwritten them with deserialized defaults)
+                foreach (var kvp in savedValueTypes)
+                {
+                    var prop = existing.GetType().GetProperty(kvp.Key);
+                    if (prop?.CanWrite == true)
+                        prop.SetValue(existing, kvp.Value);
+                }
+
                 // If ResolvedEntity IS existing (conflict resolver mutated it in-place),
-                // EF is already tracking the changes — no need to copy.
-                // If it is a different object, copy only non-default values over.
+                // EF is already tracking the changes — no need for SetValues.
+                // If it is a different object, copy non-key values over (only payload fields).
                 if (!ReferenceEquals(resolution.ResolvedEntity, existing))
                 {
-                    CopyNonDefaultProperties(existing, resolution.ResolvedEntity!, entityType);
+                    var entry2 = _context.Entry(existing);
+                    foreach (var prop in entry2.Metadata.GetProperties())
+                    {
+                        if (prop.IsKey()) continue; // never overwrite PK
+                        // Only copy properties that were actually in the payload
+                        var propName = prop.PropertyInfo?.Name ?? prop.Name;
+                        var camel2 = char.ToLowerInvariant(propName[0]) + propName.Substring(1);
+                        var snake2 = System.Text.RegularExpressions.Regex.Replace(propName, "([A-Z])", "_$1").TrimStart('_').ToLowerInvariant();
+                        if (payloadKeys.Count > 0
+                            && !payloadKeys.Contains(propName) && !payloadKeys.Contains(camel2) && !payloadKeys.Contains(snake2))
+                            continue;
+
+                        var resolved = resolution.ResolvedEntity!;
+                        var inVal = prop.PropertyInfo?.GetValue(resolved);
+                        if (inVal != null)
+                            prop.PropertyInfo?.SetValue(existing, inVal);
+                    }
                 }
+                // When edge sends new EdgeChanges, ensure shore marks them as unviewed
+                if (item.TableName == "crew_member" && existing is Maritime.Shared.Models.Crew.CrewMember crewEntity)
+                {
+                    var hasEdgeChangesKey = payloadKeys.Contains("EdgeChanges")
+                        || payloadKeys.Contains("edgeChanges")
+                        || payloadKeys.Contains("edge_changes");
+                    if (hasEdgeChangesKey && !string.IsNullOrWhiteSpace(crewEntity.EdgeChanges))
+                    {
+                        crewEntity.EdgeChangesViewed = false;
+                    }
+                }
+
                 UpdateSyncMetadata(existing, item);
             }
             else
@@ -556,6 +626,18 @@ public class SyncInboxService : ISyncInboxService
             catch (Exception ex)
             {
                 _logger.LogDebug("Skipping property {Prop}: {Error}", kvp.Key, ex.Message);
+            }
+        }
+
+        // When edge sends new EdgeChanges via patch, mark as unviewed on shore
+        if (item.TableName == "crew_member" && existing is Maritime.Shared.Models.Crew.CrewMember patchCrew)
+        {
+            var hasEdgeChangesKey = patchData.Keys.Any(k =>
+                string.Equals(k, "EdgeChanges", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(k, "edge_changes", StringComparison.OrdinalIgnoreCase));
+            if (hasEdgeChangesKey && !string.IsNullOrWhiteSpace(patchCrew.EdgeChanges))
+            {
+                patchCrew.EdgeChangesViewed = false;
             }
         }
 

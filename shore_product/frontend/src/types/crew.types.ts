@@ -12,13 +12,17 @@ export interface CrewMember {
   rankName?: string;
   rankCode?: string;
   department?: string;
-  nationality?: string;
+  countryId?: number;
+  countryName?: string;
   dateOfBirth?: string;
   joinDate?: string;
   embarkDate?: string;
   disembarkDate?: string;
   contractEnd?: string;
   isOnboard: boolean;
+  onboardStatus?: string;
+  vesselId?: string;
+  vesselName?: string;
   emergencyContact?: string;
   emailAddress?: string;
   phoneNumber?: string;
@@ -48,6 +52,13 @@ export interface CrewMember {
   isSynced?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  // Review workflow fields (synced from edge)
+  onboardStatusChangedAt?: string;
+  onboardStatusChangedBy?: string;
+  reviewChecklist?: string;
+  reviewNotes?: string;
+  edgeChanges?: string;
+  edgeChangesViewed?: boolean;
 }
 
 export interface CrewDetail extends CrewMember {
@@ -151,12 +162,13 @@ export interface CreateCrewRequest {
   fullName: string;
   rankId?: number;
   department?: string;
-  nationality?: string;
+  countryId?: number;
   dateOfBirth?: string;
   joinDate?: string;
   embarkDate?: string;
   contractEnd?: string;
   isOnboard?: boolean;
+  vesselId?: string;
   emergencyContact?: string;
   emailAddress?: string;
   phoneNumber?: string;
@@ -245,6 +257,7 @@ export interface CrewFilters {
   isOnboard?: boolean | null;
   department?: string;
   rankId?: number | null;
+  vesselId?: string | null;
   page: number;
   pageSize: number;
 }
@@ -252,3 +265,9 @@ export interface CrewFilters {
 export type CertificateStatusType = 'VALID' | 'EXPIRING_SOON' | 'EXPIRED' | 'SUSPENDED' | 'REVOKED';
 
 export type TabKey = 'personal' | 'certificates' | 'documents' | 'service-history';
+
+export interface VesselSimple {
+  id: string;
+  name: string;
+  imo: string;
+}

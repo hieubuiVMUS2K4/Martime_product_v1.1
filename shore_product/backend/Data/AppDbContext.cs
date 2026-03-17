@@ -68,6 +68,7 @@ namespace ProductApi.Data
         public DbSet<RankCertificate> RankCertificates { get; set; } = null!;
         public DbSet<CountryCertificate> CountryCertificates { get; set; } = null!;
         public DbSet<ServiceRecord> ServiceRecords { get; set; } = null!;
+        public DbSet<VesselCertificateAssignment> VesselCertificateAssignments { get; set; } = null!;
 
         // Crew Documents
         public DbSet<TravelDocument> TravelDocuments { get; set; } = null!;
@@ -598,6 +599,13 @@ namespace ProductApi.Data
                     .HasForeignKey(e => e.RankId)
                     .OnDelete(DeleteBehavior.SetNull);
 
+                entity.HasOne(e => e.Country)
+                    .WithMany()
+                    .HasForeignKey(e => e.CountryId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(e => e.VesselId);
+
                 entity.Property(e => e.Weight).HasPrecision(5, 2);
             });
 
@@ -682,6 +690,20 @@ namespace ProductApi.Data
 
                 entity.HasOne(e => e.Certificate)
                     .WithMany(c => c.CountryCertificates)
+                    .HasForeignKey(e => e.CertificateId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure VesselCertificateAssignment
+            modelBuilder.Entity<VesselCertificateAssignment>(entity =>
+            {
+                entity.ToTable("vessel_certificate_assignments");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.VesselId, e.CertificateId }).IsUnique();
+                entity.HasIndex(e => e.IsSynced);
+
+                entity.HasOne(e => e.Certificate)
+                    .WithMany()
                     .HasForeignKey(e => e.CertificateId)
                     .OnDelete(DeleteBehavior.Cascade);
             });

@@ -862,6 +862,10 @@ public class VoyageManagementService : IVoyageManagementService
             .Include(v => v.CrewAssignments)
                 .ThenInclude(a => a.CrewMember)
                     .ThenInclude(c => c!.TravelDocuments)
+                    .ThenInclude(c => c!.TravelDocuments)
+            .Include(v => v.CrewAssignments)
+                .ThenInclude(a => a.CrewMember)
+                    .ThenInclude(c => c!.Country)
             .Include(v => v.CrewAssignments)
                 .ThenInclude(a => a.CrewMember)
                     .ThenInclude(c => c!.SeafarerDocuments)
@@ -892,7 +896,7 @@ public class VoyageManagementService : IVoyageManagementService
                         No = index + 1,
                         FullName = a.CrewMember?.FullName,
                         Rank = a.Rank?.RankName,
-                        Nationality = a.CrewMember?.Nationality,
+                        Nationality = a.CrewMember?.Country?.CountryName ?? a.CrewMember?.Nationality,
                         DateOfBirth = a.CrewMember?.DateOfBirth,
                         PlaceOfBirth = a.CrewMember?.PlaceOfBirth,
                         TravelDocumentType = selectedDocument?.DocumentType,

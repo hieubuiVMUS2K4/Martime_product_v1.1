@@ -9,7 +9,7 @@ import { useCrewDetail, useCrewCertificates } from '../../hooks/useCrew';
 import { useCrewOnboarding, useCrewDocumentSubmissions, useCrewStatusHistory, useCrewAuditLog } from '../../hooks/useCrewManagement';
 import { crewApi, referenceApi } from '../../services/crew.service';
 import { useToast } from '../../components/common/Toast';
-import type { CrewDocument, ServiceRecord, Rank } from '../../types/crew.types';
+import type { CrewDocument, ServiceRecord, Rank, Country } from '../../types/crew.types';
 import type { UpdateCrewRequest } from '../../types/crew.types';
 
 type TabType = 'basic-data' | 'documents' | 'voyage-history' | 'onboarding' | 'doc-workflow' | 'status-history' | 'audit';
@@ -33,6 +33,72 @@ export const CrewDetailPage: React.FC = () => {
   const [edited, setEdited] = useState<UpdateCrewRequest>({});
   const [saving, setSaving] = useState(false);
   const [ranks, setRanks] = useState<Rank[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
+
+  // Edge changes tracking
+  const edgeChanges: { field: string; oldValue: string; newValue: string; changedAt: string }[] = React.useMemo(() => {
+    if (!crew?.edgeChanges) return [];
+    try { return JSON.parse(crew.edgeChanges); } catch { return []; }
+  }, [crew?.edgeChanges]);
+
+  const changedFields = React.useMemo(() => new Set(edgeChanges.map(c => c.field)), [edgeChanges]);
+  const changeMap = React.useMemo(() => {
+    const m: Record<string, { oldValue: string; newValue: string }> = {};
+    for (const c of edgeChanges) m[c.field] = { oldValue: c.oldValue, newValue: c.newValue };
+    return m;
+  }, [edgeChanges]);
+  const hasUnviewedChanges = edgeChanges.length > 0;
+
+  // Map fields to sections for tab badge counts
+  const SECTION_FIELDS: Record<string, string[]> = {
+    'basic-data': [
+      'fullName', 'phoneNumber', 'emailAddress', 'department', 'address',
+      'placeOfBirth', 'idCardNumber', 'maritalStatus', 'notes', 'dateOfBirth',
+      'rankId', 'countryId', 'height', 'weight', 'bloodGroup', 'clothingSize',
+      'shoeSize', 'cateringSize', 'isSmoker', 'isCovidVaccinated',
+      'joinDate', 'embarkDate', 'disembarkDate', 'contractEnd', 'isOnboard',
+      'nextOfKinName', 'nextOfKinRelation', 'nextOfKinPhone', 'nextOfKinAddress',
+      'educationInstitution', 'educationCourse', 'educationPeriodYears', 'educationGraduationYear',
+    ],
+  };
+
+  const getTabChangeCount = (tabKey: string) => {
+    if (!hasUnviewedChanges) return 0;
+    const fields = SECTION_FIELDS[tabKey];
+    if (!fields) return 0;
+    return edgeChanges.filter(c => fields.includes(c.field)).length;
+  };
+
+  const handleMarkViewed = async () => {
+    if (!id) return;
+    try {
+      await crewApi.markChangesViewed(id);
+      await refetch();
+    } catch { /* ignore */ }
+  };
+
+  // Helper: inline style for changed fields (dùng inline style để chắc chắn hiện đỏ)
+  const fieldHighlight = (fieldName: string) =>
+    changedFields.has(fieldName) ? ' cd-field--changed' : '';
+
+  const fieldStyle = (fieldName: string): React.CSSProperties =>
+    changedFields.has(fieldName)
+      ? { borderColor: '#ef4444', background: '#fef2f2', boxShadow: '0 0 0 2px rgba(239,68,68,0.2)' }
+      : {};
+
+  // Helper: render change indicator next to a field
+  const changeIndicator = (fieldName: string) => {
+    const c = changeMap[fieldName];
+    if (!c) return null;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+        <span style={{ fontSize: 11, color: '#dc2626' }}>
+          Tàu đã sửa: <s style={{ color: '#9ca3af' }}>{c.oldValue || '(trống)'}</s> → <strong style={{ color: '#b91c1c' }}>{c.newValue}</strong>
+        </span>
+      </div>
+    );
+  };
 
   // Documents
   const [travelDocs, setTravelDocs] = useState<CrewDocument[]>([]);
@@ -65,6 +131,7 @@ export const CrewDetailPage: React.FC = () => {
 
   useEffect(() => {
     referenceApi.getRanks().then(setRanks).catch(() => {});
+    referenceApi.getCountries().then(setCountries).catch(() => {});
   }, []);
 
   const loadDocuments = useCallback(async () => {
@@ -207,8 +274,42 @@ export const CrewDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* â”€â”€ Tabs â”€â”€ */}
+      {/* Hold Notification Banner */}
+      {crew.onboardStatus === 'OnHold' && (
+        <div style={{
+          background: '#fff7ed', border: '1px solid #fb923c', borderRadius: 0,
+          padding: '12px 24px', display: 'flex', alignItems: 'flex-start', gap: 12
+        }}>
+          <AlertTriangle className="h-5 w-5 flex-shrink-0" style={{ color: '#ea580c', marginTop: 2 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#c2410c', marginBottom: 4 }}>
+              Tàu yêu cầu bổ sung hồ sơ cho thuyền viên này
+            </div>
+            {crew.reviewNotes && (
+              <div style={{ fontSize: 13, color: '#9a3412', background: '#ffedd5', borderRadius: 6, padding: '8px 12px', marginTop: 4 }}>
+                <strong>Ghi chú từ tàu:</strong> {crew.reviewNotes}
+              </div>
+            )}
+            {crew.onboardStatusChangedBy && (
+              <div style={{ fontSize: 12, color: '#a0aec0', marginTop: 6 }}>
+                Bởi: {crew.onboardStatusChangedBy}
+                {crew.onboardStatusChangedAt && ` — ${new Date(crew.onboardStatusChangedAt).toLocaleString('vi-VN')}`}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Edge Changes Banner */}
+      {hasUnviewedChanges && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 24px', background: '#fef2f2', borderBottom: '2px solid #fca5a5' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#991b1b' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 22, height: 22, padding: '0 6px', background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 700, borderRadius: 11 }}>{edgeChanges.length}</span>
+            <span>Tàu đã thay đổi <strong>{edgeChanges.length}</strong> thông tin. Các trường thay đổi được đánh dấu <span style={{ color: '#ef4444', fontWeight: 700 }}>MÀU ĐỎ</span> bên dưới.</span>
+          </div>
+          <button onClick={handleMarkViewed} style={{ padding: '5px 14px', fontSize: 12, fontWeight: 600, color: '#fff', background: '#0054a6', border: 'none', borderRadius: 4, cursor: 'pointer' }}>✓ Đã xem</button>
+        </div>
+      )}
+      {/* Tabs */}
       <div className="bg-white" style={{ borderBottom: '1px solid #C5D9EC' }}>
         <div className="px-6 flex gap-1">
           {([
@@ -229,6 +330,10 @@ export const CrewDetailPage: React.FC = () => {
               style={activeTab === tab.key ? { borderBottomColor: '#0054a6', color: '#0054a6', background: '#EBF4FF' } : {}}
             >
               {tab.icon}{tab.label}
+              {(() => {
+                const changeCount = getTabChangeCount(tab.key);
+                return changeCount > 0 ? <span className="cd-tab-change-badge">{changeCount}</span> : null;
+              })()}
               {tab.key === 'documents' && (travelDocs.length + seafarerDocs.length + healthDocs.length) > 0 && (
                 <span className="ml-1 px-1.5 py-0.5 rounded-full text-xs bg-gray-200 text-gray-600">
                   {travelDocs.length + seafarerDocs.length + employmentDocs.length + healthDocs.length}
@@ -259,22 +364,26 @@ export const CrewDetailPage: React.FC = () => {
                 <div className="col-span-3 space-y-3">
                   <div>
                     <label className={labelCls}>Full Name</label>
-                    <input className={fieldCls} value={edited.fullName ?? ''} onChange={e => set('fullName', e.target.value)} />
+                    <input className={`${fieldCls}${fieldHighlight('fullName')}`} style={fieldStyle('fullName')} value={edited.fullName ?? ''} onChange={e => set('fullName', e.target.value)} />
+                    {changeIndicator('fullName')}
                   </div>
                   <div>
                     <label className={labelCls}>Rank</label>
-                    <select className={fieldCls} value={edited.rankId ?? ''} onChange={e => set('rankId', e.target.value ? Number(e.target.value) : undefined)}>
+                    <select className={`${fieldCls}${fieldHighlight('rankId')}`} style={fieldStyle('rankId')} value={edited.rankId ?? ''} onChange={e => set('rankId', e.target.value ? Number(e.target.value) : undefined)}>
                       <option value="">Select rank</option>
                       {ranks.map(r => <option key={r.id} value={r.id}>{r.rankName} ({r.rankCode})</option>)}
                     </select>
+                    {changeIndicator('rankId')}
                   </div>
                   <div>
                     <label className={labelCls}>Department</label>
-                    <input className={fieldCls} value={edited.department ?? ''} onChange={e => set('department', e.target.value)} />
+                    <input className={`${fieldCls}${fieldHighlight('department')}`} style={fieldStyle('department')} value={edited.department ?? ''} onChange={e => set('department', e.target.value)} />
+                    {changeIndicator('department')}
                   </div>
                   <div>
                     <label className={labelCls}>Date of Birth</label>
-                    <input type="date" className={fieldCls} value={(edited.dateOfBirth ?? '').split('T')[0]} onChange={e => set('dateOfBirth', e.target.value)} />
+                    <input type="date" className={`${fieldCls}${fieldHighlight('dateOfBirth')}`} style={fieldStyle('dateOfBirth')} value={(edited.dateOfBirth ?? '').split('T')[0]} onChange={e => set('dateOfBirth', e.target.value)} />
+                    {changeIndicator('dateOfBirth')}
                   </div>
                 </div>
 
@@ -286,15 +395,21 @@ export const CrewDetailPage: React.FC = () => {
                   </div>
                   <div>
                     <label className={labelCls}>Place of Birth</label>
-                    <input className={fieldCls} value={edited.placeOfBirth ?? ''} onChange={e => set('placeOfBirth', e.target.value)} />
+                    <input className={`${fieldCls}${fieldHighlight('placeOfBirth')}`} style={fieldStyle('placeOfBirth')} value={edited.placeOfBirth ?? ''} onChange={e => set('placeOfBirth', e.target.value)} />
+                    {changeIndicator('placeOfBirth')}
                   </div>
                   <div>
                     <label className={labelCls}>Nationality</label>
-                    <input className={fieldCls} value={edited.nationality ?? ''} onChange={e => set('nationality', e.target.value)} />
+                    <select className={`${fieldCls}${fieldHighlight('countryId')}`} style={fieldStyle('countryId')} value={edited.countryId ?? ''} onChange={e => set('countryId', e.target.value ? Number(e.target.value) : undefined)}>
+                      <option value="">Select country</option>
+                      {countries.map(c => <option key={c.id} value={c.id}>{c.countryName}</option>)}
+                    </select>
+                    {changeIndicator('countryId')}
                   </div>
                   <div>
                     <label className={labelCls}>ID Card Number</label>
-                    <input className={fieldCls} value={edited.idCardNumber ?? ''} onChange={e => set('idCardNumber', e.target.value)} />
+                    <input className={`${fieldCls}${fieldHighlight('idCardNumber')}`} style={fieldStyle('idCardNumber')} value={edited.idCardNumber ?? ''} onChange={e => set('idCardNumber', e.target.value)} />
+                    {changeIndicator('idCardNumber')}
                   </div>
                 </div>
 
@@ -302,27 +417,32 @@ export const CrewDetailPage: React.FC = () => {
                 <div className="col-span-3 space-y-3">
                   <div>
                     <label className={labelCls}>Phone Number</label>
-                    <input className={fieldCls} value={edited.phoneNumber ?? ''} onChange={e => set('phoneNumber', e.target.value)} />
+                    <input className={`${fieldCls}${fieldHighlight('phoneNumber')}`} style={fieldStyle('phoneNumber')} value={edited.phoneNumber ?? ''} onChange={e => set('phoneNumber', e.target.value)} />
+                    {changeIndicator('phoneNumber')}
                   </div>
                   <div>
                     <label className={labelCls}>Email</label>
-                    <input type="email" className={fieldCls} value={edited.emailAddress ?? ''} onChange={e => set('emailAddress', e.target.value)} />
+                    <input type="email" className={`${fieldCls}${fieldHighlight('emailAddress')}`} style={fieldStyle('emailAddress')} value={edited.emailAddress ?? ''} onChange={e => set('emailAddress', e.target.value)} />
+                    {changeIndicator('emailAddress')}
                   </div>
                   <div>
                     <label className={labelCls}>Marital Status</label>
-                    <select className={fieldCls} value={edited.maritalStatus ?? ''} onChange={e => set('maritalStatus', e.target.value)}>
+                    <select className={`${fieldCls}${fieldHighlight('maritalStatus')}`} style={fieldStyle('maritalStatus')} value={edited.maritalStatus ?? ''} onChange={e => set('maritalStatus', e.target.value)}>
                       <option value="">Select</option>
                       <option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option>
                     </select>
+                    {changeIndicator('maritalStatus')}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className={labelCls}>Height (cm)</label>
-                      <input type="number" className={fieldCls} value={edited.height ?? ''} onChange={e => set('height', e.target.value ? Number(e.target.value) : undefined)} />
+                      <input type="number" className={`${fieldCls}${fieldHighlight('height')}`} style={fieldStyle('height')} value={edited.height ?? ''} onChange={e => set('height', e.target.value ? Number(e.target.value) : undefined)} />
+                      {changeIndicator('height')}
                     </div>
                     <div>
                       <label className={labelCls}>Weight (kg)</label>
-                      <input type="number" className={fieldCls} value={edited.weight ?? ''} onChange={e => set('weight', e.target.value ? Number(e.target.value) : undefined)} />
+                      <input type="number" className={`${fieldCls}${fieldHighlight('weight')}`} style={fieldStyle('weight')} value={edited.weight ?? ''} onChange={e => set('weight', e.target.value ? Number(e.target.value) : undefined)} />
+                      {changeIndicator('weight')}
                     </div>
                   </div>
                 </div>
@@ -356,22 +476,26 @@ export const CrewDetailPage: React.FC = () => {
               <div className="grid grid-cols-4 gap-4">
                 <div>
                   <label className={labelCls}>Blood Group</label>
-                  <select className={fieldCls} value={edited.bloodGroup ?? ''} onChange={e => set('bloodGroup', e.target.value)}>
+                  <select className={`${fieldCls}${fieldHighlight('bloodGroup')}`} style={fieldStyle('bloodGroup')} value={edited.bloodGroup ?? ''} onChange={e => set('bloodGroup', e.target.value)}>
                     <option value="">Select</option>
                     {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(g => <option key={g}>{g}</option>)}
                   </select>
+                  {changeIndicator('bloodGroup')}
                 </div>
                 <div>
                   <label className={labelCls}>Clothing Size</label>
-                  <input className={fieldCls} placeholder="e.g., L, XL" value={edited.clothingSize ?? ''} onChange={e => set('clothingSize', e.target.value)} />
+                  <input className={`${fieldCls}${fieldHighlight('clothingSize')}`} style={fieldStyle('clothingSize')} placeholder="e.g., L, XL" value={edited.clothingSize ?? ''} onChange={e => set('clothingSize', e.target.value)} />
+                  {changeIndicator('clothingSize')}
                 </div>
                 <div>
                   <label className={labelCls}>Shoe Size</label>
-                  <input className={fieldCls} placeholder="e.g., 42" value={edited.shoeSize ?? ''} onChange={e => set('shoeSize', e.target.value)} />
+                  <input className={`${fieldCls}${fieldHighlight('shoeSize')}`} style={fieldStyle('shoeSize')} placeholder="e.g., 42" value={edited.shoeSize ?? ''} onChange={e => set('shoeSize', e.target.value)} />
+                  {changeIndicator('shoeSize')}
                 </div>
                 <div>
                   <label className={labelCls}>Catering Size</label>
-                  <input className={fieldCls} placeholder="e.g., M" value={edited.cateringSize ?? ''} onChange={e => set('cateringSize', e.target.value)} />
+                  <input className={`${fieldCls}${fieldHighlight('cateringSize')}`} style={fieldStyle('cateringSize')} placeholder="e.g., M" value={edited.cateringSize ?? ''} onChange={e => set('cateringSize', e.target.value)} />
+                  {changeIndicator('cateringSize')}
                 </div>
               </div>
               <div className="flex gap-6 mt-4">
@@ -400,9 +524,10 @@ export const CrewDetailPage: React.FC = () => {
                 ] as { label: string; key: keyof UpdateCrewRequest }[]).map(({ label, key }) => (
                   <div key={key}>
                     <label className={labelCls}>{label}</label>
-                    <input type="date" className={fieldCls}
+                    <input type="date" className={`${fieldCls}${fieldHighlight(key)}`} style={fieldStyle(key)}
                       value={((edited[key] as string) ?? '').split('T')[0]}
                       onChange={e => set(key, e.target.value)} />
+                    {changeIndicator(key)}
                   </div>
                 ))}
               </div>
@@ -416,22 +541,26 @@ export const CrewDetailPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>Full Name</label>
-                  <input className={fieldCls} value={edited.nextOfKinName ?? ''} onChange={e => set('nextOfKinName', e.target.value)} />
+                  <input className={`${fieldCls}${fieldHighlight('nextOfKinName')}`} style={fieldStyle('nextOfKinName')} value={edited.nextOfKinName ?? ''} onChange={e => set('nextOfKinName', e.target.value)} />
+                  {changeIndicator('nextOfKinName')}
                 </div>
                 <div>
                   <label className={labelCls}>Relationship</label>
-                  <select className={fieldCls} value={edited.nextOfKinRelation ?? ''} onChange={e => set('nextOfKinRelation', e.target.value)}>
+                  <select className={`${fieldCls}${fieldHighlight('nextOfKinRelation')}`} style={fieldStyle('nextOfKinRelation')} value={edited.nextOfKinRelation ?? ''} onChange={e => set('nextOfKinRelation', e.target.value)}>
                     <option value="">Select</option>
                     {['Father','Mother','Spouse','Sibling','Child','Other'].map(r => <option key={r}>{r}</option>)}
                   </select>
+                  {changeIndicator('nextOfKinRelation')}
                 </div>
                 <div>
                   <label className={labelCls}>Phone Number</label>
-                  <input className={fieldCls} value={edited.nextOfKinPhone ?? ''} onChange={e => set('nextOfKinPhone', e.target.value)} />
+                  <input className={`${fieldCls}${fieldHighlight('nextOfKinPhone')}`} style={fieldStyle('nextOfKinPhone')} value={edited.nextOfKinPhone ?? ''} onChange={e => set('nextOfKinPhone', e.target.value)} />
+                  {changeIndicator('nextOfKinPhone')}
                 </div>
                 <div>
                   <label className={labelCls}>Address</label>
-                  <input className={fieldCls} value={edited.nextOfKinAddress ?? ''} onChange={e => set('nextOfKinAddress', e.target.value)} />
+                  <input className={`${fieldCls}${fieldHighlight('nextOfKinAddress')}`} style={fieldStyle('nextOfKinAddress')} value={edited.nextOfKinAddress ?? ''} onChange={e => set('nextOfKinAddress', e.target.value)} />
+                  {changeIndicator('nextOfKinAddress')}
                 </div>
               </div>
               </div>
@@ -444,19 +573,23 @@ export const CrewDetailPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>Institution / University</label>
-                  <input className={fieldCls} placeholder="e.g., Vietnam Maritime University" value={edited.educationInstitution ?? ''} onChange={e => set('educationInstitution', e.target.value)} />
+                  <input className={`${fieldCls}${fieldHighlight('educationInstitution')}`} style={fieldStyle('educationInstitution')} placeholder="e.g., Vietnam Maritime University" value={edited.educationInstitution ?? ''} onChange={e => set('educationInstitution', e.target.value)} />
+                  {changeIndicator('educationInstitution')}
                 </div>
                 <div>
                   <label className={labelCls}>Course / Major</label>
-                  <input className={fieldCls} placeholder="e.g., BSc Nautical Science" value={edited.educationCourse ?? ''} onChange={e => set('educationCourse', e.target.value)} />
+                  <input className={`${fieldCls}${fieldHighlight('educationCourse')}`} style={fieldStyle('educationCourse')} placeholder="e.g., BSc Nautical Science" value={edited.educationCourse ?? ''} onChange={e => set('educationCourse', e.target.value)} />
+                  {changeIndicator('educationCourse')}
                 </div>
                 <div>
                   <label className={labelCls}>Period (Years)</label>
-                  <input type="number" className={fieldCls} placeholder="e.g., 4" value={edited.educationPeriodYears ?? ''} onChange={e => set('educationPeriodYears', e.target.value ? Number(e.target.value) : undefined)} />
+                  <input type="number" className={`${fieldCls}${fieldHighlight('educationPeriodYears')}`} style={fieldStyle('educationPeriodYears')} placeholder="e.g., 4" value={edited.educationPeriodYears ?? ''} onChange={e => set('educationPeriodYears', e.target.value ? Number(e.target.value) : undefined)} />
+                  {changeIndicator('educationPeriodYears')}
                 </div>
                 <div>
                   <label className={labelCls}>Graduation Year</label>
-                  <input type="number" className={fieldCls} placeholder="e.g., 2020" value={edited.educationGraduationYear ?? ''} onChange={e => set('educationGraduationYear', e.target.value ? Number(e.target.value) : undefined)} />
+                  <input type="number" className={`${fieldCls}${fieldHighlight('educationGraduationYear')}`} style={fieldStyle('educationGraduationYear')} placeholder="e.g., 2020" value={edited.educationGraduationYear ?? ''} onChange={e => set('educationGraduationYear', e.target.value ? Number(e.target.value) : undefined)} />
+                  {changeIndicator('educationGraduationYear')}
                 </div>
               </div>
               </div>
@@ -466,7 +599,7 @@ export const CrewDetailPage: React.FC = () => {
             <div className="cd-section">
               <div className="cd-section-header"><h3 className="cd-section-title">Notes</h3></div>
               <div className="cd-section-body">
-              <textarea className={`${fieldCls} resize-none`} rows={4} value={edited.notes ?? ''} onChange={e => set('notes', e.target.value)} />
+              <textarea className={`${fieldCls} resize-none${fieldHighlight('notes')}`} style={fieldStyle('notes')} rows={4} value={edited.notes ?? ''} onChange={e => set('notes', e.target.value)} />
               </div>
             </div>
           </>

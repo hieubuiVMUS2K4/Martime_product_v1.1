@@ -513,6 +513,7 @@ namespace ProductApi.Controllers
 
                 var query = _context.CrewMembers
                     .Include(c => c.Rank)
+                    .Include(c => c.Country)
                     .AsQueryable()
                     .Where(c => c.OriginNode == vessel.IMO);
 
@@ -536,7 +537,8 @@ namespace ProductApi.Controllers
                         RankName = c.Rank != null ? c.Rank.RankName : null,
                         RankCode = c.Rank != null ? c.Rank.RankCode : null,
                         c.Department,
-                        c.Nationality,
+                        c.CountryId,
+                        CountryName = c.Country != null ? c.Country.CountryName : null,
                         c.DateOfBirth,
                         c.JoinDate,
                         c.EmbarkDate,

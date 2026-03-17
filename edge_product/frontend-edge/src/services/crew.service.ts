@@ -13,7 +13,7 @@ export interface CrewMember {
   rankGroup?: string; // "OFFICER", "DECK", "ENGINE", "GALLEY", etc.
   isOnboard: boolean;
   department?: string;
-  nationality?: string;
+  countryName?: string;
   email?: string;
   phone?: string;
 }

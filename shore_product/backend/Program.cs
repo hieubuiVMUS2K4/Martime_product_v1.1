@@ -13,7 +13,13 @@ var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 
 // Add services
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+    {
+        opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        opts.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        opts.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -138,8 +144,8 @@ using (var scope = app.Services.CreateScope())
     {
         try
         {
-            logger.LogInformation($"Attempting database creation (Attempt {retryCount + 1}/5)...");
-            db.Database.EnsureCreated();
+            logger.LogInformation($"Attempting database migration (Attempt {retryCount + 1}/5)...");
+            db.Database.Migrate();
             await db.Database.ExecuteSqlRawAsync(@"
                 CREATE TABLE IF NOT EXISTS voyage_reviews (
                     ""Id"" uuid NOT NULL,
@@ -158,13 +164,13 @@ using (var scope = app.Services.CreateScope())
                 CREATE UNIQUE INDEX IF NOT EXISTS ""IX_voyage_reviews_VoyageId"" ON voyage_reviews (""VoyageId"");
                 CREATE INDEX IF NOT EXISTS ""IX_voyage_reviews_ReviewStatus"" ON voyage_reviews (""ReviewStatus"");
             ");
-            logger.LogInformation("Database creation/verification completed successfully.");
+            logger.LogInformation("Database migration/verification completed successfully.");
             break;
         }
         catch (Exception ex)
         {
             retryCount++;
-            logger.LogError(ex, $"Database creation attempt {retryCount} failed.");
+            logger.LogError(ex, $"Database migration attempt {retryCount} failed.");
             if (retryCount >= 5) throw;
             await Task.Delay(5000); // Wait 5 seconds before retry
         }

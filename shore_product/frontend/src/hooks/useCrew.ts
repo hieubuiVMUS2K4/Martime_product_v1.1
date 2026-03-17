@@ -3,7 +3,7 @@ import { crewApi, certificateApi, referenceApi } from '../services/crew.service'
 import { useDebounce } from './useDebounce';
 import type {
   CrewMember, CrewDetail, CrewCertificate, Rank, Country,
-  CrewFilters, ComplianceReport, PaginatedResponse,
+  CrewFilters, ComplianceReport, PaginatedResponse, VesselSimple,
 } from '../types/crew.types';
 
 // ============================================================
@@ -37,6 +37,7 @@ export function useCrewList() {
         pageSize: filters.pageSize,
         search: debouncedSearch || undefined,
         isOnboard: filters.isOnboard ?? undefined,
+        shipId: filters.vesselId ?? undefined,
       });
       setData(res.data);
       setTotalCount(res.totalCount);
@@ -47,7 +48,7 @@ export function useCrewList() {
     } finally {
       setLoading(false);
     }
-  }, [filters.page, filters.pageSize, debouncedSearch, filters.isOnboard]);
+  }, [filters.page, filters.pageSize, debouncedSearch, filters.isOnboard, filters.vesselId]);
 
   useEffect(() => { fetchCrew(); }, [fetchCrew]);
 
@@ -165,6 +166,52 @@ export function useCompliance() {
   useEffect(() => { fetch(); }, [fetch]);
 
   return { data, loading, error, refetch: fetch };
+}
+
+// ============================================================
+// useCrewStats — fleet-wide crew counts (total / onboard / pool)
+// ============================================================
+
+export function useCrewStats() {
+  const [data, setData] = useState({ total: 0, onboard: 0, pool: 0, pendingReview: 0 });
+  const [loading, setLoading] = useState(true);
+
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await crewApi.getStats();
+      setData(res);
+    } catch {
+      // non-critical, keep zeros
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  return { data, loading, refetch: fetch };
+}
+
+// ============================================================
+// useVessels — cached vessels list for assignment
+// ============================================================
+
+let cachedVessels: VesselSimple[] | null = null;
+
+export function useVessels() {
+  const [data, setData] = useState<VesselSimple[]>(cachedVessels || []);
+  const [loading, setLoading] = useState(!cachedVessels);
+
+  useEffect(() => {
+    if (cachedVessels) return;
+    crewApi.getVessels().then(res => {
+      cachedVessels = res;
+      setData(res);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  return { vessels: data, loading };
 }
 
 // ============================================================

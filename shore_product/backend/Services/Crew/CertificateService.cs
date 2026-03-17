@@ -67,11 +67,30 @@ public class CertificateService : ICertificateService
         _context.CrewCertificateTypes.Add(cert);
         await _context.SaveChangesAsync();
 
+        // Save country mappings
+        if (request.CountryIds?.Count > 0)
+        {
+            foreach (var countryId in request.CountryIds)
+                _context.CountryCertificates.Add(new CountryCertificate { CertificateId = cert.Id, CountryId = countryId, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+            await _context.SaveChangesAsync();
+        }
+
+        // Save rank mappings
+        if (request.RankIds?.Count > 0)
+        {
+            foreach (var rankId in request.RankIds)
+                _context.RankCertificates.Add(new RankCertificate { CertificateId = cert.Id, RankId = rankId, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+            await _context.SaveChangesAsync();
+        }
+
         _logger.LogInformation("Created certificate type {Code} - {Name}", cert.CertificateCode, cert.CertificateName);
 
         // Broadcast to edge nodes (master data)
         if (_syncOutbox != null)
+        {
             await _syncOutbox.BroadcastAsync("certificate", cert.Id.ToString(), SyncActionType.CREATE, cert);
+            await BroadcastCountryRankMappingsAsync(cert.Id);
+        }
 
         return MapToDto(cert);
     }
@@ -91,11 +110,78 @@ public class CertificateService : ICertificateService
 
         await _context.SaveChangesAsync();
 
+        // Track old mapping IDs for sync deletion before replacing
+        List<int> oldCountryMappingIds = new();
+        List<int> oldRankMappingIds = new();
+
+        // Update country mappings if provided (flush deletes first to avoid unique index violation)
+        if (request.CountryIds != null)
+        {
+            var oldCountries = await _context.CountryCertificates.Where(cc => cc.CertificateId == id).ToListAsync();
+            oldCountryMappingIds = oldCountries.Select(cc => cc.Id).ToList();
+            _context.CountryCertificates.RemoveRange(oldCountries);
+            await _context.SaveChangesAsync();
+            foreach (var countryId in request.CountryIds)
+                _context.CountryCertificates.Add(new CountryCertificate { CertificateId = id, CountryId = countryId, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+            await _context.SaveChangesAsync();
+        }
+
+        // Update rank mappings if provided (flush deletes first to avoid unique index violation)
+        if (request.RankIds != null)
+        {
+            var oldRanks = await _context.RankCertificates.Where(rc => rc.CertificateId == id).ToListAsync();
+            oldRankMappingIds = oldRanks.Select(rc => rc.Id).ToList();
+            _context.RankCertificates.RemoveRange(oldRanks);
+            await _context.SaveChangesAsync();
+            foreach (var rankId in request.RankIds)
+                _context.RankCertificates.Add(new RankCertificate { CertificateId = id, RankId = rankId, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+            await _context.SaveChangesAsync();
+        }
+
         // Broadcast update (master data)
         if (_syncOutbox != null)
+        {
             await _syncOutbox.BroadcastAsync("certificate", cert.Id.ToString(), SyncActionType.UPDATE, cert);
 
+            // Broadcast DELETE for old mappings so edge removes stale rows
+            foreach (var oldId in oldCountryMappingIds)
+                await _syncOutbox.BroadcastAsync("country_certificate", oldId.ToString(), SyncActionType.DELETE, new { Id = oldId });
+            foreach (var oldId in oldRankMappingIds)
+                await _syncOutbox.BroadcastAsync("rank_certificate", oldId.ToString(), SyncActionType.DELETE, new { Id = oldId });
+
+            // Broadcast CREATE for new mappings
+            await BroadcastCountryRankMappingsAsync(id);
+        }
+
         return MapToDto(cert);
+    }
+
+    /// <summary>
+    /// Broadcast all CountryCertificate and RankCertificate rows for a given certificate.
+    /// Deletes old mappings on edge by sending current state as SNAPSHOT.
+    /// </summary>
+    private async Task BroadcastCountryRankMappingsAsync(int certificateId)
+    {
+        if (_syncOutbox == null) return;
+
+        // Broadcast country mappings
+        var countryCerts = await _context.CountryCertificates
+            .AsNoTracking()
+            .Where(cc => cc.CertificateId == certificateId)
+            .ToListAsync();
+        foreach (var cc in countryCerts)
+            await _syncOutbox.BroadcastAsync("country_certificate", cc.Id.ToString(), SyncActionType.CREATE, cc);
+
+        // Broadcast rank mappings
+        var rankCerts = await _context.RankCertificates
+            .AsNoTracking()
+            .Where(rc => rc.CertificateId == certificateId)
+            .ToListAsync();
+        foreach (var rc in rankCerts)
+            await _syncOutbox.BroadcastAsync("rank_certificate", rc.Id.ToString(), SyncActionType.CREATE, rc);
+
+        _logger.LogInformation("Broadcast {CC} country + {RC} rank mappings for certificate {Id}",
+            countryCerts.Count, rankCerts.Count, certificateId);
     }
 
     public async Task<bool> DeleteCertificateTypeAsync(int id)

@@ -31,8 +31,10 @@ public class CrewMember : ISyncableEntity
     [MaxLength(100)]
     public string? Department { get; set; }
 
-    [MaxLength(50)]
-    public string? Nationality { get; set; }
+    /// <summary>
+    /// Foreign key to Countries table (replaces old Nationality string)
+    /// </summary>
+    public int? CountryId { get; set; }
 
     public DateTime? DateOfBirth { get; set; }
 
@@ -44,7 +46,7 @@ public class CrewMember : ISyncableEntity
 
     public DateTime? ContractEnd { get; set; }
 
-    public bool IsOnboard { get; set; } = true;
+    public bool IsOnboard { get; set; } = false;
 
     [MaxLength(500)]
     public string? EmergencyContact { get; set; }
@@ -141,6 +143,46 @@ public class CrewMember : ISyncableEntity
     [MaxLength(20)]
     public string? PoolStatus { get; set; } = "Available";
 
+    /// <summary>
+    /// Foreign key to Vessels table.
+    /// Set when crew is assigned to a vessel; null when on shore/pool.
+    /// </summary>
+    public Guid? VesselId { get; set; }
+
+    /// <summary>
+    /// Onboard review status for edge-side workflow: PendingReview, Approved, OnHold.
+    /// Set to "PendingReview" when assigning crew to a vessel, synced to edge.
+    /// </summary>
+    [MaxLength(20)]
+    public string? OnboardStatus { get; set; }
+
+    public DateTime? OnboardStatusChangedAt { get; set; }
+
+    [MaxLength(100)]
+    public string? OnboardStatusChangedBy { get; set; }
+
+    /// <summary>
+    /// JSON checklist of sections reviewed by edge.
+    /// e.g. {"personalInfo":true,"physicalDetails":false,...}
+    /// </summary>
+    public string? ReviewChecklist { get; set; }
+
+    /// <summary>
+    /// Message from edge to shore about missing/incomplete sections.
+    /// </summary>
+    public string? ReviewNotes { get; set; }
+
+    /// <summary>
+    /// JSON describing fields changed by edge.
+    /// e.g. [{"field":"phoneNumber","oldValue":"+84...","newValue":"+84...","changedAt":"..."}]
+    /// </summary>
+    public string? EdgeChanges { get; set; }
+
+    /// <summary>
+    /// Whether shore has viewed/acknowledged the edge changes.
+    /// </summary>
+    public bool EdgeChangesViewed { get; set; } = false;
+
     // ============================================
     // ISyncableEntity implementation
     // ============================================
@@ -158,6 +200,9 @@ public class CrewMember : ISyncableEntity
     // ============================================
     [ForeignKey("RankId")]
     public Rank? Rank { get; set; }
+
+    [ForeignKey("CountryId")]
+    public Country? Country { get; set; }
 
     [JsonIgnore]
     public List<CrewCertificate> Certificates { get; set; } = new();

@@ -1,7 +1,10 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Users, Shield, FileText, ExternalLink, ArrowDownCircle, ArrowRightCircle, Trash2, Pencil, Copy, XCircle, CheckCircle, Award, User, Search, Plus } from 'lucide-react'
+import { Users, Shield, FileText, ExternalLink, ArrowDownCircle, ArrowRightCircle, Trash2, Pencil, Copy, XCircle, CheckCircle, Award, User, Search, Plus, Download, FileSpreadsheet, Clock, UserCheck } from 'lucide-react'
+import { toast } from 'sonner'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
 import { CrewMember, CrewCertificate } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { getAuthToken } from '../../services/api.client'
@@ -25,6 +28,10 @@ export function CrewPage() {
   const [filterRank] = useState<string>('all')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showCertificateModal, setShowCertificateModal] = useState(false)
+
+  // Pending crew review state
+  const [pendingCrew, setPendingCrew] = useState<CrewMember[]>([])
+  const [pendingLoading, setPendingLoading] = useState(false)
   const [editingCertificate, setEditingCertificate] = useState<any | null>(null)
   const [certificateReloadTrigger, setCertificateReloadTrigger] = useState(0)
   
@@ -57,6 +64,13 @@ export function CrewPage() {
     }
   }, [location])
 
+  // Load pending count on initial mount for badge display
+  useEffect(() => {
+    maritimeService.crew.getPending()
+      .then(data => setPendingCrew(data))
+      .catch(() => {/* ignore */})
+  }, [])
+
   useEffect(() => {
     if (activeTab === 'certificates') {
       loadCertificatesWithCache()
@@ -67,6 +81,7 @@ export function CrewPage() {
       }
     } else {
       loadCrewData()
+      loadPendingCrew()
     }
   }, [activeTab])
 
@@ -93,6 +108,40 @@ export function CrewPage() {
       console.error('Failed to load crew data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadPendingCrew = async () => {
+    try {
+      setPendingLoading(true)
+      const data = await maritimeService.crew.getPending()
+      setPendingCrew(data)
+    } catch (error) {
+      console.error('Failed to load pending crew:', error)
+    } finally {
+      setPendingLoading(false)
+    }
+  }
+
+  const handleApproveCrew = async (id: string) => {
+    try {
+      const result = await maritimeService.crew.approve(id)
+      toast.success(result.message)
+      await loadPendingCrew()
+      // Invalidate onboard cache since crew moved to onboard
+      setCrewOnboardCache(null)
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to approve crew')
+    }
+  }
+
+  const handleRejectCrew = async (id: string, reason?: string) => {
+    try {
+      const result = await maritimeService.crew.reject(id, reason)
+      toast.success(result.message)
+      await loadPendingCrew()
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to reject crew')
     }
   }
 
@@ -299,7 +348,7 @@ export function CrewPage() {
                 active={activeTab === 'onboard'}
                 onClick={() => setActiveTab('onboard')}
                 icon={<Users className="w-5 h-5" />}
-                label="Crew Members"
+                label={`Crew Members${pendingCrew.length > 0 ? ` (${pendingCrew.length} pending)` : ''}`}
               />
               <TabButton
                 active={activeTab === 'certificates'}
@@ -329,7 +378,7 @@ export function CrewPage() {
 
         {/* Content */}
         <div>
-          {loading ? (
+          {(loading) ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
               <p className="text-gray-600 mt-4">Loading crew data...</p>
@@ -347,6 +396,7 @@ export function CrewPage() {
                   onAddCertificate={() => setShowCertificateModal(true)}
                   onEditCertificate={handleEditCertificate}
                   selectedCountry={selectedCountry}
+                  countries={countries}
                   reloadTrigger={certificateReloadTrigger}
                   onCertificateAdded={() => {
                     setCertificateReloadTrigger(prev => prev + 1)
@@ -362,6 +412,11 @@ export function CrewPage() {
                   setSortType={setSortType}
                   sortMenu={sortMenu}
                   setSortMenu={setSortMenu}
+                  pendingCrew={pendingCrew}
+                  pendingLoading={pendingLoading}
+                  onApproveCrew={handleApproveCrew}
+                  onRejectCrew={handleRejectCrew}
+                  onPendingChanged={() => { loadPendingCrew(); setCrewOnboardCache(null); loadCrewData() }}
                 />
               )}
             </>
@@ -396,7 +451,12 @@ function SectionedCrewView({
   sortType,
   setSortType,
   sortMenu,
-  setSortMenu
+  setSortMenu,
+  pendingCrew,
+  pendingLoading,
+  onApproveCrew,
+  onRejectCrew,
+  onPendingChanged
 }: { 
   crewMembers: CrewMember[]; 
   onViewCrew: (id: string) => void;
@@ -405,6 +465,11 @@ function SectionedCrewView({
   setSortType?: (sortType: { col: string; dir: 'asc'|'desc' } | null) => void;
   sortMenu?: string | null;
   setSortMenu?: (sortMenu: string | null) => void;
+  pendingCrew: CrewMember[];
+  pendingLoading: boolean;
+  onApproveCrew: (id: string) => Promise<void>;
+  onRejectCrew: (id: string, reason?: string) => Promise<void>;
+  onPendingChanged: () => void;
 }) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; crew: CrewMember } | null>(null)
   const [selectedCrew, setSelectedCrew] = useState<string | null>(null)
@@ -413,6 +478,297 @@ function SectionedCrewView({
   // Pagination state
   const [onboardPage, setOnboardPage] = useState(1)
   const ITEMS_PER_PAGE = 15
+
+  // Helper: get sorted onboard crew by crewId
+  const getSortedOnboardCrew = () => {
+    return crewMembers
+      .filter(c => c.isOnboard)
+      .sort((a, b) => a.crewId.localeCompare(b.crewId))
+  }
+
+  // Export crew list to Excel (ExcelJS with full formatting)
+  const exportCrewListToExcel = async () => {
+    try {
+      const ExcelJS = await import('exceljs')
+      const wb = new ExcelJS.Workbook()
+      wb.creator = 'Maritime Edge System'
+      wb.created = new Date()
+
+      const ws = wb.addWorksheet('Crew List', {
+        pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+      })
+
+      const onboard = getSortedOnboardCrew()
+      const exportDate = format(new Date(), 'dd/MM/yyyy HH:mm')
+
+      // --- Title row ---
+      ws.mergeCells('A1:N1')
+      const titleCell = ws.getCell('A1')
+      titleCell.value = 'CREW LIST REPORT'
+      titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FF1A3C6E' } }
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
+      ws.getRow(1).height = 30
+
+      // --- Subtitle row ---
+      ws.mergeCells('A2:N2')
+      const subCell = ws.getCell('A2')
+      subCell.value = `Generated: ${exportDate}  |  Total Crew Onboard: ${onboard.length}`
+      subCell.font = { name: 'Arial', size: 10, italic: true, color: { argb: 'FF666666' } }
+      subCell.alignment = { horizontal: 'center', vertical: 'middle' }
+      ws.getRow(2).height = 20
+
+      // --- Empty separator row ---
+      ws.getRow(3).height = 8
+
+      // --- Header row (row 4) ---
+      const headers = [
+        'No.', 'Crew ID', 'Full Name', 'Rank', 'Nationality',
+        'Date of Birth', 'Embark Date', 'Contract End',
+        'Passport No.', 'Passport Expiry', 'Seaman Book No.',
+        'Phone', 'Emergency Contact', 'Status'
+      ]
+      const headerRow = ws.getRow(4)
+      headerRow.height = 22
+      headers.forEach((h, i) => {
+        const cell = headerRow.getCell(i + 1)
+        cell.value = h
+        cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FFFFFFFF' } }
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A3C6E' } }
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF1A3C6E' } },
+          bottom: { style: 'thin', color: { argb: 'FF1A3C6E' } },
+          left: { style: 'thin', color: { argb: 'FF1A3C6E' } },
+          right: { style: 'thin', color: { argb: 'FF1A3C6E' } }
+        }
+      })
+
+      // --- Data rows ---
+      const thinBorder = {
+        top: { style: 'thin' as const, color: { argb: 'FFD0D0D0' } },
+        bottom: { style: 'thin' as const, color: { argb: 'FFD0D0D0' } },
+        left: { style: 'thin' as const, color: { argb: 'FFD0D0D0' } },
+        right: { style: 'thin' as const, color: { argb: 'FFD0D0D0' } }
+      }
+      const evenFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFF5F8FC' } }
+      const oddFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFFFFFFF' } }
+
+      onboard.forEach((crew, idx) => {
+        const rowNum = 5 + idx
+        const row = ws.getRow(rowNum)
+        row.height = 18
+        const isEven = idx % 2 === 0
+        const values = [
+          idx + 1,
+          crew.crewId || '',
+          crew.fullName || '',
+          crew.rank?.rankName || '',
+          crew.countryName || '',
+          crew.dateOfBirth ? format(parseISO(crew.dateOfBirth), 'dd/MM/yyyy') : '',
+          crew.embarkDate ? format(parseISO(crew.embarkDate), 'dd/MM/yyyy') : '',
+          crew.contractEnd ? format(parseISO(crew.contractEnd), 'dd/MM/yyyy') : '',
+          crew.passportNumber || '',
+          crew.passportExpiry ? format(parseISO(crew.passportExpiry), 'dd/MM/yyyy') : '',
+          crew.seamanBookNumber || '',
+          crew.phoneNumber || '',
+          crew.emergencyContact || '',
+          crew.isOnboard ? 'Onboard' : 'Ashore'
+        ]
+        values.forEach((v, i) => {
+          const cell = row.getCell(i + 1)
+          cell.value = v
+          cell.font = { name: 'Arial', size: 9, color: { argb: 'FF333333' } }
+          cell.border = thinBorder
+          cell.fill = isEven ? evenFill : oddFill
+          // Center for No., dates, status
+          if (i === 0 || i === 5 || i === 6 || i === 7 || i === 9 || i === 13) {
+            cell.alignment = { horizontal: 'center', vertical: 'middle' }
+          } else {
+            cell.alignment = { vertical: 'middle' }
+          }
+        })
+        // Status styling
+        const statusCell = row.getCell(14)
+        if (crew.isOnboard) {
+          statusCell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF16A34A' } }
+        }
+      })
+
+      // --- Footer summary row ---
+      const footerRow = 5 + onboard.length + 1
+      ws.mergeCells(`A${footerRow}:N${footerRow}`)
+      const footerCell = ws.getCell(`A${footerRow}`)
+      footerCell.value = `Total: ${onboard.length} crew members onboard`
+      footerCell.font = { name: 'Arial', size: 10, bold: true, italic: true, color: { argb: 'FF1A3C6E' } }
+      footerCell.alignment = { horizontal: 'right', vertical: 'middle' }
+      ws.getRow(footerRow).height = 20
+
+      // --- Column widths ---
+      const colWidths = [6, 14, 28, 22, 16, 14, 14, 14, 20, 16, 20, 16, 22, 12]
+      colWidths.forEach((w, i) => { ws.getColumn(i + 1).width = w })
+
+      // --- Auto-filter on header ---
+      ws.autoFilter = { from: 'A4', to: `N${4 + onboard.length}` }
+
+      // Export
+      const buffer = await wb.xlsx.writeBuffer()
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `Crew_List_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`
+      link.click()
+      URL.revokeObjectURL(url)
+
+      toast.success('Crew list exported to Excel!')
+    } catch (error) {
+      console.error('Failed to export crew list:', error)
+      toast.error('Failed to export crew list')
+    }
+  }
+
+  // Export crew list to PDF (jsPDF + autoTable, professional report layout)
+  const exportCrewListToPDF = () => {
+    try {
+      const onboard = getSortedOnboardCrew()
+      const doc = new jsPDF('landscape', 'mm', 'a4') as any
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const ml = 10
+      const mr = 10
+      const tw = pageWidth - ml - mr
+      const exportDate = format(new Date(), 'dd/MM/yyyy HH:mm')
+
+      // ===== HEADER BAND =====
+      doc.setFillColor(26, 60, 110) // Navy blue
+      doc.rect(0, 0, pageWidth, 22, 'F')
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(18)
+      doc.setTextColor(255, 255, 255)
+      doc.text('CREW LIST REPORT', pageWidth / 2, 10, { align: 'center' })
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(200, 215, 240)
+      doc.text(`Generated: ${exportDate}`, pageWidth / 2, 17, { align: 'center' })
+
+      // ===== SUMMARY BAR =====
+      doc.setFillColor(240, 245, 250)
+      doc.rect(ml, 26, tw, 10, 'F')
+      doc.setDrawColor(26, 60, 110)
+      doc.setLineWidth(0.3)
+      doc.line(ml, 26, ml + tw, 26)
+      doc.line(ml, 36, ml + tw, 36)
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(26, 60, 110)
+      doc.text(`Total Crew Onboard: ${onboard.length}`, ml + 5, 32.5)
+
+      // Count nationalities
+      const natMap = new Map<string, number>()
+      onboard.forEach(c => {
+        const nat = c.countryName || 'Unknown'
+        natMap.set(nat, (natMap.get(nat) || 0) + 1)
+      })
+      const natSummary = Array.from(natMap.entries()).map(([n, c]) => `${n}: ${c}`).join('  |  ')
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(80, 80, 80)
+      doc.text(`Nationality: ${natSummary}`, pageWidth - mr - 5, 32.5, { align: 'right' })
+
+      // ===== TABLE =====
+      const tableHeaders = [
+        'No.', 'Crew ID', 'Full Name', 'Rank', 'Nationality',
+        'Date of Birth', 'Embark Date', 'Contract End',
+        'Passport No.', 'Passport Expiry', 'Seaman Book No.', 'Status'
+      ]
+
+      const tableBody = onboard.map((crew, idx) => [
+        String(idx + 1),
+        crew.crewId || '',
+        crew.fullName || '',
+        crew.rank?.rankName || '',
+        crew.countryName || '',
+        crew.dateOfBirth ? format(parseISO(crew.dateOfBirth), 'dd/MM/yyyy') : '',
+        crew.embarkDate ? format(parseISO(crew.embarkDate), 'dd/MM/yyyy') : '',
+        crew.contractEnd ? format(parseISO(crew.contractEnd), 'dd/MM/yyyy') : '',
+        crew.passportNumber || '',
+        crew.passportExpiry ? format(parseISO(crew.passportExpiry), 'dd/MM/yyyy') : '',
+        crew.seamanBookNumber || '',
+        crew.isOnboard ? 'Onboard' : 'Ashore'
+      ])
+
+      doc.autoTable({
+        startY: 40,
+        head: [tableHeaders],
+        body: tableBody,
+        theme: 'grid',
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+          lineWidth: 0.2,
+          lineColor: [200, 200, 200],
+          textColor: [40, 40, 40],
+          valign: 'middle'
+        },
+        headStyles: {
+          fillColor: [26, 60, 110],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 7.5,
+          cellPadding: 2.5,
+          halign: 'center',
+          lineWidth: 0.2,
+          lineColor: [26, 60, 110]
+        },
+        alternateRowStyles: {
+          fillColor: [245, 248, 252]
+        },
+        columnStyles: {
+          0: { cellWidth: tw * 0.03, halign: 'center' },     // No.
+          1: { cellWidth: tw * 0.07, halign: 'center' },     // Crew ID
+          2: { cellWidth: tw * 0.14 },                        // Full Name
+          3: { cellWidth: tw * 0.10 },                        // Rank
+          4: { cellWidth: tw * 0.08 },                        // Nationality
+          5: { cellWidth: tw * 0.08, halign: 'center' },     // DOB
+          6: { cellWidth: tw * 0.08, halign: 'center' },     // Embark
+          7: { cellWidth: tw * 0.08, halign: 'center' },     // Contract End
+          8: { cellWidth: tw * 0.11 },                        // Passport No.
+          9: { cellWidth: tw * 0.08, halign: 'center' },     // Passport Expiry
+          10: { cellWidth: tw * 0.10 },                       // Seaman Book
+          11: { cellWidth: tw * 0.05, halign: 'center' },    // Status
+        },
+        margin: { left: ml, right: mr },
+        didParseCell: (data: any) => {
+          // Green bold for "Onboard" status
+          if (data.section === 'body' && data.column.index === 11) {
+            if (data.cell.raw === 'Onboard') {
+              data.cell.styles.textColor = [22, 163, 74]
+              data.cell.styles.fontStyle = 'bold'
+            }
+          }
+        },
+        didDrawPage: (data: any) => {
+          // Footer on every page
+          doc.setFillColor(26, 60, 110)
+          doc.rect(0, pageHeight - 10, pageWidth, 10, 'F')
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(7)
+          doc.setTextColor(200, 215, 240)
+          doc.text('Maritime Edge System — Crew List Report', ml, pageHeight - 4)
+          doc.text(`Page ${data.pageNumber}`, pageWidth - mr, pageHeight - 4, { align: 'right' })
+        }
+      })
+
+      doc.save(`Crew_List_${format(new Date(), 'yyyyMMdd_HHmmss')}.pdf`)
+      toast.success('Crew list exported to PDF!')
+    } catch (error) {
+      console.error('Failed to export crew list to PDF:', error)
+      toast.error('Failed to export crew list to PDF')
+    }
+  }
 
   // Get only onboard crew
   let crewOnBoard = crewMembers.filter(c => c.isOnboard)
@@ -446,8 +802,8 @@ function SectionedCrewView({
         break
       case 'nationality':
         sorted.sort((a, b) => {
-          const aNat = a.nationality || ''
-          const bNat = b.nationality || ''
+          const aNat = a.countryName || ''
+          const bNat = b.countryName || ''
           return sortType.dir === 'asc' ? aNat.localeCompare(bNat) : bNat.localeCompare(aNat)
         })
         break
@@ -532,16 +888,40 @@ function SectionedCrewView({
       <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-700 uppercase">CREW ON BOARD ({crewOnBoard.length})</h3>
         <div className="flex items-center gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onAddCrew()
-            }}
-            className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
-            title="Add crew member"
-          >
-            +
-          </button>
+          {isOnboardExpanded && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  exportCrewListToExcel()
+                }}
+                className="w-6 h-6 rounded bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center transition-colors"
+                title="Export crew list to Excel"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  exportCrewListToPDF()
+                }}
+                className="w-6 h-6 rounded bg-red-600 hover:bg-red-700 text-white flex items-center justify-center transition-colors"
+                title="Export crew list to PDF"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAddCrew()
+                }}
+                className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
+                title="Add crew member"
+              >
+                +
+              </button>
+            </>
+          )}
           <button
             onClick={() => setIsOnboardExpanded(!isOnboardExpanded)}
             className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
@@ -632,7 +1012,7 @@ function SectionedCrewView({
                   <div className="truncate">{crew.rank?.rankName || '-'}</div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                    <div className="truncate">{crew.nationality || 'N/A'}</div>
+                    <div className="truncate">{crew.countryName || 'N/A'}</div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '15%'}}>
                     <div className="truncate">
@@ -694,6 +1074,15 @@ function SectionedCrewView({
     <div className="relative">
       {/* Collapsible Crew On Board Section */}
       {renderCollapsibleCrewSection()}
+
+      {/* Pending Crew Review Section - inline below onboard */}
+      <InlinePendingReviewSection
+        pendingCrew={pendingCrew}
+        pendingLoading={pendingLoading}
+        onApprove={async (id) => { await onApproveCrew(id); onPendingChanged() }}
+        onReject={async (id, reason) => { await onRejectCrew(id, reason); onPendingChanged() }}
+        onViewCrew={onViewCrew}
+      />
 
       {/* Context Menu */}
       {contextMenu && (
@@ -762,6 +1151,7 @@ function CertificateMonitorView({
   onAddCertificate,
   onEditCertificate,
   selectedCountry,
+  countries,
   reloadTrigger,
   onCertificateAdded
 }: { 
@@ -774,6 +1164,7 @@ function CertificateMonitorView({
   onAddCertificate: () => void;
   onEditCertificate: (certificate: any) => void;
   selectedCountry: string;
+  countries: any[];
   reloadTrigger: number;
   onCertificateAdded: () => void;
 }) {
@@ -1464,21 +1855,452 @@ function CertificateMonitorView({
     }
   }
 
+  // === Rank priority for sorting (highest rank first) ===
+  const RANK_PRIORITY: Record<string, number> = {
+    'MAST': 1, 'CAPT': 1, 'MASTER': 1,
+    'C/O': 2, 'CO': 2,
+    '2/O': 3, '2O': 3,
+    '3/O': 4, '3O': 4,
+    'C/E': 5, 'CE': 5,
+    '2/E': 6, '2E': 6,
+    '3/E': 7, '3E': 7,
+    '4/E': 8, '4E': 8,
+    'BOSN': 9, 'BSN': 9,
+    'AB': 10,
+    'OS': 11, 'O/S': 11,
+    'DB': 12, 'D/B': 12,
+    'OILR': 13, '#1OLR': 13, 'OLR': 14,
+    'WPR': 15, 'WIPER': 15,
+    'COOK': 16, 'C/C': 16, 'CC': 16,
+    '2/C': 17, '2C': 17,
+    'M/M': 18, 'MM': 18, 'MESSMAN': 18,
+  }
+  const getRankOrder = (rankCode?: string) => {
+    if (!rankCode) return 999
+    const code = rankCode.toUpperCase()
+    return RANK_PRIORITY[code] ?? 500
+  }
+
+  // Get selected country name
+  const getSelectedCountryName = () => {
+    if (selectedCountry === 'all') return 'All Countries'
+    const c = countries.find((ct: any) => ct.id?.toString() === selectedCountry)
+    return c?.countryName || selectedCountry
+  }
+
+  // === Export Crew Roll to Excel ===
+  const exportCrewRollToExcel = async () => {
+    try {
+      const ExcelJS = await import('exceljs')
+      const wb = new ExcelJS.Workbook()
+      wb.creator = 'Maritime Edge System'
+      wb.created = new Date()
+
+      const countryName = getSelectedCountryName()
+      const certs = certificateStats // already filtered by country
+      const exportDate = format(new Date(), 'yyyy/MM/dd')
+
+      // Get onboard crew sorted by rank priority
+      const onboardCrew = crewMembers
+        .filter(c => c.isOnboard)
+        .sort((a, b) => getRankOrder(a.rank?.rankCode) - getRankOrder(b.rank?.rankCode))
+
+      // Fixed columns: No, Rank, Name, Nationality = 4 cols
+      // Then each cert type = 2 cols (Cert.No, Expire)
+      const fixedCols = 4
+      const totalCols = fixedCols + certs.length * 2
+
+      const ws = wb.addWorksheet('Crew Roll', {
+        pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+      })
+
+      const thinBorder = {
+        top: { style: 'thin' as const }, bottom: { style: 'thin' as const },
+        left: { style: 'thin' as const }, right: { style: 'thin' as const }
+      }
+      const headerFont = { name: 'Times New Roman', size: 10, bold: true }
+      const dataFont = { name: 'Times New Roman', size: 10 }
+      const centerAlign = { horizontal: 'center' as const, vertical: 'middle' as const }
+      const leftAlign = { horizontal: 'left' as const, vertical: 'middle' as const }
+
+      // ===== ROW 1: Title row =====
+      let R = 1
+      ws.mergeCells(R, 1, R, fixedCols)
+      const titleCell = ws.getCell(R, 1)
+      titleCell.value = 'Crew Roll for Certificate'
+      titleCell.font = { name: 'Times New Roman', size: 14, bold: true }
+      titleCell.alignment = leftAlign
+
+      // "Form 1" on the right
+      if (totalCols > fixedCols + 2) {
+        ws.mergeCells(R, totalCols - 1, R, totalCols)
+        const formCell = ws.getCell(R, totalCols - 1)
+        formCell.value = '"Form 1"'
+        formCell.font = headerFont
+        formCell.alignment = { horizontal: 'right', vertical: 'middle' }
+      }
+      ws.getRow(R).height = 24
+
+      // ===== ROW 2: Vessel / Registry / Date =====
+      R++
+      // Name of vessel
+      ws.mergeCells(R, 1, R, 2)
+      ws.getCell(R, 1).value = 'Name of vessel :'
+      ws.getCell(R, 1).font = dataFont
+      ws.getCell(R, 1).alignment = leftAlign
+
+      // Registry label + country name
+      const regLabelCol = Math.max(fixedCols, Math.floor(totalCols * 0.35))
+      ws.getCell(R, regLabelCol).value = 'Registry :'
+      ws.getCell(R, regLabelCol).font = dataFont
+      ws.getCell(R, regLabelCol).alignment = { horizontal: 'right', vertical: 'middle' }
+      ws.getCell(R, regLabelCol + 1).value = countryName.toUpperCase()
+      ws.getCell(R, regLabelCol + 1).font = { name: 'Times New Roman', size: 12, bold: true }
+      ws.getCell(R, regLabelCol + 1).alignment = centerAlign
+
+      // Date on the right
+      ws.getCell(R, totalCols - 1).value = 'Date :'
+      ws.getCell(R, totalCols - 1).font = dataFont
+      ws.getCell(R, totalCols - 1).alignment = { horizontal: 'right', vertical: 'middle' }
+      ws.getCell(R, totalCols).value = exportDate
+      ws.getCell(R, totalCols).font = { name: 'Times New Roman', size: 10, bold: true }
+      ws.getCell(R, totalCols).alignment = centerAlign
+      ws.getRow(R).height = 22
+
+      // ===== ROW 3: Column group numbers =====
+      R++
+      const fixedLabels = ['1-1', '1-2', '1-3', '1-4']
+      fixedLabels.forEach((label, i) => {
+        ws.getCell(R, i + 1).value = label
+        ws.getCell(R, i + 1).font = headerFont
+        ws.getCell(R, i + 1).alignment = centerAlign
+        ws.getCell(R, i + 1).border = thinBorder
+      })
+      certs.forEach((_: any, idx: number) => {
+        const startCol = fixedCols + 1 + idx * 2
+        ws.mergeCells(R, startCol, R, startCol + 1)
+        ws.getCell(R, startCol).value = `1-${idx + 5}`
+        ws.getCell(R, startCol).font = headerFont
+        ws.getCell(R, startCol).alignment = centerAlign
+        ws.getCell(R, startCol).border = thinBorder
+        ws.getCell(R, startCol + 1).border = thinBorder
+      })
+      ws.getRow(R).height = 18
+
+      // ===== ROW 4: Column headers + certificate type names (merged vertically 2 rows) =====
+      R++
+      ws.getCell(R, 1).value = 'No.'
+      ws.getCell(R, 1).font = headerFont
+      ws.getCell(R, 1).alignment = centerAlign
+      ws.getCell(R, 1).border = thinBorder
+      ws.mergeCells(R, 1, R + 1, 1)
+
+      ws.getCell(R, 2).value = 'RANK'
+      ws.getCell(R, 2).font = headerFont
+      ws.getCell(R, 2).alignment = centerAlign
+      ws.getCell(R, 2).border = thinBorder
+      ws.mergeCells(R, 2, R + 1, 2)
+
+      ws.getCell(R, 3).value = 'FULL NAME'
+      ws.getCell(R, 3).font = headerFont
+      ws.getCell(R, 3).alignment = centerAlign
+      ws.getCell(R, 3).border = thinBorder
+      ws.mergeCells(R, 3, R + 1, 3)
+
+      ws.getCell(R, 4).value = 'NATIONALITY'
+      ws.getCell(R, 4).font = headerFont
+      ws.getCell(R, 4).alignment = centerAlign
+      ws.getCell(R, 4).border = thinBorder
+      ws.mergeCells(R, 4, R + 1, 4)
+
+      // Certificate type names (merged across 2 rows, spanning 2 cols each)
+      certs.forEach((cert: any, idx: number) => {
+        const startCol = fixedCols + 1 + idx * 2
+        ws.mergeCells(R, startCol, R, startCol + 1)
+        const cell = ws.getCell(R, startCol)
+        cell.value = cert.certificateName || cert.certificateCode || `Cert ${idx + 1}`
+        cell.font = { name: 'Times New Roman', size: 9, bold: true }
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+        cell.border = thinBorder
+        ws.getCell(R, startCol + 1).border = thinBorder
+      })
+      ws.getRow(R).height = 28
+
+      // ===== ROW 5: Cert.No / Expire sub-headers =====
+      R++
+      // Fixed cols already merged from above
+      ws.getCell(R, 1).border = thinBorder
+      ws.getCell(R, 2).border = thinBorder
+      ws.getCell(R, 3).border = thinBorder
+      ws.getCell(R, 4).border = thinBorder
+
+      certs.forEach((_cert: any, idx: number) => {
+        const startCol = fixedCols + 1 + idx * 2
+        ws.getCell(R, startCol).value = 'Cert. No.'
+        ws.getCell(R, startCol).font = { name: 'Times New Roman', size: 8, bold: true }
+        ws.getCell(R, startCol).alignment = centerAlign
+        ws.getCell(R, startCol).border = thinBorder
+
+        ws.getCell(R, startCol + 1).value = 'Expire'
+        ws.getCell(R, startCol + 1).font = { name: 'Times New Roman', size: 8, bold: true }
+        ws.getCell(R, startCol + 1).alignment = centerAlign
+        ws.getCell(R, startCol + 1).border = thinBorder
+      })
+      ws.getRow(R).height = 18
+
+      // Fill header background
+      const headerFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFE8E8E8' } }
+      for (let hr = 3; hr <= R; hr++) {
+        for (let hc = 1; hc <= totalCols; hc++) {
+          const cell = ws.getCell(hr, hc)
+          if (!cell.fill || !(cell.fill as any).fgColor) {
+            cell.fill = headerFill
+          }
+        }
+      }
+
+      // Track max content width per column for autofit
+      const colMaxLen: number[] = new Array(totalCols + 1).fill(0)
+      // Seed with header label lengths
+      colMaxLen[1] = 4   // "No."
+      colMaxLen[2] = 6   // "RANK"
+      colMaxLen[3] = 10  // "FULL NAME"
+      colMaxLen[4] = 13  // "NATIONALITY"
+      // Cert header names
+      certs.forEach((cert: any, idx: number) => {
+        const sc = fixedCols + 1 + idx * 2
+        const certNameLen = (cert.certificateName || cert.certificateCode || '').length
+        colMaxLen[sc]     = Math.max(colMaxLen[sc]     || 0, Math.ceil(certNameLen / 2), 10) // split across 2 cols
+        colMaxLen[sc + 1] = Math.max(colMaxLen[sc + 1] || 0, Math.ceil(certNameLen / 2), 10)
+      })
+
+      // ===== DATA ROWS =====
+      onboardCrew.forEach((crew, idx) => {
+        R++
+        const crewCerts = getCrewCertificates(crew.id)
+
+        // No
+        ws.getCell(R, 1).value = idx + 1
+        ws.getCell(R, 1).font = dataFont
+        ws.getCell(R, 1).alignment = centerAlign
+        ws.getCell(R, 1).border = thinBorder
+
+        // Rank
+        ws.getCell(R, 2).value = crew.rank?.rankCode || ''
+        ws.getCell(R, 2).font = dataFont
+        ws.getCell(R, 2).alignment = centerAlign
+        ws.getCell(R, 2).border = thinBorder
+
+        // Full Name
+        ws.getCell(R, 3).value = crew.fullName || ''
+        ws.getCell(R, 3).font = dataFont
+        ws.getCell(R, 3).alignment = leftAlign
+        ws.getCell(R, 3).border = thinBorder
+
+        // Nationality
+        ws.getCell(R, 4).value = crew.countryName || ''
+        ws.getCell(R, 4).font = dataFont
+        ws.getCell(R, 4).alignment = centerAlign
+        ws.getCell(R, 4).border = thinBorder
+
+        // Certificate data
+        certs.forEach((certType: any, cIdx: number) => {
+          const startCol = fixedCols + 1 + cIdx * 2
+          const crewCert = crewCerts.find((cc: CrewCertificate) => cc.certificateId === certType.id)
+
+          ws.getCell(R, startCol).value = crewCert?.certificateNumber || ''
+          ws.getCell(R, startCol).font = dataFont
+          ws.getCell(R, startCol).alignment = centerAlign
+          ws.getCell(R, startCol).border = thinBorder
+
+          const expiryVal = crewCert?.expiryDate
+            ? format(parseISO(crewCert.expiryDate), 'yyyy/MM/dd')
+            : ''
+          ws.getCell(R, startCol + 1).value = expiryVal
+          ws.getCell(R, startCol + 1).font = dataFont
+          ws.getCell(R, startCol + 1).alignment = centerAlign
+          ws.getCell(R, startCol + 1).border = thinBorder
+
+          // Highlight expired in red
+          if (crewCert?.expiryDate && new Date(crewCert.expiryDate) < new Date()) {
+            ws.getCell(R, startCol).font = { ...dataFont, color: { argb: 'FFFF0000' } }
+            ws.getCell(R, startCol + 1).font = { ...dataFont, color: { argb: 'FFFF0000' } }
+          }
+        })
+
+        ws.getRow(R).height = 20
+
+        // Track content widths for autofit
+        colMaxLen[2] = Math.max(colMaxLen[2] || 0, (crew.rank?.rankCode || '').length)
+        colMaxLen[3] = Math.max(colMaxLen[3] || 0, (crew.fullName || '').length)
+        colMaxLen[4] = Math.max(colMaxLen[4] || 0, (crew.countryName || '').length)
+        certs.forEach((certType: any, cIdx: number) => {
+          const sc = fixedCols + 1 + cIdx * 2
+          const cc = crewCerts.find((c: CrewCertificate) => c.certificateId === certType.id)
+          colMaxLen[sc] = Math.max(colMaxLen[sc] || 0, (cc?.certificateNumber || '').length)
+          colMaxLen[sc + 1] = Math.max(colMaxLen[sc + 1] || 0, 10) // date length
+        })
+      })
+
+      // Autofit columns based on content
+      ws.getColumn(1).width = 5 // No
+      for (let c = 2; c <= totalCols; c++) {
+        const contentW = (colMaxLen[c] || 8) * 1.2 + 2
+        ws.getColumn(c).width = Math.max(contentW, c <= fixedCols ? 10 : 14)
+      }
+
+      // Set minimum row height for all rows
+      for (let r = 1; r <= R; r++) {
+        const row = ws.getRow(r)
+        if (!row.height || row.height < 18) row.height = 18
+      }
+
+      // Export file
+      const buf = await wb.xlsx.writeBuffer()
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Crew_Roll_Certificate_${countryName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.xlsx`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('Excel exported successfully!')
+    } catch (error) {
+      console.error('Failed to export Excel:', error)
+      toast.error('Failed to export Excel')
+    }
+  }
+
+  // === Export Crew Roll to PDF ===
+  const exportCrewRollToPDF = () => {
+    try {
+      const countryName = getSelectedCountryName()
+      const certs = certificateStats
+      const exportDate = format(new Date(), 'yyyy/MM/dd')
+
+      const onboardCrew = crewMembers
+        .filter(c => c.isOnboard)
+        .sort((a, b) => getRankOrder(a.rank?.rankCode) - getRankOrder(b.rank?.rankCode))
+
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const pageW = doc.internal.pageSize.getWidth()
+
+      // Title
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(14)
+      doc.text('Crew Roll for Certificate', 14, 15)
+
+      doc.setFontSize(9)
+      doc.text(`Registry: ${countryName.toUpperCase()}`, 14, 22)
+      doc.text(`Date: ${exportDate}`, pageW - 14, 22, { align: 'right' })
+
+      // Build columns: No, Rank, Name, Nationality, [Cert.No, Expire] x N
+      const head: any[][] = [[], []]
+      // First header row
+      head[0].push({ content: 'No', rowSpan: 2, styles: { halign: 'center', valign: 'middle', fontSize: 7, fontStyle: 'bold' } })
+      head[0].push({ content: 'Rank', rowSpan: 2, styles: { halign: 'center', valign: 'middle', fontSize: 7, fontStyle: 'bold' } })
+      head[0].push({ content: 'Full Name', rowSpan: 2, styles: { halign: 'center', valign: 'middle', fontSize: 7, fontStyle: 'bold' } })
+      head[0].push({ content: 'Nationality', rowSpan: 2, styles: { halign: 'center', valign: 'middle', fontSize: 7, fontStyle: 'bold' } })
+
+      certs.forEach((cert: any) => {
+        head[0].push({
+          content: cert.certificateName || cert.certificateCode || 'Cert',
+          colSpan: 2,
+          styles: { halign: 'center', valign: 'middle', fontSize: 6, fontStyle: 'bold' }
+        })
+      })
+
+      // Second header row (sub-headers for certs)
+      certs.forEach(() => {
+        head[1].push({ content: 'Cert.No', styles: { halign: 'center', fontSize: 6, fontStyle: 'bold' } })
+        head[1].push({ content: 'Expire', styles: { halign: 'center', fontSize: 6, fontStyle: 'bold' } })
+      })
+
+      // Body
+      const body: any[][] = onboardCrew.map((crew, idx) => {
+        const crewCerts = getCrewCertificates(crew.id)
+        const row: any[] = [
+          idx + 1,
+          crew.rank?.rankCode || '',
+          crew.fullName || '',
+          crew.countryName || '',
+        ]
+        certs.forEach((certType: any) => {
+          const cc = crewCerts.find((c: CrewCertificate) => c.certificateId === certType.id)
+          row.push(cc?.certificateNumber || '')
+          row.push(cc?.expiryDate ? format(parseISO(cc.expiryDate), 'yyyy/MM/dd') : '')
+        })
+        return row
+      })
+
+      // Column widths
+      const fixedW = [8, 12, 35, 18]
+      const remaining = pageW - 28 - fixedW.reduce((s, w) => s + w, 0) // 14mm margin each side
+      const certColW = certs.length > 0 ? remaining / (certs.length * 2) : 10
+      const colStyles: Record<number, any> = {}
+      fixedW.forEach((w, i) => { colStyles[i] = { cellWidth: w } })
+      for (let i = 0; i < certs.length * 2; i++) {
+        colStyles[fixedW.length + i] = { cellWidth: certColW }
+      }
+
+      ;(doc as any).autoTable({
+        startY: 26,
+        head,
+        body,
+        theme: 'grid',
+        styles: {
+          font: 'helvetica',
+          fontSize: 7,
+          cellPadding: 1.5,
+          lineWidth: 0.2,
+          lineColor: [0, 0, 0],
+          valign: 'middle',
+        },
+        headStyles: {
+          fillColor: [220, 220, 220],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+        },
+        columnStyles: colStyles,
+        didParseCell: (data: any) => {
+          // Highlight expired dates in red
+          if (data.section === 'body' && data.column.index >= fixedW.length) {
+            const colOffset = data.column.index - fixedW.length
+            if (colOffset % 2 === 1) { // expire column
+              const val = data.cell.raw
+              if (val && new Date(val.replace(/\//g, '-')) < new Date()) {
+                data.cell.styles.textColor = [255, 0, 0]
+              }
+            }
+          }
+        }
+      })
+
+      doc.save(`Crew_Roll_Certificate_${countryName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`)
+      toast.success('PDF exported successfully!')
+    } catch (error) {
+      console.error('Failed to export PDF:', error)
+      toast.error('Failed to export PDF')
+    }
+  }
+
   return (
     <div className="space-y-4">
     {/* Crew Certificates Section */}
     <div className="border border-gray-200 rounded-lg overflow-hidden">
       <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-700 uppercase">CREW CERTIFICATES ({crewWithCertStats.length})</h3>
-        <button
-          onClick={() => setIsCrewCertsExpanded(!isCrewCertsExpanded)}
-          className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
-          title={isCrewCertsExpanded ? "Collapse section" : "Expand section"}
-        >
-          <span className="text-white text-xs transition-transform" style={{ transform: isCrewCertsExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
-            ▼
-          </span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsCrewCertsExpanded(!isCrewCertsExpanded)}
+            className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
+            title={isCrewCertsExpanded ? "Collapse section" : "Expand section"}
+          >
+            <span className="text-white text-xs transition-transform" style={{ transform: isCrewCertsExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
+              ▼
+            </span>
+          </button>
+        </div>
       </div>
       {isCrewCertsExpanded && crewWithCertStats.length > 0 && (
         <>
@@ -1719,13 +2541,35 @@ function CertificateMonitorView({
       <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-700 uppercase">CERTIFICATE TYPES ({certificateStats.length})</h3>
         <div className="flex items-center gap-2">
-          <button
-            onClick={onAddCertificate}
-            className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
-            title="Add certificate"
-          >
-            +
-          </button>
+          {isCertificatesExpanded && (
+            <>
+              {selectedCountry !== 'all' && (
+                <>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); exportCrewRollToExcel() }}
+                    className="w-6 h-6 rounded bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center transition-colors"
+                    title="Export Crew Roll to Excel"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); exportCrewRollToPDF() }}
+                    className="w-6 h-6 rounded bg-red-600 hover:bg-red-700 text-white flex items-center justify-center transition-colors"
+                    title="Export Crew Roll to PDF"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+              <button
+                onClick={onAddCertificate}
+                className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
+                title="Add certificate"
+              >
+                +
+              </button>
+            </>
+          )}
           <button
             onClick={() => setIsCertificatesExpanded(!isCertificatesExpanded)}
             className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
@@ -1925,15 +2769,17 @@ function CertificateMonitorView({
       <div className="border border-gray-200 rounded-lg overflow-hidden">
         <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-700 uppercase">CERTIFICATES FROM OTHER COUNTRIES ({otherCertificateStats.length})</h3>
-          <button
-            onClick={() => setIsOtherCertsExpanded(!isOtherCertsExpanded)}
-            className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
-            title={isOtherCertsExpanded ? "Collapse section" : "Expand section"}
-          >
-            <span className="text-white text-xs transition-transform" style={{ transform: isOtherCertsExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
-              ▼
-            </span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsOtherCertsExpanded(!isOtherCertsExpanded)}
+              className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
+              title={isOtherCertsExpanded ? "Collapse section" : "Expand section"}
+            >
+              <span className="text-white text-xs transition-transform" style={{ transform: isOtherCertsExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
+                ▼
+              </span>
+            </button>
+          </div>
         </div>
         {isOtherCertsExpanded && (
           <>
@@ -2069,15 +2915,17 @@ function CertificateMonitorView({
     <div className="border border-gray-200 rounded-lg overflow-hidden">
       <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-700 uppercase">CERTIFICATES FOR RANKS ({ranks.length})</h3>
-        <button
-          onClick={() => setIsRankCertsExpanded(!isRankCertsExpanded)}
-          className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
-          title={isRankCertsExpanded ? "Collapse section" : "Expand section"}
-        >
-          <span className="text-white text-xs transition-transform" style={{ transform: isRankCertsExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
-            ▼
-          </span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsRankCertsExpanded(!isRankCertsExpanded)}
+            className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all"
+            title={isRankCertsExpanded ? "Collapse section" : "Expand section"}
+          >
+            <span className="text-white text-xs transition-transform" style={{ transform: isRankCertsExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
+              ▼
+            </span>
+          </button>
+        </div>
       </div>
       {isRankCertsExpanded && ranks.length > 0 && (
         <>
@@ -2552,6 +3400,138 @@ function CertificateMonitorView({
       </div>
     )}
 
+    </div>
+  )
+}
+
+// ============================================================
+// PENDING CREW REVIEW VIEW
+// ============================================================
+// Inline Pending Review Section - displayed right below Crew Onboard
+function InlinePendingReviewSection({
+  pendingCrew,
+  pendingLoading,
+  onApprove,
+  onReject: _onReject,
+  onViewCrew,
+}: {
+  pendingCrew: CrewMember[]
+  pendingLoading: boolean
+  onApprove: (id: string) => Promise<void>
+  onReject: (id: string, reason?: string) => Promise<void>
+  onViewCrew: (id: string) => void
+}) {
+  const [isExpanded, setIsExpanded] = useState(true)
+  const [processingId, setProcessingId] = useState<string | null>(null)
+
+  const handleApprove = async (id: string) => {
+    setProcessingId(id)
+    try { await onApprove(id) } finally { setProcessingId(null) }
+  }
+
+  if (pendingCrew.length === 0 && !pendingLoading) return null
+
+  return (
+    <div className="border border-amber-200 rounded-lg overflow-hidden mt-4">
+      <div className="bg-amber-50 px-4 py-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-amber-800 uppercase flex items-center gap-2">
+          <Clock className="w-4 h-4 text-amber-600" />
+          PENDING CREW REVIEW ({pendingCrew.length})
+        </h3>
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-6 h-6 rounded bg-amber-600 hover:bg-amber-700 text-white flex items-center justify-center transition-all"
+          title={isExpanded ? "Collapse section" : "Expand section"}
+        >
+          <span className="text-white text-xs transition-transform" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>
+            ▼
+          </span>
+        </button>
+      </div>
+
+      {isExpanded && (
+        <>
+          {pendingLoading ? (
+            <div className="text-center py-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600 mx-auto"></div>
+              <p className="text-gray-500 mt-2 text-sm">Loading pending crew...</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+                <thead className="bg-white border-b-2 border-amber-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{ width: '10%' }}>Crew ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{ width: '20%' }}>Full Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{ width: '15%' }}>Rank</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{ width: '12%' }}>Nationality</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{ width: '10%' }}>Department</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{ width: '10%' }}>Status</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '23%' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {pendingCrew.map((crew) => (
+                    <tr key={crew.id} className="border-b border-gray-100 hover:bg-amber-50/50 transition-colors">
+                      <td className="px-4 py-3 text-sm text-gray-900 font-medium border-r border-gray-200">
+                        <div className="truncate">{crew.crewId}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                            {crew.fullName?.charAt(0) || '?'}
+                          </div>
+                          <span className="truncate">{crew.fullName}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
+                        <div className="truncate">{crew.rank?.rankName || '-'}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200">
+                        <div className="truncate">{crew.countryName || 'N/A'}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200">
+                        <div className="truncate">{crew.department || 'N/A'}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm border-r border-gray-200">
+                        {crew.onboardStatus === 'OnHold' ? (
+                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-700">
+                            On Hold
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-700">
+                            Pending
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleApprove(crew.id)}
+                            disabled={processingId === crew.id}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => onViewCrew(crew.id)}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-medium rounded-lg hover:bg-blue-100 transition-colors"
+                            title="View & verify details before approving"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            Review
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

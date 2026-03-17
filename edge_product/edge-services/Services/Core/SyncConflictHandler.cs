@@ -152,6 +152,25 @@ public class SyncConflictHandler : ISyncConflictHandler
             return;
         }
 
+        // For new crew members with PendingReview status from shore:
+        // Keep IsOnboard = false so they appear in the pending review section, not onboard
+        if (item.TableName == "crew_member" && entity is Maritime.Shared.Models.Crew.CrewMember crewEntity)
+        {
+            if (crewEntity.OnboardStatus == "PendingReview")
+            {
+                crewEntity.IsOnboard = false;
+                _logger.LogInformation("New crew {Key} from shore with PendingReview — setting IsOnboard=false for captain review",
+                    item.RecordKey);
+            }
+            // Null out navigation properties to prevent EF Core from cascade-inserting
+            // entities that already exist (e.g. Rank, Country). Only FK values are needed.
+            crewEntity.Rank = null;
+            crewEntity.Country = null;
+        }
+
+        // Null out navigation properties for all entity types to prevent cascade inserts
+        DetachNavigationProperties(context, entity);
+
         MarkSynced(entity, item);
         await context.AddAsync(entity);
         _logger.LogDebug("Created from shore: {Table}/{Key}", item.TableName, item.RecordKey);
@@ -229,9 +248,29 @@ public class SyncConflictHandler : ISyncConflictHandler
                 var edgeOwnedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
                     "IsOnboard", "EmbarkDate", "DisembarkDate",
-                    "EmbarkPort", "DisembarkPort", "AvatarUrl"
+                    "EmbarkPort", "DisembarkPort", "AvatarUrl",
+                    "OnboardStatusChangedAt", "OnboardStatusChangedBy"
                 };
                 shouldApply = !edgeOwnedFields.Contains(prop.Name);
+
+                // Special handling for OnboardStatus:
+                // Accept "PendingReview" from shore only if edge hasn't already approved
+                if (prop.Name == "OnboardStatus")
+                {
+                    var existingStatus = prop.GetValue(existing) as string;
+                    var incomingStatus = incomingValue as string;
+                    
+                    if (incomingStatus == "PendingReview" && 
+                        (existingStatus == "Approved" || existingStatus == "Rejected"))
+                    {
+                        // Don't reset an already-reviewed crew member
+                        shouldApply = false;
+                    }
+                    else
+                    {
+                        shouldApply = true;
+                    }
+                }
             }
             else if (tableName == "crew_certificate")
             {
@@ -278,6 +317,27 @@ public class SyncConflictHandler : ISyncConflictHandler
             syncable.OriginNode = item.OriginNode;
             syncable.SyncVersion = item.SyncVersion;
             syncable.UpdatedAt = DateTime.UtcNow;
+        }
+    }
+
+    /// <summary>
+    /// Null out navigation properties on a deserialized entity to prevent
+    /// EF Core from cascade-inserting related entities that already exist.
+    /// Only FK values (e.g. RankId, CountryId) are needed for the insert.
+    /// </summary>
+    private void DetachNavigationProperties(EdgeDbContext context, object entity)
+    {
+        var entityType = entity.GetType();
+        var navProps = context.Model.FindEntityType(entityType)?.GetNavigations();
+        if (navProps == null) return;
+
+        foreach (var nav in navProps)
+        {
+            var propInfo = entityType.GetProperty(nav.Name);
+            if (propInfo != null && propInfo.CanWrite)
+            {
+                propInfo.SetValue(entity, null);
+            }
         }
     }
 }

@@ -53,10 +53,12 @@ export function AddCrewModal({ isOpen, onClose, onSave }: AddCrewModalProps) {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [ranks, setRanks] = useState<any[]>([])
+  const [countries, setCountries] = useState<any[]>([])
 
   useEffect(() => {
     if (isOpen) {
       loadRanks()
+      loadCountries()
     }
   }, [isOpen])
 
@@ -66,6 +68,15 @@ export function AddCrewModal({ isOpen, onClose, onSave }: AddCrewModalProps) {
       setRanks(data)
     } catch (error) {
       console.error('Failed to load ranks:', error)
+    }
+  }
+
+  const loadCountries = async () => {
+    try {
+      const data = await maritimeService.countries.getAll()
+      setCountries(data)
+    } catch (error) {
+      console.error('Failed to load countries:', error)
     }
   }
 
@@ -83,8 +94,8 @@ export function AddCrewModal({ isOpen, onClose, onSave }: AddCrewModalProps) {
     if (!formData.rankId) {
       newErrors.rankId = 'Rank is required'
     }
-    if (!formData.nationality?.trim()) {
-      newErrors.nationality = 'Nationality is required'
+    if (!formData.countryId) {
+      newErrors.countryId = 'Country is required'
     }
 
     setErrors(newErrors)
@@ -127,7 +138,7 @@ export function AddCrewModal({ isOpen, onClose, onSave }: AddCrewModalProps) {
       fullName: '',
       rankId: undefined,
       department: '',
-      nationality: '',
+      countryId: 1,
       dateOfBirth: '',
       embarkDate: new Date().toISOString().split('T')[0],
       isOnboard: true,
@@ -271,17 +282,22 @@ export function AddCrewModal({ isOpen, onClose, onSave }: AddCrewModalProps) {
                   </select>
                 </div>
                 <div>
-                  <label className={labelClass}>Nationality <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={formData.nationality}
-                    onChange={(e) => handleChange('nationality', e.target.value)}
-                    className={errors.nationality ? inputErrorClass : inputClass}
-                    placeholder="e.g., Vietnamese"
-                  />
-                  {errors.nationality && (
+                  <label className={labelClass}>Country <span className="text-red-500">*</span></label>
+                  <select
+                    value={formData.countryId || ''}
+                    onChange={(e) => handleChange('countryId', e.target.value ? Number(e.target.value) : undefined)}
+                    className={errors.countryId ? inputErrorClass : inputClass}
+                  >
+                    <option value="">Select country</option>
+                    {countries.map((country) => (
+                      <option key={country.id} value={country.id}>
+                        {country.countryName}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.countryId && (
                     <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" /> {errors.nationality}
+                      <AlertCircle className="w-3 h-3" /> {errors.countryId}
                     </p>
                   )}
                 </div>

@@ -522,6 +522,110 @@
 }
 .cd-field.resize-none { resize: none; }
 
+/* ── Edge Changes Highlight ── */
+.cd-field--changed {
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+.cd-field--changed:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.25);
+}
+
+/* Edge Changes Banner */
+.cd-edge-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 24px;
+  background: #fef2f2;
+  border-bottom: 2px solid #fca5a5;
+}
+.cd-edge-banner__body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #991b1b;
+}
+.cd-edge-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 11px;
+}
+.cd-edge-btn {
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: #0054a6;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.cd-edge-btn:hover { background: #003d7a; }
+
+/* Change indicator (per-field old→new text) */
+.cd-change-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  padding: 2px 0;
+}
+.cd-change-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+  animation: cd-pulse 1.5s ease-in-out infinite;
+}
+@keyframes cd-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.cd-change-text {
+  font-size: 11px;
+  color: #dc2626;
+  line-height: 1.3;
+}
+.cd-change-text s {
+  color: #9ca3af;
+  text-decoration: line-through;
+}
+.cd-change-text strong {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+/* Tab change count badge */
+.cd-tab-change-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 9px;
+  line-height: 1;
+}
+
 .cd-label {
   display: block;
   font-size: 11px;
