@@ -38,7 +38,7 @@ const navItems: NavItemDef[] = [
   { type: 'link', path: '/vessels', label: 'Danh sách tàu' },
   {
     type: 'dropdown',
-    label: 'Thuyền viên',
+    label: 'Thông tin',
     groups: [
       {
         title: 'QUY TRÌNH',
