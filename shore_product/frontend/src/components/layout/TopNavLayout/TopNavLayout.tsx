@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Anchor, Bell, Menu, X } from 'lucide-react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Anchor, Bell, Menu, X, ChevronDown } from 'lucide-react';
 import { crewApi } from '../../../services/crew.service';
 import type { HoldNotification } from '../../../services/crew.service';
 import './TopNavLayout.css';
@@ -16,26 +16,62 @@ function markAllSeen() {
   localStorage.setItem(LAST_SEEN_KEY, new Date().toISOString());
 }
 
-const navItems = [
-  { path: '/categories', label: 'Danh mục' },
-  { path: '/vessels',   label: 'Danh sách tàu' },
-  { path: '/onboarding', label: 'Onboarding' },
-  { path: '/verification-queue', label: 'Xác minh' },
-  { path: '/compliance', label: 'Tuân thủ' },
-  { path: '/assignments', label: 'Phân công' },
-  { path: '/external-requests', label: 'Tuyển ngoài' },
-  { path: '/travel', label: 'Di chuyển' },
-  { path: '/onboard-events', label: 'Onboard' },
-  { path: '/report', label: 'Báo cáo' },
-  { path: '/sync',      label: 'Đồng bộ' },
+type DropdownItem = { path: string; label: string; };
+type DropdownGroup = { title?: string; items: DropdownItem[]; };
+type NavDropdown = { type: 'dropdown'; label: string; groups: DropdownGroup[]; };
+type NavPlainLink = { type: 'link'; path: string; label: string; };
+type NavItemDef = NavPlainLink | NavDropdown;
+
+const navItems: NavItemDef[] = [
+  {
+    type: 'dropdown',
+    label: 'Danh mục',
+    groups: [
+      {
+        items: [
+          { path: '/categories?tab=crew', label: 'Thuyền viên' },
+          { path: '/categories?tab=certificate-types', label: 'Loại chứng chỉ' },
+        ]
+      }
+    ]
+  },
+  { type: 'link', path: '/vessels', label: 'Danh sách tàu' },
+  {
+    type: 'dropdown',
+    label: 'Thuyền viên',
+    groups: [
+      {
+        title: 'QUY TRÌNH',
+        items: [
+          { path: '/onboarding', label: 'Onboarding' },
+          { path: '/verification-queue', label: 'Xác minh' },
+          { path: '/compliance', label: 'Tuân thủ' },
+        ]
+      },
+      {
+        title: 'ĐIỀU PHỐI',
+        items: [
+          { path: '/assignments', label: 'Phân công' },
+          { path: '/external-requests', label: 'Tuyển ngoài' },
+          { path: '/travel', label: 'Di chuyển' },
+          { path: '/onboard-events', label: 'Onboard' },
+        ]
+      }
+    ]
+  },
+  { type: 'link', path: '/report', label: 'Báo cáo' },
+  { type: 'link', path: '/sync',   label: 'Đồng bộ' },
 ];
 
 export const TopNavLayout: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<HoldNotification[]>([]);
   const [bellOpen, setBellOpen] = useState(false);
+  const [openDropdownIdx, setOpenDropdownIdx] = useState<number | null>(null);
   const bellRef = useRef<HTMLDivElement>(null);
+  const navLinksRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter(
     n => new Date(n.onboardStatusChangedAt) > getLastSeenDate()
@@ -54,11 +90,22 @@ export const TopNavLayout: React.FC = () => {
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
-  // Close dropdown when clicking outside
+  // Close bell dropdown when clicking outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
         setBellOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Close nav dropdowns when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (navLinksRef.current && !navLinksRef.current.contains(e.target as Node)) {
+        setOpenDropdownIdx(null);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -78,6 +125,28 @@ export const TopNavLayout: React.FC = () => {
     navigate(`/vessels/${n.vesselId}`);
   };
 
+  const isDropdownActive = (item: NavDropdown) =>
+    item.groups.some(g =>
+      g.items.some(di => location.pathname === di.path.split('?')[0])
+    );
+
+  const handleDropdownItemClick = (path: string) => {
+    setOpenDropdownIdx(null);
+    navigate(path);
+  };
+
+  // Flatten all items for mobile menu
+  const mobileItems: { path: string; label: string }[] = [];
+  navItems.forEach(item => {
+    if (item.type === 'link') {
+      mobileItems.push({ path: item.path, label: item.label });
+    } else {
+      item.groups.forEach(g =>
+        g.items.forEach(di => mobileItems.push({ path: di.path, label: di.label }))
+      );
+    }
+  });
+
   return (
     <div className="app-shell">
       {/* ===== Top Navigation ===== */}
@@ -90,19 +159,67 @@ export const TopNavLayout: React.FC = () => {
           </NavLink>
 
           {/* Desktop Nav Links */}
-          <nav className="topnav-links">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `topnav-link ${isActive ? 'topnav-link--active' : ''}`
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
+          <div ref={navLinksRef} className="topnav-links">
+            {navItems.map((item, idx) => {
+              if (item.type === 'link') {
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) =>
+                      `topnav-link ${isActive ? 'topnav-link--active' : ''}`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                );
+              }
+              const active = isDropdownActive(item);
+              const isOpen = openDropdownIdx === idx;
+              return (
+                <div key={idx} className="topnav-dropdown-wrap">
+                  <button
+                    className={`topnav-link topnav-dropdown-btn${active ? ' topnav-link--active' : ''}`}
+                    onClick={() => setOpenDropdownIdx(isOpen ? null : idx)}
+                  >
+                    {item.label}
+                    <ChevronDown
+                      size={12}
+                      style={{
+                        marginLeft: 4,
+                        transition: 'transform 0.15s',
+                        transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      }}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="topnav-dropdown">
+                      {item.groups.map((group, gi) => (
+                        <div key={gi}>
+                          {group.title && (
+                            <div className="topnav-dropdown-section">{group.title}</div>
+                          )}
+                          {group.items.map(di => (
+                            <button
+                              key={di.path}
+                              className={`topnav-dropdown-item${
+                                location.pathname === di.path.split('?')[0]
+                                  ? ' topnav-dropdown-item--active'
+                                  : ''
+                              }`}
+                              onClick={() => handleDropdownItemClick(di.path)}
+                            >
+                              {di.label}
+                            </button>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
 
           {/* Right side actions */}
           <div className="topnav-actions">
@@ -219,7 +336,7 @@ export const TopNavLayout: React.FC = () => {
         {/* Mobile dropdown menu */}
         {mobileMenuOpen && (
           <div className="topnav-mobile-menu">
-            {navItems.map((item) => (
+            {mobileItems.map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
