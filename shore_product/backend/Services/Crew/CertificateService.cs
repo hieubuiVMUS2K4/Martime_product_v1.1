@@ -85,12 +85,8 @@ public class CertificateService : ICertificateService
 
         _logger.LogInformation("Created certificate type {Code} - {Name}", cert.CertificateCode, cert.CertificateName);
 
-        // Broadcast to edge nodes (master data)
-        if (_syncOutbox != null)
-        {
-            await _syncOutbox.BroadcastAsync("certificate", cert.Id.ToString(), SyncActionType.CREATE, cert);
-            await BroadcastCountryRankMappingsAsync(cert.Id);
-        }
+        // Do NOT sync to edge here. Certificate types are only pushed to a specific
+        // vessel's edge when they are explicitly assigned via VesselCertificateAssignments.
 
         return MapToDto(cert);
     }
@@ -138,50 +134,67 @@ public class CertificateService : ICertificateService
             await _context.SaveChangesAsync();
         }
 
-        // Broadcast update (master data)
+        // Only sync to vessels that already have this certificate assigned.
         if (_syncOutbox != null)
         {
-            await _syncOutbox.BroadcastAsync("certificate", cert.Id.ToString(), SyncActionType.UPDATE, cert);
+            var assignedImos = await GetAssignedVesselImosAsync(id);
+            foreach (var imo in assignedImos)
+            {
+                await _syncOutbox.EnqueueAsync(imo, "certificate", cert.Id.ToString(), SyncActionType.UPDATE, cert);
 
-            // Broadcast DELETE for old mappings so edge removes stale rows
-            foreach (var oldId in oldCountryMappingIds)
-                await _syncOutbox.BroadcastAsync("country_certificate", oldId.ToString(), SyncActionType.DELETE, new { Id = oldId });
-            foreach (var oldId in oldRankMappingIds)
-                await _syncOutbox.BroadcastAsync("rank_certificate", oldId.ToString(), SyncActionType.DELETE, new { Id = oldId });
+                // Send DELETE for old mappings so edge removes stale rows
+                foreach (var oldId in oldCountryMappingIds)
+                    await _syncOutbox.EnqueueAsync(imo, "country_certificate", oldId.ToString(), SyncActionType.DELETE, new { Id = oldId });
+                foreach (var oldId in oldRankMappingIds)
+                    await _syncOutbox.EnqueueAsync(imo, "rank_certificate", oldId.ToString(), SyncActionType.DELETE, new { Id = oldId });
 
-            // Broadcast CREATE for new mappings
-            await BroadcastCountryRankMappingsAsync(id);
+                // Send CREATE for new mappings
+                await EnqueueCountryRankMappingsToNodeAsync(id, imo);
+            }
         }
 
         return MapToDto(cert);
     }
 
     /// <summary>
-    /// Broadcast all CountryCertificate and RankCertificate rows for a given certificate.
-    /// Deletes old mappings on edge by sending current state as SNAPSHOT.
+    /// Returns the list of distinct vessel IMOs that have the given certificate type assigned.
+    /// Used to send targeted sync only to relevant edges.
     /// </summary>
-    private async Task BroadcastCountryRankMappingsAsync(int certificateId)
+    private async Task<List<string>> GetAssignedVesselImosAsync(int certificateId)
+    {
+        return await _context.VesselCertificateAssignments
+            .AsNoTracking()
+            .Where(a => a.CertificateId == certificateId)
+            .Join(_context.Vessels, a => a.VesselId, v => v.Id, (a, v) => v.IMO)
+            .Distinct()
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Enqueues all CountryCertificate and RankCertificate rows for a certificate
+    /// to a specific edge node (vessel IMO). Used when a certificate is assigned to a vessel
+    /// or when master data is updated for vessels that already have the assignment.
+    /// </summary>
+    public async Task EnqueueCountryRankMappingsToNodeAsync(int certificateId, string targetNode)
     {
         if (_syncOutbox == null) return;
 
-        // Broadcast country mappings
         var countryCerts = await _context.CountryCertificates
             .AsNoTracking()
             .Where(cc => cc.CertificateId == certificateId)
             .ToListAsync();
         foreach (var cc in countryCerts)
-            await _syncOutbox.BroadcastAsync("country_certificate", cc.Id.ToString(), SyncActionType.CREATE, cc);
+            await _syncOutbox.EnqueueAsync(targetNode, "country_certificate", cc.Id.ToString(), SyncActionType.CREATE, cc);
 
-        // Broadcast rank mappings
         var rankCerts = await _context.RankCertificates
             .AsNoTracking()
             .Where(rc => rc.CertificateId == certificateId)
             .ToListAsync();
         foreach (var rc in rankCerts)
-            await _syncOutbox.BroadcastAsync("rank_certificate", rc.Id.ToString(), SyncActionType.CREATE, rc);
+            await _syncOutbox.EnqueueAsync(targetNode, "rank_certificate", rc.Id.ToString(), SyncActionType.CREATE, rc);
 
-        _logger.LogInformation("Broadcast {CC} country + {RC} rank mappings for certificate {Id}",
-            countryCerts.Count, rankCerts.Count, certificateId);
+        _logger.LogInformation("Enqueued {CC} country + {RC} rank mappings for certificate {Id} → {Node}",
+            countryCerts.Count, rankCerts.Count, certificateId, targetNode);
     }
 
     public async Task<bool> DeleteCertificateTypeAsync(int id)
@@ -196,9 +209,13 @@ public class CertificateService : ICertificateService
 
         _logger.LogInformation("Deactivated certificate type {Code}", cert.CertificateCode);
 
-        // Broadcast deactivation to edge nodes
+        // Only sync to vessels that already have this certificate assigned.
         if (_syncOutbox != null)
-            await _syncOutbox.BroadcastAsync("certificate", cert.Id.ToString(), SyncActionType.UPDATE, cert);
+        {
+            var assignedImos = await GetAssignedVesselImosAsync(id);
+            foreach (var imo in assignedImos)
+                await _syncOutbox.EnqueueAsync(imo, "certificate", cert.Id.ToString(), SyncActionType.UPDATE, cert);
+        }
 
         return true;
     }

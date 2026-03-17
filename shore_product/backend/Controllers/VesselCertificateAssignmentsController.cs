@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ProductApi.Data;
 using ProductApi.Services.Sync;
 using Maritime.Shared.Models.Sync;
+using Maritime.Shared.Models.Crew;
 
 namespace ProductApi.Controllers;
 
@@ -115,15 +116,35 @@ public class VesselCertificateAssignmentsController : ControllerBase
         _context.VesselCertificateAssignments.AddRange(assignments);
         await _context.SaveChangesAsync();
 
-        // Sync to edge — enqueue for this vessel's IMO
+        // Load master data for all certificate types being assigned
+        var certTypes = await _context.CrewCertificateTypes
+            .AsNoTracking()
+            .Where(c => validCertIds.Contains(c.Id))
+            .ToListAsync();
+        var certTypeLookup = certTypes.ToDictionary(c => c.Id);
+
+        var allCountryCerts = await _context.CountryCertificates
+            .AsNoTracking()
+            .Where(cc => validCertIds.Contains(cc.CertificateId))
+            .ToListAsync();
+
+        var allRankCerts = await _context.RankCertificates
+            .AsNoTracking()
+            .Where(rc => validCertIds.Contains(rc.CertificateId))
+            .ToListAsync();
+
+        // Sync to edge — first send certificate type master data, then the assignment record
         foreach (var a in assignments)
         {
-            await _syncOutbox.EnqueueAsync(
-                vessel.IMO,
-                "vessel_certificate_assignment",
-                a.Id.ToString(),
-                SyncActionType.CREATE,
-                a);
+            if (certTypeLookup.TryGetValue(a.CertificateId, out var certType))
+            {
+                await _syncOutbox.EnqueueAsync(vessel.IMO, "certificate", certType.Id.ToString(), SyncActionType.CREATE, certType);
+                foreach (var cc in allCountryCerts.Where(cc => cc.CertificateId == certType.Id))
+                    await _syncOutbox.EnqueueAsync(vessel.IMO, "country_certificate", cc.Id.ToString(), SyncActionType.CREATE, cc);
+                foreach (var rc in allRankCerts.Where(rc => rc.CertificateId == certType.Id))
+                    await _syncOutbox.EnqueueAsync(vessel.IMO, "rank_certificate", rc.Id.ToString(), SyncActionType.CREATE, rc);
+            }
+            await _syncOutbox.EnqueueAsync(vessel.IMO, "vessel_certificate_assignment", a.Id.ToString(), SyncActionType.CREATE, a);
         }
 
         _logger.LogInformation("Assigned {Count} certificate types to vessel {VesselId}", assignments.Count, vesselId);
@@ -188,15 +209,35 @@ public class VesselCertificateAssignmentsController : ControllerBase
         _context.VesselCertificateAssignments.AddRange(newAssignments);
         await _context.SaveChangesAsync();
 
-        // Sync: broadcast full snapshot for this vessel
+        // Load master data for all new certificate types
+        var newCertTypes = await _context.CrewCertificateTypes
+            .AsNoTracking()
+            .Where(c => validCertIds.Contains(c.Id))
+            .ToListAsync();
+        var newCertTypeLookup = newCertTypes.ToDictionary(c => c.Id);
+
+        var newCountryCerts = await _context.CountryCertificates
+            .AsNoTracking()
+            .Where(cc => validCertIds.Contains(cc.CertificateId))
+            .ToListAsync();
+
+        var newRankCerts = await _context.RankCertificates
+            .AsNoTracking()
+            .Where(rc => validCertIds.Contains(rc.CertificateId))
+            .ToListAsync();
+
+        // Sync: first send certificate type master data, then the assignment record
         foreach (var a in newAssignments)
         {
-            await _syncOutbox.EnqueueAsync(
-                vessel.IMO,
-                "vessel_certificate_assignment",
-                a.Id.ToString(),
-                SyncActionType.CREATE,
-                a);
+            if (newCertTypeLookup.TryGetValue(a.CertificateId, out var certType))
+            {
+                await _syncOutbox.EnqueueAsync(vessel.IMO, "certificate", certType.Id.ToString(), SyncActionType.CREATE, certType);
+                foreach (var cc in newCountryCerts.Where(cc => cc.CertificateId == certType.Id))
+                    await _syncOutbox.EnqueueAsync(vessel.IMO, "country_certificate", cc.Id.ToString(), SyncActionType.CREATE, cc);
+                foreach (var rc in newRankCerts.Where(rc => rc.CertificateId == certType.Id))
+                    await _syncOutbox.EnqueueAsync(vessel.IMO, "rank_certificate", rc.Id.ToString(), SyncActionType.CREATE, rc);
+            }
+            await _syncOutbox.EnqueueAsync(vessel.IMO, "vessel_certificate_assignment", a.Id.ToString(), SyncActionType.CREATE, a);
         }
         // Sync removed
         foreach (var old in existing.Where(o => !validCertIds.Contains(o.CertificateId)))
