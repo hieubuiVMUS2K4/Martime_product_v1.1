@@ -61,8 +61,6 @@ const navItems: NavItemDef[] = [
     ]
   },
   { type: 'link', path: '/voyages', label: 'Hải trình' },
-  { type: 'link', path: '/pms/assets', label: 'PMS' },
-  { type: 'link', path: '/materials', label: 'Vật tư' },
   { type: 'link', path: '/report', label: 'Báo cáo' },
   { type: 'link', path: '/sync',   label: 'Đồng bộ' },
 ];
