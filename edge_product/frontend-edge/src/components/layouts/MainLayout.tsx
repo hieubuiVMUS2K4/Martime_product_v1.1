@@ -9,13 +9,13 @@ export function MainLayout() {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="min-w-0 flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <Header />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-0">
-          <div className="h-full w-full">
+        <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900 p-0">
+          <div className="h-full w-full min-w-0">
             <Outlet />
           </div>
         </main>

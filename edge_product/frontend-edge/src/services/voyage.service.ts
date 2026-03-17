@@ -18,8 +18,33 @@ import type {
   CreateCargoOperationDto,
   UpdateCargoOperationDto,
 } from '@/types/voyage.types'
+import type {
+  VoyageCockpitDto,
+  CockpitTimelineEvent,
+} from '@/types/cockpit.types'
+import type { VoyageEfficiencyReport } from '@/types/efficiency.types'
+import type {
+  VoyageFinancialOverview,
+  VoyageExpenseRequest,
+  CreateExpenseRequestDto,
+  UpdateExpenseRequestDto,
+  VoyageAdvancePayment,
+  CreateAdvancePaymentDto,
+  UpdateAdvancePaymentDto,
+  VoyageDisbursement,
+  CreateDisbursementDto,
+  UpdateDisbursementDto,
+  VoyageActualRevenue,
+  CreateActualRevenueDto,
+  UpdateActualRevenueDto,
+  VoyageSettlement,
+  CreateSettlementDto,
+  UpdateSettlementDto,
+  TransitionStatusDto,
+  CloseVoyageFinancialsDto,
+} from '@/types/financial.types'
 import type { PaginatedResponse, VoyageRecord } from '@/types/maritime.types'
-import { getAuthToken } from './api.client'
+import { getAuthToken, getCurrentAccountName } from './api.client'
 
 // ============================================================
 // VOYAGE MANAGEMENT SERVICE
@@ -40,6 +65,11 @@ class VoyageManagementService {
     const token = getAuthToken()
     if (token) {
       headers['Authorization'] = `Bearer ${token}`
+    }
+
+    const accountName = getCurrentAccountName()
+    if (accountName) {
+      headers['X-User-Name'] = accountName
     }
 
     const response = await fetch(url, { ...options, headers })
@@ -213,6 +243,172 @@ class VoyageManagementService {
 
     delete: (id: string) =>
       this.request<void>(`/cargo/${id}`, { method: 'DELETE' }),
+  }
+
+  // ========== COCKPIT ==========
+
+  cockpit = {
+    get: (voyageId: string) =>
+      this.request<VoyageCockpitDto>(`/voyage-cockpit/${voyageId}`),
+
+    getTimeline: (voyageId: string, params?: {
+      planLegId?: string
+      source?: string
+      from?: string
+      to?: string
+      limit?: number
+    }) => {
+      const qs = new URLSearchParams()
+      if (params?.planLegId) qs.set('planLegId', params.planLegId)
+      if (params?.source) qs.set('source', params.source)
+      if (params?.from) qs.set('from', params.from)
+      if (params?.to) qs.set('to', params.to)
+      if (params?.limit) qs.set('limit', String(params.limit))
+      const q = qs.toString()
+      return this.request<CockpitTimelineEvent[]>(
+        `/voyage-cockpit/${voyageId}/timeline${q ? `?${q}` : ''}`
+      )
+    },
+  }
+
+  // ========== FINANCIAL ==========
+
+  financial = {
+    getOverview: (voyageId: string) =>
+      this.request<VoyageFinancialOverview>(`/voyage-financial/${voyageId}/overview`),
+
+    // Expense Requests
+    getExpenses: (voyageId: string) =>
+      this.request<VoyageExpenseRequest[]>(`/voyage-financial/${voyageId}/expenses`),
+    createExpense: (voyageId: string, data: CreateExpenseRequestDto) =>
+      this.request<VoyageExpenseRequest>(`/voyage-financial/${voyageId}/expenses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    updateExpense: (id: string, data: UpdateExpenseRequestDto) =>
+      this.request<VoyageExpenseRequest>(`/voyage-financial/expenses/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    transitionExpense: (id: string, data: TransitionStatusDto) =>
+      this.request<{ message: string }>(`/voyage-financial/expenses/${id}/transition`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    deleteExpense: (id: string) =>
+      this.request<{ message: string }>(`/voyage-financial/expenses/${id}`, { method: 'DELETE' }),
+
+    // Advance Payments
+    getAdvances: (voyageId: string) =>
+      this.request<VoyageAdvancePayment[]>(`/voyage-financial/${voyageId}/advances`),
+    createAdvance: (voyageId: string, data: CreateAdvancePaymentDto) =>
+      this.request<VoyageAdvancePayment>(`/voyage-financial/${voyageId}/advances`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    updateAdvance: (id: string, data: UpdateAdvancePaymentDto) =>
+      this.request<VoyageAdvancePayment>(`/voyage-financial/advances/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    payAdvance: (id: string, data: TransitionStatusDto) =>
+      this.request<{ message: string }>(`/voyage-financial/advances/${id}/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    deleteAdvance: (id: string) =>
+      this.request<{ message: string }>(`/voyage-financial/advances/${id}`, { method: 'DELETE' }),
+
+    // Disbursements
+    getDisbursements: (voyageId: string) =>
+      this.request<VoyageDisbursement[]>(`/voyage-financial/${voyageId}/disbursements`),
+    createDisbursement: (voyageId: string, data: CreateDisbursementDto) =>
+      this.request<VoyageDisbursement>(`/voyage-financial/${voyageId}/disbursements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    updateDisbursement: (id: string, data: UpdateDisbursementDto) =>
+      this.request<VoyageDisbursement>(`/voyage-financial/disbursements/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    transitionDisbursement: (id: string, data: TransitionStatusDto) =>
+      this.request<{ message: string }>(`/voyage-financial/disbursements/${id}/transition`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    deleteDisbursement: (id: string) =>
+      this.request<{ message: string }>(`/voyage-financial/disbursements/${id}`, { method: 'DELETE' }),
+
+    // Actual Revenue
+    getRevenues: (voyageId: string) =>
+      this.request<VoyageActualRevenue[]>(`/voyage-financial/${voyageId}/revenues`),
+    createRevenue: (voyageId: string, data: CreateActualRevenueDto) =>
+      this.request<VoyageActualRevenue>(`/voyage-financial/${voyageId}/revenues`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    updateRevenue: (id: string, data: UpdateActualRevenueDto) =>
+      this.request<VoyageActualRevenue>(`/voyage-financial/revenues/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    transitionRevenue: (id: string, data: TransitionStatusDto) =>
+      this.request<{ message: string }>(`/voyage-financial/revenues/${id}/transition`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    deleteRevenue: (id: string) =>
+      this.request<{ message: string }>(`/voyage-financial/revenues/${id}`, { method: 'DELETE' }),
+
+    // Settlements
+    getSettlements: (voyageId: string) =>
+      this.request<VoyageSettlement[]>(`/voyage-financial/${voyageId}/settlements`),
+    createSettlement: (voyageId: string, data: CreateSettlementDto) =>
+      this.request<VoyageSettlement>(`/voyage-financial/${voyageId}/settlements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    updateSettlement: (id: string, data: UpdateSettlementDto) =>
+      this.request<VoyageSettlement>(`/voyage-financial/settlements/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    transitionSettlement: (id: string, data: TransitionStatusDto) =>
+      this.request<{ message: string }>(`/voyage-financial/settlements/${id}/transition`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+
+    // Financial Closing
+    close: (voyageId: string, data: CloseVoyageFinancialsDto) =>
+      this.request<{ message: string }>(`/voyage-financial/${voyageId}/close`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+  }
+
+  // ========== EFFICIENCY ==========
+
+  efficiency = {
+    getReport: (voyageId: string) =>
+      this.request<VoyageEfficiencyReport>(`/voyage-efficiency/${voyageId}`),
   }
 }
 

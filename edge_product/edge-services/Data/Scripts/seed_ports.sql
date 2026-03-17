@@ -97,7 +97,22 @@ VALUES
 
 -- === AFRICA ===
 ('ZADUR', 'Durban', 'South Africa', 'ZA', -29.8706, 31.0447, 'Africa/Johannesburg', true, NOW(), NOW()),
-('DJJIB', 'Djibouti', 'Djibouti', 'DJ', 11.5951, 43.1458, 'Africa/Djibouti', true, NOW(), NOW())
+('DJJIB', 'Djibouti', 'Djibouti', 'DJ', 11.5951, 43.1458, 'Africa/Djibouti', true, NOW(), NOW()),
+
+-- === ADDITIONAL GLOBAL HUBS ===
+('AEAUH', 'Abu Dhabi', 'UAE', 'AE', 24.4539, 54.3773, 'Asia/Dubai', true, NOW(), NOW()),
+('QAHMD', 'Hamad Port', 'Qatar', 'QA', 25.0150, 51.6100, 'Asia/Qatar', true, NOW(), NOW()),
+('KWIQE', 'Shuaiba', 'Kuwait', 'KW', 29.0392, 48.1460, 'Asia/Kuwait', true, NOW(), NOW()),
+('PKKHI', 'Karachi', 'Pakistan', 'PK', 24.8607, 67.0011, 'Asia/Karachi', true, NOW(), NOW()),
+('BDCGP', 'Chattogram', 'Bangladesh', 'BD', 22.3350, 91.8325, 'Asia/Dhaka', true, NOW(), NOW()),
+('INMUN', 'Mundra', 'India', 'IN', 22.8390, 69.7210, 'Asia/Kolkata', true, NOW(), NOW()),
+('USOAK', 'Oakland', 'United States', 'US', 37.8044, -122.2712, 'America/Los_Angeles', true, NOW(), NOW()),
+('USSEA', 'Seattle', 'United States', 'US', 47.6062, -122.3321, 'America/Los_Angeles', true, NOW(), NOW()),
+('COCTG', 'Cartagena', 'Colombia', 'CO', 10.3910, -75.4794, 'America/Bogota', true, NOW(), NOW()),
+('CLVAP', 'Valparaiso', 'Chile', 'CL', -33.0472, -71.6127, 'America/Santiago', true, NOW(), NOW()),
+('PECLL', 'Callao', 'Peru', 'PE', -12.0464, -77.1428, 'America/Lima', true, NOW(), NOW()),
+('ARBUE', 'Buenos Aires', 'Argentina', 'AR', -34.6037, -58.3816, 'America/Argentina/Buenos_Aires', true, NOW(), NOW()),
+('MXZLO', 'Manzanillo', 'Mexico', 'MX', 19.0501, -104.3188, 'America/Mexico_City', true, NOW(), NOW())
 
 ON CONFLICT (port_code) DO NOTHING;
 

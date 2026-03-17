@@ -1,6 +1,7 @@
 using MaritimeEdge.Data;
 using MaritimeEdge.DTOs;
 using MaritimeEdge.Models;
+using MaritimeEdge.Services.Voyage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -22,11 +23,13 @@ public class VoyageLogService : IVoyageLogService
 {
     private readonly EdgeDbContext _context;
     private readonly ILogger<VoyageLogService> _logger;
+    private readonly IVoyageContextService _voyageContext;
 
-    public VoyageLogService(EdgeDbContext context, ILogger<VoyageLogService> logger)
+    public VoyageLogService(EdgeDbContext context, ILogger<VoyageLogService> logger, IVoyageContextService voyageContext)
     {
         _context = context;
         _logger = logger;
+        _voyageContext = voyageContext;
     }
 
     public async Task<VoyageLogEntryResponseDto> CreateEntryAsync(CreateVoyageLogEntryDto dto)
@@ -80,6 +83,9 @@ public class VoyageLogService : IVoyageLogService
                 UpdatedAt = DateTime.UtcNow,
                 OriginNode = "SHIP_01"
             };
+
+            var (_, legId) = await _voyageContext.ResolveActiveVoyageAsync(entry.EventDateTime);
+            entry.VoyagePlanLegId = legId;
 
             _context.VoyageLogEntries.Add(entry);
             await _context.SaveChangesAsync();
@@ -402,7 +408,8 @@ public class VoyageLogService : IVoyageLogService
             IsSynced = entry.IsSynced,
             CreatedAt = entry.CreatedAt,
             UpdatedAt = entry.UpdatedAt,
-            OriginNode = entry.OriginNode
+            OriginNode = entry.OriginNode,
+            VoyagePlanLegId = entry.VoyagePlanLegId
         };
     }
 }

@@ -3,23 +3,33 @@ import { API_CONFIG } from '@/config/app.config'
 // ─── Auth Token Provider ──────────────────────────────────
 // Lazy import to avoid circular dependency with auth.store
 type TokenProvider = () => string | null
+type AccountNameProvider = () => string | null
 type LogoutHandler = () => void
 
 let _getToken: TokenProvider | null = null
+let _getAccountName: AccountNameProvider | null = null
 let _onUnauthorized: LogoutHandler | null = null
 
 /** Register auth token provider (called from auth store init) */
 export function registerAuthProvider(
   getToken: TokenProvider,
+  getAccountName: AccountNameProvider,
   onUnauthorized: LogoutHandler
 ) {
   _getToken = getToken
+  _getAccountName = getAccountName
   _onUnauthorized = onUnauthorized
 }
 
 /** Get current auth token (used by other service modules to inject Bearer header) */
 export function getAuthToken(): string | null {
   return _getToken?.() ?? null
+}
+
+/** Get current account name for backend audit headers */
+export function getCurrentAccountName(): string | null {
+  const accountName = _getAccountName?.()?.trim()
+  return accountName ? accountName : null
 }
 
 export class ApiClient {
@@ -43,6 +53,11 @@ export class ApiClient {
     const token = _getToken?.()
     if (token) {
       authHeaders['Authorization'] = `Bearer ${token}`
+    }
+
+    const accountName = getCurrentAccountName()
+    if (accountName) {
+      authHeaders['X-User-Name'] = accountName
     }
 
     try {

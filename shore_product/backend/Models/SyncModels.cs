@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Maritime.Shared.Interfaces;
 
 namespace ProductApi.Models;
 
@@ -229,7 +230,7 @@ public class SafetyAlarm
 /// <summary>
 /// Voyage records for reporting
 /// </summary>
-public class VoyageRecord
+public class VoyageRecord : ISyncableEntity
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -237,15 +238,57 @@ public class VoyageRecord
     [Required]
     [MaxLength(50)]
     public string VoyageNumber { get; set; } = string.Empty;
+
+    [MaxLength(10)]
+    public string? VesselIMO { get; set; }
+
+    [MaxLength(100)]
+    public string? VesselName { get; set; }
+
+    [MaxLength(50)]
+    public string? VesselFlag { get; set; }
+
+    [MaxLength(20)]
+    public string? CallSign { get; set; }
     
     [MaxLength(50)]
     public string? DeparturePort { get; set; }
+
+    [MaxLength(5)]
+    public string? DeparturePortCode { get; set; }
+
     public DateTime? DepartureTime { get; set; }
+
     [MaxLength(50)]
     public string? ArrivalPort { get; set; }
+
+    [MaxLength(5)]
+    public string? ArrivalPortCode { get; set; }
+
     public DateTime? ArrivalTime { get; set; }
+
+    [MaxLength(5)]
+    public string? PreviousPortCode { get; set; }
+
+    [MaxLength(100)]
+    public string? PreviousPortName { get; set; }
+
     [MaxLength(100)]
     public string? CargoType { get; set; }
+
+    [MaxLength(40)]
+    public string? CharterType { get; set; }
+
+    public double? PlannedDistance { get; set; }
+
+    public double? PlannedDurationHours { get; set; }
+
+    public double? PlannedAverageSpeed { get; set; }
+
+    public double? PlannedFuelConsumption { get; set; }
+
+    public string? VoyageInstructions { get; set; }
+
     public double? CargoWeight { get; set; } 
     public double? DistanceTraveled { get; set; } 
     public double? FuelConsumed { get; set; } 
@@ -253,11 +296,57 @@ public class VoyageRecord
     
     [MaxLength(20)]
     public string VoyageStatus { get; set; } = "PLANNING"; 
+
+    public DateTime? ApprovedAt { get; set; }
+    public DateTime? ReadyAt { get; set; }
+    public DateTime? CommencedAt { get; set; }
+    public DateTime? ArrivedAt { get; set; }
+    public DateTime? CompletedAt { get; set; }
+    public DateTime? CancelledAt { get; set; }
+
+    public double? TotalEstimatedCost { get; set; }
+    public double? TotalEstimatedRevenue { get; set; }
+    public double? EstimatedProfitMargin { get; set; }
+
+    [MaxLength(30)]
+    public string FinancialStatus { get; set; } = "OPEN";
+
+    public double? TotalActualCost { get; set; }
+    public double? TotalActualRevenue { get; set; }
+    public double? ActualProfitMargin { get; set; }
+    public double? TotalAdvanced { get; set; }
+    public double? TotalDisbursed { get; set; }
+    public double? OutstandingBalance { get; set; }
+    public DateTime? FinancialClosedAt { get; set; }
+
+    [MaxLength(100)]
+    public string? FinancialClosedBy { get; set; }
+
+    public bool IsSynced { get; set; } = false;
+    public long SyncVersion { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+
+    public virtual List<PortCall> PortCalls { get; set; } = new();
+    public virtual List<VoyagePlanLeg> PlanLegs { get; set; } = new();
+    public virtual List<VoyageStatusHistory> StatusHistory { get; set; } = new();
+    public virtual List<VoyageCrewAssignment> CrewAssignments { get; set; } = new();
+    public virtual List<VoyageLogEntry> LogEntries { get; set; } = new();
+    public virtual List<CargoOperation> CargoOperations { get; set; } = new();
+    public virtual List<VoyageCargoPlan> CargoPlans { get; set; } = new();
+    public virtual List<VoyageBunkerPlan> BunkerPlans { get; set; } = new();
+    public virtual List<VoyageCrewChangePlan> CrewChangePlans { get; set; } = new();
+    public virtual List<VoyageCostEstimate> CostEstimates { get; set; } = new();
+    public virtual List<VoyageRevenueEstimate> RevenueEstimates { get; set; } = new();
+    public virtual List<VoyageExpenseRequest> ExpenseRequests { get; set; } = new();
+    public virtual List<VoyageAdvancePayment> AdvancePayments { get; set; } = new();
+    public virtual List<VoyageDisbursement> Disbursements { get; set; } = new();
+    public virtual List<VoyageActualRevenue> ActualRevenues { get; set; } = new();
+    public virtual List<VoyageSettlement> Settlements { get; set; } = new();
 }
 
 // ============================================================
@@ -391,6 +480,25 @@ public class NoonReport
     public string? OperationalRemarks { get; set; }
     public string? MachineryRemarks { get; set; }
     public string? CargoRemarks { get; set; }
+    public string? MaintenanceRemarks { get; set; }
+    
+    public int? CrewOnBoard { get; set; }
+    public int? PassengersOnBoard { get; set; }
+    [MaxLength(500)]
+    public string? SafetyDrillsConducted { get; set; }
+    [MaxLength(500)]
+    public string? SafetyIncidents { get; set; }
+    
+    // ============ SNAPSHOT SUMMARIES (from edge at transmit time) ============
+    
+    /// <summary>JSON snapshot of PMS/Maintenance summary</summary>
+    public string? MaintenanceSummaryJson { get; set; }
+    
+    /// <summary>JSON snapshot of Alarm summary</summary>
+    public string? AlarmSummaryJson { get; set; }
+    
+    /// <summary>Number of crew certificates expiring within 30 days</summary>
+    public int? CertificatesExpiringSoon { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
@@ -403,20 +511,28 @@ public class DepartureReport
     [Required]
     public Guid MaritimeReportId { get; set; }
 
+    public Guid? VoyageId { get; set; }
+
     [MaxLength(200)]
     public string? PortName { get; set; }
     [MaxLength(10)]
-    public string? PortLocode { get; set; }
+    public string? PortCode { get; set; }
 
     public DateTime? DepartureDateTime { get; set; }
-    public DateTime? DepartureDateTimeLocal { get; set; }
+    public DateTime? PilotOnBoardTime { get; set; }
+    public DateTime? LastLineAshoreTime { get; set; }
+
+    public double? DepartureLatitude { get; set; }
+    public double? DepartureLongitude { get; set; }
+
     [MaxLength(100)]
-    public string? TimeZone { get; set; }
+    public string? NextPort { get; set; }
+    [MaxLength(10)]
+    public string? NextPortCode { get; set; }
+    public DateTime? EstimatedTimeOfArrival { get; set; }
+    public double? DistanceToNextPort { get; set; }
 
-    public double? DepartureLat { get; set; }
-    public double? DepartureLon { get; set; }
-
-    public double? DraftFore { get; set; }
+    public double? DraftForward { get; set; }
     public double? DraftAft { get; set; }
     public double? DraftMidship { get; set; }
 
@@ -425,17 +541,11 @@ public class DepartureReport
     public double? LubOilROB { get; set; }
     public double? FreshWaterROB { get; set; }
 
-    public double? DistanceToNextPort { get; set; }
-    public DateTime? ETA { get; set; }
-    [MaxLength(200)]
-    public string? NextPort { get; set; }
-    [MaxLength(10)]
-    public string? NextPortLocode { get; set; }
-
     public double? CargoOnBoard { get; set; }
     [MaxLength(200)]
     public string? CargoDescription { get; set; }
-    public int? PersonsOnBoard { get; set; }
+    public int? CrewOnBoard { get; set; }
+    public int? PassengersOnBoard { get; set; }
 
     public string? Remarks { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -449,38 +559,137 @@ public class ArrivalReport
     [Required]
     public Guid MaritimeReportId { get; set; }
 
+    public Guid? VoyageId { get; set; }
+
     [MaxLength(200)]
     public string? PortName { get; set; }
     [MaxLength(10)]
-    public string? PortLocode { get; set; }
+    public string? PortCode { get; set; }
 
     public DateTime? ArrivalDateTime { get; set; }
-    public DateTime? ArrivalDateTimeLocal { get; set; }
-    [MaxLength(100)]
-    public string? TimeZone { get; set; }
+    public DateTime? PilotOnBoardTime { get; set; }
+    public DateTime? FirstLineAshoreTime { get; set; }
 
-    public double? ArrivalLat { get; set; }
-    public double? ArrivalLon { get; set; }
+    public double? ArrivalLatitude { get; set; }
+    public double? ArrivalLongitude { get; set; }
 
     public double? VoyageDistance { get; set; }
-    public double? VoyageDurationHours { get; set; }
-    public double? AverageSpeedKnots { get; set; }
+    public double? VoyageDuration { get; set; }
+    public double? AverageSpeed { get; set; }
 
-    public double? DraftFore { get; set; }
+    public double? DraftForward { get; set; }
     public double? DraftAft { get; set; }
     public double? DraftMidship { get; set; }
 
-    public double? FuelOilConsumed { get; set; }
-    public double? DieselOilConsumed { get; set; }
     public double? FuelOilROB { get; set; }
     public double? DieselOilROB { get; set; }
     public double? LubOilROB { get; set; }
     public double? FreshWaterROB { get; set; }
 
+    public double? TotalFuelConsumed { get; set; }
+    public double? TotalDieselConsumed { get; set; }
+
     public double? CargoOnBoard { get; set; }
     [MaxLength(200)]
     public string? CargoDescription { get; set; }
-    public int? PersonsOnBoard { get; set; }
+    public int? CrewOnBoard { get; set; }
+    public int? PassengersOnBoard { get; set; }
+
+    public string? Remarks { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Bunker Delivery Note Report - IMO DCS / MARPOL Annex VI compliance
+/// Synced from Edge when transmitted
+/// </summary>
+public class BunkerReport
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid MaritimeReportId { get; set; }
+
+    public DateTime BunkerDate { get; set; }
+
+    [MaxLength(200)]
+    public string? PortName { get; set; }
+    [MaxLength(10)]
+    public string? PortCode { get; set; }
+
+    [MaxLength(200)]
+    public string? SupplierName { get; set; }
+
+    [MaxLength(50)]
+    public string? BDNNumber { get; set; }
+
+    [MaxLength(20)]
+    public string? FuelType { get; set; }
+    [MaxLength(50)]
+    public string? FuelGrade { get; set; }
+
+    public double? QuantityReceived { get; set; }
+    public double? Density { get; set; }
+    public double? SulphurContent { get; set; }
+    public double? Viscosity { get; set; }
+    public double? FlashPoint { get; set; }
+    public double? ROBefore { get; set; }
+    public double? ROBAfter { get; set; }
+
+    [MaxLength(200)]
+    public string? TanksLoaded { get; set; }
+    [MaxLength(200)]
+    public string? SealNumbers { get; set; }
+    [MaxLength(100)]
+    public string? ChiefEngineerSignature { get; set; }
+
+    public string? Remarks { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Position Report - SOLAS Chapter V Regulation 19
+/// Synced from Edge when transmitted
+/// </summary>
+public class PositionReport
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid MaritimeReportId { get; set; }
+
+    public DateTime ReportDateTime { get; set; }
+
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public double? CourseOverGround { get; set; }
+    public double? SpeedOverGround { get; set; }
+
+    [MaxLength(50)]
+    public string? ReportReason { get; set; }
+
+    [MaxLength(50)]
+    public string? WeatherConditions { get; set; }
+    [MaxLength(20)]
+    public string? SeaState { get; set; }
+    public double? WindSpeed { get; set; }
+    [MaxLength(20)]
+    public string? WindDirection { get; set; }
+
+    public double? FuelOilROB { get; set; }
+    public double? DieselOilROB { get; set; }
+
+    [MaxLength(100)]
+    public string? LastPort { get; set; }
+    [MaxLength(200)]
+    public string? NextPort { get; set; }
+    public DateTime? ETA { get; set; }
+    public double? DistanceToGo { get; set; }
+
+    public double? CargoOnBoard { get; set; }
+    public int? CrewOnBoard { get; set; }
 
     public string? Remarks { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

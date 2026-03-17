@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { TopNavLayout } from '../components/layout';
-import { CategoryManagementPage, CrewListPage, CrewDetailPage, CertificateMonitorPage, MasterSchedulePage, VesselsPage, ReportPage, VesselReportDetailPage } from '../pages';
+import { CategoryManagementPage, CrewListPage, CrewDetailPage, CertificateMonitorPage, MasterSchedulePage, VesselsPage, ReportPage, VesselReportDetailPage, ReportDetailPage, VoyageListPage, VoyageDetailPage, VoyageFormPage } from '../pages';
 import { VesselDetailPage } from '../pages/VesselManagement';
 import { SyncDashboardPage } from '../pages/SyncManagement';
 import { WorkAssignmentPage } from '../pages/WorkAssignment';
@@ -29,6 +29,7 @@ export const AppRoutes: React.FC = () => {
       <Route element={<TopNavLayout />}>
         <Route path="/report" element={<ReportPage />} />
         <Route path="/report/vessel/:vesselId" element={<VesselReportDetailPage />} />
+        <Route path="/report/:reportId" element={<ReportDetailPage />} />
         <Route path="/categories" element={<CategoryManagementPage />} />
         <Route path="/crew" element={<CrewListPage />} />
         <Route path="/crew/:id" element={<CrewDetailPage />} />
@@ -53,6 +54,10 @@ export const AppRoutes: React.FC = () => {
         <Route path="/travel" element={<TravelListPage />} />
         <Route path="/travel/:id" element={<TravelDetailPage />} />
         <Route path="/onboard-events" element={<OnboardDashboardPage />} />
+        <Route path="/voyages" element={<VoyageListPage />} />
+        <Route path="/voyages/new" element={<VoyageFormPage />} />
+        <Route path="/voyages/:id/edit" element={<VoyageFormPage />} />
+        <Route path="/voyages/:id" element={<VoyageDetailPage />} />
       </Route>
       
       {/* 404 */}

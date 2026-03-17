@@ -116,10 +116,30 @@ public class SyncInboxService : ISyncInboxService
         // Telemetry / Reports
         ["position_data"]    = typeof(ProductApi.Models.PositionData),
         ["engine_data"]      = typeof(ProductApi.Models.EngineData),
+        ["voyage_record"]    = typeof(ProductApi.Models.VoyageRecord),
+        ["port"]             = typeof(ProductApi.Models.Port),
+        ["voyage_plan_leg"]  = typeof(ProductApi.Models.VoyagePlanLeg),
+        ["voyage_status_history"] = typeof(ProductApi.Models.VoyageStatusHistory),
+        ["port_call"]        = typeof(ProductApi.Models.PortCall),
+        ["voyage_crew_assignment"] = typeof(ProductApi.Models.VoyageCrewAssignment),
+        ["cargo_operation"]  = typeof(ProductApi.Models.CargoOperation),
+        ["voyage_log_entry"] = typeof(ProductApi.Models.VoyageLogEntry),
+        ["voyage_cargo_plan"] = typeof(ProductApi.Models.VoyageCargoPlan),
+        ["voyage_bunker_plan"] = typeof(ProductApi.Models.VoyageBunkerPlan),
+        ["voyage_crew_change_plan"] = typeof(ProductApi.Models.VoyageCrewChangePlan),
+        ["voyage_cost_estimate"] = typeof(ProductApi.Models.VoyageCostEstimate),
+        ["voyage_revenue_estimate"] = typeof(ProductApi.Models.VoyageRevenueEstimate),
+        ["voyage_expense_request"] = typeof(ProductApi.Models.VoyageExpenseRequest),
+        ["voyage_advance_payment"] = typeof(ProductApi.Models.VoyageAdvancePayment),
+        ["voyage_disbursement"] = typeof(ProductApi.Models.VoyageDisbursement),
+        ["voyage_actual_revenue"] = typeof(ProductApi.Models.VoyageActualRevenue),
+        ["voyage_settlement"] = typeof(ProductApi.Models.VoyageSettlement),
         ["maritime_report"]  = typeof(ProductApi.Models.MaritimeReport),
         ["noon_report"]      = typeof(ProductApi.Models.NoonReport),
         ["departure_report"] = typeof(ProductApi.Models.DepartureReport),
         ["arrival_report"]   = typeof(ProductApi.Models.ArrivalReport),
+        ["bunker_report"]    = typeof(ProductApi.Models.BunkerReport),
+        ["position_report"]  = typeof(ProductApi.Models.PositionReport),
 
         // Crew Management
         ["crew_member"]         = typeof(CrewMember),
@@ -147,6 +167,31 @@ public class SyncInboxService : ISyncInboxService
         // (material_item, material_receipt, ...) are not yet in Shore's AppDbContext.
         // Items with those table names will be received from Edge but skipped with a
         // warning until Shore adds the corresponding models and migrations.
+    };
+
+    // Edge auto-queue emits full-entity snapshots for voyage sync rows even when the
+    // action type is UPDATE. On first arrival at Shore there is no existing mirror row,
+    // so these tables must be allowed to CREATE from a missing UPDATE payload.
+    private static readonly HashSet<string> _createOnMissingUpdateTables = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "voyage_record",
+        "port",
+        "voyage_plan_leg",
+        "voyage_status_history",
+        "port_call",
+        "voyage_crew_assignment",
+        "cargo_operation",
+        "voyage_log_entry",
+        "voyage_cargo_plan",
+        "voyage_bunker_plan",
+        "voyage_crew_change_plan",
+        "voyage_cost_estimate",
+        "voyage_revenue_estimate",
+        "voyage_expense_request",
+        "voyage_advance_payment",
+        "voyage_disbursement",
+        "voyage_actual_revenue",
+        "voyage_settlement",
     };
 
     public SyncInboxService(
@@ -257,6 +302,30 @@ public class SyncInboxService : ISyncInboxService
                         continue;
                     }
 
+                    // ── Guard: only accept TRANSMITTED reports on shore ──
+                    if (group.Key.Equals("maritime_report", StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrEmpty(item.Payload))
+                    {
+                        try
+                        {
+                            using var doc = System.Text.Json.JsonDocument.Parse(item.Payload);
+                            if (doc.RootElement.TryGetProperty("Status", out var statusProp)
+                                || doc.RootElement.TryGetProperty("status", out statusProp))
+                            {
+                                var status = statusProp.GetString();
+                                if (!string.Equals(status, "TRANSMITTED", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    _logger.LogWarning(
+                                        "Rejecting non-TRANSMITTED report {Key} (status={Status})",
+                                        item.RecordKey, status);
+                                    failed++;
+                                    continue;
+                                }
+                            }
+                        }
+                        catch { /* parse error — continue normal processing */ }
+                    }
+
                     await ProcessIncomingAsync(item);
 
                     // Record idempotency key
@@ -362,17 +431,22 @@ public class SyncInboxService : ISyncInboxService
         var entity = JsonSerializer.Deserialize(cleanPayload, entityType, _jsonOptions);
         if (entity == null) throw new InvalidOperationException("Failed to deserialize CREATE payload");
 
+        // CRITICAL: Force the entity's PK to match RecordKey.
+        // Without this, if the payload is missing "id" or has a different value,
+        // the deserialised entity gets Guid.NewGuid() default → phantom duplicate.
+        ForceEntityPrimaryKey(entityType, entity, item.RecordKey);
+
         // Check if already exists (idempotency — edge may retry)
         var existing = await FindEntityByKeyAsync(entityType, item.RecordKey);
         if (existing != null)
         {
             _logger.LogDebug("Entity {Table}/{Key} already exists — treating as UPDATE", 
                 item.TableName, item.RecordKey);
-            // Apply conflict resolution
+            // Apply conflict resolution — copy only meaningful non-default values
             var resolution = _conflictResolver.Resolve(item.TableName, existing, entity, item.OriginNode);
             if (resolution.ShouldApply)
             {
-                _context.Entry(existing).CurrentValues.SetValues(resolution.ResolvedEntity!);
+                CopyNonDefaultProperties(existing, resolution.ResolvedEntity!, entityType);
                 UpdateSyncMetadata(existing, item);
             }
             return;
@@ -398,7 +472,21 @@ public class SyncInboxService : ISyncInboxService
         var existing = await FindEntityByKeyAsync(entityType, item.RecordKey);
         if (existing == null)
         {
-            _logger.LogWarning("UPDATE for non-existent entity {Table}/{Key} — treating as CREATE",
+            // Only fall through to CREATE if the original action is CREATE or SNAPSHOT
+            // (meaning the payload is a full entity). For UPDATE actions, the payload
+            // may be partial — creating an entity from partial data produces broken
+            // records with default values (empty ReportNumber, ReportTypeId=0, etc.).
+            var originalAction = item.ActionType?.ToUpperInvariant() ?? "CREATE";
+            if (originalAction == "UPDATE" && !_createOnMissingUpdateTables.Contains(item.TableName))
+            {
+                _logger.LogWarning(
+                    "UPDATE for non-existent entity {Table}/{Key} — skipping (partial payload cannot create entity)",
+                    item.TableName, item.RecordKey);
+                return;
+            }
+
+            _logger.LogInformation("{Action} for non-existent entity {Table}/{Key} — creating from snapshot payload",
+                originalAction,
                 item.TableName, item.RecordKey);
             await ProcessCreateAsync(entityType, item);
             return;
@@ -425,19 +513,11 @@ public class SyncInboxService : ISyncInboxService
             if (resolution.ShouldApply)
             {
                 // If ResolvedEntity IS existing (conflict resolver mutated it in-place),
-                // EF is already tracking the changes — no need for SetValues.
-                // If it is a different object, copy non-key values over.
+                // EF is already tracking the changes — no need to copy.
+                // If it is a different object, copy only non-default values over.
                 if (!ReferenceEquals(resolution.ResolvedEntity, existing))
                 {
-                    var entry2 = _context.Entry(existing);
-                    foreach (var prop in entry2.Metadata.GetProperties())
-                    {
-                        if (prop.IsKey()) continue; // never overwrite PK
-                        var resolved = resolution.ResolvedEntity!;
-                        var inVal = prop.PropertyInfo?.GetValue(resolved);
-                        if (inVal != null)
-                            prop.PropertyInfo?.SetValue(existing, inVal);
-                    }
+                    CopyNonDefaultProperties(existing, resolution.ResolvedEntity!, entityType);
                 }
                 UpdateSyncMetadata(existing, item);
             }
@@ -531,6 +611,64 @@ public class SyncInboxService : ISyncInboxService
         return null;
     }
 
+    /// <summary>
+    /// Force the entity's primary key to match RecordKey from the sync item.
+    /// Prevents phantom duplicates when the payload is missing/mismatched Id
+    /// (e.g. partial payloads produce Guid.NewGuid() default).
+    /// </summary>
+    private void ForceEntityPrimaryKey(Type entityType, object entity, string recordKey)
+    {
+        var entry = _context.Entry(entity);
+        var keyProp = entry.Metadata.FindPrimaryKey()?.Properties.FirstOrDefault();
+        if (keyProp?.PropertyInfo == null) return;
+
+        var clrType = keyProp.ClrType;
+        object? keyValue = null;
+
+        if (clrType == typeof(Guid) && Guid.TryParse(recordKey, out var g))
+            keyValue = g;
+        else if (clrType == typeof(int) && int.TryParse(recordKey, out var i))
+            keyValue = i;
+        else if (clrType == typeof(long) && long.TryParse(recordKey, out var l))
+            keyValue = l;
+
+        if (keyValue != null)
+        {
+            keyProp.PropertyInfo.SetValue(entity, keyValue);
+        }
+    }
+
+    /// <summary>
+    /// Copy properties from source to target, skipping PK and default/empty values.
+    /// This prevents overwriting existing good data with deserialization defaults
+    /// (e.g. ReportNumber="", ReportTypeId=0, IsTransmitted=false).
+    /// </summary>
+    private void CopyNonDefaultProperties(object target, object source, Type entityType)
+    {
+        var entry = _context.Entry(target);
+        foreach (var prop in entry.Metadata.GetProperties())
+        {
+            if (prop.IsKey()) continue;
+            if (prop.PropertyInfo == null) continue;
+
+            var inVal = prop.PropertyInfo.GetValue(source);
+            if (inVal == null) continue;
+
+            // Skip value-type defaults (0, false, DateTime.MinValue, Guid.Empty)
+            var clrType = prop.ClrType;
+            if (clrType.IsValueType)
+            {
+                var defaultVal = Activator.CreateInstance(clrType);
+                if (Equals(inVal, defaultVal)) continue;
+            }
+
+            // Skip empty strings — don't overwrite existing data with blanks
+            if (inVal is string sv && sv.Length == 0) continue;
+
+            prop.PropertyInfo.SetValue(target, inVal);
+        }
+    }
+
     private void UpdateSyncMetadata(object entity, SyncQueueItemDto item)
     {
         if (entity is Maritime.Shared.Interfaces.ISyncableEntity syncable)
@@ -539,6 +677,27 @@ public class SyncInboxService : ISyncInboxService
             syncable.OriginNode = item.OriginNode;
             syncable.SyncVersion = item.SyncVersion;
             syncable.UpdatedAt = DateTime.UtcNow;
+        }
+
+        // For entities that have OriginNode but don't implement ISyncableEntity
+        // (e.g. MaritimeReport), always set OriginNode from the sync item metadata.
+        // This ensures the correct vessel IMO is used even if the payload contains
+        // the edge DB default "SHIP_01".
+        SetOriginNodeFromItem(entity, item.OriginNode);
+    }
+
+    /// <summary>
+    /// Force OriginNode to match the sync item metadata (vessel IMO).
+    /// The edge DB may still have "SHIP_01" defaults, but the sync item
+    /// correctly carries the vessel IMO. Always trust the item-level value.
+    /// </summary>
+    private static void SetOriginNodeFromItem(object entity, string originNode)
+    {
+        if (string.IsNullOrWhiteSpace(originNode)) return;
+        var prop = entity.GetType().GetProperty("OriginNode");
+        if (prop != null && prop.CanWrite && prop.PropertyType == typeof(string))
+        {
+            prop.SetValue(entity, originNode);
         }
     }
 
@@ -584,8 +743,51 @@ public class SyncInboxService : ISyncInboxService
                 }
             }
         }
-        // Future: add similar checks for other entities with FK references to master data
-        // e.g. CrewCertificate → Certificates, ServiceRecord → Vessels, etc.
+        // VoyageCrewAssignment → Rank: null out RankId if it doesn't exist on shore
+        // (Edge and shore may have same ranks but with different auto-generated IDs)
+        if (entityType == typeof(VoyageCrewAssignment))
+        {
+            var assignment = (VoyageCrewAssignment)entity;
+            if (assignment.RankId.HasValue)
+            {
+                var rankExists = await _context.Set<Rank>().AnyAsync(r => r.Id == assignment.RankId.Value);
+                if (!rankExists)
+                {
+                    _logger.LogWarning(
+                        "VoyageCrewAssignment {Id}: RankId {RankId} not found on shore — setting to null to avoid FK violation",
+                        assignment.Id, assignment.RankId);
+                    assignment.RankId = null;
+                }
+            }
+        }
+        // PortCall → Port: auto-create minimal Port record if PortId references a missing port
+        if (entityType == typeof(ProductApi.Models.PortCall))
+        {
+            var pc = (ProductApi.Models.PortCall)entity;
+            if (pc.PortId.HasValue)
+            {
+                var portExists = await _context.Set<ProductApi.Models.Port>().AnyAsync(p => p.Id == pc.PortId.Value);
+                if (!portExists)
+                {
+                    // Auto-create a placeholder port from the PortCall's inline data
+                    var newPort = new ProductApi.Models.Port
+                    {
+                        Id = pc.PortId.Value,
+                        PortCode = string.IsNullOrEmpty(pc.PortCode) ? $"UNK{pc.PortId}" : pc.PortCode,
+                        PortName = string.IsNullOrEmpty(pc.PortName) ? $"Port {pc.PortId}" : pc.PortName,
+                        Country = pc.Country ?? "",
+                        IsActive = true,
+                        OriginNode = pc.OriginNode,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    await _context.Set<ProductApi.Models.Port>().AddAsync(newPort);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("Auto-created Port {PortId} ({PortCode}/{PortName}) from PortCall data",
+                        pc.PortId, newPort.PortCode, newPort.PortName);
+                }
+            }
+        }
     }
 
     // ============================================================

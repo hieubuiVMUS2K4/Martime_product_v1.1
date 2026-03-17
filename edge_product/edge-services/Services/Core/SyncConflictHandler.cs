@@ -1,4 +1,5 @@
 using MaritimeEdge.Data;
+using MaritimeEdge.Models;
 using Maritime.Shared.DTOs.Sync;
 using Maritime.Shared.Interfaces;
 using MaritimeEdge.Services.Core;
@@ -46,6 +47,22 @@ public class SyncConflictHandler : ISyncConflictHandler
         ["seafarer_document"] = typeof(Maritime.Shared.Models.Documents.SeafarerDocument),
         ["employment_document"] = typeof(Maritime.Shared.Models.Documents.EmploymentDocument),
         ["health_document"] = typeof(Maritime.Shared.Models.Documents.HealthDocument),
+
+        // Voyage planning / commercial data managed from shore
+        ["voyage_record"] = typeof(VoyageRecord),
+        ["voyage_plan_leg"] = typeof(VoyagePlanLeg),
+        ["voyage_status_history"] = typeof(VoyageStatusHistory),
+        ["port_call"] = typeof(PortCall),
+        ["voyage_cargo_plan"] = typeof(VoyageCargoPlan),
+        ["voyage_bunker_plan"] = typeof(VoyageBunkerPlan),
+        ["voyage_crew_change_plan"] = typeof(VoyageCrewChangePlan),
+        ["voyage_cost_estimate"] = typeof(VoyageCostEstimate),
+        ["voyage_revenue_estimate"] = typeof(VoyageRevenueEstimate),
+        ["voyage_expense_request"] = typeof(VoyageExpenseRequest),
+        ["voyage_advance_payment"] = typeof(VoyageAdvancePayment),
+        ["voyage_disbursement"] = typeof(VoyageDisbursement),
+        ["voyage_actual_revenue"] = typeof(VoyageActualRevenue),
+        ["voyage_settlement"] = typeof(VoyageSettlement),
     };
 
     // Master data tables — always accept from Shore

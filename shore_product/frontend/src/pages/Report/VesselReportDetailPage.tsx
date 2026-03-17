@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, List, Calendar, RefreshCw,
-  ChevronLeft, ChevronRight, Plus,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { ENV } from '../../config/env';
 import './VesselReportDetailPage.css';
@@ -53,7 +53,6 @@ const TYPE_LABEL: Record<string, string> = {
   NOON: 'Trưa',
   DEPARTURE: 'Khởi hành',
   ARRIVAL: 'Cập cảng',
-  DAILY: 'Hàng ngày',
   BUNKER: 'Bunker',
   POSITION: 'Vị trí',
   NO_REPORT: 'Không có BC',
@@ -64,6 +63,7 @@ const STATUS_LABEL: Record<string, string> = {
   SUBMITTED: 'Chờ duyệt',
   DRAFT: 'Nháp',
   REJECTED: 'Từ chối',
+  TRANSMITTED: 'Đã truyền',
   NO_REPORT: 'Không có BC',
 };
 
@@ -184,21 +184,6 @@ export const VesselReportDetailPage: React.FC = () => {
   useEffect(() => { setPage(1); }, [filterType, filterStatus, filterFrom, filterTo]);
 
   // ─────────────────────────────────────────────────────────────
-  // Approve handler
-  // ─────────────────────────────────────────────────────────────
-  const handleApprove = async (id: string) => {
-    try {
-      const res = await fetch(`${ENV.API_BASE_URL}/reports/${id}/approve`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ approvedBy: 'Shore Office' }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      fetchReports();
-    } catch { /* silent */ }
-  };
-
-  // ─────────────────────────────────────────────────────────────
   // Calendar helpers
   // ─────────────────────────────────────────────────────────────
   const calNavPrev = () => {
@@ -275,20 +260,7 @@ export const VesselReportDetailPage: React.FC = () => {
           )}
         </h1>
 
-        <div className="vessel-report__quick-btns">
-          <button className="quick-btn quick-btn--departure">
-            <Plus size={10} /> Khởi hành
-          </button>
-          <button className="quick-btn quick-btn--noon">
-            <Plus size={10} /> Trưa
-          </button>
-          <button className="quick-btn quick-btn--daily">
-            <Plus size={10} /> Ngày
-          </button>
-          <button className="quick-btn quick-btn--arrival">
-            <Plus size={10} /> Cập cảng
-          </button>
-        </div>
+
       </div>
 
       {/* ── Stats bar ── */}
@@ -323,13 +295,13 @@ export const VesselReportDetailPage: React.FC = () => {
           <>
             <select className="toolbar-filter" value={filterType} onChange={e => setFilterType(e.target.value)}>
               <option value="">Tất cả loại</option>
-              {['NOON','DEPARTURE','ARRIVAL','DAILY','BUNKER','POSITION'].map(t => (
+              {['NOON','DEPARTURE','ARRIVAL','BUNKER','POSITION'].map(t => (
                 <option key={t} value={t}>{TYPE_LABEL[t]}</option>
               ))}
             </select>
             <select className="toolbar-filter" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
               <option value="">Tất cả trạng thái</option>
-              {['DRAFT','SUBMITTED','APPROVED','REJECTED'].map(s => (
+              {['DRAFT','SUBMITTED','APPROVED','REJECTED','TRANSMITTED'].map(s => (
                 <option key={s} value={s}>{STATUS_LABEL[s]}</option>
               ))}
             </select>
@@ -387,20 +359,18 @@ export const VesselReportDetailPage: React.FC = () => {
                   <th>Loại BC</th>
                   <th>Trạng thái</th>
                   <th>Ghi chú</th>
-                  <th style={{ width: 70, textAlign: 'center' }}>Đã truyền</th>
-                  <th style={{ width: 80 }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {reports.length === 0 && (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', padding: '28px', color: '#9fb3c8' }}>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '28px', color: '#9fb3c8' }}>
                       Không có báo cáo nào.
                     </td>
                   </tr>
                 )}
                 {reports.map((r, idx) => (
-                  <tr key={r.id} className={rowClass(r)}>
+                  <tr key={r.id} className={`${rowClass(r)} row--clickable`} onClick={() => navigate(`/report/${r.id}`)} style={{ cursor: 'pointer' }}>
                     <td style={{ color: '#9fb3c8', textAlign: 'center' }}>
                       {(page - 1) * PAGE_SIZE + idx + 1}
                     </td>
@@ -419,18 +389,6 @@ export const VesselReportDetailPage: React.FC = () => {
                     </td>
                     <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#6b7c8f' }}>
                       {r.remarks ?? '—'}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      {r.isTransmitted
-                        ? <span style={{ color: '#16a34a', fontWeight: 700 }}>✓</span>
-                        : <span style={{ color: '#b8d4ee' }}>—</span>}
-                    </td>
-                    <td>
-                      {r.status === 'SUBMITTED' && (
-                        <button className="action-btn action-btn--approve" onClick={() => handleApprove(r.id)}>
-                          Duyệt
-                        </button>
-                      )}
                     </td>
                   </tr>
                 ))}

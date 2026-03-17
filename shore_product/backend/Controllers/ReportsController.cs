@@ -329,6 +329,121 @@ namespace ProductApi.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
+
+        // ─────────────────────────────────────────────────────────────
+        // GET /api/reports/{id}
+        // Chi tiết báo cáo (parent MaritimeReport + child report data)
+        // ─────────────────────────────────────────────────────────────
+        [HttpGet("{id:guid}")]
+        public async Task<IActionResult> GetReportDetail(Guid id)
+        {
+            try
+            {
+                var report = await _context.MaritimeReports
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.Id == id);
+
+                if (report == null) return NotFound();
+
+                var reportType = await _context.ReportTypes
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(rt => rt.Id == report.ReportTypeId);
+
+                var typeCode = reportType?.TypeCode ?? "UNKNOWN";
+
+                object? childReport = typeCode switch
+                {
+                    "NOON" => await _context.NoonReports.AsNoTracking()
+                        .FirstOrDefaultAsync(r => r.MaritimeReportId == id),
+                    "DEPARTURE" => await _context.DepartureReports.AsNoTracking()
+                        .FirstOrDefaultAsync(r => r.MaritimeReportId == id),
+                    "ARRIVAL" => await _context.ArrivalReports.AsNoTracking()
+                        .FirstOrDefaultAsync(r => r.MaritimeReportId == id),
+                    "BUNKER" => await _context.BunkerReports.AsNoTracking()
+                        .FirstOrDefaultAsync(r => r.MaritimeReportId == id),
+                    "POSITION" => await _context.PositionReports.AsNoTracking()
+                        .FirstOrDefaultAsync(r => r.MaritimeReportId == id),
+                    _ => null
+                };
+
+                return Ok(new
+                {
+                    report.Id,
+                    report.ReportNumber,
+                    report.ReportTypeId,
+                    TypeCode = typeCode,
+                    TypeName = reportType?.TypeName ?? "Unknown",
+                    report.ReportDateTime,
+                    report.Status,
+                    report.PreparedBy,
+                    report.MasterSignature,
+                    report.SignedAt,
+                    report.Remarks,
+                    report.ReportData,
+                    report.IsTransmitted,
+                    report.TransmittedAt,
+                    report.OriginNode,
+                    report.CreatedAt,
+                    report.UpdatedAt,
+                    ChildReport = childReport
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting report detail {Id}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // GET /api/reports/statistics
+        // Thống kê báo cáo tổng quan
+        // ─────────────────────────────────────────────────────────────
+        [HttpGet("statistics")]
+        public async Task<IActionResult> GetStatistics(
+            [FromQuery] DateTime? from = null,
+            [FromQuery] DateTime? to = null)
+        {
+            try
+            {
+                var query = _context.MaritimeReports.AsNoTracking().AsQueryable();
+                if (from.HasValue) query = query.Where(r => r.ReportDateTime >= from.Value);
+                if (to.HasValue) query = query.Where(r => r.ReportDateTime <= to.Value.AddDays(1));
+
+                var total = await query.CountAsync();
+                var byStatus = await query.GroupBy(r => r.Status)
+                    .Select(g => new { Status = g.Key, Count = g.Count() })
+                    .ToListAsync();
+
+                var typeIds = await query.Select(r => r.ReportTypeId).Distinct().ToListAsync();
+                var typeMap = await _context.ReportTypes
+                    .Where(rt => typeIds.Contains(rt.Id))
+                    .ToDictionaryAsync(rt => rt.Id, rt => rt.TypeCode);
+
+                var byType = await query.GroupBy(r => r.ReportTypeId)
+                    .Select(g => new { TypeId = g.Key, Count = g.Count() })
+                    .ToListAsync();
+
+                var byVessel = await query.GroupBy(r => r.OriginNode)
+                    .Select(g => new { Vessel = g.Key, Count = g.Count() })
+                    .ToListAsync();
+
+                return Ok(new
+                {
+                    total,
+                    byStatus = byStatus.ToDictionary(x => x.Status, x => x.Count),
+                    byType = byType
+                        .Where(t => typeMap.ContainsKey(t.TypeId))
+                        .ToDictionary(t => typeMap[t.TypeId], t => t.Count),
+                    byVessel = byVessel.ToDictionary(x => x.Vessel, x => x.Count)
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting report statistics");
+                return StatusCode(500, "Internal server error");
+            }
+        }
     }
 
     public class ApproveReportDto

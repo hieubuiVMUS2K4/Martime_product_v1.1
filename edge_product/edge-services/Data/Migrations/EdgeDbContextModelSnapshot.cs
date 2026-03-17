@@ -566,112 +566,112 @@ namespace MaritimeEdge.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7861),
+                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8764),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "MAST",
                             RankName = "Master (Captain)",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7863)
+                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8774)
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7864),
+                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8776),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/O",
                             RankName = "Chief Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7865)
+                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8776)
                         },
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7866),
+                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8777),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/O",
                             RankName = "Second Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7866)
+                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8777)
                         },
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7867),
+                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8778),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "3/O",
                             RankName = "Third Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7867)
+                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8778)
                         },
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7868),
+                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8779),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/E",
                             RankName = "Chief Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7868)
+                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8780)
                         },
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7869),
+                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8781),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/E",
                             RankName = "Second Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7869)
+                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8781)
                         },
                         new
                         {
                             Id = 7,
-                            CreatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7870),
+                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8782),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "BOSN",
                             RankName = "Bosun",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7871)
+                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8782)
                         },
                         new
                         {
                             Id = 8,
-                            CreatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7871),
+                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8783),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "AB",
                             RankName = "Able Seaman",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7872)
+                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8783)
                         },
                         new
                         {
                             Id = 9,
-                            CreatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7873),
+                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8784),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "OILR",
                             RankName = "Oiler",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7873)
+                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8784)
                         },
                         new
                         {
                             Id = 10,
-                            CreatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7874),
+                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8785),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "COOK",
                             RankName = "Chief Cook",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 3, 14, 6, 16, 156, DateTimeKind.Utc).AddTicks(7874)
+                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8786)
                         });
                 });
 
@@ -2255,6 +2255,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("double precision")
                         .HasColumnName("volume");
 
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_plan_leg_id");
+
                     b.Property<double?>("WaterDepth")
                         .HasColumnType("double precision")
                         .HasColumnName("water_depth");
@@ -2269,6 +2277,12 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("OperationDateTime")
                         .IsDescending()
                         .HasDatabaseName("idx_ballast_operation_date");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_ballast_voyage_id");
+
+                    b.HasIndex("VoyagePlanLegId")
+                        .HasDatabaseName("idx_ballast_leg_id");
 
                     b.ToTable("ballast_water_record_books", "public");
                 });
@@ -2499,6 +2513,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("voyage_id");
 
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_plan_leg_id");
+
                     b.HasKey("Id")
                         .HasName("p_k_cargo_operations");
 
@@ -2521,6 +2539,9 @@ namespace MaritimeEdge.Data.Migrations
 
                     b.HasIndex("VoyageId")
                         .HasDatabaseName("idx_cargo_voyage");
+
+                    b.HasIndex("VoyagePlanLegId")
+                        .HasDatabaseName("idx_cargo_leg_id");
 
                     b.ToTable("cargo_operations", "public");
                 });
@@ -2683,6 +2704,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(30)")
                         .HasColumnName("visibility");
 
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_plan_leg_id");
+
                     b.Property<string>("WatchPeriod")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -2700,6 +2729,12 @@ namespace MaritimeEdge.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("p_k_deck_log_books");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_deck_log_voyage_id");
+
+                    b.HasIndex("VoyagePlanLegId")
+                        .HasDatabaseName("idx_deck_log_leg_id");
 
                     b.ToTable("deck_log_books", "public");
                 });
@@ -2956,6 +2991,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("verified_date");
 
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_plan_leg_id");
+
                     b.Property<string>("WeatherCondition")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
@@ -2978,6 +3021,12 @@ namespace MaritimeEdge.Data.Migrations
                         .IsUnique();
 
                     b.HasIndex("VerifiedByCrewId");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_drill_log_voyage_id");
+
+                    b.HasIndex("VoyagePlanLegId")
+                        .HasDatabaseName("idx_drill_log_leg_id");
 
                     b.ToTable("drill_logs", "public");
                 });
@@ -3588,6 +3637,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_plan_leg_id");
+
                     b.Property<string>("WatchPeriod")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -3604,6 +3661,12 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("LogDateTime")
                         .IsDescending()
                         .HasDatabaseName("idx_engine_log_date");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_engine_log_voyage_id");
+
+                    b.HasIndex("VoyagePlanLegId")
+                        .HasDatabaseName("idx_engine_log_leg_id");
 
                     b.ToTable("engine_log_books", "public");
                 });
@@ -3982,6 +4045,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_plan_leg_id");
+
                     b.HasKey("Id")
                         .HasName("p_k_fuel_consumption");
 
@@ -3995,6 +4066,12 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("Timestamp")
                         .IsDescending()
                         .HasDatabaseName("idx_fuel_timestamp");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_fuel_voyage_id");
+
+                    b.HasIndex("VoyagePlanLegId")
+                        .HasDatabaseName("idx_fuel_leg_id");
 
                     b.ToTable("fuel_consumption", "public");
                 });
@@ -4166,6 +4243,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_plan_leg_id");
+
                     b.HasKey("Id")
                         .HasName("p_k_garbage_record_books");
 
@@ -4179,6 +4264,12 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("OperationDateTime")
                         .IsDescending()
                         .HasDatabaseName("idx_garbage_operation_date");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_garbage_voyage_id");
+
+                    b.HasIndex("VoyagePlanLegId")
+                        .HasDatabaseName("idx_garbage_leg_id");
 
                     b.ToTable("garbage_record_books", "public");
                 });
@@ -4316,6 +4407,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_plan_leg_id");
+
                     b.Property<double?>("WaterDepth")
                         .HasColumnType("double precision")
                         .HasColumnName("water_depth");
@@ -4333,6 +4432,12 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("OperationDate")
                         .IsDescending()
                         .HasDatabaseName("idx_garbage_part_i_date");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_garbage_part_i_voyage_id");
+
+                    b.HasIndex("VoyagePlanLegId")
+                        .HasDatabaseName("idx_garbage_part_i_leg_id");
 
                     b.ToTable("garbage_record_part_i", "public");
                 });
@@ -4462,6 +4567,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_plan_leg_id");
+
                     b.HasKey("Id")
                         .HasName("p_k_garbage_record_part_i_is");
 
@@ -4475,6 +4588,12 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("OperationDate")
                         .IsDescending()
                         .HasDatabaseName("idx_garbage_part_ii_date");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_garbage_part_ii_voyage_id");
+
+                    b.HasIndex("VoyagePlanLegId")
+                        .HasDatabaseName("idx_garbage_part_ii_leg_id");
 
                     b.ToTable("garbage_record_part_ii", "public");
                 });
@@ -5713,6 +5832,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("voyage_id");
 
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_plan_leg_id");
+
                     b.HasKey("Id")
                         .HasName("p_k_maritime_reports");
 
@@ -5736,6 +5859,9 @@ namespace MaritimeEdge.Data.Migrations
 
                     b.HasIndex("VoyageId")
                         .HasDatabaseName("idx_report_voyage_id");
+
+                    b.HasIndex("VoyagePlanLegId")
+                        .HasDatabaseName("idx_report_leg_id");
 
                     b.HasIndex("Status", "ReportDateTime")
                         .HasDatabaseName("idx_report_status_datetime")
@@ -6292,6 +6418,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("double precision")
                         .HasColumnName("air_temperature");
 
+                    b.Property<string>("AlarmSummaryJson")
+                        .HasColumnType("text")
+                        .HasColumnName("alarm_summary_json");
+
                     b.Property<string>("AuxEngineRunningHours")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
@@ -6313,6 +6443,10 @@ namespace MaritimeEdge.Data.Migrations
                     b.Property<string>("CargoRemarks")
                         .HasColumnType("text")
                         .HasColumnName("cargo_remarks");
+
+                    b.Property<int?>("CertificatesExpiringSoon")
+                        .HasColumnType("integer")
+                        .HasColumnName("certificates_expiring_soon");
 
                     b.Property<double?>("CourseOverGround")
                         .HasColumnType("double precision")
@@ -6398,6 +6532,10 @@ namespace MaritimeEdge.Data.Migrations
                     b.Property<string>("MaintenanceRemarks")
                         .HasColumnType("text")
                         .HasColumnName("maintenance_remarks");
+
+                    b.Property<string>("MaintenanceSummaryJson")
+                        .HasColumnType("text")
+                        .HasColumnName("maintenance_summary_json");
 
                     b.Property<Guid>("MaritimeReportId")
                         .HasColumnType("uuid")
@@ -6566,6 +6704,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_plan_leg_id");
+
                     b.HasKey("Id")
                         .HasName("p_k_oil_record_books");
 
@@ -6582,6 +6728,12 @@ namespace MaritimeEdge.Data.Migrations
 
                     b.HasIndex("OperationCode")
                         .HasDatabaseName("idx_orb_operation_code");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_orb_voyage_id");
+
+                    b.HasIndex("VoyagePlanLegId")
+                        .HasDatabaseName("idx_orb_leg_id");
 
                     b.ToTable("oil_record_books", "public");
                 });
@@ -6613,6 +6765,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
 
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
                     b.Property<double?>("Latitude")
                         .HasColumnType("double precision")
                         .HasColumnName("latitude");
@@ -6620,6 +6776,12 @@ namespace MaritimeEdge.Data.Migrations
                     b.Property<double?>("Longitude")
                         .HasColumnType("double precision")
                         .HasColumnName("longitude");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
 
                     b.Property<string>("PortCode")
                         .IsRequired()
@@ -6632,6 +6794,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)")
                         .HasColumnName("port_name");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sync_version");
 
                     b.Property<string>("TimeZone")
                         .HasMaxLength(50)
@@ -6758,6 +6924,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("voyage_id");
 
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_plan_leg_id");
+
                     b.HasKey("Id")
                         .HasName("p_k_port_calls");
 
@@ -6775,6 +6945,9 @@ namespace MaritimeEdge.Data.Migrations
                         .HasDatabaseName("idx_port_call_port_code");
 
                     b.HasIndex("PortId");
+
+                    b.HasIndex("VoyagePlanLegId")
+                        .HasDatabaseName("idx_port_call_leg_id");
 
                     b.HasIndex("VoyageId", "Sequence")
                         .IsUnique()
@@ -7505,6 +7678,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_plan_leg_id");
+
                     b.HasKey("Id")
                         .HasName("p_k_safety_alarms");
 
@@ -7518,6 +7699,12 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("Timestamp")
                         .IsDescending()
                         .HasDatabaseName("idx_alarm_timestamp");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_alarm_voyage_id");
+
+                    b.HasIndex("VoyagePlanLegId")
+                        .HasDatabaseName("idx_alarm_leg_id");
 
                     b.HasIndex("IsResolved", "Severity")
                         .HasDatabaseName("idx_alarm_unresolved_severity")
@@ -9918,6 +10105,550 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("user_sessions", "public");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageActualRevenue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double>("Amount")
+                        .HasColumnType("double precision")
+                        .HasColumnName("amount");
+
+                    b.Property<double>("AmountUsd")
+                        .HasColumnType("double precision")
+                        .HasColumnName("amount_usd");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("description");
+
+                    b.Property<double>("ExchangeRate")
+                        .HasColumnType("double precision")
+                        .HasColumnName("exchange_rate");
+
+                    b.Property<DateTime?>("InvoiceDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("invoice_date");
+
+                    b.Property<string>("InvoiceNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("invoice_number");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<string>("PayerName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("payer_name");
+
+                    b.Property<string>("PaymentReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("payment_reference");
+
+                    b.Property<DateTime?>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
+
+                    b.Property<string>("RevenueCategory")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("revenue_category");
+
+                    b.Property<string>("RevenueNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("revenue_number");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sync_version");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_voyage_actual_revenues");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_actual_revenue_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("RevenueCategory")
+                        .HasDatabaseName("idx_actual_revenue_category");
+
+                    b.HasIndex("RevenueNumber")
+                        .IsUnique()
+                        .HasDatabaseName("idx_actual_revenue_number_unique");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("idx_actual_revenue_status");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_actual_revenue_voyage");
+
+                    b.ToTable("voyage_actual_revenues", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageAdvancePayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AdvanceNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("advance_number");
+
+                    b.Property<string>("AdvanceType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("advance_type");
+
+                    b.Property<double>("Amount")
+                        .HasColumnType("double precision")
+                        .HasColumnName("amount");
+
+                    b.Property<double>("AmountUsd")
+                        .HasColumnType("double precision")
+                        .HasColumnName("amount_usd");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("description");
+
+                    b.Property<double>("ExchangeRate")
+                        .HasColumnType("double precision")
+                        .HasColumnName("exchange_rate");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_at");
+
+                    b.Property<string>("PaidBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("paid_by");
+
+                    b.Property<string>("PaymentReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("payment_reference");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("port_code");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("port_name");
+
+                    b.Property<string>("RecipientName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("recipient_name");
+
+                    b.Property<double>("SettledAmount")
+                        .HasColumnType("double precision")
+                        .HasColumnName("settled_amount");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sync_version");
+
+                    b.Property<double>("UnsettledBalance")
+                        .HasColumnType("double precision")
+                        .HasColumnName("unsettled_balance");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_voyage_advance_payments");
+
+                    b.HasIndex("AdvanceNumber")
+                        .IsUnique()
+                        .HasDatabaseName("idx_advance_payment_number_unique");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_advance_payment_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("idx_advance_payment_status");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_advance_payment_voyage");
+
+                    b.ToTable("voyage_advance_payments", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageBunkerPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<double?>("EstimatedCostUsd")
+                        .HasColumnType("double precision")
+                        .HasColumnName("estimated_cost_usd");
+
+                    b.Property<string>("FuelType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("fuel_type");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OperationType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("operation_type");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<Guid?>("PlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("plan_leg_id");
+
+                    b.Property<double>("PlannedQuantity")
+                        .HasColumnType("double precision")
+                        .HasColumnName("planned_quantity");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)")
+                        .HasColumnName("port_code");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("port_name");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.Property<string>("SupplierName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("supplier_name");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sync_version");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_voyage_bunker_plans");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_voyage_bunker_plan_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("PlanLegId")
+                        .HasDatabaseName("idx_voyage_bunker_plan_leg");
+
+                    b.HasIndex("VoyageId", "Sequence")
+                        .HasDatabaseName("idx_voyage_bunker_plan_voyage_seq");
+
+                    b.ToTable("voyage_bunker_plans", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageCargoPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CargoDescription")
+                        .HasColumnType("text")
+                        .HasColumnName("cargo_description");
+
+                    b.Property<string>("CargoType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("cargo_type");
+
+                    b.Property<string>("ConsigneeName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("consignee_name");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OperationType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("operation_type");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<Guid?>("PlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("plan_leg_id");
+
+                    b.Property<double>("PlannedQuantity")
+                        .HasColumnType("double precision")
+                        .HasColumnName("planned_quantity");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)")
+                        .HasColumnName("port_code");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("port_name");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.Property<string>("ShipperName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("shipper_name");
+
+                    b.Property<string>("SpecialRequirements")
+                        .HasColumnType("text")
+                        .HasColumnName("special_requirements");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sync_version");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("unit");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_voyage_cargo_plans");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_voyage_cargo_plan_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("PlanLegId")
+                        .HasDatabaseName("idx_voyage_cargo_plan_leg");
+
+                    b.HasIndex("VoyageId", "Sequence")
+                        .HasDatabaseName("idx_voyage_cargo_plan_voyage_seq");
+
+                    b.ToTable("voyage_cargo_plans", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageCostEstimate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CostCategory")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("cost_category");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("description");
+
+                    b.Property<double>("EstimatedAmount")
+                        .HasColumnType("double precision")
+                        .HasColumnName("estimated_amount");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sync_version");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_voyage_cost_estimates");
+
+                    b.HasIndex("CostCategory")
+                        .HasDatabaseName("idx_voyage_cost_estimate_category");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_voyage_cost_estimate_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("VoyageId", "Sequence")
+                        .HasDatabaseName("idx_voyage_cost_estimate_voyage_seq");
+
+                    b.ToTable("voyage_cost_estimates", "public");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.VoyageCrewAssignment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -10025,6 +10756,437 @@ namespace MaritimeEdge.Data.Migrations
                         .HasDatabaseName("idx_vca_voyage_crew_unique");
 
                     b.ToTable("voyage_crew_assignments", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageCrewChangePlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ChangeType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("change_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CrewMemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("crew_member_id");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<Guid?>("PlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("plan_leg_id");
+
+                    b.Property<DateTime?>("PlannedDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("planned_date");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)")
+                        .HasColumnName("port_code");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("port_name");
+
+                    b.Property<int?>("RankId")
+                        .HasColumnType("integer")
+                        .HasColumnName("rank_id");
+
+                    b.Property<string>("ReplacementReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("replacement_reason");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sync_version");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_voyage_crew_change_plans");
+
+                    b.HasIndex("CrewMemberId")
+                        .HasDatabaseName("idx_voyage_crew_change_plan_crew");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_voyage_crew_change_plan_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("PlanLegId")
+                        .HasDatabaseName("idx_voyage_crew_change_plan_leg");
+
+                    b.HasIndex("RankId");
+
+                    b.HasIndex("VoyageId", "Sequence")
+                        .HasDatabaseName("idx_voyage_crew_change_plan_voyage_seq");
+
+                    b.ToTable("voyage_crew_change_plans", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageDisbursement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AdvancePaymentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("advance_payment_id");
+
+                    b.Property<string>("AllocationScope")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("allocation_scope");
+
+                    b.Property<double>("Amount")
+                        .HasColumnType("double precision")
+                        .HasColumnName("amount");
+
+                    b.Property<double>("AmountUsd")
+                        .HasColumnType("double precision")
+                        .HasColumnName("amount_usd");
+
+                    b.Property<string>("CostCategory")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("cost_category");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("DisbursementNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("disbursement_number");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("due_date");
+
+                    b.Property<double>("ExchangeRate")
+                        .HasColumnType("double precision")
+                        .HasColumnName("exchange_rate");
+
+                    b.Property<Guid?>("ExpenseRequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("expense_request_id");
+
+                    b.Property<DateTime?>("InvoiceDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("invoice_date");
+
+                    b.Property<string>("InvoiceNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("invoice_number");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_at");
+
+                    b.Property<string>("PaymentReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("payment_reference");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("port_code");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("port_name");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("SupportingDocuments")
+                        .HasColumnType("text")
+                        .HasColumnName("supporting_documents");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sync_version");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("VendorName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("vendor_name");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("verified_at");
+
+                    b.Property<string>("VerifiedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("verified_by");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_voyage_disbursements");
+
+                    b.HasIndex("AdvancePaymentId")
+                        .HasDatabaseName("idx_disbursement_advance_payment");
+
+                    b.HasIndex("CostCategory")
+                        .HasDatabaseName("idx_disbursement_category");
+
+                    b.HasIndex("DisbursementNumber")
+                        .IsUnique()
+                        .HasDatabaseName("idx_disbursement_number_unique");
+
+                    b.HasIndex("ExpenseRequestId")
+                        .HasDatabaseName("idx_disbursement_expense_request");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_disbursement_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("idx_disbursement_status");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_disbursement_voyage");
+
+                    b.ToTable("voyage_disbursements", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageExpenseRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AllocationScope")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("allocation_scope");
+
+                    b.Property<string>("ApprovalNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("approval_notes");
+
+                    b.Property<double?>("ApprovedAmount")
+                        .HasColumnType("double precision")
+                        .HasColumnName("approved_amount");
+
+                    b.Property<double?>("ApprovedAmountUsd")
+                        .HasColumnType("double precision")
+                        .HasColumnName("approved_amount_usd");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("approved_by");
+
+                    b.Property<string>("CostCategory")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("cost_category");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("description");
+
+                    b.Property<double>("ExchangeRate")
+                        .HasColumnType("double precision")
+                        .HasColumnName("exchange_rate");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("port_code");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("port_name");
+
+                    b.Property<string>("RequestNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("request_number");
+
+                    b.Property<double>("RequestedAmount")
+                        .HasColumnType("double precision")
+                        .HasColumnName("requested_amount");
+
+                    b.Property<double>("RequestedAmountUsd")
+                        .HasColumnType("double precision")
+                        .HasColumnName("requested_amount_usd");
+
+                    b.Property<DateTime?>("RequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at");
+
+                    b.Property<string>("RequestedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("requested_by");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("SupportingDocuments")
+                        .HasColumnType("text")
+                        .HasColumnName("supporting_documents");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sync_version");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("VendorName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("vendor_name");
+
+                    b.Property<string>("VendorReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("vendor_reference");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_voyage_expense_requests");
+
+                    b.HasIndex("CostCategory")
+                        .HasDatabaseName("idx_expense_request_category");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_expense_request_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("RequestNumber")
+                        .IsUnique()
+                        .HasDatabaseName("idx_expense_request_number_unique");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("idx_expense_request_status");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_expense_request_voyage");
+
+                    b.ToTable("voyage_expense_requests", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.VoyageLogEntry", b =>
@@ -10152,6 +11314,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("voyage_id");
 
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_plan_leg_id");
+
                     b.HasKey("Id")
                         .HasName("p_k_voyage_log_entries");
 
@@ -10170,7 +11336,131 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("VoyageId")
                         .HasDatabaseName("idx_voyage_log_voyage_id");
 
+                    b.HasIndex("VoyagePlanLegId")
+                        .HasDatabaseName("idx_voyage_log_leg_id");
+
                     b.ToTable("voyage_log_entries", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyagePlanLeg", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("BunkerSupplyPlanned")
+                        .HasColumnType("boolean")
+                        .HasColumnName("bunker_supply_planned");
+
+                    b.Property<string>("CargoActivity")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("cargo_activity");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("CrewChangePlanned")
+                        .HasColumnType("boolean")
+                        .HasColumnName("crew_change_planned");
+
+                    b.Property<string>("FromPortCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)")
+                        .HasColumnName("from_port_code");
+
+                    b.Property<string>("FromPortName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("from_port_name");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("LegType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("leg_type");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<DateTime?>("PlannedArrivalTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("planned_arrival_time");
+
+                    b.Property<double?>("PlannedAverageSpeed")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("planned_average_speed");
+
+                    b.Property<DateTime?>("PlannedDepartureTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("planned_departure_time");
+
+                    b.Property<double?>("PlannedDistance")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("planned_distance");
+
+                    b.Property<double?>("PlannedDurationHours")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("planned_duration_hours");
+
+                    b.Property<double?>("PlannedFuelConsumption")
+                        .HasColumnType("double precision")
+                        .HasColumnName("planned_fuel_consumption");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sync_version");
+
+                    b.Property<string>("ToPortCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)")
+                        .HasColumnName("to_port_code");
+
+                    b.Property<string>("ToPortName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("to_port_name");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.Property<string>("WeatherRoutingNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("weather_routing_notes");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_voyage_plan_legs");
+
+                    b.HasIndex("LegType")
+                        .HasDatabaseName("idx_voyage_plan_leg_type");
+
+                    b.HasIndex("VoyageId", "Sequence")
+                        .IsUnique()
+                        .HasDatabaseName("idx_voyage_plan_leg_voyage_seq");
+
+                    b.ToTable("voyage_plan_legs", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.VoyageRecord", b =>
@@ -10179,6 +11469,14 @@ namespace MaritimeEdge.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<double?>("ActualProfitMargin")
+                        .HasColumnType("double precision")
+                        .HasColumnName("actual_profit_margin");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
 
                     b.Property<string>("ArrivalPort")
                         .HasMaxLength(50)
@@ -10194,6 +11492,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("arrival_time");
 
+                    b.Property<DateTime?>("ArrivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("arrived_at");
+
                     b.Property<double?>("AverageSpeed")
                         .HasColumnType("decimal(5,2)")
                         .HasColumnName("average_speed");
@@ -10203,6 +11505,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("call_sign");
 
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
                     b.Property<string>("CargoType")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -10211,6 +11517,19 @@ namespace MaritimeEdge.Data.Migrations
                     b.Property<double?>("CargoWeight")
                         .HasColumnType("decimal(12,3)")
                         .HasColumnName("cargo_weight");
+
+                    b.Property<string>("CharterType")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("charter_type");
+
+                    b.Property<DateTime?>("CommencedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("commenced_at");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -10234,6 +11553,25 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("decimal(10,2)")
                         .HasColumnName("distance_traveled");
 
+                    b.Property<double?>("EstimatedProfitMargin")
+                        .HasColumnType("double precision")
+                        .HasColumnName("estimated_profit_margin");
+
+                    b.Property<DateTime?>("FinancialClosedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("financial_closed_at");
+
+                    b.Property<string>("FinancialClosedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("financial_closed_by");
+
+                    b.Property<string>("FinancialStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("financial_status");
+
                     b.Property<double?>("FuelConsumed")
                         .HasColumnType("decimal(10,3)")
                         .HasColumnName("fuel_consumed");
@@ -10248,6 +11586,26 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("origin_node");
 
+                    b.Property<double?>("OutstandingBalance")
+                        .HasColumnType("double precision")
+                        .HasColumnName("outstanding_balance");
+
+                    b.Property<double?>("PlannedAverageSpeed")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("planned_average_speed");
+
+                    b.Property<double?>("PlannedDistance")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("planned_distance");
+
+                    b.Property<double?>("PlannedDurationHours")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("planned_duration_hours");
+
+                    b.Property<double?>("PlannedFuelConsumption")
+                        .HasColumnType("decimal(10,3)")
+                        .HasColumnName("planned_fuel_consumption");
+
                     b.Property<string>("PreviousPortCode")
                         .HasMaxLength(5)
                         .HasColumnType("character varying(5)")
@@ -10257,6 +11615,34 @@ namespace MaritimeEdge.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("previous_port_name");
+
+                    b.Property<DateTime?>("ReadyAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ready_at");
+
+                    b.Property<double?>("TotalActualCost")
+                        .HasColumnType("double precision")
+                        .HasColumnName("total_actual_cost");
+
+                    b.Property<double?>("TotalActualRevenue")
+                        .HasColumnType("double precision")
+                        .HasColumnName("total_actual_revenue");
+
+                    b.Property<double?>("TotalAdvanced")
+                        .HasColumnType("double precision")
+                        .HasColumnName("total_advanced");
+
+                    b.Property<double?>("TotalDisbursed")
+                        .HasColumnType("double precision")
+                        .HasColumnName("total_disbursed");
+
+                    b.Property<double?>("TotalEstimatedCost")
+                        .HasColumnType("double precision")
+                        .HasColumnName("total_estimated_cost");
+
+                    b.Property<double?>("TotalEstimatedRevenue")
+                        .HasColumnType("double precision")
+                        .HasColumnName("total_estimated_revenue");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -10277,6 +11663,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("vessel_name");
 
+                    b.Property<string>("VoyageInstructions")
+                        .HasColumnType("text")
+                        .HasColumnName("voyage_instructions");
+
                     b.Property<string>("VoyageNumber")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -10294,6 +11684,9 @@ namespace MaritimeEdge.Data.Migrations
 
                     b.HasIndex("ArrivalPortCode")
                         .HasDatabaseName("idx_voyage_arr_port_code");
+
+                    b.HasIndex("CharterType")
+                        .HasDatabaseName("idx_voyage_charter_type");
 
                     b.HasIndex("DeparturePortCode")
                         .HasDatabaseName("idx_voyage_dep_port_code");
@@ -10317,6 +11710,287 @@ namespace MaritimeEdge.Data.Migrations
                         .HasDatabaseName("idx_voyage_status");
 
                     b.ToTable("voyage_records", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageRevenueEstimate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("description");
+
+                    b.Property<double>("EstimatedAmount")
+                        .HasColumnType("double precision")
+                        .HasColumnName("estimated_amount");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<string>("RevenueCategory")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("revenue_category");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sync_version");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_voyage_revenue_estimates");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_voyage_revenue_estimate_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("RevenueCategory")
+                        .HasDatabaseName("idx_voyage_revenue_estimate_category");
+
+                    b.HasIndex("VoyageId", "Sequence")
+                        .HasDatabaseName("idx_voyage_revenue_estimate_voyage_seq");
+
+                    b.ToTable("voyage_revenue_estimates", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageSettlement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double>("AdvanceBalance")
+                        .HasColumnType("double precision")
+                        .HasColumnName("advance_balance");
+
+                    b.Property<string>("ApprovalNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("approval_notes");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("approved_by");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<double?>("FinalSettlementAmount")
+                        .HasColumnType("double precision")
+                        .HasColumnName("final_settlement_amount");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<double>("NetResult")
+                        .HasColumnType("double precision")
+                        .HasColumnName("net_result");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<DateTime?>("PreparedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("prepared_at");
+
+                    b.Property<string>("PreparedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("prepared_by");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<string>("ReviewedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<string>("SettlementNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("settlement_number");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Summary")
+                        .HasColumnType("text")
+                        .HasColumnName("summary");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sync_version");
+
+                    b.Property<double>("TotalAdvanced")
+                        .HasColumnType("double precision")
+                        .HasColumnName("total_advanced");
+
+                    b.Property<double>("TotalDisbursed")
+                        .HasColumnType("double precision")
+                        .HasColumnName("total_disbursed");
+
+                    b.Property<double>("TotalExpenseApproved")
+                        .HasColumnType("double precision")
+                        .HasColumnName("total_expense_approved");
+
+                    b.Property<double>("TotalRevenue")
+                        .HasColumnType("double precision")
+                        .HasColumnName("total_revenue");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_voyage_settlements");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_settlement_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("SettlementNumber")
+                        .IsUnique()
+                        .HasDatabaseName("idx_settlement_number_unique");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("idx_settlement_status");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_settlement_voyage");
+
+                    b.ToTable("voyage_settlements", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageStatusHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("changed_at");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("changed_by");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FromStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("from_status");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sync_version");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("to_status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_voyage_status_histories");
+
+                    b.HasIndex("ToStatus")
+                        .HasDatabaseName("idx_voyage_status_history_to_status");
+
+                    b.HasIndex("VoyageId", "ChangedAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("idx_voyage_status_history_voyage_changed");
+
+                    b.ToTable("voyage_status_history", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.WatchkeepingLog", b =>
@@ -10498,6 +12172,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("visibility");
 
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_plan_leg_id");
+
                     b.Property<DateTime>("WatchDate")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("watch_date");
@@ -10539,6 +12221,12 @@ namespace MaritimeEdge.Data.Migrations
 
                     b.HasIndex("OfficerOnWatch")
                         .HasDatabaseName("idx_watchkeeping_officer");
+
+                    b.HasIndex("VoyageId")
+                        .HasDatabaseName("idx_watchkeeping_voyage_id");
+
+                    b.HasIndex("VoyagePlanLegId")
+                        .HasDatabaseName("idx_watchkeeping_leg_id");
 
                     b.HasIndex("WatchDate")
                         .IsDescending()
@@ -10906,6 +12594,23 @@ namespace MaritimeEdge.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.BallastWaterRecordBook", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany()
+                        .HasForeignKey("VoyageId")
+                        .HasConstraintName("f_k_ballast_water_record_books__voyage_records_voyage_id");
+
+                    b.HasOne("MaritimeEdge.Models.VoyagePlanLeg", "VoyagePlanLeg")
+                        .WithMany()
+                        .HasForeignKey("VoyagePlanLegId")
+                        .HasConstraintName("f_k_ballast_water_record_books__voyage_plan_legs_voyage_plan_leg_id");
+
+                    b.Navigation("Voyage");
+
+                    b.Navigation("VoyagePlanLeg");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.BunkerReport", b =>
                 {
                     b.HasOne("MaritimeEdge.Models.MaritimeReport", null)
@@ -10922,6 +12627,23 @@ namespace MaritimeEdge.Data.Migrations
                         .HasForeignKey("VoyageId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("f_k_cargo_operations__voyage_records_voyage_record_id");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.DeckLogBook", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany()
+                        .HasForeignKey("VoyageId")
+                        .HasConstraintName("f_k_deck_log_books__voyage_records_voyage_id");
+
+                    b.HasOne("MaritimeEdge.Models.VoyagePlanLeg", "VoyagePlanLeg")
+                        .WithMany()
+                        .HasForeignKey("VoyagePlanLegId")
+                        .HasConstraintName("f_k_deck_log_books__voyage_plan_legs_voyage_plan_leg_id");
+
+                    b.Navigation("Voyage");
+
+                    b.Navigation("VoyagePlanLeg");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.DepartureReport", b =>
@@ -10989,6 +12711,23 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("DrillType");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.EngineLogBook", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany()
+                        .HasForeignKey("VoyageId")
+                        .HasConstraintName("f_k_engine_log_books__voyage_records_voyage_id");
+
+                    b.HasOne("MaritimeEdge.Models.VoyagePlanLeg", "VoyagePlanLeg")
+                        .WithMany()
+                        .HasForeignKey("VoyagePlanLegId")
+                        .HasConstraintName("f_k_engine_log_books__voyage_plan_legs_voyage_plan_leg_id");
+
+                    b.Navigation("Voyage");
+
+                    b.Navigation("VoyagePlanLeg");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.EquipmentGroupMember", b =>
                 {
                     b.HasOne("MaritimeEdge.Models.EquipmentAsset", "Asset")
@@ -11008,6 +12747,74 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("Asset");
 
                     b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.FuelConsumption", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany()
+                        .HasForeignKey("VoyageId")
+                        .HasConstraintName("f_k_fuel_consumption__voyage_records_voyage_id");
+
+                    b.HasOne("MaritimeEdge.Models.VoyagePlanLeg", "VoyagePlanLeg")
+                        .WithMany()
+                        .HasForeignKey("VoyagePlanLegId")
+                        .HasConstraintName("f_k_fuel_consumption__voyage_plan_legs_voyage_plan_leg_id");
+
+                    b.Navigation("Voyage");
+
+                    b.Navigation("VoyagePlanLeg");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.GarbageRecordBook", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany()
+                        .HasForeignKey("VoyageId")
+                        .HasConstraintName("f_k_garbage_record_books__voyage_records_voyage_id");
+
+                    b.HasOne("MaritimeEdge.Models.VoyagePlanLeg", "VoyagePlanLeg")
+                        .WithMany()
+                        .HasForeignKey("VoyagePlanLegId")
+                        .HasConstraintName("f_k_garbage_record_books__voyage_plan_legs_voyage_plan_leg_id");
+
+                    b.Navigation("Voyage");
+
+                    b.Navigation("VoyagePlanLeg");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.GarbageRecordPartI", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany()
+                        .HasForeignKey("VoyageId")
+                        .HasConstraintName("f_k_garbage_record_part_is__voyage_records_voyage_id");
+
+                    b.HasOne("MaritimeEdge.Models.VoyagePlanLeg", "VoyagePlanLeg")
+                        .WithMany()
+                        .HasForeignKey("VoyagePlanLegId")
+                        .HasConstraintName("f_k_garbage_record_part_is__voyage_plan_legs_voyage_plan_leg_id");
+
+                    b.Navigation("Voyage");
+
+                    b.Navigation("VoyagePlanLeg");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.GarbageRecordPartII", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany()
+                        .HasForeignKey("VoyageId")
+                        .HasConstraintName("f_k_garbage_record_part_i_is__voyage_records_voyage_id");
+
+                    b.HasOne("MaritimeEdge.Models.VoyagePlanLeg", "VoyagePlanLeg")
+                        .WithMany()
+                        .HasForeignKey("VoyagePlanLegId")
+                        .HasConstraintName("f_k_garbage_record_part_i_is__voyage_plan_legs_voyage_plan_leg_id");
+
+                    b.Navigation("Voyage");
+
+                    b.Navigation("VoyagePlanLeg");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.Inventory.MaterialReceiptItem", b =>
@@ -11097,6 +12904,23 @@ namespace MaritimeEdge.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.OilRecordBook", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany()
+                        .HasForeignKey("VoyageId")
+                        .HasConstraintName("f_k_oil_record_books__voyage_records_voyage_id");
+
+                    b.HasOne("MaritimeEdge.Models.VoyagePlanLeg", "VoyagePlanLeg")
+                        .WithMany()
+                        .HasForeignKey("VoyagePlanLegId")
+                        .HasConstraintName("f_k_oil_record_books__voyage_plan_legs_voyage_plan_leg_id");
+
+                    b.Navigation("Voyage");
+
+                    b.Navigation("VoyagePlanLeg");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.PortCall", b =>
                 {
                     b.HasOne("MaritimeEdge.Models.Port", "Port")
@@ -11112,9 +12936,16 @@ namespace MaritimeEdge.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("f_k_port_calls__voyage_records_voyage_id");
 
+                    b.HasOne("MaritimeEdge.Models.VoyagePlanLeg", "VoyagePlanLeg")
+                        .WithMany()
+                        .HasForeignKey("VoyagePlanLegId")
+                        .HasConstraintName("f_k_port_calls__voyage_plan_legs_voyage_plan_leg_id");
+
                     b.Navigation("Port");
 
                     b.Navigation("Voyage");
+
+                    b.Navigation("VoyagePlanLeg");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.PositionReport", b =>
@@ -11151,6 +12982,23 @@ namespace MaritimeEdge.Data.Migrations
                         .HasForeignKey("MaritimeReportId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.SafetyAlarm", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany()
+                        .HasForeignKey("VoyageId")
+                        .HasConstraintName("f_k_safety_alarms__voyage_records_voyage_id");
+
+                    b.HasOne("MaritimeEdge.Models.VoyagePlanLeg", "VoyagePlanLeg")
+                        .WithMany()
+                        .HasForeignKey("VoyagePlanLegId")
+                        .HasConstraintName("f_k_safety_alarms__voyage_plan_legs_voyage_plan_leg_id");
+
+                    b.Navigation("Voyage");
+
+                    b.Navigation("VoyagePlanLeg");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.ScheduleChecklistTemplate", b =>
@@ -11358,6 +13206,82 @@ namespace MaritimeEdge.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageActualRevenue", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany("ActualRevenues")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voyage_actual_revenues__voyage_records_voyage_id");
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageAdvancePayment", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany("AdvancePayments")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voyage_advance_payments__voyage_records_voyage_id");
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageBunkerPlan", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyagePlanLeg", "PlanLeg")
+                        .WithMany()
+                        .HasForeignKey("PlanLegId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_voyage_bunker_plans__voyage_plan_legs_plan_leg_id");
+
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany("BunkerPlans")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voyage_bunker_plans__voyage_records_voyage_id");
+
+                    b.Navigation("PlanLeg");
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageCargoPlan", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyagePlanLeg", "PlanLeg")
+                        .WithMany()
+                        .HasForeignKey("PlanLegId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_voyage_cargo_plans__voyage_plan_legs_plan_leg_id");
+
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany("CargoPlans")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voyage_cargo_plans__voyage_records_voyage_id");
+
+                    b.Navigation("PlanLeg");
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageCostEstimate", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany("CostEstimates")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voyage_cost_estimates__voyage_records_voyage_id");
+
+                    b.Navigation("Voyage");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.VoyageCrewAssignment", b =>
                 {
                     b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
@@ -11387,6 +13311,82 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("Voyage");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageCrewChangePlan", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_voyage_crew_change_plans_crew_members_crew_member_id");
+
+                    b.HasOne("MaritimeEdge.Models.VoyagePlanLeg", "PlanLeg")
+                        .WithMany()
+                        .HasForeignKey("PlanLegId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_voyage_crew_change_plans__voyage_plan_legs_plan_leg_id");
+
+                    b.HasOne("Maritime.Shared.Models.Crew.Rank", "Rank")
+                        .WithMany()
+                        .HasForeignKey("RankId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_voyage_crew_change_plans_ranks_rank_id");
+
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany("CrewChangePlans")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voyage_crew_change_plans__voyage_records_voyage_id");
+
+                    b.Navigation("CrewMember");
+
+                    b.Navigation("PlanLeg");
+
+                    b.Navigation("Rank");
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageDisbursement", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageAdvancePayment", "AdvancePayment")
+                        .WithMany()
+                        .HasForeignKey("AdvancePaymentId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_voyage_disbursements_voyage_advance_payments_advance_paymen~");
+
+                    b.HasOne("MaritimeEdge.Models.VoyageExpenseRequest", "ExpenseRequest")
+                        .WithMany()
+                        .HasForeignKey("ExpenseRequestId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_voyage_disbursements__voyage_expense_requests_expense_request_~");
+
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany("Disbursements")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voyage_disbursements__voyage_records_voyage_id");
+
+                    b.Navigation("AdvancePayment");
+
+                    b.Navigation("ExpenseRequest");
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageExpenseRequest", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany("ExpenseRequests")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voyage_expense_requests__voyage_records_voyage_id");
+
+                    b.Navigation("Voyage");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.VoyageLogEntry", b =>
                 {
                     b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
@@ -11395,7 +13395,79 @@ namespace MaritimeEdge.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("f_k_voyage_log_entries__voyage_records_voyage_id");
 
+                    b.HasOne("MaritimeEdge.Models.VoyagePlanLeg", "VoyagePlanLeg")
+                        .WithMany()
+                        .HasForeignKey("VoyagePlanLegId")
+                        .HasConstraintName("f_k_voyage_log_entries__voyage_plan_legs_voyage_plan_leg_id");
+
                     b.Navigation("Voyage");
+
+                    b.Navigation("VoyagePlanLeg");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyagePlanLeg", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany("PlanLegs")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voyage_plan_legs__voyage_records_voyage_id");
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageRevenueEstimate", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany("RevenueEstimates")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voyage_revenue_estimates_voyage_records_voyage_id");
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageSettlement", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany("Settlements")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voyage_settlements_voyage_records_voyage_id");
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.VoyageStatusHistory", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany("StatusHistory")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voyage_status_histories_voyage_records_voyage_id");
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.WatchkeepingLog", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.VoyageRecord", "Voyage")
+                        .WithMany()
+                        .HasForeignKey("VoyageId")
+                        .HasConstraintName("f_k_watchkeeping_logs_voyage_records_voyage_id");
+
+                    b.HasOne("MaritimeEdge.Models.VoyagePlanLeg", "VoyagePlanLeg")
+                        .WithMany()
+                        .HasForeignKey("VoyagePlanLegId")
+                        .HasConstraintName("f_k_watchkeeping_logs_voyage_plan_legs_voyage_plan_leg_id");
+
+                    b.Navigation("Voyage");
+
+                    b.Navigation("VoyagePlanLeg");
                 });
 
             modelBuilder.Entity("Maritime.Shared.Models.Crew.Certificate", b =>
@@ -11488,13 +13560,37 @@ namespace MaritimeEdge.Data.Migrations
 
             modelBuilder.Entity("MaritimeEdge.Models.VoyageRecord", b =>
                 {
+                    b.Navigation("ActualRevenues");
+
+                    b.Navigation("AdvancePayments");
+
+                    b.Navigation("BunkerPlans");
+
                     b.Navigation("CargoOperations");
+
+                    b.Navigation("CargoPlans");
+
+                    b.Navigation("CostEstimates");
 
                     b.Navigation("CrewAssignments");
 
+                    b.Navigation("CrewChangePlans");
+
+                    b.Navigation("Disbursements");
+
+                    b.Navigation("ExpenseRequests");
+
                     b.Navigation("LogEntries");
 
+                    b.Navigation("PlanLegs");
+
                     b.Navigation("PortCalls");
+
+                    b.Navigation("RevenueEstimates");
+
+                    b.Navigation("Settlements");
+
+                    b.Navigation("StatusHistory");
                 });
 #pragma warning restore 612, 618
         }

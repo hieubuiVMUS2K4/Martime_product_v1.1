@@ -118,6 +118,9 @@ builder.Services.AddScoped<ProductApi.Services.Sync.ISyncOutboxService, ProductA
 builder.Services.AddScoped<ProductApi.Services.Sync.IConflictResolverService, ProductApi.Services.Sync.ConflictResolverService>();
 builder.Services.AddScoped<ProductApi.Services.Sync.ICrewSyncOrchestrator, ProductApi.Services.Sync.CrewSyncOrchestrator>();
 
+// Register voyage management service
+builder.Services.AddScoped<ProductApi.Services.Voyage.IVoyageService, ProductApi.Services.Voyage.VoyageService>();
+
 // Background services
 builder.Services.AddHostedService<AlertBackgroundService>();
 builder.Services.AddHostedService<ProductApi.Services.Sync.CertificateExpiryMonitorService>();
@@ -137,6 +140,24 @@ using (var scope = app.Services.CreateScope())
         {
             logger.LogInformation($"Attempting database creation (Attempt {retryCount + 1}/5)...");
             db.Database.EnsureCreated();
+            await db.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS voyage_reviews (
+                    ""Id"" uuid NOT NULL,
+                    ""VoyageId"" uuid NOT NULL,
+                    ""ReviewStatus"" character varying(30) NOT NULL,
+                    ""Notes"" text,
+                    ""ReviewedBy"" character varying(100),
+                    ""ReviewedAt"" timestamp with time zone,
+                    ""Tags"" text,
+                    ""CreatedAt"" timestamp with time zone NOT NULL,
+                    ""UpdatedAt"" timestamp with time zone NOT NULL,
+                    CONSTRAINT ""PK_voyage_reviews"" PRIMARY KEY (""Id""),
+                    CONSTRAINT ""FK_voyage_reviews_voyage_records_VoyageId"" FOREIGN KEY (""VoyageId"") REFERENCES voyage_records (""Id"") ON DELETE CASCADE
+                );
+
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_voyage_reviews_VoyageId"" ON voyage_reviews (""VoyageId"");
+                CREATE INDEX IF NOT EXISTS ""IX_voyage_reviews_ReviewStatus"" ON voyage_reviews (""ReviewStatus"");
+            ");
             logger.LogInformation("Database creation/verification completed successfully.");
             break;
         }

@@ -1,6 +1,7 @@
 using MaritimeEdge.Data;
 using MaritimeEdge.DTOs.Logbooks;
 using MaritimeEdge.Models;
+using MaritimeEdge.Services.Voyage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
@@ -13,11 +14,13 @@ namespace MaritimeEdge.Services.Logbooks
     {
         private readonly EdgeDbContext _context;
         private readonly ILogger<GarbagePartIIService> _logger;
+        private readonly IVoyageContextService _voyageContext;
 
-        public GarbagePartIIService(EdgeDbContext context, ILogger<GarbagePartIIService> logger)
+        public GarbagePartIIService(EdgeDbContext context, ILogger<GarbagePartIIService> logger, IVoyageContextService voyageContext)
         {
             _context = context;
             _logger = logger;
+            _voyageContext = voyageContext;
         }
 
         public async Task<(bool Success, Guid? Id, string? Error)> CreateEntryAsync(CreateGarbagePartIIDto dto, string? username = null)
@@ -83,6 +86,10 @@ namespace MaritimeEdge.Services.Logbooks
                     OriginNode = Environment.MachineName,
                     IsSynced = false
                 };
+
+                var (voyageId, legId) = await _voyageContext.ResolveActiveVoyageAsync(entry.OperationDate);
+                entry.VoyageId = voyageId;
+                entry.VoyagePlanLegId = legId;
 
                 _context.GarbageRecordPartIIs.Add(entry);
                 await _context.SaveChangesAsync();
@@ -185,7 +192,9 @@ namespace MaritimeEdge.Services.Logbooks
                         IsSynced = x.IsSynced,
                         CreatedAt = x.CreatedAt,
                         UpdatedAt = x.UpdatedAt,
-                        OriginNode = x.OriginNode
+                        OriginNode = x.OriginNode,
+                        VoyageId = x.VoyageId,
+                        VoyagePlanLegId = x.VoyagePlanLegId
                     })
                     .ToListAsync();
 
@@ -238,7 +247,9 @@ namespace MaritimeEdge.Services.Logbooks
                     IsSynced = entry.IsSynced,
                     CreatedAt = entry.CreatedAt,
                     UpdatedAt = entry.UpdatedAt,
-                    OriginNode = entry.OriginNode
+                    OriginNode = entry.OriginNode,
+                    VoyageId = entry.VoyageId,
+                    VoyagePlanLegId = entry.VoyagePlanLegId
                 };
             }
             catch (Exception ex)

@@ -64,22 +64,42 @@ public static class AlarmSeverity
 public static class VoyageStatus
 {
     public const string PLANNING = "PLANNING";
+    public const string APPROVED = "APPROVED";
+    public const string READY = "READY";
     public const string UNDERWAY = "UNDERWAY";
+    public const string ARRIVED = "ARRIVED";
     public const string COMPLETED = "COMPLETED";
     public const string CANCELLED = "CANCELLED";
+
+    public static readonly HashSet<string> AllStatuses = new()
+    {
+        PLANNING,
+        APPROVED,
+        READY,
+        UNDERWAY,
+        ARRIVED,
+        COMPLETED,
+        CANCELLED,
+    };
 
     /// <summary>
     /// Valid status transitions matrix.
     /// Key = current status, Value = list of allowed next statuses.
-    /// PLANNING → UNDERWAY, CANCELLED
-    /// UNDERWAY → COMPLETED, CANCELLED
+    /// PLANNING → APPROVED, CANCELLED
+    /// APPROVED → READY, PLANNING, CANCELLED
+    /// READY → UNDERWAY, PLANNING, CANCELLED
+    /// UNDERWAY → ARRIVED, CANCELLED
+    /// ARRIVED → COMPLETED, CANCELLED
     /// COMPLETED → (final state, no transitions)
     /// CANCELLED → PLANNING (reopen only)
     /// </summary>
     public static readonly Dictionary<string, string[]> ValidTransitions = new()
     {
-        { PLANNING, new[] { UNDERWAY, CANCELLED } },
-        { UNDERWAY, new[] { COMPLETED, CANCELLED } },
+        { PLANNING, new[] { APPROVED, CANCELLED } },
+        { APPROVED, new[] { READY, PLANNING, CANCELLED } },
+        { READY, new[] { UNDERWAY, PLANNING, CANCELLED } },
+        { UNDERWAY, new[] { ARRIVED, CANCELLED } },
+        { ARRIVED, new[] { COMPLETED, CANCELLED } },
         { COMPLETED, Array.Empty<string>() },
         { CANCELLED, new[] { PLANNING } },
     };
@@ -87,17 +107,22 @@ public static class VoyageStatus
     /// <summary>
     /// Statuses that allow full editing (CRUD on voyage, port calls, crew)
     /// </summary>
-    public static readonly HashSet<string> EditableStatuses = new() { PLANNING };
+    public static readonly HashSet<string> EditableStatuses = new() { PLANNING, APPROVED, READY };
 
     /// <summary>
     /// Statuses that allow limited editing (performance data, port call times, crew status changes)
     /// </summary>
-    public static readonly HashSet<string> LimitedEditStatuses = new() { UNDERWAY };
+    public static readonly HashSet<string> LimitedEditStatuses = new() { UNDERWAY, ARRIVED };
 
     /// <summary>
     /// Statuses that are read-only (no modifications except status change via valid transition)
     /// </summary>
     public static readonly HashSet<string> ReadOnlyStatuses = new() { COMPLETED, CANCELLED };
+
+    /// <summary>
+    /// Statuses that represent an active or just-finished execution window.
+    /// </summary>
+    public static readonly HashSet<string> CurrentVoyageStatuses = new() { UNDERWAY, ARRIVED };
 
     /// <summary>
     /// Check if a status transition is valid
@@ -108,6 +133,11 @@ public static class VoyageStatus
         return ValidTransitions.TryGetValue(from, out var allowed) && allowed.Contains(to);
     }
 
+    public static bool IsKnownStatus(string status)
+    {
+        return AllStatuses.Contains(status);
+    }
+
     /// <summary>
     /// Check if a voyage with the given status allows general modifications
     /// </summary>
@@ -115,4 +145,133 @@ public static class VoyageStatus
     {
         return EditableStatuses.Contains(status) || LimitedEditStatuses.Contains(status);
     }
+
+    public static bool IsCurrentVoyageStatus(string status)
+    {
+        return CurrentVoyageStatuses.Contains(status);
+    }
+}
+
+public static class VoyageCharterType
+{
+    public const string VOYAGE_CHARTER = "VOYAGE_CHARTER";
+    public const string TIME_CHARTER = "TIME_CHARTER";
+    public const string TIME_CHARTER_TRIP = "TIME_CHARTER_TRIP";
+    public const string CONTRACT_OF_AFFREIGHTMENT = "CONTRACT_OF_AFFREIGHTMENT";
+    public const string OTHER = "OTHER";
+
+    public static readonly HashSet<string> AllTypes = new()
+    {
+        VOYAGE_CHARTER,
+        TIME_CHARTER,
+        TIME_CHARTER_TRIP,
+        CONTRACT_OF_AFFREIGHTMENT,
+        OTHER,
+    };
+
+    public static bool IsKnownType(string charterType)
+    {
+        return AllTypes.Contains(charterType);
+    }
+}
+
+// ============================================================
+// PHASE 4: FINANCIAL CONSTANTS
+// ============================================================
+
+public static class VoyageFinancialStatus
+{
+    public const string OPEN = "OPEN";
+    public const string PENDING_SETTLEMENT = "PENDING_SETTLEMENT";
+    public const string SETTLED = "SETTLED";
+    public const string CLOSED = "CLOSED";
+
+    public static readonly Dictionary<string, HashSet<string>> ValidTransitions = new()
+    {
+        { OPEN, new() { PENDING_SETTLEMENT, CLOSED } },
+        { PENDING_SETTLEMENT, new() { SETTLED, OPEN } },
+        { SETTLED, new() { CLOSED, OPEN } },
+        { CLOSED, new() { } }, // final — no transitions
+    };
+
+    public static bool IsValidTransition(string from, string to)
+        => ValidTransitions.TryGetValue(from, out var targets) && targets.Contains(to);
+}
+
+public static class ExpenseRequestStatus
+{
+    public const string DRAFT = "DRAFT";
+    public const string SUBMITTED = "SUBMITTED";
+    public const string APPROVED = "APPROVED";
+    public const string REJECTED = "REJECTED";
+    public const string CANCELLED = "CANCELLED";
+
+    public static readonly Dictionary<string, HashSet<string>> ValidTransitions = new()
+    {
+        { DRAFT, new() { SUBMITTED, CANCELLED } },
+        { SUBMITTED, new() { APPROVED, REJECTED, CANCELLED } },
+        { APPROVED, new() { } },
+        { REJECTED, new() { DRAFT } },
+        { CANCELLED, new() { } },
+    };
+}
+
+public static class AdvancePaymentStatus
+{
+    public const string PENDING = "PENDING";
+    public const string PAID = "PAID";
+    public const string SETTLED = "SETTLED";
+    public const string CANCELLED = "CANCELLED";
+
+    public static readonly Dictionary<string, HashSet<string>> ValidTransitions = new()
+    {
+        { PENDING, new() { PAID, CANCELLED } },
+        { PAID, new() { SETTLED } },
+        { SETTLED, new() { } },
+        { CANCELLED, new() { } },
+    };
+}
+
+public static class DisbursementStatus
+{
+    public const string RECORDED = "RECORDED";
+    public const string VERIFIED = "VERIFIED";
+    public const string PAID = "PAID";
+    public const string DISPUTED = "DISPUTED";
+
+    public static readonly Dictionary<string, HashSet<string>> ValidTransitions = new()
+    {
+        { RECORDED, new() { VERIFIED, DISPUTED } },
+        { VERIFIED, new() { PAID } },
+        { DISPUTED, new() { VERIFIED, RECORDED } },
+        { PAID, new() { } },
+    };
+}
+
+public static class CostAllocationScope
+{
+    public const string VESSEL = "VESSEL";
+    public const string VOYAGE = "VOYAGE";
+    public const string GENERAL = "GENERAL";
+}
+
+public static class CostCategoryConstants
+{
+    public const string FUEL = "FUEL";
+    public const string PORT_CHARGES = "PORT_CHARGES";
+    public const string CANAL_FEES = "CANAL_FEES";
+    public const string CREW = "CREW";
+    public const string SUPPLIES = "SUPPLIES";
+    public const string INSURANCE = "INSURANCE";
+    public const string BROKERAGE = "BROKERAGE";
+    public const string MISC = "MISC";
+}
+
+public static class RevenueCategoryConstants
+{
+    public const string FREIGHT = "FREIGHT";
+    public const string DEMURRAGE = "DEMURRAGE";
+    public const string DISPATCH = "DISPATCH";
+    public const string DEADFREIGHT = "DEADFREIGHT";
+    public const string MISC = "MISC";
 }

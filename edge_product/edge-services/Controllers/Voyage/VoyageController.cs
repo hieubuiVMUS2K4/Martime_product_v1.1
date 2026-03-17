@@ -35,7 +35,7 @@ public class VoyageController : ControllerBase
         {
             var voyage = await _context.VoyageRecords
                 .AsNoTracking()
-                .Where(v => v.VoyageStatus == Constants.VoyageStatus.UNDERWAY)
+                .Where(v => VoyageStatus.CurrentVoyageStatuses.Contains(v.VoyageStatus))
                 .OrderByDescending(v => v.DepartureTime)
                 .FirstOrDefaultAsync();
 

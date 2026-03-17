@@ -137,9 +137,13 @@ function App() {
         <Route path="reporting/noon/new" element={<NoonReportForm />} />
         <Route path="reporting/noon/edit/:id" element={<NoonReportForm />} />
         <Route path="reporting/departure/new" element={<DepartureReportForm />} />
+        <Route path="reporting/departure/edit/:id" element={<DepartureReportForm />} />
         <Route path="reporting/arrival/new" element={<ArrivalReportForm />} />
+        <Route path="reporting/arrival/edit/:id" element={<ArrivalReportForm />} />
         <Route path="reporting/bunker/new" element={<BunkerReportForm />} />
+        <Route path="reporting/bunker/edit/:id" element={<BunkerReportForm />} />
         <Route path="reporting/position/new" element={<PositionReportForm />} />
+        <Route path="reporting/position/edit/:id" element={<PositionReportForm />} />
       </Route>
       
       {/* Full-screen pages outside MainLayout (still protected) */}

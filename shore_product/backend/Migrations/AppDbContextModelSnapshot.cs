@@ -2762,7 +2762,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AisData", (string)null);
+                    b.ToTable("AisData");
                 });
 
             modelBuilder.Entity("ProductApi.Models.ArrivalReport", b =>
@@ -2774,16 +2774,13 @@ namespace productapi.Migrations
                     b.Property<DateTime?>("ArrivalDateTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime?>("ArrivalDateTimeLocal")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double?>("ArrivalLat")
+                    b.Property<double?>("ArrivalLatitude")
                         .HasColumnType("double precision");
 
-                    b.Property<double?>("ArrivalLon")
+                    b.Property<double?>("ArrivalLongitude")
                         .HasColumnType("double precision");
 
-                    b.Property<double?>("AverageSpeedKnots")
+                    b.Property<double?>("AverageSpeed")
                         .HasColumnType("double precision");
 
                     b.Property<string>("CargoDescription")
@@ -2796,8 +2793,8 @@ namespace productapi.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<double?>("DieselOilConsumed")
-                        .HasColumnType("double precision");
+                    b.Property<int?>("CrewOnBoard")
+                        .HasColumnType("integer");
 
                     b.Property<double?>("DieselOilROB")
                         .HasColumnType("double precision");
@@ -2805,16 +2802,16 @@ namespace productapi.Migrations
                     b.Property<double?>("DraftAft")
                         .HasColumnType("double precision");
 
-                    b.Property<double?>("DraftFore")
+                    b.Property<double?>("DraftForward")
                         .HasColumnType("double precision");
 
                     b.Property<double?>("DraftMidship")
                         .HasColumnType("double precision");
 
-                    b.Property<double?>("FreshWaterROB")
-                        .HasColumnType("double precision");
+                    b.Property<DateTime?>("FirstLineAshoreTime")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<double?>("FuelOilConsumed")
+                    b.Property<double?>("FreshWaterROB")
                         .HasColumnType("double precision");
 
                     b.Property<double?>("FuelOilROB")
@@ -2826,10 +2823,13 @@ namespace productapi.Migrations
                     b.Property<Guid>("MaritimeReportId")
                         .HasColumnType("uuid");
 
-                    b.Property<int?>("PersonsOnBoard")
+                    b.Property<int?>("PassengersOnBoard")
                         .HasColumnType("integer");
 
-                    b.Property<string>("PortLocode")
+                    b.Property<DateTime?>("PilotOnBoardTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PortCode")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
 
@@ -2840,15 +2840,20 @@ namespace productapi.Migrations
                     b.Property<string>("Remarks")
                         .HasColumnType("text");
 
-                    b.Property<string>("TimeZone")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<double?>("TotalDieselConsumed")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("TotalFuelConsumed")
+                        .HasColumnType("double precision");
 
                     b.Property<double?>("VoyageDistance")
                         .HasColumnType("double precision");
 
-                    b.Property<double?>("VoyageDurationHours")
+                    b.Property<double?>("VoyageDuration")
                         .HasColumnType("double precision");
+
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
@@ -2856,6 +2861,201 @@ namespace productapi.Migrations
                         .IsUnique();
 
                     b.ToTable("arrival_reports", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.BunkerReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BDNNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("BunkerDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ChiefEngineerSignature")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("Density")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("FlashPoint")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("FuelGrade")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("FuelType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("MaritimeReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<double?>("QuantityReceived")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("ROBAfter")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("ROBefore")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SealNumbers")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<double?>("SulphurContent")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("SupplierName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("TanksLoaded")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<double?>("Viscosity")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MaritimeReportId")
+                        .IsUnique();
+
+                    b.ToTable("bunker_reports", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.CargoOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BillOfLading")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CargoDescription")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CargoType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Consignee")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DischargePort")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("DischargedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LoadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LoadingPort")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("OperationId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("OperationType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<double>("Quantity")
+                        .HasPrecision(15, 3)
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("SealNumbers")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Shipper")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SpecialRequirements")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillOfLading");
+
+                    b.HasIndex("CargoType");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("VoyageId");
+
+                    b.ToTable("cargo_operations", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.DepartureReport", b =>
@@ -2874,16 +3074,16 @@ namespace productapi.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("CrewOnBoard")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("DepartureDateTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime?>("DepartureDateTimeLocal")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double?>("DepartureLat")
+                    b.Property<double?>("DepartureLatitude")
                         .HasColumnType("double precision");
 
-                    b.Property<double?>("DepartureLon")
+                    b.Property<double?>("DepartureLongitude")
                         .HasColumnType("double precision");
 
                     b.Property<double?>("DieselOilROB")
@@ -2895,13 +3095,13 @@ namespace productapi.Migrations
                     b.Property<double?>("DraftAft")
                         .HasColumnType("double precision");
 
-                    b.Property<double?>("DraftFore")
+                    b.Property<double?>("DraftForward")
                         .HasColumnType("double precision");
 
                     b.Property<double?>("DraftMidship")
                         .HasColumnType("double precision");
 
-                    b.Property<DateTime?>("ETA")
+                    b.Property<DateTime?>("EstimatedTimeOfArrival")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<double?>("FreshWaterROB")
@@ -2910,6 +3110,9 @@ namespace productapi.Migrations
                     b.Property<double?>("FuelOilROB")
                         .HasColumnType("double precision");
 
+                    b.Property<DateTime?>("LastLineAshoreTime")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<double?>("LubOilROB")
                         .HasColumnType("double precision");
 
@@ -2917,17 +3120,20 @@ namespace productapi.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("NextPort")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
-                    b.Property<string>("NextPortLocode")
+                    b.Property<string>("NextPortCode")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
 
-                    b.Property<int?>("PersonsOnBoard")
+                    b.Property<int?>("PassengersOnBoard")
                         .HasColumnType("integer");
 
-                    b.Property<string>("PortLocode")
+                    b.Property<DateTime?>("PilotOnBoardTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PortCode")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
 
@@ -2938,9 +3144,8 @@ namespace productapi.Migrations
                     b.Property<string>("Remarks")
                         .HasColumnType("text");
 
-                    b.Property<string>("TimeZone")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
@@ -2992,7 +3197,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("EngineData", (string)null);
+                    b.ToTable("EngineData");
                 });
 
             modelBuilder.Entity("ProductApi.Models.FuelConsumption", b =>
@@ -3031,7 +3236,7 @@ namespace productapi.Migrations
 
                     b.HasIndex("VesselId");
 
-                    b.ToTable("FuelConsumptions", (string)null);
+                    b.ToTable("FuelConsumptions");
                 });
 
             modelBuilder.Entity("ProductApi.Models.FuelConsumptionData", b =>
@@ -3086,7 +3291,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("FuelConsumptionData", (string)null);
+                    b.ToTable("FuelConsumptionData");
                 });
 
             modelBuilder.Entity("ProductApi.Models.GeneratorData", b =>
@@ -3125,7 +3330,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("GeneratorData", (string)null);
+                    b.ToTable("GeneratorData");
                 });
 
             modelBuilder.Entity("ProductApi.Models.MaintenanceTask", b =>
@@ -3150,7 +3355,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("MaintenanceTasks", (string)null);
+                    b.ToTable("MaintenanceTasks");
                 });
 
             modelBuilder.Entity("ProductApi.Models.MaritimeReport", b =>
@@ -3246,6 +3451,9 @@ namespace productapi.Migrations
                     b.Property<double?>("AirTemperature")
                         .HasColumnType("double precision");
 
+                    b.Property<string>("AlarmSummaryJson")
+                        .HasColumnType("text");
+
                     b.Property<string>("AuxEngineRunningHours")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
@@ -3263,11 +3471,17 @@ namespace productapi.Migrations
                     b.Property<string>("CargoRemarks")
                         .HasColumnType("text");
 
+                    b.Property<int?>("CertificatesExpiringSoon")
+                        .HasColumnType("integer");
+
                     b.Property<double?>("CourseOverGround")
                         .HasColumnType("double precision");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CrewOnBoard")
+                        .HasColumnType("integer");
 
                     b.Property<double?>("DieselOilConsumed")
                         .HasColumnType("double precision");
@@ -3321,14 +3535,31 @@ namespace productapi.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("MaintenanceRemarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MaintenanceSummaryJson")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("MaritimeReportId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("OperationalRemarks")
                         .HasColumnType("text");
 
+                    b.Property<int?>("PassengersOnBoard")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("ReportDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SafetyDrillsConducted")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("SafetyIncidents")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("SeaState")
                         .HasMaxLength(20)
@@ -3363,6 +3594,77 @@ namespace productapi.Migrations
                     b.ToTable("noon_reports", (string)null);
                 });
 
+            modelBuilder.Entity("ProductApi.Models.Port", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Country")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CountryCode")
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PortCode")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<string>("PortName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("TimeZone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CountryCode");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("PortCode")
+                        .IsUnique();
+
+                    b.HasIndex("PortName");
+
+                    b.ToTable("ports", (string)null);
+                });
+
             modelBuilder.Entity("ProductApi.Models.PortCall", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3372,6 +3674,16 @@ namespace productapi.Migrations
                     b.Property<DateTime?>("ArrivalTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("BerthNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CallType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("CargoOpsCompleted")
+                        .HasColumnType("boolean");
+
                     b.Property<decimal?>("CargoQuantity")
                         .HasPrecision(10, 3)
                         .HasColumnType("numeric(10,3)");
@@ -3380,7 +3692,34 @@ namespace productapi.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Country")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime?>("DepartureTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("DraftAft")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DraftFore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("PilotOffBoard")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("PilotOnBoard")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PortCode")
@@ -3391,6 +3730,9 @@ namespace productapi.Migrations
                         .HasPrecision(12, 2)
                         .HasColumnType("numeric(12,2)");
 
+                    b.Property<int?>("PortId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("PortName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -3399,12 +3741,42 @@ namespace productapi.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("VesselId")
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("VesselId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("VoyagePlanLegId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CallType");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("PortCode");
+
+                    b.HasIndex("PortId");
+
+                    b.HasIndex("VoyagePlanLegId");
+
                     b.HasIndex("VesselId", "ArrivalTime");
+
+                    b.HasIndex("VoyageId", "Sequence");
 
                     b.ToTable("PortCalls", (string)null);
                 });
@@ -3448,7 +3820,90 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PositionData", (string)null);
+                    b.ToTable("PositionData");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.PositionReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("CargoOnBoard")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("CourseOverGround")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CrewOnBoard")
+                        .HasColumnType("integer");
+
+                    b.Property<double?>("DieselOilROB")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DistanceToGo")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("ETA")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("FuelOilROB")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("LastPort")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid>("MaritimeReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("NextPort")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("ReportDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReportReason")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("SeaState")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<double?>("SpeedOverGround")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("WeatherConditions")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("WindDirection")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<double?>("WindSpeed")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MaritimeReportId")
+                        .IsUnique();
+
+                    b.ToTable("position_reports", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.ReportType", b =>
@@ -3644,7 +4099,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SafetyAlarms", (string)null);
+                    b.ToTable("SafetyAlarms");
                 });
 
             modelBuilder.Entity("ProductApi.Models.Ship", b =>
@@ -3666,7 +4121,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Ships", (string)null);
+                    b.ToTable("Ships");
                 });
 
             modelBuilder.Entity("ProductApi.Models.SyncIdempotencyRecord", b =>
@@ -3867,7 +4322,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TankLevels", (string)null);
+                    b.ToTable("TankLevels");
                 });
 
             modelBuilder.Entity("ProductApi.Models.User", b =>
@@ -3890,7 +4345,7 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("ProductApi.Models.Vessel", b =>
@@ -4893,7 +5348,7 @@ namespace productapi.Migrations
                     b.HasIndex("IMO")
                         .IsUnique();
 
-                    b.ToTable("Vessels", (string)null);
+                    b.ToTable("Vessels");
                 });
 
             modelBuilder.Entity("ProductApi.Models.VesselAlert", b =>
@@ -4939,7 +5394,7 @@ namespace productapi.Migrations
 
                     b.HasIndex("VesselId", "Timestamp");
 
-                    b.ToTable("VesselAlerts", (string)null);
+                    b.ToTable("VesselAlerts");
                 });
 
             modelBuilder.Entity("ProductApi.Models.VesselCertificate", b =>
@@ -5025,7 +5480,1072 @@ namespace productapi.Migrations
 
                     b.HasIndex("VesselId", "Timestamp");
 
-                    b.ToTable("VesselPositions", (string)null);
+                    b.ToTable("VesselPositions");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageActualRevenue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("Amount")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("AmountUsd")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<double>("ExchangeRate")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("InvoiceDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InvoiceNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PayerName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PaymentReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RevenueCategory")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("RevenueNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("RevenueCategory");
+
+                    b.HasIndex("RevenueNumber")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("VoyageId");
+
+                    b.ToTable("voyage_actual_revenues", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageAdvancePayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AdvanceNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("AdvanceType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<double>("Amount")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("AmountUsd")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<double>("ExchangeRate")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PaidBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PaymentReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("RecipientName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<double>("SettledAmount")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<double>("UnsettledBalance")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdvanceNumber")
+                        .IsUnique();
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("VoyageId");
+
+                    b.ToTable("voyage_advance_payments", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageBunkerPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("EstimatedCostUsd")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("FuelType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OperationType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("PlanLegId")
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("PlannedQuantity")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SupplierName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("PlanLegId");
+
+                    b.HasIndex("VoyageId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("voyage_bunker_plans", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageCargoPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CargoDescription")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CargoType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ConsigneeName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OperationType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("PlanLegId")
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("PlannedQuantity")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ShipperName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SpecialRequirements")
+                        .HasColumnType("text");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("PlanLegId");
+
+                    b.HasIndex("VoyageId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("voyage_cargo_plans", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageCostEstimate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CostCategory")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<double>("EstimatedAmount")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CostCategory");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("VoyageId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("voyage_cost_estimates", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageCrewAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DisembarkDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisembarkPortCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<string>("DisembarkPortName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateTime?>("EmbarkDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EmbarkPortCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<string>("EmbarkPortName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int?>("RankId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("WatchSchedule")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("RankId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("VoyageId", "CrewMemberId")
+                        .IsUnique();
+
+                    b.ToTable("voyage_crew_assignments", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageCrewChangePlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ChangeType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CrewMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("PlanLegId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("PlannedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<int?>("RankId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ReplacementReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CrewMemberId");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("PlanLegId");
+
+                    b.HasIndex("RankId");
+
+                    b.HasIndex("VoyageId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("voyage_crew_change_plans", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageDisbursement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AdvancePaymentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AllocationScope")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<double>("Amount")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("AmountUsd")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("CostCategory")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("DisbursementNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("ExchangeRate")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid?>("ExpenseRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("InvoiceDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InvoiceNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PaymentReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("SupportingDocuments")
+                        .HasColumnType("text");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VendorName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VerifiedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdvancePaymentId");
+
+                    b.HasIndex("CostCategory");
+
+                    b.HasIndex("DisbursementNumber")
+                        .IsUnique();
+
+                    b.HasIndex("ExpenseRequestId");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("VoyageId");
+
+                    b.ToTable("voyage_disbursements", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageExpenseRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AllocationScope")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("ApprovalNotes")
+                        .HasColumnType("text");
+
+                    b.Property<double?>("ApprovedAmount")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("ApprovedAmountUsd")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CostCategory")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<double>("ExchangeRate")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PortCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("RequestNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<double>("RequestedAmount")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("RequestedAmountUsd")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RequestedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("SupportingDocuments")
+                        .HasColumnType("text");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VendorName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("VendorReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CostCategory");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("RequestNumber")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("VoyageId");
+
+                    b.ToTable("voyage_expense_requests", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageLogEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BerthNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<double?>("CourseOverGround")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("DistanceFromLast")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DistanceToGo")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("EventDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("EventDateTimeLocal")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("MasterSignature")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OfficerOnWatch")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PilotName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PilotStation")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PortCountry")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PortLocode")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("PortName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("SignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("SpeedOverGround")
+                        .HasColumnType("double precision");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("TimeZone")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<double?>("TotalVoyageDistance")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("VoyagePlanLegId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventDateTime");
+
+                    b.HasIndex("EventType");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("PortLocode");
+
+                    b.HasIndex("VoyageId");
+
+                    b.ToTable("voyage_log_entries", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyagePlanLeg", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("BunkerSupplyPlanned")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("CargoActivity")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("CrewChangePlanned")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("FromPortCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<string>("FromPortName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LegType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("PlannedArrivalTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("PlannedAverageSpeed")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("PlannedDepartureTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("PlannedDistance")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("PlannedDurationHours")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("PlannedFuelConsumption")
+                        .HasPrecision(10, 3)
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ToPortCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<string>("ToPortName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("WeatherRoutingNotes")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("LegType");
+
+                    b.HasIndex("VoyageId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("voyage_plan_legs", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.VoyageRecord", b =>
@@ -5034,22 +6554,54 @@ namespace productapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<double?>("ActualProfitMargin")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("ArrivalPort")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("ArrivalPortCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
                     b.Property<DateTime?>("ArrivalTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("ArrivedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<double?>("AverageSpeed")
+                        .HasPrecision(5, 2)
                         .HasColumnType("double precision");
+
+                    b.Property<string>("CallSign")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("CargoType")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
                     b.Property<double?>("CargoWeight")
+                        .HasPrecision(12, 3)
                         .HasColumnType("double precision");
+
+                    b.Property<string>("CharterType")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTime?>("CommencedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -5058,22 +6610,112 @@ namespace productapi.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("DeparturePortCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
                     b.Property<DateTime?>("DepartureTime")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<double?>("DistanceTraveled")
+                        .HasPrecision(10, 2)
                         .HasColumnType("double precision");
 
-                    b.Property<double?>("FuelConsumed")
+                    b.Property<double?>("EstimatedProfitMargin")
                         .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("FinancialClosedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FinancialClosedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FinancialStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<double?>("FuelConsumed")
+                        .HasPrecision(10, 3)
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("OriginNode")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<double?>("OutstandingBalance")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("PlannedAverageSpeed")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("PlannedDistance")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("PlannedDurationHours")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("PlannedFuelConsumption")
+                        .HasPrecision(10, 3)
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("PreviousPortCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<string>("PreviousPortName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("ReadyAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<double?>("TotalActualCost")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("TotalActualRevenue")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("TotalAdvanced")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("TotalDisbursed")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("TotalEstimatedCost")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("TotalEstimatedRevenue")
+                        .HasColumnType("double precision");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VesselFlag")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("VesselIMO")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("VesselName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("VoyageInstructions")
+                        .HasColumnType("text");
 
                     b.Property<string>("VoyageNumber")
                         .IsRequired()
@@ -5087,7 +6729,237 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("VoyageRecords", (string)null);
+                    b.HasIndex("DepartureTime");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("VesselIMO");
+
+                    b.HasIndex("VoyageNumber")
+                        .IsUnique();
+
+                    b.HasIndex("VoyageStatus");
+
+                    b.ToTable("voyage_records", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageRevenueEstimate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<double>("EstimatedAmount")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("RevenueCategory")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("RevenueCategory");
+
+                    b.HasIndex("VoyageId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("voyage_revenue_estimates", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageSettlement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("AdvanceBalance")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("ApprovalNotes")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("FinalSettlementAmount")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<double>("NetResult")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("PreparedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PreparedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReviewedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("SettlementNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Summary")
+                        .HasColumnType("text");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<double>("TotalAdvanced")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("TotalDisbursed")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("TotalExpenseApproved")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("TotalRevenue")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("SettlementNumber")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("VoyageId");
+
+                    b.ToTable("voyage_settlements", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageStatusHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FromStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VoyageId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsSynced");
+
+                    b.HasIndex("ToStatus");
+
+                    b.HasIndex("VoyageId", "ChangedAt");
+
+                    b.ToTable("voyage_status_history", (string)null);
                 });
 
             modelBuilder.Entity("Maritime.Shared.Models.Crew.CountryCertificate", b =>
@@ -5686,6 +7558,16 @@ namespace productapi.Migrations
                     b.Navigation("CrewMember");
                 });
 
+            modelBuilder.Entity("ProductApi.Models.CargoOperation", b =>
+                {
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("CargoOperations")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Voyage");
+                });
+
             modelBuilder.Entity("ProductApi.Models.FuelConsumption", b =>
                 {
                     b.HasOne("ProductApi.Models.Vessel", "Vessel")
@@ -5699,13 +7581,33 @@ namespace productapi.Migrations
 
             modelBuilder.Entity("ProductApi.Models.PortCall", b =>
                 {
+                    b.HasOne("ProductApi.Models.Port", "Port")
+                        .WithMany()
+                        .HasForeignKey("PortId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("ProductApi.Models.Vessel", "Vessel")
                         .WithMany("PortCalls")
                         .HasForeignKey("VesselId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("PortCalls")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("ProductApi.Models.VoyagePlanLeg", "VoyagePlanLeg")
+                        .WithMany()
+                        .HasForeignKey("VoyagePlanLegId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Port");
 
                     b.Navigation("Vessel");
+
+                    b.Navigation("Voyage");
+
+                    b.Navigation("VoyagePlanLeg");
                 });
 
             modelBuilder.Entity("ProductApi.Models.VesselAlert", b =>
@@ -5739,6 +7641,223 @@ namespace productapi.Migrations
                         .IsRequired();
 
                     b.Navigation("Vessel");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageActualRevenue", b =>
+                {
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("ActualRevenues")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageAdvancePayment", b =>
+                {
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("AdvancePayments")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageBunkerPlan", b =>
+                {
+                    b.HasOne("ProductApi.Models.VoyagePlanLeg", "PlanLeg")
+                        .WithMany()
+                        .HasForeignKey("PlanLegId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("BunkerPlans")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PlanLeg");
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageCargoPlan", b =>
+                {
+                    b.HasOne("ProductApi.Models.VoyagePlanLeg", "PlanLeg")
+                        .WithMany()
+                        .HasForeignKey("PlanLegId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("CargoPlans")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PlanLeg");
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageCostEstimate", b =>
+                {
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("CostEstimates")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageCrewAssignment", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Maritime.Shared.Models.Crew.Rank", "Rank")
+                        .WithMany()
+                        .HasForeignKey("RankId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("CrewAssignments")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CrewMember");
+
+                    b.Navigation("Rank");
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageCrewChangePlan", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ProductApi.Models.VoyagePlanLeg", "PlanLeg")
+                        .WithMany()
+                        .HasForeignKey("PlanLegId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Maritime.Shared.Models.Crew.Rank", "Rank")
+                        .WithMany()
+                        .HasForeignKey("RankId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("CrewChangePlans")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CrewMember");
+
+                    b.Navigation("PlanLeg");
+
+                    b.Navigation("Rank");
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageDisbursement", b =>
+                {
+                    b.HasOne("ProductApi.Models.VoyageAdvancePayment", "AdvancePayment")
+                        .WithMany()
+                        .HasForeignKey("AdvancePaymentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ProductApi.Models.VoyageExpenseRequest", "ExpenseRequest")
+                        .WithMany()
+                        .HasForeignKey("ExpenseRequestId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("Disbursements")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AdvancePayment");
+
+                    b.Navigation("ExpenseRequest");
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageExpenseRequest", b =>
+                {
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("ExpenseRequests")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageLogEntry", b =>
+                {
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("LogEntries")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyagePlanLeg", b =>
+                {
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("PlanLegs")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageRevenueEstimate", b =>
+                {
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("RevenueEstimates")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageSettlement", b =>
+                {
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("Settlements")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Voyage");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageStatusHistory", b =>
+                {
+                    b.HasOne("ProductApi.Models.VoyageRecord", "Voyage")
+                        .WithMany("StatusHistory")
+                        .HasForeignKey("VoyageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Voyage");
                 });
 
             modelBuilder.Entity("Maritime.Shared.Models.Crew.Certificate", b =>
@@ -5836,6 +7955,41 @@ namespace productapi.Migrations
                     b.Navigation("PortCalls");
 
                     b.Navigation("Positions");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.VoyageRecord", b =>
+                {
+                    b.Navigation("ActualRevenues");
+
+                    b.Navigation("AdvancePayments");
+
+                    b.Navigation("BunkerPlans");
+
+                    b.Navigation("CargoOperations");
+
+                    b.Navigation("CargoPlans");
+
+                    b.Navigation("CostEstimates");
+
+                    b.Navigation("CrewAssignments");
+
+                    b.Navigation("CrewChangePlans");
+
+                    b.Navigation("Disbursements");
+
+                    b.Navigation("ExpenseRequests");
+
+                    b.Navigation("LogEntries");
+
+                    b.Navigation("PlanLegs");
+
+                    b.Navigation("PortCalls");
+
+                    b.Navigation("RevenueEstimates");
+
+                    b.Navigation("Settlements");
+
+                    b.Navigation("StatusHistory");
                 });
 #pragma warning restore 612, 618
         }

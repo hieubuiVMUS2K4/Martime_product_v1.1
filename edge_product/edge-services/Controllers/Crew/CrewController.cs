@@ -134,6 +134,64 @@ public class CrewController : ControllerBase
         }
     }
 
+    [HttpGet("{id}/service-records")]
+    public async Task<IActionResult> GetServiceRecords(Guid id)
+    {
+        try
+        {
+            var crewExists = await _context.CrewMembers
+                .AsNoTracking()
+                .AnyAsync(c => c.Id == id);
+
+            if (!crewExists)
+                return NotFound(new { message = "Crew member not found" });
+
+            var records = await _context.ServiceRecords
+                .AsNoTracking()
+                .Where(r => r.CrewMemberId == id)
+                .OrderByDescending(r => r.BoardingDate)
+                .ToListAsync();
+
+            var response = records.Select(r => new
+            {
+                id = r.Id,
+                crewMemberId = r.CrewMemberId,
+                vesselName = r.VesselName,
+                vesselFlag = r.VesselFlag,
+                vesselType = r.VesselType,
+                vesselGrt = r.VesselGrt,
+                vesselDwt = r.VesselDwt,
+                vesselYearBuilt = r.VesselYearBuilt,
+                tradeArea = r.TradeArea,
+                mainEngineType = r.MainEngineType,
+                mainEnginePowerKw = r.MainEnginePowerKw,
+                mainEngineMaker = r.MainEngineMaker,
+                boilerType = r.BoilerType,
+                hasExhaustGasScrubber = r.HasExhaustGasScrubber,
+                ecdis = r.Ecdis,
+                rankAtTime = r.RankAtTime,
+                boardingDate = r.BoardingDate,
+                disembarkDate = r.DisembarkDate,
+                boardingPort = r.BoardingPortName ?? r.BoardingPortCode,
+                disembarkPort = r.DisembarkPortName ?? r.DisembarkPortCode,
+                totalServiceDays = r.DisembarkDate.HasValue
+                    ? Math.Max(1, (int)Math.Ceiling((r.DisembarkDate.Value.Date - r.BoardingDate.Date).TotalDays))
+                    : (int?)null,
+                isSynced = r.IsSynced,
+                createdAt = r.CreatedAt,
+                updatedAt = r.UpdatedAt,
+                originNode = r.OriginNode,
+            });
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting service records for crew {CrewId}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
     [HttpGet("me")]
     public async Task<IActionResult> GetMyProfile([FromQuery] string? crewId = null)
     {

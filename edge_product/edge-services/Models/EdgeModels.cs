@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+using Maritime.Shared.Interfaces;
 
 namespace MaritimeEdge.Models;
 
@@ -333,6 +334,18 @@ public class FuelConsumption
     public double? CargoWeight { get; set; } // Metric Tons
     
     public double? Co2Emissions { get; set; } // Metric Tons CO2
+
+    // Phase 6: Voyage & Leg linking
+    public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+
+    [ForeignKey("VoyagePlanLegId")]
+    [JsonIgnore]
+    public virtual VoyagePlanLeg? VoyagePlanLeg { get; set; }
     
     public bool IsSynced { get; set; } = false;
     
@@ -487,6 +500,18 @@ public class SafetyAlarm
     public bool IsResolved { get; set; } = false;
     
     public DateTime? ResolvedAt { get; set; }
+
+    // Phase 6: Voyage & Leg linking
+    public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+
+    [ForeignKey("VoyagePlanLegId")]
+    [JsonIgnore]
+    public virtual VoyagePlanLeg? VoyagePlanLeg { get; set; }
     
     public bool IsSynced { get; set; } = false;
     
@@ -501,7 +526,7 @@ public class SafetyAlarm
 /// Port Master Data - UN/LOCODE standard (ISO 3166 + location code)
 /// Reference: https://unece.org/trade/cefact/unlocode-code-list-country-and-territory
 /// </summary>
-public class Port
+public class Port : ISyncableEntity
 {
     [Key]
     public int Id { get; set; }
@@ -542,6 +567,13 @@ public class Port
     public string? TimeZone { get; set; }
     
     public bool IsActive { get; set; } = true;
+
+    public bool IsSynced { get; set; } = false;
+
+    public long SyncVersion { get; set; }
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -561,6 +593,9 @@ public class PortCall
     
     /// <summary>Optional FK to Port master data</summary>
     public int? PortId { get; set; }
+
+    /// <summary>Phase 6: FK -> VoyagePlanLeg.Id (optional)</summary>
+    public Guid? VoyagePlanLegId { get; set; }
     
     /// <summary>UN/LOCODE - stored for offline/flexibility</summary>
     [MaxLength(5)]
@@ -617,6 +652,10 @@ public class PortCall
     
     [ForeignKey("PortId")]
     public virtual Port? Port { get; set; }
+
+    [ForeignKey("VoyagePlanLegId")]
+    [JsonIgnore]
+    public virtual VoyagePlanLeg? VoyagePlanLeg { get; set; }
 }
 
 /// <summary>
@@ -752,6 +791,19 @@ public class VoyageRecord
     
     [MaxLength(100)]
     public string? CargoType { get; set; }
+
+    [MaxLength(40)]
+    public string? CharterType { get; set; }
+
+    public double? PlannedDistance { get; set; } // Nautical miles
+
+    public double? PlannedDurationHours { get; set; }
+
+    public double? PlannedAverageSpeed { get; set; } // Knots
+
+    public double? PlannedFuelConsumption { get; set; } // Metric Tons
+
+    public string? VoyageInstructions { get; set; }
     
     public double? CargoWeight { get; set; } // Metric Tons
     
@@ -762,7 +814,50 @@ public class VoyageRecord
     public double? AverageSpeed { get; set; } // Knots
     
     [MaxLength(20)]
-    public string VoyageStatus { get; set; } = "PLANNING"; // PLANNING, UNDERWAY, COMPLETED, CANCELLED
+    public string VoyageStatus { get; set; } = "PLANNING"; // PLANNING, APPROVED, READY, UNDERWAY, ARRIVED, COMPLETED, CANCELLED
+
+    public DateTime? ApprovedAt { get; set; }
+
+    public DateTime? ReadyAt { get; set; }
+
+    public DateTime? CommencedAt { get; set; }
+
+    public DateTime? ArrivedAt { get; set; }
+
+    public DateTime? CompletedAt { get; set; }
+
+    public DateTime? CancelledAt { get; set; }
+
+    // === Phase 2: Planning Summary ===
+
+    public double? TotalEstimatedCost { get; set; }
+
+    public double? TotalEstimatedRevenue { get; set; }
+
+    public double? EstimatedProfitMargin { get; set; }
+
+    // === Phase 4: Financial Actuals & Closing ===
+
+    /// <summary>OPEN, PENDING_SETTLEMENT, SETTLED, CLOSED</summary>
+    [MaxLength(30)]
+    public string FinancialStatus { get; set; } = "OPEN";
+
+    public double? TotalActualCost { get; set; }
+
+    public double? TotalActualRevenue { get; set; }
+
+    public double? ActualProfitMargin { get; set; }
+
+    public double? TotalAdvanced { get; set; }
+
+    public double? TotalDisbursed { get; set; }
+
+    public double? OutstandingBalance { get; set; }
+
+    public DateTime? FinancialClosedAt { get; set; }
+
+    [MaxLength(100)]
+    public string? FinancialClosedBy { get; set; }
     
     public bool IsSynced { get; set; } = false;
     
@@ -785,6 +880,843 @@ public class VoyageRecord
     
     [JsonIgnore]
     public virtual List<CargoOperation> CargoOperations { get; set; } = new();
+
+    [JsonIgnore]
+    public virtual List<VoyagePlanLeg> PlanLegs { get; set; } = new();
+
+    [JsonIgnore]
+    public virtual List<VoyageStatusHistory> StatusHistory { get; set; } = new();
+
+    [JsonIgnore]
+    public virtual List<VoyageCargoPlan> CargoPlans { get; set; } = new();
+
+    [JsonIgnore]
+    public virtual List<VoyageBunkerPlan> BunkerPlans { get; set; } = new();
+
+    [JsonIgnore]
+    public virtual List<VoyageCrewChangePlan> CrewChangePlans { get; set; } = new();
+
+    [JsonIgnore]
+    public virtual List<VoyageCostEstimate> CostEstimates { get; set; } = new();
+
+    [JsonIgnore]
+    public virtual List<VoyageRevenueEstimate> RevenueEstimates { get; set; } = new();
+
+    // Phase 4: Financial
+    [JsonIgnore]
+    public virtual List<VoyageExpenseRequest> ExpenseRequests { get; set; } = new();
+
+    [JsonIgnore]
+    public virtual List<VoyageAdvancePayment> AdvancePayments { get; set; } = new();
+
+    [JsonIgnore]
+    public virtual List<VoyageDisbursement> Disbursements { get; set; } = new();
+
+    [JsonIgnore]
+    public virtual List<VoyageActualRevenue> ActualRevenues { get; set; } = new();
+
+    [JsonIgnore]
+    public virtual List<VoyageSettlement> Settlements { get; set; } = new();
+}
+
+public class VoyagePlanLeg : ISyncableEntity
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid VoyageId { get; set; }
+
+    public int Sequence { get; set; }
+
+    [MaxLength(30)]
+    public string LegType { get; set; } = "PASSAGE";
+
+    [MaxLength(5)]
+    public string? FromPortCode { get; set; }
+
+    [MaxLength(100)]
+    public string? FromPortName { get; set; }
+
+    [MaxLength(5)]
+    public string? ToPortCode { get; set; }
+
+    [MaxLength(100)]
+    public string? ToPortName { get; set; }
+
+    public DateTime? PlannedDepartureTime { get; set; }
+
+    public DateTime? PlannedArrivalTime { get; set; }
+
+    public double? PlannedDistance { get; set; }
+
+    public double? PlannedDurationHours { get; set; }
+
+    public double? PlannedAverageSpeed { get; set; }
+
+    [MaxLength(30)]
+    public string? CargoActivity { get; set; }
+
+    public bool CrewChangePlanned { get; set; }
+
+    public bool BunkerSupplyPlanned { get; set; }
+
+    /// <summary>Phase 2: Planned fuel consumption for this leg (MT)</summary>
+    public double? PlannedFuelConsumption { get; set; }
+
+    /// <summary>Phase 2: Weather routing guidance</summary>
+    public string? WeatherRoutingNotes { get; set; }
+
+    public string? Notes { get; set; }
+
+    public bool IsSynced { get; set; } = false;
+
+    public long SyncVersion { get; set; }
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+}
+
+public class VoyageStatusHistory : ISyncableEntity
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid VoyageId { get; set; }
+
+    [MaxLength(20)]
+    public string? FromStatus { get; set; }
+
+    [Required]
+    [MaxLength(20)]
+    public string ToStatus { get; set; } = string.Empty;
+
+    [MaxLength(100)]
+    public string ChangedBy { get; set; } = "system";
+
+    public string? Notes { get; set; }
+
+    public DateTime ChangedAt { get; set; } = DateTime.UtcNow;
+
+    public bool IsSynced { get; set; } = false;
+
+    public long SyncVersion { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+}
+
+// ============================================================
+// Phase 2: Voyage Planning Entities
+// ============================================================
+
+/// <summary>
+/// Cargo loading/discharge plan per voyage leg or port.
+/// </summary>
+public class VoyageCargoPlan : ISyncableEntity
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid VoyageId { get; set; }
+
+    /// <summary>Optional link to the specific planning leg</summary>
+    public Guid? PlanLegId { get; set; }
+
+    public int Sequence { get; set; }
+
+    /// <summary>LOADING, DISCHARGING, TRANSSHIPMENT</summary>
+    [Required]
+    [MaxLength(30)]
+    public string OperationType { get; set; } = "LOADING";
+
+    /// <summary>CONTAINER, BULK, OIL, GAS, GENERAL, CHEMICAL, REEFER</summary>
+    [Required]
+    [MaxLength(50)]
+    public string CargoType { get; set; } = string.Empty;
+
+    public string? CargoDescription { get; set; }
+
+    public double PlannedQuantity { get; set; }
+
+    /// <summary>MT, TEU, CBM</summary>
+    [MaxLength(10)]
+    public string Unit { get; set; } = "MT";
+
+    /// <summary>Port where this cargo operation is planned</summary>
+    [MaxLength(5)]
+    public string? PortCode { get; set; }
+
+    [MaxLength(150)]
+    public string? PortName { get; set; }
+
+    [MaxLength(200)]
+    public string? ShipperName { get; set; }
+
+    [MaxLength(200)]
+    public string? ConsigneeName { get; set; }
+
+    public string? SpecialRequirements { get; set; }
+
+    public string? Notes { get; set; }
+
+    public bool IsSynced { get; set; } = false;
+
+    public long SyncVersion { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+
+    [ForeignKey("PlanLegId")]
+    [JsonIgnore]
+    public virtual VoyagePlanLeg? PlanLeg { get; set; }
+}
+
+/// <summary>
+/// Bunker (fuel) supply plan per voyage leg or port.
+/// </summary>
+public class VoyageBunkerPlan : ISyncableEntity
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid VoyageId { get; set; }
+
+    public Guid? PlanLegId { get; set; }
+
+    public int Sequence { get; set; }
+
+    /// <summary>HFO, VLSFO, MGO, MDO, LNG</summary>
+    [Required]
+    [MaxLength(20)]
+    public string FuelType { get; set; } = "VLSFO";
+
+    /// <summary>Metric Tons</summary>
+    public double PlannedQuantity { get; set; }
+
+    /// <summary>SUPPLY, TRANSFER, DELIVERY</summary>
+    [MaxLength(20)]
+    public string OperationType { get; set; } = "SUPPLY";
+
+    [MaxLength(5)]
+    public string? PortCode { get; set; }
+
+    [MaxLength(150)]
+    public string? PortName { get; set; }
+
+    public double? EstimatedCostUsd { get; set; }
+
+    [MaxLength(200)]
+    public string? SupplierName { get; set; }
+
+    public string? Notes { get; set; }
+
+    public bool IsSynced { get; set; } = false;
+
+    public long SyncVersion { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+
+    [ForeignKey("PlanLegId")]
+    [JsonIgnore]
+    public virtual VoyagePlanLeg? PlanLeg { get; set; }
+}
+
+/// <summary>
+/// Crew embark/disembark/rotation plan per voyage leg or port.
+/// </summary>
+public class VoyageCrewChangePlan : ISyncableEntity
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid VoyageId { get; set; }
+
+    public Guid? PlanLegId { get; set; }
+
+    public int Sequence { get; set; }
+
+    /// <summary>Optional — specific crew member if known at planning time</summary>
+    public Guid? CrewMemberId { get; set; }
+
+    /// <summary>Optional — target rank for the change</summary>
+    public int? RankId { get; set; }
+
+    /// <summary>EMBARK, DISEMBARK, ROTATION</summary>
+    [Required]
+    [MaxLength(20)]
+    public string ChangeType { get; set; } = "ROTATION";
+
+    [MaxLength(5)]
+    public string? PortCode { get; set; }
+
+    [MaxLength(150)]
+    public string? PortName { get; set; }
+
+    public DateTime? PlannedDate { get; set; }
+
+    [MaxLength(200)]
+    public string? ReplacementReason { get; set; }
+
+    public string? Notes { get; set; }
+
+    public bool IsSynced { get; set; } = false;
+
+    public long SyncVersion { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+
+    [ForeignKey("PlanLegId")]
+    [JsonIgnore]
+    public virtual VoyagePlanLeg? PlanLeg { get; set; }
+
+    [ForeignKey("CrewMemberId")]
+    [JsonIgnore]
+    public virtual CrewMember? CrewMember { get; set; }
+
+    [ForeignKey("RankId")]
+    [JsonIgnore]
+    public virtual Rank? Rank { get; set; }
+}
+
+/// <summary>
+/// Itemized cost estimate for voyage financial planning.
+/// </summary>
+public class VoyageCostEstimate : ISyncableEntity
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid VoyageId { get; set; }
+
+    public int Sequence { get; set; }
+
+    /// <summary>FUEL, PORT_CHARGES, CANAL_FEES, CREW, SUPPLIES, INSURANCE, BROKERAGE, MISC</summary>
+    [Required]
+    [MaxLength(30)]
+    public string CostCategory { get; set; } = string.Empty;
+
+    [MaxLength(200)]
+    public string? Description { get; set; }
+
+    public double EstimatedAmount { get; set; }
+
+    [MaxLength(3)]
+    public string Currency { get; set; } = "USD";
+
+    public string? Notes { get; set; }
+
+    public bool IsSynced { get; set; } = false;
+
+    public long SyncVersion { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+}
+
+/// <summary>
+/// Revenue estimate for voyage financial planning.
+/// </summary>
+public class VoyageRevenueEstimate : ISyncableEntity
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid VoyageId { get; set; }
+
+    public int Sequence { get; set; }
+
+    /// <summary>FREIGHT, DEMURRAGE, DISPATCH, DEADFREIGHT, MISC</summary>
+    [Required]
+    [MaxLength(30)]
+    public string RevenueCategory { get; set; } = string.Empty;
+
+    [MaxLength(200)]
+    public string? Description { get; set; }
+
+    public double EstimatedAmount { get; set; }
+
+    [MaxLength(3)]
+    public string Currency { get; set; } = "USD";
+
+    public string? Notes { get; set; }
+
+    public bool IsSynced { get; set; } = false;
+
+    public long SyncVersion { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+}
+
+// ============================================================
+// PHASE 4: VOYAGE FINANCIAL ENTITIES
+// ============================================================
+
+/// <summary>
+/// Expense request (đề xuất chi phí) — initiated by ship or office, goes through approval.
+/// Workflow: DRAFT → SUBMITTED → APPROVED → REJECTED / CANCELLED
+/// </summary>
+public class VoyageExpenseRequest : ISyncableEntity
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid VoyageId { get; set; }
+
+    [Required]
+    [MaxLength(20)]
+    public string RequestNumber { get; set; } = string.Empty;
+
+    /// <summary>FUEL, PORT_CHARGES, CANAL_FEES, CREW, SUPPLIES, INSURANCE, BROKERAGE, MISC</summary>
+    [Required]
+    [MaxLength(30)]
+    public string CostCategory { get; set; } = string.Empty;
+
+    /// <summary>VESSEL, VOYAGE, GENERAL — cost allocation scope</summary>
+    [Required]
+    [MaxLength(20)]
+    public string AllocationScope { get; set; } = "VOYAGE";
+
+    [MaxLength(200)]
+    public string? Description { get; set; }
+
+    [Required]
+    public double RequestedAmount { get; set; }
+
+    [MaxLength(3)]
+    public string Currency { get; set; } = "USD";
+
+    public double ExchangeRate { get; set; } = 1.0;
+
+    public double RequestedAmountUsd { get; set; }
+
+    [MaxLength(200)]
+    public string? VendorName { get; set; }
+
+    [MaxLength(100)]
+    public string? VendorReference { get; set; }
+
+    [MaxLength(10)]
+    public string? PortCode { get; set; }
+
+    [MaxLength(100)]
+    public string? PortName { get; set; }
+
+    /// <summary>DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED</summary>
+    [Required]
+    [MaxLength(20)]
+    public string Status { get; set; } = "DRAFT";
+
+    [MaxLength(100)]
+    public string? RequestedBy { get; set; }
+
+    public DateTime? RequestedAt { get; set; }
+
+    [MaxLength(100)]
+    public string? ApprovedBy { get; set; }
+
+    public DateTime? ApprovedAt { get; set; }
+
+    public double? ApprovedAmount { get; set; }
+
+    public double? ApprovedAmountUsd { get; set; }
+
+    public string? ApprovalNotes { get; set; }
+
+    public string? Notes { get; set; }
+
+    public string? SupportingDocuments { get; set; }
+
+    public bool IsSynced { get; set; } = false;
+
+    public long SyncVersion { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+}
+
+/// <summary>
+/// Advance payment (tạm ứng) — funds advanced before or during voyage.
+/// </summary>
+public class VoyageAdvancePayment : ISyncableEntity
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid VoyageId { get; set; }
+
+    [Required]
+    [MaxLength(20)]
+    public string AdvanceNumber { get; set; } = string.Empty;
+
+    /// <summary>PORT_AGENT, BUNKER_SUPPLIER, CREW, OTHER</summary>
+    [Required]
+    [MaxLength(30)]
+    public string AdvanceType { get; set; } = string.Empty;
+
+    [MaxLength(200)]
+    public string? Description { get; set; }
+
+    [Required]
+    public double Amount { get; set; }
+
+    [MaxLength(3)]
+    public string Currency { get; set; } = "USD";
+
+    public double ExchangeRate { get; set; } = 1.0;
+
+    public double AmountUsd { get; set; }
+
+    [MaxLength(200)]
+    public string? RecipientName { get; set; }
+
+    [MaxLength(10)]
+    public string? PortCode { get; set; }
+
+    [MaxLength(100)]
+    public string? PortName { get; set; }
+
+    /// <summary>PENDING, PAID, SETTLED, CANCELLED</summary>
+    [Required]
+    [MaxLength(20)]
+    public string Status { get; set; } = "PENDING";
+
+    public DateTime? PaidAt { get; set; }
+
+    [MaxLength(100)]
+    public string? PaidBy { get; set; }
+
+    [MaxLength(100)]
+    public string? PaymentReference { get; set; }
+
+    public double SettledAmount { get; set; }
+
+    public double UnsettledBalance { get; set; }
+
+    public string? Notes { get; set; }
+
+    public bool IsSynced { get; set; } = false;
+
+    public long SyncVersion { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+}
+
+/// <summary>
+/// Disbursement (chi phí thực tế / thanh toán) — actual costs incurred and paid.
+/// Can link to an expense request and/or advance payment for reconciliation.
+/// </summary>
+public class VoyageDisbursement : ISyncableEntity
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid VoyageId { get; set; }
+
+    public Guid? ExpenseRequestId { get; set; }
+
+    public Guid? AdvancePaymentId { get; set; }
+
+    [Required]
+    [MaxLength(20)]
+    public string DisbursementNumber { get; set; } = string.Empty;
+
+    /// <summary>FUEL, PORT_CHARGES, CANAL_FEES, CREW, SUPPLIES, INSURANCE, BROKERAGE, MISC</summary>
+    [Required]
+    [MaxLength(30)]
+    public string CostCategory { get; set; } = string.Empty;
+
+    /// <summary>VESSEL, VOYAGE, GENERAL — cost allocation scope</summary>
+    [Required]
+    [MaxLength(20)]
+    public string AllocationScope { get; set; } = "VOYAGE";
+
+    [MaxLength(200)]
+    public string? Description { get; set; }
+
+    [Required]
+    public double Amount { get; set; }
+
+    [MaxLength(3)]
+    public string Currency { get; set; } = "USD";
+
+    public double ExchangeRate { get; set; } = 1.0;
+
+    public double AmountUsd { get; set; }
+
+    [MaxLength(200)]
+    public string? VendorName { get; set; }
+
+    [MaxLength(100)]
+    public string? InvoiceNumber { get; set; }
+
+    public DateTime? InvoiceDate { get; set; }
+
+    public DateTime? DueDate { get; set; }
+
+    [MaxLength(10)]
+    public string? PortCode { get; set; }
+
+    [MaxLength(100)]
+    public string? PortName { get; set; }
+
+    /// <summary>RECORDED, VERIFIED, PAID, DISPUTED</summary>
+    [Required]
+    [MaxLength(20)]
+    public string Status { get; set; } = "RECORDED";
+
+    [MaxLength(100)]
+    public string? VerifiedBy { get; set; }
+
+    public DateTime? VerifiedAt { get; set; }
+
+    public DateTime? PaidAt { get; set; }
+
+    [MaxLength(100)]
+    public string? PaymentReference { get; set; }
+
+    public string? Notes { get; set; }
+
+    public string? SupportingDocuments { get; set; }
+
+    public bool IsSynced { get; set; } = false;
+
+    public long SyncVersion { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+
+    [ForeignKey("ExpenseRequestId")]
+    [JsonIgnore]
+    public virtual VoyageExpenseRequest? ExpenseRequest { get; set; }
+
+    [ForeignKey("AdvancePaymentId")]
+    [JsonIgnore]
+    public virtual VoyageAdvancePayment? AdvancePayment { get; set; }
+}
+
+/// <summary>
+/// Actual revenue recorded for the voyage (doanh thu thực tế).
+/// </summary>
+public class VoyageActualRevenue : ISyncableEntity
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid VoyageId { get; set; }
+
+    [Required]
+    [MaxLength(20)]
+    public string RevenueNumber { get; set; } = string.Empty;
+
+    /// <summary>FREIGHT, DEMURRAGE, DISPATCH, DEADFREIGHT, MISC</summary>
+    [Required]
+    [MaxLength(30)]
+    public string RevenueCategory { get; set; } = string.Empty;
+
+    [MaxLength(200)]
+    public string? Description { get; set; }
+
+    [Required]
+    public double Amount { get; set; }
+
+    [MaxLength(3)]
+    public string Currency { get; set; } = "USD";
+
+    public double ExchangeRate { get; set; } = 1.0;
+
+    public double AmountUsd { get; set; }
+
+    [MaxLength(200)]
+    public string? PayerName { get; set; }
+
+    [MaxLength(100)]
+    public string? InvoiceNumber { get; set; }
+
+    public DateTime? InvoiceDate { get; set; }
+
+    /// <summary>INVOICED, RECEIVED, DISPUTED</summary>
+    [Required]
+    [MaxLength(20)]
+    public string Status { get; set; } = "INVOICED";
+
+    public DateTime? ReceivedAt { get; set; }
+
+    [MaxLength(100)]
+    public string? PaymentReference { get; set; }
+
+    public string? Notes { get; set; }
+
+    public bool IsSynced { get; set; } = false;
+
+    public long SyncVersion { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+}
+
+/// <summary>
+/// Voyage settlement / final account (quyết toán chuyến).
+/// Aggregates expenses, advances, disbursements, revenues into a closing record.
+/// </summary>
+public class VoyageSettlement : ISyncableEntity
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public Guid VoyageId { get; set; }
+
+    [Required]
+    [MaxLength(20)]
+    public string SettlementNumber { get; set; } = string.Empty;
+
+    /// <summary>DRAFT, SUBMITTED, REVIEWED, APPROVED, REJECTED</summary>
+    [Required]
+    [MaxLength(20)]
+    public string Status { get; set; } = "DRAFT";
+
+    public double TotalExpenseApproved { get; set; }
+
+    public double TotalAdvanced { get; set; }
+
+    public double TotalDisbursed { get; set; }
+
+    public double TotalRevenue { get; set; }
+
+    public double NetResult { get; set; }
+
+    public double AdvanceBalance { get; set; }
+
+    public double? FinalSettlementAmount { get; set; }
+
+    public string? Summary { get; set; }
+
+    [MaxLength(100)]
+    public string? PreparedBy { get; set; }
+
+    public DateTime? PreparedAt { get; set; }
+
+    [MaxLength(100)]
+    public string? ReviewedBy { get; set; }
+
+    public DateTime? ReviewedAt { get; set; }
+
+    [MaxLength(100)]
+    public string? ApprovedBy { get; set; }
+
+    public DateTime? ApprovedAt { get; set; }
+
+    public string? ApprovalNotes { get; set; }
+
+    public string? Notes { get; set; }
+
+    public bool IsSynced { get; set; } = false;
+
+    public long SyncVersion { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
 }
 
 // ============================================================
@@ -1429,6 +2361,9 @@ public class CargoOperation
     public string OperationId { get; set; } = string.Empty;
     
     public Guid? VoyageId { get; set; } // Foreign key to VoyageRecord
+
+    /// <summary>Phase 6: FK -> VoyagePlanLeg.Id (optional)</summary>
+    public Guid? VoyagePlanLegId { get; set; }
     
     [Required]
     [MaxLength(20)]
@@ -1590,6 +2525,18 @@ public class WatchkeepingLog
     public string? MasterSignature { get; set; }
     
     public DateTime? SignedAt { get; set; }
+
+    // Phase 6: Voyage & Leg linking
+    public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+
+    [ForeignKey("VoyagePlanLegId")]
+    [JsonIgnore]
+    public virtual VoyagePlanLeg? VoyagePlanLeg { get; set; }
     
     public bool IsSynced { get; set; } = false;
     
@@ -1654,6 +2601,18 @@ public class OilRecordBook
     
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+
+    // Phase 6: Voyage & Leg linking
+    public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+
+    [ForeignKey("VoyagePlanLegId")]
+    [JsonIgnore]
+    public virtual VoyagePlanLeg? VoyagePlanLeg { get; set; }
 
     // Soft Delete Support
     public bool IsDeleted { get; set; } = false;
@@ -1768,6 +2727,18 @@ public class DeckLogBook
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
 
+    // Phase 6: Voyage & Leg linking
+    public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+
+    [ForeignKey("VoyagePlanLegId")]
+    [JsonIgnore]
+    public virtual VoyagePlanLeg? VoyagePlanLeg { get; set; }
+
     // Soft Delete Support
     public bool IsDeleted { get; set; } = false;
     public DateTime? DeletedAt { get; set; }
@@ -1879,6 +2850,18 @@ public class EngineLogBook
     
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+
+    // Phase 6: Voyage & Leg linking
+    public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+
+    [ForeignKey("VoyagePlanLegId")]
+    [JsonIgnore]
+    public virtual VoyagePlanLeg? VoyagePlanLeg { get; set; }
 
     // Soft Delete Support
     public bool IsDeleted { get; set; } = false;
@@ -2008,6 +2991,18 @@ public class GarbageRecordBook
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
 
+    // Phase 6: Voyage & Leg linking
+    public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+
+    [ForeignKey("VoyagePlanLegId")]
+    [JsonIgnore]
+    public virtual VoyagePlanLeg? VoyagePlanLeg { get; set; }
+
     // Soft Delete Support
     public bool IsDeleted { get; set; } = false;
     public DateTime? DeletedAt { get; set; }
@@ -2120,6 +3115,18 @@ public class GarbageRecordPartI
     
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+
+    // Phase 6: Voyage & Leg linking
+    public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+
+    [ForeignKey("VoyagePlanLegId")]
+    [JsonIgnore]
+    public virtual VoyagePlanLeg? VoyagePlanLeg { get; set; }
     
     // Soft Delete
     public bool IsDeleted { get; set; } = false;
@@ -2227,6 +3234,18 @@ public class GarbageRecordPartII
     
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+
+    // Phase 6: Voyage & Leg linking
+    public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+
+    [ForeignKey("VoyagePlanLegId")]
+    [JsonIgnore]
+    public virtual VoyagePlanLeg? VoyagePlanLeg { get; set; }
     
     // Soft Delete
     public bool IsDeleted { get; set; } = false;
@@ -2352,6 +3371,18 @@ public class BallastWaterRecordBook
     
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+
+    // Phase 6: Voyage & Leg linking
+    public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
+
+    [ForeignKey("VoyageId")]
+    [JsonIgnore]
+    public virtual VoyageRecord? Voyage { get; set; }
+
+    [ForeignKey("VoyagePlanLegId")]
+    [JsonIgnore]
+    public virtual VoyagePlanLeg? VoyagePlanLeg { get; set; }
 
     // Soft Delete Support
     public bool IsDeleted { get; set; } = false;
@@ -2639,6 +3670,11 @@ public class MaritimeReport
     /// FK -> VoyageRecord.Id (nullable for non-voyage reports)
     /// </summary>
     public Guid? VoyageId { get; set; }
+
+    /// <summary>
+    /// Phase 6: FK -> VoyagePlanLeg.Id (optional, for leg-level reports)
+    /// </summary>
+    public Guid? VoyagePlanLegId { get; set; }
     
     /// <summary>
     /// Report status: DRAFT, SUBMITTED, APPROVED, REJECTED, TRANSMITTED
@@ -2889,6 +3925,17 @@ public class NoonReport
     
     /// <summary>Maintenance notes for the day</summary>
     public string? MaintenanceRemarks { get; set; }
+    
+    // ============ SNAPSHOT SUMMARIES (populated at transmit time) ============
+    
+    /// <summary>JSON snapshot of PMS/Maintenance summary at time of report</summary>
+    public string? MaintenanceSummaryJson { get; set; }
+    
+    /// <summary>JSON snapshot of Alarm summary at time of report</summary>
+    public string? AlarmSummaryJson { get; set; }
+    
+    /// <summary>Number of crew certificates expiring within 30 days</summary>
+    public int? CertificatesExpiringSoon { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
@@ -4177,6 +5224,9 @@ public class VoyageLogEntry
     /// Link to VoyageRecord (optional - for grouping entries by voyage)
     /// </summary>
     public Guid? VoyageId { get; set; }
+
+    /// <summary>Phase 6: FK -> VoyagePlanLeg.Id (optional)</summary>
+    public Guid? VoyagePlanLegId { get; set; }
     
     // === Event Info ===
     
@@ -4324,6 +5374,10 @@ public class VoyageLogEntry
     [ForeignKey("VoyageId")]
     [JsonIgnore]
     public virtual VoyageRecord? Voyage { get; set; }
+
+    [ForeignKey("VoyagePlanLegId")]
+    [JsonIgnore]
+    public virtual VoyagePlanLeg? VoyagePlanLeg { get; set; }
 }
 
 // =============================================

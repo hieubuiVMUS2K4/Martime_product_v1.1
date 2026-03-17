@@ -19,7 +19,7 @@ interface Vessel {
 interface ChartererTabProps {
   vessel: Vessel;
   formData?: Partial<Vessel>;
-  onChange?: (field: keyof Vessel, value: Vessel[keyof Vessel]) => void;
+  onChange?: (field: keyof Vessel, value: string | Date | null | undefined) => void;
 }
 
 // Shore Master badge component

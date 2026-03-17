@@ -3,9 +3,11 @@
  * SOLAS V Reg 19.2.1.4 - Special Position Reporting
  */
 
-import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { MapPin, Save, Send, AlertTriangle, Ship } from 'lucide-react';
+import { useCurrentAccountName } from '../../hooks/useCurrentAccountName';
+import { maritimeService } from '../../services/maritime.service';
 import { ReportingService } from '../../services/reporting.service';
 import type { CreatePositionReportDto } from '../../types/reporting.types';
 import {
@@ -18,6 +20,7 @@ import {
 
 const POSITION_FIELD_NAME_MAP: Record<string, string> = {
   ReportDateTime: 'reportDateTime',
+  VoyageId: 'voyageId',
   Latitude: 'latitude',
   Longitude: 'longitude',
   CourseOverGround: 'courseOverGround',
@@ -33,7 +36,11 @@ const POSITION_FIELD_NAME_MAP: Record<string, string> = {
 
 export function PositionReportForm() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = !!id;
+  const currentAccountName = useCurrentAccountName();
   const [loading, setLoading] = useState(false);
+  const [loadingReport, setLoadingReport] = useState(isEditMode);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const fieldRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null>>({});
@@ -41,10 +48,85 @@ export function PositionReportForm() {
 
   const [formData, setFormData] = useState<CreatePositionReportDto>({
     reportDateTime: new Date().toISOString().slice(0, 16),
+    voyageId: undefined,
     latitude: 0,
     longitude: 0,
     reportReason: 'ROUTING',
   });
+
+  useEffect(() => {
+    if (isEditMode || formData.voyageId) {
+      return;
+    }
+
+    const loadCurrentVoyage = async () => {
+      try {
+        const voyage = await maritimeService.voyage.getCurrent();
+        if (voyage?.id) {
+          setFormData((prev) => {
+            if (prev.voyageId) {
+              return prev;
+            }
+
+            return { ...prev, voyageId: String(voyage.id) };
+          });
+        }
+      } catch {
+        // Keep manual input available if no active voyage is found.
+      }
+    };
+
+    void loadCurrentVoyage();
+  }, [isEditMode, formData.voyageId]);
+
+  useEffect(() => {
+    if (isEditMode || !currentAccountName || formData.preparedBy?.trim()) {
+      return;
+    }
+
+    setFormData((prev) => {
+      if (prev.preparedBy?.trim()) {
+        return prev;
+      }
+
+      return { ...prev, preparedBy: currentAccountName };
+    });
+  }, [currentAccountName, formData.preparedBy, isEditMode]);
+
+  useEffect(() => {
+    if (!isEditMode || !id) {
+      return;
+    }
+
+    const loadReport = async () => {
+      try {
+        setLoadingReport(true);
+        const report = await ReportingService.getPositionReport(id);
+        setFormData({
+          reportDateTime: report.reportDateTime.slice(0, 16),
+          voyageId: report.voyageId,
+          latitude: report.latitude,
+          longitude: report.longitude,
+          courseOverGround: report.courseOverGround,
+          speedOverGround: report.speedOverGround,
+          reportReason: report.reportReason,
+          lastPort: report.lastPort,
+          nextPort: report.nextPort,
+          eta: report.eta ? report.eta.slice(0, 16) : undefined,
+          cargoOnBoard: report.cargoOnBoard,
+          crewOnBoard: report.crewOnBoard,
+          remarks: report.remarks,
+          preparedBy: report.preparedBy,
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load position report');
+      } finally {
+        setLoadingReport(false);
+      }
+    };
+
+    void loadReport();
+  }, [id, isEditMode]);
 
   const handleChange = (field: keyof CreatePositionReportDto, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -71,6 +153,7 @@ export function PositionReportForm() {
     const normalized = message.toLowerCase();
 
     if (normalized.includes('report date')) return 'reportDateTime';
+    if (normalized.includes('voyage')) return 'voyageId';
     if (normalized.includes('report reason')) return 'reportReason';
     if (normalized.includes('null island') || normalized.includes('latitude')) return 'latitude';
     if (normalized.includes('longitude')) return 'longitude';
@@ -143,10 +226,16 @@ export function PositionReportForm() {
       setError(null);
       setFieldErrors({});
 
-      const response = await ReportingService.createPositionReport(formData);
-
-      if (!asDraft) {
-        await ReportingService.submitReport(response.reportId);
+      if (isEditMode && id) {
+        await ReportingService.updatePositionReport(id, formData);
+        if (!asDraft) {
+          await ReportingService.submitReport(id);
+        }
+      } else {
+        const response = await ReportingService.createPositionReport(formData);
+        if (!asDraft) {
+          await ReportingService.submitReport(response.reportId);
+        }
       }
 
       navigate('/reporting/reports');
@@ -163,13 +252,21 @@ export function PositionReportForm() {
     }
   };
 
+  if (loadingReport) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-5xl mx-auto">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
             <MapPin className="h-8 w-8 text-blue-600" />
-            Position Report
+            {isEditMode ? 'Edit Position Report' : 'Position Report'}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">SOLAS V Regulation 19.2.1.4 - Special Position Reporting</p>
         </div>
@@ -198,6 +295,19 @@ export function PositionReportForm() {
                   required
                 />
                 {renderValidationFieldError(fieldErrors, 'reportDateTime')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Voyage ID</label>
+                <input
+                  ref={setFieldRef('voyageId')}
+                  type="text"
+                  value={formData.voyageId || ''}
+                  onChange={(e) => handleChange('voyageId', e.target.value || undefined)}
+                  placeholder="Auto-loaded from active voyage"
+                  className={getValidationInputClassName(fieldErrors, 'voyageId')}
+                />
+                {renderValidationFieldError(fieldErrors, 'voyageId')}
               </div>
 
               <div>
@@ -444,7 +554,7 @@ export function PositionReportForm() {
               disabled={loading}
             >
               <Save className="h-5 w-5" />
-              {loading ? 'Saving...' : 'Save Draft'}
+              {loading ? 'Saving...' : isEditMode ? 'Update Draft' : 'Save Draft'}
             </button>
             <button
               type="button"
@@ -453,7 +563,7 @@ export function PositionReportForm() {
               disabled={loading}
             >
               <Send className="h-5 w-5" />
-              {loading ? 'Submitting...' : 'Submit Report'}
+              {loading ? 'Submitting...' : isEditMode ? 'Update & Submit' : 'Submit Report'}
             </button>
           </div>
         </form>

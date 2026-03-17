@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Maritime.Shared.Interfaces;
 
 namespace ProductApi.Models
 {
@@ -453,20 +455,80 @@ namespace ProductApi.Models
         public Vessel Vessel { get; set; } = null!;
     }
 
-    public class PortCall
+    public class Port : ISyncableEntity
+    {
+        public int Id { get; set; }
+
+        [Required]
+        [MaxLength(5)]
+        public string PortCode { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(150)]
+        public string PortName { get; set; } = string.Empty;
+
+        [MaxLength(100)]
+        public string? Country { get; set; }
+
+        [MaxLength(2)]
+        public string? CountryCode { get; set; }
+
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+
+        [MaxLength(50)]
+        public string? TimeZone { get; set; }
+
+        public bool IsActive { get; set; } = true;
+        public bool IsSynced { get; set; }
+        public long SyncVersion { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public string OriginNode { get; set; } = "SHIP_01";
+    }
+
+    public class PortCall : ISyncableEntity
     {
         public Guid Id { get; set; }
-        public Guid VesselId { get; set; }
+        public Guid? VesselId { get; set; }
+        public Guid? VoyageId { get; set; }
+        public int? PortId { get; set; }
+        public Guid? VoyagePlanLegId { get; set; }
         public string PortCode { get; set; } = string.Empty; // UN/LOCODE
         public string PortName { get; set; } = string.Empty;
+        public string? Country { get; set; }
+        public string CallType { get; set; } = "ARRIVAL";
+        public int Sequence { get; set; }
         public DateTime? ArrivalTime { get; set; }
         public DateTime? DepartureTime { get; set; }
+        public string? BerthNumber { get; set; }
+        public DateTime? PilotOnBoard { get; set; }
+        public DateTime? PilotOffBoard { get; set; }
+        public double? DraftFore { get; set; }
+        public double? DraftAft { get; set; }
+        public bool CargoOpsCompleted { get; set; }
+        public string? Remarks { get; set; }
         public decimal PortFees { get; set; }
         public decimal? CargoQuantity { get; set; }
         public string CargoType { get; set; } = string.Empty;
         public string Purpose { get; set; } = string.Empty; // "Loading", "Discharge", "Bunker"
+        public bool IsSynced { get; set; }
+        public long SyncVersion { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public string OriginNode { get; set; } = "SHIP_01";
         
-        public Vessel Vessel { get; set; } = null!;
+        [ForeignKey(nameof(VesselId))]
+        public Vessel? Vessel { get; set; }
+
+        [ForeignKey(nameof(VoyageId))]
+        public VoyageRecord? Voyage { get; set; }
+
+        [ForeignKey(nameof(PortId))]
+        public Port? Port { get; set; }
+
+        [ForeignKey(nameof(VoyagePlanLegId))]
+        public VoyagePlanLeg? VoyagePlanLeg { get; set; }
     }
 
     public class VesselAlert

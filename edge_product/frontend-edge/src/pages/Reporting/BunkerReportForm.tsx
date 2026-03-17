@@ -3,9 +3,11 @@
  * MARPOL Annex VI Compliant - Fuel Bunkering Report
  */
 
-import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Fuel, AlertTriangle, Save, Send } from 'lucide-react';
+import { useCurrentAccountName } from '../../hooks/useCurrentAccountName';
+import { maritimeService } from '../../services/maritime.service';
 import { ReportingService } from '../../services/reporting.service';
 import type { CreateBunkerReportDto } from '../../types/reporting.types';
 import {
@@ -18,6 +20,7 @@ import {
 
 const BUNKER_FIELD_NAME_MAP: Record<string, string> = {
   BunkerDate: 'bunkerDate',
+  VoyageId: 'voyageId',
   PortName: 'portName',
   PortCode: 'portCode',
   SupplierName: 'supplierName',
@@ -31,12 +34,22 @@ const BUNKER_FIELD_NAME_MAP: Record<string, string> = {
   FlashPoint: 'flashPoint',
   ROBBefore: 'robBefore',
   ROBAfter: 'robAfter',
+  TanksLoaded: 'tanksLoaded',
+  SealNumbers: 'sealNumbers',
+  ChiefEngineerSignature: 'chiefEngineerSignature',
+  UnitPrice: 'unitPrice',
+  TotalCost: 'totalCost',
+  DeliveryMethod: 'deliveryMethod',
   PreparedBy: 'preparedBy',
 };
 
 export function BunkerReportForm() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = !!id;
+  const currentAccountName = useCurrentAccountName();
   const [loading, setLoading] = useState(false);
+  const [loadingReport, setLoadingReport] = useState(isEditMode);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [marpol, setMarpol] = useState<string[]>([]);
@@ -45,6 +58,7 @@ export function BunkerReportForm() {
 
   const [formData, setFormData] = useState<CreateBunkerReportDto>({
     bunkerDate: new Date().toISOString().split('T')[0],
+    voyageId: undefined,
     portName: '',
     supplierName: '',
     fuelType: 'MARINE_FUEL_OIL',
@@ -52,8 +66,106 @@ export function BunkerReportForm() {
     sampleSealed: false,
   });
 
+  useEffect(() => {
+    if (isEditMode || formData.voyageId) {
+      return;
+    }
+
+    const loadCurrentVoyage = async () => {
+      try {
+        const voyage = await maritimeService.voyage.getCurrent();
+        if (voyage?.id) {
+          setFormData((prev) => {
+            if (prev.voyageId) {
+              return prev;
+            }
+
+            return { ...prev, voyageId: String(voyage.id) };
+          });
+        }
+      } catch {
+        // Keep manual input available if no active voyage is found.
+      }
+    };
+
+    void loadCurrentVoyage();
+  }, [isEditMode, formData.voyageId]);
+
+  useEffect(() => {
+    if (isEditMode || !currentAccountName || formData.preparedBy?.trim()) {
+      return;
+    }
+
+    setFormData((prev) => {
+      if (prev.preparedBy?.trim()) {
+        return prev;
+      }
+
+      return { ...prev, preparedBy: currentAccountName };
+    });
+  }, [currentAccountName, formData.preparedBy, isEditMode]);
+
+  useEffect(() => {
+    if (!isEditMode || !id) {
+      return;
+    }
+
+    const loadReport = async () => {
+      try {
+        setLoadingReport(true);
+        const report = await ReportingService.getBunkerReport(id);
+        setFormData({
+          bunkerDate: report.bunkerDate,
+          voyageId: report.voyageId,
+          portName: report.portName,
+          portCode: report.portCode,
+          supplierName: report.supplierName,
+          bdnNumber: report.bdnNumber,
+          fuelType: report.fuelType,
+          fuelGrade: report.fuelGrade,
+          quantityReceived: report.quantityReceived,
+          sulphurContent: report.sulphurContent,
+          density: report.density,
+          viscosity: report.viscosity,
+          flashPoint: report.flashPoint,
+          robBefore: report.robBefore,
+          robAfter: report.robAfter,
+          tanksLoaded: report.tanksLoaded,
+          sealNumbers: report.sealNumbers,
+          chiefEngineerSignature: report.chiefEngineerSignature,
+          unitPrice: report.unitPrice,
+          totalCost: report.totalCost,
+          deliveryMethod: report.deliveryMethod,
+          sampleSealed: report.sampleSealed,
+          sampleNumber: report.sampleNumber,
+          remarks: report.remarks,
+          preparedBy: report.preparedBy,
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load bunker report');
+      } finally {
+        setLoadingReport(false);
+      }
+    };
+
+    void loadReport();
+  }, [id, isEditMode]);
+
   const handleChange = (field: keyof CreateBunkerReportDto, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const nextData = { ...prev, [field]: value };
+
+      if (field === 'quantityReceived' || field === 'unitPrice') {
+        const quantity = field === 'quantityReceived' ? value : nextData.quantityReceived;
+        const unitPrice = field === 'unitPrice' ? value : nextData.unitPrice;
+
+        if (typeof quantity === 'number' && !Number.isNaN(quantity) && typeof unitPrice === 'number' && !Number.isNaN(unitPrice)) {
+          nextData.totalCost = Number((quantity * unitPrice).toFixed(2));
+        }
+      }
+
+      return nextData;
+    });
 
     if (fieldErrors[field]) {
       setFieldErrors((prev) => {
@@ -88,6 +200,7 @@ export function BunkerReportForm() {
     const normalized = message.toLowerCase();
 
     if (normalized.includes('bunker date')) return 'bunkerDate';
+    if (normalized.includes('voyage')) return 'voyageId';
     if (normalized.includes('port name')) return 'portName';
     if (normalized.includes('supplier name')) return 'supplierName';
     if (normalized.includes('bdn')) return 'bdnNumber';
@@ -99,6 +212,12 @@ export function BunkerReportForm() {
     if (normalized.includes('viscosity')) return 'viscosity';
     if (normalized.includes('rob before')) return 'robBefore';
     if (normalized.includes('rob after')) return 'robAfter';
+    if (normalized.includes('tanks loaded')) return 'tanksLoaded';
+    if (normalized.includes('seal number')) return 'sealNumbers';
+    if (normalized.includes('chief engineer')) return 'chiefEngineerSignature';
+    if (normalized.includes('unit price')) return 'unitPrice';
+    if (normalized.includes('total cost')) return 'totalCost';
+    if (normalized.includes('delivery method')) return 'deliveryMethod';
     if (normalized.includes('prepared by')) return 'preparedBy';
 
     return null;
@@ -159,6 +278,14 @@ export function BunkerReportForm() {
       nextFieldErrors.robAfter = 'ROB after cannot be negative';
     }
 
+    if (formData.unitPrice !== undefined && formData.unitPrice < 0) {
+      nextFieldErrors.unitPrice = 'Unit price cannot be negative';
+    }
+
+    if (formData.totalCost !== undefined && formData.totalCost < 0) {
+      nextFieldErrors.totalCost = 'Total cost cannot be negative';
+    }
+
     if (Object.keys(nextFieldErrors).length > 0) {
       applyFieldErrors(nextFieldErrors);
       return false;
@@ -179,10 +306,17 @@ export function BunkerReportForm() {
       setError(null);
       setFieldErrors({});
 
-      const report = await ReportingService.createBunkerReport(formData);
+      if (isEditMode && id) {
+        await ReportingService.updateBunkerReport(id, formData);
+        if (!asDraft) {
+          await ReportingService.submitReport(id);
+        }
+      } else {
+        const report = await ReportingService.createBunkerReport(formData);
 
-      if (!asDraft) {
-        await ReportingService.submitReport(report.reportId);
+        if (!asDraft) {
+          await ReportingService.submitReport(report.reportId);
+        }
       }
 
       navigate('/reporting/reports');
@@ -199,12 +333,20 @@ export function BunkerReportForm() {
     }
   };
 
+  if (loadingReport) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
           <Fuel className="h-8 w-8 text-blue-600" />
-          Bunker Report
+          {isEditMode ? 'Edit Bunker Report' : 'Bunker Report'}
         </h1>
         <p className="text-gray-600 mt-2">MARPOL Annex VI Compliant Fuel Bunkering Report</p>
       </div>
@@ -249,6 +391,19 @@ export function BunkerReportForm() {
                 required
               />
               {renderValidationFieldError(fieldErrors, 'bunkerDate')}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Voyage ID</label>
+              <input
+                ref={setFieldRef('voyageId')}
+                type="text"
+                value={formData.voyageId || ''}
+                onChange={(e) => handleChange('voyageId', e.target.value || undefined)}
+                placeholder="Auto-loaded from active voyage"
+                className={getValidationInputClassName(fieldErrors, 'voyageId')}
+              />
+              {renderValidationFieldError(fieldErrors, 'voyageId')}
             </div>
 
             <div>
@@ -465,6 +620,58 @@ export function BunkerReportForm() {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Commercial Details</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Unit Price</label>
+              <input
+                ref={setFieldRef('unitPrice')}
+                type="number"
+                step="0.01"
+                value={formData.unitPrice ?? ''}
+                onChange={(e) => handleChange('unitPrice', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                className={getValidationInputClassName(fieldErrors, 'unitPrice')}
+                min="0"
+                placeholder="USD per MT"
+              />
+              {renderValidationFieldError(fieldErrors, 'unitPrice')}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Total Cost</label>
+              <input
+                ref={setFieldRef('totalCost')}
+                type="number"
+                step="0.01"
+                value={formData.totalCost ?? ''}
+                onChange={(e) => handleChange('totalCost', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                className={getValidationInputClassName(fieldErrors, 'totalCost')}
+                min="0"
+                placeholder="Calculated total"
+              />
+              {renderValidationFieldError(fieldErrors, 'totalCost')}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Method</label>
+              <select
+                ref={setFieldRef('deliveryMethod')}
+                value={formData.deliveryMethod || ''}
+                onChange={(e) => handleChange('deliveryMethod', e.target.value || undefined)}
+                className={getValidationInputClassName(fieldErrors, 'deliveryMethod')}
+              >
+                <option value="">Select method</option>
+                <option value="BARGE">Barge</option>
+                <option value="TRUCK">Truck</option>
+                <option value="PIPELINE">Pipeline</option>
+                <option value="SHIP_TO_SHIP">Ship to Ship</option>
+              </select>
+              {renderValidationFieldError(fieldErrors, 'deliveryMethod')}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Sample Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
@@ -491,6 +698,32 @@ export function BunkerReportForm() {
               />
               {renderValidationFieldError(fieldErrors, 'sampleNumber')}
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Tanks Loaded</label>
+              <input
+                ref={setFieldRef('tanksLoaded')}
+                type="text"
+                value={formData.tanksLoaded || ''}
+                onChange={(e) => handleChange('tanksLoaded', e.target.value || undefined)}
+                placeholder="e.g., FO TK 1P, 1S"
+                className={getValidationInputClassName(fieldErrors, 'tanksLoaded')}
+              />
+              {renderValidationFieldError(fieldErrors, 'tanksLoaded')}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Seal Numbers</label>
+              <input
+                ref={setFieldRef('sealNumbers')}
+                type="text"
+                value={formData.sealNumbers || ''}
+                onChange={(e) => handleChange('sealNumbers', e.target.value || undefined)}
+                placeholder="Seal / sample seal references"
+                className={getValidationInputClassName(fieldErrors, 'sealNumbers')}
+              />
+              {renderValidationFieldError(fieldErrors, 'sealNumbers')}
+            </div>
           </div>
         </div>
 
@@ -509,6 +742,17 @@ export function BunkerReportForm() {
 
         <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Chief Engineer Signature</label>
+            <input
+              ref={setFieldRef('chiefEngineerSignature')}
+              type="text"
+              value={formData.chiefEngineerSignature || ''}
+              onChange={(e) => handleChange('chiefEngineerSignature', e.target.value || undefined)}
+              placeholder="Chief Engineer sign-off"
+              className={`${getValidationInputClassName(fieldErrors, 'chiefEngineerSignature')} mb-4`}
+            />
+            {renderValidationFieldError(fieldErrors, 'chiefEngineerSignature')}
+
             <label className="block text-sm font-medium text-gray-700 mb-2">Prepared By</label>
             <input
               ref={setFieldRef('preparedBy')}
@@ -539,7 +783,7 @@ export function BunkerReportForm() {
             disabled={loading}
           >
             <Save className="h-4 w-4" />
-            Save as Draft
+            {loading ? 'Saving...' : isEditMode ? 'Update Draft' : 'Save as Draft'}
           </button>
 
           <button
@@ -553,7 +797,7 @@ export function BunkerReportForm() {
             ) : (
               <Send className="h-4 w-4" />
             )}
-            Submit Report
+            {loading ? 'Submitting...' : isEditMode ? 'Update & Submit' : 'Submit Report'}
           </button>
         </div>
       </form>

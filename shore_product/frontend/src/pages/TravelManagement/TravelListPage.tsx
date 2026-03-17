@@ -8,6 +8,13 @@ import type { CreateTravelRequestRequest } from '../../types/externalTravel.type
 import { useToast } from '../../components/common/Toast';
 import './TravelListPage.css';
 
+const ACTIVE_TRAVEL_STATUSES = [
+  TravelRequestStatus.Pending,
+  TravelRequestStatus.BookingInProgress,
+  TravelRequestStatus.Booked,
+  TravelRequestStatus.InTransit,
+];
+
 const STATUS_COLORS: Record<string, string> = {
   Draft: '#6b7280', Pending: '#f59e0b', BookingInProgress: '#3b82f6', Booked: '#8b5cf6',
   InTransit: '#06b6d4', Completed: '#10b981', Cancelled: '#ef4444', Reissued: '#f97316',
@@ -39,7 +46,7 @@ export default function TravelListPage() {
 
   const stats = {
     total: travels.length,
-    active: travels.filter(t => [TravelRequestStatus.Pending, TravelRequestStatus.BookingInProgress, TravelRequestStatus.Booked, TravelRequestStatus.InTransit].includes(t.status as typeof TravelRequestStatus[keyof typeof TravelRequestStatus])).length,
+    active: travels.filter(t => ACTIVE_TRAVEL_STATUSES.includes(t.status as typeof ACTIVE_TRAVEL_STATUSES[number])).length,
     inTransit: travels.filter(t => t.status === TravelRequestStatus.InTransit).length,
     completed: travels.filter(t => t.status === TravelRequestStatus.Completed).length,
   };

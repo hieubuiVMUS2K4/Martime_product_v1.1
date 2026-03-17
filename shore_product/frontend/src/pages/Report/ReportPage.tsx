@@ -57,9 +57,9 @@ export const ReportPage: React.FC = () => {
   );
 
   const formatLastReport = (dateStr: string | null): string => {
-    if (!dateStr) return 'Chưa có báo cáo';
+    if (!dateStr) return 'Chưa có dữ liệu';
     const d = new Date(dateStr);
-    return `Báo cáo cuối: ${d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
+    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   return (
@@ -122,7 +122,9 @@ export const ReportPage: React.FC = () => {
             >
               {/* Card header */}
               <div className="rp-card__head">
-                <Ship size={18} className="rp-card__ship-icon" />
+                <div className="rp-card__ship-badge">
+                  <Ship size={18} className="rp-card__ship-icon" />
+                </div>
                 <div className="rp-card__info">
                   <p className="rp-card__name">{vessel.name}</p>
                   <p className="rp-card__meta">IMO: {vessel.imo} · {vessel.flag}</p>
@@ -132,23 +134,27 @@ export const ReportPage: React.FC = () => {
 
               {/* Stats */}
               <div className="rp-card__stats">
-                <div className="rp-card__stat">
+                <div className="rp-card__stat rp-card__stat--primary">
+                  <div className="rp-card__stat-caption">Nhật ký hành trình</div>
                   <div className="rp-card__stat-val">{vessel.stats.total}</div>
-                  <div className="rp-card__stat-lbl">Tổng BC</div>
+                  <div className="rp-card__stat-lbl">Tổng báo cáo</div>
                 </div>
-                <div className="rp-card__stat">
-                  <div className="rp-card__stat-val rp-card__stat-val--approved">{vessel.stats.approved}</div>
-                  <div className="rp-card__stat-lbl">Đã duyệt</div>
-                </div>
-                <div className="rp-card__stat">
-                  <div className="rp-card__stat-val rp-card__stat-val--pending">{vessel.stats.pending}</div>
-                  <div className="rp-card__stat-lbl">Chờ duyệt</div>
+                <div className="rp-card__details">
+                  {vessel.vesselType && (
+                    <span className="rp-card__tag">{vessel.vesselType}</span>
+                  )}
+                  {vessel.callSign && (
+                    <span className="rp-card__tag rp-card__tag--muted">Call sign: {vessel.callSign}</span>
+                  )}
                 </div>
               </div>
 
               {/* Footer */}
               <div className="rp-card__footer">
-                <span className="rp-card__last">{formatLastReport(vessel.stats.lastReportAt)}</span>
+                <div className="rp-card__footer-copy">
+                  <span className="rp-card__footer-label">Báo cáo cuối</span>
+                  <span className="rp-card__last">{formatLastReport(vessel.stats.lastReportAt)}</span>
+                </div>
                 <div className="rp-card__arrow">
                   <ChevronRight size={13} />
                 </div>

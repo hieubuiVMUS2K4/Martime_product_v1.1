@@ -252,6 +252,10 @@ public class DrillLog
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    // Phase 6: Voyage & Leg linking
+    public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
+
     // Sync
     [MaxLength(50)]
     public string OriginNode { get; set; } = "EDGE";

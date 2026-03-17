@@ -3,9 +3,11 @@
  * SOLAS V Compliant - Port Arrival Notification
  */
 
-import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Anchor, MapPin, Save, Send, Ship, User, Fuel } from 'lucide-react';
+import { useCurrentAccountName } from '../../hooks/useCurrentAccountName';
+import { maritimeService } from '../../services/maritime.service';
 import { ReportingService } from '../../services/reporting.service';
 import type { CreateArrivalReportDto } from '../../types/reporting.types';
 import {
@@ -22,22 +24,35 @@ const ARRIVAL_FIELD_NAME_MAP: Record<string, string> = {
   PortCode: 'portCode',
   ArrivalDateTime: 'arrivalDateTime',
   PilotOnBoardTime: 'pilotOnBoardTime',
-  FirstLineAshoreTime: 'anchorDropTime',
+  FirstLineAshoreTime: 'firstLineAshoreTime',
+  ArrivalLatitude: 'arrivalLatitude',
+  ArrivalLongitude: 'arrivalLongitude',
   VoyageDistance: 'voyageDistance',
   VoyageDuration: 'voyageDuration',
   AverageSpeed: 'averageSpeed',
   DraftForward: 'draftForward',
   DraftAft: 'draftAft',
+  DraftMidship: 'draftMidship',
   FuelOilROB: 'fuelOilROB',
   TotalFuelConsumed: 'totalFuelConsumed',
   DieselOilROB: 'dieselOilROB',
+  LubOilROB: 'lubOilROB',
+  FreshWaterROB: 'freshWaterROB',
+  TotalDieselConsumed: 'totalDieselConsumed',
   CargoOnBoard: 'cargoOnBoard',
+  CargoDescription: 'cargoDescription',
+  CrewOnBoard: 'crewOnBoard',
+  PassengersOnBoard: 'passengersOnBoard',
   PreparedBy: 'preparedBy',
 };
 
 export function ArrivalReportForm() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = !!id;
+  const currentAccountName = useCurrentAccountName();
   const [loading, setLoading] = useState(false);
+  const [loadingReport, setLoadingReport] = useState(isEditMode);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const fieldRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null>>({});
@@ -50,6 +65,92 @@ export function ArrivalReportForm() {
     draftForward: undefined,
     draftAft: undefined,
   });
+
+  useEffect(() => {
+    if (isEditMode || formData.voyageId) {
+      return;
+    }
+
+    const loadCurrentVoyage = async () => {
+      try {
+        const voyage = await maritimeService.voyage.getCurrent();
+        if (voyage?.id) {
+          setFormData((prev) => {
+            if (prev.voyageId) {
+              return prev;
+            }
+
+            return { ...prev, voyageId: String(voyage.id) };
+          });
+        }
+      } catch {
+        // Leave voyage selection/manual entry available when no active voyage exists.
+      }
+    };
+
+    void loadCurrentVoyage();
+  }, [isEditMode, formData.voyageId]);
+
+  useEffect(() => {
+    if (isEditMode || !currentAccountName || formData.preparedBy?.trim()) {
+      return;
+    }
+
+    setFormData((prev) => {
+      if (prev.preparedBy?.trim()) {
+        return prev;
+      }
+
+      return { ...prev, preparedBy: currentAccountName };
+    });
+  }, [currentAccountName, formData.preparedBy, isEditMode]);
+
+  useEffect(() => {
+    if (!isEditMode || !id) {
+      return;
+    }
+
+    const loadReport = async () => {
+      try {
+        setLoadingReport(true);
+        const report = await ReportingService.getArrivalReport(id);
+        setFormData({
+          arrivalDateTime: report.arrivalDateTime.slice(0, 16),
+          voyageId: report.voyageId,
+          portName: report.portName,
+          portCode: report.portCode,
+          pilotOnBoardTime: report.pilotOnBoardTime ? report.pilotOnBoardTime.slice(11, 16) : undefined,
+          firstLineAshoreTime: report.firstLineAshoreTime ? report.firstLineAshoreTime.slice(11, 16) : undefined,
+          arrivalLatitude: report.arrivalLatitude,
+          arrivalLongitude: report.arrivalLongitude,
+          voyageDistance: report.voyageDistance,
+          voyageDuration: report.voyageDuration,
+          averageSpeed: report.averageSpeed,
+          draftForward: report.draftForward,
+          draftAft: report.draftAft,
+          draftMidship: report.draftMidship,
+          fuelOilROB: report.fuelOilROB,
+          totalFuelConsumed: report.totalFuelConsumed,
+          dieselOilROB: report.dieselOilROB,
+          lubOilROB: report.lubOilROB,
+          freshWaterROB: report.freshWaterROB,
+          totalDieselConsumed: report.totalDieselConsumed,
+          cargoOnBoard: report.cargoOnBoard,
+          cargoDescription: report.cargoDescription,
+          crewOnBoard: report.crewOnBoard,
+          passengersOnBoard: report.passengersOnBoard,
+          remarks: report.remarks,
+          preparedBy: report.preparedBy,
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load arrival report');
+      } finally {
+        setLoadingReport(false);
+      }
+    };
+
+    void loadReport();
+  }, [id, isEditMode]);
 
   const handleChange = (field: keyof CreateArrivalReportDto, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -72,6 +173,18 @@ export function ArrivalReportForm() {
     }
   };
 
+  const combineWithArrivalDate = (timeValue?: string) => {
+    if (!timeValue) {
+      return undefined;
+    }
+
+    if (timeValue.includes('T')) {
+      return timeValue;
+    }
+
+    return `${formData.arrivalDateTime.slice(0, 10)}T${timeValue}`;
+  };
+
   const mapValidationMessageToField = (message: string): string | null => {
     const normalized = message.toLowerCase();
 
@@ -80,13 +193,22 @@ export function ArrivalReportForm() {
     if (normalized.includes('voyage')) return 'voyageId';
     if (normalized.includes('draft forward')) return 'draftForward';
     if (normalized.includes('draft aft')) return 'draftAft';
+    if (normalized.includes('draft midship')) return 'draftMidship';
+    if (normalized.includes('arrival latitude')) return 'arrivalLatitude';
+    if (normalized.includes('arrival longitude')) return 'arrivalLongitude';
     if (normalized.includes('fuel oil rob')) return 'fuelOilROB';
     if (normalized.includes('diesel oil rob')) return 'dieselOilROB';
+    if (normalized.includes('lub oil rob')) return 'lubOilROB';
+    if (normalized.includes('fresh water rob')) return 'freshWaterROB';
     if (normalized.includes('fuel consumed')) return 'totalFuelConsumed';
+    if (normalized.includes('diesel consumed')) return 'totalDieselConsumed';
     if (normalized.includes('voyage distance')) return 'voyageDistance';
     if (normalized.includes('voyage duration')) return 'voyageDuration';
     if (normalized.includes('average speed')) return 'averageSpeed';
     if (normalized.includes('cargo on board')) return 'cargoOnBoard';
+    if (normalized.includes('cargo description')) return 'cargoDescription';
+    if (normalized.includes('crew on board')) return 'crewOnBoard';
+    if (normalized.includes('passengers on board')) return 'passengersOnBoard';
     if (normalized.includes('prepared by')) return 'preparedBy';
 
     return null;
@@ -127,6 +249,14 @@ export function ArrivalReportForm() {
       nextFieldErrors.averageSpeed = 'Average speed cannot be negative';
     }
 
+    if (formData.arrivalLatitude !== undefined && (formData.arrivalLatitude < -90 || formData.arrivalLatitude > 90)) {
+      nextFieldErrors.arrivalLatitude = 'Arrival latitude must be between -90 and 90 degrees';
+    }
+
+    if (formData.arrivalLongitude !== undefined && (formData.arrivalLongitude < -180 || formData.arrivalLongitude > 180)) {
+      nextFieldErrors.arrivalLongitude = 'Arrival longitude must be between -180 and 180 degrees';
+    }
+
     if (formData.fuelOilROB !== undefined && formData.fuelOilROB < 0) {
       nextFieldErrors.fuelOilROB = 'Fuel Oil ROB cannot be negative';
     }
@@ -139,12 +269,28 @@ export function ArrivalReportForm() {
       nextFieldErrors.dieselOilROB = 'Diesel Oil ROB cannot be negative';
     }
 
+    if (formData.lubOilROB !== undefined && formData.lubOilROB < 0) {
+      nextFieldErrors.lubOilROB = 'Lub Oil ROB cannot be negative';
+    }
+
+    if (formData.freshWaterROB !== undefined && formData.freshWaterROB < 0) {
+      nextFieldErrors.freshWaterROB = 'Fresh water ROB cannot be negative';
+    }
+
+    if (formData.totalDieselConsumed !== undefined && formData.totalDieselConsumed < 0) {
+      nextFieldErrors.totalDieselConsumed = 'Total diesel consumed cannot be negative';
+    }
+
     if (formData.cargoOnBoard !== undefined && formData.cargoOnBoard < 0) {
       nextFieldErrors.cargoOnBoard = 'Cargo on board cannot be negative';
     }
 
-    if (formData.cargoDischargedAtPort !== undefined && formData.cargoDischargedAtPort < 0) {
-      nextFieldErrors.cargoDischargedAtPort = 'Cargo discharged cannot be negative';
+    if (formData.crewOnBoard !== undefined && formData.crewOnBoard < 0) {
+      nextFieldErrors.crewOnBoard = 'Crew on board cannot be negative';
+    }
+
+    if (formData.passengersOnBoard !== undefined && formData.passengersOnBoard < 0) {
+      nextFieldErrors.passengersOnBoard = 'Passengers on board cannot be negative';
     }
 
     if (Object.keys(nextFieldErrors).length > 0) {
@@ -170,12 +316,20 @@ export function ArrivalReportForm() {
       const cleanedData = {
         ...formData,
         voyageId: formData.voyageId && formData.voyageId.trim() !== '' ? formData.voyageId : undefined,
+        pilotOnBoardTime: combineWithArrivalDate(formData.pilotOnBoardTime),
+        firstLineAshoreTime: combineWithArrivalDate(formData.firstLineAshoreTime),
       };
 
-      const response = await ReportingService.createArrivalReport(cleanedData);
-
-      if (!asDraft) {
-        await ReportingService.submitReport(response.reportId);
+      if (isEditMode && id) {
+        await ReportingService.updateArrivalReport(id, cleanedData);
+        if (!asDraft) {
+          await ReportingService.submitReport(id);
+        }
+      } else {
+        const response = await ReportingService.createArrivalReport(cleanedData);
+        if (!asDraft) {
+          await ReportingService.submitReport(response.reportId);
+        }
       }
 
       navigate('/reporting/reports');
@@ -192,13 +346,21 @@ export function ArrivalReportForm() {
     }
   };
 
+  if (loadingReport) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-5xl mx-auto">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
             <Ship className="h-8 w-8 text-blue-600" />
-            Arrival Report
+            {isEditMode ? 'Edit Arrival Report' : 'Arrival Report'}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">SOLAS V Compliant - Port Arrival Notification</p>
         </div>
@@ -290,15 +452,15 @@ export function ArrivalReportForm() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Anchor Drop Time</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">First Line Ashore Time</label>
                 <input
-                  ref={setFieldRef('anchorDropTime')}
+                  ref={setFieldRef('firstLineAshoreTime')}
                   type="time"
-                  value={formData.anchorDropTime || ''}
-                  onChange={(e) => handleChange('anchorDropTime', e.target.value)}
-                  className={getValidationInputClassName(fieldErrors, 'anchorDropTime')}
+                  value={formData.firstLineAshoreTime || ''}
+                  onChange={(e) => handleChange('firstLineAshoreTime', e.target.value)}
+                  className={getValidationInputClassName(fieldErrors, 'firstLineAshoreTime')}
                 />
-                {renderValidationFieldError(fieldErrors, 'anchorDropTime')}
+                {renderValidationFieldError(fieldErrors, 'firstLineAshoreTime')}
               </div>
             </div>
           </div>
@@ -350,6 +512,36 @@ export function ArrivalReportForm() {
                 />
                 {renderValidationFieldError(fieldErrors, 'averageSpeed')}
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Arrival Latitude</label>
+                <input
+                  ref={setFieldRef('arrivalLatitude')}
+                  type="number"
+                  step="0.000001"
+                  value={formData.arrivalLatitude ?? ''}
+                  onChange={(e) => handleChange('arrivalLatitude', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                  className={getValidationInputClassName(fieldErrors, 'arrivalLatitude')}
+                  min="-90"
+                  max="90"
+                />
+                {renderValidationFieldError(fieldErrors, 'arrivalLatitude')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Arrival Longitude</label>
+                <input
+                  ref={setFieldRef('arrivalLongitude')}
+                  type="number"
+                  step="0.000001"
+                  value={formData.arrivalLongitude ?? ''}
+                  onChange={(e) => handleChange('arrivalLongitude', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                  className={getValidationInputClassName(fieldErrors, 'arrivalLongitude')}
+                  min="-180"
+                  max="180"
+                />
+                {renderValidationFieldError(fieldErrors, 'arrivalLongitude')}
+              </div>
             </div>
           </div>
 
@@ -358,7 +550,7 @@ export function ArrivalReportForm() {
               <MapPin className="h-5 w-5 text-blue-600" />
               Draft Survey
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Draft Forward (meters) <span className="text-red-600">*</span>
@@ -391,6 +583,20 @@ export function ArrivalReportForm() {
                   required
                 />
                 {renderValidationFieldError(fieldErrors, 'draftAft')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Draft Midship (meters)</label>
+                <input
+                  ref={setFieldRef('draftMidship')}
+                  type="number"
+                  step="0.01"
+                  value={formData.draftMidship ?? ''}
+                  onChange={(e) => handleChange('draftMidship', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                  className={getValidationInputClassName(fieldErrors, 'draftMidship')}
+                  min="0"
+                />
+                {renderValidationFieldError(fieldErrors, 'draftMidship')}
               </div>
             </div>
           </div>
@@ -444,6 +650,48 @@ export function ArrivalReportForm() {
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Lub Oil ROB</label>
+                <input
+                  ref={setFieldRef('lubOilROB')}
+                  type="number"
+                  step="0.1"
+                  value={formData.lubOilROB ?? ''}
+                  onChange={(e) => handleChange('lubOilROB', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                  className={getValidationInputClassName(fieldErrors, 'lubOilROB')}
+                  min="0"
+                />
+                {renderValidationFieldError(fieldErrors, 'lubOilROB')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Fresh Water ROB</label>
+                <input
+                  ref={setFieldRef('freshWaterROB')}
+                  type="number"
+                  step="0.1"
+                  value={formData.freshWaterROB ?? ''}
+                  onChange={(e) => handleChange('freshWaterROB', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                  className={getValidationInputClassName(fieldErrors, 'freshWaterROB')}
+                  min="0"
+                />
+                {renderValidationFieldError(fieldErrors, 'freshWaterROB')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Total Diesel Consumed (MT)</label>
+                <input
+                  ref={setFieldRef('totalDieselConsumed')}
+                  type="number"
+                  step="0.1"
+                  value={formData.totalDieselConsumed ?? ''}
+                  onChange={(e) => handleChange('totalDieselConsumed', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                  className={getValidationInputClassName(fieldErrors, 'totalDieselConsumed')}
+                  min="0"
+                />
+                {renderValidationFieldError(fieldErrors, 'totalDieselConsumed')}
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Cargo On Board (MT)</label>
                 <input
                   ref={setFieldRef('cargoOnBoard')}
@@ -458,17 +706,42 @@ export function ArrivalReportForm() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Cargo Discharged at Port (MT)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Cargo Description</label>
                 <input
-                  ref={setFieldRef('cargoDischargedAtPort')}
+                  ref={setFieldRef('cargoDescription')}
+                  type="text"
+                  value={formData.cargoDescription || ''}
+                  onChange={(e) => handleChange('cargoDescription', e.target.value)}
+                  className={getValidationInputClassName(fieldErrors, 'cargoDescription')}
+                  placeholder="Cargo carried on arrival"
+                />
+                {renderValidationFieldError(fieldErrors, 'cargoDescription')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Crew On Board</label>
+                <input
+                  ref={setFieldRef('crewOnBoard')}
                   type="number"
-                  step="0.1"
-                  value={formData.cargoDischargedAtPort || ''}
-                  onChange={(e) => handleChange('cargoDischargedAtPort', parseFloat(e.target.value))}
-                  className={getValidationInputClassName(fieldErrors, 'cargoDischargedAtPort')}
+                  value={formData.crewOnBoard ?? ''}
+                  onChange={(e) => handleChange('crewOnBoard', e.target.value === '' ? undefined : parseInt(e.target.value, 10))}
+                  className={getValidationInputClassName(fieldErrors, 'crewOnBoard')}
                   min="0"
                 />
-                {renderValidationFieldError(fieldErrors, 'cargoDischargedAtPort')}
+                {renderValidationFieldError(fieldErrors, 'crewOnBoard')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Passengers On Board</label>
+                <input
+                  ref={setFieldRef('passengersOnBoard')}
+                  type="number"
+                  value={formData.passengersOnBoard ?? ''}
+                  onChange={(e) => handleChange('passengersOnBoard', e.target.value === '' ? undefined : parseInt(e.target.value, 10))}
+                  className={getValidationInputClassName(fieldErrors, 'passengersOnBoard')}
+                  min="0"
+                />
+                {renderValidationFieldError(fieldErrors, 'passengersOnBoard')}
               </div>
             </div>
           </div>
@@ -517,7 +790,7 @@ export function ArrivalReportForm() {
               disabled={loading}
             >
               <Save className="h-5 w-5" />
-              {loading ? 'Saving...' : 'Save Draft'}
+              {loading ? 'Saving...' : isEditMode ? 'Update Draft' : 'Save Draft'}
             </button>
             <button
               type="button"
@@ -526,7 +799,7 @@ export function ArrivalReportForm() {
               disabled={loading}
             >
               <Send className="h-5 w-5" />
-              {loading ? 'Submitting...' : 'Submit Report'}
+              {loading ? 'Submitting...' : isEditMode ? 'Update & Submit' : 'Submit Report'}
             </button>
           </div>
         </form>

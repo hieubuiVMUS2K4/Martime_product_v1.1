@@ -3,8 +3,12 @@ import { useSearchParams } from 'react-router-dom'
 import {
   Ship, Plus, Edit2, Trash2, ArrowLeft, Anchor,
   MapPin, Users, FileText, Calendar, Navigation,
-  ChevronRight, X, Check, AlertCircle, Package, Clock
+  ChevronRight, X, Check, AlertCircle, Package,
+  DollarSign, Fuel, UserCheck, Activity, BarChart3, Search
 } from 'lucide-react'
+import CockpitTab from './CockpitTab'
+import FinancialTab from './FinancialTab'
+import EfficiencyTab from './EfficiencyTab'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { voyageMgmtService } from '@/services/voyage.service'
@@ -16,15 +20,46 @@ import type {
   VoyageCrewAssignment, CreateCrewAssignmentDto, UpdateCrewAssignmentDto,
   Port, FalForm5,
   VoyageCargoOperation, CreateCargoOperationDto, UpdateCargoOperationDto,
+  UpsertVoyagePlanLegDto, VoyageStatusHistory, VoyageStatus, VoyageCharterType,
 } from '@/types/voyage.types'
 
-type DetailTab = 'overview' | 'port-calls' | 'crew' | 'cargo' | 'fal-form5'
+type DetailTab = 'overview' | 'port-calls' | 'crew' | 'cargo' | 'planning' | 'cockpit' | 'financial' | 'efficiency' | 'fal-form5'
 
 const STATUS_COLORS: Record<string, string> = {
   PLANNING: 'bg-yellow-100 text-yellow-800',
+  APPROVED: 'bg-indigo-100 text-indigo-800',
+  READY: 'bg-cyan-100 text-cyan-800',
   UNDERWAY: 'bg-blue-100 text-blue-800',
+  ARRIVED: 'bg-emerald-100 text-emerald-800',
   COMPLETED: 'bg-green-100 text-green-800',
   CANCELLED: 'bg-red-100 text-red-700',
+}
+
+const STATUS_DESCRIPTIONS: Record<string, string> = {
+  PLANNING: 'Commercial and operational plan can still be structured freely.',
+  APPROVED: 'Plan is approved and ready for final pre-execution checks.',
+  READY: 'Voyage is cleared to commence and core planning data should be stable.',
+  UNDERWAY: 'Execution is in progress. Only operational progress and performance updates should change.',
+  ARRIVED: 'Sea passage is completed. Close-out data can still be updated before completion.',
+  COMPLETED: 'Voyage is closed and preserved as a historical record.',
+  CANCELLED: 'Voyage was cancelled. Reopen to PLANNING before editing full data.',
+}
+
+const CHARTER_TYPE_LABELS: Record<string, string> = {
+  VOYAGE_CHARTER: 'Voyage Charter',
+  TIME_CHARTER: 'Time Charter',
+  TIME_CHARTER_TRIP: 'Time Charter Trip',
+  CONTRACT_OF_AFFREIGHTMENT: 'Contract of Affreightment',
+  OTHER: 'Other',
+}
+
+const PLAN_LEG_TYPE_LABELS: Record<string, string> = {
+  SEA_PASSAGE: 'Sea Passage',
+  PORT_STAY: 'Port Stay',
+  BUNKERING: 'Bunkering',
+  CANAL_TRANSIT: 'Canal Transit',
+  CREW_CHANGE: 'Crew Change',
+  OTHER: 'Other',
 }
 
 const CALL_TYPE_COLORS: Record<string, string> = {
@@ -52,14 +87,17 @@ const CARGO_STATUS_COLORS: Record<string, string> = {
 
 // ── Status-based Access Control ──
 const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
-  PLANNING: ['UNDERWAY', 'CANCELLED'],
-  UNDERWAY: ['COMPLETED', 'CANCELLED'],
+  PLANNING: ['APPROVED', 'CANCELLED'],
+  APPROVED: ['READY', 'PLANNING', 'CANCELLED'],
+  READY: ['UNDERWAY', 'PLANNING', 'CANCELLED'],
+  UNDERWAY: ['ARRIVED', 'CANCELLED'],
+  ARRIVED: ['COMPLETED', 'CANCELLED'],
   COMPLETED: [],
   CANCELLED: ['PLANNING'],
 }
 
 const READ_ONLY_STATUSES = new Set(['COMPLETED', 'CANCELLED'])
-const LIMITED_EDIT_STATUSES = new Set(['UNDERWAY'])
+const LIMITED_EDIT_STATUSES = new Set(['UNDERWAY', 'ARRIVED'])
 
 /** Check if voyage allows general modifications */
 function isVoyageEditable(status: string): boolean {
@@ -68,12 +106,12 @@ function isVoyageEditable(status: string): boolean {
 
 /** Check if voyage allows full editing (all fields) */
 function isVoyageFullyEditable(status: string): boolean {
-  return status === 'PLANNING'
+  return status === 'PLANNING' || status === 'APPROVED' || status === 'READY'
 }
 
 /** Check if voyage allows deletion */
 function isVoyageDeletable(status: string): boolean {
-  return status === 'PLANNING' || status === 'CANCELLED'
+  return status === 'PLANNING' || status === 'APPROVED' || status === 'READY' || status === 'CANCELLED'
 }
 
 /** Get valid next statuses for a voyage */
@@ -91,11 +129,141 @@ function formatDateShort(d?: string | null) {
   try { return format(new Date(d), 'dd MMM yyyy') } catch { return d }
 }
 
+function formatStatusLabel(status?: string | null) {
+  if (!status) return '-'
+  return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+}
+
+function formatCharterType(type?: VoyageCharterType) {
+  if (!type) return '-'
+  return CHARTER_TYPE_LABELS[type] || formatStatusLabel(type)
+}
+
+function formatMetric(value?: number | null, digits = 1, suffix = '') {
+  if (value == null || Number.isNaN(value)) return '-'
+  return `${value.toFixed(digits)}${suffix}`
+}
+
+function matchesVoyageSearch(voyage: VoyageRecord, search: string) {
+  if (!search.trim()) return true
+  const needle = search.trim().toLowerCase()
+  return [
+    voyage.voyageNumber,
+    voyage.vesselName,
+    voyage.vesselIMO,
+    voyage.departurePort,
+    voyage.departurePortCode,
+    voyage.arrivalPort,
+    voyage.arrivalPortCode,
+    voyage.cargoType,
+    voyage.voyageStatus,
+  ].some(value => value?.toLowerCase().includes(needle))
+}
+
+function toDateTimeLocalValue(value?: string) {
+  if (!value) return ''
+  try {
+    return format(new Date(value), "yyyy-MM-dd'T'HH:mm")
+  } catch {
+    return value.slice(0, 16)
+  }
+}
+
+function normalizeDateTimeForApi(value?: string) {
+  if (!value) return undefined
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return parsed.toISOString()
+}
+
+function createEmptyPlanLeg(sequence: number): UpsertVoyagePlanLegDto {
+  return {
+    sequence,
+    legType: 'SEA_PASSAGE',
+    crewChangePlanned: false,
+    bunkerSupplyPlanned: false,
+  }
+}
+
+function normalizePlanLegs(planLegs: UpsertVoyagePlanLegDto[]) {
+  return planLegs
+    .map((leg, index) => ({
+      ...leg,
+      sequence: index + 1,
+      legType: leg.legType || 'SEA_PASSAGE',
+      fromPortCode: leg.fromPortCode?.trim() || undefined,
+      fromPortName: leg.fromPortName?.trim() || undefined,
+      toPortCode: leg.toPortCode?.trim() || undefined,
+      toPortName: leg.toPortName?.trim() || undefined,
+      plannedDepartureTime: normalizeDateTimeForApi(leg.plannedDepartureTime),
+      plannedArrivalTime: normalizeDateTimeForApi(leg.plannedArrivalTime),
+      cargoActivity: leg.cargoActivity?.trim() || undefined,
+      notes: leg.notes?.trim() || undefined,
+      crewChangePlanned: Boolean(leg.crewChangePlanned),
+      bunkerSupplyPlanned: Boolean(leg.bunkerSupplyPlanned),
+    }))
+    .filter(leg =>
+      Boolean(
+        leg.fromPortCode || leg.fromPortName || leg.toPortCode || leg.toPortName || leg.cargoActivity || leg.notes ||
+        leg.plannedDepartureTime || leg.plannedArrivalTime || leg.plannedDistance != null || leg.plannedDurationHours != null ||
+        leg.plannedAverageSpeed != null || leg.crewChangePlanned || leg.bunkerSupplyPlanned,
+      ),
+    )
+}
+
+type LifecycleEntry = {
+  key: string
+  status: string
+  time?: string
+  notes?: string
+  actor?: string
+}
+
+function buildLifecycleEntries(detail: VoyageDetail): LifecycleEntry[] {
+  const history = [...(detail.statusHistory || [])]
+    .sort((a, b) => new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime())
+    .map((entry: VoyageStatusHistory) => ({
+      key: entry.id,
+      status: entry.toStatus,
+      time: entry.changedAt,
+      notes: entry.notes,
+      actor: entry.changedBy,
+    }))
+
+  const derived: LifecycleEntry[] = [
+    { key: 'created', status: 'PLANNING', time: detail.createdAt, notes: 'Voyage record created' },
+    detail.approvedAt ? { key: 'approved', status: 'APPROVED', time: detail.approvedAt } : null,
+    detail.readyAt ? { key: 'ready', status: 'READY', time: detail.readyAt } : null,
+    detail.commencedAt ? { key: 'underway', status: 'UNDERWAY', time: detail.commencedAt } : null,
+    detail.arrivedAt ? { key: 'arrived', status: 'ARRIVED', time: detail.arrivedAt } : null,
+    detail.completedAt ? { key: 'completed', status: 'COMPLETED', time: detail.completedAt } : null,
+    detail.cancelledAt ? { key: 'cancelled', status: 'CANCELLED', time: detail.cancelledAt } : null,
+  ].filter(Boolean) as LifecycleEntry[]
+
+  const combined = [...history, ...derived]
+    .sort((a, b) => new Date(a.time || 0).getTime() - new Date(b.time || 0).getTime())
+
+  const seen = new Set<string>()
+  const unique = combined.filter(entry => {
+    const key = `${entry.status}-${entry.time || 'na'}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+
+  if (!unique.some(entry => entry.status === detail.voyageStatus)) {
+    unique.push({ key: 'current-status', status: detail.voyageStatus, time: detail.updatedAt, notes: 'Current lifecycle state' })
+  }
+
+  return unique.sort((a, b) => new Date(a.time || 0).getTime() - new Date(b.time || 0).getTime())
+}
+
 export function VoyagePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [voyages, setVoyages] = useState<VoyageRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Read voyage ID from URL: /voyage?id=xxx&tab=overview
   const selectedVoyageId = searchParams.get('id')
@@ -134,6 +302,11 @@ export function VoyagePage() {
     }
   }
 
+  const filteredVoyages = voyages.filter(v => matchesVoyageSearch(v, searchQuery))
+  const activeVoyageCount = voyages.filter(v => ['APPROVED', 'READY', 'UNDERWAY', 'ARRIVED'].includes(v.voyageStatus)).length
+  const planningVoyageCount = voyages.filter(v => v.voyageStatus === 'PLANNING').length
+  const completedVoyageCount = voyages.filter(v => v.voyageStatus === 'COMPLETED').length
+
   if (selectedVoyageId) {
     return (
       <VoyageDetailView
@@ -146,79 +319,92 @@ export function VoyagePage() {
   }
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
-      <div className="max-w-7xl mx-auto p-6">
+    <div className="h-full w-full overflow-y-auto bg-gray-50">
+      <div className="max-w-5xl mx-auto px-6 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Ship className="w-7 h-7 text-blue-600" />
-              Voyage Management
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Track voyages, port calls, and crew assignments
+            <h1 className="text-xl font-semibold text-gray-900">Voyage Management</h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {voyages.length} voyages &mdash;
+              <span className="text-blue-600 ml-1">{activeVoyageCount} active</span>
+              <span className="mx-1 text-gray-300">·</span>
+              <span className="text-amber-600">{planningVoyageCount} planning</span>
+              <span className="mx-1 text-gray-300">·</span>
+              <span className="text-gray-500">{completedVoyageCount} completed</span>
             </p>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
             New Voyage
           </button>
         </div>
 
-        {/* Voyage List */}
-        <div className="space-y-3">
+        {/* Search */}
+        <div className="mb-4 relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search by voyage number, vessel, port, cargo, or status..."
+            className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-700 shadow-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+          />
+        </div>
+
+        <div className="space-y-2">
           {loading ? (
-            <div className="text-center py-12 text-gray-400">Loading voyages...</div>
-          ) : voyages.length === 0 ? (
-            <div className="text-center py-16">
-              <Ship className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-gray-500 text-lg">No voyages found</p>
-              <p className="text-gray-400 text-sm mt-1">Create a new voyage to get started</p>
+            <div className="text-center py-16 text-gray-400">Loading voyages...</div>
+          ) : filteredVoyages.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-300 bg-white py-16 text-center">
+              <Ship className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p className="text-gray-600 font-medium">No voyages found</p>
+              <p className="text-gray-400 text-sm mt-1">
+                {searchQuery ? 'Try a different search term.' : 'Create a new voyage to get started.'}
+              </p>
             </div>
           ) : (
-            voyages.map(v => (
-              <div
+            filteredVoyages.map(v => (
+              <button
                 key={v.id}
-                className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                type="button"
+                className="group w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left shadow-sm hover:border-blue-300 hover:shadow-md transition-all"
                 onClick={() => openDetail(v.id)}
               >
-                <div className="px-5 py-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                      <Ship className="w-5 h-5 text-blue-600" />
+                <div className="flex items-center gap-4">
+                  <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                    <Ship className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-gray-900">{v.voyageNumber}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[v.voyageStatus] || 'bg-gray-100 text-gray-600'}`}>
+                        {v.voyageStatus}
+                      </span>
+                      {v.vesselName && <span className="text-sm text-gray-500">{v.vesselName}</span>}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-gray-900">{v.voyageNumber}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[v.voyageStatus] || 'bg-gray-100 text-gray-600'}`}>
-                          {v.voyageStatus}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                    <div className="flex items-center gap-4 mt-0.5 text-sm text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5" />
+                        {v.departurePort || 'TBD'} → {v.arrivalPort || 'TBD'}
+                      </span>
+                      {v.departureTime && (
                         <span className="flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5" />
-                          {v.departurePort || 'TBD'} → {v.arrivalPort || 'TBD'}
+                          <Calendar className="w-3.5 h-3.5" />
+                          {formatDateShort(v.departureTime)}
                         </span>
-                        {v.departureTime && (
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" />
-                            {formatDateShort(v.departureTime)}
-                          </span>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-gray-400">
-                    {v.distanceTraveled != null && (
-                      <span>{v.distanceTraveled.toFixed(0)} NM</span>
-                    )}
-                    <ChevronRight className="w-5 h-5" />
+                  <div className="flex items-center gap-4 text-sm text-gray-400 flex-shrink-0">
+                    {v.distanceTraveled != null && <span>{v.distanceTraveled.toFixed(0)} NM</span>}
+                    <ChevronRight className="w-4 h-4 group-hover:text-blue-500 transition-colors" />
                   </div>
                 </div>
-              </div>
+              </button>
             ))
           )}
         </div>
@@ -297,33 +483,43 @@ function VoyageDetailView({ voyageId, onBack, initialTab, onTabChange }: {
     { key: 'port-calls', label: 'Port Calls', icon: Anchor, count: detail.portCalls.length },
     { key: 'crew', label: 'Crew Assignments', icon: Users, count: detail.crewAssignments.length },
     { key: 'cargo', label: 'Cargo Operations', icon: Package, count: detail.cargoOperationCount },
+    { key: 'planning', label: 'Planning', icon: Navigation, count:
+      (detail.cargoPlans?.length || 0) + (detail.bunkerPlans?.length || 0) +
+      (detail.crewChangePlans?.length || 0) + (detail.costEstimates?.length || 0) +
+      (detail.revenueEstimates?.length || 0) || undefined
+    },
+    { key: 'cockpit', label: 'Cockpit', icon: Activity },
+    { key: 'financial', label: 'Financial', icon: DollarSign },
+    { key: 'efficiency', label: 'Efficiency', icon: BarChart3 },
     { key: 'fal-form5', label: 'FAL Form 5', icon: FileText },
   ]
 
+  const onboardCrewCount = detail.crewAssignments.filter(assignment => assignment.status === 'ONBOARD').length
+
   return (
-    <div className="h-full w-full overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
-      <div className="max-w-7xl mx-auto p-6">
+    <div className="h-full w-full overflow-x-hidden overflow-y-auto bg-gray-50">
+      <div className="max-w-5xl mx-auto px-6 py-6">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
+        <div className="mb-5 flex flex-wrap items-start gap-3 lg:flex-nowrap lg:items-center">
           <button
             onClick={onBack}
             className="p-2 rounded-lg hover:bg-gray-200 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900">{detail.voyageNumber}</h1>
+              <h1 className="truncate text-2xl font-bold text-gray-900">{detail.voyageNumber}</h1>
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLORS[detail.voyageStatus] || 'bg-gray-100'}`}>
                 {detail.voyageStatus}
               </span>
             </div>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="mt-1 truncate text-sm text-gray-500">
               {detail.vesselName || 'Vessel'} {detail.vesselIMO ? `(IMO: ${detail.vesselIMO})` : ''}
               {detail.vesselFlag ? ` — ${detail.vesselFlag}` : ''}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             {isVoyageEditable(detail.voyageStatus) && (
               <button
                 onClick={() => setShowEditModal(true)}
@@ -361,6 +557,26 @@ function VoyageDetailView({ voyageId, onBack, initialTab, onTabChange }: {
           </div>
         </div>
 
+        {/* Quick stats bar */}
+        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+            <div className="text-xs text-gray-500">Departure</div>
+            <div className="mt-0.5 text-sm font-medium text-gray-900">{formatDateTime(detail.departureTime)}</div>
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+            <div className="text-xs text-gray-500">Arrival</div>
+            <div className="mt-0.5 text-sm font-medium text-gray-900">{formatDateTime(detail.arrivalTime)}</div>
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+            <div className="text-xs text-gray-500">Port Calls</div>
+            <div className="mt-0.5 text-sm font-medium text-gray-900">{detail.portCalls.length} calls</div>
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+            <div className="text-xs text-gray-500">Crew Onboard</div>
+            <div className="mt-0.5 text-sm font-medium text-gray-900">{onboardCrewCount}/{detail.crewAssignments.length}</div>
+          </div>
+        </div>
+
         {/* Status Lock Banner */}
         {READ_ONLY_STATUSES.has(detail.voyageStatus) && (
           <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg mb-4 text-sm font-medium ${
@@ -377,33 +593,37 @@ function VoyageDetailView({ voyageId, onBack, initialTab, onTabChange }: {
         {LIMITED_EDIT_STATUSES.has(detail.voyageStatus) && (
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg mb-4 text-sm font-medium bg-blue-50 text-blue-800 border border-blue-200">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            Voyage is UNDERWAY — only performance data, port call times, and crew status changes are allowed.
+            {detail.voyageStatus === 'ARRIVED'
+              ? 'Voyage is ARRIVED — close-out data is still editable, but planning structure and core identity fields are locked.'
+              : 'Voyage is UNDERWAY — only performance data, port call times, and crew status changes are allowed.'}
           </div>
         )}
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-white rounded-lg p-1 shadow-sm border border-gray-200 mb-6">
-          {tabs.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => handleSetActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                activeTab === tab.key
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-              {tab.count != null && (
-                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs ${
-                  activeTab === tab.key ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
+        <div className="mb-5 overflow-x-auto overflow-y-hidden border-b border-gray-200">
+          <div className="flex min-w-max gap-0.5">
+            {tabs.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => handleSetActiveTab(tab.key)}
+                className={`flex flex-none items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-all ${
+                  activeTab === tab.key
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+                }`}
+              >
+                <tab.icon className="h-4 w-4 flex-shrink-0" />
+                <span>{tab.label}</span>
+                {tab.count != null && (
+                  <span className={`ml-1 rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                    activeTab === tab.key ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Tab Content */}
@@ -411,6 +631,10 @@ function VoyageDetailView({ voyageId, onBack, initialTab, onTabChange }: {
         {activeTab === 'port-calls' && <PortCallsTab detail={detail} onRefresh={loadDetail} voyageStatus={detail.voyageStatus} />}
         {activeTab === 'crew' && <CrewAssignmentsTab detail={detail} onRefresh={loadDetail} voyageStatus={detail.voyageStatus} />}
         {activeTab === 'cargo' && <CargoOperationsTab voyageId={voyageId} voyageStatus={detail.voyageStatus} onRefresh={loadDetail} />}
+        {activeTab === 'planning' && <PlanningTab detail={detail} />}
+        {activeTab === 'cockpit' && <CockpitTab voyageId={voyageId} />}
+        {activeTab === 'financial' && <FinancialTab voyageId={voyageId} />}
+        {activeTab === 'efficiency' && <EfficiencyTab voyageId={voyageId} />}
         {activeTab === 'fal-form5' && <FalForm5Tab voyageId={voyageId} />}
       </div>
 
@@ -431,52 +655,123 @@ function VoyageDetailView({ voyageId, onBack, initialTab, onTabChange }: {
 // =============================================
 
 function OverviewTab({ detail }: { detail: VoyageDetail }) {
-  const InfoCard = ({ label, value, icon: Icon }: { label: string; value: string; icon?: typeof Ship }) => (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <div className="flex items-center gap-2 text-gray-500 text-xs font-medium mb-1">
-        {Icon && <Icon className="w-3.5 h-3.5" />}
-        {label}
-      </div>
-      <div className="text-gray-900 font-semibold">{value || '-'}</div>
+  const Field = ({ label, value }: { label: string; value?: string | null }) => (
+    <div>
+      <div className="text-xs text-gray-500 mb-0.5">{label}</div>
+      <div className="text-sm font-medium text-gray-900">{value || '-'}</div>
     </div>
   )
 
+  const sortedPlanLegs = [...(detail.planLegs || [])].sort((a, b) => a.sequence - b.sequence)
+  const lifecycleEntries = buildLifecycleEntries(detail)
+
   return (
-    <div className="space-y-6">
-      {/* Vessel Info */}
-      <div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Vessel Information</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <InfoCard label="Vessel Name" value={detail.vesselName || '-'} icon={Ship} />
-          <InfoCard label="IMO Number" value={detail.vesselIMO || '-'} />
-          <InfoCard label="Flag State" value={detail.vesselFlag || '-'} />
-          <InfoCard label="Call Sign" value={detail.callSign || '-'} />
+    <div className="space-y-4">
+      {/* Vessel + Route */}
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm divide-y divide-gray-100">
+        <div className="px-4 py-3 bg-gray-50 rounded-t-xl">
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Vessel &amp; Route</span>
+        </div>
+        <div className="px-4 py-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+          <Field label="Vessel Name" value={detail.vesselName} />
+          <Field label="IMO Number" value={detail.vesselIMO} />
+          <Field label="Flag State" value={detail.vesselFlag} />
+          <Field label="Call Sign" value={detail.callSign} />
+        </div>
+        <div className="px-4 py-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <Field label="Departure Port" value={detail.departurePort ? `${detail.departurePort}${detail.departurePortCode ? ` (${detail.departurePortCode})` : ''}` : undefined} />
+          <Field label="Arrival Port" value={detail.arrivalPort ? `${detail.arrivalPort}${detail.arrivalPortCode ? ` (${detail.arrivalPortCode})` : ''}` : undefined} />
+          <Field label="Previous Port" value={detail.previousPortName || detail.previousPortCode} />
+          <Field label="Departure Time" value={formatDateTime(detail.departureTime)} />
+          <Field label="Arrival Time" value={formatDateTime(detail.arrivalTime)} />
+          <Field label="Charter Type" value={formatCharterType(detail.charterType)} />
         </div>
       </div>
 
-      {/* Route Info */}
-      <div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Route Information</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <InfoCard label="Departure Port" value={`${detail.departurePort || '-'} ${detail.departurePortCode ? `(${detail.departurePortCode})` : ''}`} icon={MapPin} />
-          <InfoCard label="Arrival Port" value={`${detail.arrivalPort || '-'} ${detail.arrivalPortCode ? `(${detail.arrivalPortCode})` : ''}`} icon={MapPin} />
-          <InfoCard label="Previous Port" value={`${detail.previousPortName || '-'} ${detail.previousPortCode ? `(${detail.previousPortCode})` : ''}`} icon={Navigation} />
-          <InfoCard label="Departure Time" value={formatDateTime(detail.departureTime)} icon={Calendar} />
-          <InfoCard label="Arrival Time" value={formatDateTime(detail.arrivalTime)} icon={Calendar} />
+      {/* Planning baseline */}
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm divide-y divide-gray-100">
+        <div className="px-4 py-3 bg-gray-50 rounded-t-xl">
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Planning Baseline</span>
+        </div>
+        <div className="px-4 py-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+          <Field label="Planned Distance" value={formatMetric(detail.plannedDistance, 1, ' NM')} />
+          <Field label="Planned Duration" value={formatMetric(detail.plannedDurationHours, 1, ' h')} />
+          <Field label="Planned Avg Speed" value={formatMetric(detail.plannedAverageSpeed, 1, ' kn')} />
+          <Field label="Planned Fuel" value={formatMetric(detail.plannedFuelConsumption, 2, ' MT')} />
+          <Field label="Cargo" value={detail.cargoType ? `${detail.cargoType}${detail.cargoWeight ? ` · ${detail.cargoWeight.toFixed(0)} MT` : ''}` : undefined} />
+        </div>
+        {detail.voyageInstructions && (
+          <div className="px-4 py-4">
+            <div className="text-xs text-gray-500 mb-1">Voyage Instructions</div>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">{detail.voyageInstructions}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Performance */}
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm divide-y divide-gray-100">
+        <div className="px-4 py-3 bg-gray-50 rounded-t-xl">
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Actual Performance</span>
+        </div>
+        <div className="px-4 py-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Field label="Distance (NM)" value={detail.distanceTraveled?.toFixed(1)} />
+          <Field label="Fuel Consumed (MT)" value={detail.fuelConsumed?.toFixed(2)} />
+          <Field label="Average Speed (kn)" value={detail.averageSpeed?.toFixed(1)} />
+          <Field label="Log Entries" value={String(detail.logEntryCount)} />
         </div>
       </div>
 
-      {/* Voyage Timeline */}
+      {/* Planned Legs */}
+      {sortedPlanLegs.length > 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Planned Legs</span>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {sortedPlanLegs.map(leg => (
+              <div key={leg.id} className="px-4 py-3 grid gap-3 md:grid-cols-[100px_1fr_1fr_1fr] items-start">
+                <div>
+                  <div className="text-xs text-gray-400 mb-1">Leg {leg.sequence}</div>
+                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                    {PLAN_LEG_TYPE_LABELS[leg.legType] || leg.legType}
+                  </span>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {leg.fromPortName || leg.fromPortCode || 'TBD'}
+                    <span className="mx-1.5 text-gray-300">→</span>
+                    {leg.toPortName || leg.toPortCode || 'TBD'}
+                  </div>
+                  {leg.cargoActivity && <div className="text-xs text-gray-500 mt-0.5">{leg.cargoActivity}</div>}
+                </div>
+                <div className="text-xs text-gray-600 space-y-0.5">
+                  <div><span className="text-gray-400">ETD: </span>{formatDateTime(leg.plannedDepartureTime)}</div>
+                  <div><span className="text-gray-400">ETA: </span>{formatDateTime(leg.plannedArrivalTime)}</div>
+                  <div><span className="text-gray-400">Dist: </span>{formatMetric(leg.plannedDistance, 1, ' NM')}</div>
+                </div>
+                <div className="text-xs text-gray-600 space-y-0.5">
+                  <div><span className="text-gray-400">Dur: </span>{formatMetric(leg.plannedDurationHours, 1, ' h')}</div>
+                  <div><span className="text-gray-400">Spd: </span>{formatMetric(leg.plannedAverageSpeed, 1, ' kn')}</div>
+                  <div className="flex gap-1.5 pt-0.5 flex-wrap">
+                    {leg.crewChangePlanned && <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[11px]">Crew change</span>}
+                    {leg.bunkerSupplyPlanned && <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[11px]">Bunker</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Voyage Timeline (port calls) */}
       {detail.portCalls.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <Clock className="w-4 h-4" /> Voyage Timeline
-          </h3>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Voyage Timeline</span>
+          </div>
+          <div className="p-4">
             <div className="relative">
-              {/* Timeline line */}
               <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200" />
-              {/* Progress line */}
               {(() => {
                 const sorted = [...detail.portCalls].sort((a, b) => a.sequence - b.sequence)
                 const completedCount = sorted.filter(pc =>
@@ -486,8 +781,7 @@ function OverviewTab({ detail }: { detail: VoyageDetail }) {
                 const progress = sorted.length > 1 ? Math.min((completedCount / (sorted.length - 1)) * 100, 100) : 0
                 return <div className="absolute top-4 left-0 h-0.5 bg-blue-500 transition-all" style={{ width: `${progress}%` }} />
               })()}
-              {/* Port call nodes */}
-              <div className="relative flex justify-between">
+              <div className="relative flex justify-between gap-2 overflow-x-auto pb-2">
                 {[...detail.portCalls].sort((a, b) => a.sequence - b.sequence).map((pc, i, arr) => {
                   const isPast = pc.departureTime && new Date(pc.departureTime) <= new Date()
                   const isCurrent = !isPast && pc.arrivalTime && new Date(pc.arrivalTime) <= new Date()
@@ -512,7 +806,6 @@ function OverviewTab({ detail }: { detail: VoyageDetail }) {
                 })}
               </div>
             </div>
-            {/* Duration summary */}
             {detail.departureTime && detail.arrivalTime && (
               <div className="mt-4 pt-3 border-t border-gray-100 flex items-center gap-6 text-xs text-gray-500">
                 <span>
@@ -540,27 +833,41 @@ function OverviewTab({ detail }: { detail: VoyageDetail }) {
         </div>
       )}
 
-      {/* Performance */}
-      <div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Performance</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <InfoCard label="Distance (NM)" value={detail.distanceTraveled?.toFixed(1) || '-'} />
-          <InfoCard label="Fuel Consumed (MT)" value={detail.fuelConsumed?.toFixed(2) || '-'} />
-          <InfoCard label="Average Speed (kn)" value={detail.averageSpeed?.toFixed(1) || '-'} />
-          <InfoCard label="Cargo" value={detail.cargoType ? `${detail.cargoType} (${detail.cargoWeight?.toFixed(0) || '?'} MT)` : '-'} />
+      {/* Lifecycle Timeline */}
+      {lifecycleEntries.length > 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Lifecycle Timeline</span>
+          </div>
+          <div className="p-4 space-y-4">
+            {lifecycleEntries.map((entry, index) => (
+              <div key={entry.key} className="relative pl-8">
+                {index < lifecycleEntries.length - 1 && (
+                  <div className="absolute left-[11px] top-6 bottom-[-16px] w-px bg-gray-200" />
+                )}
+                <div className={`absolute left-0 top-1 w-[22px] h-[22px] rounded-full border-4 border-white shadow-sm ${STATUS_COLORS[entry.status]?.split(' ')[0] || 'bg-gray-300'}`} />
+                <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[entry.status] || 'bg-gray-100 text-gray-700'}`}>
+                        {formatStatusLabel(entry.status)}
+                      </span>
+                      <span className="text-sm text-gray-500">{STATUS_DESCRIPTIONS[entry.status] || ''}</span>
+                    </div>
+                    {(entry.notes || entry.actor) && (
+                      <div className="mt-1 text-xs text-gray-500">
+                        {entry.notes || 'Status transition recorded'}
+                        {entry.actor ? ` • by ${entry.actor}` : ''}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-xs font-medium text-gray-500">{formatDateTime(entry.time)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-
-      {/* Summary Stats */}
-      <div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Summary</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <InfoCard label="Port Calls" value={String(detail.portCalls.length)} icon={Anchor} />
-          <InfoCard label="Crew Assigned" value={String(detail.crewAssignments.length)} icon={Users} />
-          <InfoCard label="Log Entries" value={String(detail.logEntryCount)} icon={FileText} />
-          <InfoCard label="Cargo Operations" value={String(detail.cargoOperationCount)} />
-        </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -597,6 +904,7 @@ function PortCallsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetai
     setEditingCall(pc)
     setForm({
       voyageId: detail.id,
+      portId: pc.portId,
       portCode: pc.portCode,
       portName: pc.portName,
       country: pc.country,
@@ -627,6 +935,7 @@ function PortCallsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetai
       setSaving(true)
       if (editingCall) {
         const update: UpdatePortCallDto = {
+          portId: form.portId,
           portCode: form.portCode,
           portName: form.portName,
           country: form.country,
@@ -1270,7 +1579,7 @@ function FalForm5Tab({ voyageId }: { voyageId: string }) {
   if (!fal) return <div className="text-center py-12 text-gray-400">Failed to load FAL Form 5</div>
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
       {/* Header */}
       <div className="text-center mb-6 border-b pb-4">
         <h2 className="text-xl font-bold text-gray-900">FAL Form 5 — Crew List</h2>
@@ -1278,10 +1587,10 @@ function FalForm5Tab({ voyageId }: { voyageId: string }) {
       </div>
 
       {/* Vessel Info */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-sm">
+      <div className="mb-6 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
         <div>
           <div className="text-gray-500 text-xs font-medium">Vessel Name</div>
-          <div className="font-semibold">{fal.vesselName || '-'}</div>
+          <div className="break-words font-semibold">{fal.vesselName || '-'}</div>
         </div>
         <div>
           <div className="text-gray-500 text-xs font-medium">IMO Number</div>
@@ -1301,7 +1610,7 @@ function FalForm5Tab({ voyageId }: { voyageId: string }) {
         </div>
         <div>
           <div className="text-gray-500 text-xs font-medium">Port of Arrival</div>
-          <div className="font-semibold">{fal.portOfArrival || '-'} {fal.portOfArrivalCode ? `(${fal.portOfArrivalCode})` : ''}</div>
+          <div className="break-words font-semibold">{fal.portOfArrival || '-'} {fal.portOfArrivalCode ? `(${fal.portOfArrivalCode})` : ''}</div>
         </div>
         <div>
           <div className="text-gray-500 text-xs font-medium">Date of Arrival</div>
@@ -1309,14 +1618,14 @@ function FalForm5Tab({ voyageId }: { voyageId: string }) {
         </div>
         <div>
           <div className="text-gray-500 text-xs font-medium">Arrived From</div>
-          <div className="font-semibold">{fal.arrivedFrom || '-'}</div>
+          <div className="break-words font-semibold">{fal.arrivedFrom || '-'}</div>
         </div>
       </div>
 
       {/* Crew Table */}
       <div className="text-sm font-semibold text-gray-700 mb-2">Crew List ({fal.crewList.length} persons)</div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border border-gray-300">
+      <div className="max-w-full overflow-x-auto">
+        <table className="min-w-[760px] w-full text-sm border border-gray-300">
           <thead>
             <tr className="bg-gray-100">
               <th className="border border-gray-300 px-2 py-2 text-center w-10">No.</th>
@@ -1682,8 +1991,503 @@ function CargoOperationsTab({ voyageId, voyageStatus, onRefresh }: { voyageId: s
 }
 
 // =============================================
+// Planning Tab (Phase 2)
+// =============================================
+
+function PlanningTab({ detail }: { detail: VoyageDetail }) {
+  const cargoPlans = detail.cargoPlans || []
+  const bunkerPlans = detail.bunkerPlans || []
+  const crewChangePlans = detail.crewChangePlans || []
+  const costEstimates = detail.costEstimates || []
+  const revenueEstimates = detail.revenueEstimates || []
+
+  const fmtCurrency = (v?: number, cur = 'USD') => v != null ? `${v.toLocaleString()} ${cur}` : '—'
+
+  return (
+    <div className="space-y-6">
+      {/* Financial Summary */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+          <DollarSign className="w-5 h-5 text-green-600" />
+          <h2 className="text-base font-semibold text-gray-900">Financial Summary</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-5">
+          <div className="bg-red-50 rounded-lg p-4 border border-red-100">
+            <div className="text-xs font-medium text-red-600 uppercase tracking-wide">Total Estimated Cost</div>
+            <div className="text-xl font-bold text-red-800 mt-1">{fmtCurrency(detail.totalEstimatedCost)}</div>
+          </div>
+          <div className="bg-green-50 rounded-lg p-4 border border-green-100">
+            <div className="text-xs font-medium text-green-600 uppercase tracking-wide">Total Estimated Revenue</div>
+            <div className="text-xl font-bold text-green-800 mt-1">{fmtCurrency(detail.totalEstimatedRevenue)}</div>
+          </div>
+          <div className={`rounded-lg p-4 border ${
+            detail.estimatedProfitMargin != null && detail.estimatedProfitMargin >= 0
+              ? 'bg-emerald-50 border-emerald-100' : 'bg-orange-50 border-orange-100'
+          }`}>
+            <div className={`text-xs font-medium uppercase tracking-wide ${
+              detail.estimatedProfitMargin != null && detail.estimatedProfitMargin >= 0
+                ? 'text-emerald-600' : 'text-orange-600'
+            }`}>Estimated Profit / Loss</div>
+            <div className={`text-xl font-bold mt-1 ${
+              detail.estimatedProfitMargin != null && detail.estimatedProfitMargin >= 0
+                ? 'text-emerald-800' : 'text-orange-800'
+            }`}>{fmtCurrency(detail.estimatedProfitMargin)}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Cargo Plans */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+          <Package className="w-5 h-5 text-blue-600" />
+          <h2 className="text-base font-semibold text-gray-900">Cargo Plans</h2>
+          <span className="ml-auto text-xs text-gray-400">{cargoPlans.length} item(s)</span>
+        </div>
+        {cargoPlans.length === 0 ? (
+          <div className="px-5 py-8 text-sm text-gray-400 text-center">No cargo plans defined.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600">
+                <tr>
+                  <th className="px-4 py-2 text-left">#</th>
+                  <th className="px-4 py-2 text-left">Operation</th>
+                  <th className="px-4 py-2 text-left">Cargo</th>
+                  <th className="px-4 py-2 text-right">Quantity</th>
+                  <th className="px-4 py-2 text-left">Port</th>
+                  <th className="px-4 py-2 text-left">Shipper / Consignee</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {cargoPlans.map(cp => (
+                  <tr key={cp.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 text-gray-500">{cp.sequence}</td>
+                    <td className="px-4 py-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        cp.operationType === 'LOADING' ? 'bg-blue-100 text-blue-700' :
+                        cp.operationType === 'DISCHARGING' ? 'bg-orange-100 text-orange-700' :
+                        'bg-purple-100 text-purple-700'
+                      }`}>{cp.operationType}</span>
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="font-medium text-gray-900">{cp.cargoType || '—'}</div>
+                      {cp.cargoDescription && <div className="text-xs text-gray-500">{cp.cargoDescription}</div>}
+                    </td>
+                    <td className="px-4 py-2 text-right whitespace-nowrap">
+                      {cp.plannedQuantity != null ? `${cp.plannedQuantity.toLocaleString()} ${cp.unit || ''}` : '—'}
+                    </td>
+                    <td className="px-4 py-2">{cp.portName || cp.portCode || '—'}</td>
+                    <td className="px-4 py-2 text-xs text-gray-600">
+                      {cp.shipperName && <div>S: {cp.shipperName}</div>}
+                      {cp.consigneeName && <div>C: {cp.consigneeName}</div>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Bunker Plans */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+          <Fuel className="w-5 h-5 text-amber-600" />
+          <h2 className="text-base font-semibold text-gray-900">Bunker Plans</h2>
+          <span className="ml-auto text-xs text-gray-400">{bunkerPlans.length} item(s)</span>
+        </div>
+        {bunkerPlans.length === 0 ? (
+          <div className="px-5 py-8 text-sm text-gray-400 text-center">No bunker plans defined.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600">
+                <tr>
+                  <th className="px-4 py-2 text-left">#</th>
+                  <th className="px-4 py-2 text-left">Fuel Type</th>
+                  <th className="px-4 py-2 text-left">Operation</th>
+                  <th className="px-4 py-2 text-right">Quantity (MT)</th>
+                  <th className="px-4 py-2 text-left">Port</th>
+                  <th className="px-4 py-2 text-right">Est. Cost</th>
+                  <th className="px-4 py-2 text-left">Supplier</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {bunkerPlans.map(bp => (
+                  <tr key={bp.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 text-gray-500">{bp.sequence}</td>
+                    <td className="px-4 py-2 font-medium">{bp.fuelType}</td>
+                    <td className="px-4 py-2">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                        {bp.operationType}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-right">{bp.plannedQuantity?.toLocaleString() ?? '—'}</td>
+                    <td className="px-4 py-2">{bp.portName || bp.portCode || '—'}</td>
+                    <td className="px-4 py-2 text-right">{bp.estimatedCostUsd != null ? `$${bp.estimatedCostUsd.toLocaleString()}` : '—'}</td>
+                    <td className="px-4 py-2 text-gray-600">{bp.supplierName || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Crew Change Plans */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+          <UserCheck className="w-5 h-5 text-indigo-600" />
+          <h2 className="text-base font-semibold text-gray-900">Crew Change Plans</h2>
+          <span className="ml-auto text-xs text-gray-400">{crewChangePlans.length} item(s)</span>
+        </div>
+        {crewChangePlans.length === 0 ? (
+          <div className="px-5 py-8 text-sm text-gray-400 text-center">No crew change plans defined.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600">
+                <tr>
+                  <th className="px-4 py-2 text-left">#</th>
+                  <th className="px-4 py-2 text-left">Change Type</th>
+                  <th className="px-4 py-2 text-left">Crew / Rank</th>
+                  <th className="px-4 py-2 text-left">Port</th>
+                  <th className="px-4 py-2 text-left">Planned Date</th>
+                  <th className="px-4 py-2 text-left">Reason</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {crewChangePlans.map(cc => (
+                  <tr key={cc.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 text-gray-500">{cc.sequence}</td>
+                    <td className="px-4 py-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        cc.changeType === 'EMBARK' ? 'bg-green-100 text-green-700' :
+                        cc.changeType === 'DISEMBARK' ? 'bg-red-100 text-red-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>{cc.changeType}</span>
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="font-medium text-gray-900">{cc.crewMemberName || '—'}</div>
+                      {cc.rankName && <div className="text-xs text-gray-500">{cc.rankName}</div>}
+                    </td>
+                    <td className="px-4 py-2">{cc.portName || cc.portCode || '—'}</td>
+                    <td className="px-4 py-2">{cc.plannedDate ? formatDateShort(cc.plannedDate) : '—'}</td>
+                    <td className="px-4 py-2 text-xs text-gray-600">{cc.replacementReason || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Cost & Revenue Estimates */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Cost Estimates */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-red-500" />
+            <h2 className="text-base font-semibold text-gray-900">Cost Estimates</h2>
+            <span className="ml-auto text-xs text-gray-400">{costEstimates.length} item(s)</span>
+          </div>
+          {costEstimates.length === 0 ? (
+            <div className="px-5 py-8 text-sm text-gray-400 text-center">No cost estimates.</div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {costEstimates.map(ce => (
+                <div key={ce.id} className="px-5 py-3 flex items-center justify-between">
+                  <div>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 mr-2">
+                      {ce.costCategory}
+                    </span>
+                    <span className="text-sm text-gray-800">{ce.description || '—'}</span>
+                  </div>
+                  <div className="text-sm font-semibold text-red-700 whitespace-nowrap">
+                    {ce.estimatedAmount.toLocaleString()} {ce.currency}
+                  </div>
+                </div>
+              ))}
+              <div className="px-5 py-3 flex items-center justify-between bg-red-50">
+                <span className="text-sm font-semibold text-red-800">TOTAL</span>
+                <span className="text-base font-bold text-red-800">
+                  {costEstimates.reduce((s, c) => s + c.estimatedAmount, 0).toLocaleString()} USD
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Revenue Estimates */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-green-500" />
+            <h2 className="text-base font-semibold text-gray-900">Revenue Estimates</h2>
+            <span className="ml-auto text-xs text-gray-400">{revenueEstimates.length} item(s)</span>
+          </div>
+          {revenueEstimates.length === 0 ? (
+            <div className="px-5 py-8 text-sm text-gray-400 text-center">No revenue estimates.</div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {revenueEstimates.map(re => (
+                <div key={re.id} className="px-5 py-3 flex items-center justify-between">
+                  <div>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 mr-2">
+                      {re.revenueCategory}
+                    </span>
+                    <span className="text-sm text-gray-800">{re.description || '—'}</span>
+                  </div>
+                  <div className="text-sm font-semibold text-green-700 whitespace-nowrap">
+                    {re.estimatedAmount.toLocaleString()} {re.currency}
+                  </div>
+                </div>
+              ))}
+              <div className="px-5 py-3 flex items-center justify-between bg-green-50">
+                <span className="text-sm font-semibold text-green-800">TOTAL</span>
+                <span className="text-base font-bold text-green-800">
+                  {revenueEstimates.reduce((s, r) => s + r.estimatedAmount, 0).toLocaleString()} USD
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// =============================================
 // Edit Voyage Modal
 // =============================================
+
+function PlanLegEditor({
+  planLegs,
+  onChange,
+  disabled,
+}: {
+  planLegs: UpsertVoyagePlanLegDto[]
+  onChange: (next: UpsertVoyagePlanLegDto[]) => void
+  disabled?: boolean
+}) {
+  const updateLeg = (index: number, patch: Partial<UpsertVoyagePlanLegDto>) => {
+    onChange(planLegs.map((leg, legIndex) => (legIndex === index ? { ...leg, ...patch } : leg)))
+  }
+
+  const addLeg = () => {
+    onChange([...planLegs, createEmptyPlanLeg(planLegs.length + 1)])
+  }
+
+  const removeLeg = (index: number) => {
+    onChange(planLegs.filter((_, legIndex) => legIndex !== index).map((leg, legIndex) => ({ ...leg, sequence: legIndex + 1 })))
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-sm font-medium text-gray-700">Planned Legs</div>
+          <div className="text-xs text-gray-500">Define the operational sequence for the voyage plan.</div>
+        </div>
+        {!disabled && (
+          <button
+            type="button"
+            onClick={addLeg}
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            <Plus className="w-4 h-4" /> Add Leg
+          </button>
+        )}
+      </div>
+
+      {planLegs.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500 text-center">
+          No planning legs defined.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {planLegs.map((leg, index) => (
+            <div key={`${leg.sequence}-${index}`} className="rounded-lg border border-gray-200 p-4 space-y-3 bg-gray-50/70">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-900">Leg {index + 1}</span>
+                  <span className="px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700">
+                    {PLAN_LEG_TYPE_LABELS[leg.legType || ''] || formatStatusLabel(leg.legType || 'SEA_PASSAGE')}
+                  </span>
+                </div>
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => removeLeg(index)}
+                    className="text-xs text-red-600 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Leg Type</label>
+                  <select
+                    value={leg.legType || 'SEA_PASSAGE'}
+                    onChange={e => updateLeg(index, { legType: e.target.value })}
+                    disabled={disabled}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                  >
+                    <option value="SEA_PASSAGE">Sea Passage</option>
+                    <option value="PORT_STAY">Port Stay</option>
+                    <option value="BUNKERING">Bunkering</option>
+                    <option value="CANAL_TRANSIT">Canal Transit</option>
+                    <option value="CREW_CHANGE">Crew Change</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">From Port Code</label>
+                  <input
+                    type="text"
+                    value={leg.fromPortCode || ''}
+                    onChange={e => updateLeg(index, { fromPortCode: e.target.value })}
+                    disabled={disabled}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">To Port Code</label>
+                  <input
+                    type="text"
+                    value={leg.toPortCode || ''}
+                    onChange={e => updateLeg(index, { toPortCode: e.target.value })}
+                    disabled={disabled}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Cargo Activity</label>
+                  <input
+                    type="text"
+                    value={leg.cargoActivity || ''}
+                    onChange={e => updateLeg(index, { cargoActivity: e.target.value })}
+                    disabled={disabled}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">From Port Name</label>
+                  <input
+                    type="text"
+                    value={leg.fromPortName || ''}
+                    onChange={e => updateLeg(index, { fromPortName: e.target.value })}
+                    disabled={disabled}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">To Port Name</label>
+                  <input
+                    type="text"
+                    value={leg.toPortName || ''}
+                    onChange={e => updateLeg(index, { toPortName: e.target.value })}
+                    disabled={disabled}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Planned Departure</label>
+                  <input
+                    type="datetime-local"
+                    value={toDateTimeLocalValue(leg.plannedDepartureTime)}
+                    onChange={e => updateLeg(index, { plannedDepartureTime: e.target.value || undefined })}
+                    disabled={disabled}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Planned Arrival</label>
+                  <input
+                    type="datetime-local"
+                    value={toDateTimeLocalValue(leg.plannedArrivalTime)}
+                    onChange={e => updateLeg(index, { plannedArrivalTime: e.target.value || undefined })}
+                    disabled={disabled}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Distance (NM)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={leg.plannedDistance ?? ''}
+                    onChange={e => updateLeg(index, { plannedDistance: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    disabled={disabled}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Duration (h)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={leg.plannedDurationHours ?? ''}
+                    onChange={e => updateLeg(index, { plannedDurationHours: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    disabled={disabled}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Avg Speed (kn)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={leg.plannedAverageSpeed ?? ''}
+                    onChange={e => updateLeg(index, { plannedAverageSpeed: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    disabled={disabled}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-sm text-gray-700 mt-6">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(leg.crewChangePlanned)}
+                    onChange={e => updateLeg(index, { crewChangePlanned: e.target.checked })}
+                    disabled={disabled}
+                  />
+                  Crew change
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700 mt-6">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(leg.bunkerSupplyPlanned)}
+                    onChange={e => updateLeg(index, { bunkerSupplyPlanned: e.target.checked })}
+                    disabled={disabled}
+                  />
+                  Bunker supply
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+                <textarea
+                  rows={2}
+                  value={leg.notes || ''}
+                  onChange={e => updateLeg(index, { notes: e.target.value })}
+                  disabled={disabled}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState<UpdateVoyageDto>({
@@ -1697,19 +2501,46 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
     previousPortCode: detail.previousPortCode,
     previousPortName: detail.previousPortName,
     cargoType: detail.cargoType,
+    charterType: detail.charterType,
     cargoWeight: detail.cargoWeight,
+    plannedDistance: detail.plannedDistance,
+    plannedDurationHours: detail.plannedDurationHours,
+    plannedAverageSpeed: detail.plannedAverageSpeed,
+    plannedFuelConsumption: detail.plannedFuelConsumption,
+    voyageInstructions: detail.voyageInstructions,
     distanceTraveled: detail.distanceTraveled,
     fuelConsumed: detail.fuelConsumed,
     averageSpeed: detail.averageSpeed,
     voyageStatus: detail.voyageStatus,
   })
+  const [planLegs, setPlanLegs] = useState<UpsertVoyagePlanLegDto[]>(
+    detail.planLegs?.map(leg => ({
+      sequence: leg.sequence,
+      legType: leg.legType,
+      fromPortCode: leg.fromPortCode,
+      fromPortName: leg.fromPortName,
+      toPortCode: leg.toPortCode,
+      toPortName: leg.toPortName,
+      plannedDepartureTime: leg.plannedDepartureTime,
+      plannedArrivalTime: leg.plannedArrivalTime,
+      plannedDistance: leg.plannedDistance,
+      plannedDurationHours: leg.plannedDurationHours,
+      plannedAverageSpeed: leg.plannedAverageSpeed,
+      cargoActivity: leg.cargoActivity,
+      crewChangePlanned: leg.crewChangePlanned,
+      bunkerSupplyPlanned: leg.bunkerSupplyPlanned,
+      notes: leg.notes,
+    })) || [],
+  )
   const [ports, setPorts] = useState<Port[]>([])
   const [saving, setSaving] = useState(false)
 
   const currentStatus = detail.voyageStatus
   const isReadOnly = READ_ONLY_STATUSES.has(currentStatus)
   const isLimited = LIMITED_EDIT_STATUSES.has(currentStatus)
+  const canEditPlanning = isVoyageFullyEditable(currentStatus)
   const validStatuses = getValidNextStatuses(currentStatus)
+  const selectedStatus = form.voyageStatus || currentStatus
 
   useEffect(() => {
     if (!isReadOnly) {
@@ -1731,8 +2562,14 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
   const handleSave = async () => {
     try {
       setSaving(true)
-      // If read-only status, only send status change
-      const payload = isReadOnly ? { voyageStatus: form.voyageStatus } : form
+      const payload: UpdateVoyageDto = isReadOnly
+        ? { voyageStatus: form.voyageStatus }
+        : {
+            ...form,
+            departureTime: normalizeDateTimeForApi(form.departureTime),
+            arrivalTime: normalizeDateTimeForApi(form.arrivalTime),
+            planLegs: canEditPlanning ? normalizePlanLegs(planLegs) : undefined,
+          }
       await voyageMgmtService.voyages.update(detail.id, payload)
       toast.success('Voyage updated')
       onSaved()
@@ -1745,24 +2582,48 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">{isReadOnly ? 'Change Status' : 'Edit Voyage'} — {detail.voyageNumber}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-4 space-y-4">
-          {/* Status */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Voyage Status</label>
-            <select value={form.voyageStatus || currentStatus} onChange={e => setForm({ ...form, voyageStatus: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-              {validStatuses.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-            {isReadOnly && validStatuses.length <= 1 && (
-              <p className="text-xs text-gray-500 mt-1">This voyage is in a final state. No status transitions available.</p>
-            )}
+          <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div className="space-y-2">
+                <div className="text-sm font-semibold text-gray-900">Lifecycle Control</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[currentStatus] || 'bg-gray-100 text-gray-700'}`}>
+                    Current: {formatStatusLabel(currentStatus)}
+                  </span>
+                  {selectedStatus !== currentStatus && (
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[selectedStatus] || 'bg-gray-100 text-gray-700'}`}>
+                      Next: {formatStatusLabel(selectedStatus)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600 max-w-2xl">{STATUS_DESCRIPTIONS[currentStatus]}</p>
+                <div className="flex flex-wrap gap-2">
+                  {validStatuses.map(status => (
+                    <span key={status} className={`px-2 py-1 rounded-full text-xs font-medium border ${status === currentStatus ? 'border-gray-300 bg-white text-gray-700' : 'border-blue-200 bg-blue-100 text-blue-800'}`}>
+                      {formatStatusLabel(status)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="min-w-[240px]">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Voyage Status</label>
+                <select value={selectedStatus} onChange={e => setForm({ ...form, voyageStatus: e.target.value as VoyageStatus })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white">
+                  {validStatuses.map(s => (
+                    <option key={s} value={s}>{formatStatusLabel(s)}</option>
+                  ))}
+                </select>
+                {isReadOnly && validStatuses.length <= 1 && (
+                  <p className="text-xs text-gray-500 mt-1">This voyage is in a final state. No status transitions available.</p>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Only show editable fields if NOT read-only */}
@@ -1778,7 +2639,7 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
                 <option value="">-- Select --</option>
                 {ports.map(p => <option key={p.id} value={p.portCode}>{p.portCode} — {p.portName}</option>)}
               </select>
-              {isLimited && <p className="text-xs text-gray-400 mt-0.5">Locked while UNDERWAY</p>}
+              {isLimited && <p className="text-xs text-gray-400 mt-0.5">Locked once voyage is underway or arrived</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Arrival Port</label>
@@ -1802,22 +2663,21 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Departure Time</label>
-              <input type="datetime-local" value={form.departureTime?.slice(0, 16) || ''}
+              <input type="datetime-local" value={toDateTimeLocalValue(form.departureTime)}
                 onChange={e => setForm({ ...form, departureTime: e.target.value || undefined })}
                 disabled={isLimited}
                 className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${isLimited ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
-              {isLimited && <p className="text-xs text-gray-400 mt-0.5">Locked while UNDERWAY</p>}
+              {isLimited && <p className="text-xs text-gray-400 mt-0.5">Locked once voyage is underway or arrived</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Arrival Time</label>
-              <input type="datetime-local" value={form.arrivalTime?.slice(0, 16) || ''}
+              <input type="datetime-local" value={toDateTimeLocalValue(form.arrivalTime)}
                 onChange={e => setForm({ ...form, arrivalTime: e.target.value || undefined })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>
 
-          {/* Cargo */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Cargo Type</label>
               <input type="text" value={form.cargoType || ''} onChange={e => setForm({ ...form, cargoType: e.target.value })}
@@ -1828,6 +2688,64 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
               <input type="number" step="0.01" value={form.cargoWeight ?? ''} onChange={e => setForm({ ...form, cargoWeight: e.target.value ? parseFloat(e.target.value) : undefined })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Charter Type</label>
+              <select value={form.charterType || ''} onChange={e => setForm({ ...form, charterType: (e.target.value || undefined) as VoyageCharterType | undefined })}
+                disabled={!canEditPlanning}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${!canEditPlanning ? 'bg-gray-100 cursor-not-allowed' : ''}`}>
+                <option value="">-- Select --</option>
+                <option value="VOYAGE_CHARTER">Voyage Charter</option>
+                <option value="TIME_CHARTER">Time Charter</option>
+                <option value="TIME_CHARTER_TRIP">Time Charter Trip</option>
+                <option value="CONTRACT_OF_AFFREIGHTMENT">Contract of Affreightment</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 p-4 space-y-4">
+            <div>
+              <div className="text-sm font-semibold text-gray-900">Planning Metrics</div>
+              <div className="text-xs text-gray-500 mt-1">These values define the approved voyage plan baseline for later comparison.</div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Distance (NM)</label>
+                <input type="number" step="0.1" value={form.plannedDistance ?? ''} onChange={e => setForm({ ...form, plannedDistance: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  disabled={!canEditPlanning}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${!canEditPlanning ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Duration (h)</label>
+                <input type="number" step="0.1" value={form.plannedDurationHours ?? ''} onChange={e => setForm({ ...form, plannedDurationHours: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  disabled={!canEditPlanning}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${!canEditPlanning ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Avg Speed (kn)</label>
+                <input type="number" step="0.1" value={form.plannedAverageSpeed ?? ''} onChange={e => setForm({ ...form, plannedAverageSpeed: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  disabled={!canEditPlanning}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${!canEditPlanning ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Fuel (MT)</label>
+                <input type="number" step="0.01" value={form.plannedFuelConsumption ?? ''} onChange={e => setForm({ ...form, plannedFuelConsumption: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  disabled={!canEditPlanning}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${!canEditPlanning ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Voyage Instructions</label>
+              <textarea rows={3} value={form.voyageInstructions || ''} onChange={e => setForm({ ...form, voyageInstructions: e.target.value })}
+                disabled={!canEditPlanning}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${!canEditPlanning ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
+            </div>
+            {!canEditPlanning && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Planning baseline is locked after READY. Use the lifecycle timeline and plan leg display for reference only.
+              </p>
+            )}
+            <PlanLegEditor planLegs={planLegs} onChange={setPlanLegs} disabled={!canEditPlanning} />
           </div>
 
           {/* Performance */}
@@ -1853,7 +2771,7 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-xl">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100">Cancel</button>
-          <button onClick={handleSave} disabled={saving || (isReadOnly && form.voyageStatus === currentStatus)} className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+          <button onClick={handleSave} disabled={saving || (isReadOnly && selectedStatus === currentStatus)} className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
             <Check className="w-4 h-4" /> {saving ? 'Saving...' : isReadOnly ? 'Change Status' : 'Save Changes'}
           </button>
         </div>
@@ -1869,7 +2787,9 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
 function CreateVoyageModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
   const [form, setForm] = useState<CreateVoyageDto>({
     voyageNumber: '',
+    voyageStatus: 'PLANNING',
   })
+  const [planLegs, setPlanLegs] = useState<UpsertVoyagePlanLegDto[]>([])
   const [ports, setPorts] = useState<Port[]>([])
   const [saving, setSaving] = useState(false)
   const [loadingNumber, setLoadingNumber] = useState(false)
@@ -1899,7 +2819,13 @@ function CreateVoyageModal({ onClose, onCreated }: { onClose: () => void; onCrea
     if (!form.voyageNumber) { toast.error('Voyage number is required'); return }
     try {
       setSaving(true)
-      const result = await voyageMgmtService.voyages.create(form)
+      const payload: CreateVoyageDto = {
+        ...form,
+        departureTime: normalizeDateTimeForApi(form.departureTime),
+        arrivalTime: normalizeDateTimeForApi(form.arrivalTime),
+        planLegs: normalizePlanLegs(planLegs),
+      }
+      const result = await voyageMgmtService.voyages.create(payload)
       toast.success(`Voyage ${form.voyageNumber} created`)
       onCreated(result.id)
     } catch (err: any) {
@@ -1911,12 +2837,20 @@ function CreateVoyageModal({ onClose, onCreated }: { onClose: () => void; onCrea
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Create New Voyage</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-4 space-y-4">
+          <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+            <div className="text-sm font-semibold text-gray-900">Initial Lifecycle State</div>
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS.PLANNING}`}>Planning</span>
+              <span className="text-sm text-gray-600">New voyages should start in PLANNING, then move through APPROVED and READY before commencement.</span>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Voyage Number <span className="text-red-500">*</span></label>
             <div className="flex gap-2">
@@ -1959,8 +2893,8 @@ function CreateVoyageModal({ onClose, onCreated }: { onClose: () => void; onCrea
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Departure Time</label>
             <input type="datetime-local"
-              value={form.departureTime?.slice(0, 16) || ''}
-              onChange={e => setForm({ ...form, departureTime: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+              value={toDateTimeLocalValue(form.departureTime)}
+              onChange={e => setForm({ ...form, departureTime: e.target.value || undefined })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
           </div>
 
@@ -2008,6 +2942,53 @@ function CreateVoyageModal({ onClose, onCreated }: { onClose: () => void; onCrea
               <input type="number" step="0.01" value={form.cargoWeight ?? ''} onChange={e => setForm({ ...form, cargoWeight: e.target.value ? parseFloat(e.target.value) : undefined })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
             </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 p-4 space-y-4">
+            <div>
+              <div className="text-sm font-semibold text-gray-900">Planning Baseline</div>
+              <div className="text-xs text-gray-500 mt-1">Capture the commercial and operational plan before execution starts.</div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Charter Type</label>
+                <select value={form.charterType || ''} onChange={e => setForm({ ...form, charterType: (e.target.value || undefined) as VoyageCharterType | undefined })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                  <option value="">-- Select --</option>
+                  <option value="VOYAGE_CHARTER">Voyage Charter</option>
+                  <option value="TIME_CHARTER">Time Charter</option>
+                  <option value="TIME_CHARTER_TRIP">Time Charter Trip</option>
+                  <option value="CONTRACT_OF_AFFREIGHTMENT">Contract of Affreightment</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Distance</label>
+                <input type="number" step="0.1" value={form.plannedDistance ?? ''} onChange={e => setForm({ ...form, plannedDistance: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Duration (h)</label>
+                <input type="number" step="0.1" value={form.plannedDurationHours ?? ''} onChange={e => setForm({ ...form, plannedDurationHours: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Avg Speed</label>
+                <input type="number" step="0.1" value={form.plannedAverageSpeed ?? ''} onChange={e => setForm({ ...form, plannedAverageSpeed: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Fuel (MT)</label>
+                <input type="number" step="0.01" value={form.plannedFuelConsumption ?? ''} onChange={e => setForm({ ...form, plannedFuelConsumption: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Voyage Instructions</label>
+              <textarea rows={3} value={form.voyageInstructions || ''} onChange={e => setForm({ ...form, voyageInstructions: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <PlanLegEditor planLegs={planLegs} onChange={setPlanLegs} />
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-xl">

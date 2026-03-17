@@ -246,8 +246,8 @@ export const VesselDetailPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const handleChange = useCallback((field: keyof Vessel, value: Vessel[keyof Vessel]) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleChange = useCallback((field: keyof Vessel, value: string | number | boolean | Date | null | undefined) => {
+    setFormData(prev => ({ ...prev, [field]: value as Vessel[keyof Vessel] }));
     setIsDirty(true);
   }, []);
 

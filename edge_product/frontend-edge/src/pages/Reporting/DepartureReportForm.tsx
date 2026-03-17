@@ -3,9 +3,11 @@
  * SOLAS Compliant - Port Departure Notification
  */
 
-import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Anchor, MapPin, Save, Send, Ship, User } from 'lucide-react';
+import { useCurrentAccountName } from '../../hooks/useCurrentAccountName';
+import { maritimeService } from '../../services/maritime.service';
 import { ReportingService } from '../../services/reporting.service';
 import type { CreateDepartureReportDto } from '../../types/reporting.types';
 import {
@@ -23,22 +25,32 @@ const DEPARTURE_FIELD_NAME_MAP: Record<string, string> = {
   DepartureDateTime: 'departureDateTime',
   PilotOffTime: 'pilotOffTime',
   LastLineLetGoTime: 'lastLineLetGoTime',
+  DepartureLatitude: 'departureLatitude',
+  DepartureLongitude: 'departureLongitude',
   DraftForward: 'draftForward',
   DraftAft: 'draftAft',
   DraftMidship: 'draftMidship',
   FuelOilROB: 'fuelOilROB',
   DieselOilROB: 'dieselOilROB',
+  LubOilROB: 'lubOilROB',
+  FreshWaterROB: 'freshWaterROB',
   CargoOnBoard: 'cargoOnBoard',
   CrewOnBoard: 'crewOnBoard',
   PassengersOnBoard: 'passengersOnBoard',
   DestinationPort: 'destinationPort',
+  NextPortCode: 'nextPortCode',
+  DistanceToNextPort: 'distanceToNextPort',
   EstimatedArrival: 'estimatedArrival',
   PreparedBy: 'preparedBy',
 };
 
 export function DepartureReportForm() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = !!id;
+  const currentAccountName = useCurrentAccountName();
   const [loading, setLoading] = useState(false);
+  const [loadingReport, setLoadingReport] = useState(isEditMode);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const fieldRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null>>({});
@@ -51,6 +63,91 @@ export function DepartureReportForm() {
     draftForward: 0,
     draftAft: 0,
   });
+
+  useEffect(() => {
+    if (isEditMode || formData.voyageId) {
+      return;
+    }
+
+    const loadCurrentVoyage = async () => {
+      try {
+        const voyage = await maritimeService.voyage.getCurrent();
+        if (voyage?.id) {
+          setFormData((prev) => {
+            if (prev.voyageId) {
+              return prev;
+            }
+
+            return { ...prev, voyageId: String(voyage.id) };
+          });
+        }
+      } catch {
+        // Leave voyage selection/manual entry available when no active voyage exists.
+      }
+    };
+
+    void loadCurrentVoyage();
+  }, [isEditMode, formData.voyageId]);
+
+  useEffect(() => {
+    if (isEditMode || !currentAccountName || formData.preparedBy?.trim()) {
+      return;
+    }
+
+    setFormData((prev) => {
+      if (prev.preparedBy?.trim()) {
+        return prev;
+      }
+
+      return { ...prev, preparedBy: currentAccountName };
+    });
+  }, [currentAccountName, formData.preparedBy, isEditMode]);
+
+  useEffect(() => {
+    if (!isEditMode || !id) {
+      return;
+    }
+
+    const loadReport = async () => {
+      try {
+        setLoadingReport(true);
+        const report = await ReportingService.getDepartureReport(id);
+        setFormData({
+          departureDateTime: report.departureDateTime.slice(0, 16),
+          voyageId: report.voyageId,
+          portName: report.portName,
+          portCode: report.portCode,
+          pilotOffTime: report.pilotOffTime ? report.pilotOffTime.slice(11, 16) : undefined,
+          lastLineLetGoTime: report.lastLineLetGoTime ? report.lastLineLetGoTime.slice(11, 16) : undefined,
+          departureLatitude: report.departureLatitude,
+          departureLongitude: report.departureLongitude,
+          draftForward: report.draftForward,
+          draftAft: report.draftAft,
+          draftMidship: report.draftMidship,
+          fuelOilROB: report.fuelOilROB,
+          dieselOilROB: report.dieselOilROB,
+          lubOilROB: report.lubOilROB,
+          freshWaterROB: report.freshWaterROB,
+          cargoOnBoard: report.cargoOnBoard,
+          cargoDescription: report.cargoDescription,
+          crewOnBoard: report.crewOnBoard,
+          passengersOnBoard: report.passengersOnBoard,
+          destinationPort: report.destinationPort,
+          nextPortCode: report.nextPortCode,
+          distanceToNextPort: report.distanceToNextPort,
+          estimatedArrival: report.estimatedArrival ? report.estimatedArrival.slice(0, 16) : undefined,
+          remarks: report.remarks,
+          preparedBy: report.preparedBy,
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load departure report');
+      } finally {
+        setLoadingReport(false);
+      }
+    };
+
+    void loadReport();
+  }, [id, isEditMode]);
 
   const handleChange = (field: keyof CreateDepartureReportDto, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -73,6 +170,18 @@ export function DepartureReportForm() {
     }
   };
 
+  const combineWithDepartureDate = (timeValue?: string) => {
+    if (!timeValue) {
+      return undefined;
+    }
+
+    if (timeValue.includes('T')) {
+      return timeValue;
+    }
+
+    return `${formData.departureDateTime.slice(0, 10)}T${timeValue}`;
+  };
+
   const mapValidationMessageToField = (message: string): string | null => {
     const normalized = message.toLowerCase();
 
@@ -82,11 +191,17 @@ export function DepartureReportForm() {
     if (normalized.includes('draft forward')) return 'draftForward';
     if (normalized.includes('draft aft')) return 'draftAft';
     if (normalized.includes('draft midship')) return 'draftMidship';
+    if (normalized.includes('departure latitude')) return 'departureLatitude';
+    if (normalized.includes('departure longitude')) return 'departureLongitude';
     if (normalized.includes('fuel oil rob')) return 'fuelOilROB';
     if (normalized.includes('diesel oil rob')) return 'dieselOilROB';
+    if (normalized.includes('lub oil rob')) return 'lubOilROB';
+    if (normalized.includes('fresh water rob')) return 'freshWaterROB';
     if (normalized.includes('cargo on board')) return 'cargoOnBoard';
     if (normalized.includes('crew on board')) return 'crewOnBoard';
     if (normalized.includes('passengers on board')) return 'passengersOnBoard';
+    if (normalized.includes('next port code')) return 'nextPortCode';
+    if (normalized.includes('distance to next port')) return 'distanceToNextPort';
     if (normalized.includes('prepared by')) return 'preparedBy';
 
     return null;
@@ -115,6 +230,14 @@ export function DepartureReportForm() {
       nextFieldErrors.draftMidship = 'Draft midship cannot be negative';
     }
 
+    if (formData.departureLatitude !== undefined && (formData.departureLatitude < -90 || formData.departureLatitude > 90)) {
+      nextFieldErrors.departureLatitude = 'Departure latitude must be between -90 and 90 degrees';
+    }
+
+    if (formData.departureLongitude !== undefined && (formData.departureLongitude < -180 || formData.departureLongitude > 180)) {
+      nextFieldErrors.departureLongitude = 'Departure longitude must be between -180 and 180 degrees';
+    }
+
     if (formData.fuelOilROB !== undefined && formData.fuelOilROB < 0) {
       nextFieldErrors.fuelOilROB = 'Fuel Oil ROB cannot be negative';
     }
@@ -123,8 +246,20 @@ export function DepartureReportForm() {
       nextFieldErrors.dieselOilROB = 'Diesel Oil ROB cannot be negative';
     }
 
+    if (formData.lubOilROB !== undefined && formData.lubOilROB < 0) {
+      nextFieldErrors.lubOilROB = 'Lub Oil ROB cannot be negative';
+    }
+
+    if (formData.freshWaterROB !== undefined && formData.freshWaterROB < 0) {
+      nextFieldErrors.freshWaterROB = 'Fresh water ROB cannot be negative';
+    }
+
     if (formData.cargoOnBoard !== undefined && formData.cargoOnBoard < 0) {
       nextFieldErrors.cargoOnBoard = 'Cargo on board cannot be negative';
+    }
+
+    if (formData.distanceToNextPort !== undefined && formData.distanceToNextPort < 0) {
+      nextFieldErrors.distanceToNextPort = 'Distance to next port cannot be negative';
     }
 
     if (formData.crewOnBoard !== undefined && formData.crewOnBoard < 0) {
@@ -158,12 +293,20 @@ export function DepartureReportForm() {
       const cleanedData = {
         ...formData,
         voyageId: formData.voyageId && formData.voyageId.trim() !== '' ? formData.voyageId : undefined,
+        pilotOffTime: combineWithDepartureDate(formData.pilotOffTime),
+        lastLineLetGoTime: combineWithDepartureDate(formData.lastLineLetGoTime),
       };
 
-      const report = await ReportingService.createDepartureReport(cleanedData);
-
-      if (!asDraft) {
-        await ReportingService.submitReport(report.reportId);
+      if (isEditMode && id) {
+        await ReportingService.updateDepartureReport(id, cleanedData);
+        if (!asDraft) {
+          await ReportingService.submitReport(id);
+        }
+      } else {
+        const report = await ReportingService.createDepartureReport(cleanedData);
+        if (!asDraft) {
+          await ReportingService.submitReport(report.reportId);
+        }
       }
 
       navigate('/reporting/reports');
@@ -180,12 +323,20 @@ export function DepartureReportForm() {
     }
   };
 
+  if (loadingReport) {
+    return (
+      <div className="p-6 max-w-5xl mx-auto flex items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
           <Anchor className="h-8 w-8 text-blue-600" />
-          Departure Report
+          {isEditMode ? 'Edit Departure Report' : 'Departure Report'}
         </h1>
         <p className="text-gray-600 mt-2">SOLAS Compliant Port Departure Notification</p>
       </div>
@@ -297,6 +448,38 @@ export function DepartureReportForm() {
               {renderValidationFieldError(fieldErrors, 'lastLineLetGoTime')}
             </div>
           </div>
+
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Departure Latitude</label>
+              <input
+                ref={setFieldRef('departureLatitude')}
+                type="number"
+                step="0.000001"
+                value={formData.departureLatitude ?? ''}
+                onChange={(e) => handleChange('departureLatitude', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                className={getValidationInputClassName(fieldErrors, 'departureLatitude')}
+                min="-90"
+                max="90"
+              />
+              {renderValidationFieldError(fieldErrors, 'departureLatitude')}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Departure Longitude</label>
+              <input
+                ref={setFieldRef('departureLongitude')}
+                type="number"
+                step="0.000001"
+                value={formData.departureLongitude ?? ''}
+                onChange={(e) => handleChange('departureLongitude', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                className={getValidationInputClassName(fieldErrors, 'departureLongitude')}
+                min="-180"
+                max="180"
+              />
+              {renderValidationFieldError(fieldErrors, 'departureLongitude')}
+            </div>
+          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
@@ -405,12 +588,40 @@ export function DepartureReportForm() {
               />
               {renderValidationFieldError(fieldErrors, 'dieselOilROB')}
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Lub Oil ROB</label>
+              <input
+                ref={setFieldRef('lubOilROB')}
+                type="number"
+                step="0.1"
+                value={formData.lubOilROB ?? ''}
+                onChange={(e) => handleChange('lubOilROB', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                className={getValidationInputClassName(fieldErrors, 'lubOilROB')}
+                min="0"
+              />
+              {renderValidationFieldError(fieldErrors, 'lubOilROB')}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Fresh Water ROB</label>
+              <input
+                ref={setFieldRef('freshWaterROB')}
+                type="number"
+                step="0.1"
+                value={formData.freshWaterROB ?? ''}
+                onChange={(e) => handleChange('freshWaterROB', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                className={getValidationInputClassName(fieldErrors, 'freshWaterROB')}
+                min="0"
+              />
+              {renderValidationFieldError(fieldErrors, 'freshWaterROB')}
+            </div>
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Destination Port</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Destination Port</label>
               <input
@@ -421,6 +632,33 @@ export function DepartureReportForm() {
                 className={getValidationInputClassName(fieldErrors, 'destinationPort')}
               />
               {renderValidationFieldError(fieldErrors, 'destinationPort')}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Next Port Code</label>
+              <input
+                type="text"
+                value={formData.nextPortCode || ''}
+                onChange={(e) => handleChange('nextPortCode', e.target.value || undefined)}
+                placeholder="UN/LOCODE"
+                className={getValidationInputClassName(fieldErrors, 'nextPortCode')}
+                maxLength={10}
+              />
+              {renderValidationFieldError(fieldErrors, 'nextPortCode')}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Distance To Next Port (nm)</label>
+              <input
+                ref={setFieldRef('distanceToNextPort')}
+                type="number"
+                step="0.1"
+                value={formData.distanceToNextPort ?? ''}
+                onChange={(e) => handleChange('distanceToNextPort', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                className={getValidationInputClassName(fieldErrors, 'distanceToNextPort')}
+                min="0"
+              />
+              {renderValidationFieldError(fieldErrors, 'distanceToNextPort')}
             </div>
 
             <div>
@@ -481,7 +719,7 @@ export function DepartureReportForm() {
             disabled={loading}
           >
             <Save className="h-4 w-4" />
-            Save as Draft
+            {isEditMode ? 'Update Draft' : 'Save as Draft'}
           </button>
 
           <button
@@ -495,7 +733,7 @@ export function DepartureReportForm() {
             ) : (
               <Send className="h-4 w-4" />
             )}
-            Submit Report
+            {isEditMode ? 'Update & Submit' : 'Submit Report'}
           </button>
         </div>
       </form>

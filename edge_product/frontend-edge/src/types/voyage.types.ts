@@ -170,6 +170,73 @@ export interface BulkAssignCrewDto {
 
 // ========== VOYAGE (Extended) ==========
 
+export type VoyageStatus =
+  | 'PLANNING'
+  | 'APPROVED'
+  | 'READY'
+  | 'UNDERWAY'
+  | 'ARRIVED'
+  | 'COMPLETED'
+  | 'CANCELLED'
+
+export type VoyageCharterType =
+  | 'VOYAGE_CHARTER'
+  | 'TIME_CHARTER'
+  | 'TIME_CHARTER_TRIP'
+  | 'CONTRACT_OF_AFFREIGHTMENT'
+  | 'OTHER'
+
+export interface VoyagePlanLeg {
+  id: string
+  voyageId: string
+  sequence: number
+  legType: string
+  fromPortCode?: string
+  fromPortName?: string
+  toPortCode?: string
+  toPortName?: string
+  plannedDepartureTime?: string
+  plannedArrivalTime?: string
+  plannedDistance?: number
+  plannedDurationHours?: number
+  plannedAverageSpeed?: number
+  plannedFuelConsumption?: number
+  cargoActivity?: string
+  crewChangePlanned: boolean
+  bunkerSupplyPlanned: boolean
+  weatherRoutingNotes?: string
+  notes?: string
+}
+
+export interface UpsertVoyagePlanLegDto {
+  sequence: number
+  legType: string
+  fromPortCode?: string
+  fromPortName?: string
+  toPortCode?: string
+  toPortName?: string
+  plannedDepartureTime?: string
+  plannedArrivalTime?: string
+  plannedDistance?: number
+  plannedDurationHours?: number
+  plannedAverageSpeed?: number
+  plannedFuelConsumption?: number
+  cargoActivity?: string
+  crewChangePlanned?: boolean
+  bunkerSupplyPlanned?: boolean
+  weatherRoutingNotes?: string
+  notes?: string
+}
+
+export interface VoyageStatusHistory {
+  id: string
+  fromStatus?: string
+  toStatus: string
+  changedBy: string
+  notes?: string
+  changedAt: string
+}
+
 export interface VoyageDetail {
   id: string   // Guid
   voyageNumber: string
@@ -192,18 +259,42 @@ export interface VoyageDetail {
   
   // Performance
   cargoType?: string
+  charterType?: VoyageCharterType
   cargoWeight?: number
+  plannedDistance?: number
+  plannedDurationHours?: number
+  plannedAverageSpeed?: number
+  plannedFuelConsumption?: number
+  voyageInstructions?: string
   distanceTraveled?: number
   fuelConsumed?: number
   averageSpeed?: number
-  voyageStatus: string
+  voyageStatus: VoyageStatus
+  approvedAt?: string
+  readyAt?: string
+  commencedAt?: string
+  arrivedAt?: string
+  completedAt?: string
+  cancelledAt?: string
   
   createdAt: string
   updatedAt: string
   
+  // Financial summary
+  totalEstimatedCost?: number
+  totalEstimatedRevenue?: number
+  estimatedProfitMargin?: number
+  
   // Related data
   portCalls: PortCall[]
   crewAssignments: VoyageCrewAssignment[]
+  planLegs: VoyagePlanLeg[]
+  statusHistory: VoyageStatusHistory[]
+  cargoPlans: VoyageCargoPlan[]
+  bunkerPlans: VoyageBunkerPlan[]
+  crewChangePlans: VoyageCrewChangePlan[]
+  costEstimates: VoyageCostEstimate[]
+  revenueEstimates: VoyageRevenueEstimate[]
   logEntryCount: number
   cargoOperationCount: number
 }
@@ -219,7 +310,20 @@ export interface CreateVoyageDto {
   previousPortCode?: string
   previousPortName?: string
   cargoType?: string
+  charterType?: VoyageCharterType
   cargoWeight?: number
+  plannedDistance?: number
+  plannedDurationHours?: number
+  plannedAverageSpeed?: number
+  plannedFuelConsumption?: number
+  voyageInstructions?: string
+  voyageStatus?: VoyageStatus
+  planLegs?: UpsertVoyagePlanLegDto[]
+  cargoPlans?: UpsertVoyageCargoPlanDto[]
+  bunkerPlans?: UpsertVoyageBunkerPlanDto[]
+  crewChangePlans?: UpsertVoyageCrewChangePlanDto[]
+  costEstimates?: UpsertVoyageCostEstimateDto[]
+  revenueEstimates?: UpsertVoyageRevenueEstimateDto[]
 }
 
 export interface UpdateVoyageDto {
@@ -233,11 +337,164 @@ export interface UpdateVoyageDto {
   previousPortCode?: string
   previousPortName?: string
   cargoType?: string
+  charterType?: VoyageCharterType
   cargoWeight?: number
+  plannedDistance?: number
+  plannedDurationHours?: number
+  plannedAverageSpeed?: number
+  plannedFuelConsumption?: number
+  voyageInstructions?: string
   distanceTraveled?: number
   fuelConsumed?: number
   averageSpeed?: number
-  voyageStatus?: string
+  voyageStatus?: VoyageStatus
+  planLegs?: UpsertVoyagePlanLegDto[]
+  cargoPlans?: UpsertVoyageCargoPlanDto[]
+  bunkerPlans?: UpsertVoyageBunkerPlanDto[]
+  crewChangePlans?: UpsertVoyageCrewChangePlanDto[]
+  costEstimates?: UpsertVoyageCostEstimateDto[]
+  revenueEstimates?: UpsertVoyageRevenueEstimateDto[]
+}
+
+// ========== PHASE 2: VOYAGE PLANNING SUB-ENTITIES ==========
+
+export type CargoPlanOperationType = 'LOADING' | 'DISCHARGING' | 'TRANSSHIPMENT'
+export type BunkerFuelType = 'HFO' | 'VLSFO' | 'MGO' | 'MDO' | 'LNG'
+export type BunkerOperationType = 'SUPPLY' | 'TRANSFER'
+export type CrewChangeType = 'EMBARK' | 'DISEMBARK' | 'ROTATION'
+export type CostCategory = 'FUEL' | 'PORT_CHARGES' | 'CANAL_FEES' | 'CREW' | 'SUPPLIES' | 'INSURANCE' | 'BROKERAGE' | 'MISC'
+export type RevenueCategory = 'FREIGHT' | 'DEMURRAGE' | 'DISPATCH' | 'DEADFREIGHT' | 'MISC'
+
+export interface VoyageCargoPlan {
+  id: string
+  voyageId: string
+  planLegId?: string
+  sequence: number
+  operationType: CargoPlanOperationType
+  cargoType?: string
+  cargoDescription?: string
+  plannedQuantity?: number
+  unit?: string
+  portCode?: string
+  portName?: string
+  shipperName?: string
+  consigneeName?: string
+  specialRequirements?: string
+  notes?: string
+}
+
+export interface UpsertVoyageCargoPlanDto {
+  planLegId?: string
+  sequence: number
+  operationType: string
+  cargoType?: string
+  cargoDescription?: string
+  plannedQuantity?: number
+  unit?: string
+  portCode?: string
+  portName?: string
+  shipperName?: string
+  consigneeName?: string
+  specialRequirements?: string
+  notes?: string
+}
+
+export interface VoyageBunkerPlan {
+  id: string
+  voyageId: string
+  planLegId?: string
+  sequence: number
+  fuelType: BunkerFuelType
+  plannedQuantity?: number
+  operationType: BunkerOperationType
+  portCode?: string
+  portName?: string
+  estimatedCostUsd?: number
+  supplierName?: string
+  notes?: string
+}
+
+export interface UpsertVoyageBunkerPlanDto {
+  planLegId?: string
+  sequence: number
+  fuelType: string
+  plannedQuantity?: number
+  operationType: string
+  portCode?: string
+  portName?: string
+  estimatedCostUsd?: number
+  supplierName?: string
+  notes?: string
+}
+
+export interface VoyageCrewChangePlan {
+  id: string
+  voyageId: string
+  planLegId?: string
+  sequence: number
+  crewMemberId?: string
+  crewMemberName?: string
+  rankId?: number
+  rankName?: string
+  changeType: CrewChangeType
+  portCode?: string
+  portName?: string
+  plannedDate?: string
+  replacementReason?: string
+  notes?: string
+}
+
+export interface UpsertVoyageCrewChangePlanDto {
+  planLegId?: string
+  sequence: number
+  crewMemberId?: string
+  rankId?: number
+  changeType: string
+  portCode?: string
+  portName?: string
+  plannedDate?: string
+  replacementReason?: string
+  notes?: string
+}
+
+export interface VoyageCostEstimate {
+  id: string
+  voyageId: string
+  sequence: number
+  costCategory: CostCategory
+  description?: string
+  estimatedAmount: number
+  currency: string
+  notes?: string
+}
+
+export interface UpsertVoyageCostEstimateDto {
+  sequence: number
+  costCategory: string
+  description?: string
+  estimatedAmount: number
+  currency?: string
+  notes?: string
+}
+
+export interface VoyageRevenueEstimate {
+  id: string
+  voyageId: string
+  sequence: number
+  revenueCategory: RevenueCategory
+  description?: string
+  estimatedAmount: number
+  currency: string
+  notes?: string
+}
+
+export interface UpsertVoyageRevenueEstimateDto {
+  sequence: number
+  revenueCategory: string
+  description?: string
+  estimatedAmount: number
+  currency?: string
+  notes?: string
 }
 
 // ========== FAL FORM 5 ==========

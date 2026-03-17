@@ -340,7 +340,7 @@ export interface CrewCertificate {
 
 // Service Record (crew member's sea service history)
 export interface ServiceRecord {
-  id: number
+  id: string
   crewMemberId: string
   // Vessel Information
   vesselName?: string

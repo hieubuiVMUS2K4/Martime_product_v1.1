@@ -8,6 +8,13 @@ import type { CreateExternalRequestRequest } from '../../types/externalTravel.ty
 import { useToast } from '../../components/common/Toast';
 import './ExternalRequestListPage.css';
 
+const ACTIVE_EXTERNAL_REQUEST_STATUSES = [
+  ExternalRequestStatus.Sent,
+  ExternalRequestStatus.Viewed,
+  ExternalRequestStatus.InProgress,
+  ExternalRequestStatus.CandidateSubmitted,
+];
+
 const STATUS_COLORS: Record<string, string> = {
   Draft: '#6b7280',
   Sent: '#3b82f6',
@@ -49,8 +56,7 @@ export default function ExternalRequestListPage() {
   const stats = {
     total: requests.length,
     active: requests.filter(r =>
-      [ExternalRequestStatus.Sent, ExternalRequestStatus.Viewed, ExternalRequestStatus.InProgress, ExternalRequestStatus.CandidateSubmitted]
-        .includes(r.status as typeof ExternalRequestStatus[keyof typeof ExternalRequestStatus])
+      ACTIVE_EXTERNAL_REQUEST_STATUSES.includes(r.status as typeof ACTIVE_EXTERNAL_REQUEST_STATUSES[number])
     ).length,
     candidates: requests.reduce((sum, r) => sum + r.candidateCount, 0),
     shortlisted: requests.reduce((sum, r) => sum + r.shortlistedCount, 0),
