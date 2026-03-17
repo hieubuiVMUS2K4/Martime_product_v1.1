@@ -236,7 +236,8 @@ public class SyncService : ISyncService
             ActionType = q.ActionType.ToString(),
             Payload = q.Payload,
             OriginNode = nodeId,
-            SyncVersion = 0, // Will be assigned by shore
+            // Use a stable queue-derived version so retries keep the same idempotency key.
+            SyncVersion = q.Id > 0 ? q.Id : q.CreatedAt.Ticks,
             Timestamp = q.CreatedAt
         }).ToList();
 

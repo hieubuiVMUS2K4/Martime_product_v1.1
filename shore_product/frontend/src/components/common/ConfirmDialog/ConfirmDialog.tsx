@@ -8,10 +8,12 @@ interface DialogOptions {
   title: string;
   message: string;
   confirmLabel?: string;
+  confirmText?: string;
   cancelLabel?: string;
   variant?: DialogVariant;
   /** If true, show a text input for the user to provide a reason */
   withInput?: boolean;
+  showInput?: boolean;
   inputLabel?: string;
   inputPlaceholder?: string;
   inputRequired?: boolean;
@@ -55,7 +57,8 @@ export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const handleConfirm = () => {
-    if (dialog?.withInput && dialog.inputRequired && !inputValue.trim()) return;
+    const shouldShowInput = dialog?.withInput || dialog?.showInput;
+    if (shouldShowInput && dialog?.inputRequired && !inputValue.trim()) return;
     resolverRef.current?.({ confirmed: true, inputValue: inputValue.trim() || undefined });
     setDialog(null);
   };
@@ -66,6 +69,7 @@ export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const variant = dialog?.variant || 'default';
+  const shouldShowInput = !!(dialog?.withInput || dialog?.showInput);
 
   return (
     <ConfirmDialogContext.Provider value={{ confirm }}>
@@ -79,7 +83,7 @@ export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({
             <h3 className="confirm-title">{dialog.title}</h3>
             <p className="confirm-message">{dialog.message}</p>
 
-            {dialog.withInput && (
+            {shouldShowInput && (
               <div className="confirm-input-group">
                 {dialog.inputLabel && <label className="confirm-input-label">{dialog.inputLabel}</label>}
                 <textarea
@@ -100,9 +104,9 @@ export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({
               <button
                 className={`confirm-btn confirm-btn--${variant}`}
                 onClick={handleConfirm}
-                disabled={dialog.withInput && dialog.inputRequired && !inputValue.trim()}
+                disabled={shouldShowInput && dialog.inputRequired && !inputValue.trim()}
               >
-                {dialog.confirmLabel || 'Xác nhận'}
+                {dialog.confirmLabel || dialog.confirmText || 'Xác nhận'}
               </button>
             </div>
           </div>

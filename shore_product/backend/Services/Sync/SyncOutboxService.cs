@@ -19,6 +19,9 @@ public interface ISyncOutboxService
     /// <summary>Broadcast a change to all edge nodes.</summary>
     Task BroadcastAsync(string tableName, string recordKey, SyncActionType action, object payload);
 
+    /// <summary>Enqueue multiple items in a single batch (single SaveChanges).</summary>
+    Task EnqueueBatchAsync(string targetNode, List<(string TableName, string RecordKey, SyncActionType Action, object Payload)> items);
+
     /// <summary>Get pending items for an edge node (cursor-based pagination).</summary>
     Task<SyncPullResponse> GetPendingItemsAsync(string nodeId, DateTime? since, string? cursor, int pageSize);
 
@@ -117,6 +120,35 @@ public class SyncOutboxService : ISyncOutboxService
         SyncActionType action, object payload)
     {
         await EnqueueAsync("*", tableName, recordKey, action, payload);
+    }
+
+    public async Task EnqueueBatchAsync(string targetNode, List<(string TableName, string RecordKey, SyncActionType Action, object Payload)> items)
+    {
+        if (string.IsNullOrWhiteSpace(targetNode))
+            throw new ArgumentNullException(nameof(targetNode));
+        if (items == null || items.Count == 0) return;
+
+        var now = DateTime.UtcNow;
+        var version = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        foreach (var item in items)
+        {
+            var serializedPayload = JsonSerializer.Serialize(item.Payload, _jsonOptions);
+            var outboxItem = new SyncOutbox
+            {
+                TargetNode = targetNode,
+                TableName = item.TableName,
+                RecordKey = item.RecordKey,
+                ActionType = item.Action,
+                Payload = serializedPayload,
+                SyncVersion = version++,
+                CreatedAt = now
+            };
+            await _context.SyncOutbox.AddAsync(outboxItem);
+        }
+
+        await _context.SaveChangesAsync();
+        _logger.LogDebug("Batch enqueued {Count} outbox items → {Node}", items.Count, targetNode);
     }
 
     public async Task<SyncPullResponse> GetPendingItemsAsync(

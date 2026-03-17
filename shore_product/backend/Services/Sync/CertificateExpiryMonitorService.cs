@@ -67,11 +67,11 @@ public class CertificateExpiryMonitorService : BackgroundService
 
         // Find certificates that need status update
         var certsToUpdate = await context.CrewCertificates
+            .AsTracking()
             .Include(cc => cc.Certificate)
             .Include(cc => cc.CrewMember)
-            .Include(cc => cc.Country)
             .Where(cc => cc.ExpiryDate <= warningDate)
-            .Where(cc => cc.Status != CertificateStatus.EXPIRED || cc.Status != CertificateStatus.EXPIRING_SOON)
+            .Where(cc => cc.Status != CertificateStatus.EXPIRED && cc.Status != CertificateStatus.EXPIRING_SOON)
             .ToListAsync(token);
 
         int updated = 0;

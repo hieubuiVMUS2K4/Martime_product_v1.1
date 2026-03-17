@@ -19,9 +19,26 @@ namespace ProductApi.Data
         public DbSet<Vessel> Vessels { get; set; } = null!;
         public DbSet<VesselPosition> VesselPositions { get; set; } = null!;
         public DbSet<FuelConsumption> FuelConsumptions { get; set; } = null!;
+        public DbSet<Port> Ports { get; set; } = null!;
         public DbSet<PortCall> PortCalls { get; set; } = null!;
         public DbSet<VesselAlert> VesselAlerts { get; set; } = null!;
         public DbSet<VesselCertificate> VesselCertificates { get; set; } = null!;
+        public DbSet<VoyagePlanLeg> VoyagePlanLegs { get; set; } = null!;
+        public DbSet<VoyageStatusHistory> VoyageStatusHistories { get; set; } = null!;
+        public DbSet<VoyageCrewAssignment> VoyageCrewAssignments { get; set; } = null!;
+        public DbSet<CargoOperation> CargoOperations { get; set; } = null!;
+        public DbSet<VoyageLogEntry> VoyageLogEntries { get; set; } = null!;
+        public DbSet<VoyageCargoPlan> VoyageCargoPlans { get; set; } = null!;
+        public DbSet<VoyageBunkerPlan> VoyageBunkerPlans { get; set; } = null!;
+        public DbSet<VoyageCrewChangePlan> VoyageCrewChangePlans { get; set; } = null!;
+        public DbSet<VoyageCostEstimate> VoyageCostEstimates { get; set; } = null!;
+        public DbSet<VoyageRevenueEstimate> VoyageRevenueEstimates { get; set; } = null!;
+        public DbSet<VoyageExpenseRequest> VoyageExpenseRequests { get; set; } = null!;
+        public DbSet<VoyageAdvancePayment> VoyageAdvancePayments { get; set; } = null!;
+        public DbSet<VoyageDisbursement> VoyageDisbursements { get; set; } = null!;
+        public DbSet<VoyageActualRevenue> VoyageActualRevenues { get; set; } = null!;
+        public DbSet<VoyageSettlement> VoyageSettlements { get; set; } = null!;
+        public DbSet<VoyageReview> VoyageReviews { get; set; } = null!;
 
         // Edge Sync Models (Optimized for Shore - Essential Data Only)
         // REMOVED: NmeaRawData (debug only), NavigationData (realtime only), EnvironmentalData (in NoonReport)
@@ -38,6 +55,8 @@ namespace ProductApi.Data
         public DbSet<NoonReport> NoonReports { get; set; } = null!;
         public DbSet<DepartureReport> DepartureReports { get; set; } = null!;
         public DbSet<ArrivalReport> ArrivalReports { get; set; } = null!;
+        public DbSet<BunkerReport> BunkerReports { get; set; } = null!;
+        public DbSet<PositionReport> PositionReports { get; set; } = null!;
 
         // ============================================================
         // CREW MANAGEMENT (Maritime.Shared models via SharedTypeAliases)
@@ -49,6 +68,7 @@ namespace ProductApi.Data
         public DbSet<RankCertificate> RankCertificates { get; set; } = null!;
         public DbSet<CountryCertificate> CountryCertificates { get; set; } = null!;
         public DbSet<ServiceRecord> ServiceRecords { get; set; } = null!;
+        public DbSet<VesselCertificateAssignment> VesselCertificateAssignments { get; set; } = null!;
 
         // Crew Documents
         public DbSet<TravelDocument> TravelDocuments { get; set; } = null!;
@@ -182,17 +202,381 @@ namespace ProductApi.Data
             });
 
             // Configure PortCall
+            modelBuilder.Entity<Port>(entity =>
+            {
+                entity.ToTable("ports");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => e.PortCode).IsUnique();
+                entity.HasIndex(e => e.CountryCode);
+                entity.HasIndex(e => e.PortName);
+                entity.HasIndex(e => e.IsActive);
+                entity.HasIndex(e => e.IsSynced);
+            });
+
             modelBuilder.Entity<PortCall>(entity =>
             {
+                entity.ToTable("PortCalls");
+
                 entity.HasOne(pc => pc.Vessel)
                     .WithMany(v => v.PortCalls)
                     .HasForeignKey(pc => pc.VesselId)
                     .OnDelete(DeleteBehavior.Cascade);
 
+                entity.HasOne(pc => pc.Voyage)
+                    .WithMany(v => v.PortCalls)
+                    .HasForeignKey(pc => pc.VoyageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(pc => pc.Port)
+                    .WithMany()
+                    .HasForeignKey(pc => pc.PortId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(pc => pc.VoyagePlanLeg)
+                    .WithMany()
+                    .HasForeignKey(pc => pc.VoyagePlanLegId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
                 entity.Property(pc => pc.PortFees).HasPrecision(12, 2);
                 entity.Property(pc => pc.CargoQuantity).HasPrecision(10, 3);
+                entity.Property(pc => pc.DraftFore).HasPrecision(5, 2);
+                entity.Property(pc => pc.DraftAft).HasPrecision(5, 2);
                 
                 entity.HasIndex(pc => new { pc.VesselId, pc.ArrivalTime });
+                entity.HasIndex(pc => new { pc.VoyageId, pc.Sequence });
+                entity.HasIndex(pc => pc.PortCode);
+                entity.HasIndex(pc => pc.CallType);
+                entity.HasIndex(pc => pc.IsSynced);
+            });
+
+            modelBuilder.Entity<VoyageRecord>(entity =>
+            {
+                entity.ToTable("voyage_records");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.CargoWeight).HasPrecision(12, 3);
+                entity.Property(e => e.PlannedDistance).HasPrecision(10, 2);
+                entity.Property(e => e.PlannedDurationHours).HasPrecision(10, 2);
+                entity.Property(e => e.PlannedAverageSpeed).HasPrecision(5, 2);
+                entity.Property(e => e.PlannedFuelConsumption).HasPrecision(10, 3);
+                entity.Property(e => e.DistanceTraveled).HasPrecision(10, 2);
+                entity.Property(e => e.FuelConsumed).HasPrecision(10, 3);
+                entity.Property(e => e.AverageSpeed).HasPrecision(5, 2);
+
+                entity.HasIndex(e => e.VoyageNumber).IsUnique();
+                entity.HasIndex(e => e.VoyageStatus);
+                entity.HasIndex(e => e.VesselIMO);
+                entity.HasIndex(e => e.DepartureTime);
+                entity.HasIndex(e => e.IsSynced);
+
+                entity.HasMany(e => e.CrewAssignments)
+                    .WithOne(e => e.Voyage)
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(e => e.LogEntries)
+                    .WithOne(e => e.Voyage)
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasMany(e => e.CargoOperations)
+                    .WithOne(e => e.Voyage)
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasMany(e => e.PlanLegs)
+                    .WithOne(e => e.Voyage)
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(e => e.StatusHistory)
+                    .WithOne(e => e.Voyage)
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(e => e.CargoPlans)
+                    .WithOne(e => e.Voyage)
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(e => e.BunkerPlans)
+                    .WithOne(e => e.Voyage)
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(e => e.CrewChangePlans)
+                    .WithOne(e => e.Voyage)
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(e => e.CostEstimates)
+                    .WithOne(e => e.Voyage)
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(e => e.RevenueEstimates)
+                    .WithOne(e => e.Voyage)
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(e => e.ExpenseRequests)
+                    .WithOne(e => e.Voyage)
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(e => e.AdvancePayments)
+                    .WithOne(e => e.Voyage)
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(e => e.Disbursements)
+                    .WithOne(e => e.Voyage)
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(e => e.ActualRevenues)
+                    .WithOne(e => e.Voyage)
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(e => e.Settlements)
+                    .WithOne(e => e.Voyage)
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<VoyagePlanLeg>(entity =>
+            {
+                entity.ToTable("voyage_plan_legs");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.PlannedDistance).HasPrecision(10, 2);
+                entity.Property(e => e.PlannedDurationHours).HasPrecision(10, 2);
+                entity.Property(e => e.PlannedAverageSpeed).HasPrecision(5, 2);
+                entity.Property(e => e.PlannedFuelConsumption).HasPrecision(10, 3);
+
+                entity.HasIndex(e => new { e.VoyageId, e.Sequence }).IsUnique();
+                entity.HasIndex(e => e.LegType);
+                entity.HasIndex(e => e.IsSynced);
+            });
+
+            modelBuilder.Entity<VoyageStatusHistory>(entity =>
+            {
+                entity.ToTable("voyage_status_history");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => new { e.VoyageId, e.ChangedAt });
+                entity.HasIndex(e => e.ToStatus);
+                entity.HasIndex(e => e.IsSynced);
+            });
+
+            modelBuilder.Entity<VoyageCrewAssignment>(entity =>
+            {
+                entity.ToTable("voyage_crew_assignments");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => new { e.VoyageId, e.CrewMemberId }).IsUnique();
+                entity.HasIndex(e => e.CrewMemberId);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.IsSynced);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany()
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Rank)
+                    .WithMany()
+                    .HasForeignKey(e => e.RankId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<CargoOperation>(entity =>
+            {
+                entity.ToTable("cargo_operations");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Quantity).HasPrecision(15, 3);
+
+                entity.HasIndex(e => e.OperationId).IsUnique();
+                entity.HasIndex(e => e.VoyageId);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.CargoType);
+                entity.HasIndex(e => e.BillOfLading);
+                entity.HasIndex(e => e.IsSynced);
+            });
+
+            modelBuilder.Entity<VoyageLogEntry>(entity =>
+            {
+                entity.ToTable("voyage_log_entries");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => e.EventType);
+                entity.HasIndex(e => e.EventDateTime);
+                entity.HasIndex(e => e.VoyageId);
+                entity.HasIndex(e => e.PortLocode);
+                entity.HasIndex(e => e.IsSynced);
+            });
+
+            modelBuilder.Entity<VoyageCargoPlan>(entity =>
+            {
+                entity.ToTable("voyage_cargo_plans");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => new { e.VoyageId, e.Sequence }).IsUnique();
+                entity.HasIndex(e => e.PlanLegId);
+                entity.HasIndex(e => e.IsSynced);
+
+                entity.HasOne(e => e.PlanLeg)
+                    .WithMany()
+                    .HasForeignKey(e => e.PlanLegId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<VoyageBunkerPlan>(entity =>
+            {
+                entity.ToTable("voyage_bunker_plans");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => new { e.VoyageId, e.Sequence }).IsUnique();
+                entity.HasIndex(e => e.PlanLegId);
+                entity.HasIndex(e => e.IsSynced);
+
+                entity.HasOne(e => e.PlanLeg)
+                    .WithMany()
+                    .HasForeignKey(e => e.PlanLegId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<VoyageCrewChangePlan>(entity =>
+            {
+                entity.ToTable("voyage_crew_change_plans");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => new { e.VoyageId, e.Sequence }).IsUnique();
+                entity.HasIndex(e => e.PlanLegId);
+                entity.HasIndex(e => e.CrewMemberId);
+                entity.HasIndex(e => e.IsSynced);
+
+                entity.HasOne(e => e.PlanLeg)
+                    .WithMany()
+                    .HasForeignKey(e => e.PlanLegId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany()
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.Rank)
+                    .WithMany()
+                    .HasForeignKey(e => e.RankId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<VoyageCostEstimate>(entity =>
+            {
+                entity.ToTable("voyage_cost_estimates");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => new { e.VoyageId, e.Sequence }).IsUnique();
+                entity.HasIndex(e => e.CostCategory);
+                entity.HasIndex(e => e.IsSynced);
+            });
+
+            modelBuilder.Entity<VoyageRevenueEstimate>(entity =>
+            {
+                entity.ToTable("voyage_revenue_estimates");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => new { e.VoyageId, e.Sequence }).IsUnique();
+                entity.HasIndex(e => e.RevenueCategory);
+                entity.HasIndex(e => e.IsSynced);
+            });
+
+            modelBuilder.Entity<VoyageExpenseRequest>(entity =>
+            {
+                entity.ToTable("voyage_expense_requests");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => e.VoyageId);
+                entity.HasIndex(e => e.RequestNumber).IsUnique();
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.CostCategory);
+                entity.HasIndex(e => e.IsSynced);
+            });
+
+            modelBuilder.Entity<VoyageAdvancePayment>(entity =>
+            {
+                entity.ToTable("voyage_advance_payments");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => e.VoyageId);
+                entity.HasIndex(e => e.AdvanceNumber).IsUnique();
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.IsSynced);
+            });
+
+            modelBuilder.Entity<VoyageDisbursement>(entity =>
+            {
+                entity.ToTable("voyage_disbursements");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => e.VoyageId);
+                entity.HasIndex(e => e.DisbursementNumber).IsUnique();
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.CostCategory);
+                entity.HasIndex(e => e.ExpenseRequestId);
+                entity.HasIndex(e => e.AdvancePaymentId);
+                entity.HasIndex(e => e.IsSynced);
+
+                entity.HasOne(e => e.ExpenseRequest)
+                    .WithMany()
+                    .HasForeignKey(e => e.ExpenseRequestId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.AdvancePayment)
+                    .WithMany()
+                    .HasForeignKey(e => e.AdvancePaymentId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<VoyageActualRevenue>(entity =>
+            {
+                entity.ToTable("voyage_actual_revenues");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => e.VoyageId);
+                entity.HasIndex(e => e.RevenueNumber).IsUnique();
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.RevenueCategory);
+                entity.HasIndex(e => e.IsSynced);
+            });
+
+            modelBuilder.Entity<VoyageSettlement>(entity =>
+            {
+                entity.ToTable("voyage_settlements");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => e.VoyageId);
+                entity.HasIndex(e => e.SettlementNumber).IsUnique();
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.IsSynced);
+            });
+
+            modelBuilder.Entity<VoyageReview>(entity =>
+            {
+                entity.ToTable("voyage_reviews");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => e.VoyageId).IsUnique();
+                entity.HasIndex(e => e.ReviewStatus);
+
+                entity.HasOne(e => e.Voyage)
+                    .WithMany()
+                    .HasForeignKey(e => e.VoyageId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Configure VesselAlert
@@ -238,6 +622,13 @@ namespace ProductApi.Data
                     .WithMany()
                     .HasForeignKey(e => e.RankId)
                     .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.Country)
+                    .WithMany()
+                    .HasForeignKey(e => e.CountryId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(e => e.VesselId);
 
                 entity.Property(e => e.Weight).HasPrecision(5, 2);
             });
@@ -323,6 +714,20 @@ namespace ProductApi.Data
 
                 entity.HasOne(e => e.Certificate)
                     .WithMany(c => c.CountryCertificates)
+                    .HasForeignKey(e => e.CertificateId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure VesselCertificateAssignment
+            modelBuilder.Entity<VesselCertificateAssignment>(entity =>
+            {
+                entity.ToTable("vessel_certificate_assignments");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.VesselId, e.CertificateId }).IsUnique();
+                entity.HasIndex(e => e.IsSynced);
+
+                entity.HasOne(e => e.Certificate)
+                    .WithMany()
                     .HasForeignKey(e => e.CertificateId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
@@ -450,6 +855,22 @@ namespace ProductApi.Data
             modelBuilder.Entity<ArrivalReport>(entity =>
             {
                 entity.ToTable("arrival_reports");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.MaritimeReportId).IsUnique();
+            });
+
+            // Configure BunkerReport
+            modelBuilder.Entity<BunkerReport>(entity =>
+            {
+                entity.ToTable("bunker_reports");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.MaritimeReportId).IsUnique();
+            });
+
+            // Configure PositionReport
+            modelBuilder.Entity<PositionReport>(entity =>
+            {
+                entity.ToTable("position_reports");
                 entity.HasKey(e => e.Id);
                 entity.HasIndex(e => e.MaritimeReportId).IsUnique();
             });

@@ -1,80 +1,163 @@
 /**
  * Maritime Reports List Page
- * Professional reporting interface with advanced filters
+ * Operational overview for daily reporting workflows
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { 
-  FileText, 
-  Filter, 
-  Search, 
-  Eye, 
-  Send, 
-  CheckCircle, 
-  XCircle,
-  Trash2,
-  Calendar,
-  Ship,
-  RefreshCw,
-  Clock,
+import { useCallback, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
+import {
+  AlertCircle,
+  Anchor,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  FileText,
+  Fuel,
+  MapPin,
   Plus,
-  AlertCircle
+  RefreshCw,
+  Search,
+  Send,
+  Ship,
+  Trash2,
+  Waves,
+  XCircle,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ReportingService } from '../../services/reporting.service';
-import type { 
-  ReportSummaryDto, 
+import type {
   PaginatedReportResponse,
-  ReportStatus 
+  ReportPaginationDto,
+  ReportStatus,
+  ReportSummaryDto,
 } from '../../types/reporting.types';
 
-const STATUS_COLORS: Record<ReportStatus, string> = {
-  DRAFT: 'bg-gray-100 text-gray-700 border-gray-300',
-  SUBMITTED: 'bg-amber-100 text-amber-700 border-amber-300',
-  APPROVED: 'bg-blue-100 text-blue-700 border-blue-300',
-  REJECTED: 'bg-red-100 text-red-700 border-red-300',
-  TRANSMITTED: 'bg-emerald-100 text-emerald-700 border-emerald-300'
+const STATUS_STYLES: Record<ReportStatus, { badge: string; dot: string; label: string }> = {
+  DRAFT: {
+    badge: 'bg-slate-100 text-slate-700',
+    dot: 'bg-slate-400',
+    label: 'Draft',
+  },
+  SUBMITTED: {
+    badge: 'bg-amber-50 text-amber-800',
+    dot: 'bg-amber-500',
+    label: 'Pending',
+  },
+  APPROVED: {
+    badge: 'bg-blue-50 text-blue-800',
+    dot: 'bg-blue-500',
+    label: 'Approved',
+  },
+  REJECTED: {
+    badge: 'bg-rose-50 text-rose-800',
+    dot: 'bg-rose-500',
+    label: 'Rejected',
+  },
+  TRANSMITTED: {
+    badge: 'bg-emerald-50 text-emerald-800',
+    dot: 'bg-emerald-500',
+    label: 'Transmitted',
+  },
 };
 
-const STATUS_ICONS: Record<ReportStatus, React.ReactNode> = {
-  DRAFT: <FileText className="h-3.5 w-3.5" />,
-  SUBMITTED: <Clock className="h-3.5 w-3.5" />,
-  APPROVED: <CheckCircle className="h-3.5 w-3.5" />,
-  REJECTED: <XCircle className="h-3.5 w-3.5" />,
-  TRANSMITTED: <Send className="h-3.5 w-3.5" />
+const REPORT_TYPE_STYLES: Record<string, { label: string; icon: ReactNode; dot: string }> = {
+  NOON: { label: 'Noon', icon: <Ship className="h-3.5 w-3.5" />, dot: 'bg-sky-500' },
+  DEPARTURE: { label: 'Departure', icon: <Anchor className="h-3.5 w-3.5" />, dot: 'bg-indigo-500' },
+  ARRIVAL: { label: 'Arrival', icon: <Waves className="h-3.5 w-3.5" />, dot: 'bg-emerald-500' },
+  BUNKER: { label: 'Bunker', icon: <Fuel className="h-3.5 w-3.5" />, dot: 'bg-amber-500' },
+  POSITION: { label: 'Position', icon: <MapPin className="h-3.5 w-3.5" />, dot: 'bg-violet-500' },
+};
+
+function getReportTypeStyle(reportTypeCode: string) {
+  return REPORT_TYPE_STYLES[reportTypeCode] ?? {
+    label: reportTypeCode,
+    icon: <FileText className="h-3.5 w-3.5" />,
+    dot: 'bg-slate-400',
+  };
+}
+
+function formatDateTime(dateTime: string) {
+  return new Date(dateTime).toLocaleString('en-GB', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function buildPagination(currentPage: number, totalPages: number) {
+  if (totalPages <= 1) {
+    return [1];
+  }
+
+  const items: Array<number | 'ellipsis'> = [];
+  const start = Math.max(1, currentPage - 1);
+  const end = Math.min(totalPages, currentPage + 1);
+
+  if (start > 1) {
+    items.push(1);
+  }
+
+  if (start > 2) {
+    items.push('ellipsis');
+  }
+
+  for (let page = start; page <= end; page += 1) {
+    items.push(page);
+  }
+
+  if (end < totalPages - 1) {
+    items.push('ellipsis');
+  }
+
+  if (end < totalPages) {
+    items.push(totalPages);
+  }
+
+  return items;
+}
+
+type ReportFilters = {
+  reportType: string;
+  status: '' | ReportStatus;
+  voyageId: string;
+  fromDate: string;
+  toDate: string;
+  searchTerm: string;
 };
 
 export function ReportsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [reports, setReports] = useState<ReportSummaryDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
+
+  const [currentPage, setCurrentPage] = useState(() => {
+    const page = Number(searchParams.get('page') || '1');
+    return Number.isFinite(page) && page > 0 ? page : 1;
+  });
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize] = useState(20);
 
-  // Filters
-  const [filters, setFilters] = useState({
-    reportType: '',
-    status: '',
-    voyageId: '',
-    fromDate: '',
-    toDate: '',
-    searchTerm: ''
-  });
-
-  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<ReportFilters>(() => ({
+    reportType: searchParams.get('reportTypeCode') || searchParams.get('reportType') || '',
+    status: (searchParams.get('status') as ReportStatus | null) || '',
+    voyageId: searchParams.get('voyageId') || '',
+    fromDate: searchParams.get('fromDate') || '',
+    toDate: searchParams.get('toDate') || '',
+    searchTerm: searchParams.get('searchTerm') || '',
+  }));
 
   const loadReports = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const params: any = {
+      const params: ReportPaginationDto = {
         page: currentPage,
-        pageSize
+        pageSize,
       };
 
       if (filters.reportType) params.reportTypeCode = filters.reportType;
@@ -85,49 +168,79 @@ export function ReportsPage() {
       if (filters.searchTerm) params.searchTerm = filters.searchTerm;
 
       const response: PaginatedReportResponse<ReportSummaryDto> = await ReportingService.getReports(params);
-      
       setReports(response.data);
-      setTotalPages(Math.ceil(response.totalRecords / pageSize));
+      setTotalPages(Math.max(1, Math.ceil(response.totalRecords / pageSize)));
       setTotalCount(response.totalRecords);
     } catch (err: any) {
-      console.error('Failed to load reports:', err);
-      
-      // User-friendly error messages
-      let errorMsg = 'Không thể tải danh sách báo cáo';
-      
+      let errorMessage = 'Unable to load maritime reports.';
+
       if (err?.response?.data?.error) {
-        errorMsg = err.response.data.error;
-      } else if (err.message) {
-        const msg = err.message.toLowerCase();
-        
-        if (msg.includes('timeout') || msg.includes('network')) {
-          errorMsg = '🌐 Lỗi kết nối mạng. Vui lòng kiểm tra kết nối và nhấn nút "Làm mới".';
-        } else if (msg.includes('401') || msg.includes('unauthorized')) {
-          errorMsg = '🔒 Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
-        } else if (msg.includes('403') || msg.includes('forbidden')) {
-          errorMsg = '⛔ Bạn không có quyền xem danh sách báo cáo.';
-        } else if (msg.includes('500') || msg.includes('internal')) {
-          errorMsg = '⚠️ Lỗi máy chủ. Vui lòng thử lại sau.';
-        } else if (msg.includes('database') || msg.includes('relation')) {
-          errorMsg = '🗄️ Lỗi cơ sở dữ liệu. Vui lòng liên hệ quản trị viên hệ thống.';
-        } else {
-          errorMsg = err.message;
-        }
+        errorMessage = err.response.data.error;
+      } else if (err?.message) {
+        errorMessage = err.message;
       }
-      
-      setError(errorMsg);
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   }, [currentPage, pageSize, filters]);
 
   useEffect(() => {
-    loadReports();
+    void loadReports();
   }, [loadReports]);
 
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-    setCurrentPage(1); // Reset to first page when filters change
+  useEffect(() => {
+    const nextFilters: ReportFilters = {
+      reportType: searchParams.get('reportTypeCode') || searchParams.get('reportType') || '',
+      status: (searchParams.get('status') as ReportStatus | null) || '',
+      voyageId: searchParams.get('voyageId') || '',
+      fromDate: searchParams.get('fromDate') || '',
+      toDate: searchParams.get('toDate') || '',
+      searchTerm: searchParams.get('searchTerm') || '',
+    };
+    const nextPage = Number(searchParams.get('page') || '1');
+
+    setFilters((prev) => {
+      if (
+        prev.reportType === nextFilters.reportType &&
+        prev.status === nextFilters.status &&
+        prev.voyageId === nextFilters.voyageId &&
+        prev.fromDate === nextFilters.fromDate &&
+        prev.toDate === nextFilters.toDate &&
+        prev.searchTerm === nextFilters.searchTerm
+      ) {
+        return prev;
+      }
+
+      return nextFilters;
+    });
+
+    setCurrentPage((prev) => {
+      const normalizedPage = Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1;
+      return prev === normalizedPage ? prev : normalizedPage;
+    });
+  }, [searchParams]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (currentPage > 1) nextParams.set('page', String(currentPage));
+    if (filters.reportType) nextParams.set('reportTypeCode', filters.reportType);
+    if (filters.status) nextParams.set('status', filters.status);
+    if (filters.voyageId) nextParams.set('voyageId', filters.voyageId);
+    if (filters.fromDate) nextParams.set('fromDate', filters.fromDate);
+    if (filters.toDate) nextParams.set('toDate', filters.toDate);
+    if (filters.searchTerm) nextParams.set('searchTerm', filters.searchTerm);
+
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [currentPage, filters, searchParams, setSearchParams]);
+
+  const handleFilterChange = <K extends keyof ReportFilters>(key: K, value: ReportFilters[K]) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setCurrentPage(1);
   };
 
   const clearFilters = () => {
@@ -137,452 +250,358 @@ export function ReportsPage() {
       voyageId: '',
       fromDate: '',
       toDate: '',
-      searchTerm: ''
+      searchTerm: '',
     });
     setCurrentPage(1);
+    setSearchParams({}, { replace: true });
   };
 
-  const formatDateTime = (dateTime: string) => {
-    return new Date(dateTime).toLocaleString('en-GB', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const handleDeleteDraft = async (report: ReportSummaryDto) => {
+    const reason = window.prompt(`Delete draft ${report.reportNumber}. Provide a reason for the audit trail:`);
+    if (!reason || !reason.trim()) {
+      return;
+    }
+
+    try {
+      await ReportingService.softDeleteReport(report.id, reason.trim());
+      await loadReports();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete draft report.');
+    }
   };
+
+  const visibleCounts = reports.reduce(
+    (accumulator, report) => {
+      accumulator[report.status] += 1;
+      return accumulator;
+    },
+    {
+      DRAFT: 0,
+      SUBMITTED: 0,
+      APPROVED: 0,
+      REJECTED: 0,
+      TRANSMITTED: 0,
+    } as Record<ReportStatus, number>,
+  );
+
+  const activeFilters = [
+    filters.reportType ? { label: `Type: ${filters.reportType}` } : null,
+    filters.status ? { label: `Status: ${filters.status}` } : null,
+    filters.voyageId ? { label: `Voyage: ${filters.voyageId}` } : null,
+    filters.fromDate ? { label: `From: ${filters.fromDate}` } : null,
+    filters.toDate ? { label: `To: ${filters.toDate}` } : null,
+    filters.searchTerm ? { label: `Search: ${filters.searchTerm}` } : null,
+  ].filter(Boolean) as Array<{ label: string }>;
+
+  const paginationItems = buildPagination(currentPage, totalPages);
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-gray-50">
-      <div className="p-4 md:p-6 max-w-7xl mx-auto">
-        {/* Header with Stats */}
-        <div className="mb-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Ship className="h-7 w-7 text-blue-600" />
-                Maritime Reports
-              </h1>
-              <p className="text-gray-500 text-sm mt-1">
-                Manage and track all vessel reports • {totalCount} total records
-              </p>
-            </div>
-            
-            <div className="flex flex-wrap gap-2">
-              <Link
-                to="/reporting/noon/new"
-                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md font-medium"
-              >
-                <Plus className="h-4 w-4" />
-                New Report
-              </Link>
-              
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg transition-colors font-medium ${
-                  showFilters ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                <Filter className="h-4 w-4" />
-                Filters
-              </button>
-              
-              <button
-                onClick={loadReports}
-                disabled={loading}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
-            </div>
-          </div>
-          
-          {/* Quick Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
-            <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-sm">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-gray-100 rounded-lg">
-                  <FileText className="h-4 w-4 text-gray-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Draft</p>
-                  <p className="text-lg font-bold text-gray-900">
-                    {reports.filter(r => r.status === 'DRAFT').length}
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-sm">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-amber-100 rounded-lg">
-                  <Clock className="h-4 w-4 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Pending</p>
-                  <p className="text-lg font-bold text-amber-600">
-                    {reports.filter(r => r.status === 'SUBMITTED').length}
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-sm">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-blue-100 rounded-lg">
-                  <CheckCircle className="h-4 w-4 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Approved</p>
-                  <p className="text-lg font-bold text-blue-600">
-                    {reports.filter(r => r.status === 'APPROVED').length}
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-sm">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-emerald-100 rounded-lg">
-                  <Send className="h-4 w-4 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Transmitted</p>
-                  <p className="text-lg font-bold text-emerald-600">
-                    {reports.filter(r => r.status === 'TRANSMITTED').length}
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-sm">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-red-100 rounded-lg">
-                  <AlertCircle className="h-4 w-4 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Rejected</p>
-                  <p className="text-lg font-bold text-red-600">
-                    {reports.filter(r => r.status === 'REJECTED').length}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
 
-      {/* Filters Panel */}
-      {showFilters && (
-        <div className="bg-white rounded-xl shadow-sm p-5 mb-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-              <Filter className="h-4 w-4 text-blue-600" />
-              Filter Reports
-            </h3>
+        {/* ── Page header ─────────────────────────────────────────── */}
+        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-widest text-slate-400">Reporting</p>
+            <h1 className="mt-0.5 text-xl font-semibold text-slate-900">Report Queue</h1>
+          </div>
+          <div className="flex items-center gap-2">
             <button
-              onClick={clearFilters}
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              onClick={() => void loadReports()}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Clear all
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
             </button>
+            <Link
+              to="/reporting/noon/new"
+              className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            >
+              <Plus className="h-4 w-4" />
+              New Report
+            </Link>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {/* Report Type */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                Report Type
-              </label>
-              <select
-                value={filters.reportType}
-                onChange={(e) => handleFilterChange('reportType', e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-              >
-                <option value="">All Types</option>
-                <option value="NOON">🌅 Noon Report</option>
-                <option value="DEPARTURE">🚢 Departure</option>
-                <option value="ARRIVAL">⚓ Arrival</option>
-                <option value="BUNKER">⛽ Bunker</option>
-                <option value="POSITION">📍 Position</option>
-              </select>
-            </div>
+        </div>
 
-            {/* Status */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                Status
-              </label>
-              <select
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-              >
-                <option value="">All Status</option>
-                <option value="DRAFT">📝 Draft</option>
-                <option value="SUBMITTED">⏳ Submitted</option>
-                <option value="APPROVED">✅ Approved</option>
-                <option value="REJECTED">❌ Rejected</option>
-                <option value="TRANSMITTED">📡 Transmitted</option>
-              </select>
-            </div>
+        {/* ── Summary bar ──────────────────────────────────────────── */}
+        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-600">
+          <span className="font-medium text-slate-900">{totalCount} total</span>
+          <span className="h-3.5 w-px bg-slate-200" />
+          <span>
+            <span className="mr-1 inline-block h-2 w-2 rounded-full bg-slate-400" />
+            Draft: <strong className="text-slate-900">{visibleCounts.DRAFT}</strong>
+          </span>
+          <span>
+            <span className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-500" />
+            Pending: <strong className="text-slate-900">{visibleCounts.SUBMITTED}</strong>
+          </span>
+          <span>
+            <span className="mr-1 inline-block h-2 w-2 rounded-full bg-blue-500" />
+            Approved: <strong className="text-slate-900">{visibleCounts.APPROVED}</strong>
+          </span>
+          <span>
+            <span className="mr-1 inline-block h-2 w-2 rounded-full bg-rose-500" />
+            Rejected: <strong className="text-slate-900">{visibleCounts.REJECTED}</strong>
+          </span>
+          <span>
+            <span className="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />
+            Transmitted: <strong className="text-slate-900">{visibleCounts.TRANSMITTED}</strong>
+          </span>
+          {activeFilters.length > 0 && (
+            <>
+              <span className="h-3.5 w-px bg-slate-200" />
+              <span className="text-slate-500">{activeFilters.length} filter{activeFilters.length > 1 ? 's' : ''} active</span>
+            </>
+          )}
+        </div>
 
-            {/* Voyage ID */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                Voyage ID
-              </label>
-                <input
-                  type="text"
-                value={filters.voyageId}
-                onChange={(e) => handleFilterChange('voyageId', e.target.value)}
-                  placeholder="Enter voyage GUID"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-              />
-            </div>
-
-            {/* From Date */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                From Date
-              </label>
+        {/* ── Filter toolbar ───────────────────────────────────────── */}
+        <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="relative min-w-[200px] flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
-                type="date"
-                value={filters.fromDate}
-                onChange={(e) => handleFilterChange('fromDate', e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                type="text"
+                value={filters.searchTerm}
+                onChange={(event) => handleFilterChange('searchTerm', event.target.value)}
+                placeholder="Report number or keyword…"
+                className="w-full rounded-md border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:bg-white"
               />
             </div>
+            <select
+              value={filters.reportType}
+              onChange={(event) => handleFilterChange('reportType', event.target.value)}
+              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:bg-white"
+            >
+              <option value="">All types</option>
+              <option value="NOON">Noon</option>
+              <option value="DEPARTURE">Departure</option>
+              <option value="ARRIVAL">Arrival</option>
+              <option value="BUNKER">Bunker</option>
+              <option value="POSITION">Position</option>
+            </select>
+            <select
+              value={filters.status}
+              onChange={(event) => handleFilterChange('status', event.target.value as ReportFilters['status'])}
+              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:bg-white"
+            >
+              <option value="">All statuses</option>
+              <option value="DRAFT">Draft</option>
+              <option value="SUBMITTED">Submitted</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="TRANSMITTED">Transmitted</option>
+            </select>
+            <input
+              type="text"
+              value={filters.voyageId}
+              onChange={(event) => handleFilterChange('voyageId', event.target.value)}
+              placeholder="Voyage ID"
+              className="w-36 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:bg-white"
+            />
+            <input
+              type="date"
+              value={filters.fromDate}
+              onChange={(event) => handleFilterChange('fromDate', event.target.value)}
+              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:bg-white"
+            />
+            <input
+              type="date"
+              value={filters.toDate}
+              onChange={(event) => handleFilterChange('toDate', event.target.value)}
+              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:bg-white"
+            />
+            {activeFilters.length > 0 && (
+              <button
+                onClick={clearFilters}
+                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <XCircle className="h-4 w-4" />
+                Clear
+              </button>
+            )}
+          </div>
 
-            {/* To Date */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                To Date
-              </label>
-              <input
-                type="date"
-                value={filters.toDate}
-                onChange={(e) => handleFilterChange('toDate', e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-              />
+          {activeFilters.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {activeFilters.map((filter) => (
+                <span key={filter.label} className="rounded border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                  {filter.label}
+                </span>
+              ))}
             </div>
+          )}
+        </div>
 
-            {/* Search */}
+        {/* ── Error banner ─────────────────────────────────────────── */}
+        {error && (
+          <div className="mt-4 flex items-start gap-3 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-rose-900">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                Search
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={filters.searchTerm}
-                  onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
-                  placeholder="Report #..."
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-                />
-              </div>
+              <p className="text-sm font-semibold">Unable to load report queue</p>
+              <p className="text-sm text-rose-700">{error}</p>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Loading State */}
-      {loading && (
-        <div className="flex justify-center items-center py-16">
-          <div className="flex flex-col items-center gap-3">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
-            <p className="text-sm text-gray-500">Loading reports...</p>
-          </div>
-        </div>
-      )}
+        {/* ── Data table ───────────────────────────────────────────── */}
+        <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <th className="px-4 py-3">Report #</th>
+                <th className="px-4 py-3">Type</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Voyage</th>
+                <th className="px-4 py-3">Date / Time</th>
+                <th className="px-4 py-3">Prepared by</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="py-16 text-center text-sm text-slate-500">
+                    <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
+                    <p className="mt-3">Loading reports…</p>
+                  </td>
+                </tr>
+              ) : reports.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-16 text-center">
+                    <FileText className="mx-auto h-8 w-8 text-slate-300" />
+                    <p className="mt-3 font-medium text-slate-700">No reports match the current filters</p>
+                    <p className="mt-1 text-xs text-slate-400">Adjust filters or create a new report.</p>
+                    <Link
+                      to="/reporting/noon/new"
+                      className="mt-4 inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700"
+                    >
+                      <Plus className="h-4 w-4" />
+                      New report
+                    </Link>
+                  </td>
+                </tr>
+              ) : (
+                reports.map((report) => {
+                  const typeStyle = getReportTypeStyle(report.reportTypeCode);
+                  const statusStyle = STATUS_STYLES[report.status]
+                    ?? STATUS_STYLES[report.status?.toUpperCase() as ReportStatus]
+                    ?? { badge: 'bg-slate-100 text-slate-700', dot: 'bg-slate-400', label: report.status };
 
-      {/* Error State */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="font-semibold text-red-900">Error loading reports</p>
-              <p className="text-sm text-red-700 mt-1">{error}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reports Table */}
-      {!loading && !error && (
-        <>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50/80">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Report Number
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Date/Time
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Voyage
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Prepared By
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-100">
-                  {reports.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-16 text-center">
-                        <div className="flex flex-col items-center">
-                          <div className="p-4 bg-gray-100 rounded-full mb-4">
-                            <FileText className="h-8 w-8 text-gray-400" />
-                          </div>
-                          <p className="text-gray-600 font-medium">No reports found</p>
-                          <p className="text-sm text-gray-400 mt-1">Try adjusting your filters or create a new report</p>
+                  return (
+                    <tr key={report.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3">
+                        <Link
+                          to={`/reporting/reports/${report.id}`}
+                          className="font-medium text-slate-900 hover:text-blue-600 hover:underline"
+                        >
+                          {report.reportNumber}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1.5 text-slate-700">
+                          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${typeStyle.dot}`} />
+                          {typeStyle.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${statusStyle.badge}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${statusStyle.dot}`} />
+                          {statusStyle.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {report.voyageNumber || report.voyageId || <span className="text-slate-400">—</span>}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                        {formatDateTime(report.reportDateTime)}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {report.preparedBy || <span className="text-slate-400">—</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-2">
                           <Link
-                            to="/reporting/noon/new"
-                            className="mt-4 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                            to={`/reporting/reports/${report.id}`}
+                            className="inline-flex items-center gap-1.5 rounded border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                           >
-                            <Plus className="h-4 w-4" />
-                            Create New Report
+                            <Eye className="h-3.5 w-3.5" />
+                            View
                           </Link>
+                          {report.status === 'APPROVED' && (
+                            <Link
+                              to={`/reporting/reports/${report.id}`}
+                              className="inline-flex items-center gap-1.5 rounded border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                            >
+                              <Send className="h-3.5 w-3.5" />
+                              Transmit
+                            </Link>
+                          )}
+                          {report.status === 'DRAFT' && (
+                            <button
+                              onClick={() => void handleDeleteDraft(report)}
+                              className="inline-flex items-center gap-1.5 rounded border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Delete
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
-                  ) : (
-                    reports.map((report, index) => (
-                      <tr 
-                        key={report.id} 
-                        className={`hover:bg-blue-50/50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
-                      >
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <Link 
-                            to={`/reporting/reports/${report.id}`}
-                            className="font-mono text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
-                          >
-                            {report.reportNumber}
-                          </Link>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="text-sm text-gray-700 font-medium">
-                            {report.reportTypeName}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                            <Calendar className="h-3.5 w-3.5 text-gray-400" />
-                            {formatDateTime(report.reportDateTime)}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="text-sm text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
-                            {report.voyageNumber || report.voyageId || '-'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_COLORS[report.status]}`}>
-                            {STATUS_ICONS[report.status]}
-                            {report.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                          {report.preparedBy || '-'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-right">
-                          <div className="flex justify-end gap-1">
-                            <Link
-                              to={`/reporting/reports/${report.id}`}
-                              className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="View details"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Link>
-                            
-                            {report.status === 'APPROVED' && (
-                              <button
-                                className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                                title="Transmit"
-                              >
-                                <Send className="h-4 w-4" />
-                              </button>
-                            )}
-                            
-                            {report.status === 'DRAFT' && (
-                              <button
-                                className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Delete"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ── Pagination ───────────────────────────────────────────── */}
+        {!loading && totalPages > 1 && (
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-slate-500">
+              Page <strong className="text-slate-900">{currentPage}</strong> of <strong className="text-slate-900">{totalPages}</strong>
+              <span className="ml-2 text-slate-400">({totalCount} records)</span>
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Prev
+              </button>
+              {paginationItems.map((item, index) =>
+                item === 'ellipsis' ? (
+                  <span key={`ellipsis-${index}`} className="px-2 text-sm text-slate-400">…</span>
+                ) : (
+                  <button
+                    key={item}
+                    onClick={() => setCurrentPage(item)}
+                    className={`min-w-9 rounded-md px-3 py-2 text-sm font-medium transition ${
+                      currentPage === item
+                        ? 'bg-slate-900 text-white'
+                        : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+              <button
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
           </div>
+        )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-sm text-gray-500">
-                Showing page <span className="font-semibold text-gray-700">{currentPage}</span> of <span className="font-semibold text-gray-700">{totalPages}</span>
-                <span className="ml-2 text-gray-400">({totalCount} total)</span>
-              </div>
-              
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                >
-                  Previous
-                </button>
-                
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const pageNum = i + 1;
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setCurrentPage(pageNum)}
-                      className={`px-3 py-1.5 text-sm border rounded-lg font-medium transition-colors ${
-                        currentPage === pageNum
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-                
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
       </div>
     </div>
   );

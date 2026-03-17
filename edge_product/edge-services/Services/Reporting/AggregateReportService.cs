@@ -699,7 +699,6 @@ public class AggregateReportService : IAggregateReportService
     private async Task<double> CalculatePortStayHoursAsync(DateTime periodStart, DateTime periodEndExclusive, Guid? voyageId)
     {
         var arrivals = await GetPortStayArrivalsQuery(periodStart, periodEndExclusive, voyageId)
-            .OrderBy(a => a.ArrivalDateTime)
             .ToListAsync();
 
         if (arrivals.Count == 0)
@@ -708,7 +707,6 @@ public class AggregateReportService : IAggregateReportService
         }
 
         var departures = await GetPortStayDeparturesQuery(periodStart, periodEndExclusive, voyageId)
-            .OrderBy(d => d.DepartureDateTime)
             .ToListAsync();
 
         double totalHours = 0;
@@ -747,7 +745,9 @@ public class AggregateReportService : IAggregateReportService
             query = query.Where(ar => ar.VoyageId == voyageId.Value);
         }
 
-        return query.Select(ar => new PortStayEvent(ar.VoyageId, ar.ArrivalDateTime));
+        return query
+            .OrderBy(ar => ar.ArrivalDateTime)
+            .Select(ar => new PortStayEvent(ar.VoyageId, ar.ArrivalDateTime));
     }
 
     private IQueryable<PortDepartureEvent> GetPortStayDeparturesQuery(DateTime periodStart, DateTime periodEndExclusive, Guid? voyageId)
@@ -761,13 +761,14 @@ public class AggregateReportService : IAggregateReportService
             query = query.Where(dr => dr.VoyageId == voyageId.Value);
         }
 
-        return query.Select(dr => new PortDepartureEvent(dr.VoyageId, dr.DepartureDateTime, dr.CargoOnBoard));
+        return query
+            .OrderBy(dr => dr.DepartureDateTime)
+            .Select(dr => new PortDepartureEvent(dr.VoyageId, dr.DepartureDateTime, dr.CargoOnBoard));
     }
 
     private async Task<double> CalculateCargoDischargedAsync(DateTime periodStart, DateTime periodEndExclusive, Guid? voyageId)
     {
         var arrivals = await BuildArrivalCargoQuery(periodStart, periodEndExclusive, voyageId)
-            .OrderBy(a => a.ArrivalDateTime)
             .ToListAsync();
 
         if (arrivals.Count == 0)
@@ -776,7 +777,6 @@ public class AggregateReportService : IAggregateReportService
         }
 
         var departures = await BuildDepartureCargoQuery(periodStart, periodEndExclusive, voyageId)
-            .OrderBy(d => d.DepartureDateTime)
             .ToListAsync();
 
         double totalDischarged = 0;
@@ -817,7 +817,9 @@ public class AggregateReportService : IAggregateReportService
             query = query.Where(dr => dr.VoyageId == voyageId.Value);
         }
 
-        return query.Select(dr => new PortDepartureEvent(dr.VoyageId, dr.DepartureDateTime, dr.CargoOnBoard));
+        return query
+            .OrderBy(dr => dr.DepartureDateTime)
+            .Select(dr => new PortDepartureEvent(dr.VoyageId, dr.DepartureDateTime, dr.CargoOnBoard));
     }
 
     private IQueryable<PortArrivalCargoEvent> BuildArrivalCargoQuery(DateTime periodStart, DateTime periodEndExclusive, Guid? voyageId)
@@ -831,7 +833,9 @@ public class AggregateReportService : IAggregateReportService
             query = query.Where(ar => ar.VoyageId == voyageId.Value);
         }
 
-        return query.Select(ar => new PortArrivalCargoEvent(ar.VoyageId, ar.ArrivalDateTime, ar.CargoOnBoard));
+        return query
+            .OrderBy(ar => ar.ArrivalDateTime)
+            .Select(ar => new PortArrivalCargoEvent(ar.VoyageId, ar.ArrivalDateTime, ar.CargoOnBoard));
     }
 
     private async Task<string> BuildWeeklyReportNumberAsync(int year, int weekNumber, Guid? voyageId)

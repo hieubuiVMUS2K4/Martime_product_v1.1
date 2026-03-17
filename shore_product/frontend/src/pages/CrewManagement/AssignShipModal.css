@@ -1,0 +1,190 @@
+/* ============================================================
+   AssignShipModal — Professional vessel assignment dialog
+   ============================================================ */
+
+.asm-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: var(--z-modal-backdrop);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  animation: asmFadeIn 0.15s ease-out;
+}
+@keyframes asmFadeIn { from { opacity: 0 } to { opacity: 1 } }
+
+.asm-dialog {
+  background: var(--color-surface);
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,.15);
+  width: 100%; max-width: 520px; max-height: 80vh;
+  display: flex; flex-direction: column;
+  z-index: var(--z-modal);
+  animation: asmSlideUp 0.2s cubic-bezier(.16,1,.3,1);
+}
+@keyframes asmSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Header */
+.asm-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+.asm-hicon {
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px; flex-shrink: 0;
+}
+.asm-hicon--assign { background: #dbeafe; color: #1d4ed8; }
+.asm-hicon--unassign { background: #fee2e2; color: #dc2626; }
+.asm-htitle { flex: 1; min-width: 0; }
+.asm-htitle h2 {
+  font-size: 16px; font-weight: 600;
+  color: var(--color-text); margin: 0;
+}
+.asm-htitle span {
+  font-size: 13px; color: var(--color-text-secondary);
+}
+.asm-x {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--color-text-light);
+  border-radius: 8px; cursor: pointer; transition: all .15s;
+}
+.asm-x:hover { background: var(--color-surface-hover); color: var(--color-text); }
+
+/* Body */
+.asm-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+
+.asm-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; color: var(--color-text-secondary);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  margin-bottom: 10px;
+}
+
+/* Crew chips */
+.asm-chips {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 20px;
+}
+.asm-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px 6px 6px;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 999px; font-size: 13px;
+}
+.asm-chip-av {
+  width: 24px; height: 24px;
+  border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 10px; font-weight: 600;
+}
+.asm-chip-name { font-weight: 500; color: var(--color-text); }
+.asm-chip-rank { font-size: 11px; color: var(--color-text-light); }
+.asm-chip-tag {
+  font-size: 11px; padding: 1px 6px;
+  background: #dbeafe; color: #1d4ed8;
+  border-radius: 4px;
+}
+
+/* Vessel picker */
+.asm-pick { margin-top: 4px; }
+.asm-search {
+  width: 100%; padding: 10px 14px;
+  border: 1px solid var(--color-border); border-radius: 10px;
+  background: var(--color-surface); color: var(--color-text);
+  font-size: 14px; outline: none; transition: border .15s;
+  margin-bottom: 10px;
+}
+.asm-search:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-light);
+}
+.asm-vlist {
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 200px; overflow-y: auto;
+  border: 1px solid var(--color-border); border-radius: 10px;
+  padding: 6px;
+}
+.asm-vopt {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border: 1px solid transparent;
+  border-radius: 8px; background: transparent;
+  cursor: pointer; transition: all .15s; text-align: left; width: 100%;
+}
+.asm-vopt:hover { background: var(--color-surface-hover); }
+.asm-vopt--on { background: #eff6ff; border-color: #3b82f6; }
+.asm-vopt-icon { color: var(--color-text-light); flex-shrink: 0; }
+.asm-vopt--on .asm-vopt-icon { color: #2563eb; }
+.asm-vopt-name {
+  font-size: 14px; font-weight: 500; color: var(--color-text); flex: 1;
+}
+.asm-vopt-imo {
+  font-size: 12px; color: var(--color-text-light);
+  font-family: var(--font-mono);
+}
+.asm-vopt-check { color: #2563eb; flex-shrink: 0; }
+.asm-empty {
+  padding: 20px; text-align: center;
+  color: var(--color-text-light); font-size: 14px;
+}
+.asm-loading {
+  padding: 16px; color: var(--color-text-secondary); font-size: 14px;
+}
+
+/* Warning box */
+.asm-warn {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 14px 16px; margin-top: 8px;
+  background: #fef3c7; border: 1px solid #fde68a;
+  border-radius: 10px; color: #92400e;
+  font-size: 14px; line-height: 1.5;
+}
+.asm-warn strong { color: #78350f; }
+
+/* Footer */
+.asm-footer {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border-light);
+}
+.asm-fbtn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: 10px;
+  font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: all .15s;
+  border: 1px solid transparent;
+}
+.asm-fbtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.asm-fbtn--ghost {
+  background: transparent; color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+.asm-fbtn--ghost:hover:not(:disabled) { background: var(--color-surface-hover); }
+.asm-fbtn--assign { background: #2563eb; color: white; }
+.asm-fbtn--assign:hover:not(:disabled) { background: #1d4ed8; }
+.asm-fbtn--unassign { background: #dc2626; color: white; }
+.asm-fbtn--unassign:hover:not(:disabled) { background: #b91c1c; }
+
+/* Spinner */
+.asm-spin {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white; border-radius: 50%;
+  animation: asmSpin 0.6s linear infinite;
+}
+@keyframes asmSpin { to { transform: rotate(360deg); } }
+
+/* Responsive */
+@media (max-width: 560px) {
+  .asm-overlay { padding: 0; align-items: flex-end; }
+  .asm-dialog {
+    max-width: 100%; max-height: 90vh;
+    border-radius: 16px 16px 0 0;
+  }
+}

@@ -128,6 +128,7 @@ public class VoyageLogEntryResponseDto
 {
     public Guid Id { get; set; }
     public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
     
     public string EventType { get; set; } = string.Empty;
     public DateTime EventDateTime { get; set; }

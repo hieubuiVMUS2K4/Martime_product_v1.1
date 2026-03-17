@@ -82,18 +82,29 @@ public class InventoryController : ControllerBase
     public async Task<IActionResult> GetByLocation()
     {
         var locations = await _context.StoreLocations.Where(l => l.IsActive).AsNoTracking().ToListAsync();
-        var result = new List<object>();
-        foreach (var loc in locations)
-        {
-            var stocks = await _context.InventoryStocks.Where(s => s.StoreLocationId == loc.Id).ToListAsync();
-            result.Add(new
+        var locIds = locations.Select(l => l.Id).ToList();
+
+        // Single query: aggregate all stocks grouped by location
+        var stockSummaries = await _context.InventoryStocks
+            .AsNoTracking()
+            .Where(s => locIds.Contains(s.StoreLocationId))
+            .GroupBy(s => s.StoreLocationId)
+            .Select(g => new
             {
-                locationId = loc.Id.ToString(), locationName = loc.Name,
-                parentId = loc.ParentId?.ToString(),
-                itemCount = stocks.Count,
-                totalValue = stocks.Sum(s => s.Quantity * s.UnitCost)
-            });
-        }
+                LocationId = g.Key,
+                ItemCount = g.Count(),
+                TotalValue = g.Sum(s => s.Quantity * s.UnitCost)
+            })
+            .ToDictionaryAsync(x => x.LocationId);
+
+        var result = locations.Select(loc => new
+        {
+            locationId = loc.Id.ToString(),
+            locationName = loc.Name,
+            parentId = loc.ParentId?.ToString(),
+            itemCount = stockSummaries.TryGetValue(loc.Id, out var s) ? s.ItemCount : 0,
+            totalValue = stockSummaries.TryGetValue(loc.Id, out var sv) ? sv.TotalValue : 0m
+        });
         return Ok(result);
     }
 
@@ -135,7 +146,7 @@ public class InventoryController : ControllerBase
     {
         foreach (var item in request.Items)
         {
-            var stock = await _context.InventoryStocks.FirstOrDefaultAsync(
+            var stock = await _context.InventoryStocks.AsTracking().FirstOrDefaultAsync(
                 s => s.MaterialItemId == item.MaterialItemId && s.StoreLocationId == item.StoreLocationId);
             if (stock == null)
             {
@@ -160,7 +171,7 @@ public class InventoryController : ControllerBase
     [HttpPost("adjust")]
     public async Task<IActionResult> Adjust([FromBody] AdjustRequest request)
     {
-        var stock = await _context.InventoryStocks.FirstOrDefaultAsync(
+        var stock = await _context.InventoryStocks.AsTracking().FirstOrDefaultAsync(
             s => s.MaterialItemId == request.MaterialItemId && s.StoreLocationId == request.StoreLocationId);
         if (stock == null) return NotFound();
         stock.Quantity += (decimal)request.AdjustQuantity;

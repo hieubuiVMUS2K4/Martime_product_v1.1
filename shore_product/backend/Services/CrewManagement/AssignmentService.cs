@@ -461,6 +461,7 @@ public class AssignmentService : IAssignmentService
     public async Task<AssignmentConfirmationDto?> RespondConfirmationAsync(Guid confirmationId, RespondConfirmationRequest request, string respondedBy)
     {
         var entity = await _db.AssignmentConfirmations
+            .AsTracking()
             .Include(c => c.Assignment)
             .FirstOrDefaultAsync(c => c.Id == confirmationId);
 
@@ -674,6 +675,7 @@ public class AssignmentService : IAssignmentService
     {
         var query = _db.CrewMembers
             .Include(c => c.Rank)
+            .Include(c => c.Country)
             .Where(c => c.Status == CrewStatus.Active);
 
         // Filter by rank or equivalent ranks
@@ -745,7 +747,7 @@ public class AssignmentService : IAssignmentService
                 CrewCode = crew.CrewId,
                 RankId = crew.RankId ?? 0,
                 RankName = crew.Rank?.RankName,
-                Nationality = crew.Nationality,
+                Nationality = crew.Country?.CountryName,
                 PoolStatus = crew.PoolStatus ?? "Unknown",
                 ComplianceResult = complianceResult,
                 AvailableFrom = crew.DisembarkDate,

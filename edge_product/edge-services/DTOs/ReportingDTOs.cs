@@ -177,9 +177,11 @@ public class NoonReportDto
     public Guid Id { get; set; }
     public Guid MaritimeReportId { get; set; }
     public string ReportNumber { get; set; } = string.Empty;
+    public string ReportTypeCode { get; set; } = "NOON";
     public DateTime ReportDate { get; set; }
     public string Status { get; set; } = string.Empty;
     public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
     public string? VoyageNumber { get; set; }
     
     // ============ POSITION DATA ============
@@ -229,7 +231,11 @@ public class NoonReportDto
 
     // ============ CREW STATUS (from Crew module) ============
     public int? CrewOnBoard { get; set; }
+    public int? PassengersOnBoard { get; set; }
     public int? CertificatesExpiringSoon { get; set; } // Within 30 days
+    public string? SafetyDrillsConducted { get; set; }
+    public string? SafetyIncidents { get; set; }
+    public string? MaintenanceRemarks { get; set; }
     
     // ============ MAINTENANCE STATUS (from Maintenance module) ============
     public NoonReportMaintenanceSummaryDto? MaintenanceSummary { get; set; }
@@ -346,6 +352,11 @@ public class CreateDepartureReportDto
     [MaxLength(100)]
     public string? DestinationPort { get; set; }
 
+    [MaxLength(10)]
+    public string? NextPortCode { get; set; }
+
+    public double? DistanceToNextPort { get; set; }
+
     public DateTime? EstimatedArrival { get; set; }
 
     public string? Remarks { get; set; }
@@ -359,26 +370,42 @@ public class DepartureReportDto
     public Guid Id { get; set; }
     public Guid MaritimeReportId { get; set; }
     public string ReportNumber { get; set; } = string.Empty;
+    public string ReportTypeCode { get; set; } = "DEPARTURE";
     public string Status { get; set; } = string.Empty;
 
+    public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
     public string PortName { get; set; } = string.Empty;
     public string? PortCode { get; set; }
     public DateTime DepartureDateTime { get; set; }
     public DateTime? PilotOffTime { get; set; }
+    public DateTime? LastLineLetGoTime { get; set; }
+    public double? DepartureLatitude { get; set; }
+    public double? DepartureLongitude { get; set; }
 
     public double? DraftForward { get; set; }
     public double? DraftAft { get; set; }
+    public double? DraftMidship { get; set; }
     public double? FuelOilROB { get; set; }
     public double? DieselOilROB { get; set; }
+    public double? LubOilROB { get; set; }
+    public double? FreshWaterROB { get; set; }
     public double? CargoOnBoard { get; set; }
+    public string? CargoDescription { get; set; }
     public int? CrewOnBoard { get; set; }
+    public int? PassengersOnBoard { get; set; }
 
     public string? DestinationPort { get; set; }
+    public string? NextPortCode { get; set; }
+    public double? DistanceToNextPort { get; set; }
     public DateTime? EstimatedArrival { get; set; }
 
+    public string? Remarks { get; set; }
     public string? PreparedBy { get; set; }
     public string? MasterSignature { get; set; }
+    public DateTime? SignedAt { get; set; }
     public bool IsTransmitted { get; set; }
+    public DateTime? TransmittedAt { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
@@ -449,11 +476,18 @@ public class ArrivalReportDto
     public Guid Id { get; set; }
     public Guid MaritimeReportId { get; set; }
     public string ReportNumber { get; set; } = string.Empty;
+    public string ReportTypeCode { get; set; } = "ARRIVAL";
     public string Status { get; set; } = string.Empty;
 
+    public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
     public string PortName { get; set; } = string.Empty;
     public string? PortCode { get; set; }
     public DateTime ArrivalDateTime { get; set; }
+    public DateTime? PilotOnBoardTime { get; set; }
+    public DateTime? FirstLineAshoreTime { get; set; }
+    public double? ArrivalLatitude { get; set; }
+    public double? ArrivalLongitude { get; set; }
 
     public double? VoyageDistance { get; set; }
     public double? VoyageDuration { get; set; }
@@ -461,13 +495,24 @@ public class ArrivalReportDto
 
     public double? DraftForward { get; set; }
     public double? DraftAft { get; set; }
+    public double? DraftMidship { get; set; }
     public double? FuelOilROB { get; set; }
+    public double? DieselOilROB { get; set; }
+    public double? LubOilROB { get; set; }
+    public double? FreshWaterROB { get; set; }
     public double? TotalFuelConsumed { get; set; }
+    public double? TotalDieselConsumed { get; set; }
     public double? CargoOnBoard { get; set; }
+    public string? CargoDescription { get; set; }
+    public int? CrewOnBoard { get; set; }
+    public int? PassengersOnBoard { get; set; }
 
+    public string? Remarks { get; set; }
     public string? PreparedBy { get; set; }
     public string? MasterSignature { get; set; }
+    public DateTime? SignedAt { get; set; }
     public bool IsTransmitted { get; set; }
+    public DateTime? TransmittedAt { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
@@ -479,6 +524,8 @@ public class CreateBunkerReportDto
 {
     [Required]
     public DateTime BunkerDate { get; set; }
+
+    public Guid? VoyageId { get; set; }
 
     [Required]
     [MaxLength(100)]
@@ -521,6 +568,15 @@ public class CreateBunkerReportDto
     public double? ROBBefore { get; set; }
     public double? ROBAfter { get; set; }
 
+    [MaxLength(200)]
+    public string? TanksLoaded { get; set; }
+
+    [MaxLength(200)]
+    public string? SealNumbers { get; set; }
+
+    [MaxLength(100)]
+    public string? ChiefEngineerSignature { get; set; }
+
     public double? UnitPrice { get; set; }
     public double? TotalCost { get; set; }
 
@@ -538,9 +594,12 @@ public class BunkerReportDto
     public Guid Id { get; set; }
     public Guid MaritimeReportId { get; set; }
     public string ReportNumber { get; set; } = string.Empty;
+    public string ReportTypeCode { get; set; } = "BUNKER";
     public string Status { get; set; } = string.Empty;
 
     public DateTime BunkerDate { get; set; }
+    public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
     public string PortName { get; set; } = string.Empty;
     public string? PortCode { get; set; }
     
@@ -553,13 +612,23 @@ public class BunkerReportDto
     public double? Density { get; set; }
     public double? SulphurContent { get; set; }
     public double? Viscosity { get; set; }
+    public double? FlashPoint { get; set; }
     
     public double? ROBBefore { get; set; }
     public double? ROBAfter { get; set; }
+    public string? TanksLoaded { get; set; }
+    public string? SealNumbers { get; set; }
+    public string? ChiefEngineerSignature { get; set; }
+    public double? UnitPrice { get; set; }
     public double? TotalCost { get; set; }
+    public string? DeliveryMethod { get; set; }
 
+    public string? Remarks { get; set; }
     public string? PreparedBy { get; set; }
+    public string? MasterSignature { get; set; }
+    public DateTime? SignedAt { get; set; }
     public bool IsTransmitted { get; set; }
+    public DateTime? TransmittedAt { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
@@ -571,6 +640,8 @@ public class CreatePositionReportDto
 {
     [Required]
     public DateTime ReportDateTime { get; set; }
+
+    public Guid? VoyageId { get; set; }
 
     [Required]
     [Range(-90, 90)]
@@ -612,9 +683,12 @@ public class PositionReportDto
     public Guid Id { get; set; }
     public Guid MaritimeReportId { get; set; }
     public string ReportNumber { get; set; } = string.Empty;
+    public string ReportTypeCode { get; set; } = "POSITION";
     public string Status { get; set; } = string.Empty;
 
     public DateTime ReportDateTime { get; set; }
+    public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double? CourseOverGround { get; set; }
@@ -624,9 +698,15 @@ public class PositionReportDto
     public string? LastPort { get; set; }
     public string? NextPort { get; set; }
     public DateTime? ETA { get; set; }
+    public double? CargoOnBoard { get; set; }
+    public int? CrewOnBoard { get; set; }
 
+    public string? Remarks { get; set; }
     public string? PreparedBy { get; set; }
+    public string? MasterSignature { get; set; }
+    public DateTime? SignedAt { get; set; }
     public bool IsTransmitted { get; set; }
+    public DateTime? TransmittedAt { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
@@ -647,6 +727,7 @@ public class ReportSummaryDto
     public DateTime ReportDateTime { get; set; }
     public string Status { get; set; } = string.Empty;
     public Guid? VoyageId { get; set; }
+    public Guid? VoyagePlanLegId { get; set; }
     public string? VoyageNumber { get; set; }
     public string? PreparedBy { get; set; }
     public string? MasterSignature { get; set; }

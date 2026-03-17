@@ -63,37 +63,34 @@ public class CrewSyncOrchestrator : ICrewSyncOrchestrator
 
     public async Task<int> QueueFullCrewSnapshotAsync(string targetNode)
     {
-        var enqueued = 0;
+        var batch = new List<(string TableName, string RecordKey, SyncActionType Action, object Payload)>();
 
         // 1. Master data first (dependencies)
         var countries = await _context.Countries.AsNoTracking().ToListAsync();
         foreach (var c in countries)
-        {
-            await _syncOutbox.EnqueueAsync(targetNode, "country", c.Id.ToString(), SyncActionType.SNAPSHOT, c);
-            enqueued++;
-        }
+            batch.Add(("country", c.Id.ToString(), SyncActionType.SNAPSHOT, c));
 
         var ranks = await _context.Ranks.AsNoTracking().ToListAsync();
         foreach (var r in ranks)
-        {
-            await _syncOutbox.EnqueueAsync(targetNode, "rank", r.Id.ToString(), SyncActionType.SNAPSHOT, r);
-            enqueued++;
-        }
+            batch.Add(("rank", r.Id.ToString(), SyncActionType.SNAPSHOT, r));
 
         var certTypes = await _context.CrewCertificateTypes.AsNoTracking().ToListAsync();
         foreach (var ct in certTypes)
-        {
-            await _syncOutbox.EnqueueAsync(targetNode, "certificate", ct.Id.ToString(), SyncActionType.SNAPSHOT, ct);
-            enqueued++;
-        }
+            batch.Add(("certificate", ct.Id.ToString(), SyncActionType.SNAPSHOT, ct));
+
+        // 1b. Certificate junction tables (country + rank mappings)
+        var countryCerts = await _context.CountryCertificates.AsNoTracking().ToListAsync();
+        foreach (var cc in countryCerts)
+            batch.Add(("country_certificate", cc.Id.ToString(), SyncActionType.SNAPSHOT, cc));
+
+        var rankCerts = await _context.RankCertificates.AsNoTracking().ToListAsync();
+        foreach (var rc in rankCerts)
+            batch.Add(("rank_certificate", rc.Id.ToString(), SyncActionType.SNAPSHOT, rc));
 
         // 2. Crew members
         var crew = await _context.CrewMembers.AsNoTracking().Include(c => c.Rank).ToListAsync();
         foreach (var c in crew)
-        {
-            await _syncOutbox.EnqueueAsync(targetNode, "crew_member", c.Id.ToString(), SyncActionType.SNAPSHOT, c);
-            enqueued++;
-        }
+            batch.Add(("crew_member", c.Id.ToString(), SyncActionType.SNAPSHOT, c));
 
         // 3. Crew certificates
         var crewCerts = await _context.CrewCertificates.AsNoTracking()
@@ -101,36 +98,27 @@ public class CrewSyncOrchestrator : ICrewSyncOrchestrator
             .Include(cc => cc.Country)
             .ToListAsync();
         foreach (var cc in crewCerts)
-        {
-            await _syncOutbox.EnqueueAsync(targetNode, "crew_certificate", cc.Id.ToString(), SyncActionType.SNAPSHOT, cc);
-            enqueued++;
-        }
+            batch.Add(("crew_certificate", cc.Id.ToString(), SyncActionType.SNAPSHOT, cc));
 
         // 4. Service records
         var serviceRecords = await _context.ServiceRecords.AsNoTracking().ToListAsync();
         foreach (var sr in serviceRecords)
-        {
-            await _syncOutbox.EnqueueAsync(targetNode, "service_record", sr.Id.ToString(), SyncActionType.SNAPSHOT, sr);
-            enqueued++;
-        }
+            batch.Add(("service_record", sr.Id.ToString(), SyncActionType.SNAPSHOT, sr));
 
         // 5. Documents
         var travelDocs = await _context.TravelDocuments.AsNoTracking().ToListAsync();
         foreach (var d in travelDocs)
-        {
-            await _syncOutbox.EnqueueAsync(targetNode, "travel_document", d.Id.ToString(), SyncActionType.SNAPSHOT, d);
-            enqueued++;
-        }
+            batch.Add(("travel_document", d.Id.ToString(), SyncActionType.SNAPSHOT, d));
 
         var seafarerDocs = await _context.SeafarerDocuments.AsNoTracking().ToListAsync();
         foreach (var d in seafarerDocs)
-        {
-            await _syncOutbox.EnqueueAsync(targetNode, "seafarer_document", d.Id.ToString(), SyncActionType.SNAPSHOT, d);
-            enqueued++;
-        }
+            batch.Add(("seafarer_document", d.Id.ToString(), SyncActionType.SNAPSHOT, d));
 
-        _logger.LogInformation("Full crew snapshot queued for {Node}: {Count} items", targetNode, enqueued);
-        return enqueued;
+        // Enqueue all items in a single batch (one SaveChanges)
+        await _syncOutbox.EnqueueBatchAsync(targetNode, batch);
+
+        _logger.LogInformation("Full crew snapshot queued for {Node}: {Count} items (batch)", targetNode, batch.Count);
+        return batch.Count;
     }
 
     public async Task<int> QueueDeltaSyncAsync(string targetNode, DateTime since)

@@ -1,6 +1,6 @@
 import { X, Upload } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { toast } from 'react-toastify'
+import { toast } from 'sonner'
 import { maritimeService } from '../../services/maritime.service'
 
 type ImageViewerModalProps = {
@@ -11,6 +11,12 @@ type ImageViewerModalProps = {
   onClose: () => void
   onFileChanged?: () => void
   customUploadHandler?: (documentId: string, formData: FormData) => Promise<any>
+}
+
+function isPdfUrl(url: string | null): boolean {
+  if (!url) return false
+  const cleanUrl = url.split('?')[0]
+  return cleanUrl.toLowerCase().endsWith('.pdf')
 }
 
 export default function ImageViewerModal({ isOpen, imageUrl, documentId, targetTable, onClose, onFileChanged, customUploadHandler }: ImageViewerModalProps) {
@@ -25,13 +31,17 @@ export default function ImageViewerModal({ isOpen, imageUrl, documentId, targetT
     setPreviewFile(null)
     setPreviewUrl(null)
   }, [imageUrl])
+
+  const isCurrentPdf = previewFile
+    ? previewFile.type === 'application/pdf'
+    : isPdfUrl(currentImageUrl || imageUrl)
   
   if (!isOpen || !imageUrl) return null
 
-  const handleSelectImage = () => {
+  const handleSelectFile = () => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = 'image/*'
+    input.accept = 'image/*,.pdf'
     
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
@@ -83,10 +93,10 @@ export default function ImageViewerModal({ isOpen, imageUrl, documentId, targetT
         onFileChanged()
       }
       
-      toast.success('Image changed successfully!')
+      toast.success('Thay đổi file thành công!')
     } catch (error: any) {
       console.error('❌ Failed to change image:', error)
-      toast.error(error.message || 'Failed to change image')
+      toast.error(error.message || 'Thay đổi file thất bại')
     } finally {
       setUploading(false)
     }
@@ -105,7 +115,7 @@ export default function ImageViewerModal({ isOpen, imageUrl, documentId, targetT
       <div className="bg-white rounded-lg shadow-xl max-w-4xl max-h-[90vh] w-full mx-4 flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">
-            {previewFile ? 'Preview New Image' : 'Document Image'}
+            {previewFile ? (isCurrentPdf ? 'Xem trước PDF mới' : 'Xem trước ảnh mới') : (isPdfUrl(currentImageUrl || imageUrl) ? 'Tài liệu PDF' : 'Ảnh tài liệu')}
           </h3>
           <button
             onClick={onClose}
@@ -119,8 +129,15 @@ export default function ImageViewerModal({ isOpen, imageUrl, documentId, targetT
           {uploading ? (
             <div className="flex flex-col items-center gap-4">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-              <p className="text-gray-600 font-medium">Uploading new image...</p>
+              <p className="text-gray-600 font-medium">Đang tải lên...</p>
             </div>
+          ) : isCurrentPdf ? (
+            <iframe
+              src={previewUrl || currentImageUrl || imageUrl || ''}
+              title="PDF Document"
+              className="w-full h-full min-h-[60vh]"
+              style={{ border: 'none' }}
+            />
           ) : (
             <img 
               src={previewUrl || (currentImageUrl || imageUrl)?.startsWith('http') ? (previewUrl || currentImageUrl || imageUrl) : (previewUrl || currentImageUrl || imageUrl)}
@@ -138,12 +155,12 @@ export default function ImageViewerModal({ isOpen, imageUrl, documentId, targetT
           <div className="flex items-center gap-2">
             {documentId && (targetTable || customUploadHandler) && !previewFile && (
               <button
-                onClick={handleSelectImage}
+                onClick={handleSelectFile}
                 disabled={uploading}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors flex items-center gap-2"
               >
                 <Upload className="w-4 h-4" />
-                Change Image
+                Thay đổi file
               </button>
             )}
             {previewFile && (

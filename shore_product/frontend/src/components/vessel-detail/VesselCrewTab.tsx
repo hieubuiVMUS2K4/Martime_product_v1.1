@@ -15,12 +15,16 @@ interface CrewMember {
   crewId: string;
   fullName: string;
   rank?: { name: string; rankName?: string };
-  nationality?: string;
+  countryName?: string;
   isOnboard: boolean;
+  onboardStatus?: string;
   joinDate?: string;
   embarkDate?: string;
   disembarkDate?: string;
   contractEnd?: string;
+  edgeChanges?: string;
+  edgeChangesViewed?: boolean;
+  reviewNotes?: string;
 }
 
 const BASE = ENV.API_BASE_URL;
@@ -55,6 +59,9 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 15;
 
+  // Count of crew with unviewed edge changes
+  const unviewedChangesCount = crew.filter(c => c.edgeChanges && !c.edgeChangesViewed).length;
+
   useEffect(() => {
     loadCrew();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -80,14 +87,14 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
     }
   };
 
-  // Get only onboard crew
-  let crewOnBoard = crew.filter(c => c.isOnboard);
+  // All crew assigned to this vessel
+  let filteredCrew = [...crew];
 
   // Apply column filters
-  if (filterCrewId)     crewOnBoard = crewOnBoard.filter(c => (c.crewId || '').toLowerCase().includes(filterCrewId.toLowerCase()));
-  if (filterFullName)   crewOnBoard = crewOnBoard.filter(c => c.fullName.toLowerCase().includes(filterFullName.toLowerCase()));
-  if (filterRank)       crewOnBoard = crewOnBoard.filter(c => (c.rank?.rankName || c.rank?.name || '').toLowerCase().includes(filterRank.toLowerCase()));
-  if (filterNationality) crewOnBoard = crewOnBoard.filter(c => (c.nationality || '').toLowerCase().includes(filterNationality.toLowerCase()));
+  if (filterCrewId)     filteredCrew = filteredCrew.filter(c => (c.crewId || '').toLowerCase().includes(filterCrewId.toLowerCase()));
+  if (filterFullName)   filteredCrew = filteredCrew.filter(c => c.fullName.toLowerCase().includes(filterFullName.toLowerCase()));
+  if (filterRank)       filteredCrew = filteredCrew.filter(c => (c.rank?.rankName || c.rank?.name || '').toLowerCase().includes(filterRank.toLowerCase()));
+  if (filterNationality) filteredCrew = filteredCrew.filter(c => (c.countryName || '').toLowerCase().includes(filterNationality.toLowerCase()));
 
   // Apply sorting
   const applySorting = (crews: CrewMember[]) => {
@@ -114,8 +121,8 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
         break;
       case 'nationality':
         sorted.sort((a, b) => {
-          const aNat = a.nationality || '';
-          const bNat = b.nationality || '';
+          const aNat = a.countryName || '';
+          const bNat = b.countryName || '';
           return sortType.dir === 'asc' ? aNat.localeCompare(bNat) : bNat.localeCompare(aNat);
         });
         break;
@@ -130,13 +137,13 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
     return sorted;
   };
 
-  crewOnBoard = applySorting(crewOnBoard);
+  filteredCrew = applySorting(filteredCrew);
 
   // Pagination
-  const totalPages = Math.ceil(crewOnBoard.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredCrew.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
-  const paginatedCrews = crewOnBoard.slice(startIndex, endIndex);
+  const paginatedCrews = filteredCrew.slice(startIndex, endIndex);
 
   const handleContextMenu = (e: React.MouseEvent, crew: CrewMember) => {
     e.preventDefault();
@@ -152,6 +159,12 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
     } catch {
       alert('Xóa thất bại. Vui lòng thử lại.');
     }
+  };
+
+  const handleViewCrew = (crewMember: CrewMember) => {
+    // Navigate directly — do NOT auto-mark as viewed here.
+    // User must click "✓ Đã xem" on the detail page to acknowledge changes.
+    navigate(`/vessels/${vesselId}/crew/${crewMember.id}`);
   };
 
   // Sort Dropdown Component
@@ -203,8 +216,24 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
 
   return (
     <div className="relative">
+      {/* Edge Changes Notification Banner */}
+      {unviewedChangesCount > 0 && (
+        <div style={{
+          background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: 8, padding: '10px 16px',
+          marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8
+        }}>
+          <span style={{
+            background: '#ef4444', color: '#fff', borderRadius: '50%', width: 22, height: 22,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700
+          }}>{unviewedChangesCount}</span>
+          <span style={{ fontSize: 13, color: '#92400e', fontWeight: 600 }}>
+            {unviewedChangesCount} crew member{unviewedChangesCount > 1 ? 's have' : ' has'} been modified by the ship. Click on their name to review changes.
+          </span>
+        </div>
+      )}
+
       {/* Table */}
-      {crewOnBoard.length > 0 ? (
+      {filteredCrew.length > 0 ? (
         <>
           <div className="vp-table-card" style={{ borderRadius: 0, border: 'none', boxShadow: 'none' }}>
             <table className="vp-table">
@@ -266,16 +295,22 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
                         <span style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--moc-muted)' }}>{crewMember.crewId}</span>
                       </td>
                       <td style={{ borderRight: '1px solid #edf2f8' }}>
-                        <span style={{ fontWeight: 600, color: 'var(--moc-blue)', cursor: 'pointer' }}
-                          onClick={() => navigate(`/vessels/${vesselId}/crew/${crewMember.id}`)}>
+                        <span style={{ fontWeight: 600, color: 'var(--moc-blue)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                          onClick={() => handleViewCrew(crewMember)}>
                           {crewMember.fullName}
+                          {crewMember.edgeChanges && !crewMember.edgeChangesViewed && (
+                            <span title="Modified by ship — click to review" style={{
+                              background: '#ef4444', borderRadius: '50%', width: 8, height: 8,
+                              display: 'inline-block', flexShrink: 0, animation: 'pulse 2s infinite'
+                            }} />
+                          )}
                         </span>
                       </td>
                       <td style={{ borderRight: '1px solid #edf2f8' }}>
                         {crewMember.rank?.rankName || crewMember.rank?.name || '-'}
                       </td>
                       <td style={{ borderRight: '1px solid #edf2f8', color: 'var(--moc-muted)' }}>
-                        {crewMember.nationality || 'N/A'}
+                        {crewMember.countryName || 'N/A'}
                       </td>
                       <td style={{ borderRight: '1px solid #edf2f8', color: 'var(--moc-muted)' }}>
                         {crewMember.embarkDate
@@ -285,7 +320,19 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
                       <td>
                         {crewMember.isOnboard ? (
                           <span style={{ background: '#dcfce7', color: '#16a34a', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
-                            • Online
+                            • Onboard
+                          </span>
+                        ) : crewMember.onboardStatus === 'PendingReview' ? (
+                          <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
+                            • Đang duyệt
+                          </span>
+                        ) : crewMember.onboardStatus === 'OnHold' ? (
+                          <span style={{ background: '#fed7aa', color: '#c2410c', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
+                            • Tạm giữ
+                          </span>
+                        ) : crewMember.onboardStatus === 'Rejected' ? (
+                          <span style={{ background: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
+                            • Từ chối
                           </span>
                         ) : (
                           <span style={{ background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
@@ -303,7 +350,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
             {totalPages > 1 && (
               <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
                 <div className="text-sm text-gray-600">
-                  Showing {startIndex + 1} - {Math.min(endIndex, crewOnBoard.length)} of {crewOnBoard.length}
+                  Showing {startIndex + 1} - {Math.min(endIndex, filteredCrew.length)} of {filteredCrew.length}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -344,7 +391,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
         >
           <button
             onClick={() => {
-              navigate(`/vessels/${vesselId}/crew/${contextMenu.crew.id}`);
+              handleViewCrew(contextMenu.crew);
               setContextMenu(null);
             }}
             className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50"

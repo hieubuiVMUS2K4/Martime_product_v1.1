@@ -131,7 +131,7 @@ export function CertificateManagementPage() {
           fullName: item.CrewMember.FullName || item.CrewMember.fullName,
           rankId: item.CrewMember.RankId || item.CrewMember.rankId,
           rank: item.CrewMember.Rank || item.CrewMember.rank,
-          nationality: item.CrewMember.Nationality || item.CrewMember.nationality,
+          countryId: item.CrewMember.CountryId || item.CrewMember.countryId,
           crewId: item.CrewMember.CrewId || item.CrewMember.crewId
         } : item.crewMember,
         country: item.Country ? {

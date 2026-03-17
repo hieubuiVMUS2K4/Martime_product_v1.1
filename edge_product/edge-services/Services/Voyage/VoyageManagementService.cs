@@ -3,6 +3,7 @@ using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using MaritimeEdge.DTOs;
 using MaritimeEdge.Constants;
+using Maritime.Shared.Models.Documents;
 
 namespace MaritimeEdge.Services.Voyage;
 
@@ -56,6 +57,16 @@ public class VoyageManagementService : IVoyageManagementService
             .AsNoTracking()
             .AsSplitQuery() // Avoid cartesian explosion from multiple Includes
             .Include(v => v.PortCalls.OrderBy(p => p.Sequence))
+            .Include(v => v.PlanLegs.OrderBy(p => p.Sequence))
+            .Include(v => v.StatusHistory.OrderByDescending(h => h.ChangedAt))
+            .Include(v => v.CargoPlans.OrderBy(cp => cp.Sequence))
+            .Include(v => v.BunkerPlans.OrderBy(bp => bp.Sequence))
+            .Include(v => v.CrewChangePlans.OrderBy(ccp => ccp.Sequence))
+                .ThenInclude(ccp => ccp.CrewMember)
+            .Include(v => v.CrewChangePlans)
+                .ThenInclude(ccp => ccp.Rank)
+            .Include(v => v.CostEstimates.OrderBy(ce => ce.Sequence))
+            .Include(v => v.RevenueEstimates.OrderBy(re => re.Sequence))
             .Include(v => v.CrewAssignments)
                 .ThenInclude(a => a.CrewMember)
             .Include(v => v.CrewAssignments)
@@ -79,6 +90,8 @@ public class VoyageManagementService : IVoyageManagementService
     public async Task<VoyageRecord> CreateVoyageAsync(CreateVoyageDto dto)
     {
         var vesselConfig = _configuration.GetSection("Vessel");
+        var initialStatus = NormalizeVoyageStatus(dto.VoyageStatus ?? VoyageStatus.PLANNING);
+        var charterType = NormalizeCharterType(dto.CharterType);
 
         var voyage = new VoyageRecord
         {
@@ -96,8 +109,14 @@ public class VoyageManagementService : IVoyageManagementService
             PreviousPortCode = dto.PreviousPortCode,
             PreviousPortName = dto.PreviousPortName,
             CargoType = dto.CargoType,
+            CharterType = charterType,
             CargoWeight = dto.CargoWeight,
-            VoyageStatus = "PLANNING"
+            PlannedDistance = dto.PlannedDistance,
+            PlannedDurationHours = dto.PlannedDurationHours,
+            PlannedAverageSpeed = dto.PlannedAverageSpeed,
+            PlannedFuelConsumption = dto.PlannedFuelConsumption,
+            VoyageInstructions = dto.VoyageInstructions,
+            VoyageStatus = initialStatus
         };
 
         // Auto-fill vessel info from config
@@ -105,7 +124,17 @@ public class VoyageManagementService : IVoyageManagementService
         voyage.VesselName = vesselConfig["Name"];
         voyage.CallSign = vesselConfig["CallSign"];
 
+        ApplyLifecycleMilestones(voyage, initialStatus);
+        ApplyPlanLegs(voyage, dto.PlanLegs);
+        ApplyCargoPlans(voyage, dto.CargoPlans);
+        ApplyBunkerPlans(voyage, dto.BunkerPlans);
+        ApplyCrewChangePlans(voyage, dto.CrewChangePlans);
+        ApplyCostEstimates(voyage, dto.CostEstimates);
+        ApplyRevenueEstimates(voyage, dto.RevenueEstimates);
+        RecalculateFinancialSummary(voyage);
+
         _context.VoyageRecords.Add(voyage);
+        AddStatusHistory(voyage, null, initialStatus, "Voyage created");
         await _context.SaveChangesAsync();
         
         _logger.LogInformation("Created voyage {VoyageNumber} (ID: {VoyageId})", voyage.VoyageNumber, voyage.Id);
@@ -118,13 +147,16 @@ public class VoyageManagementService : IVoyageManagementService
         if (voyage == null) return null;
 
         var currentStatus = voyage.VoyageStatus;
+        string? nextStatus = null;
 
         // ── Status transition validation ──
         if (dto.VoyageStatus != null && dto.VoyageStatus != currentStatus)
         {
-            if (!VoyageStatus.IsValidTransition(currentStatus, dto.VoyageStatus))
+            nextStatus = NormalizeVoyageStatus(dto.VoyageStatus);
+
+            if (!VoyageStatus.IsValidTransition(currentStatus, nextStatus))
                 throw new InvalidOperationException(
-                    $"Invalid status transition: {currentStatus} → {dto.VoyageStatus}. " +
+                    $"Invalid status transition: {currentStatus} → {nextStatus}. " +
                     $"Allowed transitions from {currentStatus}: {string.Join(", ", VoyageStatus.ValidTransitions.GetValueOrDefault(currentStatus, Array.Empty<string>()))}");
         }
 
@@ -132,12 +164,14 @@ public class VoyageManagementService : IVoyageManagementService
         if (VoyageStatus.ReadOnlyStatuses.Contains(currentStatus))
         {
             // COMPLETED / CANCELLED: only allow status change (e.g., CANCELLED → PLANNING to reopen)
-            if (dto.VoyageStatus != null && dto.VoyageStatus != currentStatus)
+            if (nextStatus != null && nextStatus != currentStatus)
             {
-                voyage.VoyageStatus = dto.VoyageStatus;
+                voyage.VoyageStatus = nextStatus;
+                ApplyLifecycleMilestones(voyage, nextStatus);
+                AddStatusHistory(voyage, currentStatus, nextStatus, "Status changed via voyage update");
                 voyage.UpdatedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Voyage {VoyageId} status changed from {From} to {To}", voyageId, currentStatus, dto.VoyageStatus);
+                _logger.LogInformation("Voyage {VoyageId} status changed from {From} to {To}", voyageId, currentStatus, nextStatus);
                 return voyage;
             }
             throw new InvalidOperationException(
@@ -155,6 +189,8 @@ public class VoyageManagementService : IVoyageManagementService
                 throw new InvalidOperationException("Cannot change departure port code while UNDERWAY.");
             if (dto.DepartureTime.HasValue && dto.DepartureTime != voyage.DepartureTime)
                 throw new InvalidOperationException("Cannot change departure time while UNDERWAY.");
+            if (dto.PlanLegs != null)
+                throw new InvalidOperationException($"Cannot modify planning legs while voyage is {currentStatus}.");
         }
 
         // ── Apply allowed updates ──
@@ -168,11 +204,65 @@ public class VoyageManagementService : IVoyageManagementService
         if (dto.PreviousPortCode != null) voyage.PreviousPortCode = dto.PreviousPortCode;
         if (dto.PreviousPortName != null) voyage.PreviousPortName = dto.PreviousPortName;
         if (dto.CargoType != null) voyage.CargoType = dto.CargoType;
+        if (dto.CharterType != null) voyage.CharterType = NormalizeCharterType(dto.CharterType);
         if (dto.CargoWeight.HasValue) voyage.CargoWeight = dto.CargoWeight;
+        if (dto.PlannedDistance.HasValue) voyage.PlannedDistance = dto.PlannedDistance;
+        if (dto.PlannedDurationHours.HasValue) voyage.PlannedDurationHours = dto.PlannedDurationHours;
+        if (dto.PlannedAverageSpeed.HasValue) voyage.PlannedAverageSpeed = dto.PlannedAverageSpeed;
+        if (dto.PlannedFuelConsumption.HasValue) voyage.PlannedFuelConsumption = dto.PlannedFuelConsumption;
+        if (dto.VoyageInstructions != null) voyage.VoyageInstructions = dto.VoyageInstructions;
         if (dto.DistanceTraveled.HasValue) voyage.DistanceTraveled = dto.DistanceTraveled;
         if (dto.FuelConsumed.HasValue) voyage.FuelConsumed = dto.FuelConsumed;
         if (dto.AverageSpeed.HasValue) voyage.AverageSpeed = dto.AverageSpeed;
-        if (dto.VoyageStatus != null) voyage.VoyageStatus = dto.VoyageStatus;
+        if (dto.PlanLegs != null)
+        {
+            if (!VoyageStatus.EditableStatuses.Contains(currentStatus))
+                throw new InvalidOperationException($"Cannot modify planning legs while voyage is {currentStatus}.");
+
+            await ReplacePlanLegsAsync(voyage, dto.PlanLegs);
+        }
+        if (dto.CargoPlans != null)
+        {
+            if (!VoyageStatus.EditableStatuses.Contains(currentStatus))
+                throw new InvalidOperationException($"Cannot modify cargo plans while voyage is {currentStatus}.");
+
+            await ReplaceCargoPlansAsync(voyage, dto.CargoPlans);
+        }
+        if (dto.BunkerPlans != null)
+        {
+            if (!VoyageStatus.EditableStatuses.Contains(currentStatus))
+                throw new InvalidOperationException($"Cannot modify bunker plans while voyage is {currentStatus}.");
+
+            await ReplaceBunkerPlansAsync(voyage, dto.BunkerPlans);
+        }
+        if (dto.CrewChangePlans != null)
+        {
+            if (!VoyageStatus.EditableStatuses.Contains(currentStatus))
+                throw new InvalidOperationException($"Cannot modify crew change plans while voyage is {currentStatus}.");
+
+            await ReplaceCrewChangePlansAsync(voyage, dto.CrewChangePlans);
+        }
+        if (dto.CostEstimates != null)
+        {
+            if (!VoyageStatus.EditableStatuses.Contains(currentStatus))
+                throw new InvalidOperationException($"Cannot modify cost estimates while voyage is {currentStatus}.");
+
+            await ReplaceCostEstimatesAsync(voyage, dto.CostEstimates);
+        }
+        if (dto.RevenueEstimates != null)
+        {
+            if (!VoyageStatus.EditableStatuses.Contains(currentStatus))
+                throw new InvalidOperationException($"Cannot modify revenue estimates while voyage is {currentStatus}.");
+
+            await ReplaceRevenueEstimatesAsync(voyage, dto.RevenueEstimates);
+        }
+        RecalculateFinancialSummary(voyage);
+        if (nextStatus != null)
+        {
+            voyage.VoyageStatus = nextStatus;
+            ApplyLifecycleMilestones(voyage, nextStatus);
+            AddStatusHistory(voyage, currentStatus, nextStatus, "Status changed via voyage update");
+        }
         
         voyage.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
@@ -185,7 +275,7 @@ public class VoyageManagementService : IVoyageManagementService
         if (voyage == null) return false;
 
         // Only allow deleting PLANNING or CANCELLED voyages
-        if (voyage.VoyageStatus == VoyageStatus.UNDERWAY)
+        if (VoyageStatus.IsCurrentVoyageStatus(voyage.VoyageStatus))
             throw new InvalidOperationException("Cannot delete a voyage that is UNDERWAY. Change status to CANCELLED first.");
         if (voyage.VoyageStatus == VoyageStatus.COMPLETED)
             throw new InvalidOperationException("Cannot delete a COMPLETED voyage. Historical records must be preserved.");
@@ -294,10 +384,24 @@ public class VoyageManagementService : IVoyageManagementService
         if (voyage != null && VoyageStatus.ReadOnlyStatuses.Contains(voyage.VoyageStatus))
             throw new InvalidOperationException($"Cannot modify port calls on a {voyage.VoyageStatus} voyage.");
 
-        if (dto.PortId.HasValue) portCall.PortId = dto.PortId;
-        if (dto.PortCode != null) portCall.PortCode = dto.PortCode;
-        if (dto.PortName != null) portCall.PortName = dto.PortName;
-        if (dto.Country != null) portCall.Country = dto.Country;
+        if (dto.PortId.HasValue)
+        {
+            portCall.PortId = dto.PortId;
+
+            var selectedPort = await _context.Ports.FindAsync(dto.PortId.Value);
+            if (selectedPort != null)
+            {
+                portCall.PortCode = selectedPort.PortCode;
+                portCall.PortName = selectedPort.PortName;
+                portCall.Country = selectedPort.Country;
+            }
+        }
+        else
+        {
+            if (dto.PortCode != null) portCall.PortCode = dto.PortCode;
+            if (dto.PortName != null) portCall.PortName = dto.PortName;
+            if (dto.Country != null) portCall.Country = dto.Country;
+        }
         if (dto.CallType != null) portCall.CallType = dto.CallType;
         if (dto.Sequence.HasValue) portCall.Sequence = dto.Sequence.Value;
         if (dto.ArrivalTime.HasValue) portCall.ArrivalTime = dto.ArrivalTime;
@@ -469,6 +573,7 @@ public class VoyageManagementService : IVoyageManagementService
         }
 
         var previousStatus = assignment.Status;
+        var normalizedStatus = dto.Status?.Trim().ToUpperInvariant();
 
         if (dto.RankId.HasValue) assignment.RankId = dto.RankId;
         if (dto.Role != null) assignment.Role = dto.Role;
@@ -479,16 +584,38 @@ public class VoyageManagementService : IVoyageManagementService
         if (dto.DisembarkPortName != null) assignment.DisembarkPortName = dto.DisembarkPortName;
         if (dto.DisembarkDate.HasValue) assignment.DisembarkDate = dto.DisembarkDate;
         if (dto.WatchSchedule != null) assignment.WatchSchedule = dto.WatchSchedule;
-        if (dto.Status != null) assignment.Status = dto.Status;
+        if (normalizedStatus == "ONBOARD" && !assignment.EmbarkDate.HasValue)
+            assignment.EmbarkDate = DateTime.UtcNow;
+        if ((normalizedStatus == "DISEMBARKED" || normalizedStatus == "CANCELLED") && !assignment.DisembarkDate.HasValue && previousStatus == "ONBOARD")
+            assignment.DisembarkDate = DateTime.UtcNow;
+        if (normalizedStatus != null) assignment.Status = normalizedStatus;
         if (dto.Remarks != null) assignment.Remarks = dto.Remarks;
 
         assignment.UpdatedAt = DateTime.UtcNow;
 
         // Auto-sync CrewMember.IsOnboard based on assignment status change
-        if (dto.Status != null && dto.Status != previousStatus)
+        var shouldSyncCrewState = normalizedStatus != null && normalizedStatus != previousStatus;
+        var shouldSyncServiceRecord = shouldSyncCrewState
+            || dto.EmbarkDate.HasValue
+            || dto.DisembarkDate.HasValue
+            || dto.EmbarkPortCode != null
+            || dto.EmbarkPortName != null
+            || dto.DisembarkPortCode != null
+            || dto.DisembarkPortName != null
+            || dto.RankId.HasValue;
+
+        if (shouldSyncCrewState)
         {
-            await SyncCrewOnboardStatusAsync(assignment.CrewMemberId, dto.Status, assignment.EmbarkDate, assignment.DisembarkDate);
+            await SyncCrewOnboardStatusAsync(
+                assignment.CrewMemberId,
+                assignment.Status,
+                assignment.EmbarkDate,
+                assignment.DisembarkDate,
+                assignment.Id);
         }
+
+        if (shouldSyncServiceRecord)
+            await SyncServiceRecordAsync(assignment, voyage);
 
         await _context.SaveChangesAsync();
         
@@ -508,7 +635,7 @@ public class VoyageManagementService : IVoyageManagementService
     /// - DISEMBARKED/CANCELLED → Check if crew has any other ONBOARD assignments;
     ///   if not, set IsOnboard = false and update DisembarkDate
     /// </summary>
-    private async Task SyncCrewOnboardStatusAsync(Guid crewMemberId, string newStatus, DateTime? embarkDate, DateTime? disembarkDate)
+    private async Task SyncCrewOnboardStatusAsync(Guid crewMemberId, string newStatus, DateTime? embarkDate, DateTime? disembarkDate, Guid? currentAssignmentId = null)
     {
         var crewMember = await _context.CrewMembers.FindAsync(crewMemberId);
         if (crewMember == null) return;
@@ -530,6 +657,7 @@ public class VoyageManagementService : IVoyageManagementService
                 // Check if crew has any OTHER active (ONBOARD) assignment on any voyage
                 var hasOtherActiveAssignment = await _context.VoyageCrewAssignments
                     .AnyAsync(a => a.CrewMemberId == crewMemberId
+                                && a.Id != currentAssignmentId
                                 && a.Status == "ONBOARD");
 
                 if (!hasOtherActiveAssignment)
@@ -549,6 +677,123 @@ public class VoyageManagementService : IVoyageManagementService
                 }
                 break;
         }
+    }
+
+    private async Task SyncServiceRecordAsync(VoyageCrewAssignment assignment, VoyageRecord? voyage)
+    {
+        if (voyage == null) return;
+
+        var assignmentStatus = assignment.Status?.Trim().ToUpperInvariant();
+        if (assignmentStatus is not ("ONBOARD" or "DISEMBARKED" or "CANCELLED")) return;
+
+        var marker = BuildServiceRecordMarker(assignment.Id, assignment.VoyageId);
+        var serviceRecord = await _context.ServiceRecords
+            .FirstOrDefaultAsync(r => r.CrewMemberId == assignment.CrewMemberId && r.BoardingRecords == marker);
+
+        if (serviceRecord == null)
+        {
+            if (assignmentStatus == "CANCELLED") return;
+            if (assignmentStatus == "DISEMBARKED" && !assignment.EmbarkDate.HasValue) return;
+
+            var shipData = await GetLatestShipDataAsync();
+            serviceRecord = new ServiceRecord
+            {
+                CrewMemberId = assignment.CrewMemberId,
+                VesselName = voyage.VesselName ?? shipData?.ShipName ?? "Unknown Vessel",
+                VesselFlag = voyage.VesselFlag ?? shipData?.Flag,
+                VesselType = shipData?.TypeOfVessel,
+                VesselGrt = shipData?.GrossTonnageInternational is double gt ? Convert.ToDecimal(gt) : null,
+                VesselYearBuilt = shipData?.YearBuilt,
+                TradeArea = BuildTradeArea(voyage),
+                RankAtTime = await ResolveRankNameAsync(assignment),
+                BoardingDate = assignment.EmbarkDate ?? DateTime.UtcNow,
+                BoardingPortCode = assignment.EmbarkPortCode,
+                BoardingPortName = assignment.EmbarkPortName,
+                BoardingRecords = marker,
+                Notes = $"Auto-synced from voyage {voyage.VoyageNumber}",
+                OriginNode = assignment.OriginNode,
+                IsSynced = false,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            };
+
+            _context.ServiceRecords.Add(serviceRecord);
+        }
+
+        serviceRecord.VesselName = voyage.VesselName ?? serviceRecord.VesselName;
+        serviceRecord.VesselFlag = voyage.VesselFlag ?? serviceRecord.VesselFlag;
+        serviceRecord.RankAtTime = await ResolveRankNameAsync(assignment) ?? serviceRecord.RankAtTime;
+        serviceRecord.BoardingDate = assignment.EmbarkDate ?? serviceRecord.BoardingDate;
+        serviceRecord.BoardingPortCode = assignment.EmbarkPortCode ?? serviceRecord.BoardingPortCode;
+        serviceRecord.BoardingPortName = assignment.EmbarkPortName ?? serviceRecord.BoardingPortName;
+        serviceRecord.BoardingRecords = marker;
+
+        if (assignmentStatus is "DISEMBARKED" or "CANCELLED")
+        {
+            serviceRecord.DisembarkDate = assignment.DisembarkDate
+                ?? serviceRecord.DisembarkDate
+                ?? DateTime.UtcNow;
+            serviceRecord.DisembarkPortCode = assignment.DisembarkPortCode ?? serviceRecord.DisembarkPortCode;
+            serviceRecord.DisembarkPortName = assignment.DisembarkPortName ?? serviceRecord.DisembarkPortName;
+        }
+        else
+        {
+            serviceRecord.DisembarkDate = null;
+            serviceRecord.DisembarkPortCode = null;
+            serviceRecord.DisembarkPortName = null;
+        }
+
+        serviceRecord.UpdatedAt = DateTime.UtcNow;
+        serviceRecord.IsSynced = false;
+        serviceRecord.OriginNode = assignment.OriginNode;
+    }
+
+    private async Task<ShipData?> GetLatestShipDataAsync()
+    {
+        return await _context.ShipData
+            .AsNoTracking()
+            .OrderByDescending(s => s.UpdatedAt)
+            .FirstOrDefaultAsync();
+    }
+
+    private async Task<string?> ResolveRankNameAsync(VoyageCrewAssignment assignment)
+    {
+        if (assignment.Rank?.RankName != null) return assignment.Rank.RankName;
+        if (assignment.RankId.HasValue)
+        {
+            return await _context.Ranks
+                .Where(r => r.Id == assignment.RankId.Value)
+                .Select(r => r.RankName)
+                .FirstOrDefaultAsync();
+        }
+
+        var crewRankId = await _context.CrewMembers
+            .Where(c => c.Id == assignment.CrewMemberId)
+            .Select(c => c.RankId)
+            .FirstOrDefaultAsync();
+
+        if (!crewRankId.HasValue) return null;
+
+        return await _context.Ranks
+            .Where(r => r.Id == crewRankId.Value)
+            .Select(r => r.RankName)
+            .FirstOrDefaultAsync();
+    }
+
+    private static string BuildServiceRecordMarker(Guid assignmentId, Guid voyageId)
+    {
+        return $"VOYAGE:{voyageId};ASSIGNMENT:{assignmentId}";
+    }
+
+    private static string? BuildTradeArea(VoyageRecord voyage)
+    {
+        var dep = voyage.DeparturePortCode;
+        var arr = voyage.ArrivalPortCode;
+        if (string.IsNullOrWhiteSpace(dep) || string.IsNullOrWhiteSpace(arr)) return null;
+
+        var depCountry = dep[..2];
+        var arrCountry = arr[..2];
+        return depCountry == arrCountry ? "Coastal" : "International";
     }
 
     public async Task<bool> RemoveCrewAssignmentAsync(Guid assignmentId)
@@ -615,6 +860,15 @@ public class VoyageManagementService : IVoyageManagementService
                     .ThenInclude(c => c!.Certificates)
                         .ThenInclude(cc => cc.Certificate)
             .Include(v => v.CrewAssignments)
+                .ThenInclude(a => a.CrewMember)
+                    .ThenInclude(c => c!.TravelDocuments)
+            .Include(v => v.CrewAssignments)
+                .ThenInclude(a => a.CrewMember)
+                    .ThenInclude(c => c!.Country)
+            .Include(v => v.CrewAssignments)
+                .ThenInclude(a => a.CrewMember)
+                    .ThenInclude(c => c!.SeafarerDocuments)
+            .Include(v => v.CrewAssignments)
                 .ThenInclude(a => a.Rank)
             .FirstOrDefaultAsync(v => v.Id == voyageId);
 
@@ -633,20 +887,51 @@ public class VoyageManagementService : IVoyageManagementService
             ArrivedFrom = voyage.PreviousPortName ?? voyage.DeparturePort,
             CrewList = voyage.CrewAssignments
                 .Where(a => a.Status != "CANCELLED" && a.Status != "DISEMBARKED")
-                .Select((a, index) => new FalCrewEntry
+                .Select((a, index) =>
                 {
-                    No = index + 1,
-                    FullName = a.CrewMember?.FullName,
-                    Rank = a.Rank?.RankName,
-                    Nationality = a.CrewMember?.Nationality,
-                    DateOfBirth = a.CrewMember?.DateOfBirth,
-                    TravelDocumentNumber = a.CrewMember?.Certificates
-                        .FirstOrDefault(c => c.Certificate?.Category == "TRAVEL_DOCUMENT")?.CertificateNumber
+                    var selectedDocument = SelectFalDocument(a.CrewMember);
+                    return new FalCrewEntry
+                    {
+                        No = index + 1,
+                        FullName = a.CrewMember?.FullName,
+                        Rank = a.Rank?.RankName,
+                        Nationality = a.CrewMember?.Country?.CountryName,
+                        DateOfBirth = a.CrewMember?.DateOfBirth,
+                        PlaceOfBirth = a.CrewMember?.PlaceOfBirth,
+                        TravelDocumentType = selectedDocument?.DocumentType,
+                        TravelDocumentNumber = selectedDocument?.DocumentNumber,
+                    };
                 })
                 .ToList()
         };
 
         return falForm;
+    }
+
+    private static BaseDocument? SelectFalDocument(CrewMember? crewMember)
+    {
+        if (crewMember == null) return null;
+
+        static int Priority(BaseDocument document)
+        {
+            var type = document.DocumentType?.Trim().ToUpperInvariant() ?? string.Empty;
+            return type switch
+            {
+                "PASSPORT" => 0,
+                "SEAMAN BOOK" => 1,
+                "SEAFARER BOOK" => 1,
+                "SEAFARER IDENTITY DOCUMENT" => 2,
+                _ => 10,
+            };
+        }
+
+        return crewMember.TravelDocuments
+            .Cast<BaseDocument>()
+            .Concat(crewMember.SeafarerDocuments)
+            .OrderBy(d => d.ExpiryDate.HasValue && d.ExpiryDate.Value < DateTime.UtcNow ? 1 : 0)
+            .ThenBy(Priority)
+            .ThenByDescending(d => d.IssueDate)
+            .FirstOrDefault();
     }
 
     // ========== PRIVATE HELPERS ==========
@@ -670,11 +955,23 @@ public class VoyageManagementService : IVoyageManagementService
             PreviousPortCode = voyage.PreviousPortCode,
             PreviousPortName = voyage.PreviousPortName,
             CargoType = voyage.CargoType,
+            CharterType = voyage.CharterType,
             CargoWeight = voyage.CargoWeight,
+            PlannedDistance = voyage.PlannedDistance,
+            PlannedDurationHours = voyage.PlannedDurationHours,
+            PlannedAverageSpeed = voyage.PlannedAverageSpeed,
+            PlannedFuelConsumption = voyage.PlannedFuelConsumption,
+            VoyageInstructions = voyage.VoyageInstructions,
             DistanceTraveled = voyage.DistanceTraveled,
             FuelConsumed = voyage.FuelConsumed,
             AverageSpeed = voyage.AverageSpeed,
             VoyageStatus = voyage.VoyageStatus,
+            ApprovedAt = voyage.ApprovedAt,
+            ReadyAt = voyage.ReadyAt,
+            CommencedAt = voyage.CommencedAt,
+            ArrivedAt = voyage.ArrivedAt,
+            CompletedAt = voyage.CompletedAt,
+            CancelledAt = voyage.CancelledAt,
             CreatedAt = voyage.CreatedAt,
             UpdatedAt = voyage.UpdatedAt,
             PortCalls = voyage.PortCalls.Select(p => new PortCallDto
@@ -699,9 +996,402 @@ public class VoyageManagementService : IVoyageManagementService
                 CreatedAt = p.CreatedAt
             }).ToList(),
             CrewAssignments = voyage.CrewAssignments.Select(a => MapToAssignmentDto(a)).ToList(),
+            PlanLegs = voyage.PlanLegs
+                .OrderBy(p => p.Sequence)
+                .Select(p => new VoyagePlanLegDto
+                {
+                    Id = p.Id,
+                    VoyageId = p.VoyageId,
+                    Sequence = p.Sequence,
+                    LegType = p.LegType,
+                    FromPortCode = p.FromPortCode,
+                    FromPortName = p.FromPortName,
+                    ToPortCode = p.ToPortCode,
+                    ToPortName = p.ToPortName,
+                    PlannedDepartureTime = p.PlannedDepartureTime,
+                    PlannedArrivalTime = p.PlannedArrivalTime,
+                    PlannedDistance = p.PlannedDistance,
+                    PlannedDurationHours = p.PlannedDurationHours,
+                    PlannedAverageSpeed = p.PlannedAverageSpeed,
+                    PlannedFuelConsumption = p.PlannedFuelConsumption,
+                    CargoActivity = p.CargoActivity,
+                    CrewChangePlanned = p.CrewChangePlanned,
+                    BunkerSupplyPlanned = p.BunkerSupplyPlanned,
+                    WeatherRoutingNotes = p.WeatherRoutingNotes,
+                    Notes = p.Notes,
+                })
+                .ToList(),
+            StatusHistory = voyage.StatusHistory
+                .OrderByDescending(h => h.ChangedAt)
+                .Select(h => new VoyageStatusHistoryDto
+                {
+                    Id = h.Id,
+                    FromStatus = h.FromStatus,
+                    ToStatus = h.ToStatus,
+                    ChangedBy = h.ChangedBy,
+                    Notes = h.Notes,
+                    ChangedAt = h.ChangedAt,
+                })
+                .ToList(),
             LogEntryCount = logCount,
-            CargoOperationCount = cargoCount
+            CargoOperationCount = cargoCount,
+            TotalEstimatedCost = voyage.TotalEstimatedCost,
+            TotalEstimatedRevenue = voyage.TotalEstimatedRevenue,
+            EstimatedProfitMargin = voyage.EstimatedProfitMargin,
+            CargoPlans = voyage.CargoPlans
+                .OrderBy(cp => cp.Sequence)
+                .Select(cp => new VoyageCargoPlanDto
+                {
+                    Id = cp.Id, VoyageId = cp.VoyageId, PlanLegId = cp.PlanLegId,
+                    Sequence = cp.Sequence, OperationType = cp.OperationType, CargoType = cp.CargoType,
+                    CargoDescription = cp.CargoDescription, PlannedQuantity = cp.PlannedQuantity,
+                    Unit = cp.Unit, PortCode = cp.PortCode, PortName = cp.PortName,
+                    ShipperName = cp.ShipperName, ConsigneeName = cp.ConsigneeName,
+                    SpecialRequirements = cp.SpecialRequirements, Notes = cp.Notes,
+                }).ToList(),
+            BunkerPlans = voyage.BunkerPlans
+                .OrderBy(bp => bp.Sequence)
+                .Select(bp => new VoyageBunkerPlanDto
+                {
+                    Id = bp.Id, VoyageId = bp.VoyageId, PlanLegId = bp.PlanLegId,
+                    Sequence = bp.Sequence, FuelType = bp.FuelType, PlannedQuantity = bp.PlannedQuantity,
+                    OperationType = bp.OperationType, PortCode = bp.PortCode, PortName = bp.PortName,
+                    EstimatedCostUsd = bp.EstimatedCostUsd, SupplierName = bp.SupplierName, Notes = bp.Notes,
+                }).ToList(),
+            CrewChangePlans = voyage.CrewChangePlans
+                .OrderBy(ccp => ccp.Sequence)
+                .Select(ccp => new VoyageCrewChangePlanDto
+                {
+                    Id = ccp.Id, VoyageId = ccp.VoyageId, PlanLegId = ccp.PlanLegId,
+                    Sequence = ccp.Sequence, CrewMemberId = ccp.CrewMemberId,
+                    CrewName = ccp.CrewMember?.FullName, RankId = ccp.RankId,
+                    RankName = ccp.Rank?.RankName, ChangeType = ccp.ChangeType,
+                    PortCode = ccp.PortCode, PortName = ccp.PortName,
+                    PlannedDate = ccp.PlannedDate, ReplacementReason = ccp.ReplacementReason,
+                    Notes = ccp.Notes,
+                }).ToList(),
+            CostEstimates = voyage.CostEstimates
+                .OrderBy(ce => ce.Sequence)
+                .Select(ce => new VoyageCostEstimateDto
+                {
+                    Id = ce.Id, VoyageId = ce.VoyageId, Sequence = ce.Sequence,
+                    CostCategory = ce.CostCategory, Description = ce.Description,
+                    EstimatedAmount = ce.EstimatedAmount, Currency = ce.Currency, Notes = ce.Notes,
+                }).ToList(),
+            RevenueEstimates = voyage.RevenueEstimates
+                .OrderBy(re => re.Sequence)
+                .Select(re => new VoyageRevenueEstimateDto
+                {
+                    Id = re.Id, VoyageId = re.VoyageId, Sequence = re.Sequence,
+                    RevenueCategory = re.RevenueCategory, Description = re.Description,
+                    EstimatedAmount = re.EstimatedAmount, Currency = re.Currency, Notes = re.Notes,
+                }).ToList(),
         };
+    }
+
+    private static string NormalizeVoyageStatus(string status)
+    {
+        var normalized = status.Trim().ToUpperInvariant();
+
+        if (!VoyageStatus.IsKnownStatus(normalized))
+            throw new InvalidOperationException($"Unsupported voyage status: {status}");
+
+        return normalized;
+    }
+
+    private static string? NormalizeCharterType(string? charterType)
+    {
+        if (string.IsNullOrWhiteSpace(charterType))
+            return null;
+
+        var normalized = charterType.Trim().ToUpperInvariant();
+        if (!VoyageCharterType.IsKnownType(normalized))
+            throw new InvalidOperationException($"Unsupported charter type: {charterType}");
+
+        return normalized;
+    }
+
+    private static void ApplyPlanLegs(VoyageRecord voyage, List<UpsertVoyagePlanLegDto>? planLegs)
+    {
+        if (planLegs == null || planLegs.Count == 0)
+            return;
+
+        ValidatePlanLegs(planLegs);
+
+        foreach (var leg in planLegs.OrderBy(l => l.Sequence))
+        {
+            voyage.PlanLegs.Add(new VoyagePlanLeg
+            {
+                VoyageId = voyage.Id,
+                Sequence = leg.Sequence,
+                LegType = string.IsNullOrWhiteSpace(leg.LegType) ? "PASSAGE" : leg.LegType.Trim().ToUpperInvariant(),
+                FromPortCode = leg.FromPortCode,
+                FromPortName = leg.FromPortName,
+                ToPortCode = leg.ToPortCode,
+                ToPortName = leg.ToPortName,
+                PlannedDepartureTime = leg.PlannedDepartureTime,
+                PlannedArrivalTime = leg.PlannedArrivalTime,
+                PlannedDistance = leg.PlannedDistance,
+                PlannedDurationHours = leg.PlannedDurationHours,
+                PlannedAverageSpeed = leg.PlannedAverageSpeed,
+                PlannedFuelConsumption = leg.PlannedFuelConsumption,
+                CargoActivity = leg.CargoActivity,
+                CrewChangePlanned = leg.CrewChangePlanned,
+                BunkerSupplyPlanned = leg.BunkerSupplyPlanned,
+                WeatherRoutingNotes = leg.WeatherRoutingNotes,
+                Notes = leg.Notes,
+            });
+        }
+    }
+
+    private async Task ReplacePlanLegsAsync(VoyageRecord voyage, List<UpsertVoyagePlanLegDto> planLegs)
+    {
+        var existingLegs = await _context.VoyagePlanLegs
+            .Where(l => l.VoyageId == voyage.Id)
+            .ToListAsync();
+
+        if (existingLegs.Count > 0)
+            _context.VoyagePlanLegs.RemoveRange(existingLegs);
+
+        voyage.PlanLegs.Clear();
+        ApplyPlanLegs(voyage, planLegs);
+    }
+
+    private static void ValidatePlanLegs(List<UpsertVoyagePlanLegDto> planLegs)
+    {
+        if (planLegs.Any(l => l.Sequence <= 0))
+            throw new InvalidOperationException("Voyage plan leg sequence must be greater than zero.");
+
+        var duplicateSequences = planLegs
+            .GroupBy(l => l.Sequence)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (duplicateSequences.Count > 0)
+            throw new InvalidOperationException($"Duplicate voyage plan leg sequence(s): {string.Join(", ", duplicateSequences)}");
+    }
+
+    private void AddStatusHistory(VoyageRecord voyage, string? fromStatus, string toStatus, string notes)
+    {
+        _context.VoyageStatusHistories.Add(new VoyageStatusHistory
+        {
+            VoyageId = voyage.Id,
+            FromStatus = fromStatus,
+            ToStatus = toStatus,
+            ChangedBy = "system",
+            Notes = notes,
+            ChangedAt = DateTime.UtcNow,
+        });
+    }
+
+    private static void ApplyLifecycleMilestones(VoyageRecord voyage, string status)
+    {
+        var now = DateTime.UtcNow;
+
+        if (status == VoyageStatus.PLANNING)
+        {
+            voyage.ApprovedAt = null;
+            voyage.ReadyAt = null;
+            voyage.CommencedAt = null;
+            voyage.ArrivedAt = null;
+            voyage.CompletedAt = null;
+            voyage.CancelledAt = null;
+            return;
+        }
+
+        if (status == VoyageStatus.APPROVED)
+        {
+            voyage.ApprovedAt ??= now;
+            voyage.ReadyAt = null;
+            voyage.CommencedAt = null;
+            voyage.ArrivedAt = null;
+            voyage.CompletedAt = null;
+            voyage.CancelledAt = null;
+            return;
+        }
+
+        if (status == VoyageStatus.READY)
+        {
+            voyage.ApprovedAt ??= now;
+            voyage.ReadyAt ??= now;
+            voyage.CommencedAt = null;
+            voyage.ArrivedAt = null;
+            voyage.CompletedAt = null;
+            voyage.CancelledAt = null;
+            return;
+        }
+
+        if (status == VoyageStatus.UNDERWAY)
+        {
+            voyage.ApprovedAt ??= now;
+            voyage.ReadyAt ??= now;
+            voyage.CommencedAt ??= now;
+            voyage.ArrivedAt = null;
+            voyage.CompletedAt = null;
+            voyage.CancelledAt = null;
+            return;
+        }
+
+        if (status == VoyageStatus.ARRIVED)
+        {
+            voyage.ApprovedAt ??= now;
+            voyage.ReadyAt ??= now;
+            voyage.CommencedAt ??= now;
+            voyage.ArrivedAt ??= now;
+            voyage.CompletedAt = null;
+            voyage.CancelledAt = null;
+            return;
+        }
+
+        if (status == VoyageStatus.COMPLETED)
+        {
+            voyage.ApprovedAt ??= now;
+            voyage.ReadyAt ??= now;
+            voyage.CommencedAt ??= now;
+            voyage.ArrivedAt ??= now;
+            voyage.CompletedAt ??= now;
+            voyage.CancelledAt = null;
+            return;
+        }
+
+        if (status == VoyageStatus.CANCELLED)
+        {
+            voyage.CancelledAt = now;
+        }
+    }
+
+    // ========== Phase 2: PLANNING SUB-ENTITY HELPERS ==========
+
+    private static void ApplyCargoPlans(VoyageRecord voyage, List<UpsertVoyageCargoPlanDto>? plans)
+    {
+        if (plans == null || plans.Count == 0) return;
+        foreach (var p in plans.OrderBy(x => x.Sequence))
+        {
+            voyage.CargoPlans.Add(new VoyageCargoPlan
+            {
+                VoyageId = voyage.Id, PlanLegId = p.PlanLegId, Sequence = p.Sequence,
+                OperationType = p.OperationType.Trim().ToUpperInvariant(),
+                CargoType = p.CargoType, CargoDescription = p.CargoDescription,
+                PlannedQuantity = p.PlannedQuantity, Unit = p.Unit,
+                PortCode = p.PortCode, PortName = p.PortName,
+                ShipperName = p.ShipperName, ConsigneeName = p.ConsigneeName,
+                SpecialRequirements = p.SpecialRequirements, Notes = p.Notes,
+            });
+        }
+    }
+
+    private async Task ReplaceCargoPlansAsync(VoyageRecord voyage, List<UpsertVoyageCargoPlanDto> plans)
+    {
+        var existing = await _context.VoyageCargoPlans.Where(x => x.VoyageId == voyage.Id).ToListAsync();
+        if (existing.Count > 0) _context.VoyageCargoPlans.RemoveRange(existing);
+        voyage.CargoPlans.Clear();
+        ApplyCargoPlans(voyage, plans);
+    }
+
+    private static void ApplyBunkerPlans(VoyageRecord voyage, List<UpsertVoyageBunkerPlanDto>? plans)
+    {
+        if (plans == null || plans.Count == 0) return;
+        foreach (var p in plans.OrderBy(x => x.Sequence))
+        {
+            voyage.BunkerPlans.Add(new VoyageBunkerPlan
+            {
+                VoyageId = voyage.Id, PlanLegId = p.PlanLegId, Sequence = p.Sequence,
+                FuelType = p.FuelType.Trim().ToUpperInvariant(),
+                PlannedQuantity = p.PlannedQuantity, OperationType = p.OperationType.Trim().ToUpperInvariant(),
+                PortCode = p.PortCode, PortName = p.PortName,
+                EstimatedCostUsd = p.EstimatedCostUsd, SupplierName = p.SupplierName, Notes = p.Notes,
+            });
+        }
+    }
+
+    private async Task ReplaceBunkerPlansAsync(VoyageRecord voyage, List<UpsertVoyageBunkerPlanDto> plans)
+    {
+        var existing = await _context.VoyageBunkerPlans.Where(x => x.VoyageId == voyage.Id).ToListAsync();
+        if (existing.Count > 0) _context.VoyageBunkerPlans.RemoveRange(existing);
+        voyage.BunkerPlans.Clear();
+        ApplyBunkerPlans(voyage, plans);
+    }
+
+    private static void ApplyCrewChangePlans(VoyageRecord voyage, List<UpsertVoyageCrewChangePlanDto>? plans)
+    {
+        if (plans == null || plans.Count == 0) return;
+        foreach (var p in plans.OrderBy(x => x.Sequence))
+        {
+            voyage.CrewChangePlans.Add(new VoyageCrewChangePlan
+            {
+                VoyageId = voyage.Id, PlanLegId = p.PlanLegId, Sequence = p.Sequence,
+                CrewMemberId = p.CrewMemberId, RankId = p.RankId,
+                ChangeType = p.ChangeType.Trim().ToUpperInvariant(),
+                PortCode = p.PortCode, PortName = p.PortName,
+                PlannedDate = p.PlannedDate, ReplacementReason = p.ReplacementReason, Notes = p.Notes,
+            });
+        }
+    }
+
+    private async Task ReplaceCrewChangePlansAsync(VoyageRecord voyage, List<UpsertVoyageCrewChangePlanDto> plans)
+    {
+        var existing = await _context.VoyageCrewChangePlans.Where(x => x.VoyageId == voyage.Id).ToListAsync();
+        if (existing.Count > 0) _context.VoyageCrewChangePlans.RemoveRange(existing);
+        voyage.CrewChangePlans.Clear();
+        ApplyCrewChangePlans(voyage, plans);
+    }
+
+    private static void ApplyCostEstimates(VoyageRecord voyage, List<UpsertVoyageCostEstimateDto>? estimates)
+    {
+        if (estimates == null || estimates.Count == 0) return;
+        foreach (var e in estimates.OrderBy(x => x.Sequence))
+        {
+            voyage.CostEstimates.Add(new VoyageCostEstimate
+            {
+                VoyageId = voyage.Id, Sequence = e.Sequence,
+                CostCategory = e.CostCategory.Trim().ToUpperInvariant(),
+                Description = e.Description, EstimatedAmount = e.EstimatedAmount,
+                Currency = e.Currency, Notes = e.Notes,
+            });
+        }
+    }
+
+    private async Task ReplaceCostEstimatesAsync(VoyageRecord voyage, List<UpsertVoyageCostEstimateDto> estimates)
+    {
+        var existing = await _context.VoyageCostEstimates.Where(x => x.VoyageId == voyage.Id).ToListAsync();
+        if (existing.Count > 0) _context.VoyageCostEstimates.RemoveRange(existing);
+        voyage.CostEstimates.Clear();
+        ApplyCostEstimates(voyage, estimates);
+    }
+
+    private static void ApplyRevenueEstimates(VoyageRecord voyage, List<UpsertVoyageRevenueEstimateDto>? estimates)
+    {
+        if (estimates == null || estimates.Count == 0) return;
+        foreach (var e in estimates.OrderBy(x => x.Sequence))
+        {
+            voyage.RevenueEstimates.Add(new VoyageRevenueEstimate
+            {
+                VoyageId = voyage.Id, Sequence = e.Sequence,
+                RevenueCategory = e.RevenueCategory.Trim().ToUpperInvariant(),
+                Description = e.Description, EstimatedAmount = e.EstimatedAmount,
+                Currency = e.Currency, Notes = e.Notes,
+            });
+        }
+    }
+
+    private async Task ReplaceRevenueEstimatesAsync(VoyageRecord voyage, List<UpsertVoyageRevenueEstimateDto> estimates)
+    {
+        var existing = await _context.VoyageRevenueEstimates.Where(x => x.VoyageId == voyage.Id).ToListAsync();
+        if (existing.Count > 0) _context.VoyageRevenueEstimates.RemoveRange(existing);
+        voyage.RevenueEstimates.Clear();
+        ApplyRevenueEstimates(voyage, estimates);
+    }
+
+    private static void RecalculateFinancialSummary(VoyageRecord voyage)
+    {
+        var totalCost = voyage.CostEstimates.Sum(c => c.EstimatedAmount);
+        var totalRevenue = voyage.RevenueEstimates.Sum(r => r.EstimatedAmount);
+        voyage.TotalEstimatedCost = totalCost > 0 ? totalCost : null;
+        voyage.TotalEstimatedRevenue = totalRevenue > 0 ? totalRevenue : null;
+        voyage.EstimatedProfitMargin = (totalCost > 0 || totalRevenue > 0)
+            ? totalRevenue - totalCost
+            : null;
     }
 
     private static VoyageCrewAssignmentDto MapToAssignmentDto(VoyageCrewAssignment a)

@@ -352,7 +352,8 @@ public class ReportingController : ControllerBase
     [HttpPut("{reportId}/submit")]
     public async Task<IActionResult> SubmitReport(Guid reportId)
     {
-        var result = await _reportingService.SubmitReportAsync(reportId);
+        var username = User.Identity?.Name;
+        var result = await _reportingService.SubmitReportAsync(reportId, username);
 
         if (!result.Success)
         {
@@ -373,7 +374,8 @@ public class ReportingController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        var result = await _reportingService.ApproveReportAsync(reportId, dto);
+        var username = User.Identity?.Name;
+        var result = await _reportingService.ApproveReportAsync(reportId, dto, username);
 
         if (!result.Success)
         {
@@ -394,7 +396,8 @@ public class ReportingController : ControllerBase
             return BadRequest(new { error = "Rejection reason is required" });
         }
 
-        var result = await _reportingService.RejectReportAsync(reportId, body["reason"]);
+        var username = User.Identity?.Name;
+        var result = await _reportingService.RejectReportAsync(reportId, body["reason"], username);
 
         if (!result.Success)
         {
@@ -472,6 +475,82 @@ public class ReportingController : ControllerBase
         return Ok(new { message = "Noon report updated successfully" });
     }
 
+    [HttpPut("departure/{reportId}")]
+    public async Task<IActionResult> UpdateFullDepartureReport(Guid reportId, [FromBody] CreateDepartureReportDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var username = User.Identity?.Name;
+        var result = await _reportingService.UpdateFullDepartureReportAsync(reportId, dto, username);
+
+        if (!result.Success)
+        {
+            return BadRequest(new { error = result.Error });
+        }
+
+        return Ok(new { message = "Departure report updated successfully" });
+    }
+
+    [HttpPut("arrival/{reportId}")]
+    public async Task<IActionResult> UpdateFullArrivalReport(Guid reportId, [FromBody] CreateArrivalReportDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var username = User.Identity?.Name;
+        var result = await _reportingService.UpdateFullArrivalReportAsync(reportId, dto, username);
+
+        if (!result.Success)
+        {
+            return BadRequest(new { error = result.Error });
+        }
+
+        return Ok(new { message = "Arrival report updated successfully" });
+    }
+
+    [HttpPut("bunker/{reportId}")]
+    public async Task<IActionResult> UpdateFullBunkerReport(Guid reportId, [FromBody] CreateBunkerReportDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var username = User.Identity?.Name;
+        var result = await _reportingService.UpdateFullBunkerReportAsync(reportId, dto, username);
+
+        if (!result.Success)
+        {
+            return BadRequest(new { error = result.Error });
+        }
+
+        return Ok(new { message = "Bunker report updated successfully" });
+    }
+
+    [HttpPut("position/{reportId}")]
+    public async Task<IActionResult> UpdateFullPositionReport(Guid reportId, [FromBody] CreatePositionReportDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var username = User.Identity?.Name;
+        var result = await _reportingService.UpdateFullPositionReportAsync(reportId, dto, username);
+
+        if (!result.Success)
+        {
+            return BadRequest(new { error = result.Error });
+        }
+
+        return Ok(new { message = "Position report updated successfully" });
+    }
+
     // ============================================================
     // TRANSMISSION
     // ============================================================
@@ -487,7 +566,8 @@ public class ReportingController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        var result = await _reportingService.TransmitReportAsync(reportId, dto);
+        var username = User.Identity?.Name;
+        var result = await _reportingService.TransmitReportAsync(reportId, dto, username);
 
         if (!result.Success)
         {

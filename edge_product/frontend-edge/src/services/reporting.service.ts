@@ -39,6 +39,7 @@ import type {
   
   // Responses
   CreateReportResponse,
+  ReportDetailDto,
 } from '../types/reporting.types';
 import type {
   GenerateWeeklyReportDto,
@@ -137,8 +138,8 @@ export class ReportingService {
    * Get any report by ID (auto-detects type)
    * Returns the appropriate report DTO based on the report type
    */
-  static async getReportById(reportId: string): Promise<any> {
-    return await apiClient.get(`${BASE_URL}/${reportId}`);
+  static async getReportById(reportId: string): Promise<ReportDetailDto> {
+    return await apiClient.get<ReportDetailDto>(`${BASE_URL}/${reportId}`);
   }
 
   // ============================================================
@@ -172,6 +173,10 @@ export class ReportingService {
     return await apiClient.get<DepartureReportDto>(`${BASE_URL}/departure/${reportId}`);
   }
 
+  static async updateDepartureReport(reportId: string, data: CreateDepartureReportDto): Promise<void> {
+    await apiClient.put(`${BASE_URL}/departure/${reportId}`, data);
+  }
+
   // ============================================================
   // ARRIVAL REPORTS
   // ============================================================
@@ -182,6 +187,10 @@ export class ReportingService {
 
   static async getArrivalReport(reportId: string): Promise<ArrivalReportDto> {
     return await apiClient.get<ArrivalReportDto>(`${BASE_URL}/arrival/${reportId}`);
+  }
+
+  static async updateArrivalReport(reportId: string, data: CreateArrivalReportDto): Promise<void> {
+    await apiClient.put(`${BASE_URL}/arrival/${reportId}`, data);
   }
 
   // ============================================================
@@ -196,6 +205,10 @@ export class ReportingService {
     return await apiClient.get<BunkerReportDto>(`${BASE_URL}/bunker/${reportId}`);
   }
 
+  static async updateBunkerReport(reportId: string, data: CreateBunkerReportDto): Promise<void> {
+    await apiClient.put(`${BASE_URL}/bunker/${reportId}`, data);
+  }
+
   // ============================================================
   // POSITION REPORTS
   // ============================================================
@@ -206,6 +219,10 @@ export class ReportingService {
 
   static async getPositionReport(reportId: string): Promise<PositionReportDto> {
     return await apiClient.get<PositionReportDto>(`${BASE_URL}/position/${reportId}`);
+  }
+
+  static async updatePositionReport(reportId: string, data: CreatePositionReportDto): Promise<void> {
+    await apiClient.put(`${BASE_URL}/position/${reportId}`, data);
   }
 
   // ============================================================

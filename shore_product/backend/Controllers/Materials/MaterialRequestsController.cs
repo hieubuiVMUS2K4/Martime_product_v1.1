@@ -71,7 +71,7 @@ public class MaterialRequestsController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] MaterialRequest dto)
     {
-        var entity = await _context.MaterialRequests.Include(r => r.Items).FirstOrDefaultAsync(r => r.Id == id);
+        var entity = await _context.MaterialRequests.AsTracking().Include(r => r.Items).FirstOrDefaultAsync(r => r.Id == id);
         if (entity == null) return NotFound();
         entity.VesselName = dto.VesselName; entity.Urgency = dto.Urgency;
         entity.NeededDate = dto.NeededDate; entity.RequestedBy = dto.RequestedBy;

@@ -39,6 +39,7 @@ public class CrewController : ControllerBase
             var query = _context.CrewMembers
                 .AsNoTracking()
                 .Include(c => c.Rank)
+                .Include(c => c.Country)
                 .AsQueryable();
 
             // Apply filters
@@ -97,6 +98,7 @@ public class CrewController : ControllerBase
             var crew = await _context.CrewMembers
                 .AsNoTracking()
                 .Include(c => c.Rank)
+                .Include(c => c.Country)
                 .Where(c => c.IsOnboard)
                 .OrderBy(c => c.FullName)
                 .ToListAsync();
@@ -119,6 +121,7 @@ public class CrewController : ControllerBase
             var crew = await _context.CrewMembers
                 .AsNoTracking()
                 .Include(c => c.Rank)
+                .Include(c => c.Country)
                 .FirstOrDefaultAsync(c => c.Id == id);
             if (crew == null)
             {
@@ -130,6 +133,64 @@ public class CrewController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting crew member");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    [HttpGet("{id}/service-records")]
+    public async Task<IActionResult> GetServiceRecords(Guid id)
+    {
+        try
+        {
+            var crewExists = await _context.CrewMembers
+                .AsNoTracking()
+                .AnyAsync(c => c.Id == id);
+
+            if (!crewExists)
+                return NotFound(new { message = "Crew member not found" });
+
+            var records = await _context.ServiceRecords
+                .AsNoTracking()
+                .Where(r => r.CrewMemberId == id)
+                .OrderByDescending(r => r.BoardingDate)
+                .ToListAsync();
+
+            var response = records.Select(r => new
+            {
+                id = r.Id,
+                crewMemberId = r.CrewMemberId,
+                vesselName = r.VesselName,
+                vesselFlag = r.VesselFlag,
+                vesselType = r.VesselType,
+                vesselGrt = r.VesselGrt,
+                vesselDwt = r.VesselDwt,
+                vesselYearBuilt = r.VesselYearBuilt,
+                tradeArea = r.TradeArea,
+                mainEngineType = r.MainEngineType,
+                mainEnginePowerKw = r.MainEnginePowerKw,
+                mainEngineMaker = r.MainEngineMaker,
+                boilerType = r.BoilerType,
+                hasExhaustGasScrubber = r.HasExhaustGasScrubber,
+                ecdis = r.Ecdis,
+                rankAtTime = r.RankAtTime,
+                boardingDate = r.BoardingDate,
+                disembarkDate = r.DisembarkDate,
+                boardingPort = r.BoardingPortName ?? r.BoardingPortCode,
+                disembarkPort = r.DisembarkPortName ?? r.DisembarkPortCode,
+                totalServiceDays = r.DisembarkDate.HasValue
+                    ? Math.Max(1, (int)Math.Ceiling((r.DisembarkDate.Value.Date - r.BoardingDate.Date).TotalDays))
+                    : (int?)null,
+                isSynced = r.IsSynced,
+                createdAt = r.CreatedAt,
+                updatedAt = r.UpdatedAt,
+                originNode = r.OriginNode,
+            });
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting service records for crew {CrewId}", id);
             return StatusCode(500, new { error = "Internal server error" });
         }
     }
@@ -521,24 +582,98 @@ public class CrewController : ControllerBase
                 existing.CrewId = crew.CrewId;
             }
 
-            // Update all properties - use null guards to avoid overwriting with empty values
+            // Track changes BEFORE overwriting — compare old existing vs incoming crew
+            var changes = new List<object>();
+            var now = DateTime.UtcNow.ToString("o");
+            void TrackStr(string field, string? oldVal, string? newVal)
+            {
+                if (newVal != null && oldVal != newVal)
+                    changes.Add(new { field, oldValue = oldVal ?? "", newValue = newVal, changedAt = now });
+            }
+            void TrackDate(string field, DateTime? oldVal, DateTime? newVal)
+            {
+                if (newVal.HasValue && oldVal != newVal)
+                    changes.Add(new { field, oldValue = oldVal?.ToString("o") ?? "", newValue = newVal.Value.ToString("o"), changedAt = now });
+            }
+            void TrackNum(string field, decimal? oldVal, decimal? newVal)
+            {
+                if (newVal.HasValue && oldVal != newVal)
+                    changes.Add(new { field, oldValue = oldVal?.ToString() ?? "", newValue = newVal.Value.ToString(), changedAt = now });
+            }
+            void TrackInt(string field, int? oldVal, int? newVal)
+            {
+                if (newVal.HasValue && oldVal != newVal)
+                    changes.Add(new { field, oldValue = oldVal?.ToString() ?? "", newValue = newVal.Value.ToString(), changedAt = now });
+            }
+            void TrackBool(string field, bool oldVal, bool newVal)
+            {
+                if (oldVal != newVal)
+                    changes.Add(new { field, oldValue = oldVal.ToString(), newValue = newVal.ToString(), changedAt = now });
+            }
+
+            // Personal info
+            TrackStr("fullName", existing.FullName, crew.FullName);
+            TrackStr("phoneNumber", existing.PhoneNumber, crew.PhoneNumber);
+            TrackStr("emailAddress", existing.EmailAddress, crew.EmailAddress);
+            TrackStr("department", existing.Department, crew.Department);
+            TrackStr("address", existing.Address, crew.Address);
+            TrackStr("placeOfBirth", existing.PlaceOfBirth, crew.PlaceOfBirth);
+            TrackStr("idCardNumber", existing.IdCardNumber, crew.IdCardNumber);
+            TrackStr("maritalStatus", existing.MaritalStatus, crew.MaritalStatus);
+            TrackStr("notes", existing.Notes, crew.Notes);
+            TrackDate("dateOfBirth", existing.DateOfBirth, crew.DateOfBirth);
+            if (crew.RankId.HasValue && existing.RankId != crew.RankId)
+                changes.Add(new { field = "rankId", oldValue = existing.RankId?.ToString() ?? "", newValue = crew.RankId.Value.ToString(), changedAt = now });
+            if (crew.CountryId.HasValue && existing.CountryId != crew.CountryId)
+                changes.Add(new { field = "countryId", oldValue = existing.CountryId?.ToString() ?? "", newValue = crew.CountryId.Value.ToString(), changedAt = now });
+
+            // Physical details
+            TrackNum("height", existing.Height, crew.Height);
+            TrackNum("weight", existing.Weight, crew.Weight);
+            TrackStr("bloodGroup", existing.BloodGroup, crew.BloodGroup);
+            TrackStr("clothingSize", existing.ClothingSize, crew.ClothingSize);
+            TrackStr("shoeSize", existing.ShoeSize, crew.ShoeSize);
+            TrackStr("cateringSize", existing.CateringSize, crew.CateringSize);
+            if (crew.IsSmoker.HasValue && existing.IsSmoker != crew.IsSmoker)
+                changes.Add(new { field = "isSmoker", oldValue = existing.IsSmoker?.ToString() ?? "", newValue = crew.IsSmoker.Value.ToString(), changedAt = now });
+            if (crew.IsCovidVaccinated.HasValue && existing.IsCovidVaccinated != crew.IsCovidVaccinated)
+                changes.Add(new { field = "isCovidVaccinated", oldValue = existing.IsCovidVaccinated?.ToString() ?? "", newValue = crew.IsCovidVaccinated.Value.ToString(), changedAt = now });
+
+            // Employment dates
+            TrackDate("joinDate", existing.JoinDate, crew.JoinDate);
+            TrackDate("embarkDate", existing.EmbarkDate, crew.EmbarkDate);
+            TrackDate("disembarkDate", existing.DisembarkDate, crew.DisembarkDate);
+            TrackDate("contractEnd", existing.ContractEnd, crew.ContractEnd);
+            // IsOnboard is NOT tracked here — managed by dedicated onboard/disembark endpoints
+
+            // Next of kin
+            TrackStr("nextOfKinName", existing.NextOfKinName, crew.NextOfKinName);
+            TrackStr("nextOfKinRelation", existing.NextOfKinRelation, crew.NextOfKinRelation);
+            TrackStr("nextOfKinPhone", existing.NextOfKinPhone, crew.NextOfKinPhone);
+            TrackStr("nextOfKinAddress", existing.NextOfKinAddress, crew.NextOfKinAddress);
+
+            // Education
+            TrackStr("educationInstitution", existing.EducationInstitution, crew.EducationInstitution);
+            TrackStr("educationCourse", existing.EducationCourse, crew.EducationCourse);
+            TrackInt("educationPeriodYears", existing.EducationPeriodYears, crew.EducationPeriodYears);
+            TrackInt("educationGraduationYear", existing.EducationGraduationYear, crew.EducationGraduationYear);
+
+            // NOW apply updates
             existing.FullName = crew.FullName;
             existing.RankId = crew.RankId;
-            if (crew.Nationality != null) existing.Nationality = crew.Nationality;
+            if (crew.CountryId.HasValue) existing.CountryId = crew.CountryId;
             if (crew.DateOfBirth.HasValue) existing.DateOfBirth = crew.DateOfBirth;
             if (crew.JoinDate.HasValue) existing.JoinDate = crew.JoinDate;
             if (crew.EmbarkDate.HasValue) existing.EmbarkDate = crew.EmbarkDate;
             if (crew.ContractEnd.HasValue) existing.ContractEnd = crew.ContractEnd;
             if (crew.DisembarkDate.HasValue) existing.DisembarkDate = crew.DisembarkDate;
-            existing.IsOnboard = crew.IsOnboard;
+            // IsOnboard is NOT updated here — managed by dedicated onboard/disembark endpoints
             if (crew.EmergencyContact != null) existing.EmergencyContact = crew.EmergencyContact;
             if (crew.EmailAddress != null) existing.EmailAddress = crew.EmailAddress;
             if (crew.PhoneNumber != null) existing.PhoneNumber = crew.PhoneNumber;
             if (crew.Address != null) existing.Address = crew.Address;
             if (crew.Department != null) existing.Department = crew.Department;
             if (crew.Notes != null) existing.Notes = crew.Notes;
-            
-            // BIO-DATA fields
             if (crew.PhotoUrl != null) existing.PhotoUrl = crew.PhotoUrl;
             if (crew.PlaceOfBirth != null) existing.PlaceOfBirth = crew.PlaceOfBirth;
             if (crew.IdCardNumber != null) existing.IdCardNumber = crew.IdCardNumber;
@@ -549,8 +684,8 @@ public class CrewController : ControllerBase
             if (crew.ClothingSize != null) existing.ClothingSize = crew.ClothingSize;
             if (crew.ShoeSize != null) existing.ShoeSize = crew.ShoeSize;
             if (crew.CateringSize != null) existing.CateringSize = crew.CateringSize;
-            existing.IsSmoker = crew.IsSmoker;
-            existing.IsCovidVaccinated = crew.IsCovidVaccinated;
+            if (crew.IsSmoker.HasValue) existing.IsSmoker = crew.IsSmoker;
+            if (crew.IsCovidVaccinated.HasValue) existing.IsCovidVaccinated = crew.IsCovidVaccinated;
             if (crew.NextOfKinName != null) existing.NextOfKinName = crew.NextOfKinName;
             if (crew.NextOfKinRelation != null) existing.NextOfKinRelation = crew.NextOfKinRelation;
             if (crew.NextOfKinPhone != null) existing.NextOfKinPhone = crew.NextOfKinPhone;
@@ -559,6 +694,23 @@ public class CrewController : ControllerBase
             if (crew.EducationCourse != null) existing.EducationCourse = crew.EducationCourse;
             if (crew.EducationPeriodYears.HasValue) existing.EducationPeriodYears = crew.EducationPeriodYears;
             if (crew.EducationGraduationYear.HasValue) existing.EducationGraduationYear = crew.EducationGraduationYear;
+
+            // Persist edge changes — accumulate new changes onto any existing unviewed changes
+            if (changes.Count > 0)
+            {
+                var allChanges = new List<object>();
+                if (!string.IsNullOrWhiteSpace(existing.EdgeChanges) && !existing.EdgeChangesViewed)
+                {
+                    try
+                    {
+                        allChanges = System.Text.Json.JsonSerializer.Deserialize<List<object>>(existing.EdgeChanges) ?? new List<object>();
+                    }
+                    catch { }
+                }
+                allChanges.AddRange(changes);
+                existing.EdgeChanges = System.Text.Json.JsonSerializer.Serialize(allChanges);
+                existing.EdgeChangesViewed = false;
+            }
             
             existing.IsSynced = false; // Mark as need sync
             existing.UpdatedAt = DateTime.UtcNow;
@@ -1281,7 +1433,8 @@ public class CrewController : ControllerBase
             RankGroup = rankGroup,
             IsOnboard = crew.IsOnboard,
             Department = crew.Department,
-            Nationality = crew.Nationality,
+            CountryId = crew.CountryId,
+            CountryName = crew.Country?.CountryName,
             EmailAddress = crew.EmailAddress,
             PhoneNumber = crew.PhoneNumber,
             EmbarkDate = crew.EmbarkDate,
@@ -1330,6 +1483,247 @@ public class CrewController : ControllerBase
             IsSynced = crew.IsSynced,
             CreatedAt = crew.CreatedAt,
             UpdatedAt = crew.UpdatedAt,
+
+            // Onboard Review
+            OnboardStatus = crew.OnboardStatus,
+            OnboardStatusChangedAt = crew.OnboardStatusChangedAt,
+            OnboardStatusChangedBy = crew.OnboardStatusChangedBy,
+            ReviewChecklist = crew.ReviewChecklist,
+            ReviewNotes = crew.ReviewNotes,
+            EdgeChanges = crew.EdgeChanges,
+            EdgeChangesViewed = crew.EdgeChangesViewed,
         };
     }
+
+    // ============================================================
+    // PENDING CREW REVIEW (Shore → Edge onboarding workflow)
+    // ============================================================
+
+    /// <summary>
+    /// GET /api/crew/pending - List all crew members with PendingReview status
+    /// </summary>
+    [HttpGet("pending")]
+    public async Task<IActionResult> GetPendingCrew()
+    {
+        try
+        {
+            var crew = await _context.CrewMembers
+                .AsNoTracking()
+                .Include(c => c.Rank)
+                .Include(c => c.Country)
+                .Where(c => c.OnboardStatus == "PendingReview" || c.OnboardStatus == "OnHold")
+                .OrderByDescending(c => c.UpdatedAt)
+                .ToListAsync();
+
+            var crewDtos = crew.Select(MapToCrewMemberDto).ToList();
+            return Ok(crewDtos);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting pending crew");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/crew/{id}/approve - Captain approves a pending crew member
+    /// </summary>
+    [HttpPost("{id}/approve")]
+    public async Task<IActionResult> ApproveCrew(Guid id, [FromBody] ApproveCrewRequest? request = null)
+    {
+        try
+        {
+            var crew = await _context.CrewMembers
+                .Include(c => c.Rank)
+                .Include(c => c.Country)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (crew == null)
+                return NotFound(new { error = "Crew member not found" });
+
+            if (crew.OnboardStatus != "PendingReview" && crew.OnboardStatus != "OnHold")
+                return BadRequest(new { error = $"Crew member is not in PendingReview or OnHold status (current: {crew.OnboardStatus})" });
+
+            // Extract approver from auth header
+            string approver = "Captain";
+            if (Request.Headers.ContainsKey("Authorization"))
+            {
+                var authHeader = Request.Headers["Authorization"].ToString();
+                if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    var token = authHeader.Substring("Bearer ".Length).Trim();
+                    var parts = token.Split('_');
+                    if (parts.Length >= 3) approver = parts[2];
+                }
+            }
+
+            crew.OnboardStatus = "Approved";
+            crew.OnboardStatusChangedAt = DateTime.UtcNow;
+            crew.OnboardStatusChangedBy = approver;
+            crew.IsOnboard = true;
+            crew.EmbarkDate ??= DateTime.UtcNow;
+            crew.IsSynced = false;
+            crew.UpdatedAt = DateTime.UtcNow;
+
+            if (!string.IsNullOrWhiteSpace(request?.ReviewChecklist))
+                crew.ReviewChecklist = request.ReviewChecklist;
+
+            await _context.SaveChangesAsync();
+
+            // Auto-create User account if not exists
+            await CreateUserForCrewMemberAsync(crew);
+
+            _logger.LogInformation("Approved crew member: {CrewId} - {FullName} by {Approver}", 
+                crew.CrewId, crew.FullName, approver);
+
+            return Ok(new
+            {
+                message = $"Crew member {crew.FullName} approved and moved to onboard",
+                crew = MapToCrewMemberDto(crew)
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error approving crew member {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/crew/{id}/hold - Put crew on hold, report missing sections to shore
+    /// </summary>
+    [HttpPost("{id}/hold")]
+    public async Task<IActionResult> HoldCrew(Guid id, [FromBody] HoldCrewRequest request)
+    {
+        try
+        {
+            var crew = await _context.CrewMembers
+                .Include(c => c.Rank)
+                .Include(c => c.Country)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (crew == null)
+                return NotFound(new { error = "Crew member not found" });
+
+            if (crew.OnboardStatus != "PendingReview" && crew.OnboardStatus != "OnHold")
+                return BadRequest(new { error = $"Crew member is not in PendingReview or OnHold status (current: {crew.OnboardStatus})" });
+
+            // Extract user from auth header
+            string reviewer = "Captain";
+            if (Request.Headers.ContainsKey("Authorization"))
+            {
+                var authHeader = Request.Headers["Authorization"].ToString();
+                if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    var token = authHeader.Substring("Bearer ".Length).Trim();
+                    var parts = token.Split('_');
+                    if (parts.Length >= 3) reviewer = parts[2];
+                }
+            }
+
+            crew.OnboardStatus = "OnHold";
+            crew.OnboardStatusChangedAt = DateTime.UtcNow;
+            crew.OnboardStatusChangedBy = reviewer;
+            crew.IsOnboard = false;
+            crew.IsSynced = false;
+            crew.UpdatedAt = DateTime.UtcNow;
+
+            if (!string.IsNullOrWhiteSpace(request.ReviewChecklist))
+                crew.ReviewChecklist = request.ReviewChecklist;
+            if (!string.IsNullOrWhiteSpace(request.ReviewNotes))
+                crew.ReviewNotes = request.ReviewNotes;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Put crew on hold: {CrewId} - {FullName} by {Reviewer}. Notes: {Notes}", 
+                crew.CrewId, crew.FullName, reviewer, request.ReviewNotes ?? "N/A");
+
+            return Ok(new
+            {
+                message = $"Crew member {crew.FullName} put on hold. Shore will be notified of missing information.",
+                crew = MapToCrewMemberDto(crew)
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error holding crew member {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/crew/{id}/reject - Captain rejects a pending crew member
+    /// </summary>
+    [HttpPost("{id}/reject")]
+    public async Task<IActionResult> RejectCrew(Guid id, [FromBody] RejectCrewRequest? request = null)
+    {
+        try
+        {
+            var crew = await _context.CrewMembers
+                .Include(c => c.Rank)
+                .Include(c => c.Country)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (crew == null)
+                return NotFound(new { error = "Crew member not found" });
+
+            if (crew.OnboardStatus != "PendingReview")
+                return BadRequest(new { error = $"Crew member is not in PendingReview status (current: {crew.OnboardStatus})" });
+
+            // Extract rejector from auth header
+            string rejector = "Captain";
+            if (Request.Headers.ContainsKey("Authorization"))
+            {
+                var authHeader = Request.Headers["Authorization"].ToString();
+                if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    var token = authHeader.Substring("Bearer ".Length).Trim();
+                    var parts = token.Split('_');
+                    if (parts.Length >= 3) rejector = parts[2];
+                }
+            }
+
+            crew.OnboardStatus = "Rejected";
+            crew.OnboardStatusChangedAt = DateTime.UtcNow;
+            crew.OnboardStatusChangedBy = rejector;
+            crew.IsOnboard = false;
+            crew.IsSynced = false;
+            crew.UpdatedAt = DateTime.UtcNow;
+
+            if (!string.IsNullOrWhiteSpace(request?.Reason))
+                crew.Notes = $"[Rejected] {request.Reason}" + (string.IsNullOrWhiteSpace(crew.Notes) ? "" : $"\n{crew.Notes}");
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Rejected crew member: {CrewId} - {FullName} by {Rejector}. Reason: {Reason}", 
+                crew.CrewId, crew.FullName, rejector, request?.Reason ?? "N/A");
+
+            return Ok(new
+            {
+                message = $"Crew member {crew.FullName} rejected",
+                crew = MapToCrewMemberDto(crew)
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error rejecting crew member {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+}
+
+public class ApproveCrewRequest
+{
+    public string? ReviewChecklist { get; set; }
+}
+
+public class HoldCrewRequest
+{
+    public string? ReviewChecklist { get; set; }
+    public string? ReviewNotes { get; set; }
+}
+
+public class RejectCrewRequest
+{
+    public string? Reason { get; set; }
 }

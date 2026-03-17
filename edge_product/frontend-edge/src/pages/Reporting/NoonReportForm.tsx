@@ -23,6 +23,7 @@ import {
 import { ReportingService } from '../../services/reporting.service';
 import { getTasksCompletedLast24Hours, calculateManHours, toTaskSummary } from '../../services/maintenance.service';
 import { maritimeService } from '../../services/maritime.service';
+import { useCurrentAccountName } from '../../hooks/useCurrentAccountName';
 import type { CreateNoonReportDto } from '../../types/reporting.types';
 import type { TaskSummary } from '../../types/maintenance.types';
 
@@ -30,6 +31,8 @@ export function NoonReportForm() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>(); // Get ID from URL if editing
   const isEditMode = !!id; // Edit mode if ID exists
+  const currentAccountName = useCurrentAccountName();
+  const loadedDraftKeysRef = useRef<Set<string>>(new Set());
   
   const [loading, setLoading] = useState(false);
   const [loadingReport, setLoadingReport] = useState(isEditMode);
@@ -234,51 +237,74 @@ export function NoonReportForm() {
     loadReportData();
   }, [isEditMode, id]);
 
-  // Auto-save draft to localStorage every 1 minute
+  useEffect(() => {
+    if (isEditMode || !currentAccountName || (formData.preparedBy || '').trim()) {
+      return;
+    }
+
+    setFormData((prev) => {
+      if ((prev.preparedBy || '').trim()) {
+        return prev;
+      }
+
+      return { ...prev, preparedBy: currentAccountName };
+    });
+  }, [currentAccountName, formData.preparedBy, isEditMode]);
+
+  // Load an auto-saved draft once per draft key.
   useEffect(() => {
     const AUTOSAVE_KEY = `draft-noon-${formData.reportDate}`;
-    
-    // Load saved draft on mount
-    const loadSavedDraft = () => {
-      try {
-        const saved = localStorage.getItem(AUTOSAVE_KEY);
-        if (saved) {
-          const shouldLoad = window.confirm(
-            'Found an auto-saved draft from a previous session. Load it?'
-          );
-          if (shouldLoad) {
-            const parsed = JSON.parse(saved);
-            setFormData(parsed);
-            console.log('✅ Loaded auto-saved draft');
-          } else {
-            localStorage.removeItem(AUTOSAVE_KEY);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load auto-saved draft:', err);
-      }
-    };
-    
-    loadSavedDraft();
 
-    // Auto-save interval (every 60 seconds)
-    const autoSaveInterval = setInterval(() => {
-      // Only auto-save if form has meaningful data
-      if (formData.voyageId) {
-        try {
-          localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(formData));
-          setLastAutoSave(new Date());
-          console.log('💾 Auto-saved draft at', new Date().toLocaleTimeString());
-        } catch (err) {
-          console.error('Auto-save failed:', err);
-        }
+    if (isEditMode || loadedDraftKeysRef.current.has(AUTOSAVE_KEY)) {
+      return;
+    }
+
+    loadedDraftKeysRef.current.add(AUTOSAVE_KEY);
+
+    try {
+      const saved = localStorage.getItem(AUTOSAVE_KEY);
+      if (!saved) {
+        return;
       }
-    }, 60000); // 60 seconds
+
+      const shouldLoad = window.confirm(
+        'Found an auto-saved draft from a previous session. Load it?'
+      );
+
+      if (shouldLoad) {
+        const parsed = JSON.parse(saved) as CreateNoonReportDto;
+        setFormData(parsed);
+        setLastAutoSave(new Date());
+        console.log('✅ Loaded auto-saved draft');
+      } else {
+        localStorage.removeItem(AUTOSAVE_KEY);
+      }
+    } catch (err) {
+      console.error('Failed to load auto-saved draft:', err);
+    }
+  }, [formData.reportDate, isEditMode]);
+
+  // Auto-save the current draft after 60 seconds of inactivity.
+  useEffect(() => {
+    if (isEditMode || !formData.voyageId) {
+      return;
+    }
+
+    const AUTOSAVE_KEY = `draft-noon-${formData.reportDate}`;
+    const autoSaveTimeout = window.setTimeout(() => {
+      try {
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(formData));
+        setLastAutoSave(new Date());
+        console.log('💾 Auto-saved draft at', new Date().toLocaleTimeString());
+      } catch (err) {
+        console.error('Auto-save failed:', err);
+      }
+    }, 60000);
 
     return () => {
-      clearInterval(autoSaveInterval);
+      window.clearTimeout(autoSaveTimeout);
     };
-  }, [formData]);
+  }, [formData, isEditMode]);
 
   const handleChange = (field: keyof CreateNoonReportDto, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));

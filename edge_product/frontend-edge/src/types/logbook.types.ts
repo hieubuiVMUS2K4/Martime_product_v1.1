@@ -53,6 +53,8 @@ export interface DeckLogEntryResponseDto extends CreateDeckLogEntryDto {
   createdAt: string;
   updatedAt: string;
   originNode: string;
+  voyageId?: string;
+  voyagePlanLegId?: string;
 }
 
 // Engine Log
@@ -102,6 +104,8 @@ export interface EngineLogEntryResponseDto extends CreateEngineLogEntryDto {
   createdAt: string;
   updatedAt: string;
   originNode: string;
+  voyageId?: string;
+  voyagePlanLegId?: string;
 }
 
 // Oil Record
@@ -126,6 +130,8 @@ export interface OilRecordEntryResponseDto extends CreateOilRecordEntryDto {
   createdAt: string;
   updatedAt: string;
   originNode: string;
+  voyageId?: string;
+  voyagePlanLegId?: string;
 }
 
 export interface SignLogbookDto {
@@ -197,6 +203,8 @@ export interface WatchkeepingLogResponseDto extends CreateWatchkeepingLogDto {
   createdAt: string;
   updatedAt: string;
   originNode: string;
+  voyageId?: string;
+  voyagePlanLegId?: string;
 }
 
 // Rest Hours Compliance Check DTO
@@ -240,6 +248,8 @@ export interface GarbageRecordResponseDto extends CreateGarbageRecordDto {
   createdAt: string;
   updatedAt: string;
   originNode: string;
+  voyageId?: string;
+  voyagePlanLegId?: string;
 }
 
 // Garbage Record Part I (Categories A-I)
@@ -274,6 +284,8 @@ export interface GarbagePartIResponseDto extends CreateGarbagePartIDto {
   createdAt: string;
   updatedAt: string;
   originNode: string;
+  voyageId?: string;
+  voyagePlanLegId?: string;
 }
 
 // Garbage Record Part II (Categories J-K - Cargo Residues)
@@ -305,6 +317,8 @@ export interface GarbagePartIIResponseDto extends CreateGarbagePartIIDto {
   createdAt: string;
   updatedAt: string;
   originNode: string;
+  voyageId?: string;
+  voyagePlanLegId?: string;
 }
 
 // Ballast Water Record
@@ -341,6 +355,8 @@ export interface BallastWaterRecordResponseDto extends CreateBallastWaterRecordD
   createdAt: string;
   updatedAt: string;
   originNode: string;
+  voyageId?: string;
+  voyagePlanLegId?: string;
 }
 // ==================== VOYAGE LOG ====================
 // Nhật ký Hành trình (SOLAS Chapter V)
@@ -385,6 +401,7 @@ export interface VoyageLogEntryResponseDto extends CreateVoyageLogEntryDto {
   createdAt: string;
   updatedAt: string;
   originNode: string;
+  voyagePlanLegId?: string;
 }
 
 export interface SignVoyageLogEntryDto {

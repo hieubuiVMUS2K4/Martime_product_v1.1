@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, AlertCircle } from 'lucide-react';
 import { MonthlyReportDto } from '../../types/aggregate-reports.types';
 import { ReportingService } from '../../services/reporting.service';
+import { useCurrentAccountName } from '../../hooks/useCurrentAccountName';
 
 interface MonthlyReportEditModalProps {
   report: MonthlyReportDto;
@@ -19,6 +20,7 @@ export const MonthlyReportEditModal: React.FC<MonthlyReportEditModalProps> = ({
   onClose, 
   onSaved 
 }) => {
+  const currentAccountName = useCurrentAccountName();
   const [formData, setFormData] = useState({
     remarks: report.remarks || '',
     masterSignature: report.masterSignature || '',
@@ -39,6 +41,17 @@ export const MonthlyReportEditModal: React.FC<MonthlyReportEditModalProps> = ({
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);
   }, [loading, onClose]);
+
+  useEffect(() => {
+    if (!currentAccountName) {
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      masterSignature: prev.masterSignature.trim() ? prev.masterSignature : currentAccountName,
+    }));
+  }, [currentAccountName]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

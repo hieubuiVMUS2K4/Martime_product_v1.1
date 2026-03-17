@@ -4,6 +4,7 @@ using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using MaritimeEdge.DTOs;
 using MaritimeEdge.Services.Maintenance;
+using MaritimeEdge.Services.Voyage;
 using System.Text.Json;
 
 namespace MaritimeEdge.Services.Reporting;
@@ -33,15 +34,19 @@ public interface IReportingService
     Task<PaginatedReportResponseDto<ReportSummaryDto>> GetReportsAsync(ReportPaginationDto pagination);
     
     // Workflow
-    Task<(bool Success, string? Error)> SubmitReportAsync(Guid reportId);
-    Task<(bool Success, string? Error)> ApproveReportAsync(Guid reportId, ApproveReportDto dto);
-    Task<(bool Success, string? Error)> RejectReportAsync(Guid reportId, string reason);
+    Task<(bool Success, string? Error)> SubmitReportAsync(Guid reportId, string? username = null);
+    Task<(bool Success, string? Error)> ApproveReportAsync(Guid reportId, ApproveReportDto dto, string? username = null);
+    Task<(bool Success, string? Error)> RejectReportAsync(Guid reportId, string reason, string? username = null);
     Task<(bool Success, string? Error)> ReopenRejectedReportAsync(Guid reportId, string reopenedBy, string corrections);
     Task<(bool Success, string? Error)> UpdateDraftReportAsync(Guid reportId, Dictionary<string, object> updates);
     Task<(bool Success, string? Error)> UpdateFullNoonReportAsync(Guid reportId, CreateNoonReportDto dto, string? username = null);
+    Task<(bool Success, string? Error)> UpdateFullDepartureReportAsync(Guid reportId, CreateDepartureReportDto dto, string? username = null);
+    Task<(bool Success, string? Error)> UpdateFullArrivalReportAsync(Guid reportId, CreateArrivalReportDto dto, string? username = null);
+    Task<(bool Success, string? Error)> UpdateFullBunkerReportAsync(Guid reportId, CreateBunkerReportDto dto, string? username = null);
+    Task<(bool Success, string? Error)> UpdateFullPositionReportAsync(Guid reportId, CreatePositionReportDto dto, string? username = null);
     
     // Transmission
-    Task<(bool Success, string? Error)> TransmitReportAsync(Guid reportId, TransmitReportDto dto);
+    Task<(bool Success, string? Error)> TransmitReportAsync(Guid reportId, TransmitReportDto dto, string? username = null);
     Task<TransmissionStatusDto?> GetTransmissionStatusAsync(Guid reportId);
     
     // Statistics
@@ -71,16 +76,25 @@ public class ReportingService : IReportingService
     private readonly EdgeDbContext _context;
     private readonly ILogger<ReportingService> _logger;
     private readonly IMemoryCache _cache;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
+    private readonly IVoyageContextService _voyageContext;
     private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(24);
 
     public ReportingService(
         EdgeDbContext context, 
         ILogger<ReportingService> logger,
-        IMemoryCache cache)
+        IMemoryCache cache,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration configuration,
+        IVoyageContextService voyageContext)
     {
         _context = context;
         _logger = logger;
         _cache = cache;
+        _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
+        _voyageContext = voyageContext;
     }
 
     // ============================================================
@@ -163,6 +177,9 @@ public class ReportingService : IReportingService
                     IsSynced = false,
                     CreatedAt = DateTime.UtcNow
                 };
+
+                var (_, legId) = await _voyageContext.ResolveActiveVoyageAsync(maritimeReport.ReportDateTime);
+                maritimeReport.VoyagePlanLegId = legId;
 
                 _context.MaritimeReports.Add(maritimeReport);
                 await _context.SaveChangesAsync(); // Need to get maritimeReport.Id
@@ -292,9 +309,11 @@ public class ReportingService : IReportingService
             Id = nr.Id,
             MaritimeReportId = mr.Id,
             ReportNumber = mr.ReportNumber,
+            ReportTypeCode = "NOON",
             Status = mr.Status,
             ReportDate = nr.ReportDate,
             VoyageId = mr.VoyageId,
+            VoyagePlanLegId = mr.VoyagePlanLegId,
             
             // Position
             Latitude = nr.Latitude,
@@ -339,7 +358,13 @@ public class ReportingService : IReportingService
             OperationalRemarks = nr.OperationalRemarks,
             MachineryRemarks = nr.MachineryRemarks,
             CargoRemarks = nr.CargoRemarks,
+            MaintenanceRemarks = nr.MaintenanceRemarks,
+            SafetyDrillsConducted = nr.SafetyDrillsConducted,
+            SafetyIncidents = nr.SafetyIncidents,
             GeneralRemarks = mr.Remarks,
+
+            // Crew & safety
+            PassengersOnBoard = nr.PassengersOnBoard,
             
             // Metadata
             PreparedBy = mr.PreparedBy,
@@ -557,6 +582,9 @@ public class ReportingService : IReportingService
                 CreatedAt = DateTime.UtcNow
             };
 
+            var (_, depLegId) = await _voyageContext.ResolveActiveVoyageAsync(maritimeReport.ReportDateTime);
+            maritimeReport.VoyagePlanLegId = depLegId;
+
             _context.MaritimeReports.Add(maritimeReport);
             await _context.SaveChangesAsync();
 
@@ -583,6 +611,8 @@ public class ReportingService : IReportingService
                 CrewOnBoard = dto.CrewOnBoard,
                 PassengersOnBoard = dto.PassengersOnBoard,
                 NextPort = dto.DestinationPort,
+                NextPortCode = dto.NextPortCode,
+                DistanceToNextPort = dto.DistanceToNextPort,
                 EstimatedTimeOfArrival = dto.EstimatedArrival,
                 Remarks = dto.Remarks,
                 CreatedAt = DateTime.UtcNow
@@ -612,22 +642,38 @@ public class ReportingService : IReportingService
                         Id = dr.Id,
                         MaritimeReportId = mr.Id,
                         ReportNumber = mr.ReportNumber,
+                        ReportTypeCode = "DEPARTURE",
                         Status = mr.Status,
+                        VoyageId = mr.VoyageId,
+                        VoyagePlanLegId = mr.VoyagePlanLegId,
                         PortName = dr.PortName,
                         PortCode = dr.PortCode,
                         DepartureDateTime = dr.DepartureDateTime,
                         PilotOffTime = dr.PilotOnBoardTime,
+                        LastLineLetGoTime = dr.LastLineAshoreTime,
+                        DepartureLatitude = dr.DepartureLatitude,
+                        DepartureLongitude = dr.DepartureLongitude,
                         DraftForward = dr.DraftForward,
                         DraftAft = dr.DraftAft,
+                        DraftMidship = dr.DraftMidship,
                         FuelOilROB = dr.FuelOilROB,
                         DieselOilROB = dr.DieselOilROB,
+                        LubOilROB = dr.LubOilROB,
+                        FreshWaterROB = dr.FreshWaterROB,
                         CargoOnBoard = dr.CargoOnBoard,
+                        CargoDescription = dr.CargoDescription,
                         CrewOnBoard = dr.CrewOnBoard,
+                        PassengersOnBoard = dr.PassengersOnBoard,
                         DestinationPort = dr.NextPort,
+                        NextPortCode = dr.NextPortCode,
+                        DistanceToNextPort = dr.DistanceToNextPort,
                         EstimatedArrival = dr.EstimatedTimeOfArrival,
+                        Remarks = dr.Remarks,
                         PreparedBy = mr.PreparedBy,
                         MasterSignature = mr.MasterSignature,
+                        SignedAt = mr.SignedAt,
                         IsTransmitted = mr.IsTransmitted,
+                        TransmittedAt = mr.TransmittedAt,
                         CreatedAt = mr.CreatedAt
                     };
 
@@ -684,6 +730,9 @@ public class ReportingService : IReportingService
                 IsSynced = false,
                 CreatedAt = DateTime.UtcNow
             };
+
+            var (_, arrLegId) = await _voyageContext.ResolveActiveVoyageAsync(maritimeReport.ReportDateTime);
+            maritimeReport.VoyagePlanLegId = arrLegId;
 
             _context.MaritimeReports.Add(maritimeReport);
             await _context.SaveChangesAsync();
@@ -743,21 +792,39 @@ public class ReportingService : IReportingService
                         Id = ar.Id,
                         MaritimeReportId = mr.Id,
                         ReportNumber = mr.ReportNumber,
+                        ReportTypeCode = "ARRIVAL",
                         Status = mr.Status,
+                        VoyageId = mr.VoyageId,
+                        VoyagePlanLegId = mr.VoyagePlanLegId,
                         PortName = ar.PortName,
                         PortCode = ar.PortCode,
                         ArrivalDateTime = ar.ArrivalDateTime,
+                        PilotOnBoardTime = ar.PilotOnBoardTime,
+                        FirstLineAshoreTime = ar.FirstLineAshoreTime,
+                        ArrivalLatitude = ar.ArrivalLatitude,
+                        ArrivalLongitude = ar.ArrivalLongitude,
                         VoyageDistance = ar.VoyageDistance,
                         VoyageDuration = ar.VoyageDuration,
                         AverageSpeed = ar.AverageSpeed,
                         DraftForward = ar.DraftForward,
                         DraftAft = ar.DraftAft,
+                        DraftMidship = ar.DraftMidship,
                         FuelOilROB = ar.FuelOilROB,
+                        DieselOilROB = ar.DieselOilROB,
+                        LubOilROB = ar.LubOilROB,
+                        FreshWaterROB = ar.FreshWaterROB,
                         TotalFuelConsumed = ar.TotalFuelConsumed,
+                        TotalDieselConsumed = ar.TotalDieselConsumed,
                         CargoOnBoard = ar.CargoOnBoard,
+                        CargoDescription = ar.CargoDescription,
+                        CrewOnBoard = ar.CrewOnBoard,
+                        PassengersOnBoard = ar.PassengersOnBoard,
+                        Remarks = ar.Remarks,
                         PreparedBy = mr.PreparedBy,
                         MasterSignature = mr.MasterSignature,
+                        SignedAt = mr.SignedAt,
                         IsTransmitted = mr.IsTransmitted,
+                        TransmittedAt = mr.TransmittedAt,
                         CreatedAt = mr.CreatedAt
                     };
 
@@ -821,6 +888,7 @@ public class ReportingService : IReportingService
                 ReportNumber = reportNumber,
                 ReportTypeId = reportType.Id,
                 ReportDateTime = dto.BunkerDate,
+                VoyageId = dto.VoyageId,
                 Status = "DRAFT",
                 PreparedBy = username ?? dto.PreparedBy,
                 ReportData = JsonSerializer.Serialize(dto),
@@ -829,6 +897,9 @@ public class ReportingService : IReportingService
                 IsSynced = false,
                 CreatedAt = DateTime.UtcNow
             };
+
+            var (_, bnkLegId) = await _voyageContext.ResolveActiveVoyageAsync(maritimeReport.ReportDateTime);
+            maritimeReport.VoyagePlanLegId = bnkLegId;
 
             _context.MaritimeReports.Add(maritimeReport);
             await _context.SaveChangesAsync();
@@ -844,12 +915,15 @@ public class ReportingService : IReportingService
                 FuelType = dto.FuelType,
                 FuelGrade = dto.FuelGrade,
                 QuantityReceived = dto.QuantityReceived,
-                Density = dto.ROBBefore,
+                Density = dto.Density,
                 SulphurContent = dto.SulphurContent,
                 Viscosity = dto.Viscosity,
                 FlashPoint = dto.FlashPoint,
                 ROBefore = dto.ROBBefore,
                 ROBAfter = dto.ROBAfter,
+                TanksLoaded = dto.TanksLoaded,
+                SealNumbers = dto.SealNumbers,
+                ChiefEngineerSignature = dto.ChiefEngineerSignature,
                 Remarks = dto.Remarks,
                 CreatedAt = DateTime.UtcNow
             };
@@ -870,34 +944,68 @@ public class ReportingService : IReportingService
 
     public async Task<BunkerReportDto?> GetBunkerReportAsync(Guid reportId)
     {
-        var query = from mr in _context.MaritimeReports.AsNoTracking()
-                    join br in _context.BunkerReports.AsNoTracking() on mr.Id equals br.MaritimeReportId
-                    where mr.Id == reportId && mr.DeletedAt == null  // Exclude soft-deleted reports
-                    select new BunkerReportDto
-                    {
-                        Id = br.Id,
-                        MaritimeReportId = mr.Id,
-                        ReportNumber = mr.ReportNumber,
-                        Status = mr.Status,
-                        BunkerDate = br.BunkerDate,
-                        PortName = br.PortName,
-                        PortCode = br.PortCode,
-                        SupplierName = br.SupplierName,
-                        BDNNumber = br.BDNNumber,
-                        FuelType = br.FuelType,
-                        FuelGrade = br.FuelGrade,
-                        QuantityReceived = br.QuantityReceived,
-                        Density = br.Density,
-                        SulphurContent = br.SulphurContent,
-                        Viscosity = br.Viscosity,
-                        ROBBefore = br.ROBefore,
-                        ROBAfter = br.ROBAfter,
-                        PreparedBy = mr.PreparedBy,
-                        IsTransmitted = mr.IsTransmitted,
-                        CreatedAt = mr.CreatedAt
-                    };
+        var result = await (
+            from mr in _context.MaritimeReports.AsNoTracking()
+            join br in _context.BunkerReports.AsNoTracking() on mr.Id equals br.MaritimeReportId
+            where mr.Id == reportId && mr.DeletedAt == null
+            select new { mr, br }
+        ).FirstOrDefaultAsync();
 
-        return await query.FirstOrDefaultAsync();
+        if (result == null)
+        {
+            return null;
+        }
+
+        CreateBunkerReportDto? reportData = null;
+        if (!string.IsNullOrWhiteSpace(result.mr.ReportData))
+        {
+            try
+            {
+                reportData = JsonSerializer.Deserialize<CreateBunkerReportDto>(result.mr.ReportData);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "Could not deserialize bunker report data for report {ReportId}", reportId);
+            }
+        }
+
+        return new BunkerReportDto
+        {
+            Id = result.br.Id,
+            MaritimeReportId = result.mr.Id,
+            ReportNumber = result.mr.ReportNumber,
+            ReportTypeCode = "BUNKER",
+            Status = result.mr.Status,
+            BunkerDate = result.br.BunkerDate,
+            VoyageId = result.mr.VoyageId,
+            VoyagePlanLegId = result.mr.VoyagePlanLegId,
+            PortName = result.br.PortName,
+            PortCode = result.br.PortCode,
+            SupplierName = result.br.SupplierName,
+            BDNNumber = result.br.BDNNumber,
+            FuelType = result.br.FuelType,
+            FuelGrade = result.br.FuelGrade,
+            QuantityReceived = result.br.QuantityReceived,
+            Density = result.br.Density,
+            SulphurContent = result.br.SulphurContent,
+            Viscosity = result.br.Viscosity,
+            FlashPoint = result.br.FlashPoint,
+            ROBBefore = result.br.ROBefore,
+            ROBAfter = result.br.ROBAfter,
+            TanksLoaded = result.br.TanksLoaded,
+            SealNumbers = result.br.SealNumbers,
+            ChiefEngineerSignature = result.br.ChiefEngineerSignature,
+            UnitPrice = reportData?.UnitPrice,
+            TotalCost = reportData?.TotalCost,
+            DeliveryMethod = reportData?.DeliveryMethod,
+            Remarks = result.br.Remarks,
+            PreparedBy = result.mr.PreparedBy,
+            MasterSignature = result.mr.MasterSignature,
+            SignedAt = result.mr.SignedAt,
+            IsTransmitted = result.mr.IsTransmitted,
+            TransmittedAt = result.mr.TransmittedAt,
+            CreatedAt = result.mr.CreatedAt
+        };
     }
 
     // ============================================================
@@ -939,6 +1047,7 @@ public class ReportingService : IReportingService
                 ReportNumber = reportNumber,
                 ReportTypeId = reportType.Id,
                 ReportDateTime = dto.ReportDateTime,
+                VoyageId = dto.VoyageId,
                 Status = "DRAFT",
                 PreparedBy = username ?? dto.PreparedBy,
                 ReportData = JsonSerializer.Serialize(dto),
@@ -947,6 +1056,9 @@ public class ReportingService : IReportingService
                 IsSynced = false,
                 CreatedAt = DateTime.UtcNow
             };
+
+            var (_, posLegId) = await _voyageContext.ResolveActiveVoyageAsync(maritimeReport.ReportDateTime);
+            maritimeReport.VoyagePlanLegId = posLegId;
 
             _context.MaritimeReports.Add(maritimeReport);
             await _context.SaveChangesAsync();
@@ -994,8 +1106,11 @@ public class ReportingService : IReportingService
                         Id = pr.Id,
                         MaritimeReportId = mr.Id,
                         ReportNumber = mr.ReportNumber,
+                        ReportTypeCode = "POSITION",
                         Status = mr.Status,
                         ReportDateTime = pr.ReportDateTime,
+                        VoyageId = mr.VoyageId,
+                        VoyagePlanLegId = mr.VoyagePlanLegId,
                         Latitude = pr.Latitude,
                         Longitude = pr.Longitude,
                         CourseOverGround = pr.CourseOverGround,
@@ -1004,8 +1119,14 @@ public class ReportingService : IReportingService
                         LastPort = pr.LastPort,
                         NextPort = pr.NextPort,
                         ETA = pr.ETA,
+                        CargoOnBoard = pr.CargoOnBoard,
+                        CrewOnBoard = pr.CrewOnBoard,
+                        Remarks = pr.Remarks,
                         PreparedBy = mr.PreparedBy,
+                        MasterSignature = mr.MasterSignature,
+                        SignedAt = mr.SignedAt,
                         IsTransmitted = mr.IsTransmitted,
+                        TransmittedAt = mr.TransmittedAt,
                         CreatedAt = mr.CreatedAt
                     };
 
@@ -1139,6 +1260,7 @@ public class ReportingService : IReportingService
                 ReportDateTime = x.mr.ReportDateTime,
                 Status = x.mr.Status,
                 VoyageId = x.mr.VoyageId,
+                VoyagePlanLegId = x.mr.VoyagePlanLegId,
                 VoyageNumber = x.vr != null ? x.vr.VoyageNumber : null,
                 PreparedBy = x.mr.PreparedBy,
                 MasterSignature = x.mr.MasterSignature,
@@ -1162,7 +1284,7 @@ public class ReportingService : IReportingService
     // WORKFLOW OPERATIONS
     // ============================================================
 
-    public async Task<(bool Success, string? Error)> SubmitReportAsync(Guid reportId)
+    public async Task<(bool Success, string? Error)> SubmitReportAsync(Guid reportId, string? username = null)
     {
         try
         {
@@ -1194,7 +1316,7 @@ public class ReportingService : IReportingService
                 reportId, 
                 oldStatus, 
                 "SUBMITTED", 
-                report.PreparedBy ?? "System",
+                ResolveWorkflowActor(username, report.PreparedBy),
                 "Report submitted for approval");
             
             _logger.LogInformation("Report {ReportNumber} submitted", report.ReportNumber);
@@ -1208,7 +1330,7 @@ public class ReportingService : IReportingService
         }
     }
 
-    public async Task<(bool Success, string? Error)> ApproveReportAsync(Guid reportId, ApproveReportDto dto)
+    public async Task<(bool Success, string? Error)> ApproveReportAsync(Guid reportId, ApproveReportDto dto, string? username = null)
     {
         try
         {
@@ -1268,7 +1390,7 @@ public class ReportingService : IReportingService
                 reportId, 
                 oldStatus, 
                 "APPROVED", 
-                dto.MasterSignature ?? "Master",
+                ResolveWorkflowActor(username, dto.MasterSignature),
                 dto.ApprovalRemarks);
             
             _logger.LogInformation("Report {ReportNumber} approved by {Master}", 
@@ -1283,7 +1405,7 @@ public class ReportingService : IReportingService
         }
     }
 
-    public async Task<(bool Success, string? Error)> RejectReportAsync(Guid reportId, string reason)
+    public async Task<(bool Success, string? Error)> RejectReportAsync(Guid reportId, string reason, string? username = null)
     {
         try
         {
@@ -1316,7 +1438,7 @@ public class ReportingService : IReportingService
                 reportId, 
                 oldStatus, 
                 "REJECTED", 
-                "Master",  // TODO: Get from authentication context
+                ResolveWorkflowActor(username, report.MasterSignature ?? report.PreparedBy),
                 reason);
             
             _logger.LogWarning("Report {ReportNumber} rejected: {Reason}", report.ReportNumber, reason);
@@ -1532,11 +1654,281 @@ public class ReportingService : IReportingService
         }
     }
 
+    public async Task<(bool Success, string? Error)> UpdateFullDepartureReportAsync(
+        Guid reportId, CreateDepartureReportDto dto, string? username = null)
+    {
+        try
+        {
+            var maritimeReport = await _context.MaritimeReports.FindAsync(reportId);
+            if (maritimeReport == null)
+            {
+                return (false, "Report not found");
+            }
+
+            if (maritimeReport.Status != "DRAFT")
+            {
+                return (false, $"Cannot update report with status {maritimeReport.Status}. Only DRAFT reports can be edited.");
+            }
+
+            var (isValid, errors, warnings) = MaritimeValidationService.ValidateDepartureReport(dto);
+            if (!isValid)
+            {
+                return (false, string.Join("; ", errors));
+            }
+
+            var departureReport = await _context.DepartureReports.FirstOrDefaultAsync(dr => dr.MaritimeReportId == reportId);
+            if (departureReport == null)
+            {
+                return (false, "Departure report data not found");
+            }
+
+            departureReport.VoyageId = dto.VoyageId;
+            departureReport.PortName = dto.PortName;
+            departureReport.PortCode = dto.PortCode;
+            departureReport.DepartureDateTime = dto.DepartureDateTime;
+            departureReport.PilotOnBoardTime = dto.PilotOffTime;
+            departureReport.LastLineAshoreTime = dto.LastLineLetGoTime;
+            departureReport.DepartureLatitude = dto.DepartureLatitude;
+            departureReport.DepartureLongitude = dto.DepartureLongitude;
+            departureReport.DraftForward = dto.DraftForward;
+            departureReport.DraftAft = dto.DraftAft;
+            departureReport.DraftMidship = dto.DraftMidship;
+            departureReport.FuelOilROB = dto.FuelOilROB;
+            departureReport.DieselOilROB = dto.DieselOilROB;
+            departureReport.LubOilROB = dto.LubOilROB;
+            departureReport.FreshWaterROB = dto.FreshWaterROB;
+            departureReport.CargoOnBoard = dto.CargoOnBoard;
+            departureReport.CargoDescription = dto.CargoDescription;
+            departureReport.CrewOnBoard = dto.CrewOnBoard;
+            departureReport.PassengersOnBoard = dto.PassengersOnBoard;
+            departureReport.NextPort = dto.DestinationPort;
+            departureReport.NextPortCode = dto.NextPortCode;
+            departureReport.DistanceToNextPort = dto.DistanceToNextPort;
+            departureReport.EstimatedTimeOfArrival = dto.EstimatedArrival;
+            departureReport.Remarks = dto.Remarks;
+
+            maritimeReport.ReportDateTime = dto.DepartureDateTime;
+            maritimeReport.VoyageId = dto.VoyageId;
+            maritimeReport.PreparedBy = username ?? dto.PreparedBy;
+            maritimeReport.ReportData = JsonSerializer.Serialize(dto);
+            maritimeReport.UpdatedAt = DateTime.UtcNow;
+            maritimeReport.Remarks = warnings.Any()
+                ? $"[VALIDATION WARNINGS]\n{string.Join("\n", warnings)}\n\n{dto.Remarks}"
+                : dto.Remarks;
+
+            await _context.SaveChangesAsync();
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating full departure report {ReportId}", reportId);
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<(bool Success, string? Error)> UpdateFullArrivalReportAsync(
+        Guid reportId, CreateArrivalReportDto dto, string? username = null)
+    {
+        try
+        {
+            var maritimeReport = await _context.MaritimeReports.FindAsync(reportId);
+            if (maritimeReport == null)
+            {
+                return (false, "Report not found");
+            }
+
+            if (maritimeReport.Status != "DRAFT")
+            {
+                return (false, $"Cannot update report with status {maritimeReport.Status}. Only DRAFT reports can be edited.");
+            }
+
+            var arrivalReport = await _context.ArrivalReports.FirstOrDefaultAsync(ar => ar.MaritimeReportId == reportId);
+            if (arrivalReport == null)
+            {
+                return (false, "Arrival report data not found");
+            }
+
+            arrivalReport.VoyageId = dto.VoyageId;
+            arrivalReport.PortName = dto.PortName;
+            arrivalReport.PortCode = dto.PortCode;
+            arrivalReport.ArrivalDateTime = dto.ArrivalDateTime;
+            arrivalReport.PilotOnBoardTime = dto.PilotOnBoardTime;
+            arrivalReport.FirstLineAshoreTime = dto.FirstLineAshoreTime;
+            arrivalReport.ArrivalLatitude = dto.ArrivalLatitude;
+            arrivalReport.ArrivalLongitude = dto.ArrivalLongitude;
+            arrivalReport.VoyageDistance = dto.VoyageDistance;
+            arrivalReport.VoyageDuration = dto.VoyageDuration;
+            arrivalReport.AverageSpeed = dto.AverageSpeed;
+            arrivalReport.DraftForward = dto.DraftForward;
+            arrivalReport.DraftAft = dto.DraftAft;
+            arrivalReport.DraftMidship = dto.DraftMidship;
+            arrivalReport.FuelOilROB = dto.FuelOilROB;
+            arrivalReport.DieselOilROB = dto.DieselOilROB;
+            arrivalReport.LubOilROB = dto.LubOilROB;
+            arrivalReport.FreshWaterROB = dto.FreshWaterROB;
+            arrivalReport.TotalFuelConsumed = dto.TotalFuelConsumed;
+            arrivalReport.TotalDieselConsumed = dto.TotalDieselConsumed;
+            arrivalReport.CargoOnBoard = dto.CargoOnBoard;
+            arrivalReport.CargoDescription = dto.CargoDescription;
+            arrivalReport.CrewOnBoard = dto.CrewOnBoard;
+            arrivalReport.PassengersOnBoard = dto.PassengersOnBoard;
+            arrivalReport.Remarks = dto.Remarks;
+
+            maritimeReport.ReportDateTime = dto.ArrivalDateTime;
+            maritimeReport.VoyageId = dto.VoyageId;
+            maritimeReport.PreparedBy = username ?? dto.PreparedBy;
+            maritimeReport.ReportData = JsonSerializer.Serialize(dto);
+            maritimeReport.UpdatedAt = DateTime.UtcNow;
+            maritimeReport.Remarks = dto.Remarks;
+
+            await _context.SaveChangesAsync();
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating full arrival report {ReportId}", reportId);
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<(bool Success, string? Error)> UpdateFullBunkerReportAsync(
+        Guid reportId, CreateBunkerReportDto dto, string? username = null)
+    {
+        try
+        {
+            var maritimeReport = await _context.MaritimeReports.FindAsync(reportId);
+            if (maritimeReport == null)
+            {
+                return (false, "Report not found");
+            }
+
+            if (maritimeReport.Status != "DRAFT")
+            {
+                return (false, $"Cannot update report with status {maritimeReport.Status}. Only DRAFT reports can be edited.");
+            }
+
+            var (isValid, errors, warnings) = MaritimeValidationService.ValidateBunkerReport(dto);
+            if (!isValid)
+            {
+                return (false, string.Join("; ", errors));
+            }
+
+            var bunkerReport = await _context.BunkerReports.FirstOrDefaultAsync(br => br.MaritimeReportId == reportId);
+            if (bunkerReport == null)
+            {
+                return (false, "Bunker report data not found");
+            }
+
+            bunkerReport.BunkerDate = dto.BunkerDate;
+            bunkerReport.PortName = dto.PortName;
+            bunkerReport.PortCode = dto.PortCode;
+            bunkerReport.SupplierName = dto.SupplierName;
+            bunkerReport.BDNNumber = dto.BDNNumber;
+            bunkerReport.FuelType = dto.FuelType;
+            bunkerReport.FuelGrade = dto.FuelGrade;
+            bunkerReport.QuantityReceived = dto.QuantityReceived;
+            bunkerReport.Density = dto.Density;
+            bunkerReport.SulphurContent = dto.SulphurContent;
+            bunkerReport.Viscosity = dto.Viscosity;
+            bunkerReport.FlashPoint = dto.FlashPoint;
+            bunkerReport.ROBefore = dto.ROBBefore;
+            bunkerReport.ROBAfter = dto.ROBAfter;
+            bunkerReport.TanksLoaded = dto.TanksLoaded;
+            bunkerReport.SealNumbers = dto.SealNumbers;
+            bunkerReport.ChiefEngineerSignature = dto.ChiefEngineerSignature;
+            bunkerReport.Remarks = dto.Remarks;
+
+            maritimeReport.ReportDateTime = dto.BunkerDate;
+            maritimeReport.VoyageId = dto.VoyageId;
+            maritimeReport.PreparedBy = username ?? dto.PreparedBy;
+            maritimeReport.ReportData = JsonSerializer.Serialize(dto);
+            maritimeReport.UpdatedAt = DateTime.UtcNow;
+            maritimeReport.Remarks = warnings.Any()
+                ? $"[VALIDATION WARNINGS]\n{string.Join("\n", warnings)}\n\n{dto.Remarks}"
+                : dto.Remarks;
+
+            await _context.SaveChangesAsync();
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating full bunker report {ReportId}", reportId);
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<(bool Success, string? Error)> UpdateFullPositionReportAsync(
+        Guid reportId, CreatePositionReportDto dto, string? username = null)
+    {
+        try
+        {
+            var maritimeReport = await _context.MaritimeReports.FindAsync(reportId);
+            if (maritimeReport == null)
+            {
+                return (false, "Report not found");
+            }
+
+            if (maritimeReport.Status != "DRAFT")
+            {
+                return (false, $"Cannot update report with status {maritimeReport.Status}. Only DRAFT reports can be edited.");
+            }
+
+            var (isValid, errors, warnings) = MaritimeValidationService.ValidatePositionReport(dto);
+            if (!isValid)
+            {
+                return (false, string.Join("; ", errors));
+            }
+
+            var positionReport = await _context.PositionReports.FirstOrDefaultAsync(pr => pr.MaritimeReportId == reportId);
+            if (positionReport == null)
+            {
+                return (false, "Position report data not found");
+            }
+
+            positionReport.ReportDateTime = dto.ReportDateTime;
+            positionReport.Latitude = dto.Latitude;
+            positionReport.Longitude = dto.Longitude;
+            positionReport.CourseOverGround = dto.CourseOverGround;
+            positionReport.SpeedOverGround = dto.SpeedOverGround;
+            positionReport.ReportReason = dto.ReportReason;
+            positionReport.LastPort = dto.LastPort;
+            positionReport.NextPort = dto.NextPort;
+            positionReport.ETA = dto.ETA;
+            positionReport.CargoOnBoard = dto.CargoOnBoard;
+            positionReport.CrewOnBoard = dto.CrewOnBoard;
+            positionReport.Remarks = dto.Remarks;
+
+            maritimeReport.ReportDateTime = dto.ReportDateTime;
+            maritimeReport.VoyageId = dto.VoyageId;
+            maritimeReport.PreparedBy = username ?? dto.PreparedBy;
+            maritimeReport.ReportData = JsonSerializer.Serialize(dto);
+            maritimeReport.UpdatedAt = DateTime.UtcNow;
+            maritimeReport.Remarks = warnings.Any()
+                ? $"[VALIDATION WARNINGS]\n{string.Join("\n", warnings)}\n\n{dto.Remarks}"
+                : dto.Remarks;
+
+            await _context.SaveChangesAsync();
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating full position report {ReportId}", reportId);
+            return (false, ex.Message);
+        }
+    }
+
     // ============================================================
-    // TRANSMISSION (Placeholder - implement with email service)
+    // TRANSMISSION — Send report directly to Shore via HTTP
     // ============================================================
 
-    public async Task<(bool Success, string? Error)> TransmitReportAsync(Guid reportId, TransmitReportDto dto)
+    private static readonly JsonSerializerOptions _syncJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+        WriteIndented = false
+    };
+
+    public async Task<(bool Success, string? Error)> TransmitReportAsync(Guid reportId, TransmitReportDto dto, string? username = null)
     {
         try
         {
@@ -1546,7 +1938,6 @@ public class ReportingService : IReportingService
                 return (false, "Report not found");
             }
 
-            // Check if report is soft-deleted
             if (report.DeletedAt.HasValue)
             {
                 return (false, "Cannot transmit deleted report");
@@ -1557,49 +1948,347 @@ public class ReportingService : IReportingService
                 return (false, $"Cannot transmit report with status {report.Status}. Must be APPROVED.");
             }
 
-            // Create transmission log
-            var log = new ReportTransmissionLog
-            {
-                MaritimeReportId = reportId,
-                TransmissionDateTime = DateTime.UtcNow,
-                TransmissionMethod = dto.TransmissionMethod,
-                Status = "PENDING",
-                Recipients = string.Join(";", dto.RecipientEmails ?? new List<string>()),
-            };
-
-            _context.ReportTransmissionLogs.Add(log);
-
-            // TODO: Implement actual transmission (email/VSAT/API)
-            // For now, mark as success
-            log.Status = "SUCCESS";
-            log.ConfirmationNumber = $"TXN-{DateTime.UtcNow:yyyyMMddHHmmss}";
-
+            // Set status to TRANSMITTED BEFORE building sync items,
+            // so the payload sent to shore already carries the final status.
+            // (Reports are excluded from auto-sync, so this is the only chance
+            // for shore to receive the TRANSMITTED status.)
             var oldStatus = report.Status;
             report.Status = "TRANSMITTED";
             report.IsTransmitted = true;
             report.TransmittedAt = DateTime.UtcNow;
             report.UpdatedAt = DateTime.UtcNow;
 
+            // Build sync items for the report (parent + child)
+            var syncItems = await BuildReportSyncItemsAsync(report);
+
+            // Attempt direct HTTP transmission to Shore
+            var (httpSuccess, httpError) = await SendReportToShoreAsync(syncItems);
+
+            // Create transmission log
+            var log = new ReportTransmissionLog
+            {
+                MaritimeReportId = reportId,
+                TransmissionDateTime = DateTime.UtcNow,
+                TransmissionMethod = dto.TransmissionMethod,
+                Status = httpSuccess ? "SUCCESS" : "FAILED",
+                Recipients = string.Join(";", dto.RecipientEmails ?? new List<string>()),
+                ConfirmationNumber = httpSuccess ? $"TXN-{DateTime.UtcNow:yyyyMMddHHmmss}" : null,
+            };
+            _context.ReportTransmissionLogs.Add(log);
+
+            if (!httpSuccess)
+            {
+                // Direct HTTP failed — save to SyncQueue as fallback
+                _logger.LogWarning("Direct Shore transmission failed ({Error}), falling back to SyncQueue", httpError);
+                foreach (var item in syncItems)
+                {
+                    _context.SyncQueue.Add(new SyncQueue
+                    {
+                        TableName = item.TableName,
+                        RecordKey = item.RecordKey,
+                        ActionType = Maritime.Shared.Models.Sync.SyncActionType.CREATE,
+                        Payload = item.Payload,
+                        Priority = Maritime.Shared.Models.Sync.SyncPriority.Operational,
+                        CreatedAt = DateTime.UtcNow,
+                    });
+                }
+                log.Status = "QUEUED";
+            }
+
             await _context.SaveChangesAsync();
-            
-            // Track workflow change for audit trail
+
             await TrackWorkflowChangeAsync(
-                reportId, 
-                oldStatus, 
-                "TRANSMITTED", 
-                "System",  // TODO: Get from authentication context
-                $"Transmitted via {dto.TransmissionMethod} to {dto.RecipientEmails?.Count ?? 0} recipients");
-            
-            _logger.LogInformation("Report {ReportNumber} transmitted via {Method}", 
-                report.ReportNumber, dto.TransmissionMethod);
-            
-            return (true, null);
+                reportId,
+                oldStatus,
+                "TRANSMITTED",
+                ResolveWorkflowActor(username, report.MasterSignature ?? report.PreparedBy),
+                httpSuccess
+                    ? $"Transmitted directly to Shore via HTTP"
+                    : $"Queued for Shore delivery (direct HTTP failed: {httpError})");
+
+            _logger.LogInformation("Report {ReportNumber} transmitted. Direct HTTP: {HttpResult}",
+                report.ReportNumber, httpSuccess ? "SUCCESS" : $"FAILED → queued ({httpError})");
+
+            return (true, httpSuccess ? null : $"Report marked as transmitted. Direct delivery failed ({httpError}), queued for background sync.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error transmitting report {ReportId}", reportId);
             return (false, ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Send report items directly to Shore /api/sync via HTTP POST.
+    /// </summary>
+    private async Task<(bool Success, string? Error)> SendReportToShoreAsync(List<Maritime.Shared.DTOs.Sync.SyncQueueItemDto> items)
+    {
+        var baseUrl = _configuration["ShoreAPI:BaseUrl"];
+        var enabled = _configuration.GetValue("ShoreAPI:Enabled", true);
+
+        if (!enabled || string.IsNullOrEmpty(baseUrl))
+        {
+            return (false, "Shore API not configured or disabled");
+        }
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient("ShoreAPI");
+            var json = JsonSerializer.Serialize(items, _syncJsonOptions);
+            var content = new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+            _logger.LogInformation("Sending {Count} report items directly to Shore {Url}/api/sync", items.Count, baseUrl);
+
+            var response = await client.PostAsync($"{baseUrl}/api/sync", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("Shore accepted report: {Response}", body);
+                return (true, null);
+            }
+
+            var errorBody = await response.Content.ReadAsStringAsync();
+            return (false, $"HTTP {(int)response.StatusCode}: {errorBody}");
+        }
+        catch (HttpRequestException ex)
+        {
+            return (false, $"Network error: {ex.Message}");
+        }
+        catch (TaskCanceledException)
+        {
+            return (false, "Request timed out");
+        }
+    }
+
+    /// <summary>
+    /// Enrich NoonReport entity with PMS/Alarm/Crew snapshot data before syncing to shore.
+    /// This stores computed summaries as JSON so they persist in the NoonReport record.
+    /// </summary>
+    private async Task EnrichNoonReportForSyncAsync(NoonReport noon)
+    {
+        var reportDate = noon.ReportDate;
+
+        // --- Crew data ---
+        try
+        {
+            var onboardCrewIds = await _context.CrewMembers
+                .Where(c => c.IsOnboard)
+                .Select(c => c.Id)
+                .ToListAsync();
+
+            noon.CrewOnBoard = onboardCrewIds.Count;
+
+            var thirtyDaysFromNow = reportDate.AddDays(30);
+            noon.CertificatesExpiringSoon = await _context.CrewCertificates
+                .Where(cc => onboardCrewIds.Contains(cc.CrewMemberId) &&
+                             cc.ExpiryDate <= thirtyDaysFromNow)
+                .CountAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not enrich crew data for noon report sync");
+        }
+
+        // --- Maintenance/PMS summary ---
+        try
+        {
+            var yesterday = reportDate.AddDays(-1);
+            var sevenDaysFromNow = reportDate.AddDays(7);
+
+            var summary = new NoonReportMaintenanceSummaryDto
+            {
+                TasksCompletedLast24h = await _context.MaintenanceTasks
+                    .CountAsync(t => t.Status == "COMPLETED" && t.CompletedAt >= yesterday && t.CompletedAt <= reportDate.AddDays(1)),
+                TasksInProgress = await _context.MaintenanceTasks
+                    .CountAsync(t => t.Status == "IN_PROGRESS"),
+                OverdueTasks = await _context.MaintenanceTasks
+                    .CountAsync(t => t.Status == "OVERDUE" || (t.NextDueAt < reportDate && t.Status != "COMPLETED" && t.Status != "CANCELLED")),
+                CriticalTasksDueSoon = await _context.MaintenanceTasks
+                    .CountAsync(t => (t.Priority == "CRITICAL" || t.Priority == "HIGH") &&
+                                    t.NextDueAt <= sevenDaysFromNow &&
+                                    t.Status != "COMPLETED" && t.Status != "CANCELLED"),
+                TotalScheduledToday = await _context.MaintenanceTasks
+                    .CountAsync(t => t.NextDueAt.Date == reportDate && t.Status != "COMPLETED" && t.Status != "CANCELLED"),
+                PendingDeferrals = await _context.MaintenanceTasks
+                    .CountAsync(t => t.HasPendingDeferral)
+            };
+
+            var criticalTasks = await _context.MaintenanceTasks
+                .Where(t => t.Priority == "CRITICAL" && t.Status == "OVERDUE")
+                .Take(3)
+                .Select(t => t.TaskDescription)
+                .ToListAsync();
+            if (criticalTasks.Any())
+                summary.CriticalMaintenanceNotes = string.Join("; ", criticalTasks.Select(t => t.Length > 50 ? t.Substring(0, 47) + "..." : t));
+
+            noon.MaintenanceSummaryJson = JsonSerializer.Serialize(summary, _syncJsonOptions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not enrich maintenance data for noon report sync");
+        }
+
+        // --- Alarm summary ---
+        try
+        {
+            var yesterday = reportDate.AddDays(-1);
+
+            var alarmSummary = new NoonReportAlarmSummaryDto
+            {
+                ActiveAlarms = await _context.SafetyAlarms
+                    .CountAsync(a => !a.IsAcknowledged && !a.IsResolved),
+                AcknowledgedAlarms = await _context.SafetyAlarms
+                    .CountAsync(a => a.IsAcknowledged && !a.IsResolved),
+                ResolvedLast24h = await _context.SafetyAlarms
+                    .CountAsync(a => a.IsResolved && a.ResolvedAt >= yesterday),
+                CriticalAlarms = await _context.SafetyAlarms
+                    .CountAsync(a => a.Severity == "CRITICAL" && !a.IsResolved),
+                WarningAlarms = await _context.SafetyAlarms
+                    .CountAsync(a => a.Severity == "WARNING" && !a.IsResolved)
+            };
+
+            var recentCriticalAlarms = await _context.SafetyAlarms
+                .Where(a => a.Severity == "CRITICAL" && !a.IsResolved)
+                .Take(2)
+                .Select(a => a.Description)
+                .ToListAsync();
+            if (recentCriticalAlarms.Any())
+                alarmSummary.SafetyNotes = string.Join("; ", recentCriticalAlarms.Select(m => m != null && m.Length > 50 ? m.Substring(0, 47) + "..." : m ?? ""));
+
+            noon.AlarmSummaryJson = JsonSerializer.Serialize(alarmSummary, _syncJsonOptions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not enrich alarm data for noon report sync");
+        }
+    }
+
+    /// <summary>
+    /// Build SyncQueueItemDto list for a report (parent MaritimeReport + child report).
+    /// </summary>
+    private async Task<List<Maritime.Shared.DTOs.Sync.SyncQueueItemDto>> BuildReportSyncItemsAsync(MaritimeReport report)
+    {
+        var nodeId = _configuration["Vessel:IMO"] ?? "UNKNOWN";
+        var items = new List<Maritime.Shared.DTOs.Sync.SyncQueueItemDto>();
+
+        // Override OriginNode to match vessel IMO so Shore can correlate with Vessels table
+        report.OriginNode = nodeId;
+
+        // Generate a SyncVersion for idempotency (ticks-based, unique per transmit)
+        var syncVersion = DateTime.UtcNow.Ticks;
+
+        // 1. Parent MaritimeReport
+        items.Add(new Maritime.Shared.DTOs.Sync.SyncQueueItemDto
+        {
+            TableName = "maritime_report",
+            RecordKey = report.Id.ToString(),
+            ActionType = "CREATE",
+            Payload = JsonSerializer.Serialize(report, _syncJsonOptions),
+            OriginNode = nodeId,
+            SyncVersion = syncVersion,
+            Timestamp = DateTime.UtcNow,
+        });
+
+        // 2. Child report based on type
+        var reportType = await _context.ReportTypes.AsNoTracking()
+            .FirstOrDefaultAsync(rt => rt.Id == report.ReportTypeId);
+        var typeCode = reportType?.TypeCode?.ToUpperInvariant() ?? "";
+
+        switch (typeCode)
+        {
+            case "NOON":
+                var noon = await _context.NoonReports
+                    .FirstOrDefaultAsync(r => r.MaritimeReportId == report.Id);
+                if (noon != null)
+                {
+                    // Enrich with PMS/Alarm/Crew snapshots before sync
+                    await EnrichNoonReportForSyncAsync(noon);
+                    await _context.SaveChangesAsync();
+
+                    items.Add(new Maritime.Shared.DTOs.Sync.SyncQueueItemDto
+                    {
+                        TableName = "noon_report",
+                        RecordKey = noon.Id.ToString(),
+                        ActionType = "CREATE",
+                        Payload = JsonSerializer.Serialize(noon, _syncJsonOptions),
+                        OriginNode = nodeId,
+                        SyncVersion = syncVersion,
+                        Timestamp = DateTime.UtcNow,
+                    });
+                }
+                break;
+
+            case "DEPARTURE":
+                var dep = await _context.DepartureReports.AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.MaritimeReportId == report.Id);
+                if (dep != null)
+                    items.Add(new Maritime.Shared.DTOs.Sync.SyncQueueItemDto
+                    {
+                        TableName = "departure_report",
+                        RecordKey = dep.Id.ToString(),
+                        ActionType = "CREATE",
+                        Payload = JsonSerializer.Serialize(dep, _syncJsonOptions),
+                        OriginNode = nodeId,
+                        SyncVersion = syncVersion,
+                        Timestamp = DateTime.UtcNow,
+                    });
+                break;
+
+            case "ARRIVAL":
+                var arr = await _context.ArrivalReports.AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.MaritimeReportId == report.Id);
+                if (arr != null)
+                    items.Add(new Maritime.Shared.DTOs.Sync.SyncQueueItemDto
+                    {
+                        TableName = "arrival_report",
+                        RecordKey = arr.Id.ToString(),
+                        ActionType = "CREATE",
+                        Payload = JsonSerializer.Serialize(arr, _syncJsonOptions),
+                        OriginNode = nodeId,
+                        SyncVersion = syncVersion,
+                        Timestamp = DateTime.UtcNow,
+                    });
+                break;
+
+            case "BUNKER":
+                var bunk = await _context.BunkerReports.AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.MaritimeReportId == report.Id);
+                if (bunk != null)
+                    items.Add(new Maritime.Shared.DTOs.Sync.SyncQueueItemDto
+                    {
+                        TableName = "bunker_report",
+                        RecordKey = bunk.Id.ToString(),
+                        ActionType = "CREATE",
+                        Payload = JsonSerializer.Serialize(bunk, _syncJsonOptions),
+                        OriginNode = nodeId,
+                        SyncVersion = syncVersion,
+                        Timestamp = DateTime.UtcNow,
+                    });
+                break;
+
+            case "POSITION":
+                var pos = await _context.PositionReports.AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.MaritimeReportId == report.Id);
+                if (pos != null)
+                    items.Add(new Maritime.Shared.DTOs.Sync.SyncQueueItemDto
+                    {
+                        TableName = "position_report",
+                        RecordKey = pos.Id.ToString(),
+                        ActionType = "CREATE",
+                        Payload = JsonSerializer.Serialize(pos, _syncJsonOptions),
+                        OriginNode = nodeId,
+                        SyncVersion = syncVersion,
+                        Timestamp = DateTime.UtcNow,
+                    });
+                break;
+
+            default:
+                _logger.LogWarning("Unknown report type {TypeCode} for report {Id}", typeCode, report.Id);
+                break;
+        }
+
+        return items;
     }
 
     public async Task<TransmissionStatusDto?> GetTransmissionStatusAsync(Guid reportId)
@@ -1665,6 +2354,12 @@ public class ReportingService : IReportingService
 
         var totalCount = statusCounts.Sum(x => x.Count);
 
+        var filteredReportIds = query.Select(r => r.Id);
+        var failedTransmissions = await _context.ReportTransmissionLogs
+            .AsNoTracking()
+            .Where(log => log.Status == "FAILED" && filteredReportIds.Contains(log.MaritimeReportId))
+            .CountAsync();
+
         var stats = new ReportStatisticsDto
         {
             TotalReports = totalCount,
@@ -1673,7 +2368,8 @@ public class ReportingService : IReportingService
             ApprovedReports = statusCounts.Where(x => x.Status == "APPROVED").Sum(x => x.Count),
             TransmittedReports = statusCounts.Where(x => x.Status == "TRANSMITTED").Sum(x => x.Count),
             PendingApproval = statusCounts.Where(x => x.Status == "SUBMITTED").Sum(x => x.Count),
-            PendingTransmission = statusCounts.Where(x => x.Status == "APPROVED" && !x.IsTransmitted).Sum(x => x.Count)
+            PendingTransmission = statusCounts.Where(x => x.Status == "APPROVED" && !x.IsTransmitted).Sum(x => x.Count),
+            FailedTransmissions = failedTransmissions
         };
 
         // Reports by type
@@ -1818,6 +2514,21 @@ public class ReportingService : IReportingService
             _logger.LogError(ex, "Error generating report number for prefix {Prefix}", prefix);
             throw;
         }
+    }
+
+    private static string ResolveWorkflowActor(string? username, string? fallback = null)
+    {
+        if (!string.IsNullOrWhiteSpace(username))
+        {
+            return username.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(fallback))
+        {
+            return fallback.Trim();
+        }
+
+        return "System";
     }
 
     // ============================================================

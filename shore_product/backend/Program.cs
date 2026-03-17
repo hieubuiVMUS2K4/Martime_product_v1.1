@@ -13,13 +13,21 @@ var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 
 // Add services
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+    {
+        opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        opts.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        opts.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // DbContext
 var conn = configuration.GetConnectionString("DefaultConnection") ?? "Host=postgres;Port=5432;Database=productdb;Username=product;Password=productpwd";
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(conn));
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(conn)
+           .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 
 // CORS
 builder.Services.AddCors(options =>
@@ -118,6 +126,9 @@ builder.Services.AddScoped<ProductApi.Services.Sync.ISyncOutboxService, ProductA
 builder.Services.AddScoped<ProductApi.Services.Sync.IConflictResolverService, ProductApi.Services.Sync.ConflictResolverService>();
 builder.Services.AddScoped<ProductApi.Services.Sync.ICrewSyncOrchestrator, ProductApi.Services.Sync.CrewSyncOrchestrator>();
 
+// Register voyage management service
+builder.Services.AddScoped<ProductApi.Services.Voyage.IVoyageService, ProductApi.Services.Voyage.VoyageService>();
+
 // Background services
 builder.Services.AddHostedService<AlertBackgroundService>();
 builder.Services.AddHostedService<ProductApi.Services.Sync.CertificateExpiryMonitorService>();
@@ -135,15 +146,81 @@ using (var scope = app.Services.CreateScope())
     {
         try
         {
-            logger.LogInformation($"Attempting database creation (Attempt {retryCount + 1}/5)...");
-            db.Database.EnsureCreated();
-            logger.LogInformation("Database creation/verification completed successfully.");
+            logger.LogInformation($"Attempting database migration (Attempt {retryCount + 1}/5)...");
+            db.Database.Migrate();
+            await db.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS voyage_reviews (
+                    ""Id"" uuid NOT NULL,
+                    ""VoyageId"" uuid NOT NULL,
+                    ""ReviewStatus"" character varying(30) NOT NULL,
+                    ""Notes"" text,
+                    ""ReviewedBy"" character varying(100),
+                    ""ReviewedAt"" timestamp with time zone,
+                    ""Tags"" text,
+                    ""CreatedAt"" timestamp with time zone NOT NULL,
+                    ""UpdatedAt"" timestamp with time zone NOT NULL,
+                    CONSTRAINT ""PK_voyage_reviews"" PRIMARY KEY (""Id""),
+                    CONSTRAINT ""FK_voyage_reviews_voyage_records_VoyageId"" FOREIGN KEY (""VoyageId"") REFERENCES voyage_records (""Id"") ON DELETE CASCADE
+                );
+
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_voyage_reviews_VoyageId"" ON voyage_reviews (""VoyageId"");
+                CREATE INDEX IF NOT EXISTS ""IX_voyage_reviews_ReviewStatus"" ON voyage_reviews (""ReviewStatus"");
+            ");
+            await db.Database.ExecuteSqlRawAsync(@"
+                ALTER TABLE crew_members
+                ADD COLUMN IF NOT EXISTS ""VesselId"" uuid;
+
+                CREATE INDEX IF NOT EXISTS ""IX_crew_members_VesselId"" ON crew_members (""VesselId"");
+
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1
+                        FROM information_schema.tables
+                        WHERE table_schema = 'public' AND table_name = 'crew_assignments'
+                    ) THEN
+                        UPDATE crew_members AS cm
+                        SET ""VesselId"" = src.""VesselId""
+                        FROM (
+                            SELECT DISTINCT ON (ca.""CrewMemberId"")
+                                ca.""CrewMemberId"",
+                                ca.""VesselId""
+                            FROM crew_assignments AS ca
+                            WHERE ca.""Status"" IN (
+                                'OnBoarded',
+                                'ReadyToJoin',
+                                'TravelInProgress',
+                                'Confirmed',
+                                'PendingCrewConfirmation',
+                                'Proposed',
+                                'Draft'
+                            )
+                            ORDER BY
+                                ca.""CrewMemberId"",
+                                CASE ca.""Status""
+                                    WHEN 'OnBoarded' THEN 1
+                                    WHEN 'ReadyToJoin' THEN 2
+                                    WHEN 'TravelInProgress' THEN 3
+                                    WHEN 'Confirmed' THEN 4
+                                    WHEN 'PendingCrewConfirmation' THEN 5
+                                    WHEN 'Proposed' THEN 6
+                                    WHEN 'Draft' THEN 7
+                                    ELSE 99
+                                END,
+                                COALESCE(ca.""ActualStartDate"", ca.""PlannedStartDate"", ca.""UpdatedAt"", ca.""CreatedAt"") DESC
+                        ) AS src
+                        WHERE cm.""Id"" = src.""CrewMemberId""
+                          AND cm.""VesselId"" IS NULL;
+                    END IF;
+                END $$;
+            ");
+            logger.LogInformation("Database migration/verification completed successfully.");
             break;
         }
         catch (Exception ex)
         {
             retryCount++;
-            logger.LogError(ex, $"Database creation attempt {retryCount} failed.");
+            logger.LogError(ex, $"Database migration attempt {retryCount} failed.");
             if (retryCount >= 5) throw;
             await Task.Delay(5000); // Wait 5 seconds before retry
         }

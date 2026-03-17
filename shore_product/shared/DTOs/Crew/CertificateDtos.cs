@@ -67,6 +67,8 @@ public class CreateCertificateRequest
     public int? ValidityPeriodMonths { get; set; }
     public string? Description { get; set; }
     public bool IsMandatory { get; set; }
+    public List<int>? CountryIds { get; set; }
+    public List<int>? RankIds { get; set; }
 }
 
 /// <summary>

@@ -202,7 +202,7 @@ public class CertificatesController : ControllerBase
                         cc.CrewMember.Id,
                         cc.CrewMember.FullName,
                         RankName = cc.CrewMember.Rank != null ? cc.CrewMember.Rank.RankName : null,
-                        cc.CrewMember.Nationality,
+                        cc.CrewMember.CountryId,
                         cc.CrewMember.CrewId
                     },
                     Country = cc.Country == null ? null : new

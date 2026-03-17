@@ -28,6 +28,7 @@ export interface MaritimeReport {
   reportTypeId: number;
   reportDateTime: string;
   voyageId?: string | null; // Guid? in backend - can be null
+  voyagePlanLegId?: string | null;
   status: ReportStatus;
   preparedBy?: string;
   masterSignature?: string;
@@ -116,10 +117,10 @@ export interface NoonReportMaintenanceSummaryDto {
   tasksCompletedLast24h: number;
   tasksInProgress: number;
   overdueTasks: number;
-  upcomingTasksNext7Days: number;
-  criticalEquipmentIssues: number;
-  sparesUsedLast24h: number;
-  totalManHoursLast24h: number;
+  criticalTasksDueSoon: number;
+  totalScheduledToday: number;
+  pendingDeferrals: number;
+  criticalMaintenanceNotes?: string;
 }
 
 // ============================================================
@@ -132,14 +133,18 @@ export interface NoonReportAlarmSummaryDto {
   warningAlarms: number;
   acknowledgedAlarms: number;
   resolvedLast24h: number;
-  unacknowledgedAlarms: number;
+  safetyNotes?: string;
 }
 
 export interface NoonReportDto extends CreateNoonReportDto {
   id: string; // Guid
   maritimeReportId: string; // Guid
   reportNumber: string;
+  reportTypeCode: 'NOON';
   status: ReportStatus;
+  voyagePlanLegId?: string;
+  voyageNumber?: string;
+  certificatesExpiringSoon?: number;
   masterSignature?: string;
   signedAt?: string;
   isTransmitted: boolean;
@@ -182,6 +187,8 @@ export interface CreateDepartureReportDto {
   passengersOnBoard?: number;
   
   destinationPort?: string;
+  nextPortCode?: string;
+  distanceToNextPort?: number;
   estimatedArrival?: string;
   
   remarks?: string;
@@ -192,7 +199,9 @@ export interface DepartureReportDto extends CreateDepartureReportDto {
   id: string; // Guid
   maritimeReportId: string; // Guid
   reportNumber: string;
+  reportTypeCode: 'DEPARTURE';
   status: ReportStatus;
+  voyagePlanLegId?: string;
   masterSignature?: string;
   signedAt?: string;
   isTransmitted: boolean;
@@ -211,7 +220,9 @@ export interface CreateArrivalReportDto {
   portName: string;
   portCode?: string;
   pilotOnBoardTime?: string;
-  anchorDropTime?: string;
+  firstLineAshoreTime?: string;
+  arrivalLatitude?: number;
+  arrivalLongitude?: number;
   
   voyageDistance?: number;
   voyageDuration?: number;
@@ -219,13 +230,19 @@ export interface CreateArrivalReportDto {
   
   draftForward?: number;
   draftAft?: number;
+  draftMidship?: number;
   
   fuelOilROB?: number;
   totalFuelConsumed?: number;
   dieselOilROB?: number;
+  lubOilROB?: number;
+  freshWaterROB?: number;
+  totalDieselConsumed?: number;
   
   cargoOnBoard?: number;
-  cargoDischargedAtPort?: number;
+  cargoDescription?: string;
+  crewOnBoard?: number;
+  passengersOnBoard?: number;
   
   remarks?: string;
   preparedBy?: string;
@@ -235,7 +252,9 @@ export interface ArrivalReportDto extends CreateArrivalReportDto {
   id: string; // Guid
   maritimeReportId: string; // Guid
   reportNumber: string;
+  reportTypeCode: 'ARRIVAL';
   status: ReportStatus;
+  voyagePlanLegId?: string;
   masterSignature?: string;
   signedAt?: string;
   isTransmitted: boolean;
@@ -249,6 +268,7 @@ export interface ArrivalReportDto extends CreateArrivalReportDto {
 
 export interface CreateBunkerReportDto {
   bunkerDate: string;
+  voyageId?: string | null;
   
   portName?: string;
   portCode?: string;
@@ -265,6 +285,12 @@ export interface CreateBunkerReportDto {
   
   robBefore?: number;
   robAfter?: number;
+  tanksLoaded?: string;
+  sealNumbers?: string;
+  chiefEngineerSignature?: string;
+  unitPrice?: number;
+  totalCost?: number;
+  deliveryMethod?: string;
   
   sampleSealed: boolean;
   sampleNumber?: string;
@@ -277,7 +303,9 @@ export interface BunkerReportDto extends CreateBunkerReportDto {
   id: string; // Guid
   maritimeReportId: string; // Guid
   reportNumber: string;
+  reportTypeCode: 'BUNKER';
   status: ReportStatus;
+  voyagePlanLegId?: string;
   masterSignature?: string;
   signedAt?: string;
   isTransmitted: boolean;
@@ -291,6 +319,7 @@ export interface BunkerReportDto extends CreateBunkerReportDto {
 
 export interface CreatePositionReportDto {
   reportDateTime: string;
+  voyageId?: string | null;
   
   latitude: number;
   longitude: number;
@@ -313,7 +342,9 @@ export interface PositionReportDto extends CreatePositionReportDto {
   id: string; // Guid
   maritimeReportId: string; // Guid
   reportNumber: string;
+  reportTypeCode: 'POSITION';
   status: ReportStatus;
+  voyagePlanLegId?: string;
   masterSignature?: string;
   signedAt?: string;
   isTransmitted: boolean;
@@ -373,6 +404,7 @@ export interface ReportSummaryDto {
   reportDateTime: string;
   status: ReportStatus;
   voyageId?: string; // Guid in backend - string type
+  voyagePlanLegId?: string;
   voyageNumber?: string;
   preparedBy?: string;
   masterSignature?: string;
@@ -447,6 +479,13 @@ export interface CreateReportResponse {
   reportId: string; // Guid from backend
   message: string;
 }
+
+export type ReportDetailDto =
+  | NoonReportDto
+  | DepartureReportDto
+  | ArrivalReportDto
+  | BunkerReportDto
+  | PositionReportDto;
 
 export interface ApiError {
   error: string;

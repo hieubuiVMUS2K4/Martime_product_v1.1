@@ -17,6 +17,14 @@ namespace ProductApi.Services.Crew;
 /// </summary>
 public class CrewService : ICrewService
 {
+    private static DateTime? ToUtc(DateTime? dt)
+    {
+        if (dt == null) return null;
+        return dt.Value.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc)
+            : dt.Value.ToUniversalTime();
+    }
+
     private readonly AppDbContext _context;
     private readonly ILogger<CrewService> _logger;
     private readonly ISyncOutboxService? _syncOutbox;
@@ -46,6 +54,7 @@ public class CrewService : ICrewService
         var query = _context.CrewMembers
             .AsNoTracking()
             .Include(c => c.Rank)
+            .Include(c => c.Country)
             .AsQueryable();
 
         // Search
@@ -62,6 +71,12 @@ public class CrewService : ICrewService
         if (isOnboard.HasValue)
             query = query.Where(c => c.IsOnboard == isOnboard.Value);
 
+        if (shipId.HasValue)
+            query = query.Where(c => c.VesselId == shipId.Value);
+
+        if (poolOnly == true)
+            query = query.Where(c => c.VesselId == null && !c.IsOnboard);
+
         var totalCount = await query.CountAsync();
         var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
@@ -71,8 +86,24 @@ public class CrewService : ICrewService
             .Take(pageSize)
             .ToListAsync();
 
-        var dtos = crew.Select(MapToDto).ToList();
+        // Resolve vessel names for assigned crew
+        var vesselIds = crew.Where(c => c.VesselId.HasValue).Select(c => c.VesselId!.Value).Distinct().ToList();
+        var vesselNames = vesselIds.Count > 0
+            ? await _context.Vessels.AsNoTracking()
+                .Where(v => vesselIds.Contains(v.Id))
+                .ToDictionaryAsync(v => v.Id, v => v.Name)
+            : new Dictionary<Guid, string>();
+
+        var dtos = crew.Select(c => MapToDto(c, vesselNames.GetValueOrDefault(c.VesselId ?? Guid.Empty))).ToList();
         return (dtos, totalCount, totalPages);
+    }
+
+    public async Task<(int Total, int Onboard, int Pool, int PendingReview)> GetCrewStatsAsync()
+    {
+        var total = await _context.CrewMembers.AsNoTracking().CountAsync();
+        var onboard = await _context.CrewMembers.AsNoTracking().CountAsync(c => c.IsOnboard);
+        var pendingReview = await _context.CrewMembers.AsNoTracking().CountAsync(c => c.OnboardStatus == "PendingReview");
+        return (total, onboard, total - onboard - pendingReview, pendingReview);
     }
 
     public async Task<CrewMemberDto?> GetCrewByIdAsync(Guid id)
@@ -80,9 +111,14 @@ public class CrewService : ICrewService
         var crew = await _context.CrewMembers
             .AsNoTracking()
             .Include(c => c.Rank)
+            .Include(c => c.Country)
             .FirstOrDefaultAsync(c => c.Id == id);
 
-        return crew == null ? null : MapToDto(crew);
+        if (crew == null) return null;
+        var vesselName = crew.VesselId.HasValue
+            ? await _context.Vessels.AsNoTracking().Where(v => v.Id == crew.VesselId.Value).Select(v => v.Name).FirstOrDefaultAsync()
+            : null;
+        return MapToDto(crew, vesselName);
     }
 
     public async Task<CrewDetailDto?> GetCrewDetailAsync(Guid id)
@@ -90,12 +126,16 @@ public class CrewService : ICrewService
         var crew = await _context.CrewMembers
             .AsNoTracking()
             .Include(c => c.Rank)
+            .Include(c => c.Country)
             .Include(c => c.Certificates).ThenInclude(cc => cc.Certificate)
             .FirstOrDefaultAsync(c => c.Id == id);
 
         if (crew == null) return null;
 
-        var dto = MapToDetailDto(crew);
+        var vesselName = crew.VesselId.HasValue
+            ? await _context.Vessels.AsNoTracking().Where(v => v.Id == crew.VesselId.Value).Select(v => v.Name).FirstOrDefaultAsync()
+            : null;
+        var dto = MapToDetailDto(crew, vesselName);
 
         // Load passport info from travel documents
         var passport = await _context.TravelDocuments
@@ -146,12 +186,13 @@ public class CrewService : ICrewService
                 FullName = request.FullName,
                 RankId = request.RankId,
                 Department = request.Department,
-                Nationality = request.Nationality,
-                DateOfBirth = request.DateOfBirth,
-                JoinDate = request.JoinDate,
-                EmbarkDate = request.EmbarkDate,
-                ContractEnd = request.ContractEnd,
+                CountryId = request.CountryId,
+                DateOfBirth = ToUtc(request.DateOfBirth),
+                JoinDate = ToUtc(request.JoinDate),
+                EmbarkDate = ToUtc(request.EmbarkDate),
+                ContractEnd = ToUtc(request.ContractEnd),
                 IsOnboard = request.IsOnboard,
+                VesselId = request.VesselId,
                 EmergencyContact = request.EmergencyContact,
                 EmailAddress = request.EmailAddress,
                 PhoneNumber = request.PhoneNumber,
@@ -232,7 +273,9 @@ public class CrewService : ICrewService
     public async Task<CrewMemberDto?> UpdateCrewAsync(Guid id, UpdateCrewRequest request)
     {
         var crew = await _context.CrewMembers
+            .AsTracking()
             .Include(c => c.Rank)
+            .Include(c => c.Country)
             .FirstOrDefaultAsync(c => c.Id == id);
 
         if (crew == null) return null;
@@ -241,13 +284,14 @@ public class CrewService : ICrewService
         if (request.FullName != null) crew.FullName = request.FullName;
         if (request.RankId.HasValue) crew.RankId = request.RankId;
         if (request.Department != null) crew.Department = request.Department;
-        if (request.Nationality != null) crew.Nationality = request.Nationality;
-        if (request.DateOfBirth.HasValue) crew.DateOfBirth = request.DateOfBirth;
-        if (request.JoinDate.HasValue) crew.JoinDate = request.JoinDate;
-        if (request.EmbarkDate.HasValue) crew.EmbarkDate = request.EmbarkDate;
-        if (request.DisembarkDate.HasValue) crew.DisembarkDate = request.DisembarkDate;
-        if (request.ContractEnd.HasValue) crew.ContractEnd = request.ContractEnd;
-        if (request.IsOnboard.HasValue) crew.IsOnboard = request.IsOnboard.Value;
+        if (request.CountryId.HasValue) crew.CountryId = request.CountryId;
+        if (request.DateOfBirth.HasValue) crew.DateOfBirth = ToUtc(request.DateOfBirth);
+        if (request.JoinDate.HasValue) crew.JoinDate = ToUtc(request.JoinDate);
+        if (request.EmbarkDate.HasValue) crew.EmbarkDate = ToUtc(request.EmbarkDate);
+        if (request.DisembarkDate.HasValue) crew.DisembarkDate = ToUtc(request.DisembarkDate);
+        if (request.ContractEnd.HasValue) crew.ContractEnd = ToUtc(request.ContractEnd);
+        // IsOnboard is NOT updated here — managed by dedicated onboard/disembark endpoints
+        if (request.VesselId.HasValue) crew.VesselId = request.VesselId;
         if (request.EmergencyContact != null) crew.EmergencyContact = request.EmergencyContact;
         if (request.EmailAddress != null) crew.EmailAddress = request.EmailAddress;
         if (request.PhoneNumber != null) crew.PhoneNumber = request.PhoneNumber;
@@ -318,6 +362,115 @@ public class CrewService : ICrewService
 
         _logger.LogInformation("Deleted crew member {CrewId}", crew.CrewId);
         return true;
+    }
+
+    // ============================================================
+    // VESSEL ASSIGNMENT
+    // ============================================================
+
+    public async Task<CrewMemberDto?> AssignToVesselAsync(Guid crewId, Guid vesselId)
+    {
+        var crew = await _context.CrewMembers
+            .AsTracking()
+            .Include(c => c.Rank)
+            .Include(c => c.Country)
+            .FirstOrDefaultAsync(c => c.Id == crewId);
+        if (crew == null) return null;
+
+        var vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.Id == vesselId);
+        if (vessel == null) throw new ArgumentException($"Vessel with ID '{vesselId}' not found");
+
+        crew.VesselId = vesselId;
+        crew.IsOnboard = false;
+        crew.EmbarkDate = DateTime.UtcNow;
+        crew.DisembarkDate = null;
+        crew.PoolStatus = "Assigned";
+        crew.OnboardStatus = "PendingReview";
+        crew.UpdatedAt = DateTime.UtcNow;
+        crew.IsSynced = false;
+
+        await _context.SaveChangesAsync();
+
+        if (_syncOutbox != null)
+        {
+            try
+            {
+                // Target sync to the specific vessel's edge node using its IMO
+                var targetNode = vessel.IMO;
+
+                // Sync crew member to the specific vessel
+                await _syncOutbox.EnqueueAsync(targetNode, "crew_member", crew.Id.ToString(), SyncActionType.UPDATE, crew);
+
+                // Also sync all certificates for this crew member
+                var crewCerts = await _context.CrewCertificates.AsNoTracking()
+                    .Include(cc => cc.Certificate)
+                    .Include(cc => cc.Country)
+                    .Where(cc => cc.CrewMemberId == crewId)
+                    .ToListAsync();
+                foreach (var cc in crewCerts)
+                {
+                    await _syncOutbox.EnqueueAsync(targetNode, "crew_certificate", cc.Id.ToString(), SyncActionType.SNAPSHOT, cc);
+                }
+
+                // Sync all documents for this crew member
+                var travelDocs = await _context.TravelDocuments.AsNoTracking().Where(d => d.CrewMemberId == crewId).ToListAsync();
+                foreach (var d in travelDocs)
+                    await _syncOutbox.EnqueueAsync(targetNode, "travel_document", d.Id.ToString(), SyncActionType.SNAPSHOT, d);
+
+                var seafarerDocs = await _context.SeafarerDocuments.AsNoTracking().Where(d => d.CrewMemberId == crewId).ToListAsync();
+                foreach (var d in seafarerDocs)
+                    await _syncOutbox.EnqueueAsync(targetNode, "seafarer_document", d.Id.ToString(), SyncActionType.SNAPSHOT, d);
+
+                var employmentDocs = await _context.EmploymentDocuments.AsNoTracking().Where(d => d.CrewMemberId == crewId).ToListAsync();
+                foreach (var d in employmentDocs)
+                    await _syncOutbox.EnqueueAsync(targetNode, "employment_document", d.Id.ToString(), SyncActionType.SNAPSHOT, d);
+
+                var healthDocs = await _context.HealthDocuments.AsNoTracking().Where(d => d.CrewMemberId == crewId).ToListAsync();
+                foreach (var d in healthDocs)
+                    await _syncOutbox.EnqueueAsync(targetNode, "health_document", d.Id.ToString(), SyncActionType.SNAPSHOT, d);
+            }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to sync crew assign data for {CrewId} to vessel {IMO}", crew.CrewId, vessel.IMO); }
+        }
+
+        _logger.LogInformation("Assigned crew {CrewId} to vessel {VesselName} with PendingReview status", crew.CrewId, vessel.Name);
+        return MapToDto(crew, vessel.Name);
+    }
+
+    public async Task<CrewMemberDto?> UnassignFromVesselAsync(Guid crewId)
+    {
+        var crew = await _context.CrewMembers
+            .AsTracking()
+            .Include(c => c.Rank)
+            .Include(c => c.Country)
+            .FirstOrDefaultAsync(c => c.Id == crewId);
+        if (crew == null) return null;
+
+        // Get the vessel IMO before clearing VesselId for targeted sync
+        string? targetNode = null;
+        if (crew.VesselId.HasValue)
+        {
+            var vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.Id == crew.VesselId.Value);
+            targetNode = vessel?.IMO;
+        }
+
+        crew.VesselId = null;
+        crew.IsOnboard = false;
+        crew.DisembarkDate = DateTime.UtcNow;
+        crew.PoolStatus = "Available";
+        crew.OnboardStatus = null;
+        crew.UpdatedAt = DateTime.UtcNow;
+        crew.IsSynced = false;
+
+        await _context.SaveChangesAsync();
+
+        if (_syncOutbox != null && !string.IsNullOrEmpty(targetNode))
+        {
+            try { await _syncOutbox.EnqueueAsync(targetNode, "crew_member", crew.Id.ToString(), SyncActionType.UPDATE, crew); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to sync crew unassign for {CrewId} to vessel {IMO}", crew.CrewId, targetNode); }
+        }
+
+        _logger.LogInformation("Unassigned crew {CrewId} from vessel", crew.CrewId);
+        return MapToDto(crew);
     }
 
     // ============================================================
@@ -488,22 +641,22 @@ public class CrewService : ICrewService
         switch (category.ToLower())
         {
             case "travel":
-                var t = await _context.TravelDocuments.FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
+                var t = await _context.TravelDocuments.AsTracking().FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
                 if (t == null) return false;
                 _context.TravelDocuments.Remove(t);
                 break;
             case "seafarer":
-                var s = await _context.SeafarerDocuments.FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
+                var s = await _context.SeafarerDocuments.AsTracking().FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
                 if (s == null) return false;
                 _context.SeafarerDocuments.Remove(s);
                 break;
             case "employment":
-                var e = await _context.EmploymentDocuments.FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
+                var e = await _context.EmploymentDocuments.AsTracking().FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
                 if (e == null) return false;
                 _context.EmploymentDocuments.Remove(e);
                 break;
             case "health":
-                var h = await _context.HealthDocuments.FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
+                var h = await _context.HealthDocuments.AsTracking().FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
                 if (h == null) return false;
                 _context.HealthDocuments.Remove(h);
                 break;
@@ -615,7 +768,7 @@ public class CrewService : ICrewService
     // MAPPING HELPERS
     // ============================================================
 
-    private static CrewMemberDto MapToDto(CrewMember crew)
+    private static CrewMemberDto MapToDto(CrewMember crew, string? vesselName = null)
     {
         var nameParts = (crew.FullName ?? "").Split(' ', 2);
         var firstName = nameParts.Length > 0 ? nameParts[0] : "";
@@ -636,9 +789,14 @@ public class CrewService : ICrewService
                 IsActive = crew.Rank.IsActive
             } : null,
             RankId = crew.RankId,
+            RankName = crew.Rank?.RankName,
+            RankCode = crew.Rank?.RankCode,
             IsOnboard = crew.IsOnboard,
+            VesselId = crew.VesselId,
+            VesselName = vesselName,
             Department = crew.Department,
-            Nationality = crew.Nationality,
+            CountryId = crew.CountryId,
+            CountryName = crew.Country?.CountryName,
             EmailAddress = crew.EmailAddress,
             PhoneNumber = crew.PhoneNumber,
             EmbarkDate = crew.EmbarkDate,
@@ -676,19 +834,26 @@ public class CrewService : ICrewService
             Notes = crew.Notes,
             IsSynced = crew.IsSynced,
             CreatedAt = crew.CreatedAt,
-            UpdatedAt = crew.UpdatedAt
+            UpdatedAt = crew.UpdatedAt,
+            OnboardStatus = crew.OnboardStatus,
+            OnboardStatusChangedAt = crew.OnboardStatusChangedAt,
+            OnboardStatusChangedBy = crew.OnboardStatusChangedBy,
+            ReviewChecklist = crew.ReviewChecklist,
+            ReviewNotes = crew.ReviewNotes,
+            EdgeChanges = crew.EdgeChanges,
+            EdgeChangesViewed = crew.EdgeChangesViewed
         };
     }
 
-    private static CrewDetailDto MapToDetailDto(CrewMember crew)
+    private static CrewDetailDto MapToDetailDto(CrewMember crew, string? vesselName = null)
     {
-        var baseDto = MapToDto(crew);
+        var baseDto = MapToDto(crew, vesselName);
         return new CrewDetailDto
         {
             Id = baseDto.Id, CrewId = baseDto.CrewId, FirstName = baseDto.FirstName,
             LastName = baseDto.LastName, FullName = baseDto.FullName, Rank = baseDto.Rank,
             RankId = baseDto.RankId, IsOnboard = baseDto.IsOnboard, Department = baseDto.Department,
-            Nationality = baseDto.Nationality, EmailAddress = baseDto.EmailAddress, PhoneNumber = baseDto.PhoneNumber,
+            CountryId = baseDto.CountryId, CountryName = baseDto.CountryName, EmailAddress = baseDto.EmailAddress, PhoneNumber = baseDto.PhoneNumber,
             EmbarkDate = baseDto.EmbarkDate, DisembarkDate = baseDto.DisembarkDate,
             ContractEnd = baseDto.ContractEnd, JoinDate = baseDto.JoinDate,
             CertificateNumber = baseDto.CertificateNumber, CertificateIssue = baseDto.CertificateIssue,
@@ -707,7 +872,14 @@ public class CrewService : ICrewService
             EducationPeriodYears = baseDto.EducationPeriodYears,
             EducationGraduationYear = baseDto.EducationGraduationYear,
             Notes = baseDto.Notes, IsSynced = baseDto.IsSynced,
-            CreatedAt = baseDto.CreatedAt, UpdatedAt = baseDto.UpdatedAt
+            CreatedAt = baseDto.CreatedAt, UpdatedAt = baseDto.UpdatedAt,
+            OnboardStatus = baseDto.OnboardStatus,
+            OnboardStatusChangedAt = baseDto.OnboardStatusChangedAt,
+            OnboardStatusChangedBy = baseDto.OnboardStatusChangedBy,
+            ReviewChecklist = baseDto.ReviewChecklist,
+            ReviewNotes = baseDto.ReviewNotes,
+            EdgeChanges = baseDto.EdgeChanges,
+            EdgeChangesViewed = baseDto.EdgeChangesViewed
         };
     }
 

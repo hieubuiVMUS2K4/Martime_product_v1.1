@@ -12,6 +12,7 @@ import { ClassFlagStateTab } from '../../components/vessel-detail/ClassFlagState
 import { InsuranceTab } from '../../components/vessel-detail/InsuranceTab';
 import { RadioCommTab } from '../../components/vessel-detail/RadioCommTab';
 import { TanksCargoTab } from '../../components/vessel-detail/TanksCargoTab';
+import { VesselCertificateTab } from '../../components/vessel-detail/VesselCertificateTab';
 import { useToast } from '../../components/common/Toast';
 import './VesselDetailPage.css';
 
@@ -185,7 +186,7 @@ interface Vessel {
   lastShoreSyncAt?: string;
 }
 
-type TabId = 'basic-data' | 'dimensions' | 'machinery' | 'shipowner' | 'charterer' | 'class-flag-state' | 'insurance' | 'radio-comm' | 'tanks-cargo' | 'crew';
+type TabId = 'basic-data' | 'dimensions' | 'machinery' | 'shipowner' | 'charterer' | 'class-flag-state' | 'insurance' | 'radio-comm' | 'tanks-cargo' | 'certificates' | 'crew';
 
 const TABS: { id: TabId; label: string; edgeSource: boolean }[] = [
   { id: 'basic-data',       label: 'Basic Data',        edgeSource: true },
@@ -197,6 +198,7 @@ const TABS: { id: TabId; label: string; edgeSource: boolean }[] = [
   { id: 'insurance',        label: 'Insurance',          edgeSource: false },
   { id: 'radio-comm',       label: 'Radio Comm.',        edgeSource: true },
   { id: 'tanks-cargo',      label: 'Tanks & Cargo',      edgeSource: true },
+  { id: 'certificates',     label: 'Chứng chỉ',          edgeSource: false },
   { id: 'crew',             label: 'Crew / Thuyền viên', edgeSource: false },
 ];
 
@@ -204,7 +206,7 @@ const TABS: { id: TabId; label: string; edgeSource: boolean }[] = [
 const TAB_GROUPS: { label: string; items: TabId[] }[] = [
   {
     label: 'Ship Data',
-    items: ['basic-data', 'dimensions', 'class-flag-state', 'machinery', 'radio-comm', 'tanks-cargo', 'shipowner', 'charterer', 'insurance'],
+    items: ['basic-data', 'dimensions', 'class-flag-state', 'machinery', 'radio-comm', 'tanks-cargo', 'shipowner', 'charterer', 'insurance', 'certificates'],
   },
   {
     label: 'Crew / Thuyền viên',
@@ -411,6 +413,9 @@ export const VesselDetailPage: React.FC = () => {
 
       case 'tanks-cargo':
         return <TanksCargoTab vessel={vessel} />;
+
+      case 'certificates':
+        return <VesselCertificateTab vesselId={id!} vesselName={vessel.name || 'Vessel'} />;
 
       case 'crew':
         return <VesselCrewTab vesselId={id!} vesselName={vessel.name || 'Vessel'} />;

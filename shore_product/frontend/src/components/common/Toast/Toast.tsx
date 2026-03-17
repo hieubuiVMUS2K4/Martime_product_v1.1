@@ -42,7 +42,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  const addToast = useCallback((type: ToastType, title: string, message?: string, duration = 4000) => {
+  const addToast = useCallback((type: ToastType, title: string, message?: string, duration = 5000) => {
     const id = ++counterRef.current;
     setToasts(prev => [...prev, { id, type, title, message, duration }]);
     if (duration > 0) {

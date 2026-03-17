@@ -122,6 +122,7 @@ public class MaintenanceSchedulesController : ControllerBase
     public async Task<IActionResult> Update(Guid id, [FromBody] MaintenanceSchedule dto)
     {
         var entity = await _context.MaintenanceSchedules
+            .AsTracking()
             .Include(s => s.SpareParts)
             .Include(s => s.ChecklistTemplates)
             .FirstOrDefaultAsync(s => s.Id == id);

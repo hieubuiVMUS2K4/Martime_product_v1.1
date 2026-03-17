@@ -214,7 +214,8 @@ export interface CrewMember {
   rankId?: number // Foreign key to Ranks table
   rank?: Rank // Navigation property
   department?: string
-  nationality?: string
+  countryId?: number
+  countryName?: string
   dateOfBirth?: string
   phoneNumber?: string
   address?: string
@@ -279,6 +280,15 @@ export interface CrewMember {
   
   isSynced: boolean
   createdAt: string
+
+  // Onboard Review Status
+  onboardStatus?: string // 'PendingReview' | 'Approved' | 'OnHold'
+  onboardStatusChangedAt?: string
+  onboardStatusChangedBy?: string
+  reviewChecklist?: string // JSON checklist of verified sections
+  reviewNotes?: string // Notes about missing info for shore
+  edgeChanges?: string // JSON array of field changes made by edge
+  edgeChangesViewed?: boolean
 }
 
 // Certificate Types (Master Data)
@@ -340,7 +350,7 @@ export interface CrewCertificate {
 
 // Service Record (crew member's sea service history)
 export interface ServiceRecord {
-  id: number
+  id: string
   crewMemberId: string
   // Vessel Information
   vesselName?: string

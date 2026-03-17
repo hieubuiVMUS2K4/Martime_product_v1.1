@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
-import { ToastContainer } from 'react-toastify'
+import { ToastContainer, Slide } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { MainLayout } from './components/layouts/MainLayout'
 import { SettingsDialog } from './components/settings'
@@ -73,7 +73,7 @@ function App() {
     <>
       {/* Global toast provider (sonner) */}
       <Toaster position="top-right" />
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick pauseOnHover theme="colored" />
+      <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} newestOnTop closeOnClick pauseOnHover theme="colored" transition={Slide} />
       
       {/* Settings Dialog (renders as portal, controlled by zustand store) */}
       <SettingsDialog />
@@ -143,9 +143,13 @@ function App() {
         <Route path="reporting/noon/new" element={<NoonReportForm />} />
         <Route path="reporting/noon/edit/:id" element={<NoonReportForm />} />
         <Route path="reporting/departure/new" element={<DepartureReportForm />} />
+        <Route path="reporting/departure/edit/:id" element={<DepartureReportForm />} />
         <Route path="reporting/arrival/new" element={<ArrivalReportForm />} />
+        <Route path="reporting/arrival/edit/:id" element={<ArrivalReportForm />} />
         <Route path="reporting/bunker/new" element={<BunkerReportForm />} />
+        <Route path="reporting/bunker/edit/:id" element={<BunkerReportForm />} />
         <Route path="reporting/position/new" element={<PositionReportForm />} />
+        <Route path="reporting/position/edit/:id" element={<PositionReportForm />} />
       </Route>
       
       {/* Full-screen pages outside MainLayout (still protected) */}

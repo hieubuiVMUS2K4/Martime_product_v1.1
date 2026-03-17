@@ -3,4 +3,5 @@ export { CategoryManagementPage } from './CategoryManagement';
 export { CrewManagementPage, CrewListPage, CrewDetailPage, CertificateMonitorPage } from './CrewManagement';
 export { MasterSchedulePage } from './PMS';
 export { VesselsPage } from './VesselManagement';
-export { ReportPage, VesselReportDetailPage } from './Report';
+export { ReportPage, VesselReportDetailPage, ReportDetailPage } from './Report';
+export { VoyageListPage, VoyageDetailPage, VoyageFormPage } from './VoyageManagement';

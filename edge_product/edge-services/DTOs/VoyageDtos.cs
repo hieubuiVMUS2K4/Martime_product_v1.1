@@ -196,11 +196,23 @@ public class VoyageDetailDto
     
     // Performance
     public string? CargoType { get; set; }
+    public string? CharterType { get; set; }
     public double? CargoWeight { get; set; }
+    public double? PlannedDistance { get; set; }
+    public double? PlannedDurationHours { get; set; }
+    public double? PlannedAverageSpeed { get; set; }
+    public double? PlannedFuelConsumption { get; set; }
+    public string? VoyageInstructions { get; set; }
     public double? DistanceTraveled { get; set; }
     public double? FuelConsumed { get; set; }
     public double? AverageSpeed { get; set; }
     public string VoyageStatus { get; set; } = string.Empty;
+    public DateTime? ApprovedAt { get; set; }
+    public DateTime? ReadyAt { get; set; }
+    public DateTime? CommencedAt { get; set; }
+    public DateTime? ArrivedAt { get; set; }
+    public DateTime? CompletedAt { get; set; }
+    public DateTime? CancelledAt { get; set; }
     
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
@@ -208,8 +220,72 @@ public class VoyageDetailDto
     // Related data
     public List<PortCallDto> PortCalls { get; set; } = new();
     public List<VoyageCrewAssignmentDto> CrewAssignments { get; set; } = new();
+    public List<VoyagePlanLegDto> PlanLegs { get; set; } = new();
+    public List<VoyageStatusHistoryDto> StatusHistory { get; set; } = new();
+    public List<VoyageCargoPlanDto> CargoPlans { get; set; } = new();
+    public List<VoyageBunkerPlanDto> BunkerPlans { get; set; } = new();
+    public List<VoyageCrewChangePlanDto> CrewChangePlans { get; set; } = new();
+    public List<VoyageCostEstimateDto> CostEstimates { get; set; } = new();
+    public List<VoyageRevenueEstimateDto> RevenueEstimates { get; set; } = new();
+    public double? TotalEstimatedCost { get; set; }
+    public double? TotalEstimatedRevenue { get; set; }
+    public double? EstimatedProfitMargin { get; set; }
     public int LogEntryCount { get; set; }
     public int CargoOperationCount { get; set; }
+}
+
+public class VoyagePlanLegDto
+{
+    public Guid Id { get; set; }
+    public Guid VoyageId { get; set; }
+    public int Sequence { get; set; }
+    public string LegType { get; set; } = string.Empty;
+    public string? FromPortCode { get; set; }
+    public string? FromPortName { get; set; }
+    public string? ToPortCode { get; set; }
+    public string? ToPortName { get; set; }
+    public DateTime? PlannedDepartureTime { get; set; }
+    public DateTime? PlannedArrivalTime { get; set; }
+    public double? PlannedDistance { get; set; }
+    public double? PlannedDurationHours { get; set; }
+    public double? PlannedAverageSpeed { get; set; }
+    public double? PlannedFuelConsumption { get; set; }
+    public string? CargoActivity { get; set; }
+    public bool CrewChangePlanned { get; set; }
+    public bool BunkerSupplyPlanned { get; set; }
+    public string? WeatherRoutingNotes { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class UpsertVoyagePlanLegDto
+{
+    public int Sequence { get; set; }
+    public string LegType { get; set; } = "PASSAGE";
+    public string? FromPortCode { get; set; }
+    public string? FromPortName { get; set; }
+    public string? ToPortCode { get; set; }
+    public string? ToPortName { get; set; }
+    public DateTime? PlannedDepartureTime { get; set; }
+    public DateTime? PlannedArrivalTime { get; set; }
+    public double? PlannedDistance { get; set; }
+    public double? PlannedDurationHours { get; set; }
+    public double? PlannedAverageSpeed { get; set; }
+    public double? PlannedFuelConsumption { get; set; }
+    public string? CargoActivity { get; set; }
+    public bool CrewChangePlanned { get; set; }
+    public bool BunkerSupplyPlanned { get; set; }
+    public string? WeatherRoutingNotes { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class VoyageStatusHistoryDto
+{
+    public Guid Id { get; set; }
+    public string? FromStatus { get; set; }
+    public string ToStatus { get; set; } = string.Empty;
+    public string ChangedBy { get; set; } = string.Empty;
+    public string? Notes { get; set; }
+    public DateTime ChangedAt { get; set; }
 }
 
 public class CreateVoyageDto
@@ -224,7 +300,20 @@ public class CreateVoyageDto
     public string? PreviousPortCode { get; set; }
     public string? PreviousPortName { get; set; }
     public string? CargoType { get; set; }
+    public string? CharterType { get; set; }
     public double? CargoWeight { get; set; }
+    public double? PlannedDistance { get; set; }
+    public double? PlannedDurationHours { get; set; }
+    public double? PlannedAverageSpeed { get; set; }
+    public double? PlannedFuelConsumption { get; set; }
+    public string? VoyageInstructions { get; set; }
+    public string? VoyageStatus { get; set; }
+    public List<UpsertVoyagePlanLegDto>? PlanLegs { get; set; }
+    public List<UpsertVoyageCargoPlanDto>? CargoPlans { get; set; }
+    public List<UpsertVoyageBunkerPlanDto>? BunkerPlans { get; set; }
+    public List<UpsertVoyageCrewChangePlanDto>? CrewChangePlans { get; set; }
+    public List<UpsertVoyageCostEstimateDto>? CostEstimates { get; set; }
+    public List<UpsertVoyageRevenueEstimateDto>? RevenueEstimates { get; set; }
 }
 
 public class UpdateVoyageDto
@@ -239,11 +328,167 @@ public class UpdateVoyageDto
     public string? PreviousPortCode { get; set; }
     public string? PreviousPortName { get; set; }
     public string? CargoType { get; set; }
+    public string? CharterType { get; set; }
     public double? CargoWeight { get; set; }
+    public double? PlannedDistance { get; set; }
+    public double? PlannedDurationHours { get; set; }
+    public double? PlannedAverageSpeed { get; set; }
+    public double? PlannedFuelConsumption { get; set; }
+    public string? VoyageInstructions { get; set; }
     public double? DistanceTraveled { get; set; }
     public double? FuelConsumed { get; set; }
     public double? AverageSpeed { get; set; }
     public string? VoyageStatus { get; set; }
+    public List<UpsertVoyagePlanLegDto>? PlanLegs { get; set; }
+    public List<UpsertVoyageCargoPlanDto>? CargoPlans { get; set; }
+    public List<UpsertVoyageBunkerPlanDto>? BunkerPlans { get; set; }
+    public List<UpsertVoyageCrewChangePlanDto>? CrewChangePlans { get; set; }
+    public List<UpsertVoyageCostEstimateDto>? CostEstimates { get; set; }
+    public List<UpsertVoyageRevenueEstimateDto>? RevenueEstimates { get; set; }
+}
+
+// ========== Phase 2: PLANNING DTOs ==========
+
+public class VoyageCargoPlanDto
+{
+    public Guid Id { get; set; }
+    public Guid VoyageId { get; set; }
+    public Guid? PlanLegId { get; set; }
+    public int Sequence { get; set; }
+    public string OperationType { get; set; } = string.Empty;
+    public string CargoType { get; set; } = string.Empty;
+    public string? CargoDescription { get; set; }
+    public double PlannedQuantity { get; set; }
+    public string Unit { get; set; } = "MT";
+    public string? PortCode { get; set; }
+    public string? PortName { get; set; }
+    public string? ShipperName { get; set; }
+    public string? ConsigneeName { get; set; }
+    public string? SpecialRequirements { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class UpsertVoyageCargoPlanDto
+{
+    public Guid? PlanLegId { get; set; }
+    public int Sequence { get; set; }
+    public string OperationType { get; set; } = "LOADING";
+    public string CargoType { get; set; } = string.Empty;
+    public string? CargoDescription { get; set; }
+    public double PlannedQuantity { get; set; }
+    public string Unit { get; set; } = "MT";
+    public string? PortCode { get; set; }
+    public string? PortName { get; set; }
+    public string? ShipperName { get; set; }
+    public string? ConsigneeName { get; set; }
+    public string? SpecialRequirements { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class VoyageBunkerPlanDto
+{
+    public Guid Id { get; set; }
+    public Guid VoyageId { get; set; }
+    public Guid? PlanLegId { get; set; }
+    public int Sequence { get; set; }
+    public string FuelType { get; set; } = string.Empty;
+    public double PlannedQuantity { get; set; }
+    public string OperationType { get; set; } = string.Empty;
+    public string? PortCode { get; set; }
+    public string? PortName { get; set; }
+    public double? EstimatedCostUsd { get; set; }
+    public string? SupplierName { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class UpsertVoyageBunkerPlanDto
+{
+    public Guid? PlanLegId { get; set; }
+    public int Sequence { get; set; }
+    public string FuelType { get; set; } = "VLSFO";
+    public double PlannedQuantity { get; set; }
+    public string OperationType { get; set; } = "SUPPLY";
+    public string? PortCode { get; set; }
+    public string? PortName { get; set; }
+    public double? EstimatedCostUsd { get; set; }
+    public string? SupplierName { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class VoyageCrewChangePlanDto
+{
+    public Guid Id { get; set; }
+    public Guid VoyageId { get; set; }
+    public Guid? PlanLegId { get; set; }
+    public int Sequence { get; set; }
+    public Guid? CrewMemberId { get; set; }
+    public string? CrewName { get; set; }
+    public int? RankId { get; set; }
+    public string? RankName { get; set; }
+    public string ChangeType { get; set; } = string.Empty;
+    public string? PortCode { get; set; }
+    public string? PortName { get; set; }
+    public DateTime? PlannedDate { get; set; }
+    public string? ReplacementReason { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class UpsertVoyageCrewChangePlanDto
+{
+    public Guid? PlanLegId { get; set; }
+    public int Sequence { get; set; }
+    public Guid? CrewMemberId { get; set; }
+    public int? RankId { get; set; }
+    public string ChangeType { get; set; } = "ROTATION";
+    public string? PortCode { get; set; }
+    public string? PortName { get; set; }
+    public DateTime? PlannedDate { get; set; }
+    public string? ReplacementReason { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class VoyageCostEstimateDto
+{
+    public Guid Id { get; set; }
+    public Guid VoyageId { get; set; }
+    public int Sequence { get; set; }
+    public string CostCategory { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public double EstimatedAmount { get; set; }
+    public string Currency { get; set; } = "USD";
+    public string? Notes { get; set; }
+}
+
+public class UpsertVoyageCostEstimateDto
+{
+    public int Sequence { get; set; }
+    public string CostCategory { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public double EstimatedAmount { get; set; }
+    public string Currency { get; set; } = "USD";
+    public string? Notes { get; set; }
+}
+
+public class VoyageRevenueEstimateDto
+{
+    public Guid Id { get; set; }
+    public Guid VoyageId { get; set; }
+    public int Sequence { get; set; }
+    public string RevenueCategory { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public double EstimatedAmount { get; set; }
+    public string Currency { get; set; } = "USD";
+    public string? Notes { get; set; }
+}
+
+public class UpsertVoyageRevenueEstimateDto
+{
+    public int Sequence { get; set; }
+    public string RevenueCategory { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public double EstimatedAmount { get; set; }
+    public string Currency { get; set; } = "USD";
+    public string? Notes { get; set; }
 }
 
 /// <summary>

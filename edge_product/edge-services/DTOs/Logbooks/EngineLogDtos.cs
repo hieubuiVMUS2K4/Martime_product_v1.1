@@ -122,6 +122,9 @@ namespace MaritimeEdge.DTOs.Logbooks
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public string OriginNode { get; set; } = string.Empty;
+
+        public Guid? VoyageId { get; set; }
+        public Guid? VoyagePlanLegId { get; set; }
     }
 
     public class SignEngineLogDto

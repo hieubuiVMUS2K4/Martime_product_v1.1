@@ -83,7 +83,13 @@ public class ConflictResolverService : IConflictResolverService
     private static readonly HashSet<string> _edgeAuthoritative = new(StringComparer.OrdinalIgnoreCase)
     {
         "service_record",
-        "position_data", "engine_data", "maritime_report", "noon_report"
+        "position_data", "engine_data", "maritime_report", "noon_report",
+        "voyage_record", "port", "voyage_plan_leg", "voyage_status_history",
+        "port_call", "voyage_crew_assignment", "cargo_operation", "voyage_log_entry",
+        "voyage_cargo_plan", "voyage_bunker_plan", "voyage_crew_change_plan",
+        "voyage_cost_estimate", "voyage_revenue_estimate", "voyage_expense_request",
+        "voyage_advance_payment", "voyage_disbursement", "voyage_actual_revenue",
+        "voyage_settlement"
     };
 
     public ConflictResolverService(ILogger<ConflictResolverService> logger)

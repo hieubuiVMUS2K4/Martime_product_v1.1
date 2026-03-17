@@ -153,6 +153,18 @@ namespace MaritimeEdge
             // Add Voyage Management Service
             builder.Services.AddScoped<IVoyageManagementService, VoyageManagementService>();
 
+            // Add Voyage Cockpit Service (Phase 3)
+            builder.Services.AddScoped<IVoyageCockpitService, VoyageCockpitService>();
+
+            // Add Voyage Financial Service (Phase 4)
+            builder.Services.AddScoped<IVoyageFinancialService, VoyageFinancialService>();
+
+            // Add Voyage Efficiency Service (Phase 5)
+            builder.Services.AddScoped<IVoyageEfficiencyService, VoyageEfficiencyService>();
+
+            // Add Voyage Context Service (Phase 6 - auto-link records to voyage/leg)
+            builder.Services.AddScoped<IVoyageContextService, VoyageContextService>();
+
             // Add Abstract Log Service
             builder.Services.AddScoped<IAbstractLogService, AbstractLogService>();
 
@@ -270,6 +282,8 @@ namespace MaritimeEdge
                     {
                         logger.LogInformation("Database is up-to-date, no pending migrations");
                     }
+
+                    await EnsurePortSeedDataAsync(dbContext, logger, app.Environment.ContentRootPath);
                 }
                 catch (Exception ex)
                 {
@@ -343,6 +357,35 @@ namespace MaritimeEdge
             app.MapControllers();
 
             app.Run();
+        }
+
+        private static async Task EnsurePortSeedDataAsync(EdgeDbContext dbContext, ILogger logger, string contentRootPath)
+        {
+            var portCount = await dbContext.Ports.CountAsync();
+            if (portCount >= 80)
+            {
+                logger.LogInformation("Port master data already seeded with {PortCount} record(s)", portCount);
+                return;
+            }
+
+            var seedFilePath = Path.Combine(contentRootPath, "Data", "Scripts", "seed_ports.sql");
+            if (!File.Exists(seedFilePath))
+            {
+                logger.LogWarning("Port seed file not found at {SeedFilePath}", seedFilePath);
+                return;
+            }
+
+            var seedSql = await File.ReadAllTextAsync(seedFilePath);
+            if (string.IsNullOrWhiteSpace(seedSql))
+            {
+                logger.LogWarning("Port seed file is empty: {SeedFilePath}", seedFilePath);
+                return;
+            }
+
+            await dbContext.Database.ExecuteSqlRawAsync(seedSql);
+
+            var updatedCount = await dbContext.Ports.CountAsync();
+            logger.LogInformation("Port master data seeded/top-up complete: {PortCount} record(s)", updatedCount);
         }
     }
 }
