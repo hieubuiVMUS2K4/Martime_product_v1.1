@@ -25,7 +25,9 @@ builder.Services.AddSwaggerGen();
 
 // DbContext
 var conn = configuration.GetConnectionString("DefaultConnection") ?? "Host=postgres;Port=5432;Database=productdb;Username=product;Password=productpwd";
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(conn));
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(conn)
+           .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 
 // CORS
 builder.Services.AddCors(options =>

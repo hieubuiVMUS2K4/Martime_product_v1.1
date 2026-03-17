@@ -1,0 +1,92 @@
+# =============================================================
+# SHORE PRODUCTION DEPLOYMENT - docker-compose.prod.yml
+# Server IP: 27.71.17.165
+# =============================================================
+# Usage:
+#   cd shore_product
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Stop:
+#   docker compose -f docker-compose.prod.yml down
+# =============================================================
+
+services:
+  # ─── PostgreSQL Database ───────────────────────────────────
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-product}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-productpwd}
+      POSTGRES_DB: ${POSTGRES_DB:-productdb}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-product} -d ${POSTGRES_DB:-productdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shore-net
+
+  # ─── Shore Backend API (.NET 8) ────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: "http://+:5000"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-productdb};Username=${POSTGRES_USER:-product};Password=${POSTGRES_PASSWORD:-productpwd}"
+      JWT__Key: "${JWT_KEY:-VerySecretKey12345_CHANGE_THIS_IN_PRODUCTION}"
+      JWT__Issuer: "product"
+      JWT__Audience: "product-users"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - shore-net
+
+  # ─── Shore Frontend (React + Nginx) ────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: "/api"
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - shore-net
+
+  # ─── pgAdmin (Optional - for database management) ──────────
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@localhost.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - "8081:80"
+    depends_on:
+      - postgres
+    networks:
+      - shore-net
+    profiles:
+      - tools
+
+volumes:
+  postgres-data:
+
+networks:
+  shore-net:
+    driver: bridge

@@ -109,12 +109,17 @@ public class VoyagesController : ControllerBase
                 })
                 .ToListAsync();
 
-            var filters = new
+            // Only fetch filters if first page (client caches them)
+            object? filters = null;
+            if (page == 1)
             {
-                statuses = await _context.VoyageRecords.Select(v => v.VoyageStatus).Distinct().OrderBy(v => v).ToListAsync(),
-                financialStatuses = await _context.VoyageRecords.Select(v => v.FinancialStatus).Distinct().OrderBy(v => v).ToListAsync(),
-                nodes = await _context.VoyageRecords.Select(v => v.OriginNode).Distinct().OrderBy(v => v).ToListAsync()
-            };
+                filters = new
+                {
+                    statuses = await _context.VoyageRecords.AsNoTracking().Select(v => v.VoyageStatus).Distinct().OrderBy(v => v).ToListAsync(),
+                    financialStatuses = await _context.VoyageRecords.AsNoTracking().Select(v => v.FinancialStatus).Distinct().OrderBy(v => v).ToListAsync(),
+                    nodes = await _context.VoyageRecords.AsNoTracking().Select(v => v.OriginNode).Distinct().OrderBy(v => v).ToListAsync()
+                };
+            }
 
             return Ok(new { data, total, page, pageSize, filters });
         }

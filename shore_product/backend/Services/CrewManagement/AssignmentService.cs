@@ -461,6 +461,7 @@ public class AssignmentService : IAssignmentService
     public async Task<AssignmentConfirmationDto?> RespondConfirmationAsync(Guid confirmationId, RespondConfirmationRequest request, string respondedBy)
     {
         var entity = await _db.AssignmentConfirmations
+            .AsTracking()
             .Include(c => c.Assignment)
             .FirstOrDefaultAsync(c => c.Id == confirmationId);
 

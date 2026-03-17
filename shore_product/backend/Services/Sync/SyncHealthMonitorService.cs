@@ -105,13 +105,28 @@ public class SyncHealthMonitorService : BackgroundService
     private async Task UpdatePendingCountsAsync(AppDbContext context, CancellationToken token)
     {
         var nodes = await context.SyncNodeTrackers.ToListAsync(token);
+        if (nodes.Count == 0) return;
+
+        var nodeIds = nodes.Select(n => n.NodeId).ToList();
+
+        // Single query: count pending outbox items per target node
+        var pendingCounts = await context.SyncOutbox
+            .Where(o => o.DeliveredAt == null)
+            .Where(o => nodeIds.Contains(o.TargetNode) || o.TargetNode == "*")
+            .GroupBy(o => o.TargetNode)
+            .Select(g => new { TargetNode = g.Key, Count = g.Count() })
+            .ToListAsync(token);
+
+        var broadcastCount = pendingCounts
+            .Where(p => p.TargetNode == "*")
+            .Sum(p => p.Count);
+        var perNodeCounts = pendingCounts
+            .Where(p => p.TargetNode != "*")
+            .ToDictionary(p => p.TargetNode, p => p.Count);
 
         foreach (var node in nodes)
         {
-            node.PendingOutboxCount = await context.SyncOutbox
-                .Where(o => o.DeliveredAt == null)
-                .Where(o => o.TargetNode == node.NodeId || o.TargetNode == "*")
-                .CountAsync(token);
+            node.PendingOutboxCount = perNodeCounts.GetValueOrDefault(node.NodeId, 0) + broadcastCount;
         }
 
         await context.SaveChangesAsync(token);
@@ -178,7 +193,7 @@ public class SyncHealthMonitorService : BackgroundService
         // Compute stats from sync_logs grouped by node+table
         var freshStats = await context.SyncLogs
             .GroupBy(l => new { l.OriginNode, l.TableName })
-            .Select(g => new SyncTableStats
+            .Select(g => new
             {
                 NodeId = g.Key.OriginNode,
                 TableName = g.Key.TableName,
@@ -186,16 +201,41 @@ public class SyncHealthMonitorService : BackgroundService
                 TotalConflicts = g.LongCount(l => l.Status == "CONFLICT"),
                 TotalFailed = g.LongCount(l => l.Status == "FAILED"),
                 LastSyncAt = g.Max(l => l.ProcessedAt),
-                SnapshotAt = DateTime.UtcNow
             })
             .ToListAsync(token);
 
         if (freshStats.Count == 0) return;
 
-        // Upsert: clear old stats, insert new
+        // Upsert: load existing stats and update in-place instead of delete+re-insert
         var existingStats = await context.SyncTableStats.ToListAsync(token);
-        context.SyncTableStats.RemoveRange(existingStats);
-        await context.SyncTableStats.AddRangeAsync(freshStats, token);
+        var existingMap = existingStats.ToDictionary(s => $"{s.NodeId}:{s.TableName}");
+
+        foreach (var stat in freshStats)
+        {
+            var key = $"{stat.NodeId}:{stat.TableName}";
+            if (existingMap.TryGetValue(key, out var existing))
+            {
+                existing.TotalSynced = stat.TotalSynced;
+                existing.TotalConflicts = stat.TotalConflicts;
+                existing.TotalFailed = stat.TotalFailed;
+                existing.LastSyncAt = stat.LastSyncAt;
+                existing.SnapshotAt = DateTime.UtcNow;
+            }
+            else
+            {
+                await context.SyncTableStats.AddAsync(new SyncTableStats
+                {
+                    NodeId = stat.NodeId,
+                    TableName = stat.TableName,
+                    TotalSynced = stat.TotalSynced,
+                    TotalConflicts = stat.TotalConflicts,
+                    TotalFailed = stat.TotalFailed,
+                    LastSyncAt = stat.LastSyncAt,
+                    SnapshotAt = DateTime.UtcNow
+                }, token);
+            }
+        }
+
         await context.SaveChangesAsync(token);
 
         _logger.LogDebug("Refreshed {Count} table stat entries", freshStats.Count);

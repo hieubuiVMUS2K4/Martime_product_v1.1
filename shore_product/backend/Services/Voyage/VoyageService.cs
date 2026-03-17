@@ -22,92 +22,101 @@ public class VoyageService : IVoyageService
 
     public async Task<FleetDashboardDto> GetFleetDashboardAsync()
     {
-        var voyages = await _context.VoyageRecords
-            .AsNoTracking()
-            .ToListAsync();
-
         var activeStatuses = new[] { "UNDERWAY", "READY", "APPROVED" };
         var completedStatuses = new[] { "COMPLETED", "ARRIVED" };
 
-        var summary = new FleetSummary
-        {
-            TotalVoyages = voyages.Count,
-            ActiveVoyages = voyages.Count(v => activeStatuses.Contains(v.VoyageStatus)),
-            CompletedVoyages = voyages.Count(v => completedStatuses.Contains(v.VoyageStatus)),
-            PlanningVoyages = voyages.Count(v => v.VoyageStatus == "PLANNING"),
-            UniqueVessels = voyages.Select(v => v.VesselIMO).Where(x => x != null).Distinct().Count(),
-            UniqueNodes = voyages.Select(v => v.OriginNode).Distinct().Count(),
-            TotalPlannedDistance = voyages.Sum(v => v.PlannedDistance ?? 0),
-            TotalActualDistance = voyages.Sum(v => v.DistanceTraveled ?? 0),
-            TotalPlannedFuel = voyages.Sum(v => v.PlannedFuelConsumption ?? 0),
-            TotalActualFuel = voyages.Sum(v => v.FuelConsumed ?? 0),
-        };
-
-        var vesselSummaries = voyages
-            .GroupBy(v => new { v.VesselIMO, v.VesselName, v.OriginNode })
-            .Select(g =>
+        // Compute summary aggregates in the database instead of loading all voyages
+        var summary = await _context.VoyageRecords
+            .AsNoTracking()
+            .GroupBy(v => 1)
+            .Select(g => new FleetSummary
             {
-                var current = g
+                TotalVoyages = g.Count(),
+                ActiveVoyages = g.Count(v => activeStatuses.Contains(v.VoyageStatus)),
+                CompletedVoyages = g.Count(v => completedStatuses.Contains(v.VoyageStatus)),
+                PlanningVoyages = g.Count(v => v.VoyageStatus == "PLANNING"),
+                UniqueVessels = g.Select(v => v.VesselIMO).Where(x => x != null).Distinct().Count(),
+                UniqueNodes = g.Select(v => v.OriginNode).Distinct().Count(),
+                TotalPlannedDistance = g.Sum(v => v.PlannedDistance ?? 0),
+                TotalActualDistance = g.Sum(v => v.DistanceTraveled ?? 0),
+                TotalPlannedFuel = g.Sum(v => v.PlannedFuelConsumption ?? 0),
+                TotalActualFuel = g.Sum(v => v.FuelConsumed ?? 0),
+            })
+            .FirstOrDefaultAsync() ?? new FleetSummary();
+
+        // Vessel summaries: only load the fields needed for grouping
+        var vesselSummaries = await _context.VoyageRecords
+            .AsNoTracking()
+            .GroupBy(v => new { v.VesselIMO, v.VesselName, v.OriginNode })
+            .Select(g => new VesselVoyageSummary
+            {
+                VesselName = g.Key.VesselName ?? "Unknown",
+                VesselIMO = g.Key.VesselIMO ?? "",
+                OriginNode = g.Key.OriginNode ?? "",
+                VoyageCount = g.Count(),
+                ActiveCount = g.Count(v => activeStatuses.Contains(v.VoyageStatus)),
+                CurrentVoyageNumber = g
                     .Where(v => activeStatuses.Contains(v.VoyageStatus))
                     .OrderByDescending(v => v.CommencedAt ?? v.CreatedAt)
-                    .FirstOrDefault();
-
-                return new VesselVoyageSummary
-                {
-                    VesselName = g.Key.VesselName ?? "Unknown",
-                    VesselIMO = g.Key.VesselIMO ?? "",
-                    OriginNode = g.Key.OriginNode ?? "",
-                    VoyageCount = g.Count(),
-                    ActiveCount = g.Count(v => activeStatuses.Contains(v.VoyageStatus)),
-                    CurrentVoyageNumber = current?.VoyageNumber,
-                    CurrentStatus = current?.VoyageStatus,
-                    CurrentRoute = current != null ? $"{current.DeparturePort} → {current.ArrivalPort}" : null,
-                    LastSyncAt = g.Max(v => v.UpdatedAt),
-                };
+                    .Select(v => v.VoyageNumber)
+                    .FirstOrDefault(),
+                CurrentStatus = g
+                    .Where(v => activeStatuses.Contains(v.VoyageStatus))
+                    .OrderByDescending(v => v.CommencedAt ?? v.CreatedAt)
+                    .Select(v => v.VoyageStatus)
+                    .FirstOrDefault(),
+                LastSyncAt = g.Max(v => v.UpdatedAt),
             })
             .OrderByDescending(x => x.ActiveCount)
             .ThenBy(x => x.VesselName)
-            .ToList();
+            .ToListAsync();
 
-        var statusBreakdown = voyages
+        var statusBreakdown = await _context.VoyageRecords
+            .AsNoTracking()
             .GroupBy(v => v.VoyageStatus)
             .Select(g => new StatusBreakdown { Status = g.Key, Count = g.Count() })
             .OrderByDescending(x => x.Count)
-            .ToList();
+            .ToListAsync();
 
         var staleThreshold = DateTime.UtcNow.AddHours(-24);
-        var syncHealth = voyages
+        var syncHealth = await _context.VoyageRecords
+            .AsNoTracking()
             .GroupBy(v => new { v.OriginNode, v.VesselName })
-            .Select(g =>
+            .Select(g => new SyncHealthItem
             {
-                var lastSync = g.Max(v => v.UpdatedAt);
-                var staleCount = g.Count(v =>
-                    activeStatuses.Contains(v.VoyageStatus) && v.UpdatedAt < staleThreshold);
-                var health = staleCount > 0 ? "WARNING" : lastSync < staleThreshold ? "STALE" : "HEALTHY";
-
-                return new SyncHealthItem
-                {
-                    OriginNode = g.Key.OriginNode ?? "",
-                    VesselName = g.Key.VesselName ?? "",
-                    TotalVoyages = g.Count(),
-                    LastSyncAt = lastSync,
-                    StaleVoyageCount = staleCount,
-                    HealthStatus = health,
-                };
+                OriginNode = g.Key.OriginNode ?? "",
+                VesselName = g.Key.VesselName ?? "",
+                TotalVoyages = g.Count(),
+                LastSyncAt = g.Max(v => v.UpdatedAt),
+                StaleVoyageCount = g.Count(v =>
+                    activeStatuses.Contains(v.VoyageStatus) && v.UpdatedAt < staleThreshold),
             })
+            .ToListAsync();
+
+        // Compute health status in-memory (simple string logic)
+        foreach (var item in syncHealth)
+        {
+            item.HealthStatus = item.StaleVoyageCount > 0 ? "WARNING"
+                : item.LastSyncAt < staleThreshold ? "STALE" : "HEALTHY";
+        }
+        syncHealth = syncHealth
             .OrderBy(x => x.HealthStatus == "HEALTHY" ? 2 : x.HealthStatus == "WARNING" ? 0 : 1)
             .ToList();
 
-        var financialOverview = new FinancialOverview
-        {
-            TotalEstimatedCost = voyages.Sum(v => v.TotalEstimatedCost ?? 0),
-            TotalEstimatedRevenue = voyages.Sum(v => v.TotalEstimatedRevenue ?? 0),
-            TotalActualCost = voyages.Sum(v => v.TotalActualCost ?? 0),
-            TotalActualRevenue = voyages.Sum(v => v.TotalActualRevenue ?? 0),
-            TotalOutstanding = voyages.Sum(v => v.OutstandingBalance ?? 0),
-            EstimatedMargin = voyages.Sum(v => v.EstimatedProfitMargin ?? 0),
-            ActualMargin = voyages.Sum(v => v.ActualProfitMargin ?? 0),
-        };
+        var financialOverview = await _context.VoyageRecords
+            .AsNoTracking()
+            .GroupBy(v => 1)
+            .Select(g => new FinancialOverview
+            {
+                TotalEstimatedCost = g.Sum(v => v.TotalEstimatedCost ?? 0),
+                TotalEstimatedRevenue = g.Sum(v => v.TotalEstimatedRevenue ?? 0),
+                TotalActualCost = g.Sum(v => v.TotalActualCost ?? 0),
+                TotalActualRevenue = g.Sum(v => v.TotalActualRevenue ?? 0),
+                TotalOutstanding = g.Sum(v => v.OutstandingBalance ?? 0),
+                EstimatedMargin = g.Sum(v => v.EstimatedProfitMargin ?? 0),
+                ActualMargin = g.Sum(v => v.ActualProfitMargin ?? 0),
+            })
+            .FirstOrDefaultAsync() ?? new FinancialOverview();
 
         return new FleetDashboardDto
         {
@@ -408,6 +417,7 @@ public class VoyageService : IVoyageService
             throw new KeyNotFoundException($"Voyage {voyageId} not found");
 
         var existing = await _context.Set<VoyageReview>()
+            .AsTracking()
             .FirstOrDefaultAsync(r => r.VoyageId == voyageId);
 
         if (existing != null)
@@ -862,6 +872,7 @@ public class VoyageService : IVoyageService
     public async Task UpdateVoyageAsync(Guid voyageId, UpdateVoyageRequest request)
     {
         var voyage = await _context.VoyageRecords
+            .AsTracking()
             .Include(v => v.PlanLegs)
             .Include(v => v.PortCalls)
             .Include(v => v.CargoPlans)
@@ -1370,6 +1381,7 @@ public class VoyageService : IVoyageService
     public async Task DeleteVoyageAsync(Guid voyageId)
     {
         var voyage = await _context.VoyageRecords
+            .AsTracking()
             .Include(v => v.PlanLegs)
             .Include(v => v.PortCalls)
             .Include(v => v.StatusHistory)

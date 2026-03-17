@@ -274,6 +274,7 @@ public class CertificateService : ICertificateService
     public async Task<CrewCertificateDto?> UpdateCrewCertificateAsync(int id, CrewCertificateRequest request)
     {
         var cc = await _context.CrewCertificates
+            .AsTracking()
             .Include(c => c.Certificate)
             .Include(c => c.CrewMember)
             .Include(c => c.Country)

@@ -1,148 +1,92 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Save, Plus, X } from 'lucide-react';
 import { voyageApi } from '../../services/voyage.service';
 import type {
-  CreateBunkerPlanRequest,
-  CreateCargoPlanRequest,
-  CreateCrewChangePlanRequest,
-  CreateVoyageRequest,
-  CreatePlanLegRequest,
-  CreatePortCallRequest,
-  CreateCostEstimateRequest,
-  CreateRevenueEstimateRequest,
-  CreateVoyageExpenseRequest,
-  CreateVoyageAdvancePaymentRequest,
-  CreateVoyageDisbursementRequest,
-  CreateVoyageActualRevenueRequest,
-  CreateVoyageSettlementRequest,
-  VoyageDetail,
+  CreateBunkerPlanRequest, CreateCargoPlanRequest, CreateCrewChangePlanRequest,
+  CreateVoyageRequest, CreatePlanLegRequest, CreatePortCallRequest,
+  CreateCostEstimateRequest, CreateRevenueEstimateRequest,
+  CreateVoyageExpenseRequest, CreateVoyageAdvancePaymentRequest,
+  CreateVoyageDisbursementRequest, CreateVoyageActualRevenueRequest,
+  CreateVoyageSettlementRequest, VoyageDetail,
 } from '../../types/voyage.types';
 import { PortSelect } from '../../components/common/PortSelect';
 import './VoyageManagement.css';
 
-const VOYAGE_STATUSES = ['PLANNING', 'APPROVED', 'READY', 'UNDERWAY', 'ARRIVED', 'COMPLETED', 'CANCELLED'];
+const STATUSES = ['PLANNING', 'APPROVED', 'READY', 'UNDERWAY', 'ARRIVED', 'COMPLETED', 'CANCELLED'];
 const CHARTER_TYPES = ['Time Charter', 'Voyage Charter', 'Bareboat Charter', 'Contract of Affreightment', 'Spot Charter'];
 const LEG_TYPES = ['PASSAGE', 'PORT_STAY', 'ANCHORAGE', 'CANAL_TRANSIT', 'BUNKERING'];
 const CALL_TYPES = ['LOADING', 'DISCHARGE', 'BUNKERING', 'CREW_CHANGE', 'MAINTENANCE', 'INSPECTION', 'TRANSIT'];
-const COST_CATEGORIES = ['BUNKER', 'PORT_CHARGES', 'CANAL_DUES', 'CREW_WAGES', 'INSURANCE', 'MAINTENANCE', 'PROVISIONS', 'OTHER'];
-const REVENUE_CATEGORIES = ['FREIGHT', 'DEMURRAGE', 'CHARTER_HIRE', 'OTHER'];
-const ADVANCE_TYPES = ['PORT_ADVANCE', 'CREW_WAGES', 'BUNKER', 'OTHER'];
-const EXPENSE_STATUSES = ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'];
-const ADVANCE_STATUSES = ['PENDING', 'PAID', 'SETTLED'];
-const DISBURSEMENT_STATUSES = ['RECORDED', 'VERIFIED', 'PAID'];
-const ACTUAL_REVENUE_STATUSES = ['INVOICED', 'RECEIVED', 'CANCELLED'];
-const SETTLEMENT_STATUSES = ['DRAFT', 'PREPARED', 'REVIEWED', 'APPROVED', 'CLOSED'];
-const CARGO_PLAN_TYPES = ['LOADING', 'DISCHARGING', 'TRANSSHIPMENT'];
-const BUNKER_FUEL_TYPES = ['HFO', 'VLSFO', 'MGO', 'MDO', 'LNG'];
-const BUNKER_OPERATION_TYPES = ['SUPPLY', 'TRANSFER'];
-const CREW_CHANGE_TYPES = ['EMBARK', 'DISEMBARK', 'ROTATION'];
+const COST_CATS = ['BUNKER', 'PORT_CHARGES', 'CANAL_DUES', 'CREW_WAGES', 'INSURANCE', 'MAINTENANCE', 'PROVISIONS', 'OTHER'];
+const REV_CATS = ['FREIGHT', 'DEMURRAGE', 'CHARTER_HIRE', 'OTHER'];
+const ADV_TYPES = ['PORT_ADVANCE', 'CREW_WAGES', 'BUNKER', 'OTHER'];
+const EXP_STATUSES = ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'];
+const ADV_STATUSES = ['PENDING', 'PAID', 'SETTLED'];
+const DISB_STATUSES = ['RECORDED', 'VERIFIED', 'PAID'];
+const AREV_STATUSES = ['INVOICED', 'RECEIVED', 'CANCELLED'];
+const SETT_STATUSES = ['DRAFT', 'PREPARED', 'REVIEWED', 'APPROVED', 'CLOSED'];
+const CARGO_OPS = ['LOADING', 'DISCHARGING', 'TRANSSHIPMENT'];
+const FUEL_TYPES = ['HFO', 'VLSFO', 'MGO', 'MDO', 'LNG'];
+const BUNKER_OPS = ['SUPPLY', 'TRANSFER'];
+const CREW_CHANGES = ['EMBARK', 'DISEMBARK', 'ROTATION'];
 
-interface FormState {
-  voyageNumber: string;
-  vesselIMO: string;
-  vesselName: string;
-  vesselFlag: string;
-  callSign: string;
-  charterType: string;
-  departurePort: string;
-  departurePortCode: string;
-  departureTime: string;
-  arrivalPort: string;
-  arrivalPortCode: string;
-  arrivalTime: string;
-  previousPortCode: string;
-  previousPortName: string;
-  cargoType: string;
-  cargoWeight: string;
-  plannedDistance: string;
-  plannedDurationHours: string;
-  plannedAverageSpeed: string;
-  plannedFuelConsumption: string;
-  voyageInstructions: string;
-  voyageStatus: string;
+interface Form {
+  voyageNumber: string; vesselIMO: string; vesselName: string; vesselFlag: string;
+  callSign: string; charterType: string; departurePort: string; departurePortCode: string;
+  departureTime: string; arrivalPort: string; arrivalPortCode: string; arrivalTime: string;
+  previousPortCode: string; previousPortName: string; cargoType: string; cargoWeight: string;
+  plannedDistance: string; plannedDurationHours: string; plannedAverageSpeed: string;
+  plannedFuelConsumption: string; voyageInstructions: string; voyageStatus: string;
 }
 
-const emptyForm: FormState = {
-  voyageNumber: '',
-  vesselIMO: '',
-  vesselName: '',
-  vesselFlag: '',
-  callSign: '',
-  charterType: '',
-  departurePort: '',
-  departurePortCode: '',
-  departureTime: '',
-  arrivalPort: '',
-  arrivalPortCode: '',
-  arrivalTime: '',
-  previousPortCode: '',
-  previousPortName: '',
-  cargoType: '',
-  cargoWeight: '',
-  plannedDistance: '',
-  plannedDurationHours: '',
-  plannedAverageSpeed: '',
-  plannedFuelConsumption: '',
-  voyageInstructions: '',
-  voyageStatus: 'PLANNING',
+const emptyForm: Form = {
+  voyageNumber: '', vesselIMO: '', vesselName: '', vesselFlag: '', callSign: '',
+  charterType: '', departurePort: '', departurePortCode: '', departureTime: '',
+  arrivalPort: '', arrivalPortCode: '', arrivalTime: '', previousPortCode: '',
+  previousPortName: '', cargoType: '', cargoWeight: '', plannedDistance: '',
+  plannedDurationHours: '', plannedAverageSpeed: '', plannedFuelConsumption: '',
+  voyageInstructions: '', voyageStatus: 'PLANNING',
 };
 
-const emptyLeg: CreatePlanLegRequest = {
-  sequence: 1, legType: 'PASSAGE', fromPortCode: '', fromPortName: '',
-  toPortCode: '', toPortName: '', plannedDistance: undefined,
-  plannedDurationHours: undefined, plannedAverageSpeed: undefined,
-};
+const mkLeg = (seq: number): CreatePlanLegRequest => ({ sequence: seq, legType: 'PASSAGE', fromPortCode: '', fromPortName: '', toPortCode: '', toPortName: '' });
+const mkPort = (seq: number): CreatePortCallRequest => ({ sequence: seq, callType: 'LOADING', portCode: '', portName: '' });
+const mkCost = (seq: number): CreateCostEstimateRequest => ({ sequence: seq, costCategory: '', estimatedAmount: 0, currency: 'USD' });
+const mkRev = (seq: number): CreateRevenueEstimateRequest => ({ sequence: seq, revenueCategory: '', estimatedAmount: 0, currency: 'USD' });
+const mkCargo = (seq: number): CreateCargoPlanRequest => ({ sequence: seq, operationType: 'LOADING', cargoType: '', plannedQuantity: 0, unit: 'MT' });
+const mkBunker = (seq: number): CreateBunkerPlanRequest => ({ sequence: seq, fuelType: 'VLSFO', plannedQuantity: 0, operationType: 'SUPPLY' });
+const mkCrew = (seq: number): CreateCrewChangePlanRequest => ({ sequence: seq, changeType: 'ROTATION' });
+const mkExp = (): CreateVoyageExpenseRequest => ({ costCategory: '', requestedAmount: 0, currency: 'USD', exchangeRate: 1, allocationScope: 'VOYAGE', status: 'DRAFT' });
+const mkAdv = (): CreateVoyageAdvancePaymentRequest => ({ advanceType: '', amount: 0, currency: 'USD', exchangeRate: 1, status: 'PENDING' });
+const mkDisb = (): CreateVoyageDisbursementRequest => ({ costCategory: '', amount: 0, currency: 'USD', exchangeRate: 1, allocationScope: 'VOYAGE', status: 'RECORDED' });
+const mkARev = (): CreateVoyageActualRevenueRequest => ({ revenueCategory: '', amount: 0, currency: 'USD', exchangeRate: 1, status: 'INVOICED' });
+const mkSett = (): CreateVoyageSettlementRequest => ({ status: 'DRAFT' });
 
-const emptyPortCall: CreatePortCallRequest = {
-  sequence: 1, callType: 'LOADING', portCode: '', portName: '',
-};
+/* Helper: compact form group */
+function G({ l, children, full }: { l: string; children: React.ReactNode; full?: boolean }) {
+  return <div className={`vf-group${full ? ' vf-group--full' : ''}`}><label>{l}</label>{children}</div>;
+}
 
-const emptyCost: CreateCostEstimateRequest = {
-  sequence: 1, costCategory: '', estimatedAmount: 0, currency: 'USD',
-};
-
-const emptyRevenue: CreateRevenueEstimateRequest = {
-  sequence: 1, revenueCategory: '', estimatedAmount: 0, currency: 'USD',
-};
-
-const emptyCargoPlan: CreateCargoPlanRequest = {
-  sequence: 1, operationType: 'LOADING', cargoType: '', plannedQuantity: 0, unit: 'MT',
-};
-
-const emptyBunkerPlan: CreateBunkerPlanRequest = {
-  sequence: 1, fuelType: 'VLSFO', plannedQuantity: 0, operationType: 'SUPPLY',
-};
-
-const emptyCrewChangePlan: CreateCrewChangePlanRequest = {
-  sequence: 1, changeType: 'ROTATION',
-};
-
-const emptyExpenseRequest: CreateVoyageExpenseRequest = {
-  costCategory: '', requestedAmount: 0, currency: 'USD', exchangeRate: 1, allocationScope: 'VOYAGE', status: 'DRAFT',
-};
-
-const emptyAdvancePayment: CreateVoyageAdvancePaymentRequest = {
-  advanceType: '', amount: 0, currency: 'USD', exchangeRate: 1, status: 'PENDING',
-};
-
-const emptyDisbursement: CreateVoyageDisbursementRequest = {
-  costCategory: '', amount: 0, currency: 'USD', exchangeRate: 1, allocationScope: 'VOYAGE', status: 'RECORDED',
-};
-
-const emptyActualRevenue: CreateVoyageActualRevenueRequest = {
-  revenueCategory: '', amount: 0, currency: 'USD', exchangeRate: 1, status: 'INVOICED',
-};
-
-const emptySettlement: CreateVoyageSettlementRequest = {
-  status: 'DRAFT',
-};
+/* Helper: remove item from array and resequence */
+function removeSeq<T extends { sequence?: number }>(arr: T[], idx: number): T[] {
+  return arr.filter((_, i) => i !== idx).map((item, i) => ({ ...item, sequence: i + 1 }));
+}
 
 export const VoyageFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isEdit = !!id;
 
-  const [form, setForm] = useState<FormState>(emptyForm);
+  // Vessel context from URL params (passed from vessel list/detail page)
+  const vesselIMOParam = searchParams.get('vesselIMO') || '';
+  const vesselNameParam = searchParams.get('vesselName') || '';
+  const vesselLocked = !!(vesselIMOParam || vesselNameParam);
+
+  const [form, setForm] = useState<Form>({
+    ...emptyForm,
+    ...(!isEdit && vesselIMOParam ? { vesselIMO: vesselIMOParam } : {}),
+    ...(!isEdit && vesselNameParam ? { vesselName: vesselNameParam } : {}),
+  });
   const [planLegs, setPlanLegs] = useState<CreatePlanLegRequest[]>([]);
   const [portCalls, setPortCalls] = useState<CreatePortCallRequest[]>([]);
   const [cargoPlans, setCargoPlans] = useState<CreateCargoPlanRequest[]>([]);
@@ -158,252 +102,130 @@ export const VoyageFormPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<string>('basic');
+  const [section, setSection] = useState('basic');
 
-  useEffect(() => {
-    if (isEdit) {
-      loadVoyage();
-    }
-  }, [id]);
+  useEffect(() => { if (isEdit) loadVoyage(); }, [id]);
 
   async function loadVoyage() {
     if (!id) return;
     setLoading(true);
     try {
-      const detail: VoyageDetail = await voyageApi.getVoyageDetail(id);
+      const d: VoyageDetail = await voyageApi.getVoyageDetail(id);
       setForm({
-        voyageNumber: detail.voyageNumber || '',
-        vesselIMO: detail.vesselIMO || '',
-        vesselName: detail.vesselName || '',
-        vesselFlag: detail.vesselFlag || '',
-        callSign: detail.callSign || '',
-        charterType: detail.charterType || '',
-        departurePort: detail.departurePort || '',
-        departurePortCode: detail.departurePortCode || '',
-        departureTime: detail.departureTime ? detail.departureTime.slice(0, 16) : '',
-        arrivalPort: detail.arrivalPort || '',
-        arrivalPortCode: detail.arrivalPortCode || '',
-        arrivalTime: detail.arrivalTime ? detail.arrivalTime.slice(0, 16) : '',
-        previousPortCode: detail.previousPortCode || '',
-        previousPortName: detail.previousPortName || '',
-        cargoType: detail.cargoType || '',
-        cargoWeight: detail.cargoWeight?.toString() || '',
-        plannedDistance: detail.plannedDistance?.toString() || '',
-        plannedDurationHours: detail.plannedDurationHours?.toString() || '',
-        plannedAverageSpeed: detail.plannedAverageSpeed?.toString() || '',
-        plannedFuelConsumption: detail.plannedFuelConsumption?.toString() || '',
-        voyageInstructions: detail.voyageInstructions || '',
-        voyageStatus: detail.voyageStatus || 'PLANNING',
+        voyageNumber: d.voyageNumber || '', vesselIMO: d.vesselIMO || '',
+        vesselName: d.vesselName || '', vesselFlag: d.vesselFlag || '',
+        callSign: d.callSign || '', charterType: d.charterType || '',
+        departurePort: d.departurePort || '', departurePortCode: d.departurePortCode || '',
+        departureTime: d.departureTime ? d.departureTime.slice(0, 16) : '',
+        arrivalPort: d.arrivalPort || '', arrivalPortCode: d.arrivalPortCode || '',
+        arrivalTime: d.arrivalTime ? d.arrivalTime.slice(0, 16) : '',
+        previousPortCode: d.previousPortCode || '', previousPortName: d.previousPortName || '',
+        cargoType: d.cargoType || '', cargoWeight: d.cargoWeight?.toString() || '',
+        plannedDistance: d.plannedDistance?.toString() || '',
+        plannedDurationHours: d.plannedDurationHours?.toString() || '',
+        plannedAverageSpeed: d.plannedAverageSpeed?.toString() || '',
+        plannedFuelConsumption: d.plannedFuelConsumption?.toString() || '',
+        voyageInstructions: d.voyageInstructions || '', voyageStatus: d.voyageStatus || 'PLANNING',
       });
-      setPlanLegs(detail.planLegs.map(l => ({
-        sequence: l.sequence,
-        legType: l.legType,
-        fromPortCode: l.fromPortCode,
-        fromPortName: l.fromPortName,
-        toPortCode: l.toPortCode,
-        toPortName: l.toPortName,
-        plannedDepartureTime: l.plannedDepartureTime,
-        plannedArrivalTime: l.plannedArrivalTime,
-        plannedDistance: l.plannedDistance,
-        plannedDurationHours: l.plannedDurationHours,
-        plannedAverageSpeed: l.plannedAverageSpeed,
-        cargoActivity: l.cargoActivity,
-        crewChangePlanned: l.crewChangePlanned,
-        bunkerSupplyPlanned: l.bunkerSupplyPlanned,
-        plannedFuelConsumption: l.plannedFuelConsumption,
-        weatherRoutingNotes: l.weatherRoutingNotes,
+      setPlanLegs(d.planLegs.map(l => ({
+        sequence: l.sequence, legType: l.legType, fromPortCode: l.fromPortCode,
+        fromPortName: l.fromPortName, toPortCode: l.toPortCode, toPortName: l.toPortName,
+        plannedDepartureTime: l.plannedDepartureTime, plannedArrivalTime: l.plannedArrivalTime,
+        plannedDistance: l.plannedDistance, plannedDurationHours: l.plannedDurationHours,
+        plannedAverageSpeed: l.plannedAverageSpeed, cargoActivity: l.cargoActivity,
+        crewChangePlanned: l.crewChangePlanned, bunkerSupplyPlanned: l.bunkerSupplyPlanned,
+        plannedFuelConsumption: l.plannedFuelConsumption, weatherRoutingNotes: l.weatherRoutingNotes,
         notes: l.notes,
       })));
-      setPortCalls(detail.portCalls.map(p => ({
-        sequence: p.sequence,
-        callType: p.callType,
-        portCode: p.portCode,
-        portName: p.portName,
-        country: p.country,
-        arrivalTime: p.arrivalTime,
-        departureTime: p.departureTime,
-        berthNumber: p.berthNumber,
-        remarks: p.remarks,
+      setPortCalls(d.portCalls.map(p => ({
+        sequence: p.sequence, callType: p.callType, portCode: p.portCode, portName: p.portName,
+        country: p.country, arrivalTime: p.arrivalTime, departureTime: p.departureTime,
+        berthNumber: p.berthNumber, remarks: p.remarks,
       })));
-      setCargoPlans((detail.cargoPlans || []).map((cp, i) => ({
-        planLegId: cp.planLegId,
-        sequence: cp.sequence ?? i + 1,
-        operationType: cp.operationType,
-        cargoType: cp.cargoType,
-        cargoDescription: cp.cargoDescription,
-        plannedQuantity: cp.plannedQuantity,
-        unit: cp.unit,
-        portCode: cp.portCode,
-        portName: cp.portName,
-        shipperName: cp.shipperName,
-        consigneeName: cp.consigneeName,
-        specialRequirements: cp.specialRequirements,
-        notes: cp.notes,
+      setCargoPlans((d.cargoPlans || []).map((cp, i) => ({
+        planLegId: cp.planLegId, sequence: cp.sequence ?? i + 1, operationType: cp.operationType,
+        cargoType: cp.cargoType, cargoDescription: cp.cargoDescription, plannedQuantity: cp.plannedQuantity,
+        unit: cp.unit, portCode: cp.portCode, portName: cp.portName, shipperName: cp.shipperName,
+        consigneeName: cp.consigneeName, specialRequirements: cp.specialRequirements, notes: cp.notes,
       })));
-      setBunkerPlans((detail.bunkerPlans || []).map((bp, i) => ({
-        planLegId: bp.planLegId,
-        sequence: bp.sequence ?? i + 1,
-        fuelType: bp.fuelType,
-        plannedQuantity: bp.plannedQuantity,
-        operationType: bp.operationType,
-        portCode: bp.portCode,
-        portName: bp.portName,
-        estimatedCostUsd: bp.estimatedCostUsd,
-        supplierName: bp.supplierName,
+      setBunkerPlans((d.bunkerPlans || []).map((bp, i) => ({
+        planLegId: bp.planLegId, sequence: bp.sequence ?? i + 1, fuelType: bp.fuelType,
+        plannedQuantity: bp.plannedQuantity, operationType: bp.operationType, portCode: bp.portCode,
+        portName: bp.portName, estimatedCostUsd: bp.estimatedCostUsd, supplierName: bp.supplierName,
         notes: bp.notes,
       })));
-      setCrewChangePlans((detail.crewChangePlans || []).map((ccp, i) => ({
-        planLegId: ccp.planLegId,
-        sequence: ccp.sequence ?? i + 1,
-        crewMemberId: ccp.crewMemberId,
-        rankId: ccp.rankId,
-        changeType: ccp.changeType,
-        portCode: ccp.portCode,
-        portName: ccp.portName,
-        plannedDate: ccp.plannedDate,
-        replacementReason: ccp.replacementReason,
-        notes: ccp.notes,
+      setCrewChangePlans((d.crewChangePlans || []).map((c, i) => ({
+        planLegId: c.planLegId, sequence: c.sequence ?? i + 1, crewMemberId: c.crewMemberId,
+        rankId: c.rankId, changeType: c.changeType, portCode: c.portCode, portName: c.portName,
+        plannedDate: c.plannedDate, replacementReason: c.replacementReason, notes: c.notes,
       })));
-      setCostEstimates((detail.costEstimates || []).map((c, i) => ({
-        sequence: c.sequence ?? i + 1,
-        costCategory: c.costCategory || '',
-        description: c.description,
-        estimatedAmount: c.estimatedAmount || 0,
-        currency: c.currency || 'USD',
-        notes: c.notes,
+      setCostEstimates((d.costEstimates || []).map((c, i) => ({
+        sequence: c.sequence ?? i + 1, costCategory: c.costCategory || '', description: c.description,
+        estimatedAmount: c.estimatedAmount || 0, currency: c.currency || 'USD', notes: c.notes,
       })));
-      setRevenueEstimates((detail.revenueEstimates || []).map((r, i) => ({
-        sequence: r.sequence ?? i + 1,
-        revenueCategory: r.revenueCategory || '',
-        description: r.description,
-        estimatedAmount: r.estimatedAmount || 0,
-        currency: r.currency || 'USD',
-        notes: r.notes,
+      setRevenueEstimates((d.revenueEstimates || []).map((r, i) => ({
+        sequence: r.sequence ?? i + 1, revenueCategory: r.revenueCategory || '', description: r.description,
+        estimatedAmount: r.estimatedAmount || 0, currency: r.currency || 'USD', notes: r.notes,
       })));
-      setExpenseRequests((detail.expenseRequests || []).map(er => ({
-        requestNumber: er.requestNumber,
-        costCategory: er.costCategory || '',
-        allocationScope: er.allocationScope,
-        description: er.description,
-        requestedAmount: er.requestedAmount || 0,
-        currency: er.currency || 'USD',
-        exchangeRate: er.exchangeRate ?? 1,
-        vendorName: er.vendorName,
-        portCode: er.portCode,
-        portName: er.portName,
-        status: er.status || 'DRAFT',
-        requestedBy: er.requestedBy,
-        approvedBy: er.approvedBy,
-        approvedAmount: er.approvedAmount,
-        notes: er.notes,
+      setExpenseRequests((d.expenseRequests || []).map(e => ({
+        requestNumber: e.requestNumber, costCategory: e.costCategory || '', allocationScope: e.allocationScope,
+        description: e.description, requestedAmount: e.requestedAmount || 0, currency: e.currency || 'USD',
+        exchangeRate: e.exchangeRate ?? 1, vendorName: e.vendorName, portCode: e.portCode,
+        portName: e.portName, status: e.status || 'DRAFT', requestedBy: e.requestedBy,
+        approvedBy: e.approvedBy, approvedAmount: e.approvedAmount, notes: e.notes,
       })));
-      setAdvancePayments((detail.advancePayments || []).map(ap => ({
-        advanceNumber: ap.advanceNumber,
-        advanceType: ap.advanceType || '',
-        description: ap.description,
-        amount: ap.amount || 0,
-        currency: ap.currency || 'USD',
-        exchangeRate: ap.exchangeRate ?? 1,
-        recipientName: ap.recipientName,
-        portCode: ap.portCode,
-        portName: ap.portName,
-        status: ap.status || 'PENDING',
-        paidBy: ap.paidBy,
-        settledAmount: ap.settledAmount,
-        notes: ap.notes,
+      setAdvancePayments((d.advancePayments || []).map(a => ({
+        advanceNumber: a.advanceNumber, advanceType: a.advanceType || '', description: a.description,
+        amount: a.amount || 0, currency: a.currency || 'USD', exchangeRate: a.exchangeRate ?? 1,
+        recipientName: a.recipientName, portCode: a.portCode, portName: a.portName,
+        status: a.status || 'PENDING', paidBy: a.paidBy, settledAmount: a.settledAmount, notes: a.notes,
       })));
-      setDisbursements((detail.disbursements || []).map(d => ({
-        disbursementNumber: d.disbursementNumber,
-        costCategory: d.costCategory || '',
-        allocationScope: d.allocationScope,
-        description: d.description,
-        amount: d.amount || 0,
-        currency: d.currency || 'USD',
-        exchangeRate: d.exchangeRate ?? 1,
-        vendorName: d.vendorName,
-        invoiceNumber: d.invoiceNumber,
-        portCode: d.portCode,
-        portName: d.portName,
-        status: d.status || 'RECORDED',
-        notes: d.notes,
+      setDisbursements((d.disbursements || []).map(x => ({
+        disbursementNumber: x.disbursementNumber, costCategory: x.costCategory || '',
+        allocationScope: x.allocationScope, description: x.description, amount: x.amount || 0,
+        currency: x.currency || 'USD', exchangeRate: x.exchangeRate ?? 1, vendorName: x.vendorName,
+        invoiceNumber: x.invoiceNumber, portCode: x.portCode, portName: x.portName,
+        status: x.status || 'RECORDED', notes: x.notes,
       })));
-      setActualRevenues((detail.actualRevenues || []).map(ar => ({
-        revenueNumber: ar.revenueNumber,
-        revenueCategory: ar.revenueCategory || '',
-        description: ar.description,
-        amount: ar.amount || 0,
-        currency: ar.currency || 'USD',
-        exchangeRate: ar.exchangeRate ?? 1,
-        payerName: ar.payerName,
-        invoiceNumber: ar.invoiceNumber,
-        status: ar.status || 'INVOICED',
-        notes: ar.notes,
+      setActualRevenues((d.actualRevenues || []).map(a => ({
+        revenueNumber: a.revenueNumber, revenueCategory: a.revenueCategory || '', description: a.description,
+        amount: a.amount || 0, currency: a.currency || 'USD', exchangeRate: a.exchangeRate ?? 1,
+        payerName: a.payerName, invoiceNumber: a.invoiceNumber, status: a.status || 'INVOICED', notes: a.notes,
       })));
-      setSettlements((detail.settlements || []).map(s => ({
-        settlementNumber: s.settlementNumber,
-        status: s.status || 'DRAFT',
-        totalExpenseApproved: s.totalExpenseApproved,
-        totalAdvanced: s.totalAdvanced,
-        totalDisbursed: s.totalDisbursed,
-        totalRevenue: s.totalRevenue,
-        netResult: s.netResult,
-        advanceBalance: s.advanceBalance,
-        finalSettlementAmount: s.finalSettlementAmount,
-        summary: s.summary,
-        preparedBy: s.preparedBy,
-        reviewedBy: s.reviewedBy,
-        approvedBy: s.approvedBy,
-        notes: s.notes,
+      setSettlements((d.settlements || []).map(s => ({
+        settlementNumber: s.settlementNumber, status: s.status || 'DRAFT',
+        totalExpenseApproved: s.totalExpenseApproved, totalAdvanced: s.totalAdvanced,
+        totalDisbursed: s.totalDisbursed, totalRevenue: s.totalRevenue, netResult: s.netResult,
+        advanceBalance: s.advanceBalance, finalSettlementAmount: s.finalSettlementAmount,
+        summary: s.summary, preparedBy: s.preparedBy, reviewedBy: s.reviewedBy,
+        approvedBy: s.approvedBy, notes: s.notes,
       })));
-    } catch (err) {
-      setError('Không thể tải dữ liệu hải trình');
-    } finally {
-      setLoading(false);
-    }
+    } catch { setError('Không thể tải dữ liệu hải trình'); }
+    finally { setLoading(false); }
   }
 
-  function updateField(field: keyof FormState, value: string) {
-    setForm(prev => ({ ...prev, [field]: value }));
-  }
-
-  function toNum(v: string) {
-    const n = parseFloat(v);
-    return isNaN(n) ? undefined : n;
-  }
+  const up = (f: keyof Form, v: string) => setForm(p => ({ ...p, [f]: v }));
+  const toNum = (v: string) => { const n = parseFloat(v); return isNaN(n) ? undefined : n; };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.voyageNumber.trim()) {
-      setError('Số hải trình (Voyage Number) là bắt buộc');
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
+    if (!form.voyageNumber.trim()) { setError('Số hải trình là bắt buộc'); return; }
+    setSaving(true); setError(null);
     try {
       const payload: CreateVoyageRequest = {
         voyageNumber: form.voyageNumber.trim(),
-        vesselIMO: form.vesselIMO || undefined,
-        vesselName: form.vesselName || undefined,
-        vesselFlag: form.vesselFlag || undefined,
-        callSign: form.callSign || undefined,
+        vesselIMO: form.vesselIMO || undefined, vesselName: form.vesselName || undefined,
+        vesselFlag: form.vesselFlag || undefined, callSign: form.callSign || undefined,
         charterType: form.charterType || undefined,
-        departurePort: form.departurePort || undefined,
-        departurePortCode: form.departurePortCode || undefined,
+        departurePort: form.departurePort || undefined, departurePortCode: form.departurePortCode || undefined,
         departureTime: form.departureTime || undefined,
-        arrivalPort: form.arrivalPort || undefined,
-        arrivalPortCode: form.arrivalPortCode || undefined,
+        arrivalPort: form.arrivalPort || undefined, arrivalPortCode: form.arrivalPortCode || undefined,
         arrivalTime: form.arrivalTime || undefined,
-        previousPortCode: form.previousPortCode || undefined,
-        previousPortName: form.previousPortName || undefined,
-        cargoType: form.cargoType || undefined,
-        cargoWeight: toNum(form.cargoWeight),
-        plannedDistance: toNum(form.plannedDistance),
-        plannedDurationHours: toNum(form.plannedDurationHours),
-        plannedAverageSpeed: toNum(form.plannedAverageSpeed),
-        plannedFuelConsumption: toNum(form.plannedFuelConsumption),
-        voyageInstructions: form.voyageInstructions || undefined,
-        voyageStatus: form.voyageStatus,
+        previousPortCode: form.previousPortCode || undefined, previousPortName: form.previousPortName || undefined,
+        cargoType: form.cargoType || undefined, cargoWeight: toNum(form.cargoWeight),
+        plannedDistance: toNum(form.plannedDistance), plannedDurationHours: toNum(form.plannedDurationHours),
+        plannedAverageSpeed: toNum(form.plannedAverageSpeed), plannedFuelConsumption: toNum(form.plannedFuelConsumption),
+        voyageInstructions: form.voyageInstructions || undefined, voyageStatus: form.voyageStatus,
         planLegs: planLegs.length > 0 ? planLegs : undefined,
         portCalls: portCalls.length > 0 ? portCalls : undefined,
         cargoPlans: cargoPlans.length > 0 ? cargoPlans : undefined,
@@ -417,765 +239,519 @@ export const VoyageFormPage: React.FC = () => {
         actualRevenues: actualRevenues.length > 0 ? actualRevenues : undefined,
         settlements: settlements.length > 0 ? settlements : undefined,
       };
-
       if (isEdit) {
-        await voyageApi.updateVoyage(id, payload);
-        navigate(`/voyages/${id}`);
+        await voyageApi.updateVoyage(id!, payload);
+        navigate('/voyages/' + id);
       } else {
         const result = await voyageApi.createVoyage(payload);
-        navigate(`/voyages/${result.id}`);
+        navigate('/voyages/' + result.id);
       }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Lỗi khi lưu hải trình');
-    } finally {
-      setSaving(false);
-    }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Lỗi khi lưu'); }
+    finally { setSaving(false); }
   }
 
-  if (loading) return <div className="voyage-loading">Đang tải...</div>;
+  if (loading) return <div className="vf-page"><div className="vm-loading">Đang tải...</div></div>;
 
   const sections = [
     { key: 'basic', label: 'Thông tin chung' },
     { key: 'route', label: 'Tuyến đường' },
-    { key: 'planning', label: 'Kế hoạch chặng' },
-    { key: 'portcalls', label: 'Cảng ghé' },
-    { key: 'commercial', label: 'Kế hoạch hàng hóa' },
-    { key: 'financial', label: 'Tài chính ước tính' },
-    { key: 'actual_financial', label: 'Tài chính thực tế' },
+    { key: 'legs', label: 'Kế hoạch chặng' },
+    { key: 'ports', label: 'Cảng ghé' },
+    { key: 'cargo', label: 'Hàng hóa & Bunker' },
+    { key: 'est_fin', label: 'Tài chính ước tính' },
+    { key: 'act_fin', label: 'Tài chính thực tế' },
   ];
 
   return (
-    <div className="voyage-form-page">
-      <div className="voyage-form-header">
-        <div className="voyage-form-title-row">
-          <button className="btn-back" onClick={() => navigate(isEdit ? `/voyages/${id}` : '/voyages')}>
-            ← Quay lại
+    <div className="vf-page">
+      {/* Header */}
+      <div className="vf-header">
+        <div className="vf-header-left">
+          <button type="button" className="vm-btn vm-btn--ghost" onClick={() => navigate(isEdit ? '/voyages/' + id : (form.vesselIMO ? '/voyages?vessel=' + encodeURIComponent(form.vesselIMO) : '/voyages'))}>
+            <ArrowLeft size={14} /> Quay lại
           </button>
           <h1>{isEdit ? 'Chỉnh sửa hải trình' : 'Tạo hải trình mới'}</h1>
+          {(form.vesselName || form.vesselIMO) && <span className="vm-subtitle" style={{ marginLeft: 8 }}>— {form.vesselName}{form.vesselIMO ? ` (IMO: ${form.vesselIMO})` : ''}</span>}
         </div>
-        {error && <div className="voyage-form-error">{error}</div>}
+        <button type="button" className="vm-btn vm-btn--primary" onClick={handleSubmit} disabled={saving}>
+          <Save size={13} /> {saving ? 'Đang lưu...' : isEdit ? 'Cập nhật' : 'Tạo mới'}
+        </button>
       </div>
 
-      <div className="voyage-form-sections">
+      {error && <div className="vf-error">{error}</div>}
+
+      {/* Section tabs */}
+      <div className="vf-sections">
         {sections.map(s => (
-          <button
-            key={s.key}
-            className={`voyage-form-section-btn ${activeSection === s.key ? 'active' : ''}`}
-            onClick={() => setActiveSection(s.key)}
-          >
+          <button type="button" key={s.key} className={'vf-section-btn' + (section === s.key ? ' active' : '')} onClick={() => setSection(s.key)}>
             {s.label}
           </button>
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="voyage-form-body">
-        {/* Thông tin chung */}
-        {activeSection === 'basic' && (
-          <div className="voyage-form-section">
+      <form onSubmit={handleSubmit}>
+        {/* === Thông tin chung === */}
+        {section === 'basic' && (
+          <div className="vf-form">
             <h2>Thông tin chung</h2>
-            <div className="form-grid">
-              <div className="form-group">
-                <label>Số hải trình *</label>
-                <input type="text" value={form.voyageNumber} onChange={e => updateField('voyageNumber', e.target.value)} required />
-              </div>
-              <div className="form-group">
-                <label>Trạng thái</label>
-                <select value={form.voyageStatus} onChange={e => updateField('voyageStatus', e.target.value)}>
-                  {VOYAGE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Tên tàu</label>
-                <input type="text" value={form.vesselName} onChange={e => updateField('vesselName', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label>IMO</label>
-                <input type="text" value={form.vesselIMO} onChange={e => updateField('vesselIMO', e.target.value)} maxLength={10} />
-              </div>
-              <div className="form-group">
-                <label>Quốc tịch tàu</label>
-                <input type="text" value={form.vesselFlag} onChange={e => updateField('vesselFlag', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label>Hô hiệu (Call Sign)</label>
-                <input type="text" value={form.callSign} onChange={e => updateField('callSign', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label>Loại thuê tàu</label>
-                <select value={form.charterType} onChange={e => updateField('charterType', e.target.value)}>
+            <div className="vf-grid">
+              <G l="Số hải trình *"><input type="text" value={form.voyageNumber} onChange={e => up('voyageNumber', e.target.value)} required /></G>
+              <G l="Trạng thái"><select value={form.voyageStatus} onChange={e => up('voyageStatus', e.target.value)}>{STATUSES.map(s => <option key={s}>{s}</option>)}</select></G>
+              <G l="Tên tàu"><input value={form.vesselName} onChange={e => up('vesselName', e.target.value)} readOnly={vesselLocked || isEdit} style={(vesselLocked || isEdit) ? { background: '#f0f0f0', cursor: 'not-allowed' } : undefined} /></G>
+              <G l="IMO"><input value={form.vesselIMO} onChange={e => up('vesselIMO', e.target.value)} maxLength={10} readOnly={vesselLocked || isEdit} style={(vesselLocked || isEdit) ? { background: '#f0f0f0', cursor: 'not-allowed' } : undefined} /></G>
+              <G l="Quốc tịch"><input value={form.vesselFlag} onChange={e => up('vesselFlag', e.target.value)} /></G>
+              <G l="Hô hiệu"><input value={form.callSign} onChange={e => up('callSign', e.target.value)} /></G>
+              <G l="Loại thuê tàu">
+                <select value={form.charterType} onChange={e => up('charterType', e.target.value)}>
                   <option value="">-- Chọn --</option>
-                  {CHARTER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  {CHARTER_TYPES.map(t => <option key={t}>{t}</option>)}
                 </select>
-              </div>
-              <div className="form-group">
-                <label>Loại hàng hóa</label>
-                <input type="text" value={form.cargoType} onChange={e => updateField('cargoType', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label>Trọng lượng hàng (MT)</label>
-                <input type="number" step="0.1" value={form.cargoWeight} onChange={e => updateField('cargoWeight', e.target.value)} />
-              </div>
-              <div className="form-group full-width">
-                <label>Chỉ thị hải trình</label>
-                <textarea value={form.voyageInstructions} onChange={e => updateField('voyageInstructions', e.target.value)} rows={3} />
-              </div>
+              </G>
+              <G l="Loại hàng"><input value={form.cargoType} onChange={e => up('cargoType', e.target.value)} /></G>
+              <G l="Trọng lượng (MT)"><input type="number" step="0.1" value={form.cargoWeight} onChange={e => up('cargoWeight', e.target.value)} /></G>
+              <G l="Chỉ thị hải trình" full><textarea value={form.voyageInstructions} onChange={e => up('voyageInstructions', e.target.value)} rows={2} /></G>
             </div>
           </div>
         )}
 
-        {/* Tuyến đường */}
-        {activeSection === 'route' && (
-          <div className="voyage-form-section">
+        {/* === Tuyến đường === */}
+        {section === 'route' && (
+          <div className="vf-form">
             <h2>Tuyến đường</h2>
-            <div className="form-grid">
-              <div className="form-group">
-                <label>Cảng đi</label>
+            <div className="vf-grid">
+              <G l="Cảng đi">
                 <PortSelect
-                  value={form.departurePortCode ? `${form.departurePortCode} - ${form.departurePort}` : form.departurePort}
+                  value={form.departurePortCode ? (form.departurePortCode + ' - ' + form.departurePort) : form.departurePort}
                   onChange={p => setForm(prev => ({ ...prev, departurePort: p.portName, departurePortCode: p.portCode }))}
                   placeholder="Tìm cảng đi..."
                 />
-              </div>
-              <div className="form-group">
-                <label>Thời gian khởi hành</label>
-                <input type="datetime-local" value={form.departureTime} onChange={e => updateField('departureTime', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label>Cảng đến</label>
+              </G>
+              <G l="TG khởi hành"><input type="datetime-local" value={form.departureTime} onChange={e => up('departureTime', e.target.value)} /></G>
+              <G l="Cảng đến">
                 <PortSelect
-                  value={form.arrivalPortCode ? `${form.arrivalPortCode} - ${form.arrivalPort}` : form.arrivalPort}
+                  value={form.arrivalPortCode ? (form.arrivalPortCode + ' - ' + form.arrivalPort) : form.arrivalPort}
                   onChange={p => setForm(prev => ({ ...prev, arrivalPort: p.portName, arrivalPortCode: p.portCode }))}
                   placeholder="Tìm cảng đến..."
                 />
-              </div>
-              <div className="form-group">
-                <label>Thời gian đến</label>
-                <input type="datetime-local" value={form.arrivalTime} onChange={e => updateField('arrivalTime', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label>Cảng trước đó</label>
+              </G>
+              <G l="TG đến"><input type="datetime-local" value={form.arrivalTime} onChange={e => up('arrivalTime', e.target.value)} /></G>
+              <G l="Cảng trước đó">
                 <PortSelect
-                  value={form.previousPortCode ? `${form.previousPortCode} - ${form.previousPortName}` : form.previousPortName}
+                  value={form.previousPortCode ? (form.previousPortCode + ' - ' + form.previousPortName) : form.previousPortName}
                   onChange={p => setForm(prev => ({ ...prev, previousPortName: p.portName, previousPortCode: p.portCode }))}
-                  placeholder="Tìm cảng trước đó..."
+                  placeholder="Tìm cảng trước..."
                 />
-              </div>
-              <div className="form-group">
-                <label>Quãng đường dự kiến (NM)</label>
-                <input type="number" step="0.1" value={form.plannedDistance} onChange={e => updateField('plannedDistance', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label>Thời gian dự kiến (giờ)</label>
-                <input type="number" step="0.1" value={form.plannedDurationHours} onChange={e => updateField('plannedDurationHours', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label>Tốc độ trung bình (knots)</label>
-                <input type="number" step="0.1" value={form.plannedAverageSpeed} onChange={e => updateField('plannedAverageSpeed', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label>Nhiên liệu dự kiến (MT)</label>
-                <input type="number" step="0.1" value={form.plannedFuelConsumption} onChange={e => updateField('plannedFuelConsumption', e.target.value)} />
-              </div>
+              </G>
+              <G l="Quãng đường (NM)"><input type="number" step="0.1" value={form.plannedDistance} onChange={e => up('plannedDistance', e.target.value)} /></G>
+              <G l="Thời gian (giờ)"><input type="number" step="0.1" value={form.plannedDurationHours} onChange={e => up('plannedDurationHours', e.target.value)} /></G>
+              <G l="Tốc độ TB (kn)"><input type="number" step="0.1" value={form.plannedAverageSpeed} onChange={e => up('plannedAverageSpeed', e.target.value)} /></G>
+              <G l="Nhiên liệu DK (MT)"><input type="number" step="0.1" value={form.plannedFuelConsumption} onChange={e => up('plannedFuelConsumption', e.target.value)} /></G>
             </div>
           </div>
         )}
 
-        {/* Kế hoạch chặng */}
-        {activeSection === 'planning' && (
-          <div className="voyage-form-section">
-            <div className="section-header-row">
-              <h2>Kế hoạch chặng (Plan Legs)</h2>
-              <button type="button" className="btn-add" onClick={() => setPlanLegs(prev => [...prev, { ...emptyLeg, sequence: prev.length + 1 }])}>
-                + Thêm chặng
+        {/* === Kế hoạch chặng === */}
+        {section === 'legs' && (
+          <div className="vf-form">
+            <div className="vf-section-head">
+              <h2>Kế hoạch chặng ({planLegs.length})</h2>
+              <button type="button" className="vm-btn vm-btn--primary" onClick={() => setPlanLegs(prev => [...prev, mkLeg(prev.length + 1)])}>
+                <Plus size={13} /> Thêm chặng
               </button>
             </div>
-            {planLegs.length === 0 && <p className="empty-hint">Chưa có chặng nào. Bấm "Thêm chặng" để bắt đầu.</p>}
+            {planLegs.length === 0 && <p className="vf-empty">Chưa có chặng nào. Bấm "Thêm chặng" để bắt đầu.</p>}
             {planLegs.map((leg, i) => (
-              <div key={i} className="sub-entity-card">
-                <div className="sub-entity-header">
+              <div key={i} className="vf-sub-card">
+                <div className="vf-sub-header">
                   <span>Chặng #{leg.sequence}</span>
-                  <button type="button" className="btn-remove" onClick={() => setPlanLegs(prev => prev.filter((_, j) => j !== i).map((l, j) => ({ ...l, sequence: j + 1 })))}>Xóa</button>
+                  <button type="button" className="vm-btn vm-btn--danger" onClick={() => setPlanLegs(prev => removeSeq(prev, i))}><X size={12} /> Xóa</button>
                 </div>
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Loại chặng</label>
-                    <select value={leg.legType || 'PASSAGE'} onChange={e => setPlanLegs(prev => prev.map((l, j) => j === i ? { ...l, legType: e.target.value } : l))}>
-                      {LEG_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                <div className="vf-grid">
+                  <G l="Loại">
+                    <select value={leg.legType} onChange={e => setPlanLegs(prev => prev.map((l, j) => j === i ? { ...l, legType: e.target.value } : l))}>
+                      {LEG_TYPES.map(t => <option key={t}>{t}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Từ cảng</label>
+                  </G>
+                  <G l="Từ cảng">
                     <PortSelect
-                      value={leg.fromPortCode ? `${leg.fromPortCode} - ${leg.fromPortName}` : (leg.fromPortName || '')}
+                      value={leg.fromPortCode ? (leg.fromPortCode + ' - ' + leg.fromPortName) : (leg.fromPortName || '')}
                       onChange={p => setPlanLegs(prev => prev.map((l, j) => j === i ? { ...l, fromPortCode: p.portCode, fromPortName: p.portName } : l))}
-                      placeholder="Tìm cảng đi..."
+                      placeholder="Cảng đi..."
                     />
-                  </div>
-                  <div className="form-group">
-                    <label>Đến cảng</label>
+                  </G>
+                  <G l="Đến cảng">
                     <PortSelect
-                      value={leg.toPortCode ? `${leg.toPortCode} - ${leg.toPortName}` : (leg.toPortName || '')}
+                      value={leg.toPortCode ? (leg.toPortCode + ' - ' + leg.toPortName) : (leg.toPortName || '')}
                       onChange={p => setPlanLegs(prev => prev.map((l, j) => j === i ? { ...l, toPortCode: p.portCode, toPortName: p.portName } : l))}
-                      placeholder="Tìm cảng đến..."
+                      placeholder="Cảng đến..."
                     />
-                  </div>
-                  <div className="form-group">
-                    <label>Khoảng cách (NM)</label>
-                    <input type="number" step="0.1" value={leg.plannedDistance ?? ''} onChange={e => setPlanLegs(prev => prev.map((l, j) => j === i ? { ...l, plannedDistance: parseFloat(e.target.value) || undefined } : l))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Thời gian (giờ)</label>
-                    <input type="number" step="0.1" value={leg.plannedDurationHours ?? ''} onChange={e => setPlanLegs(prev => prev.map((l, j) => j === i ? { ...l, plannedDurationHours: parseFloat(e.target.value) || undefined } : l))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Tốc độ (knots)</label>
-                    <input type="number" step="0.1" value={leg.plannedAverageSpeed ?? ''} onChange={e => setPlanLegs(prev => prev.map((l, j) => j === i ? { ...l, plannedAverageSpeed: parseFloat(e.target.value) || undefined } : l))} />
-                  </div>
+                  </G>
+                  <G l="Khoảng cách (NM)"><input type="number" step="0.1" value={leg.plannedDistance ?? ''} onChange={e => setPlanLegs(prev => prev.map((l, j) => j === i ? { ...l, plannedDistance: parseFloat(e.target.value) || undefined } : l))} /></G>
+                  <G l="Thời gian (h)"><input type="number" step="0.1" value={leg.plannedDurationHours ?? ''} onChange={e => setPlanLegs(prev => prev.map((l, j) => j === i ? { ...l, plannedDurationHours: parseFloat(e.target.value) || undefined } : l))} /></G>
+                  <G l="Tốc độ (kn)"><input type="number" step="0.1" value={leg.plannedAverageSpeed ?? ''} onChange={e => setPlanLegs(prev => prev.map((l, j) => j === i ? { ...l, plannedAverageSpeed: parseFloat(e.target.value) || undefined } : l))} /></G>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Cảng ghé */}
-        {activeSection === 'portcalls' && (
-          <div className="voyage-form-section">
-            <div className="section-header-row">
-              <h2>Cảng ghé (Port Calls)</h2>
-              <button type="button" className="btn-add" onClick={() => setPortCalls(prev => [...prev, { ...emptyPortCall, sequence: prev.length + 1 }])}>
-                + Thêm cảng ghé
+        {/* === Cảng ghé === */}
+        {section === 'ports' && (
+          <div className="vf-form">
+            <div className="vf-section-head">
+              <h2>Cảng ghé ({portCalls.length})</h2>
+              <button type="button" className="vm-btn vm-btn--primary" onClick={() => setPortCalls(prev => [...prev, mkPort(prev.length + 1)])}>
+                <Plus size={13} /> Thêm cảng
               </button>
             </div>
-            {portCalls.length === 0 && <p className="empty-hint">Chưa có cảng ghé nào.</p>}
+            {portCalls.length === 0 && <p className="vf-empty">Chưa có cảng ghé nào.</p>}
             {portCalls.map((pc, i) => (
-              <div key={i} className="sub-entity-card">
-                <div className="sub-entity-header">
+              <div key={i} className="vf-sub-card">
+                <div className="vf-sub-header">
                   <span>Cảng #{pc.sequence}</span>
-                  <button type="button" className="btn-remove" onClick={() => setPortCalls(prev => prev.filter((_, j) => j !== i).map((p, j) => ({ ...p, sequence: j + 1 })))}>Xóa</button>
+                  <button type="button" className="vm-btn vm-btn--danger" onClick={() => setPortCalls(prev => removeSeq(prev, i))}><X size={12} /> Xóa</button>
                 </div>
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Loại</label>
-                    <select value={pc.callType || 'LOADING'} onChange={e => setPortCalls(prev => prev.map((p, j) => j === i ? { ...p, callType: e.target.value } : p))}>
-                      {CALL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                <div className="vf-grid">
+                  <G l="Loại">
+                    <select value={pc.callType} onChange={e => setPortCalls(prev => prev.map((p, j) => j === i ? { ...p, callType: e.target.value } : p))}>
+                      {CALL_TYPES.map(t => <option key={t}>{t}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Cảng</label>
+                  </G>
+                  <G l="Cảng">
                     <PortSelect
-                      value={pc.portCode ? `${pc.portCode} - ${pc.portName}` : pc.portName}
+                      value={pc.portCode ? (pc.portCode + ' - ' + pc.portName) : pc.portName}
                       onChange={p => setPortCalls(prev => prev.map((x, j) => j === i ? { ...x, portCode: p.portCode, portName: p.portName, country: p.country } : x))}
                       placeholder="Tìm cảng..."
                     />
-                  </div>
-                  <div className="form-group">
-                    <label>Thời gian đến</label>
-                    <input type="datetime-local" value={pc.arrivalTime ? pc.arrivalTime.slice(0, 16) : ''} onChange={e => setPortCalls(prev => prev.map((p, j) => j === i ? { ...p, arrivalTime: e.target.value || undefined } : p))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Thời gian rời</label>
-                    <input type="datetime-local" value={pc.departureTime ? pc.departureTime.slice(0, 16) : ''} onChange={e => setPortCalls(prev => prev.map((p, j) => j === i ? { ...p, departureTime: e.target.value || undefined } : p))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Bến (Berth)</label>
-                    <input type="text" value={pc.berthNumber || ''} onChange={e => setPortCalls(prev => prev.map((p, j) => j === i ? { ...p, berthNumber: e.target.value } : p))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Ghi chú</label>
-                    <input type="text" value={pc.remarks || ''} onChange={e => setPortCalls(prev => prev.map((p, j) => j === i ? { ...p, remarks: e.target.value } : p))} />
-                  </div>
+                  </G>
+                  <G l="TG đến"><input type="datetime-local" value={pc.arrivalTime ? pc.arrivalTime.slice(0, 16) : ''} onChange={e => setPortCalls(prev => prev.map((p, j) => j === i ? { ...p, arrivalTime: e.target.value || undefined } : p))} /></G>
+                  <G l="TG rời"><input type="datetime-local" value={pc.departureTime ? pc.departureTime.slice(0, 16) : ''} onChange={e => setPortCalls(prev => prev.map((p, j) => j === i ? { ...p, departureTime: e.target.value || undefined } : p))} /></G>
+                  <G l="Bến"><input value={pc.berthNumber || ''} onChange={e => setPortCalls(prev => prev.map((p, j) => j === i ? { ...p, berthNumber: e.target.value } : p))} /></G>
+                  <G l="Ghi chú"><input value={pc.remarks || ''} onChange={e => setPortCalls(prev => prev.map((p, j) => j === i ? { ...p, remarks: e.target.value } : p))} /></G>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Kế hoạch hàng hóa / bunker / đổi crew */}
-        {activeSection === 'commercial' && (
-          <div className="voyage-form-section">
-            <div className="section-header-row">
-              <h2>Kế hoạch hàng hóa</h2>
-              <button type="button" className="btn-add" onClick={() => setCargoPlans(prev => [...prev, { ...emptyCargoPlan, sequence: prev.length + 1 }])}>
-                + Thêm cargo plan
+        {/* === Hàng hóa & Bunker === */}
+        {section === 'cargo' && (
+          <div className="vf-form">
+            {/* Cargo Plans */}
+            <div className="vf-section-head">
+              <h2>Kế hoạch hàng hóa ({cargoPlans.length})</h2>
+              <button type="button" className="vm-btn vm-btn--primary" onClick={() => setCargoPlans(prev => [...prev, mkCargo(prev.length + 1)])}>
+                <Plus size={13} /> Thêm
               </button>
             </div>
-            {cargoPlans.length === 0 && <p className="empty-hint">Chưa có cargo plan nào.</p>}
+            {cargoPlans.length === 0 && <p className="vf-empty">Chưa có cargo plan.</p>}
             {cargoPlans.map((cp, i) => (
-              <div key={i} className="sub-entity-card">
-                <div className="sub-entity-header">
+              <div key={i} className="vf-sub-card">
+                <div className="vf-sub-header">
                   <span>Cargo #{cp.sequence}</span>
-                  <button type="button" className="btn-remove" onClick={() => setCargoPlans(prev => prev.filter((_, j) => j !== i).map((item, j) => ({ ...item, sequence: j + 1 })))}>Xóa</button>
+                  <button type="button" className="vm-btn vm-btn--danger" onClick={() => setCargoPlans(prev => removeSeq(prev, i))}><X size={12} /></button>
                 </div>
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Loại nghiệp vụ</label>
-                    <select value={cp.operationType || 'LOADING'} onChange={e => setCargoPlans(prev => prev.map((item, j) => j === i ? { ...item, operationType: e.target.value } : item))}>
-                      {CARGO_PLAN_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+                <div className="vf-grid vf-grid--4">
+                  <G l="Nghiệp vụ">
+                    <select value={cp.operationType} onChange={e => setCargoPlans(prev => prev.map((x, j) => j === i ? { ...x, operationType: e.target.value } : x))}>
+                      {CARGO_OPS.map(t => <option key={t}>{t}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Loại hàng</label>
-                    <input type="text" value={cp.cargoType} onChange={e => setCargoPlans(prev => prev.map((item, j) => j === i ? { ...item, cargoType: e.target.value } : item))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Số lượng kế hoạch</label>
-                    <input type="number" step="0.01" value={cp.plannedQuantity} onChange={e => setCargoPlans(prev => prev.map((item, j) => j === i ? { ...item, plannedQuantity: parseFloat(e.target.value) || 0 } : item))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Đơn vị</label>
-                    <input type="text" value={cp.unit || 'MT'} onChange={e => setCargoPlans(prev => prev.map((item, j) => j === i ? { ...item, unit: e.target.value } : item))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Cảng</label>
-                    <input type="text" value={cp.portName || ''} onChange={e => setCargoPlans(prev => prev.map((item, j) => j === i ? { ...item, portName: e.target.value } : item))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Mã cảng</label>
-                    <input type="text" value={cp.portCode || ''} onChange={e => setCargoPlans(prev => prev.map((item, j) => j === i ? { ...item, portCode: e.target.value } : item))} maxLength={5} />
-                  </div>
-                  <div className="form-group">
-                    <label>Shipper</label>
-                    <input type="text" value={cp.shipperName || ''} onChange={e => setCargoPlans(prev => prev.map((item, j) => j === i ? { ...item, shipperName: e.target.value } : item))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Consignee</label>
-                    <input type="text" value={cp.consigneeName || ''} onChange={e => setCargoPlans(prev => prev.map((item, j) => j === i ? { ...item, consigneeName: e.target.value } : item))} />
-                  </div>
-                  <div className="form-group full-width">
-                    <label>Mô tả / yêu cầu đặc biệt</label>
-                    <textarea value={`${cp.cargoDescription || ''}${cp.specialRequirements ? `\n${cp.specialRequirements}` : ''}`.trim()} onChange={e => {
-                      const value = e.target.value;
-                      setCargoPlans(prev => prev.map((item, j) => j === i ? { ...item, cargoDescription: value || undefined, specialRequirements: undefined } : item));
-                    }} rows={3} />
-                  </div>
+                  </G>
+                  <G l="Loại hàng"><input value={cp.cargoType} onChange={e => setCargoPlans(prev => prev.map((x, j) => j === i ? { ...x, cargoType: e.target.value } : x))} /></G>
+                  <G l="Số lượng"><input type="number" step="0.01" value={cp.plannedQuantity} onChange={e => setCargoPlans(prev => prev.map((x, j) => j === i ? { ...x, plannedQuantity: parseFloat(e.target.value) || 0 } : x))} /></G>
+                  <G l="Đơn vị"><input value={cp.unit || 'MT'} onChange={e => setCargoPlans(prev => prev.map((x, j) => j === i ? { ...x, unit: e.target.value } : x))} /></G>
+                  <G l="Cảng"><input value={cp.portName || ''} onChange={e => setCargoPlans(prev => prev.map((x, j) => j === i ? { ...x, portName: e.target.value } : x))} /></G>
+                  <G l="Shipper"><input value={cp.shipperName || ''} onChange={e => setCargoPlans(prev => prev.map((x, j) => j === i ? { ...x, shipperName: e.target.value } : x))} /></G>
+                  <G l="Consignee"><input value={cp.consigneeName || ''} onChange={e => setCargoPlans(prev => prev.map((x, j) => j === i ? { ...x, consigneeName: e.target.value } : x))} /></G>
+                  <G l="Mô tả"><input value={cp.cargoDescription || ''} onChange={e => setCargoPlans(prev => prev.map((x, j) => j === i ? { ...x, cargoDescription: e.target.value } : x))} /></G>
                 </div>
               </div>
             ))}
 
-            <div className="section-header-row" style={{ marginTop: 24 }}>
-              <h2>Kế hoạch bunker</h2>
-              <button type="button" className="btn-add" onClick={() => setBunkerPlans(prev => [...prev, { ...emptyBunkerPlan, sequence: prev.length + 1 }])}>
-                + Thêm bunker plan
+            {/* Bunker Plans */}
+            <div className="vf-section-head" style={{ marginTop: 16 }}>
+              <h2>Kế hoạch Bunker ({bunkerPlans.length})</h2>
+              <button type="button" className="vm-btn vm-btn--primary" onClick={() => setBunkerPlans(prev => [...prev, mkBunker(prev.length + 1)])}>
+                <Plus size={13} /> Thêm
               </button>
             </div>
-            {bunkerPlans.length === 0 && <p className="empty-hint">Chưa có bunker plan nào.</p>}
+            {bunkerPlans.length === 0 && <p className="vf-empty">Chưa có bunker plan.</p>}
             {bunkerPlans.map((bp, i) => (
-              <div key={i} className="sub-entity-card compact">
-                <div className="sub-entity-header">
+              <div key={i} className="vf-sub-card">
+                <div className="vf-sub-header">
                   <span>Bunker #{bp.sequence}</span>
-                  <button type="button" className="btn-remove" onClick={() => setBunkerPlans(prev => prev.filter((_, j) => j !== i).map((item, j) => ({ ...item, sequence: j + 1 })))}>Xóa</button>
+                  <button type="button" className="vm-btn vm-btn--danger" onClick={() => setBunkerPlans(prev => removeSeq(prev, i))}><X size={12} /></button>
                 </div>
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Fuel type</label>
-                    <select value={bp.fuelType || 'VLSFO'} onChange={e => setBunkerPlans(prev => prev.map((item, j) => j === i ? { ...item, fuelType: e.target.value } : item))}>
-                      {BUNKER_FUEL_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+                <div className="vf-grid vf-grid--4">
+                  <G l="Loại NL">
+                    <select value={bp.fuelType} onChange={e => setBunkerPlans(prev => prev.map((x, j) => j === i ? { ...x, fuelType: e.target.value } : x))}>
+                      {FUEL_TYPES.map(t => <option key={t}>{t}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Operation</label>
-                    <select value={bp.operationType || 'SUPPLY'} onChange={e => setBunkerPlans(prev => prev.map((item, j) => j === i ? { ...item, operationType: e.target.value } : item))}>
-                      {BUNKER_OPERATION_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+                  </G>
+                  <G l="Nghiệp vụ">
+                    <select value={bp.operationType} onChange={e => setBunkerPlans(prev => prev.map((x, j) => j === i ? { ...x, operationType: e.target.value } : x))}>
+                      {BUNKER_OPS.map(t => <option key={t}>{t}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Số lượng</label>
-                    <input type="number" step="0.01" value={bp.plannedQuantity} onChange={e => setBunkerPlans(prev => prev.map((item, j) => j === i ? { ...item, plannedQuantity: parseFloat(e.target.value) || 0 } : item))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Cảng</label>
-                    <input type="text" value={bp.portName || ''} onChange={e => setBunkerPlans(prev => prev.map((item, j) => j === i ? { ...item, portName: e.target.value } : item))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Mã cảng</label>
-                    <input type="text" value={bp.portCode || ''} onChange={e => setBunkerPlans(prev => prev.map((item, j) => j === i ? { ...item, portCode: e.target.value } : item))} maxLength={5} />
-                  </div>
-                  <div className="form-group">
-                    <label>Chi phí ước tính</label>
-                    <input type="number" step="0.01" value={bp.estimatedCostUsd ?? ''} onChange={e => setBunkerPlans(prev => prev.map((item, j) => j === i ? { ...item, estimatedCostUsd: parseFloat(e.target.value) || undefined } : item))} />
-                  </div>
-                  <div className="form-group full-width">
-                    <label>Supplier / ghi chú</label>
-                    <input type="text" value={bp.supplierName || bp.notes || ''} onChange={e => setBunkerPlans(prev => prev.map((item, j) => j === i ? { ...item, supplierName: e.target.value } : item))} />
-                  </div>
+                  </G>
+                  <G l="Số lượng"><input type="number" step="0.01" value={bp.plannedQuantity} onChange={e => setBunkerPlans(prev => prev.map((x, j) => j === i ? { ...x, plannedQuantity: parseFloat(e.target.value) || 0 } : x))} /></G>
+                  <G l="Chi phí ước tính"><input type="number" step="0.01" value={bp.estimatedCostUsd ?? ''} onChange={e => setBunkerPlans(prev => prev.map((x, j) => j === i ? { ...x, estimatedCostUsd: parseFloat(e.target.value) || undefined } : x))} /></G>
+                  <G l="Cảng"><input value={bp.portName || ''} onChange={e => setBunkerPlans(prev => prev.map((x, j) => j === i ? { ...x, portName: e.target.value } : x))} /></G>
+                  <G l="Nhà cung cấp"><input value={bp.supplierName || ''} onChange={e => setBunkerPlans(prev => prev.map((x, j) => j === i ? { ...x, supplierName: e.target.value } : x))} /></G>
                 </div>
               </div>
             ))}
 
-            <div className="section-header-row" style={{ marginTop: 24 }}>
-              <h2>Kế hoạch thay đổi crew</h2>
-              <button type="button" className="btn-add" onClick={() => setCrewChangePlans(prev => [...prev, { ...emptyCrewChangePlan, sequence: prev.length + 1 }])}>
-                + Thêm crew change
+            {/* Crew Change Plans */}
+            <div className="vf-section-head" style={{ marginTop: 16 }}>
+              <h2>Kế hoạch đổi crew ({crewChangePlans.length})</h2>
+              <button type="button" className="vm-btn vm-btn--primary" onClick={() => setCrewChangePlans(prev => [...prev, mkCrew(prev.length + 1)])}>
+                <Plus size={13} /> Thêm
               </button>
             </div>
-            {crewChangePlans.length === 0 && <p className="empty-hint">Chưa có crew change plan nào.</p>}
+            {crewChangePlans.length === 0 && <p className="vf-empty">Chưa có crew change plan.</p>}
             {crewChangePlans.map((ccp, i) => (
-              <div key={i} className="sub-entity-card compact">
-                <div className="sub-entity-header">
-                  <span>Crew Change #{ccp.sequence}</span>
-                  <button type="button" className="btn-remove" onClick={() => setCrewChangePlans(prev => prev.filter((_, j) => j !== i).map((item, j) => ({ ...item, sequence: j + 1 })))}>Xóa</button>
+              <div key={i} className="vf-sub-card">
+                <div className="vf-sub-header">
+                  <span>Crew #{ccp.sequence}</span>
+                  <button type="button" className="vm-btn vm-btn--danger" onClick={() => setCrewChangePlans(prev => removeSeq(prev, i))}><X size={12} /></button>
                 </div>
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Loại thay đổi</label>
-                    <select value={ccp.changeType || 'ROTATION'} onChange={e => setCrewChangePlans(prev => prev.map((item, j) => j === i ? { ...item, changeType: e.target.value } : item))}>
-                      {CREW_CHANGE_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+                <div className="vf-grid vf-grid--4">
+                  <G l="Loại">
+                    <select value={ccp.changeType} onChange={e => setCrewChangePlans(prev => prev.map((x, j) => j === i ? { ...x, changeType: e.target.value } : x))}>
+                      {CREW_CHANGES.map(t => <option key={t}>{t}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Crew Member ID</label>
-                    <input type="text" value={ccp.crewMemberId || ''} onChange={e => setCrewChangePlans(prev => prev.map((item, j) => j === i ? { ...item, crewMemberId: e.target.value || undefined } : item))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Rank ID</label>
-                    <input type="number" value={ccp.rankId ?? ''} onChange={e => setCrewChangePlans(prev => prev.map((item, j) => j === i ? { ...item, rankId: parseInt(e.target.value, 10) || undefined } : item))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Cảng</label>
-                    <input type="text" value={ccp.portName || ''} onChange={e => setCrewChangePlans(prev => prev.map((item, j) => j === i ? { ...item, portName: e.target.value } : item))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Mã cảng</label>
-                    <input type="text" value={ccp.portCode || ''} onChange={e => setCrewChangePlans(prev => prev.map((item, j) => j === i ? { ...item, portCode: e.target.value } : item))} maxLength={5} />
-                  </div>
-                  <div className="form-group">
-                    <label>Ngày dự kiến</label>
-                    <input type="datetime-local" value={ccp.plannedDate ? ccp.plannedDate.slice(0, 16) : ''} onChange={e => setCrewChangePlans(prev => prev.map((item, j) => j === i ? { ...item, plannedDate: e.target.value || undefined } : item))} />
-                  </div>
-                  <div className="form-group full-width">
-                    <label>Lý do / ghi chú</label>
-                    <input type="text" value={ccp.replacementReason || ccp.notes || ''} onChange={e => setCrewChangePlans(prev => prev.map((item, j) => j === i ? { ...item, replacementReason: e.target.value } : item))} />
-                  </div>
+                  </G>
+                  <G l="Cảng"><input value={ccp.portName || ''} onChange={e => setCrewChangePlans(prev => prev.map((x, j) => j === i ? { ...x, portName: e.target.value } : x))} /></G>
+                  <G l="Ngày dự kiến"><input type="datetime-local" value={ccp.plannedDate ? ccp.plannedDate.slice(0, 16) : ''} onChange={e => setCrewChangePlans(prev => prev.map((x, j) => j === i ? { ...x, plannedDate: e.target.value || undefined } : x))} /></G>
+                  <G l="Lý do"><input value={ccp.replacementReason || ''} onChange={e => setCrewChangePlans(prev => prev.map((x, j) => j === i ? { ...x, replacementReason: e.target.value } : x))} /></G>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Tài chính */}
-        {activeSection === 'financial' && (
-          <div className="voyage-form-section">
-            <div className="section-header-row">
-              <h2>Chi phí ước tính</h2>
-              <button type="button" className="btn-add" onClick={() => setCostEstimates(prev => [...prev, { ...emptyCost, sequence: prev.length + 1 }])}>
-                + Thêm chi phí
+        {/* === Tài chính ước tính === */}
+        {section === 'est_fin' && (
+          <div className="vf-form">
+            {/* Cost Estimates */}
+            <div className="vf-section-head">
+              <h2>Chi phí ước tính ({costEstimates.length})</h2>
+              <button type="button" className="vm-btn vm-btn--primary" onClick={() => setCostEstimates(prev => [...prev, mkCost(prev.length + 1)])}>
+                <Plus size={13} /> Thêm
               </button>
             </div>
+            {costEstimates.length === 0 && <p className="vf-empty">Chưa có chi phí ước tính.</p>}
             {costEstimates.map((ce, i) => (
-              <div key={i} className="sub-entity-card compact">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Danh mục</label>
+              <div key={i} className="vf-sub-card">
+                <div className="vf-grid vf-grid--4">
+                  <G l="Danh mục">
                     <select value={ce.costCategory} onChange={e => setCostEstimates(prev => prev.map((c, j) => j === i ? { ...c, costCategory: e.target.value } : c))}>
                       <option value="">-- Chọn --</option>
-                      {COST_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      {COST_CATS.map(c => <option key={c}>{c}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Mô tả</label>
-                    <input type="text" value={ce.description || ''} onChange={e => setCostEstimates(prev => prev.map((c, j) => j === i ? { ...c, description: e.target.value } : c))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Số tiền (USD)</label>
-                    <input type="number" step="0.01" value={ce.estimatedAmount} onChange={e => setCostEstimates(prev => prev.map((c, j) => j === i ? { ...c, estimatedAmount: parseFloat(e.target.value) || 0 } : c))} />
-                  </div>
-                  <div className="form-group">
-                    <button type="button" className="btn-remove" onClick={() => setCostEstimates(prev => prev.filter((_, j) => j !== i).map((c, j) => ({ ...c, sequence: j + 1 })))}>Xóa</button>
-                  </div>
+                  </G>
+                  <G l="Mô tả"><input value={ce.description || ''} onChange={e => setCostEstimates(prev => prev.map((c, j) => j === i ? { ...c, description: e.target.value } : c))} /></G>
+                  <G l="Số tiền (USD)"><input type="number" step="0.01" value={ce.estimatedAmount} onChange={e => setCostEstimates(prev => prev.map((c, j) => j === i ? { ...c, estimatedAmount: parseFloat(e.target.value) || 0 } : c))} /></G>
+                  <G l=""><button type="button" className="vm-btn vm-btn--danger" style={{ marginTop: 18 }} onClick={() => setCostEstimates(prev => removeSeq(prev, i))}><X size={12} /> Xóa</button></G>
                 </div>
               </div>
             ))}
 
-            <div className="section-header-row" style={{ marginTop: 24 }}>
-              <h2>Doanh thu ước tính</h2>
-              <button type="button" className="btn-add" onClick={() => setRevenueEstimates(prev => [...prev, { ...emptyRevenue, sequence: prev.length + 1 }])}>
-                + Thêm doanh thu
+            {/* Revenue Estimates */}
+            <div className="vf-section-head" style={{ marginTop: 16 }}>
+              <h2>Doanh thu ước tính ({revenueEstimates.length})</h2>
+              <button type="button" className="vm-btn vm-btn--primary" onClick={() => setRevenueEstimates(prev => [...prev, mkRev(prev.length + 1)])}>
+                <Plus size={13} /> Thêm
               </button>
             </div>
+            {revenueEstimates.length === 0 && <p className="vf-empty">Chưa có doanh thu ước tính.</p>}
             {revenueEstimates.map((re, i) => (
-              <div key={i} className="sub-entity-card compact">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Danh mục</label>
+              <div key={i} className="vf-sub-card">
+                <div className="vf-grid vf-grid--4">
+                  <G l="Danh mục">
                     <select value={re.revenueCategory} onChange={e => setRevenueEstimates(prev => prev.map((r, j) => j === i ? { ...r, revenueCategory: e.target.value } : r))}>
                       <option value="">-- Chọn --</option>
-                      {REVENUE_CATEGORIES.map(r => <option key={r} value={r}>{r}</option>)}
+                      {REV_CATS.map(r => <option key={r}>{r}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Mô tả</label>
-                    <input type="text" value={re.description || ''} onChange={e => setRevenueEstimates(prev => prev.map((r, j) => j === i ? { ...r, description: e.target.value } : r))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Số tiền (USD)</label>
-                    <input type="number" step="0.01" value={re.estimatedAmount} onChange={e => setRevenueEstimates(prev => prev.map((r, j) => j === i ? { ...r, estimatedAmount: parseFloat(e.target.value) || 0 } : r))} />
-                  </div>
-                  <div className="form-group">
-                    <button type="button" className="btn-remove" onClick={() => setRevenueEstimates(prev => prev.filter((_, j) => j !== i).map((r, j) => ({ ...r, sequence: j + 1 })))}>Xóa</button>
-                  </div>
+                  </G>
+                  <G l="Mô tả"><input value={re.description || ''} onChange={e => setRevenueEstimates(prev => prev.map((r, j) => j === i ? { ...r, description: e.target.value } : r))} /></G>
+                  <G l="Số tiền (USD)"><input type="number" step="0.01" value={re.estimatedAmount} onChange={e => setRevenueEstimates(prev => prev.map((r, j) => j === i ? { ...r, estimatedAmount: parseFloat(e.target.value) || 0 } : r))} /></G>
+                  <G l=""><button type="button" className="vm-btn vm-btn--danger" style={{ marginTop: 18 }} onClick={() => setRevenueEstimates(prev => removeSeq(prev, i))}><X size={12} /> Xóa</button></G>
                 </div>
               </div>
             ))}
 
+            {/* Summary */}
             {(costEstimates.length > 0 || revenueEstimates.length > 0) && (
-              <div className="financial-summary-box">
-                <div className="fin-row">
-                  <span>Tổng chi phí ước tính:</span>
-                  <strong>${costEstimates.reduce((s, c) => s + c.estimatedAmount, 0).toLocaleString()}</strong>
-                </div>
-                <div className="fin-row">
-                  <span>Tổng doanh thu ước tính:</span>
-                  <strong>${revenueEstimates.reduce((s, r) => s + r.estimatedAmount, 0).toLocaleString()}</strong>
-                </div>
-                <div className="fin-row total">
-                  <span>Lợi nhuận ước tính:</span>
-                  <strong>${(revenueEstimates.reduce((s, r) => s + r.estimatedAmount, 0) - costEstimates.reduce((s, c) => s + c.estimatedAmount, 0)).toLocaleString()}</strong>
-                </div>
+              <div className="vf-financial-summary">
+                <div className="vf-fin-row"><span>Tổng chi phí ước tính:</span><strong>${costEstimates.reduce((s, c) => s + c.estimatedAmount, 0).toLocaleString()}</strong></div>
+                <div className="vf-fin-row"><span>Tổng doanh thu ước tính:</span><strong>${revenueEstimates.reduce((s, r) => s + r.estimatedAmount, 0).toLocaleString()}</strong></div>
+                <div className="vf-fin-row total"><span>Lợi nhuận ước tính:</span><strong>${(revenueEstimates.reduce((s, r) => s + r.estimatedAmount, 0) - costEstimates.reduce((s, c) => s + c.estimatedAmount, 0)).toLocaleString()}</strong></div>
               </div>
             )}
           </div>
         )}
 
-        {/* Tài chính thực tế */}
-        {activeSection === 'actual_financial' && (
-          <div className="voyage-form-section">
+        {/* === Tài chính thực tế === */}
+        {section === 'act_fin' && (
+          <div className="vf-form">
             {/* Expense Requests */}
-            <div className="section-header-row">
-              <h2>Yêu cầu chi phí</h2>
-              <button type="button" className="btn-add" onClick={() => setExpenseRequests(prev => [...prev, { ...emptyExpenseRequest }])}>
-                + Thêm yêu cầu
+            <div className="vf-section-head">
+              <h2>Yêu cầu chi phí ({expenseRequests.length})</h2>
+              <button type="button" className="vm-btn vm-btn--primary" onClick={() => setExpenseRequests(prev => [...prev, mkExp()])}>
+                <Plus size={13} /> Thêm
               </button>
             </div>
             {expenseRequests.map((er, i) => (
-              <div key={i} className="sub-entity-card compact">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Danh mục chi phí</label>
+              <div key={i} className="vf-sub-card">
+                <div className="vf-grid vf-grid--4">
+                  <G l="Danh mục">
                     <select value={er.costCategory} onChange={e => setExpenseRequests(prev => prev.map((x, j) => j === i ? { ...x, costCategory: e.target.value } : x))}>
                       <option value="">-- Chọn --</option>
-                      {COST_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      {COST_CATS.map(c => <option key={c}>{c}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Số tiền yêu cầu</label>
-                    <input type="number" step="0.01" value={er.requestedAmount} onChange={e => setExpenseRequests(prev => prev.map((x, j) => j === i ? { ...x, requestedAmount: parseFloat(e.target.value) || 0 } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Nhà cung cấp</label>
-                    <input type="text" value={er.vendorName || ''} onChange={e => setExpenseRequests(prev => prev.map((x, j) => j === i ? { ...x, vendorName: e.target.value } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Trạng thái</label>
-                    <select value={er.status || 'DRAFT'} onChange={e => setExpenseRequests(prev => prev.map((x, j) => j === i ? { ...x, status: e.target.value } : x))}>
-                      {EXPENSE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </G>
+                  <G l="Số tiền"><input type="number" step="0.01" value={er.requestedAmount} onChange={e => setExpenseRequests(prev => prev.map((x, j) => j === i ? { ...x, requestedAmount: parseFloat(e.target.value) || 0 } : x))} /></G>
+                  <G l="NCC"><input value={er.vendorName || ''} onChange={e => setExpenseRequests(prev => prev.map((x, j) => j === i ? { ...x, vendorName: e.target.value } : x))} /></G>
+                  <G l="Trạng thái">
+                    <select value={er.status} onChange={e => setExpenseRequests(prev => prev.map((x, j) => j === i ? { ...x, status: e.target.value } : x))}>
+                      {EXP_STATUSES.map(s => <option key={s}>{s}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Ghi chú</label>
-                    <input type="text" value={er.notes || ''} onChange={e => setExpenseRequests(prev => prev.map((x, j) => j === i ? { ...x, notes: e.target.value } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <button type="button" className="btn-remove" onClick={() => setExpenseRequests(prev => prev.filter((_, j) => j !== i))}>Xóa</button>
-                  </div>
+                  </G>
+                  <G l="Ghi chú"><input value={er.notes || ''} onChange={e => setExpenseRequests(prev => prev.map((x, j) => j === i ? { ...x, notes: e.target.value } : x))} /></G>
+                  <G l=""><button type="button" className="vm-btn vm-btn--danger" style={{ marginTop: 18 }} onClick={() => setExpenseRequests(prev => prev.filter((_, j) => j !== i))}><X size={12} /> Xóa</button></G>
                 </div>
               </div>
             ))}
 
             {/* Advance Payments */}
-            <div className="section-header-row" style={{ marginTop: 24 }}>
-              <h2>Tạm ứng</h2>
-              <button type="button" className="btn-add" onClick={() => setAdvancePayments(prev => [...prev, { ...emptyAdvancePayment }])}>
-                + Thêm tạm ứng
+            <div className="vf-section-head" style={{ marginTop: 16 }}>
+              <h2>Tạm ứng ({advancePayments.length})</h2>
+              <button type="button" className="vm-btn vm-btn--primary" onClick={() => setAdvancePayments(prev => [...prev, mkAdv()])}>
+                <Plus size={13} /> Thêm
               </button>
             </div>
             {advancePayments.map((ap, i) => (
-              <div key={i} className="sub-entity-card compact">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Loại tạm ứng</label>
+              <div key={i} className="vf-sub-card">
+                <div className="vf-grid vf-grid--4">
+                  <G l="Loại">
                     <select value={ap.advanceType} onChange={e => setAdvancePayments(prev => prev.map((x, j) => j === i ? { ...x, advanceType: e.target.value } : x))}>
                       <option value="">-- Chọn --</option>
-                      {ADVANCE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                      {ADV_TYPES.map(t => <option key={t}>{t}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Số tiền</label>
-                    <input type="number" step="0.01" value={ap.amount} onChange={e => setAdvancePayments(prev => prev.map((x, j) => j === i ? { ...x, amount: parseFloat(e.target.value) || 0 } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Người nhận</label>
-                    <input type="text" value={ap.recipientName || ''} onChange={e => setAdvancePayments(prev => prev.map((x, j) => j === i ? { ...x, recipientName: e.target.value } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Trạng thái</label>
-                    <select value={ap.status || 'PENDING'} onChange={e => setAdvancePayments(prev => prev.map((x, j) => j === i ? { ...x, status: e.target.value } : x))}>
-                      {ADVANCE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </G>
+                  <G l="Số tiền"><input type="number" step="0.01" value={ap.amount} onChange={e => setAdvancePayments(prev => prev.map((x, j) => j === i ? { ...x, amount: parseFloat(e.target.value) || 0 } : x))} /></G>
+                  <G l="Người nhận"><input value={ap.recipientName || ''} onChange={e => setAdvancePayments(prev => prev.map((x, j) => j === i ? { ...x, recipientName: e.target.value } : x))} /></G>
+                  <G l="Trạng thái">
+                    <select value={ap.status} onChange={e => setAdvancePayments(prev => prev.map((x, j) => j === i ? { ...x, status: e.target.value } : x))}>
+                      {ADV_STATUSES.map(s => <option key={s}>{s}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Ghi chú</label>
-                    <input type="text" value={ap.notes || ''} onChange={e => setAdvancePayments(prev => prev.map((x, j) => j === i ? { ...x, notes: e.target.value } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <button type="button" className="btn-remove" onClick={() => setAdvancePayments(prev => prev.filter((_, j) => j !== i))}>Xóa</button>
-                  </div>
+                  </G>
+                  <G l="Ghi chú"><input value={ap.notes || ''} onChange={e => setAdvancePayments(prev => prev.map((x, j) => j === i ? { ...x, notes: e.target.value } : x))} /></G>
+                  <G l=""><button type="button" className="vm-btn vm-btn--danger" style={{ marginTop: 18 }} onClick={() => setAdvancePayments(prev => prev.filter((_, j) => j !== i))}><X size={12} /> Xóa</button></G>
                 </div>
               </div>
             ))}
 
             {/* Disbursements */}
-            <div className="section-header-row" style={{ marginTop: 24 }}>
-              <h2>Giải ngân</h2>
-              <button type="button" className="btn-add" onClick={() => setDisbursements(prev => [...prev, { ...emptyDisbursement }])}>
-                + Thêm giải ngân
+            <div className="vf-section-head" style={{ marginTop: 16 }}>
+              <h2>Giải ngân ({disbursements.length})</h2>
+              <button type="button" className="vm-btn vm-btn--primary" onClick={() => setDisbursements(prev => [...prev, mkDisb()])}>
+                <Plus size={13} /> Thêm
               </button>
             </div>
             {disbursements.map((d, i) => (
-              <div key={i} className="sub-entity-card compact">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Danh mục chi phí</label>
+              <div key={i} className="vf-sub-card">
+                <div className="vf-grid vf-grid--4">
+                  <G l="Danh mục">
                     <select value={d.costCategory} onChange={e => setDisbursements(prev => prev.map((x, j) => j === i ? { ...x, costCategory: e.target.value } : x))}>
                       <option value="">-- Chọn --</option>
-                      {COST_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      {COST_CATS.map(c => <option key={c}>{c}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Số tiền</label>
-                    <input type="number" step="0.01" value={d.amount} onChange={e => setDisbursements(prev => prev.map((x, j) => j === i ? { ...x, amount: parseFloat(e.target.value) || 0 } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Nhà cung cấp</label>
-                    <input type="text" value={d.vendorName || ''} onChange={e => setDisbursements(prev => prev.map((x, j) => j === i ? { ...x, vendorName: e.target.value } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Số hóa đơn</label>
-                    <input type="text" value={d.invoiceNumber || ''} onChange={e => setDisbursements(prev => prev.map((x, j) => j === i ? { ...x, invoiceNumber: e.target.value } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Trạng thái</label>
-                    <select value={d.status || 'RECORDED'} onChange={e => setDisbursements(prev => prev.map((x, j) => j === i ? { ...x, status: e.target.value } : x))}>
-                      {DISBURSEMENT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </G>
+                  <G l="Số tiền"><input type="number" step="0.01" value={d.amount} onChange={e => setDisbursements(prev => prev.map((x, j) => j === i ? { ...x, amount: parseFloat(e.target.value) || 0 } : x))} /></G>
+                  <G l="NCC"><input value={d.vendorName || ''} onChange={e => setDisbursements(prev => prev.map((x, j) => j === i ? { ...x, vendorName: e.target.value } : x))} /></G>
+                  <G l="Số hóa đơn"><input value={d.invoiceNumber || ''} onChange={e => setDisbursements(prev => prev.map((x, j) => j === i ? { ...x, invoiceNumber: e.target.value } : x))} /></G>
+                  <G l="Trạng thái">
+                    <select value={d.status} onChange={e => setDisbursements(prev => prev.map((x, j) => j === i ? { ...x, status: e.target.value } : x))}>
+                      {DISB_STATUSES.map(s => <option key={s}>{s}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <button type="button" className="btn-remove" onClick={() => setDisbursements(prev => prev.filter((_, j) => j !== i))}>Xóa</button>
-                  </div>
+                  </G>
+                  <G l=""><button type="button" className="vm-btn vm-btn--danger" style={{ marginTop: 18 }} onClick={() => setDisbursements(prev => prev.filter((_, j) => j !== i))}><X size={12} /> Xóa</button></G>
                 </div>
               </div>
             ))}
 
             {/* Actual Revenues */}
-            <div className="section-header-row" style={{ marginTop: 24 }}>
-              <h2>Doanh thu thực tế</h2>
-              <button type="button" className="btn-add" onClick={() => setActualRevenues(prev => [...prev, { ...emptyActualRevenue }])}>
-                + Thêm doanh thu
+            <div className="vf-section-head" style={{ marginTop: 16 }}>
+              <h2>Doanh thu thực tế ({actualRevenues.length})</h2>
+              <button type="button" className="vm-btn vm-btn--primary" onClick={() => setActualRevenues(prev => [...prev, mkARev()])}>
+                <Plus size={13} /> Thêm
               </button>
             </div>
             {actualRevenues.map((ar, i) => (
-              <div key={i} className="sub-entity-card compact">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Danh mục</label>
+              <div key={i} className="vf-sub-card">
+                <div className="vf-grid vf-grid--4">
+                  <G l="Danh mục">
                     <select value={ar.revenueCategory} onChange={e => setActualRevenues(prev => prev.map((x, j) => j === i ? { ...x, revenueCategory: e.target.value } : x))}>
                       <option value="">-- Chọn --</option>
-                      {REVENUE_CATEGORIES.map(r => <option key={r} value={r}>{r}</option>)}
+                      {REV_CATS.map(r => <option key={r}>{r}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Số tiền</label>
-                    <input type="number" step="0.01" value={ar.amount} onChange={e => setActualRevenues(prev => prev.map((x, j) => j === i ? { ...x, amount: parseFloat(e.target.value) || 0 } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Người trả</label>
-                    <input type="text" value={ar.payerName || ''} onChange={e => setActualRevenues(prev => prev.map((x, j) => j === i ? { ...x, payerName: e.target.value } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Trạng thái</label>
-                    <select value={ar.status || 'INVOICED'} onChange={e => setActualRevenues(prev => prev.map((x, j) => j === i ? { ...x, status: e.target.value } : x))}>
-                      {ACTUAL_REVENUE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </G>
+                  <G l="Số tiền"><input type="number" step="0.01" value={ar.amount} onChange={e => setActualRevenues(prev => prev.map((x, j) => j === i ? { ...x, amount: parseFloat(e.target.value) || 0 } : x))} /></G>
+                  <G l="Người trả"><input value={ar.payerName || ''} onChange={e => setActualRevenues(prev => prev.map((x, j) => j === i ? { ...x, payerName: e.target.value } : x))} /></G>
+                  <G l="Trạng thái">
+                    <select value={ar.status} onChange={e => setActualRevenues(prev => prev.map((x, j) => j === i ? { ...x, status: e.target.value } : x))}>
+                      {AREV_STATUSES.map(s => <option key={s}>{s}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Ghi chú</label>
-                    <input type="text" value={ar.notes || ''} onChange={e => setActualRevenues(prev => prev.map((x, j) => j === i ? { ...x, notes: e.target.value } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <button type="button" className="btn-remove" onClick={() => setActualRevenues(prev => prev.filter((_, j) => j !== i))}>Xóa</button>
-                  </div>
+                  </G>
+                  <G l="Ghi chú"><input value={ar.notes || ''} onChange={e => setActualRevenues(prev => prev.map((x, j) => j === i ? { ...x, notes: e.target.value } : x))} /></G>
+                  <G l=""><button type="button" className="vm-btn vm-btn--danger" style={{ marginTop: 18 }} onClick={() => setActualRevenues(prev => prev.filter((_, j) => j !== i))}><X size={12} /> Xóa</button></G>
                 </div>
               </div>
             ))}
 
             {/* Settlements */}
-            <div className="section-header-row" style={{ marginTop: 24 }}>
-              <h2>Quyết toán</h2>
-              <button type="button" className="btn-add" onClick={() => setSettlements(prev => [...prev, { ...emptySettlement }])}>
-                + Thêm quyết toán
+            <div className="vf-section-head" style={{ marginTop: 16 }}>
+              <h2>Quyết toán ({settlements.length})</h2>
+              <button type="button" className="vm-btn vm-btn--primary" onClick={() => setSettlements(prev => [...prev, mkSett()])}>
+                <Plus size={13} /> Thêm
               </button>
             </div>
             {settlements.map((s, i) => (
-              <div key={i} className="sub-entity-card compact">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Trạng thái</label>
-                    <select value={s.status || 'DRAFT'} onChange={e => setSettlements(prev => prev.map((x, j) => j === i ? { ...x, status: e.target.value } : x))}>
-                      {SETTLEMENT_STATUSES.map(st => <option key={st} value={st}>{st}</option>)}
+              <div key={i} className="vf-sub-card">
+                <div className="vf-grid vf-grid--4">
+                  <G l="Trạng thái">
+                    <select value={s.status} onChange={e => setSettlements(prev => prev.map((x, j) => j === i ? { ...x, status: e.target.value } : x))}>
+                      {SETT_STATUSES.map(st => <option key={st}>{st}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Tổng chi phí duyệt</label>
-                    <input type="number" step="0.01" value={s.totalExpenseApproved || 0} onChange={e => setSettlements(prev => prev.map((x, j) => j === i ? { ...x, totalExpenseApproved: parseFloat(e.target.value) || 0 } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Tổng tạm ứng</label>
-                    <input type="number" step="0.01" value={s.totalAdvanced || 0} onChange={e => setSettlements(prev => prev.map((x, j) => j === i ? { ...x, totalAdvanced: parseFloat(e.target.value) || 0 } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Tổng giải ngân</label>
-                    <input type="number" step="0.01" value={s.totalDisbursed || 0} onChange={e => setSettlements(prev => prev.map((x, j) => j === i ? { ...x, totalDisbursed: parseFloat(e.target.value) || 0 } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Tổng doanh thu</label>
-                    <input type="number" step="0.01" value={s.totalRevenue || 0} onChange={e => setSettlements(prev => prev.map((x, j) => j === i ? { ...x, totalRevenue: parseFloat(e.target.value) || 0 } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <label>Ghi chú</label>
-                    <input type="text" value={s.notes || ''} onChange={e => setSettlements(prev => prev.map((x, j) => j === i ? { ...x, notes: e.target.value } : x))} />
-                  </div>
-                  <div className="form-group">
-                    <button type="button" className="btn-remove" onClick={() => setSettlements(prev => prev.filter((_, j) => j !== i))}>Xóa</button>
-                  </div>
+                  </G>
+                  <G l="Tổng CP duyệt"><input type="number" step="0.01" value={s.totalExpenseApproved || 0} onChange={e => setSettlements(prev => prev.map((x, j) => j === i ? { ...x, totalExpenseApproved: parseFloat(e.target.value) || 0 } : x))} /></G>
+                  <G l="Tổng tạm ứng"><input type="number" step="0.01" value={s.totalAdvanced || 0} onChange={e => setSettlements(prev => prev.map((x, j) => j === i ? { ...x, totalAdvanced: parseFloat(e.target.value) || 0 } : x))} /></G>
+                  <G l="Tổng giải ngân"><input type="number" step="0.01" value={s.totalDisbursed || 0} onChange={e => setSettlements(prev => prev.map((x, j) => j === i ? { ...x, totalDisbursed: parseFloat(e.target.value) || 0 } : x))} /></G>
+                  <G l="Tổng doanh thu"><input type="number" step="0.01" value={s.totalRevenue || 0} onChange={e => setSettlements(prev => prev.map((x, j) => j === i ? { ...x, totalRevenue: parseFloat(e.target.value) || 0 } : x))} /></G>
+                  <G l="Ghi chú"><input value={s.notes || ''} onChange={e => setSettlements(prev => prev.map((x, j) => j === i ? { ...x, notes: e.target.value } : x))} /></G>
+                  <G l=""><button type="button" className="vm-btn vm-btn--danger" style={{ marginTop: 18 }} onClick={() => setSettlements(prev => prev.filter((_, j) => j !== i))}><X size={12} /> Xóa</button></G>
                 </div>
               </div>
             ))}
 
             {/* Actual Financial Summary */}
             {(disbursements.length > 0 || actualRevenues.length > 0) && (
-              <div className="financial-summary-box" style={{ marginTop: 24 }}>
-                <div className="fin-row">
-                  <span>Tổng giải ngân (thực tế):</span>
-                  <strong>${disbursements.reduce((s, d) => s + d.amount * (d.exchangeRate || 1), 0).toLocaleString()}</strong>
-                </div>
-                <div className="fin-row">
-                  <span>Tổng doanh thu (thực tế):</span>
-                  <strong>${actualRevenues.reduce((s, r) => s + r.amount * (r.exchangeRate || 1), 0).toLocaleString()}</strong>
-                </div>
-                <div className="fin-row total">
-                  <span>Lợi nhuận thực tế:</span>
-                  <strong>${(actualRevenues.reduce((s, r) => s + r.amount * (r.exchangeRate || 1), 0) - disbursements.reduce((s, d) => s + d.amount * (d.exchangeRate || 1), 0)).toLocaleString()}</strong>
-                </div>
+              <div className="vf-financial-summary" style={{ marginTop: 16 }}>
+                <div className="vf-fin-row"><span>Tổng giải ngân:</span><strong>${disbursements.reduce((s, d) => s + d.amount * (d.exchangeRate || 1), 0).toLocaleString()}</strong></div>
+                <div className="vf-fin-row"><span>Tổng doanh thu thực:</span><strong>${actualRevenues.reduce((s, r) => s + r.amount * (r.exchangeRate || 1), 0).toLocaleString()}</strong></div>
+                <div className="vf-fin-row total"><span>Lợi nhuận thực tế:</span><strong>${(actualRevenues.reduce((s, r) => s + r.amount * (r.exchangeRate || 1), 0) - disbursements.reduce((s, d) => s + d.amount * (d.exchangeRate || 1), 0)).toLocaleString()}</strong></div>
               </div>
             )}
           </div>
         )}
 
-        <div className="voyage-form-actions">
-          <button type="button" className="btn-cancel" onClick={() => navigate(isEdit ? `/voyages/${id}` : '/voyages')}>
-            Hủy
-          </button>
-          <button type="submit" className="btn-save" disabled={saving}>
-            {saving ? 'Đang lưu...' : isEdit ? 'Cập nhật hải trình' : 'Tạo hải trình'}
+        {/* Bottom Actions */}
+        <div className="vf-actions">
+          <button type="button" className="vm-btn" onClick={() => navigate(isEdit ? '/voyages/' + id : '/voyages')}>Hủy</button>
+          <button type="submit" className="vm-btn vm-btn--primary" disabled={saving}>
+            <Save size={13} /> {saving ? 'Đang lưu...' : isEdit ? 'Cập nhật hải trình' : 'Tạo hải trình'}
           </button>
         </div>
       </form>

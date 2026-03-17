@@ -141,6 +141,7 @@ public class OnboardingService : IOnboardingService
     public async Task<OnboardingCaseDto> UpdateCaseStatusAsync(Guid caseId, string newStatus, string changedBy, string? notes = null)
     {
         var onboardingCase = await _db.OnboardingCases
+            .AsTracking()
             .Include(c => c.ChecklistItems)
             .FirstOrDefaultAsync(c => c.Id == caseId);
 

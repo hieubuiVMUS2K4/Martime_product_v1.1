@@ -273,6 +273,7 @@ public class CrewService : ICrewService
     public async Task<CrewMemberDto?> UpdateCrewAsync(Guid id, UpdateCrewRequest request)
     {
         var crew = await _context.CrewMembers
+            .AsTracking()
             .Include(c => c.Rank)
             .Include(c => c.Country)
             .FirstOrDefaultAsync(c => c.Id == id);
@@ -370,6 +371,7 @@ public class CrewService : ICrewService
     public async Task<CrewMemberDto?> AssignToVesselAsync(Guid crewId, Guid vesselId)
     {
         var crew = await _context.CrewMembers
+            .AsTracking()
             .Include(c => c.Rank)
             .Include(c => c.Country)
             .FirstOrDefaultAsync(c => c.Id == crewId);
@@ -437,6 +439,7 @@ public class CrewService : ICrewService
     public async Task<CrewMemberDto?> UnassignFromVesselAsync(Guid crewId)
     {
         var crew = await _context.CrewMembers
+            .AsTracking()
             .Include(c => c.Rank)
             .Include(c => c.Country)
             .FirstOrDefaultAsync(c => c.Id == crewId);
@@ -638,22 +641,22 @@ public class CrewService : ICrewService
         switch (category.ToLower())
         {
             case "travel":
-                var t = await _context.TravelDocuments.FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
+                var t = await _context.TravelDocuments.AsTracking().FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
                 if (t == null) return false;
                 _context.TravelDocuments.Remove(t);
                 break;
             case "seafarer":
-                var s = await _context.SeafarerDocuments.FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
+                var s = await _context.SeafarerDocuments.AsTracking().FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
                 if (s == null) return false;
                 _context.SeafarerDocuments.Remove(s);
                 break;
             case "employment":
-                var e = await _context.EmploymentDocuments.FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
+                var e = await _context.EmploymentDocuments.AsTracking().FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
                 if (e == null) return false;
                 _context.EmploymentDocuments.Remove(e);
                 break;
             case "health":
-                var h = await _context.HealthDocuments.FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
+                var h = await _context.HealthDocuments.AsTracking().FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
                 if (h == null) return false;
                 _context.HealthDocuments.Remove(h);
                 break;

@@ -149,6 +149,7 @@ public class OnboardEventService : IOnboardEventService
     {
         // Revoke any existing active grants for this crew+vessel+module
         var existing = await _db.CrewAccessGrants
+            .AsTracking()
             .Where(g => g.CrewMemberId == request.CrewMemberId
                 && g.VesselId == request.VesselId
                 && g.Module == request.Module
@@ -191,6 +192,7 @@ public class OnboardEventService : IOnboardEventService
     public async Task<CrewAccessGrantDto?> SuspendAccessAsync(Guid id, SuspendAccessRequest request)
     {
         var grant = await _db.CrewAccessGrants
+            .AsTracking()
             .Include(g => g.CrewMember)
             .FirstOrDefaultAsync(g => g.Id == id);
 
@@ -211,6 +213,7 @@ public class OnboardEventService : IOnboardEventService
     public async Task<CrewAccessGrantDto?> RevokeAccessAsync(Guid id, RevokeAccessRequest request)
     {
         var grant = await _db.CrewAccessGrants
+            .AsTracking()
             .Include(g => g.CrewMember)
             .FirstOrDefaultAsync(g => g.Id == id);
 
@@ -234,6 +237,7 @@ public class OnboardEventService : IOnboardEventService
     public async Task<CrewAccessGrantDto?> ReinstateAccessAsync(Guid id, string? grantedBy)
     {
         var grant = await _db.CrewAccessGrants
+            .AsTracking()
             .Include(g => g.CrewMember)
             .FirstOrDefaultAsync(g => g.Id == id);
 

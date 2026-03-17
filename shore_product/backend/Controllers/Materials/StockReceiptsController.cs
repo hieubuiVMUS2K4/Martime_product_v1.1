@@ -66,7 +66,7 @@ public class StockReceiptsController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] StockReceipt dto)
     {
-        var entity = await _context.StockReceipts.Include(r => r.Items).FirstOrDefaultAsync(r => r.Id == id);
+        var entity = await _context.StockReceipts.AsTracking().Include(r => r.Items).FirstOrDefaultAsync(r => r.Id == id);
         if (entity == null) return NotFound();
         entity.VesselName = dto.VesselName; entity.SupplierCode = dto.SupplierCode;
         entity.SupplierName = dto.SupplierName; entity.ReceivedDate = dto.ReceivedDate;
@@ -90,13 +90,13 @@ public class StockReceiptsController : ControllerBase
     [HttpPut("{id:int}/complete")]
     public async Task<IActionResult> Complete(int id)
     {
-        var entity = await _context.StockReceipts.Include(r => r.Items).FirstOrDefaultAsync(r => r.Id == id);
+        var entity = await _context.StockReceipts.AsTracking().Include(r => r.Items).FirstOrDefaultAsync(r => r.Id == id);
         if (entity == null) return NotFound();
 
         // Update inventory stock
         foreach (var item in entity.Items.Where(i => i.MaterialItemId.HasValue && i.StoreLocationId.HasValue))
         {
-            var stock = await _context.InventoryStocks.FirstOrDefaultAsync(
+            var stock = await _context.InventoryStocks.AsTracking().FirstOrDefaultAsync(
                 s => s.MaterialItemId == item.MaterialItemId!.Value && s.StoreLocationId == item.StoreLocationId!.Value);
             if (stock == null)
             {

@@ -31,7 +31,7 @@ namespace ProductApi.Controllers
         {
             try
             {
-                var vessels = await _context.Vessels.Where(v => v.IsActive).ToListAsync();
+                var vessels = await _context.Vessels.AsNoTracking().Where(v => v.IsActive).ToListAsync();
 
                 // Aggregate report stats per OriginNode (= vessel IMO)
                 var reportStats = await _context.MaritimeReports

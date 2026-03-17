@@ -53,7 +53,7 @@ public record SyncHealthItem
     public int TotalVoyages { get; init; }
     public DateTime? LastSyncAt { get; init; }
     public int StaleVoyageCount { get; init; }
-    public string HealthStatus { get; init; } = "UNKNOWN";
+    public string HealthStatus { get; set; } = "UNKNOWN";
 }
 
 public record FinancialOverview

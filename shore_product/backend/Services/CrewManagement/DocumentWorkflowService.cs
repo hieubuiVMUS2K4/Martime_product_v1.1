@@ -118,6 +118,7 @@ public class DocumentWorkflowService : IDocumentWorkflowService
     public async Task<DocumentSubmissionDto> SubmitAsync(Guid submissionId, string submittedBy)
     {
         var submission = await _db.DocumentSubmissions
+            .AsTracking()
             .Include(s => s.Versions)
             .FirstOrDefaultAsync(s => s.Id == submissionId);
 
@@ -158,6 +159,7 @@ public class DocumentWorkflowService : IDocumentWorkflowService
         string contentType, long fileSizeBytes, string uploadedBy)
     {
         var submission = await _db.DocumentSubmissions
+            .AsTracking()
             .Include(s => s.Versions)
             .FirstOrDefaultAsync(s => s.Id == submissionId);
 
@@ -206,6 +208,7 @@ public class DocumentWorkflowService : IDocumentWorkflowService
     public async Task<DocumentSubmissionDto> SendForVerificationAsync(Guid submissionId, SubmitForVerificationRequest request, string sentBy)
     {
         var submission = await _db.DocumentSubmissions
+            .AsTracking()
             .Include(s => s.Versions)
             .FirstOrDefaultAsync(s => s.Id == submissionId);
 
@@ -302,6 +305,7 @@ public class DocumentWorkflowService : IDocumentWorkflowService
     public async Task<VerificationTaskDto> PerformVerificationAsync(Guid taskId, PerformVerificationRequest request, string performedBy)
     {
         var task = await _db.VerificationTasks
+            .AsTracking()
             .Include(t => t.Submission)
                 .ThenInclude(s => s.Versions)
             .FirstOrDefaultAsync(t => t.Id == taskId);
