@@ -20,47 +20,11 @@ const navItems = [
 ];
 
 // Dropdown menus with grouped items
-const dropdownMenus = [
-  {
-    label: 'PMS',
-    basePaths: ['/pms'],
-    groups: [
-      {
-        label: 'Thiết bị',
-        items: [
-          { path: '/pms/assets',        label: 'Danh sách thiết bị' },
-        ],
-      },
-      {
-        label: 'Bảo trì',
-        items: [
-          { path: '/pms/work-planning', label: 'Kế hoạch bảo trì' },
-        ],
-      },
-    ],
-  },
-  {
-    label: 'Vật tư',
-    basePaths: ['/materials'],
-    groups: [
-      {
-        label: 'Danh mục',
-        items: [
-          { path: '/materials',                 label: 'Vật tư' },
-          { path: '/materials/store-locations', label: 'Kho' },
-        ],
-      },
-      {
-        label: 'Xuất nhập',
-        items: [
-          { path: '/materials/requests',  label: 'Yêu cầu vật tư' },
-          { path: '/materials/receipts',  label: 'Nhập kho' },
-          { path: '/materials/inventory', label: 'Tồn kho' },
-        ],
-      },
-    ],
-  },
-];
+const dropdownMenus: {
+  label: string;
+  basePaths: string[];
+  groups: { label: string; items: { path: string; label: string }[] }[];
+}[] = [];
 
 export const TopNavLayout: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

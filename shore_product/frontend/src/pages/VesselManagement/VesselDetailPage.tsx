@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Ship, ArrowLeft, Save, Loader2, AlertCircle } from 'lucide-react';
+import { Ship, ArrowLeft, Save, Loader2, AlertCircle, ChevronDown } from 'lucide-react';
 import { ENV } from '../../config/env';
 import { VesselCrewTab } from '../../components/vessel-detail/VesselCrewTab';
 import { BasicDataTab } from '../../components/vessel-detail/BasicDataTab';
@@ -188,16 +188,48 @@ interface Vessel {
 type TabId = 'basic-data' | 'dimensions' | 'machinery' | 'shipowner' | 'charterer' | 'class-flag-state' | 'insurance' | 'radio-comm' | 'tanks-cargo' | 'crew';
 
 const TABS: { id: TabId; label: string; edgeSource: boolean }[] = [
-  { id: 'basic-data', label: 'Basic Data', edgeSource: true },
-  { id: 'dimensions', label: 'Dimensions', edgeSource: true },
-  { id: 'machinery', label: 'Machinery', edgeSource: true },
-  { id: 'shipowner', label: 'Shipowner', edgeSource: false },
-  { id: 'charterer', label: 'Charterer', edgeSource: false },
+  { id: 'basic-data',       label: 'Basic Data',        edgeSource: true },
+  { id: 'dimensions',       label: 'Dimensions',         edgeSource: true },
+  { id: 'machinery',        label: 'Machinery',          edgeSource: true },
+  { id: 'shipowner',        label: 'Shipowner',          edgeSource: false },
+  { id: 'charterer',        label: 'Charterer',          edgeSource: false },
   { id: 'class-flag-state', label: 'Class / Flag State', edgeSource: true },
-  { id: 'insurance', label: 'Insurance', edgeSource: false },
-  { id: 'radio-comm', label: 'Radio Comm.', edgeSource: true },
-  { id: 'tanks-cargo', label: 'Tanks & Cargo', edgeSource: true },
-  { id: 'crew', label: 'Crew / Thuyền viên', edgeSource: false },
+  { id: 'insurance',        label: 'Insurance',          edgeSource: false },
+  { id: 'radio-comm',       label: 'Radio Comm.',        edgeSource: true },
+  { id: 'tanks-cargo',      label: 'Tanks & Cargo',      edgeSource: true },
+  { id: 'crew',             label: 'Crew / Thuyền viên', edgeSource: false },
+];
+
+// Grouped menus — giống TopNav PMS / Vật tư
+const TAB_GROUPS: { label: string; items: TabId[] }[] = [
+  {
+    label: 'Ship Data',
+    items: ['basic-data', 'dimensions', 'class-flag-state', 'machinery', 'radio-comm', 'tanks-cargo', 'shipowner', 'charterer', 'insurance'],
+  },
+  {
+    label: 'Crew / Thuyền viên',
+    items: ['crew'],
+  },
+];
+
+// External navigation groups (navigate away from this page)
+const NAV_GROUPS: { label: string; items: { label: string; path: string }[] }[] = [
+  {
+    label: 'PMS',
+    items: [
+      { label: 'Thiết bị', path: '/pms/assets' },
+      { label: 'Kế hoạch công việc', path: '/pms/work-planning' },
+    ],
+  },
+  {
+    label: 'Vật tư',
+    items: [
+      { label: 'Danh sách vật tư', path: '/materials' },
+      { label: 'Yêu cầu vật tư', path: '/materials/requests' },
+      { label: 'Phiếu nhập kho', path: '/materials/receipts' },
+      { label: 'Tồn kho', path: '/materials/inventory' },
+    ],
+  },
 ];
 
 // ============================================================
@@ -223,6 +255,10 @@ export const VesselDetailPage: React.FC = () => {
   const toast = useToast();
 
   const [activeTab, setActiveTab] = useState<TabId>('basic-data');
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [openNavGroup, setOpenNavGroup] = useState<string | null>(null);
+  const navGroupRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [vessel, setVessel] = useState<Vessel | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -230,6 +266,22 @@ export const VesselDetailPage: React.FC = () => {
   const [isDirty, setIsDirty] = useState(false);
 
   const [formData, setFormData] = useState<Partial<Vessel>>({});
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const insideTab = Object.values(groupRefs.current).some(
+        ref => ref && ref.contains(e.target as Node)
+      );
+      const insideNav = Object.values(navGroupRefs.current).some(
+        ref => ref && ref.contains(e.target as Node)
+      );
+      if (!insideTab) setOpenGroup(null);
+      if (!insideNav) setOpenNavGroup(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Load vessel data
   useEffect(() => {
@@ -434,18 +486,83 @@ export const VesselDetailPage: React.FC = () => {
         )}
       </div>
 
-      {/* Tabs */}
+      {/* Tab group menu bar */}
       <div className="vd-tabs-new">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            className={`vd-tab-btn ${activeTab === tab.id ? 'vd-tab-btn--active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-            {tab.edgeSource && <span className="vd-edge-indicator" title="Synced from Edge">⚡</span>}
-          </button>
-        ))}
+        <div className="vd-tabs-nav">
+          {TAB_GROUPS.map(group => {
+            const groupActive = group.items.includes(activeTab);
+            const isOpen = openGroup === group.label;
+            return (
+              <div
+                key={group.label}
+                className="vd-tab-group"
+                ref={el => { groupRefs.current[group.label] = el; }}
+              >
+                <button
+                  className={`vd-tab-btn${groupActive ? ' vd-tab-btn--active' : ''}`}
+                  onClick={() => setOpenGroup(isOpen ? null : group.label)}
+                >
+                  {group.label}
+                  <ChevronDown size={13} className={`vd-tab-chevron${isOpen ? ' vd-tab-chevron--open' : ''}`} />
+                </button>
+                {isOpen && (
+                  <div className="vd-tab-dropdown">
+                    {group.items.map(tabId => {
+                      const tab = TABS.find(t => t.id === tabId)!;
+                      return (
+                        <button
+                          key={tabId}
+                          className={`vd-tab-dropdown-item${activeTab === tabId ? ' vd-tab-dropdown-item--active' : ''}`}
+                          onClick={() => { setActiveTab(tabId); setOpenGroup(null); }}
+                        >
+                          <span>{tab.label}</span>
+                          {tab.edgeSource && <span className="vd-edge-dot" title="Synced from Edge">⚡</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {/* PMS & Vật tư nav groups */}
+          {NAV_GROUPS.map(group => {
+            const isOpen = openNavGroup === group.label;
+            return (
+              <div
+                key={group.label}
+                className="vd-tab-group vd-nav-group"
+                ref={el => { navGroupRefs.current[group.label] = el; }}
+              >
+                <button
+                  className="vd-tab-btn"
+                  onClick={() => setOpenNavGroup(isOpen ? null : group.label)}
+                >
+                  {group.label}
+                  <ChevronDown size={13} className={`vd-tab-chevron${isOpen ? ' vd-tab-chevron--open' : ''}`} />
+                </button>
+                {isOpen && (
+                  <div className="vd-tab-dropdown">
+                    {group.items.map(item => (
+                      <button
+                        key={item.path}
+                        className="vd-tab-dropdown-item"
+                        onClick={() => { navigate(item.path); setOpenNavGroup(null); }}
+                      >
+                        <span>{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {/* Active tab label breadcrumb */}
+          <span className="vd-active-tab-label">
+            {TABS.find(t => t.id === activeTab)?.label}
+            {TABS.find(t => t.id === activeTab)?.edgeSource && <span className="vd-edge-indicator" title="Synced from Edge">⚡</span>}
+          </span>
+        </div>
       </div>
 
       {/* Tab Content */}
