@@ -59,7 +59,6 @@ artifacts/
 # ====================
 # ENTITY FRAMEWORK
 # ====================
-Migrations/*.Designer.cs
 *.dbmdl
 *.jfm
 
