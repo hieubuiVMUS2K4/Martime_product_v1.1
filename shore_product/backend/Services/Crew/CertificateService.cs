@@ -527,7 +527,8 @@ public class CertificateService : ICertificateService
     {
         Id = cc.Id,
         CrewMemberId = cc.CrewMemberId,
-        CrewName = cc.CrewMember?.FullName,
+        CrewMemberName = cc.CrewMember?.FullName,
+        VesselId = cc.CrewMember?.VesselId,
         CertificateId = cc.CertificateId,
         CertificateCode = cc.Certificate?.CertificateCode,
         CertificateName = cc.Certificate?.CertificateName,

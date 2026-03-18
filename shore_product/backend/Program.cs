@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json;
@@ -265,7 +266,25 @@ app.UseExceptionHandler(errorApp =>
     });
 });
 
+// Create uploads directories
+var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
+Directory.CreateDirectory(uploadsPath);
+Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "certificates"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "avatars"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "travel_documents"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "seafarer_documents"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "employment_documents"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "health_documents"));
+
 app.UseCors("AllowWebMobile");
+
+// Serve uploaded files
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads"
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

@@ -274,10 +274,11 @@ public class SyncConflictHandler : ISyncConflictHandler
             }
             else if (tableName == "crew_certificate")
             {
-                // Shore wins official cert data, edge keeps file paths
+                // Shore wins official cert data including file path
+                // (SaveSyncedFileAsync saves the actual file locally with the same filename)
                 var edgeOwnedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
-                    "DocumentFilePath", "FilePath", "FileUrl", "Remarks"
+                    "Remarks"
                 };
                 shouldApply = !edgeOwnedFields.Contains(prop.Name);
             }

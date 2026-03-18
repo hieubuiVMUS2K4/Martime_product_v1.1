@@ -200,6 +200,46 @@ public class SyncOutboxService : ISyncOutboxService
                 HasMore = hasMore
             };
 
+            // Attach file data for document-related items
+            var fileTableNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "crew_certificate", "travel_document", "seafarer_document",
+                "employment_document", "health_document"
+            };
+            foreach (var dto in response.Items)
+            {
+                if (!fileTableNames.Contains(dto.TableName)) continue;
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(dto.Payload);
+                    string? filePath = null;
+                    foreach (var propName in new[] { "documentFilePath", "DocumentFilePath", "filePath", "FilePath", "fileUrl", "FileUrl" })
+                    {
+                        if (doc.RootElement.TryGetProperty(propName, out var val))
+                        {
+                            filePath = val.GetString();
+                            if (!string.IsNullOrEmpty(filePath)) break;
+                        }
+                    }
+                    if (string.IsNullOrEmpty(filePath)) continue;
+
+                    var absPath = filePath.StartsWith("/")
+                        ? Path.Combine(Directory.GetCurrentDirectory(), filePath.TrimStart('/'))
+                        : filePath;
+                    if (!System.IO.File.Exists(absPath)) continue;
+
+                    var fileInfo = new FileInfo(absPath);
+                    if (fileInfo.Length > 10 * 1024 * 1024) continue; // Skip files > 10MB
+
+                    dto.FileData = Convert.ToBase64String(await System.IO.File.ReadAllBytesAsync(absPath));
+                    dto.FileName = Path.GetFileName(absPath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to attach file for pull item {Table}/{Key}", dto.TableName, dto.RecordKey);
+                }
+            }
+
             _logger.LogDebug("Pull response for {NodeId}: {Count} items, hasMore={HasMore}",
                 nodeId, response.Items.Count, hasMore);
 

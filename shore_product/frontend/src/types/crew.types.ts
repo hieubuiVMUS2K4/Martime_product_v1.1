@@ -86,6 +86,7 @@ export interface CrewCertificate {
   id: number;
   crewMemberId: string;
   crewMemberName?: string;
+  vesselId?: string;
   certificateId: number;
   certificateName?: string;
   certificateCode?: string;
@@ -101,6 +102,7 @@ export interface CrewCertificate {
   status?: string;
   daysUntilExpiry?: number;
   fileUrl?: string;
+  documentFilePath?: string;
   originNode?: string;
   isSynced?: boolean;
 }

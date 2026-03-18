@@ -111,7 +111,7 @@ export function useCrewCertificates(crewMemberId: string | undefined) {
 
   useEffect(() => { fetch(); }, [fetch]);
 
-  return { data, loading, error, refetch: fetch };
+  return { data, setData, loading, error, refetch: fetch };
 }
 
 // ============================================================

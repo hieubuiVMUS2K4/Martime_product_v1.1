@@ -449,6 +449,11 @@ public class CrewController : ControllerBase
             var crew = await _context.CrewMembers.FindAsync(id);
             if (crew == null) return NotFound(new { error = "Crew member not found" });
 
+            // Attach if detached (global NoTracking) so changes are persisted
+            var entry = _context.Entry(crew);
+            if (entry.State == Microsoft.EntityFrameworkCore.EntityState.Detached)
+                entry.State = Microsoft.EntityFrameworkCore.EntityState.Unchanged;
+
             crew.EdgeChangesViewed = true;
             crew.EdgeChanges = null;
             crew.UpdatedAt = DateTime.UtcNow;
@@ -459,6 +464,67 @@ public class CrewController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error marking changes viewed for crew {Id}", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>POST /api/crew/{id}/avatar — Upload or replace crew avatar photo.</summary>
+    [HttpPost("{id:guid}/avatar")]
+    [AllowAnonymous]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadAvatar(Guid id, [FromForm] IFormFile file)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { error = "File is required" });
+
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+                return BadRequest(new { error = "Only image files (JPG, PNG, GIF) are allowed" });
+
+            if (file.Length > 5 * 1024 * 1024)
+                return BadRequest(new { error = "File size must not exceed 5MB" });
+
+            var crew = await _context.CrewMembers.FindAsync(id);
+            if (crew == null) return NotFound(new { error = "Crew member not found" });
+
+            var uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "crew", "avatars");
+            Directory.CreateDirectory(uploadsRoot);
+
+            var fileName = $"avatar_{id}_{DateTime.UtcNow:yyyyMMddHHmmss}{extension}";
+            var filePath = Path.Combine(uploadsRoot, fileName);
+
+            // Delete old avatar file if stored locally
+            if (!string.IsNullOrEmpty(crew.PhotoUrl) && crew.PhotoUrl.StartsWith("/uploads/"))
+            {
+                var oldPath = Path.Combine(Directory.GetCurrentDirectory(),
+                    crew.PhotoUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (System.IO.File.Exists(oldPath))
+                    System.IO.File.Delete(oldPath);
+            }
+
+            await using var stream = new FileStream(filePath, FileMode.Create);
+            await file.CopyToAsync(stream);
+
+            crew.PhotoUrl = $"/uploads/crew/avatars/{fileName}";
+            crew.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Uploaded avatar for crew: {Id}", id);
+
+            var dto = await _crewService.GetCrewByIdAsync(id);
+            return Ok(new
+            {
+                message = "Avatar uploaded successfully",
+                avatarUrl = crew.PhotoUrl,
+                crewMember = dto
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading avatar for crew {Id}", id);
             return StatusCode(500, new { error = "Internal server error" });
         }
     }

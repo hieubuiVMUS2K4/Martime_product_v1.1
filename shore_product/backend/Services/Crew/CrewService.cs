@@ -810,6 +810,7 @@ public class CrewService : ICrewService
             MedicalExpiry = crew.MedicalExpiry,
             DateOfBirth = crew.DateOfBirth,
             PhotoUrl = crew.PhotoUrl,
+            AvatarUrl = crew.PhotoUrl,
             PlaceOfBirth = crew.PlaceOfBirth,
             IdCardNumber = crew.IdCardNumber,
             MaritalStatus = crew.MaritalStatus,
