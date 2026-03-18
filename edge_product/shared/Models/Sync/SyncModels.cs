@@ -78,6 +78,22 @@ public class SyncQueue
 }
 
 /// <summary>
+/// Persistent state store for Edge sync metadata.
+/// Used to track timestamps, cursors, and other sync state across restarts.
+/// </summary>
+public class SyncState
+{
+    [Key]
+    [MaxLength(100)]
+    public string Key { get; set; } = string.Empty;
+
+    [Required]
+    public string Value { get; set; } = string.Empty;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
 /// Shore-side outbox for Shore→Edge sync.
 /// Queues changes made on shore to be pulled by edge nodes.
 /// </summary>

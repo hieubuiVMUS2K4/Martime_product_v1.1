@@ -132,6 +132,11 @@ dist-ssr/
 docker-compose.override.yml
 .docker/
 
+# Production build output (artifacts, không commit lên git)
+shore_product/production/backend/
+shore_product/production/frontend/dist/
+# Giữ lại configs: Dockerfiles, docker-compose.yml, nginx/, .env.production, init-scripts/
+
 # ====================
 # DATABASES
 # ====================

@@ -188,6 +188,9 @@ public class SyncService : ISyncService
 
             if (totalProcessed > 0)
                 _logger.LogInformation("Pulled {Count} items from shore", totalProcessed);
+
+            // Persist the pull timestamp so next restart doesn't re-pull old data
+            await SaveLastPullTimestampAsync(context, DateTime.UtcNow);
         }
         catch (HttpRequestException ex)
         {
@@ -322,11 +325,43 @@ public class SyncService : ISyncService
         // As a fallback, we just log.
     }
 
+    private const string LastPullTimestampKey = "LastPullTimestamp";
+
     private async Task<DateTime> GetLastPullTimestampAsync(EdgeDbContext context)
     {
-        // Find last successful pull timestamp from any stored state
-        // For now, default to 7 days ago
-        return await Task.FromResult(DateTime.UtcNow.AddDays(-7));
+        var state = await context.SyncState
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Key == LastPullTimestampKey);
+
+        if (state != null && DateTime.TryParse(state.Value, null,
+                System.Globalization.DateTimeStyles.RoundtripKind, out var ts))
+            return ts;
+
+        // First ever pull — go back 7 days to catch any existing data
+        return DateTime.UtcNow.AddDays(-7);
+    }
+
+    private async Task SaveLastPullTimestampAsync(EdgeDbContext context, DateTime timestamp)
+    {
+        var state = await context.SyncState
+            .FirstOrDefaultAsync(s => s.Key == LastPullTimestampKey);
+
+        if (state == null)
+        {
+            context.SyncState.Add(new SyncState
+            {
+                Key = LastPullTimestampKey,
+                Value = timestamp.ToString("O"),
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            state.Value = timestamp.ToString("O");
+            state.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await context.SaveChangesAsync();
     }
 
     private List<SyncPriority> GetAllowedPriorities(NetworkType network)

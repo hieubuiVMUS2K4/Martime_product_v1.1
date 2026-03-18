@@ -1,2 +1,4 @@
-INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
-VALUES ('20260315180409_AddCrewReviewWorkflowColumns', '8.0.0');
+-- NOTE: This file is intentionally left empty for fresh local installs.
+-- EF Core will create __EFMigrationsHistory and apply ALL migrations from scratch.
+-- Only use INSERT statements here when seeding an existing production DB that was
+-- bootstrapped via SQL dump (not via EF migrations).

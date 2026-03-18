@@ -1,0 +1,12 @@
+# =============================================================
+# Shore Backend — Production Runtime Image
+# Pre-built with: dotnet publish (via build-production.ps1)
+# Base image: aspnet:8.0 (runtime only, no SDK needed on server)
+# =============================================================
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+COPY backend/ ./
+ENV ASPNETCORE_URLS=http://+:5000
+ENV ASPNETCORE_ENVIRONMENT=Production
+EXPOSE 5000
+ENTRYPOINT ["dotnet", "product-api.dll"]

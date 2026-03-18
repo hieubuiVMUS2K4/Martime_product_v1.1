@@ -48,8 +48,9 @@ public class EdgeDbContext : DbContext
     public DbSet<VoyageActualRevenue> VoyageActualRevenues { get; set; } = null!;
     public DbSet<VoyageSettlement> VoyageSettlements { get; set; } = null!;
 
-    // Sync Queue
+    // Sync Queue & State
     public DbSet<SyncQueue> SyncQueue { get; set; } = null!;
+    public DbSet<SyncState> SyncState { get; set; } = null!;
 
     // Critical Operational Tables (SOLAS/ISM/MARPOL)
     public DbSet<CrewMember> CrewMembers { get; set; } = null!;
