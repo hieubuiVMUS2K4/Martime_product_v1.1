@@ -210,7 +210,8 @@ public class CrewSyncOrchestrator : ICrewSyncOrchestrator
 
     public async Task<SyncNodeTracker> GetOrCreateNodeAsync(string nodeId, string? shipName = null, string? imo = null)
     {
-        var node = await _context.SyncNodeTrackers.FirstOrDefaultAsync(n => n.NodeId == nodeId);
+        // AsTracking() needed because DbContext default is NoTracking
+        var node = await _context.SyncNodeTrackers.AsTracking().FirstOrDefaultAsync(n => n.NodeId == nodeId);
 
         if (node == null)
         {

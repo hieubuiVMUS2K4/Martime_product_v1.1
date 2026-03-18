@@ -1135,7 +1135,9 @@ public class SyncInboxService : ISyncInboxService
         }
 
         // Upsert: find by IMO or create new
-        var vessel = await _context.Vessels.FirstOrDefaultAsync(v => v.IMO == imo);
+        // AsTracking() needed because DbContext default is NoTracking — without it,
+        // changes to the loaded entity are invisible to SaveChangesAsync.
+        var vessel = await _context.Vessels.AsTracking().FirstOrDefaultAsync(v => v.IMO == imo);
         bool isNew = vessel == null;
         
         if (isNew)
