@@ -17,10 +17,8 @@ namespace MaritimeEdge.Data.Migrations
                 schema: "public",
                 table: "maintenance_schedules");
 
-            migrationBuilder.DropColumn(
-                name: "nationality",
-                schema: "public",
-                table: "crew_members");
+            // Use IF EXISTS to safely skip if column was already dropped in a previous migration
+            migrationBuilder.Sql("ALTER TABLE public.crew_members DROP COLUMN IF EXISTS nationality;");
 
             migrationBuilder.RenameIndex(
                 name: "IX_maintenance_schedules_equipment_group_id",
