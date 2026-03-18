@@ -12,559 +12,253 @@ namespace MaritimeEdge.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_maintenance_schedules_equipment_groups_equipment_group_id",
-                schema: "public",
-                table: "maintenance_schedules");
+            // All DDL in this block uses IF NOT EXISTS / IF EXISTS guards.
+            // The DB already has most of these changes applied outside of EF migrations,
+            // so we only actually create what's genuinely missing (sync_state table).
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    -- ── Drop stale FK (may already be gone) ──────────────────────────────
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.table_constraints
+                        WHERE constraint_name = 'FK_maintenance_schedules_equipment_groups_equipment_group_id'
+                          AND table_schema = 'public'
+                    ) THEN
+                        ALTER TABLE public.maintenance_schedules
+                            DROP CONSTRAINT ""FK_maintenance_schedules_equipment_groups_equipment_group_id"";
+                    END IF;
 
-            // Use IF EXISTS to safely skip if column was already dropped in a previous migration
-            migrationBuilder.Sql("ALTER TABLE public.crew_members DROP COLUMN IF EXISTS nationality;");
+                    -- ── Drop nationality if still present ────────────────────────────────
+                    ALTER TABLE public.crew_members DROP COLUMN IF EXISTS nationality;
 
-            migrationBuilder.RenameIndex(
-                name: "IX_maintenance_schedules_equipment_group_id",
-                schema: "public",
-                table: "maintenance_schedules",
-                newName: "idx_schedule_equipment_group");
+                    -- ── Rename index (may already be renamed) ────────────────────────────
+                    IF EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='IX_maintenance_schedules_equipment_group_id') THEN
+                        ALTER INDEX public.""IX_maintenance_schedules_equipment_group_id"" RENAME TO idx_schedule_equipment_group;
+                    END IF;
 
-            migrationBuilder.RenameColumn(
-                name: "ParentId",
-                schema: "public",
-                table: "equipment_assets",
-                newName: "parent_id");
+                    -- ── Rename column (may already be renamed) ───────────────────────────
+                    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='equipment_assets' AND column_name='ParentId') THEN
+                        ALTER TABLE public.equipment_assets RENAME COLUMN ""ParentId"" TO parent_id;
+                    END IF;
 
-            migrationBuilder.AddColumn<string>(
-                name: "image_url",
-                schema: "public",
-                table: "material_items",
-                type: "character varying(500)",
-                maxLength: 500,
-                nullable: true);
+                    -- ── material_items.image_url ─────────────────────────────────────────
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='material_items' AND column_name='image_url') THEN
+                        ALTER TABLE public.material_items ADD COLUMN image_url character varying(500);
+                    END IF;
 
-            migrationBuilder.AddColumn<Guid>(
-                name: "equipment_asset_id",
-                schema: "public",
-                table: "maintenance_tasks",
-                type: "uuid",
-                nullable: true);
+                    -- ── maintenance_tasks.equipment_asset_id ─────────────────────────────
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='maintenance_tasks' AND column_name='equipment_asset_id') THEN
+                        ALTER TABLE public.maintenance_tasks ADD COLUMN equipment_asset_id uuid;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='maintenance_tasks' AND column_name='equipment_asset_name') THEN
+                        ALTER TABLE public.maintenance_tasks ADD COLUMN equipment_asset_name character varying(200);
+                    END IF;
 
-            migrationBuilder.AddColumn<string>(
-                name: "equipment_asset_name",
-                schema: "public",
-                table: "maintenance_tasks",
-                type: "character varying(200)",
-                maxLength: 200,
-                nullable: true);
+                    -- ── maintenance_schedules columns ────────────────────────────────────
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='maintenance_schedules' AND column_name='equipment_asset_id') THEN
+                        ALTER TABLE public.maintenance_schedules ADD COLUMN equipment_asset_id uuid;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='maintenance_schedules' AND column_name='maintenance_category') THEN
+                        ALTER TABLE public.maintenance_schedules ADD COLUMN maintenance_category character varying(20) NOT NULL DEFAULT '';
+                    END IF;
+                    -- Allow equipment_group_id to be nullable
+                    ALTER TABLE public.maintenance_schedules ALTER COLUMN equipment_group_id DROP NOT NULL;
 
-            migrationBuilder.AlterColumn<Guid>(
-                name: "equipment_group_id",
-                schema: "public",
-                table: "maintenance_schedules",
-                type: "uuid",
-                nullable: true,
-                oldClrType: typeof(Guid),
-                oldType: "uuid");
+                    -- ── crew_members columns ─────────────────────────────────────────────
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='crew_members' AND column_name='country_id') THEN
+                        ALTER TABLE public.crew_members ADD COLUMN country_id integer;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='crew_members' AND column_name='edge_changes') THEN
+                        ALTER TABLE public.crew_members ADD COLUMN edge_changes text;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='crew_members' AND column_name='edge_changes_viewed') THEN
+                        ALTER TABLE public.crew_members ADD COLUMN edge_changes_viewed boolean NOT NULL DEFAULT false;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='crew_members' AND column_name='onboard_status') THEN
+                        ALTER TABLE public.crew_members ADD COLUMN onboard_status character varying(20);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='crew_members' AND column_name='onboard_status_changed_at') THEN
+                        ALTER TABLE public.crew_members ADD COLUMN onboard_status_changed_at timestamp with time zone;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='crew_members' AND column_name='onboard_status_changed_by') THEN
+                        ALTER TABLE public.crew_members ADD COLUMN onboard_status_changed_by character varying(100);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='crew_members' AND column_name='review_checklist') THEN
+                        ALTER TABLE public.crew_members ADD COLUMN review_checklist text;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='crew_members' AND column_name='review_notes') THEN
+                        ALTER TABLE public.crew_members ADD COLUMN review_notes text;
+                    END IF;
 
-            migrationBuilder.AddColumn<Guid>(
-                name: "equipment_asset_id",
-                schema: "public",
-                table: "maintenance_schedules",
-                type: "uuid",
-                nullable: true);
+                    -- ── Tables: create only if not exists ────────────────────────────────
+                    CREATE TABLE IF NOT EXISTS public.inventory_stock (
+                        id serial PRIMARY KEY,
+                        material_item_id uuid NOT NULL,
+                        store_location_id uuid NOT NULL,
+                        quantity numeric(14,3) NOT NULL,
+                        unit_cost numeric(18,2) NOT NULL,
+                        last_receipt_date timestamp with time zone,
+                        updated_at timestamp with time zone NOT NULL,
+                        origin_node character varying(50) NOT NULL
+                    );
 
-            migrationBuilder.AddColumn<string>(
-                name: "maintenance_category",
-                schema: "public",
-                table: "maintenance_schedules",
-                type: "character varying(20)",
-                maxLength: 20,
-                nullable: false,
-                defaultValue: "");
+                    CREATE TABLE IF NOT EXISTS public.material_item_equipments (
+                        id uuid PRIMARY KEY,
+                        material_item_id uuid NOT NULL,
+                        equipment_asset_id uuid NOT NULL,
+                        notes character varying(500),
+                        created_at timestamp with time zone NOT NULL
+                    );
 
-            migrationBuilder.AddColumn<int>(
-                name: "country_id",
-                schema: "public",
-                table: "crew_members",
-                type: "integer",
-                nullable: true);
+                    CREATE TABLE IF NOT EXISTS public.material_requests (
+                        id serial PRIMARY KEY,
+                        request_code character varying(50) NOT NULL,
+                        vessel_name character varying(150),
+                        voyage_id uuid,
+                        voyage_name character varying(150),
+                        urgency character varying(20) NOT NULL,
+                        needed_date timestamp with time zone NOT NULL,
+                        request_date timestamp with time zone NOT NULL,
+                        requested_by character varying(100),
+                        notes text,
+                        attachments text,
+                        status character varying(20) NOT NULL,
+                        is_active boolean NOT NULL,
+                        created_at timestamp with time zone NOT NULL,
+                        updated_at timestamp with time zone NOT NULL,
+                        origin_node character varying(50) NOT NULL
+                    );
 
-            migrationBuilder.AddColumn<string>(
-                name: "edge_changes",
-                schema: "public",
-                table: "crew_members",
-                type: "text",
-                nullable: true);
+                    CREATE TABLE IF NOT EXISTS public.store_locations (
+                        id uuid PRIMARY KEY,
+                        location_code character varying(50) NOT NULL,
+                        name character varying(200) NOT NULL,
+                        description character varying(500),
+                        parent_id uuid REFERENCES public.store_locations(id) ON DELETE RESTRICT,
+                        address character varying(300),
+                        manager_name character varying(100),
+                        phone character varying(50),
+                        email character varying(100),
+                        is_active boolean NOT NULL,
+                        is_synced boolean NOT NULL,
+                        created_at timestamp with time zone NOT NULL,
+                        updated_at timestamp with time zone NOT NULL,
+                        origin_node character varying(50) NOT NULL
+                    );
 
-            migrationBuilder.AddColumn<bool>(
-                name: "edge_changes_viewed",
-                schema: "public",
-                table: "crew_members",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
+                    -- ── sync_state: the whole reason for this migration ──────────────────
+                    CREATE TABLE IF NOT EXISTS public.sync_state (
+                        key character varying(100) PRIMARY KEY,
+                        value text NOT NULL,
+                        updated_at timestamp with time zone NOT NULL
+                    );
 
-            migrationBuilder.AddColumn<string>(
-                name: "onboard_status",
-                schema: "public",
-                table: "crew_members",
-                type: "character varying(20)",
-                maxLength: 20,
-                nullable: true);
+                    CREATE TABLE IF NOT EXISTS public.material_request_items (
+                        id serial PRIMARY KEY,
+                        request_id integer NOT NULL REFERENCES public.material_requests(id) ON DELETE CASCADE,
+                        equipment_asset_id uuid,
+                        material_item_id uuid,
+                        item_name character varying(200) NOT NULL,
+                        description text,
+                        unit character varying(20) NOT NULL,
+                        quantity_on_hand numeric(14,3) NOT NULL,
+                        quantity_requested numeric(14,3) NOT NULL,
+                        note text
+                    );
 
-            migrationBuilder.AddColumn<DateTime>(
-                name: "onboard_status_changed_at",
-                schema: "public",
-                table: "crew_members",
-                type: "timestamp with time zone",
-                nullable: true);
+                    CREATE TABLE IF NOT EXISTS public.stock_receipts (
+                        id serial PRIMARY KEY,
+                        receipt_code character varying(50) NOT NULL,
+                        vessel_name character varying(150),
+                        voyage_id uuid,
+                        voyage_name character varying(150),
+                        supplier_code character varying(50),
+                        supplier_name character varying(200),
+                        received_date timestamp with time zone NOT NULL,
+                        receipt_date timestamp with time zone NOT NULL,
+                        created_by character varying(100),
+                        notes text,
+                        attachments text,
+                        material_request_id integer REFERENCES public.material_requests(id) ON DELETE SET NULL,
+                        status character varying(20) NOT NULL,
+                        is_active boolean NOT NULL,
+                        created_at timestamp with time zone NOT NULL,
+                        updated_at timestamp with time zone NOT NULL,
+                        origin_node character varying(50) NOT NULL
+                    );
 
-            migrationBuilder.AddColumn<string>(
-                name: "onboard_status_changed_by",
-                schema: "public",
-                table: "crew_members",
-                type: "character varying(100)",
-                maxLength: 100,
-                nullable: true);
+                    CREATE TABLE IF NOT EXISTS public.stock_receipt_items (
+                        id serial PRIMARY KEY,
+                        receipt_id integer NOT NULL REFERENCES public.stock_receipts(id) ON DELETE CASCADE,
+                        store_location_id uuid,
+                        material_item_id uuid,
+                        item_code character varying(50),
+                        item_name character varying(200) NOT NULL,
+                        description text,
+                        unit character varying(20) NOT NULL,
+                        quantity_requested numeric(14,3) NOT NULL,
+                        quantity_received numeric(14,3) NOT NULL,
+                        unit_cost numeric(18,2),
+                        currency character varying(3),
+                        note text
+                    );
 
-            migrationBuilder.AddColumn<string>(
-                name: "review_checklist",
-                schema: "public",
-                table: "crew_members",
-                type: "text",
-                nullable: true);
+                    -- ── Indexes: create only if not exists ───────────────────────────────
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_maintenance_equipment_asset') THEN
+                        CREATE INDEX idx_maintenance_equipment_asset ON public.maintenance_tasks(equipment_asset_id);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_schedule_equipment_asset') THEN
+                        CREATE INDEX idx_schedule_equipment_asset ON public.maintenance_schedules(equipment_asset_id);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='IX_equipment_assets_parent_id') THEN
+                        CREATE INDEX ""IX_equipment_assets_parent_id"" ON public.equipment_assets(parent_id);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_crew_country_id') THEN
+                        CREATE INDEX idx_crew_country_id ON public.crew_members(country_id);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_crew_onboard_status') THEN
+                        CREATE INDEX idx_crew_onboard_status ON public.crew_members(onboard_status) WHERE onboard_status IS NOT NULL;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='uk_inventory_material_location') THEN
+                        CREATE UNIQUE INDEX uk_inventory_material_location ON public.inventory_stock(material_item_id, store_location_id);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_material_request_status') THEN
+                        CREATE INDEX idx_material_request_status ON public.material_requests(status);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='uk_material_request_code') THEN
+                        CREATE UNIQUE INDEX uk_material_request_code ON public.material_requests(request_code);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_stock_receipt_status') THEN
+                        CREATE INDEX idx_stock_receipt_status ON public.stock_receipts(status);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='uk_stock_receipt_code') THEN
+                        CREATE UNIQUE INDEX uk_stock_receipt_code ON public.stock_receipts(receipt_code);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_store_location_active') THEN
+                        CREATE INDEX idx_store_location_active ON public.store_locations(is_active) WHERE is_active = true;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_store_location_synced') THEN
+                        CREATE INDEX idx_store_location_synced ON public.store_locations(is_synced) WHERE is_synced = false;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='uk_store_locations_code') THEN
+                        CREATE UNIQUE INDEX uk_store_locations_code ON public.store_locations(location_code);
+                    END IF;
 
-            migrationBuilder.AddColumn<string>(
-                name: "review_notes",
-                schema: "public",
-                table: "crew_members",
-                type: "text",
-                nullable: true);
-
-            migrationBuilder.CreateTable(
-                name: "inventory_stock",
-                schema: "public",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    material_item_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    store_location_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    quantity = table.Column<decimal>(type: "numeric(14,3)", nullable: false),
-                    unit_cost = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
-                    last_receipt_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    origin_node = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("p_k_inventory_stocks", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "material_item_equipments",
-                schema: "public",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    material_item_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    equipment_asset_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    notes = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("p_k_material_item_equipments", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "material_requests",
-                schema: "public",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    request_code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    vessel_name = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: true),
-                    voyage_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    voyage_name = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: true),
-                    urgency = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    needed_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    request_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    requested_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    notes = table.Column<string>(type: "text", nullable: true),
-                    attachments = table.Column<string>(type: "text", nullable: true),
-                    status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    is_active = table.Column<bool>(type: "boolean", nullable: false),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    origin_node = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("p_k_material_requests", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "store_locations",
-                schema: "public",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    location_code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    parent_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    address = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true),
-                    manager_name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    phone = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    email = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    is_active = table.Column<bool>(type: "boolean", nullable: false),
-                    is_synced = table.Column<bool>(type: "boolean", nullable: false),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    origin_node = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("p_k_store_locations", x => x.id);
-                    table.ForeignKey(
-                        name: "f_k_store_locations_store_locations_parent_id",
-                        column: x => x.parent_id,
-                        principalSchema: "public",
-                        principalTable: "store_locations",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "sync_state",
-                schema: "public",
-                columns: table => new
-                {
-                    key = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    value = table.Column<string>(type: "text", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("p_k_sync_state", x => x.key);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "material_request_items",
-                schema: "public",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    request_id = table.Column<int>(type: "integer", nullable: false),
-                    equipment_asset_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    material_item_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    item_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    description = table.Column<string>(type: "text", nullable: true),
-                    unit = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    quantity_on_hand = table.Column<decimal>(type: "numeric(14,3)", nullable: false),
-                    quantity_requested = table.Column<decimal>(type: "numeric(14,3)", nullable: false),
-                    note = table.Column<string>(type: "text", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("p_k_material_request_items", x => x.id);
-                    table.ForeignKey(
-                        name: "f_k_material_request_items_material_requests_request_id",
-                        column: x => x.request_id,
-                        principalSchema: "public",
-                        principalTable: "material_requests",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "stock_receipts",
-                schema: "public",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    receipt_code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    vessel_name = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: true),
-                    voyage_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    voyage_name = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: true),
-                    supplier_code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    supplier_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
-                    received_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    receipt_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    created_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    notes = table.Column<string>(type: "text", nullable: true),
-                    attachments = table.Column<string>(type: "text", nullable: true),
-                    material_request_id = table.Column<int>(type: "integer", nullable: true),
-                    status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    is_active = table.Column<bool>(type: "boolean", nullable: false),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    origin_node = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("p_k_stock_receipts", x => x.id);
-                    table.ForeignKey(
-                        name: "f_k_stock_receipts_material_requests_material_request_id",
-                        column: x => x.material_request_id,
-                        principalSchema: "public",
-                        principalTable: "material_requests",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.SetNull);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "stock_receipt_items",
-                schema: "public",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    receipt_id = table.Column<int>(type: "integer", nullable: false),
-                    store_location_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    material_item_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    item_code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    item_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    description = table.Column<string>(type: "text", nullable: true),
-                    unit = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    quantity_requested = table.Column<decimal>(type: "numeric(14,3)", nullable: false),
-                    quantity_received = table.Column<decimal>(type: "numeric(14,3)", nullable: false),
-                    unit_cost = table.Column<decimal>(type: "numeric(18,2)", nullable: true),
-                    currency = table.Column<string>(type: "character varying(3)", maxLength: 3, nullable: true),
-                    note = table.Column<string>(type: "text", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("p_k_stock_receipt_items", x => x.id);
-                    table.ForeignKey(
-                        name: "f_k_stock_receipt_items_stock_receipts_receipt_id",
-                        column: x => x.receipt_id,
-                        principalSchema: "public",
-                        principalTable: "stock_receipts",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.UpdateData(
-                schema: "public",
-                table: "ranks",
-                keyColumn: "id",
-                keyValue: 1,
-                columns: new[] { "created_at", "updated_at" },
-                values: new object[] { new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(74), new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(77) });
-
-            migrationBuilder.UpdateData(
-                schema: "public",
-                table: "ranks",
-                keyColumn: "id",
-                keyValue: 2,
-                columns: new[] { "created_at", "updated_at" },
-                values: new object[] { new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(83), new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(83) });
-
-            migrationBuilder.UpdateData(
-                schema: "public",
-                table: "ranks",
-                keyColumn: "id",
-                keyValue: 3,
-                columns: new[] { "created_at", "updated_at" },
-                values: new object[] { new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(84), new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(84) });
-
-            migrationBuilder.UpdateData(
-                schema: "public",
-                table: "ranks",
-                keyColumn: "id",
-                keyValue: 4,
-                columns: new[] { "created_at", "updated_at" },
-                values: new object[] { new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(85), new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(85) });
-
-            migrationBuilder.UpdateData(
-                schema: "public",
-                table: "ranks",
-                keyColumn: "id",
-                keyValue: 5,
-                columns: new[] { "created_at", "updated_at" },
-                values: new object[] { new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(86), new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(86) });
-
-            migrationBuilder.UpdateData(
-                schema: "public",
-                table: "ranks",
-                keyColumn: "id",
-                keyValue: 6,
-                columns: new[] { "created_at", "updated_at" },
-                values: new object[] { new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(87), new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(88) });
-
-            migrationBuilder.UpdateData(
-                schema: "public",
-                table: "ranks",
-                keyColumn: "id",
-                keyValue: 7,
-                columns: new[] { "created_at", "updated_at" },
-                values: new object[] { new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(88), new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(89) });
-
-            migrationBuilder.UpdateData(
-                schema: "public",
-                table: "ranks",
-                keyColumn: "id",
-                keyValue: 8,
-                columns: new[] { "created_at", "updated_at" },
-                values: new object[] { new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(89), new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(89) });
-
-            migrationBuilder.UpdateData(
-                schema: "public",
-                table: "ranks",
-                keyColumn: "id",
-                keyValue: 9,
-                columns: new[] { "created_at", "updated_at" },
-                values: new object[] { new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(90), new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(90) });
-
-            migrationBuilder.UpdateData(
-                schema: "public",
-                table: "ranks",
-                keyColumn: "id",
-                keyValue: 10,
-                columns: new[] { "created_at", "updated_at" },
-                values: new object[] { new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(91), new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(91) });
-
-            migrationBuilder.CreateIndex(
-                name: "idx_maintenance_equipment_asset",
-                schema: "public",
-                table: "maintenance_tasks",
-                column: "equipment_asset_id");
-
-            migrationBuilder.CreateIndex(
-                name: "idx_schedule_equipment_asset",
-                schema: "public",
-                table: "maintenance_schedules",
-                column: "equipment_asset_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_equipment_assets_parent_id",
-                schema: "public",
-                table: "equipment_assets",
-                column: "parent_id");
-
-            migrationBuilder.CreateIndex(
-                name: "idx_crew_country_id",
-                schema: "public",
-                table: "crew_members",
-                column: "country_id");
-
-            migrationBuilder.CreateIndex(
-                name: "idx_crew_onboard_status",
-                schema: "public",
-                table: "crew_members",
-                column: "onboard_status",
-                filter: "onboard_status IS NOT NULL");
-
-            migrationBuilder.CreateIndex(
-                name: "uk_inventory_material_location",
-                schema: "public",
-                table: "inventory_stock",
-                columns: new[] { "material_item_id", "store_location_id" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_material_request_items_request_id",
-                schema: "public",
-                table: "material_request_items",
-                column: "request_id");
-
-            migrationBuilder.CreateIndex(
-                name: "idx_material_request_status",
-                schema: "public",
-                table: "material_requests",
-                column: "status");
-
-            migrationBuilder.CreateIndex(
-                name: "uk_material_request_code",
-                schema: "public",
-                table: "material_requests",
-                column: "request_code",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_stock_receipt_items_receipt_id",
-                schema: "public",
-                table: "stock_receipt_items",
-                column: "receipt_id");
-
-            migrationBuilder.CreateIndex(
-                name: "idx_stock_receipt_status",
-                schema: "public",
-                table: "stock_receipts",
-                column: "status");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_stock_receipts_material_request_id",
-                schema: "public",
-                table: "stock_receipts",
-                column: "material_request_id");
-
-            migrationBuilder.CreateIndex(
-                name: "uk_stock_receipt_code",
-                schema: "public",
-                table: "stock_receipts",
-                column: "receipt_code",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "idx_store_location_active",
-                schema: "public",
-                table: "store_locations",
-                column: "is_active",
-                filter: "is_active = true");
-
-            migrationBuilder.CreateIndex(
-                name: "idx_store_location_synced",
-                schema: "public",
-                table: "store_locations",
-                column: "is_synced",
-                filter: "is_synced = false");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_store_locations_parent_id",
-                schema: "public",
-                table: "store_locations",
-                column: "parent_id");
-
-            migrationBuilder.CreateIndex(
-                name: "uk_store_locations_code",
-                schema: "public",
-                table: "store_locations",
-                column: "location_code",
-                unique: true);
-
-            migrationBuilder.AddForeignKey(
-                name: "f_k_crew_members_countries_country_id",
-                schema: "public",
-                table: "crew_members",
-                column: "country_id",
-                principalSchema: "public",
-                principalTable: "countries",
-                principalColumn: "id",
-                onDelete: ReferentialAction.SetNull);
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_maintenance_schedules_equipment_assets_equipment_asset_id",
-                schema: "public",
-                table: "maintenance_schedules",
-                column: "equipment_asset_id",
-                principalSchema: "public",
-                principalTable: "equipment_assets",
-                principalColumn: "id",
-                onDelete: ReferentialAction.SetNull);
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_maintenance_schedules_equipment_groups_equipment_group_id",
-                schema: "public",
-                table: "maintenance_schedules",
-                column: "equipment_group_id",
-                principalSchema: "public",
-                principalTable: "equipment_groups",
-                principalColumn: "id",
-                onDelete: ReferentialAction.SetNull);
+                    -- ── FKs: add only if not exists ──────────────────────────────────────
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name='f_k_crew_members_countries_country_id' AND table_schema='public') THEN
+                        ALTER TABLE public.crew_members ADD CONSTRAINT f_k_crew_members_countries_country_id
+                            FOREIGN KEY (country_id) REFERENCES public.countries(id) ON DELETE SET NULL;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name='FK_maintenance_schedules_equipment_assets_equipment_asset_id' AND table_schema='public') THEN
+                        ALTER TABLE public.maintenance_schedules ADD CONSTRAINT ""FK_maintenance_schedules_equipment_assets_equipment_asset_id""
+                            FOREIGN KEY (equipment_asset_id) REFERENCES public.equipment_assets(id) ON DELETE SET NULL;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name='FK_maintenance_schedules_equipment_groups_equipment_group_id' AND table_schema='public') THEN
+                        ALTER TABLE public.maintenance_schedules ADD CONSTRAINT ""FK_maintenance_schedules_equipment_groups_equipment_group_id""
+                            FOREIGN KEY (equipment_group_id) REFERENCES public.equipment_groups(id) ON DELETE SET NULL;
+                    END IF;
+                END $$;
+            ");
         }
 
         /// <inheritdoc />
