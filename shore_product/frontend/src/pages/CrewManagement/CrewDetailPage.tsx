@@ -3,14 +3,18 @@ import { useParams, useNavigate } from 'react-router-dom';
 import './CrewDetailPage.css';
 import {
   ArrowLeft, Upload, CheckCircle, XCircle, AlertTriangle,
-  Ship, MapPin, Calendar, Eye, ClipboardList, FileCheck, History, ScrollText,
+  Ship, MapPin, Calendar, Eye, ClipboardList, FileCheck, History, ScrollText, Plus, Pencil, Trash2,
 } from 'lucide-react';
 import { useCrewDetail, useCrewCertificates } from '../../hooks/useCrew';
 import { useCrewOnboarding, useCrewDocumentSubmissions, useCrewStatusHistory, useCrewAuditLog } from '../../hooks/useCrewManagement';
-import { crewApi, referenceApi } from '../../services/crew.service';
+import { crewApi, certificateApi, referenceApi } from '../../services/crew.service';
 import { useToast } from '../../components/common/Toast';
-import type { CrewDocument, ServiceRecord, Rank, Country } from '../../types/crew.types';
+import type { CrewDocument, ServiceRecord, Rank, Country, CrewCertificate } from '../../types/crew.types';
 import type { UpdateCrewRequest } from '../../types/crew.types';
+import { AddCrewCertificateModal } from './AddCrewCertificateModal';
+import { AddDocumentModal } from './AddDocumentModal';
+import { AddHealthDocumentModal } from './AddHealthDocumentModal';
+import ImageViewerModal from '../../components/common/ImageViewerModal';
 
 type TabType = 'basic-data' | 'documents' | 'voyage-history' | 'onboarding' | 'doc-workflow' | 'status-history' | 'audit';
 
@@ -26,7 +30,7 @@ export const CrewDetailPage: React.FC = () => {
   const { id, vesselId } = useParams<{ id: string; vesselId?: string }>();
   const navigate = useNavigate();
   const { data: crew, loading, error, refetch } = useCrewDetail(id);
-  const { data: certificates, loading: certsLoading } = useCrewCertificates(id);
+  const { data: certificates, setData: setCertificates, loading: certsLoading, refetch: refetchCerts } = useCrewCertificates(id);
   const toast = useToast();
 
   const [activeTab, setActiveTab] = useState<TabType>('basic-data');
@@ -100,12 +104,27 @@ export const CrewDetailPage: React.FC = () => {
     );
   };
 
+  // Certificate management
+  const [showAddCertModal, setShowAddCertModal] = useState(false);
+  const [editingCert, setEditingCert] = useState<CrewCertificate | null>(null);
+  const [uploadingCertId, setUploadingCertId] = useState<number | null>(null);
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [imageViewerUrl, setImageViewerUrl] = useState<string | null>(null);
+  const [imageViewerCertId, setImageViewerCertId] = useState<number | null>(null);
+
+  // Avatar upload
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [pendingAvatarPreview, setPendingAvatarPreview] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
   // Documents
   const [travelDocs, setTravelDocs] = useState<CrewDocument[]>([]);
   const [seafarerDocs, setSeafarerDocs] = useState<CrewDocument[]>([]);
   const [employmentDocs, setEmploymentDocs] = useState<CrewDocument[]>([]);
   const [healthDocs, setHealthDocs] = useState<CrewDocument[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
+  const [isAddDocModalOpen, setIsAddDocModalOpen] = useState(false);
+  const [isAddHealthDocModalOpen, setIsAddHealthDocModalOpen] = useState(false);
 
   // Service records
   const [serviceRecords, setServiceRecords] = useState<ServiceRecord[]>([]);
@@ -134,8 +153,8 @@ export const CrewDetailPage: React.FC = () => {
     referenceApi.getCountries().then(setCountries).catch(() => {});
   }, []);
 
-  const loadDocuments = useCallback(async () => {
-    if (!id || travelDocs.length > 0) return;
+  const loadDocuments = useCallback(async (force = false) => {
+    if (!id || (!force && travelDocs.length > 0)) return;
     setDocsLoading(true);
     try {
       const [t, s, e, h] = await Promise.all([
@@ -175,6 +194,101 @@ export const CrewDetailPage: React.FC = () => {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Không thể lưu dữ liệu');
     } finally { setSaving(false); }
+  };
+
+  // Avatar handlers
+  const handleAvatarChoose = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/jpg,image/png,image/gif';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) { toast.error('Ảnh không được vượt quá 5MB'); return; }
+      setPendingAvatarFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setPendingAvatarPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  };
+
+  const handleAvatarSave = async () => {
+    if (!id || !pendingAvatarFile) return;
+    try {
+      setUploadingAvatar(true);
+      const formData = new FormData();
+      formData.append('file', pendingAvatarFile);
+      const res = await crewApi.uploadAvatar(id, formData);
+      if (res.crewMember) await refetch();
+      setPendingAvatarFile(null);
+      setPendingAvatarPreview(null);
+      toast.success('Cập nhật ảnh thành công!');
+    } catch (err: any) {
+      toast.error(err.message || 'Upload thất bại');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleAvatarCancel = () => {
+    setPendingAvatarFile(null);
+    setPendingAvatarPreview(null);
+  };
+
+  // Certificate handlers
+  const handleCertificateFileUpload = (certId: number) => {    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.jpg,.jpeg,.png,.gif,.pdf';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      try {
+        setUploadingCertId(certId);
+        const formData = new FormData();
+        formData.append('file', file);
+        const result = await certificateApi.uploadCertificateFile(certId, formData);
+        // Instant update: patch the local cert state so the image renders immediately
+        setCertificates(prev => prev.map(c =>
+          c.id === certId ? { ...c, documentFilePath: result.documentFilePath } : c
+        ));
+        toast.success('Upload file thành công!');
+      } catch (err: any) {
+        toast.error(err.message || 'Upload thất bại');
+      } finally {
+        setUploadingCertId(null);
+      }
+    };
+    input.click();
+  };
+
+  const handleViewCertificateImage = (fileUrl: string, certId: number) => {
+    setImageViewerUrl(fileUrl);
+    setImageViewerCertId(certId);
+    setIsImageViewerOpen(true);
+  };
+
+  const handleCertificateUploadHandler = async (documentId: string, formData: FormData) => {
+    const certId = parseInt(documentId);
+    const result = await certificateApi.uploadCertificateFile(certId, formData);
+    // Instant update local state
+    setCertificates(prev => prev.map(c =>
+      c.id === certId ? { ...c, documentFilePath: result.documentFilePath } : c
+    ));
+    // Update the image viewer URL immediately
+    setImageViewerUrl(result.documentFilePath);
+    return result;
+  };
+
+  const handleDeleteCertificate = async (certId: number) => {
+    if (!window.confirm('Bạn có chắc muốn xóa chứng chỉ này?')) return;
+    try {
+      await certificateApi.deleteCrewCertificate(certId);
+      await refetchCerts();
+      toast.success('Đã xóa chứng chỉ');
+    } catch (err: any) {
+      toast.error(err.message || 'Không thể xóa chứng chỉ');
+    }
   };
 
   const getCertStatus = (expiryDate?: string) => {
@@ -453,14 +567,52 @@ export const CrewDetailPage: React.FC = () => {
                     <label className={`${labelCls}`} style={{ textAlign: 'center' }}>Company ID Number</label>
                     <input className={`${fieldCls} text-center w-32`} value={edited.crewId ?? ''} onChange={e => set('crewId', e.target.value)} />
                   </div>
-                  <div className="w-40 h-52 rounded-lg overflow-hidden bg-gray-200 shadow-md">
+                  <div className="w-40 h-52 rounded-lg overflow-hidden bg-gray-200 shadow-md relative">
                     <img
-                      src={crew.avatarUrl || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 260'%3E%3Crect width='200' height='260' fill='%23e5e7eb'/%3E%3Ccircle cx='100' cy='70' r='35' fill='%239ca3af'/%3E%3Cellipse cx='100' cy='180' rx='65' ry='50' fill='%239ca3af'/%3E%3C/svg%3E"}
+                      src={pendingAvatarPreview || crew.avatarUrl || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 260'%3E%3Crect width='200' height='260' fill='%23e5e7eb'/%3E%3Ccircle cx='100' cy='70' r='35' fill='%239ca3af'/%3E%3Cellipse cx='100' cy='180' rx='65' ry='50' fill='%239ca3af'/%3E%3C/svg%3E"}
                       alt="Avatar"
                       className="w-full h-full object-cover"
                     />
+                    {uploadingAvatar && (
+                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-4 border-white border-t-transparent" />
+                      </div>
+                    )}
+                    {pendingAvatarPreview && !uploadingAvatar && (
+                      <div className="absolute top-1 right-1 bg-yellow-500 text-white text-xs px-1.5 py-0.5 rounded font-medium">NEW</div>
+                    )}
                   </div>
-                  <div className="mt-4 flex items-center gap-2">
+                  <div className="flex gap-2 mt-2">
+                    {pendingAvatarFile ? (
+                      <>
+                        <button
+                          onClick={handleAvatarSave}
+                          disabled={uploadingAvatar}
+                          className={`px-3 py-1.5 text-white text-xs rounded flex items-center gap-1 ${uploadingAvatar ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                        >
+                          <Upload className="w-3 h-3" /> {uploadingAvatar ? 'Đang lưu...' : 'Lưu'}
+                        </button>
+                        <button
+                          onClick={handleAvatarCancel}
+                          disabled={uploadingAvatar}
+                          className="px-3 py-1.5 text-white text-xs rounded bg-gray-500 hover:bg-gray-600"
+                        >
+                          Huỷ
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={handleAvatarChoose}
+                        className="px-3 py-1.5 text-white text-xs rounded bg-blue-600 hover:bg-blue-700 flex items-center gap-1"
+                      >
+                        <Upload className="w-3 h-3" /> Thay ảnh
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1 text-center">
+                    {pendingAvatarFile ? 'Nhấn Lưu để xác nhận' : 'JPG/PNG, tối đa 5MB'}
+                  </p>
+                  <div className="mt-3 flex items-center gap-2">
                     <input type="checkbox" checked={edited.isOnboard ?? false} onChange={e => set('isOnboard', e.target.checked)} className="w-4 h-4 text-blue-600" />
                     <label className="text-sm font-medium text-gray-700">On Board</label>
                   </div>
@@ -616,54 +768,82 @@ export const CrewDetailPage: React.FC = () => {
               <>
                 {/* Identity Documents */}
                 <div className="cd-section">
-                  <div className="cd-section-header">
+                  <div className="cd-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 className="cd-section-title">
                       Identity Documents ({travelDocs.length + seafarerDocs.length + employmentDocs.length})
                     </h3>
+                    <button
+                      onClick={() => setIsAddDocModalOpen(true)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0054a6', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                    >
+                      <Plus className="w-4 h-4" /> Thêm tài liệu
+                    </button>
                   </div>
                   <DocTable docs={[...travelDocs, ...seafarerDocs, ...employmentDocs]} emoji="📄" />
                 </div>
 
                 {/* Health Documents */}
                 <div className="cd-section">
-                  <div className="cd-section-header">
+                  <div className="cd-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 className="cd-section-title">
                       Health Documents ({healthDocs.length})
                     </h3>
+                    <button
+                      onClick={() => setIsAddHealthDocModalOpen(true)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0054a6', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                    >
+                      <Plus className="w-4 h-4" /> Thêm tài liệu sức khỏe
+                    </button>
                   </div>
                   <DocTable docs={healthDocs} emoji="🏥" />
                 </div>
 
                 {/* Certificates */}
                 <div className="cd-section">
-                  <div className="cd-section-header">
+                  <div className="cd-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 className="cd-section-title">
                       Certificates ({certificates?.length ?? 0})
                     </h3>
+                    <button
+                      onClick={() => { setEditingCert(null); setShowAddCertModal(true); }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0054a6', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                    >
+                      <Plus className="w-4 h-4" /> Thêm chứng chỉ
+                    </button>
                   </div>
                   {certsLoading ? (
                     <div className="flex items-center justify-center py-10">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
                     </div>
                   ) : !certificates || certificates.length === 0 ? (
-                    <div className="text-center py-10 text-gray-400">No certificates found</div>
+                    <div className="text-center py-10 text-gray-400">
+                      <p>Chưa có chứng chỉ nào</p>
+                      <button
+                        onClick={() => { setEditingCert(null); setShowAddCertModal(true); }}
+                        style={{ marginTop: 8, padding: '6px 16px', background: '#0054a6', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}
+                      >
+                        + Thêm chứng chỉ đầu tiên
+                      </button>
+                    </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm border-collapse" style={{ tableLayout: 'fixed' }}>
                         <thead className="cd-table-thead">
                           <tr>
-                            <th style={{ width: '22%' }}>Certificate Name</th>
-                            <th style={{ width: '14%' }}>Number</th>
-                            <th style={{ width: '13%' }}>Issue Date</th>
-                            <th style={{ width: '13%' }}>Expiry Date</th>
-                            <th style={{ width: '18%' }}>Issuing Authority</th>
-                            <th style={{ width: '12%' }}>Status</th>
+                            <th style={{ width: '20%' }}>Certificate Name</th>
+                            <th style={{ width: '12%' }}>Number</th>
+                            <th style={{ width: '11%' }}>Issue Date</th>
+                            <th style={{ width: '11%' }}>Expiry Date</th>
+                            <th style={{ width: '14%' }}>Issuing Authority</th>
+                            <th style={{ width: '10%' }}>Status</th>
                             <th style={{ width: '8%', textAlign: 'center' }}>File</th>
+                            <th style={{ width: '14%', textAlign: 'center' }}>Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                           {certificates.map(cert => {
                             const s = getCertStatus(cert.expiryDate);
+                            const fileUrl = cert.documentFilePath || cert.fileUrl;
                             return (
                               <tr key={cert.id} className="hover:bg-gray-50">
                                 <td className="px-4 py-2">
@@ -684,16 +864,44 @@ export const CrewDetailPage: React.FC = () => {
                                   </span>
                                 </td>
                                 <td className="px-4 py-2 text-center">
-                                  {cert.fileUrl ? (
-                                    <a href={cert.fileUrl} target="_blank" rel="noreferrer"
-                                      className="inline-flex items-center justify-center w-7 h-7 rounded bg-blue-500 hover:bg-blue-600 text-white">
-                                      <Eye className="w-3.5 h-3.5" />
-                                    </a>
-                                  ) : (
-                                    <span className="inline-flex items-center justify-center w-7 h-7 rounded bg-gray-200 text-gray-400">
-                                      <Upload className="w-3.5 h-3.5" />
-                                    </span>
-                                  )}
+                                  <button
+                                    onClick={() => fileUrl
+                                      ? handleViewCertificateImage(fileUrl, cert.id)
+                                      : handleCertificateFileUpload(cert.id)}
+                                    disabled={uploadingCertId === cert.id}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                    title={fileUrl ? 'Xem file' : 'Upload file'}
+                                  >
+                                    {uploadingCertId === cert.id ? (
+                                      <div className="animate-spin" style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid #3b82f6', borderTopColor: 'transparent', display: 'inline-block' }} />
+                                    ) : fileUrl ? (
+                                      <span className="inline-flex items-center justify-center w-7 h-7 rounded bg-blue-500 hover:bg-blue-600 text-white">
+                                        <Eye className="w-3.5 h-3.5" />
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center justify-center w-7 h-7 rounded bg-gray-200 hover:bg-gray-300 text-gray-500">
+                                        <Upload className="w-3.5 h-3.5" />
+                                      </span>
+                                    )}
+                                  </button>
+                                </td>
+                                <td className="px-4 py-2 text-center">
+                                  <div style={{ display: 'flex', justifyContent: 'center', gap: 4 }}>
+                                    <button
+                                      onClick={() => { setEditingCert(cert); setShowAddCertModal(true); }}
+                                      title="Sửa"
+                                      style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" style={{ color: '#4b5563' }} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteCertificate(cert.id)}
+                                      title="Xóa"
+                                      style={{ background: 'none', border: '1px solid #fecaca', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" style={{ color: '#dc2626' }} />
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -990,6 +1198,48 @@ export const CrewDetailPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Certificate Modals */}
+      {id && (
+        <AddCrewCertificateModal
+          isOpen={showAddCertModal}
+          onClose={() => { setShowAddCertModal(false); setEditingCert(null); }}
+          onSave={() => { refetchCerts(); }}
+          crewMemberId={id}
+          editingCertificate={editingCert}
+        />
+      )}
+
+      {/* Document Modals */}
+      {id && (
+        <>
+          <AddDocumentModal
+            isOpen={isAddDocModalOpen}
+            crewMemberId={id}
+            onClose={() => setIsAddDocModalOpen(false)}
+            onSuccess={() => loadDocuments(true)}
+          />
+          <AddHealthDocumentModal
+            isOpen={isAddHealthDocModalOpen}
+            crewMemberId={id}
+            onClose={() => setIsAddHealthDocModalOpen(false)}
+            onSuccess={() => loadDocuments(true)}
+          />
+        </>
+      )}
+
+      <ImageViewerModal
+        isOpen={isImageViewerOpen}
+        imageUrl={imageViewerUrl}
+        documentId={imageViewerCertId != null ? String(imageViewerCertId) : undefined}
+        customUploadHandler={imageViewerCertId != null ? handleCertificateUploadHandler : undefined}
+        onClose={() => {
+          setIsImageViewerOpen(false);
+          setImageViewerUrl(null);
+          setImageViewerCertId(null);
+        }}
+        onFileChanged={() => {}}
+      />
     </div>
   );
 };

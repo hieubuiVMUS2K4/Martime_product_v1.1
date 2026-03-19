@@ -15,6 +15,12 @@ public class SyncQueueItemDto
     public string OriginNode { get; set; } = string.Empty;
     public long SyncVersion { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Base64-encoded file content for entities with document attachments (certificates, documents).</summary>
+    public string? FileData { get; set; }
+
+    /// <summary>Original file name to preserve file extension when saving on the receiving end.</summary>
+    public string? FileName { get; set; }
 }
 
 /// <summary>

@@ -6,14 +6,16 @@ import {
   Eye, Pencil, Trash2, RefreshCw,
   Download, Ship, Anchor, X, Check, Clock, Loader2,
   FileText, ExternalLink,
+  ShieldCheck, AlertTriangle, XCircle, CheckCircle2,
+  Search, ChevronDown, ChevronUp, Filter,
 } from 'lucide-react';
-import { useCrewList, useReferenceData, useExpiringCertificates, useCrewStats, useVessels } from '../../hooks/useCrew';
+import { useCrewList, useReferenceData, useExpiringCertificates, useCompliance, useCrewStats, useVessels } from '../../hooks/useCrew';
 import { crewApi } from '../../services/crew.service';
 import { useToast } from '../../components/common/Toast';
 import { useConfirmDialog } from '../../components/common/ConfirmDialog';
 import { CrewFormModal } from './CrewFormModal';
 import { AssignShipModal } from './AssignShipModal';
-import type { CrewMember, CreateCrewRequest } from '../../types/crew.types';
+import type { CrewMember, CreateCrewRequest, CrewCertificate } from '../../types/crew.types';
 import './CrewListPage.css';
 
 const AVATAR_COLORS = ['#1e40af','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#4f46e5','#15803d','#b45309','#9333ea'];
@@ -39,6 +41,18 @@ export const CrewListPage: React.FC = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editingCrew, setEditingCrew] = useState<CrewMember | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Certificate monitor view
+  const [viewMode, setViewMode] = useState<'crew' | 'certificates'>('crew');
+  const [certDaysAhead, setCertDaysAhead] = useState(90);
+  const { data: certMonitorData, loading: certMonLoading, refetch: refetchCertMon } = useExpiringCertificates(certDaysAhead);
+  const { data: _compliance } = useCompliance();
+  const [certSearch, setCertSearch] = useState('');
+  const [certStatusFilter, setCertStatusFilter] = useState<'all' | 'VALID' | 'EXPIRING_SOON' | 'EXPIRED'>('all');
+  const [certSortField, setCertSortField] = useState<'name' | 'cert' | 'expiry' | 'status'>('expiry');
+  const [certSortDir, setCertSortDir] = useState<'asc' | 'desc'>('asc');
+  const [certShowFilters, setCertShowFilters] = useState(false);
+  const [certVesselFilter, setCertVesselFilter] = useState('');
 
   // Multi-select
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -172,6 +186,80 @@ export const CrewListPage: React.FC = () => {
   const allChecked = crew.length > 0 && selectedIds.size === crew.length;
   const someChecked = selectedIds.size > 0 && selectedIds.size < crew.length;
 
+  // Vessel name lookup map
+  const vesselMap = useMemo(() => {
+    const m = new Map<string, string>();
+    vessels.forEach(v => m.set(v.id, v.name));
+    return m;
+  }, [vessels]);
+
+  // Certificate monitor KPI + filtering
+  const vesselFilteredCertData = useMemo(() => {
+    if (!certVesselFilter) return certMonitorData;
+    return certMonitorData.filter(c => c.vesselId === certVesselFilter);
+  }, [certMonitorData, certVesselFilter]);
+
+  const certKpi = useMemo(() => {
+    if (!vesselFilteredCertData.length) return { valid: 0, expiringSoon: 0, expired: 0, total: 0 };
+    const valid = vesselFilteredCertData.filter(c => c.status === 'VALID').length;
+    const expSoon = vesselFilteredCertData.filter(c => c.status === 'EXPIRING_SOON').length;
+    const expired = vesselFilteredCertData.filter(c => c.status === 'EXPIRED').length;
+    return { valid, expiringSoon: expSoon, expired, total: vesselFilteredCertData.length };
+  }, [vesselFilteredCertData]);
+
+  const filteredCertificates = useMemo(() => {
+    let list = [...vesselFilteredCertData];
+    if (certSearch.trim()) {
+      const q = certSearch.toLowerCase();
+      list = list.filter(c =>
+        (c.certificateName || '').toLowerCase().includes(q) ||
+        (c.certificateCode || '').toLowerCase().includes(q) ||
+        (c.certificateNumber || '').toLowerCase().includes(q) ||
+        (c.crewMemberName || '').toLowerCase().includes(q)
+      );
+    }
+    if (certStatusFilter !== 'all') list = list.filter(c => c.status === certStatusFilter);
+    list.sort((a, b) => {
+      let cmp = 0;
+      switch (certSortField) {
+        case 'name': cmp = (a.crewMemberName || '').localeCompare(b.crewMemberName || ''); break;
+        case 'cert': cmp = (a.certificateName || '').localeCompare(b.certificateName || ''); break;
+        case 'expiry': cmp = new Date(a.expiryDate || 0).getTime() - new Date(b.expiryDate || 0).getTime(); break;
+        case 'status': {
+          const order: Record<string, number> = { EXPIRED: 0, EXPIRING_SOON: 1, VALID: 2 };
+          cmp = (order[a.status || ''] ?? 3) - (order[b.status || ''] ?? 3);
+          break;
+        }
+      }
+      return certSortDir === 'asc' ? cmp : -cmp;
+    });
+    return list;
+  }, [vesselFilteredCertData, certSearch, certStatusFilter, certSortField, certSortDir]);
+
+  const handleCertSort = (field: 'name' | 'cert' | 'expiry' | 'status') => {
+    if (certSortField === field) setCertSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setCertSortField(field); setCertSortDir('asc'); }
+  };
+
+  const CertSortIcon = ({ field }: { field: 'name' | 'cert' | 'expiry' | 'status' }) => {
+    if (certSortField !== field) return <ChevronDown size={12} style={{ opacity: 0.2 }} />;
+    return certSortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />;
+  };
+
+  const getCertStatusClass = (s?: string) => {
+    if (s === 'VALID') return 'cl-cert-valid';
+    if (s === 'EXPIRING_SOON') return 'cl-cert-expiring';
+    if (s === 'EXPIRED') return 'cl-cert-expired';
+    return '';
+  };
+
+  const getCertStatusLabel = (s?: string) => {
+    if (s === 'VALID') return 'Hiệu lực';
+    if (s === 'EXPIRING_SOON') return 'Sắp hết hạn';
+    if (s === 'EXPIRED') return 'Hết hạn';
+    return s || '—';
+  };
+
   // Full-page loading only on first load (no data yet)
   const isInitialLoad = loading && crew.length === 0 && !filters.search && !filters.rankName && !filters.department && !filters.vesselName;
 
@@ -220,7 +308,7 @@ export const CrewListPage: React.FC = () => {
           <span className="cl-stat-val">{stats.pendingReview}</span>
           <span className="cl-stat-lbl">Đang duyệt</span>
         </button>
-        <button className="cl-stat cl-stat--warn" onClick={() => navigate('/certificates')}>
+        <button className={`cl-stat cl-stat--warn${viewMode === 'certificates' ? ' cl-stat--active' : ''}`} onClick={() => setViewMode(viewMode === 'certificates' ? 'crew' : 'certificates')}>
           <ShieldAlert size={14} />
           <span className="cl-stat-val">{stats.expiring}</span>
           <span className="cl-stat-lbl">CC sắp hạn</span>
@@ -228,13 +316,16 @@ export const CrewListPage: React.FC = () => {
       </div>
 
       {/* Error banner */}
-      {error && (
+      {error && viewMode === 'crew' && (
         <div className="cl-error">
           <ShieldAlert size={13} /> {error}
           <button className="cl-link-btn" onClick={refetch}>Thử lại</button>
         </div>
       )}
 
+      {/* ======== CREW LIST VIEW ======== */}
+      {viewMode === 'crew' && (
+        <>
       {/* Main table */}
       <div className="cl-table-card" style={{ position: 'relative' }}>
         {loading && (
@@ -389,6 +480,135 @@ export const CrewListPage: React.FC = () => {
           </div>
           <button className="cl-selbar-x" onClick={clearSel}><X size={14} /></button>
         </div>
+      )}
+        </>
+      )}
+
+      {/* ======== CERTIFICATE MONITOR VIEW ======== */}
+      {viewMode === 'certificates' && (
+        <>
+          {/* Cert KPI Cards */}
+          <div className="cl-cert-kpi-grid">
+            <div className="cl-cert-kpi cl-cert-kpi--total">
+              <ShieldCheck size={18} />
+              <span className="cl-cert-kpi-val">{certKpi.total}</span>
+              <span className="cl-cert-kpi-lbl">Tổng chứng chỉ</span>
+            </div>
+            <div className={`cl-cert-kpi cl-cert-kpi--valid${certStatusFilter === 'VALID' ? ' cl-cert-kpi--active' : ''}`} onClick={() => setCertStatusFilter(certStatusFilter === 'VALID' ? 'all' : 'VALID')}>
+              <CheckCircle2 size={18} />
+              <span className="cl-cert-kpi-val">{certKpi.valid}</span>
+              <span className="cl-cert-kpi-lbl">Còn hiệu lực</span>
+            </div>
+            <div className={`cl-cert-kpi cl-cert-kpi--warning${certStatusFilter === 'EXPIRING_SOON' ? ' cl-cert-kpi--active' : ''}`} onClick={() => setCertStatusFilter(certStatusFilter === 'EXPIRING_SOON' ? 'all' : 'EXPIRING_SOON')}>
+              <AlertTriangle size={18} />
+              <span className="cl-cert-kpi-val">{certKpi.expiringSoon}</span>
+              <span className="cl-cert-kpi-lbl">Sắp hết hạn</span>
+            </div>
+            <div className={`cl-cert-kpi cl-cert-kpi--danger${certStatusFilter === 'EXPIRED' ? ' cl-cert-kpi--active' : ''}`} onClick={() => setCertStatusFilter(certStatusFilter === 'EXPIRED' ? 'all' : 'EXPIRED')}>
+              <XCircle size={18} />
+              <span className="cl-cert-kpi-val">{certKpi.expired}</span>
+              <span className="cl-cert-kpi-lbl">Đã hết hạn</span>
+            </div>
+          </div>
+
+          {/* Cert toolbar */}
+          <div className="cl-cert-toolbar">
+            <div className="cl-cert-search-wrap">
+              <Search size={14} className="cl-cert-search-icon" />
+              <input
+                type="text"
+                className="cl-cert-search"
+                placeholder="Tìm chứng chỉ, thuyền viên..."
+                value={certSearch}
+                onChange={e => setCertSearch(e.target.value)}
+              />
+              {certSearch && <button className="cl-cert-search-clear" onClick={() => setCertSearch('')}>×</button>}
+            </div>
+            <select className="cl-cert-days-select" value={certVesselFilter} onChange={e => setCertVesselFilter(e.target.value)}>
+              <option value="">Tất cả tàu</option>
+              {vessels.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+            <select className="cl-cert-days-select" value={certDaysAhead} onChange={e => setCertDaysAhead(Number(e.target.value))}>
+              <option value={30}>30 ngày tới</option>
+              <option value={60}>60 ngày tới</option>
+              <option value={90}>90 ngày tới</option>
+              <option value={180}>180 ngày tới</option>
+              <option value={365}>1 năm tới</option>
+            </select>
+            <button className="cl-btn cl-btn--ghost" onClick={() => { refetchCertMon(); }} title="Làm mới"><RefreshCw size={13} /></button>
+          </div>
+
+          {/* Cert table */}
+          <div className="cl-table-card">
+            {certMonLoading ? (
+              <div className="cl-loading">
+                <Loader2 size={24} className="spin" />
+                <p>Đang tải chứng chỉ...</p>
+              </div>
+            ) : filteredCertificates.length === 0 ? (
+              <div className="cl-cert-empty">
+                <ShieldCheck size={36} style={{ opacity: 0.3 }} />
+                <p>{certSearch ? 'Không tìm thấy chứng chỉ phù hợp' : 'Không có chứng chỉ nào trong khoảng thời gian này'}</p>
+              </div>
+            ) : (
+              <table className="cl-table cl-cert-table">
+                <thead>
+                  <tr className="cl-tr-labels">
+                    <th onClick={() => handleCertSort('name')} style={{ cursor: 'pointer' }}>
+                      Thuyền viên <CertSortIcon field="name" />
+                    </th>
+                    <th>Tàu</th>
+                    <th onClick={() => handleCertSort('cert')} style={{ cursor: 'pointer' }}>
+                      Chứng chỉ <CertSortIcon field="cert" />
+                    </th>
+                    <th>Số chứng chỉ</th>
+                    <th>Ngày cấp</th>
+                    <th onClick={() => handleCertSort('expiry')} style={{ cursor: 'pointer' }}>
+                      Ngày hết hạn <CertSortIcon field="expiry" />
+                    </th>
+                    <th>Còn lại</th>
+                    <th onClick={() => handleCertSort('status')} style={{ cursor: 'pointer' }}>
+                      Trạng thái <CertSortIcon field="status" />
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCertificates.map(cert => (
+                    <tr
+                      key={cert.id}
+                      className={`cl-tr ${getCertStatusClass(cert.status)}`}
+                      onClick={() => cert.crewMemberId && navigate(`/crew/${cert.crewMemberId}`)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td className="cl-cert-crew-name">{cert.crewMemberName || '—'}</td>
+                      <td className="cl-muted">{(cert.vesselId && vesselMap.get(cert.vesselId)) || '—'}</td>
+                      <td>
+                        <span className="cl-cert-name">{cert.certificateName || cert.certificateCode}</span>
+                        {cert.category && <span className="cl-cert-cat">{cert.category}</span>}
+                      </td>
+                      <td className="cl-cert-num">{cert.certificateNumber || '—'}</td>
+                      <td className="cl-muted">{fmtDate(cert.issueDate)}</td>
+                      <td>{fmtDate(cert.expiryDate)}</td>
+                      <td>
+                        {cert.daysUntilExpiry !== undefined ? (
+                          <span className={`cl-cert-days ${cert.daysUntilExpiry <= 0 ? 'cl-cert-days--danger' : cert.daysUntilExpiry <= 30 ? 'cl-cert-days--warning' : ''}`}>
+                            {cert.daysUntilExpiry <= 0 ? 'Quá hạn' : `${cert.daysUntilExpiry} ngày`}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td>
+                        <span className={`cl-cert-status-badge ${getCertStatusClass(cert.status)}`}>
+                          {getCertStatusLabel(cert.status)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+        </>
       )}
 
       {/* Form Modal */}

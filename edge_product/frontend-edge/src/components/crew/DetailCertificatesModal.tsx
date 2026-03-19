@@ -38,7 +38,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave }: DetailCerti
 
   const loadCountries = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/countries')
+      const response = await fetch('/api/countries')
       const data = await response.json()
       setCountries(data)
     } catch (error) {
@@ -66,7 +66,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave }: DetailCerti
         validityPeriodMonths: formData.validityPeriodMonths ? parseInt(formData.validityPeriodMonths) : null
       }
 
-      const response = await fetch('http://localhost:5001/api/certificates', {
+      const response = await fetch('/api/certificates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(certificatePayload)
@@ -85,7 +85,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave }: DetailCerti
           certificateId: createdCertificate.id
         }))
 
-        await fetch('http://localhost:5001/api/country-certificates/batch', {
+        await fetch('/api/country-certificates/batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(countryAssociations)

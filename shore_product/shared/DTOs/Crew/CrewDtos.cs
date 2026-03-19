@@ -37,6 +37,7 @@ public class CrewMemberDto
     // Personal
     public DateTime? DateOfBirth { get; set; }
     public string? PhotoUrl { get; set; }
+    public string? AvatarUrl { get; set; }
     public string? PlaceOfBirth { get; set; }
     public string? IdCardNumber { get; set; }
     public string? MaritalStatus { get; set; }

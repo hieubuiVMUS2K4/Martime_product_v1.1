@@ -130,13 +130,13 @@ export const crewApi = {
 
   /** Add document to crew */
   addDocument: (crewId: string, category: string, data: CreateDocumentRequest): Promise<CrewDocument> =>
-    request(`${BASE}/crew/${crewId}/documents?category=${category}`, {
-      method: 'POST', body: JSON.stringify(data),
+    request(`${BASE}/crew/${crewId}/documents`, {
+      method: 'POST', body: JSON.stringify({ ...data, category }),
     }),
 
   /** Delete crew document */
   deleteDocument: (crewId: string, docId: string, category: string): Promise<void> =>
-    request(`${BASE}/crew/${crewId}/documents/${docId}?category=${category}`, { method: 'DELETE' }),
+    request(`${BASE}/crew/${crewId}/documents/${category}/${docId}`, { method: 'DELETE' }),
 
   // --- Service Records ---
 
@@ -165,6 +165,17 @@ export const crewApi = {
   /** Mark edge changes as viewed by shore */
   markChangesViewed: (crewId: string): Promise<{ message: string }> =>
     request(`${BASE}/crew/${crewId}/mark-changes-viewed`, { method: 'POST' }),
+
+  /** Upload / replace crew avatar photo */
+  uploadAvatar: async (crewId: string, formData: FormData): Promise<{ message: string; avatarUrl: string; crewMember: CrewMember }> => {
+    const res = await fetch(`${BASE}/crew/${crewId}/avatar`, { method: 'POST', body: formData });
+    if (!res.ok) {
+      let message = res.statusText;
+      try { const b = await res.json(); message = b.error || b.message || message; } catch { /* ignore */ }
+      throw new Error(message);
+    }
+    return res.json();
+  },
 
   /** Get recent OnHold crew notifications (last 30 days) */
   holdNotifications: (): Promise<HoldNotification[]> =>
@@ -224,15 +235,29 @@ export const certificateApi = {
 
   /** Add certificate to crew */
   addCrewCertificate: (data: CrewCertificateRequest): Promise<CrewCertificate> =>
-    request(`${BASE}/certificates/crew`, { method: 'POST', body: JSON.stringify(data) }),
+    request(`${BASE}/certificates/crew-certificates`, { method: 'POST', body: JSON.stringify(data) }),
 
   /** Update crew certificate */
   updateCrewCertificate: (id: number, data: CrewCertificateRequest): Promise<CrewCertificate> =>
-    request(`${BASE}/certificates/crew/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    request(`${BASE}/certificates/crew-certificates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   /** Delete crew certificate */
   deleteCrewCertificate: (id: number): Promise<void> =>
-    request(`${BASE}/certificates/crew/${id}`, { method: 'DELETE' }),
+    request(`${BASE}/certificates/crew-certificates/${id}`, { method: 'DELETE' }),
+
+  /** Upload certificate document file */
+  uploadCertificateFile: async (crewCertificateId: number, formData: FormData): Promise<{ message: string; documentFilePath: string }> => {
+    const res = await fetch(`${BASE}/certificates/crew-certificates/${crewCertificateId}/file`, {
+      method: 'PUT',
+      body: formData,
+    });
+    if (!res.ok) {
+      let message = res.statusText;
+      try { const b = await res.json(); message = b.error || b.message || message; } catch {}
+      throw new Error(message);
+    }
+    return res.json();
+  },
 
   // --- Fleet Queries ---
 

@@ -22,7 +22,8 @@ public class CrewCertificateDto
 {
     public int Id { get; set; }
     public Guid CrewMemberId { get; set; }
-    public string? CrewName { get; set; }
+    public string? CrewMemberName { get; set; }
+    public Guid? VesselId { get; set; }
     public int CertificateId { get; set; }
     public string? CertificateCode { get; set; }
     public string? CertificateName { get; set; }

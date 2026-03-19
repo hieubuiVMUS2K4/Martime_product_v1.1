@@ -99,7 +99,7 @@ export class MaritimeService {
     } catch (error: any) {
       // Network errors or fetch failures
       if (error.message === 'Failed to fetch') {
-        console.error('❌ Network Error: Cannot connect to backend. Is the server running on http://localhost:5001?')
+        console.error('❌ Network Error: Cannot connect to backend. Is the server running?')
         throw new Error('Cannot connect to server. Please check if backend is running.')
       }
       throw error

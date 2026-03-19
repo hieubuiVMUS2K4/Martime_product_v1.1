@@ -2881,7 +2881,9 @@ public class EdgeDbContext : DbContext
                     
                     // Skip sync metadata fields — these are updated by MarkSynced() after receiving
                     // items from shore, and must NOT be queued back or it creates an infinite sync loop.
-                    if (prop.Metadata.Name is "UpdatedAt" or "IsSynced" or "SyncVersion" or "OriginNode" or "LastSyncedAt") continue;
+                    // Also skip CreatedAt — it never changes after initial creation and pull-from-shore
+                    // re-applying it causes an infinite sync loop with empty delta payloads.
+                    if (prop.Metadata.Name is "UpdatedAt" or "CreatedAt" or "IsSynced" or "SyncVersion" or "OriginNode" or "LastSyncedAt") continue;
 
                     changedProps[prop.Metadata.Name] = prop.CurrentValue;
                 }

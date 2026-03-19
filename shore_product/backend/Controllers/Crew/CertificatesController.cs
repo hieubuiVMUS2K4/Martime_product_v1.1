@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Maritime.Shared.DTOs.Crew;
+using Maritime.Shared.Models.Sync;
 using ProductApi.Data;
 using ProductApi.Services.Crew;
+using ProductApi.Services.Sync;
 
 namespace ProductApi.Controllers.Crew;
 
@@ -19,12 +21,14 @@ public class CertificatesController : ControllerBase
     private readonly ICertificateService _certService;
     private readonly AppDbContext _context;
     private readonly ILogger<CertificatesController> _logger;
+    private readonly ISyncOutboxService _syncOutbox;
 
-    public CertificatesController(ICertificateService certService, AppDbContext context, ILogger<CertificatesController> logger)
+    public CertificatesController(ICertificateService certService, AppDbContext context, ILogger<CertificatesController> logger, ISyncOutboxService syncOutbox)
     {
         _certService = certService;
         _context = context;
         _logger = logger;
+        _syncOutbox = syncOutbox;
     }
 
     // ============================================================
@@ -218,7 +222,7 @@ public class CertificatesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error adding crew certificate");
-            return StatusCode(500, new { error = "Internal server error" });
+            return StatusCode(500, new { error = ex.Message, inner = ex.InnerException?.Message });
         }
     }
 
@@ -313,6 +317,80 @@ public class CertificatesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting compliance for crew {CrewId}", crewId);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    // ============================================================
+    // FILE UPLOAD
+    // ============================================================
+
+    /// <summary>PUT /api/certificates/crew-certificates/{id}/file — Upload certificate document image.</summary>
+    [HttpPut("crew-certificates/{id:int}/file")]
+    [AllowAnonymous]
+    public async Task<IActionResult> UploadCertificateFile(int id, [FromForm] IFormFile file)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { error = "File is required" });
+
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".pdf" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+                return BadRequest(new { error = "Only image files (jpg, jpeg, png, gif) and PDF are allowed" });
+
+            if (file.Length > 10 * 1024 * 1024)
+                return BadRequest(new { error = "File size must not exceed 10MB" });
+
+            var crewCertificate = await _context.CrewCertificates
+                .Include(cc => cc.CrewMember)
+                .Include(cc => cc.Certificate)
+                .FirstOrDefaultAsync(cc => cc.Id == id);
+            if (crewCertificate == null)
+                return NotFound(new { error = "Crew certificate not found", id });
+
+            var uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "crew", "certificates");
+            Directory.CreateDirectory(uploadsRoot);
+
+            // Name file by crewId + certificate name for clarity
+            var safeCrewId = crewCertificate.CrewMember?.CrewId ?? crewCertificate.CrewMemberId.ToString();
+            var safeCertName = (crewCertificate.Certificate?.CertificateName ?? $"cert_{id}")
+                .Replace(" ", "_").Replace("/", "_").Replace("\\", "_");
+            var fileName = $"{safeCrewId}_{safeCertName}{extension}";
+            var filePath = Path.Combine(uploadsRoot, fileName);
+
+            // Delete old file if exists
+            if (!string.IsNullOrEmpty(crewCertificate.DocumentFilePath))
+            {
+                var oldPath = Path.Combine(Directory.GetCurrentDirectory(),
+                    crewCertificate.DocumentFilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (System.IO.File.Exists(oldPath))
+                    System.IO.File.Delete(oldPath);
+            }
+
+            await using var stream = new FileStream(filePath, FileMode.Create);
+            await file.CopyToAsync(stream);
+
+            crewCertificate.DocumentFilePath = $"/uploads/crew/certificates/{fileName}";
+            crewCertificate.UpdatedAt = DateTime.UtcNow;
+            _context.CrewCertificates.Update(crewCertificate);
+            await _context.SaveChangesAsync();
+
+            // Broadcast updated certificate to edge with file path
+            await _syncOutbox.BroadcastAsync("crew_certificate", id.ToString(), SyncActionType.UPDATE, crewCertificate);
+
+            _logger.LogInformation("Uploaded certificate file for crew certificate: {Id}", id);
+
+            return Ok(new
+            {
+                message = "Certificate file uploaded successfully",
+                documentFilePath = crewCertificate.DocumentFilePath
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading certificate file for {Id}", id);
             return StatusCode(500, new { error = "Internal server error" });
         }
     }
