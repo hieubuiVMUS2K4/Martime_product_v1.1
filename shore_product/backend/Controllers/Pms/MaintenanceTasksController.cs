@@ -34,11 +34,15 @@ public class MaintenanceTasksController : ControllerBase
         [FromQuery] Guid? scheduleId = null,
         [FromQuery] DateTime? dateFrom = null,
         [FromQuery] DateTime? dateTo = null,
-        [FromQuery] string? originNode = null)
+        [FromQuery] string? originNode = null,
+        [FromQuery] Guid? vesselId = null)
     {
         var query = _context.MaintenanceTasks
             .Where(t => !t.IsDeleted)
             .AsNoTracking();
+
+        if (vesselId.HasValue)
+            query = query.Where(t => t.VesselId == vesselId.Value);
 
         if (!string.IsNullOrWhiteSpace(status))
             query = query.Where(t => t.Status == status.ToUpper());
@@ -104,9 +108,11 @@ public class MaintenanceTasksController : ControllerBase
     /// Summary counts grouped by status for dashboard widgets.
     /// </summary>
     [HttpGet("stats")]
-    public async Task<IActionResult> GetStats([FromQuery] string? originNode = null)
+    public async Task<IActionResult> GetStats([FromQuery] string? originNode = null, [FromQuery] Guid? vesselId = null)
     {
         var query = _context.MaintenanceTasks.Where(t => !t.IsDeleted).AsNoTracking();
+        if (vesselId.HasValue)
+            query = query.Where(t => t.VesselId == vesselId.Value);
         if (!string.IsNullOrWhiteSpace(originNode))
             query = query.Where(t => t.OriginNode == originNode);
 

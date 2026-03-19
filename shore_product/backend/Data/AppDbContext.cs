@@ -159,6 +159,11 @@ namespace ProductApi.Data
         public DbSet<StockReceiptItem> StockReceiptItems { get; set; } = null!;
         public DbSet<InventoryStock> InventoryStocks { get; set; } = null!;
 
+        // ============================================================
+        // NOTIFICATIONS (Phase 9)
+        // ============================================================
+        public DbSet<ShoreNotification> ShoreNotifications { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -1448,7 +1453,8 @@ namespace ProductApi.Data
             modelBuilder.Entity<EquipmentAsset>(entity =>
             {
                 entity.ToTable("equipment_assets");
-                entity.HasIndex(e => e.AssetCode).IsUnique();
+                // Unique per vessel: same asset code can exist on different vessels
+                entity.HasIndex(e => new { e.VesselId, e.AssetCode }).IsUnique();
                 entity.HasOne(e => e.Parent)
                     .WithMany(e => e.Children)
                     .HasForeignKey(e => e.ParentId)
@@ -1509,7 +1515,8 @@ namespace ProductApi.Data
             modelBuilder.Entity<MaterialItem>(entity =>
             {
                 entity.ToTable("material_items");
-                entity.HasIndex(e => e.ItemCode).IsUnique();
+                // Unique per vessel: same item code can exist for different vessels
+                entity.HasIndex(e => new { e.VesselId, e.ItemCode }).IsUnique();
                 entity.Property(e => e.UnitCost).HasPrecision(18, 4);
             });
 

@@ -61,6 +61,9 @@ public class EquipmentAsset
     /// <summary>Parent asset ID for hierarchical tree (null = root)</summary>
     public Guid? ParentId { get; set; }
 
+    /// <summary>Vessel this asset belongs to (null = fleet-wide/unassigned)</summary>
+    public Guid? VesselId { get; set; }
+
     [ForeignKey("ParentId")]
     [System.Text.Json.Serialization.JsonIgnore]
     public virtual EquipmentAsset? Parent { get; set; }

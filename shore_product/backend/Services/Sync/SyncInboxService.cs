@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ProductApi.Data;
 using ProductApi.Models;
+using ProductApi.Services;
 using Maritime.Shared.DTOs.Sync;
 using Maritime.Shared.Models.Sync;
 using Maritime.Shared.Models.Crew;
@@ -41,6 +42,7 @@ public class SyncInboxService : ISyncInboxService
     private readonly AppDbContext _context;
     private readonly IConflictResolverService _conflictResolver;
     private readonly ILogger<SyncInboxService> _logger;
+    private readonly INotificationService _notifications;
 
     /// <summary>
     /// Converts all DateTime/DateTimeOffset values to UTC when deserializing,
@@ -214,11 +216,13 @@ public class SyncInboxService : ISyncInboxService
     public SyncInboxService(
         AppDbContext context,
         IConflictResolverService conflictResolver,
-        ILogger<SyncInboxService> logger)
+        ILogger<SyncInboxService> logger,
+        INotificationService notifications)
     {
         _context = context;
         _conflictResolver = conflictResolver;
         _logger = logger;
+        _notifications = notifications;
     }
 
     // ============================================================
@@ -364,11 +368,56 @@ public class SyncInboxService : ISyncInboxService
             }
         }
 
+        // ── Emit a summary notification per vessel ──────────────────────────────
+        if (succeeded > 0)
+        {
+            await EmitSyncBatchNotificationsAsync(items, succeeded);
+        }
+
         return (succeeded, failed);
     }
 
-    public async Task<bool> IsAlreadyProcessedAsync(string tableName, string recordKey, long syncVersion)
+    /// <summary>
+    /// After a successful batch, emits one summary notification per distinct vessel.
+    /// Groups tables and builds a Vietnamese summary message.
+    /// </summary>
+    private async Task EmitSyncBatchNotificationsAsync(List<SyncQueueItemDto> items, int totalSucceeded)
     {
+        // Group by origin IMO so each vessel gets its own notification
+        var byVessel = items
+            .Where(i => !string.IsNullOrWhiteSpace(i.OriginNode))
+            .GroupBy(i => i.OriginNode, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var vesselGroup in byVessel)
+        {
+            var imo = vesselGroup.Key;
+            var vessel = await _context.Vessels
+                .Where(v => v.IMO == imo)
+                .Select(v => new { v.Id, v.Name })
+                .FirstOrDefaultAsync();
+
+            var vesselName = vessel?.Name ?? imo;
+            var count = vesselGroup.Count();
+
+            // Collect distinct table names for the summary message
+            var tables = vesselGroup
+                .Select(i => i.TableName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var tablesSummary = string.Join(", ", tables.Select(t => t.Replace("_", " ")));
+            var message = $"Nhận {count} bản ghi từ tàu {vesselName}: {tablesSummary}";
+
+            await _notifications.CreateAsync(
+                type: "sync_batch",
+                title: $"Đồng bộ từ tàu {vesselName}",
+                message: message,
+                vesselId: vessel?.Id,
+                vesselName: vesselName);
+        }
+    }
+
+    public async Task<bool> IsAlreadyProcessedAsync(string tableName, string recordKey, long syncVersion)    {
         if (syncVersion <= 0) return false; // No version = no idempotency check
 
         var key = $"{tableName}:{recordKey}:{syncVersion}";
@@ -465,7 +514,7 @@ public class SyncInboxService : ISyncInboxService
             {
                 CopyNonDefaultProperties(existing, resolution.ResolvedEntity!, entityType);
                 UpdateSyncMetadata(existing, item);
-                await ResolveCrewVesselIdAsync(existing);
+                await ResolveCrewVesselIdAsync(existing, item.OriginNode);
             }
             return;
         }
@@ -477,6 +526,7 @@ public class SyncInboxService : ISyncInboxService
         await ResolveOrphanedForeignKeysAsync(entityType, entity, item.Payload);
 
         await _context.AddAsync(entity);
+        await ResolveCrewVesselIdAsync(entity, item.OriginNode);
 
         _logger.LogDebug("Created {Table}/{Key} from {Node}", 
             item.TableName, item.RecordKey, item.OriginNode);
@@ -608,7 +658,7 @@ public class SyncInboxService : ISyncInboxService
                 }
 
                 UpdateSyncMetadata(existing, item);
-                await ResolveCrewVesselIdAsync(existing);
+                await ResolveCrewVesselIdAsync(existing, item.OriginNode);
             }
             else
             {
@@ -661,7 +711,7 @@ public class SyncInboxService : ISyncInboxService
         }
 
         UpdateSyncMetadata(existing, item);
-        await ResolveCrewVesselIdAsync(existing);
+        await ResolveCrewVesselIdAsync(existing, item.OriginNode);
         _logger.LogDebug("Patched {Table}/{Key} from {Node}", 
             item.TableName, item.RecordKey, item.OriginNode);
     }
@@ -700,6 +750,14 @@ public class SyncInboxService : ISyncInboxService
 
     private async Task<object?> FindEntityByKeyAsync(Type entityType, string recordKey)
     {
+        // crew_certificate uses CertificateNumber (string) as sync key — lookup by natural key
+        if (entityType == typeof(CrewCertificate))
+        {
+            return await _context.CrewCertificates
+                .AsTracking()
+                .FirstOrDefaultAsync(c => c.CertificateNumber == recordKey);
+        }
+
         // Try Guid first (most crew entities), then int, then long
         if (Guid.TryParse(recordKey, out var guidKey))
             return await _context.FindAsync(entityType, guidKey);
@@ -720,6 +778,10 @@ public class SyncInboxService : ISyncInboxService
     /// </summary>
     private void ForceEntityPrimaryKey(Type entityType, object entity, string recordKey)
     {
+        // crew_certificate: PK is auto-increment int — do NOT force it from recordKey (which is CertificateNumber).
+        // The correct int PK will be assigned by the DB on INSERT. CertificateNumber is set via payload deserialization.
+        if (entityType == typeof(CrewCertificate))
+            return;
         var entry = _context.Entry(entity);
         var keyProp = entry.Metadata.FindPrimaryKey()?.Properties.FirstOrDefault();
         if (keyProp?.PropertyInfo == null) return;
@@ -789,20 +851,40 @@ public class SyncInboxService : ISyncInboxService
     }
 
     /// <summary>
-    /// Auto-set VesselId from OriginNode (IMO) for crew members that don't have it set.
-    /// Called after sync processing to ensure crew are linked to the correct vessel.
+    /// Auto-set VesselId from OriginNode (IMO) for entities that don't have it set.
+    /// Covers CrewMember, EquipmentAsset, and MaterialItem synced from edge nodes.
     /// </summary>
-    private async Task ResolveCrewVesselIdAsync(object entity)
+    private async Task ResolveCrewVesselIdAsync(object entity, string? overrideOriginNode = null)
     {
-        if (entity is CrewMember crew && !crew.VesselId.HasValue
-            && !string.IsNullOrWhiteSpace(crew.OriginNode) && crew.OriginNode != "SHORE")
+        string? originNode = overrideOriginNode;
+
+        // For entities without OriginNode property (EquipmentAsset, MaterialItem),
+        // the caller must pass overrideOriginNode from the sync item.
+        if (originNode == null)
+            originNode = entity.GetType().GetProperty("OriginNode")?.GetValue(entity) as string;
+
+        if (string.IsNullOrWhiteSpace(originNode) || originNode == "SHORE") return;
+
+        Vessel? vessel = null;
+
+        switch (entity)
         {
-            var vessel = await _context.Vessels.AsNoTracking()
-                .FirstOrDefaultAsync(v => v.IMO == crew.OriginNode);
-            if (vessel != null)
-            {
-                crew.VesselId = vessel.Id;
-            }
+            case CrewMember crew when !crew.VesselId.HasValue:
+                vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
+                if (vessel != null) crew.VesselId = vessel.Id;
+                break;
+            case ProductApi.Models.EquipmentAsset asset when !asset.VesselId.HasValue:
+                vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
+                if (vessel != null) asset.VesselId = vessel.Id;
+                break;
+            case ProductApi.Models.MaterialItem mat when !mat.VesselId.HasValue:
+                vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
+                if (vessel != null) mat.VesselId = vessel.Id;
+                break;
+            case ProductApi.Models.MaintenanceTask task when !task.VesselId.HasValue:
+                vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
+                if (vessel != null) task.VesselId = vessel.Id;
+                break;
         }
     }
 
@@ -1626,6 +1708,20 @@ public class SyncInboxService : ISyncInboxService
         _logger.LogInformation("Processed sign_on_record {Id} crew={CrewId} vessel={VesselId} from Edge",
             record.Id, record.CrewMemberId, record.VesselId);
         await LogSyncOperation(item, "SUCCESS");
+
+        // ── Sign-on notification ───────────────────────────────────────────────
+        var crewName = crew?.FullName ?? record.CrewMemberId.ToString();
+        var signOnVessel = await _context.Vessels.FindAsync(record.VesselId);
+        var vesselName = signOnVessel?.Name ?? record.VesselId.ToString();
+        await _notifications.CreateAsync(
+            type: "sign_on",
+            title: "Thuyền viên lên tàu",
+            message: $"{crewName} đã ký lên tàu {vesselName}" +
+                     (string.IsNullOrWhiteSpace(record.SignedOnBy) ? "" : $" (bởi {record.SignedOnBy})"),
+            vesselId: record.VesselId,
+            vesselName: vesselName,
+            crewMemberId: record.CrewMemberId,
+            crewName: crewName);
     }
 
     private async Task ProcessSignOffFromEdgeAsync(string payload, SyncQueueItemDto item)
@@ -1721,5 +1817,19 @@ public class SyncInboxService : ISyncInboxService
         _logger.LogInformation("Processed sign_off_record {Id} crew={CrewId} vessel={VesselId} reason={Reason} from Edge",
             record.Id, record.CrewMemberId, record.VesselId, record.Reason);
         await LogSyncOperation(item, "SUCCESS");
+
+        // ── Sign-off notification ──────────────────────────────────────────────
+        var signOffCrewName = crew?.FullName ?? record.CrewMemberId.ToString();
+        var signOffVessel = await _context.Vessels.FindAsync(record.VesselId);
+        var signOffVesselName = signOffVessel?.Name ?? record.VesselId.ToString();
+        await _notifications.CreateAsync(
+            type: "sign_off",
+            title: "Thuyền viên xuống tàu",
+            message: $"{signOffCrewName} đã ký xuống tàu {signOffVesselName}" +
+                     (string.IsNullOrWhiteSpace(record.Reason) ? "" : $" (lý do: {record.Reason})"),
+            vesselId: record.VesselId,
+            vesselName: signOffVesselName,
+            crewMemberId: record.CrewMemberId,
+            crewName: signOffCrewName);
     }
 }

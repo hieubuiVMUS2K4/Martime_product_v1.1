@@ -14,15 +14,18 @@ axios.interceptors.request.use((config) => {
 });
 
 export const equipmentAssetService = {
-  async getAll(category?: string): Promise<EquipmentAsset[]> {
-    const params = category ? { category } : {};
+  async getAll(category?: string, vesselId?: string): Promise<EquipmentAsset[]> {
+    const params: Record<string, string> = {};
+    if (category) params.category = category;
+    if (vesselId) params.vesselId = vesselId;
     const response = await axios.get(`${API_BASE_URL}/equipment-assets`, { params });
     return response.data;
   },
 
   /** Lấy tất cả assets dưới dạng flat list có parentId, frontend tự build tree */
-  async getTree(): Promise<EquipmentAsset[]> {
-    const response = await axios.get(`${API_BASE_URL}/equipment-assets/tree`);
+  async getTree(vesselId?: string): Promise<EquipmentAsset[]> {
+    const params = vesselId ? { vesselId } : {};
+    const response = await axios.get(`${API_BASE_URL}/equipment-assets/tree`, { params });
     return response.data;
   },
 

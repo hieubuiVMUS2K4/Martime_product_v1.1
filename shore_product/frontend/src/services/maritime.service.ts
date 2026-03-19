@@ -28,6 +28,7 @@ export const maritimeService = {
       dateFrom?: string;
       dateTo?: string;
       originNode?: string;
+      vesselId?: string;
     }): Promise<PaginatedResponse<MaintenanceTask>> => {
       const response = await axios.get(`${API_BASE}/maintenance/tasks`, { params });
       return response.data;

@@ -21,6 +21,9 @@ export function useCrewList() {
   });
 
   const debouncedSearch = useDebounce(filters.search, 300);
+  const debouncedRankName = useDebounce(filters.rankName, 300);
+  const debouncedDepartment = useDebounce(filters.department, 300);
+  const debouncedVesselName = useDebounce(filters.vesselName, 300);
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchCrew = useCallback(async () => {
@@ -38,6 +41,9 @@ export function useCrewList() {
         search: debouncedSearch || undefined,
         isOnboard: filters.isOnboard ?? undefined,
         shipId: filters.vesselId ?? undefined,
+        rankName: debouncedRankName || undefined,
+        department: debouncedDepartment || undefined,
+        vesselName: debouncedVesselName || undefined,
       });
       setData(res.data);
       setTotalCount(res.totalCount);
@@ -48,7 +54,8 @@ export function useCrewList() {
     } finally {
       setLoading(false);
     }
-  }, [filters.page, filters.pageSize, debouncedSearch, filters.isOnboard, filters.vesselId]);
+  }, [filters.page, filters.pageSize, debouncedSearch, filters.isOnboard, filters.vesselId,
+      debouncedRankName, debouncedDepartment, debouncedVesselName]);
 
   useEffect(() => { fetchCrew(); }, [fetchCrew]);
 

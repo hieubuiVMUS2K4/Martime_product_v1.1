@@ -87,6 +87,9 @@ public class MaterialItem
 
     public bool IsActive { get; set; } = true;
 
+    /// <summary>Vessel this material item belongs to (null = fleet-wide/unassigned)</summary>
+    public Guid? VesselId { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

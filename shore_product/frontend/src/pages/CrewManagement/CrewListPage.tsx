@@ -45,10 +45,6 @@ export const CrewListPage: React.FC = () => {
   const [assignMode, setAssignMode] = useState<'assign' | 'unassign' | null>(null);
   const [assignList, setAssignList] = useState<CrewMember[]>([]);
 
-  // Per-column filters
-  const [colF, setColF] = useState({ name: '', rank: '', dept: '', vessel: '' });
-  const cf = (k: keyof typeof colF, v: string) => setColF(p => ({ ...p, [k]: v }));
-
   // Context menu
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; crew: CrewMember } | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
@@ -92,14 +88,9 @@ export const CrewListPage: React.FC = () => {
   const handlePageChange = useCallback((page: number) => {
     setFilters(prev => ({ ...prev, page }));
   }, [setFilters]);
-
-  // Local column filter
-  const filteredCrew = useMemo(() => crew.filter(m =>
-    (!colF.name || m.fullName.toLowerCase().includes(colF.name.toLowerCase()) || m.crewId.toLowerCase().includes(colF.name.toLowerCase())) &&
-    (!colF.rank || (m.rankName ?? '').toLowerCase().includes(colF.rank.toLowerCase())) &&
-    (!colF.dept || (m.department ?? '').toLowerCase().includes(colF.dept.toLowerCase())) &&
-    (!colF.vessel || (m.vesselName ?? '').toLowerCase().includes(colF.vessel.toLowerCase()))
-  ), [crew, colF]);
+  const handleColFilter = useCallback((key: 'search' | 'rankName' | 'department' | 'vesselName', value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+  }, [setFilters]);
 
   // CRUD
   const handleCreate = useCallback(async (data: CreateCrewRequest | Partial<CreateCrewRequest>) => {
@@ -181,8 +172,10 @@ export const CrewListPage: React.FC = () => {
   const allChecked = crew.length > 0 && selectedIds.size === crew.length;
   const someChecked = selectedIds.size > 0 && selectedIds.size < crew.length;
 
-  // Loading state
-  if (loading) return (
+  // Full-page loading only on first load (no data yet)
+  const isInitialLoad = loading && crew.length === 0 && !filters.search && !filters.rankName && !filters.department && !filters.vesselName;
+
+  if (isInitialLoad) return (
     <div className="cl-page">
       <div className="cl-loading"><Loader2 size={28} className="spin" /><p>Đang tải danh sách thuyền viên...</p></div>
     </div>
@@ -243,7 +236,12 @@ export const CrewListPage: React.FC = () => {
       )}
 
       {/* Main table */}
-      <div className="cl-table-card">
+      <div className="cl-table-card" style={{ position: 'relative' }}>
+        {loading && (
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.5)', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Loader2 size={24} className="spin" style={{ color: '#1e40af' }} />
+          </div>
+        )}
         <table className="cl-table">
           <thead>
             {/* Label row */}
@@ -265,23 +263,24 @@ export const CrewListPage: React.FC = () => {
             {/* Filter row */}
             <tr className="cl-tr-filters">
               <th></th>
-              <th><div className="cl-search-wrap"><input className="cl-cf" placeholder="Tìm kiếm" value={colF.name} onChange={e => cf('name', e.target.value)} /></div></th>
-              <th><div className="cl-search-wrap"><input className="cl-cf" placeholder="Tìm kiếm" value={colF.rank} onChange={e => cf('rank', e.target.value)} /></div></th>
-              <th><div className="cl-search-wrap"><input className="cl-cf" placeholder="Tìm kiếm" value={colF.dept} onChange={e => cf('dept', e.target.value)} /></div></th>
-              <th><div className="cl-search-wrap"><input className="cl-cf" placeholder="Tìm kiếm" value={colF.vessel} onChange={e => cf('vessel', e.target.value)} /></div></th>
+              <th><div className="cl-search-wrap"><input className="cl-cf" placeholder="Tìm kiếm" value={filters.search} onChange={e => handleColFilter('search', e.target.value)} /></div></th>
+              <th><div className="cl-search-wrap"><input className="cl-cf" placeholder="Tìm kiếm" value={filters.rankName ?? ''} onChange={e => handleColFilter('rankName', e.target.value)} /></div></th>
+              <th><div className="cl-search-wrap"><input className="cl-cf" placeholder="Tìm kiếm" value={filters.department ?? ''} onChange={e => handleColFilter('department', e.target.value)} /></div></th>
+              <th><div className="cl-search-wrap"><input className="cl-cf" placeholder="Tìm kiếm" value={filters.vesselName ?? ''} onChange={e => handleColFilter('vesselName', e.target.value)} /></div></th>
               <th></th>
               <th></th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {filteredCrew.length === 0 ? (
+            {crew.length === 0 ? (
               <tr><td colSpan={8} className="cl-empty">
                 <Users size={24} />
-                <p>{crew.length === 0 ? 'Chưa có thuyền viên nào' : 'Không tìm thấy thuyền viên phù hợp'}</p>
-                {crew.length === 0 && <button className="cl-btn cl-btn--primary" onClick={openNew}><Plus size={13} /> Thêm thuyền viên</button>}
+                <p>Không tìm thấy thuyền viên phù hợp</p>
+                {!filters.search && !filters.rankName && !filters.department && !filters.vesselName && filters.isOnboard == null &&
+                  <button className="cl-btn cl-btn--primary" onClick={openNew}><Plus size={13} /> Thêm thuyền viên</button>}
               </td></tr>
-            ) : filteredCrew.map((m, idx) => {
+            ) : crew.map((m, idx) => {
               const sel = selectedIds.has(m.id);
               return (
                 <tr
@@ -334,7 +333,7 @@ export const CrewListPage: React.FC = () => {
       {/* Footer / Pagination */}
       <div className="cl-footer">
         <span className="cl-footer-info">
-          Hiển thị {filteredCrew.length} / {totalCount} thuyền viên
+          Hiển thị {crew.length} / {totalCount} thuyền viên
         </span>
         {totalPages > 1 && (
           <div className="cl-pagi-btns">

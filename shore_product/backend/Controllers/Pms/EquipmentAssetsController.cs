@@ -19,19 +19,23 @@ public class EquipmentAssetsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? category)
+    public async Task<IActionResult> GetAll([FromQuery] string? category, [FromQuery] Guid? vesselId)
     {
         var query = _context.EquipmentAssets.Where(e => e.IsActive).AsNoTracking();
         if (!string.IsNullOrEmpty(category))
             query = query.Where(e => e.Category == category);
+        if (vesselId.HasValue)
+            query = query.Where(e => e.VesselId == vesselId.Value);
         return Ok(await query.OrderBy(e => e.AssetCode).ToListAsync());
     }
 
     [HttpGet("tree")]
-    public async Task<IActionResult> GetTree()
+    public async Task<IActionResult> GetTree([FromQuery] Guid? vesselId)
     {
-        var all = await _context.EquipmentAssets.Where(e => e.IsActive).AsNoTracking()
-            .OrderBy(e => e.AssetCode).ToListAsync();
+        var query = _context.EquipmentAssets.Where(e => e.IsActive).AsNoTracking();
+        if (vesselId.HasValue)
+            query = query.Where(e => e.VesselId == vesselId.Value);
+        var all = await query.OrderBy(e => e.AssetCode).ToListAsync();
         return Ok(all); // Frontend builds tree from flat list using parentId
     }
 
@@ -75,6 +79,7 @@ public class EquipmentAssetsController : ControllerBase
             TechnicalSpecs = dto.TechnicalSpecs,
             Notes = dto.Notes,
             ParentId = dto.ParentId,
+            VesselId = dto.VesselId,
         };
         _context.EquipmentAssets.Add(entity);
         await _context.SaveChangesAsync();
@@ -100,6 +105,7 @@ public class EquipmentAssetsController : ControllerBase
         entity.TechnicalSpecs = dto.TechnicalSpecs;
         entity.Notes = dto.Notes;
         entity.ParentId = dto.ParentId;
+        entity.VesselId = dto.VesselId;
         entity.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         return Ok(entity);
@@ -135,6 +141,7 @@ public class EquipmentAssetsController : ControllerBase
                 Model = dto.Model, SerialNumber = dto.SerialNumber,
                 Location = dto.Location, Criticality = dto.Criticality,
                 ParentId = dto.ParentId,
+                VesselId = dto.VesselId,
             });
             imported++;
         }

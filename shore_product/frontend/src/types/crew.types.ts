@@ -258,6 +258,8 @@ export interface CrewFilters {
   department?: string;
   rankId?: number | null;
   vesselId?: string | null;
+  rankName?: string;
+  vesselName?: string;
   page: number;
   pageSize: number;
 }

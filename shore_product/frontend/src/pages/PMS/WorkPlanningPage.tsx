@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Table2, Calendar, BarChart3,
   Search, ChevronRight, ChevronDown, ChevronLeft,
@@ -158,6 +158,8 @@ const PRIORITY_LABELS: Record<string, { label: string; bg: string; text: string 
 export default function WorkPlanningPage() {
   const navigate = useNavigate();
   const { t } = useTranslationSafe();
+  const [searchParams] = useSearchParams();
+  const vesselId = searchParams.get('vesselId') ?? undefined;
 
   // === Translated label helpers ===
   const STATUS_KEY_MAP: Record<string, string> = {
@@ -266,9 +268,9 @@ export default function WorkPlanningPage() {
       else setIsBackgroundRefreshing(true);
 
       const [tasksRes, crewRes, assetsRes] = await Promise.all([
-        maritimeService.maintenance.getAll({ pageSize: 1000 }),
+        maritimeService.maintenance.getAll({ pageSize: 1000, vesselId }),
         maritimeService.crew.getAll({ pageSize: 100, isOnboard: true }),
-        equipmentAssetService.getTree(),
+        equipmentAssetService.getTree(vesselId),
       ]);
 
       setTasks(prev => {
@@ -285,7 +287,7 @@ export default function WorkPlanningPage() {
       if (showSpinner) setLoading(false);
       else setIsBackgroundRefreshing(false);
     }
-  }, []);
+  }, [vesselId]);
 
   // Load schedule config data
   const loadSchedules = useCallback(async () => {

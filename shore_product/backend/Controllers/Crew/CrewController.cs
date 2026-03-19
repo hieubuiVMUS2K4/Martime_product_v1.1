@@ -48,12 +48,15 @@ public class CrewController : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] bool? isOnboard = null,
         [FromQuery] Guid? shipId = null,
-        [FromQuery] bool? pool = null)
+        [FromQuery] bool? pool = null,
+        [FromQuery] string? rankName = null,
+        [FromQuery] string? department = null,
+        [FromQuery] string? vesselName = null)
     {
         try
         {
             var (data, totalCount, totalPages) = await _crewService.GetAllCrewAsync(
-                page, pageSize, search, isOnboard, shipId, pool);
+                page, pageSize, search, isOnboard, shipId, pool, rankName, department, vesselName);
 
             return Ok(new
             {

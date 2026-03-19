@@ -46,6 +46,7 @@ export const crewApi = {
   getAll: async (params?: {
     page?: number; pageSize?: number;
     search?: string; isOnboard?: boolean; shipId?: string; poolOnly?: boolean;
+    rankName?: string; department?: string; vesselName?: string;
   }): Promise<PaginatedResponse<CrewMember>> => {
     const sp = new URLSearchParams();
     if (params?.page) sp.set('page', String(params.page));
@@ -55,6 +56,9 @@ export const crewApi = {
       sp.set('isOnboard', String(params.isOnboard));
     if (params?.shipId) sp.set('shipId', params.shipId);
     if (params?.poolOnly) sp.set('poolOnly', 'true');
+    if (params?.rankName) sp.set('rankName', params.rankName);
+    if (params?.department) sp.set('department', params.department);
+    if (params?.vesselName) sp.set('vesselName', params.vesselName);
 
     const raw = await request<{
       data: CrewMember[];

@@ -100,7 +100,7 @@ public class MaterialController : ControllerBase
 
     [HttpGet("items")]
     public async Task<IActionResult> GetItems([FromQuery] string? q, [FromQuery] long? categoryId,
-        [FromQuery] bool? lowStock, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+        [FromQuery] bool? lowStock, [FromQuery] Guid? vesselId, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         var query = _context.MaterialItems.Where(i => i.IsActive).AsNoTracking();
         if (!string.IsNullOrEmpty(q))
@@ -109,6 +109,8 @@ public class MaterialController : ControllerBase
             query = query.Where(i => i.CategoryId == categoryId.Value);
         if (lowStock == true)
             query = query.Where(i => i.MinStock.HasValue && i.OnHandQuantity <= i.MinStock.Value);
+        if (vesselId.HasValue)
+            query = query.Where(i => i.VesselId == vesselId.Value);
         var total = await query.CountAsync();
         var items = await query.OrderBy(i => i.ItemCode).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
         return Ok(new { items, total, page, pageSize });

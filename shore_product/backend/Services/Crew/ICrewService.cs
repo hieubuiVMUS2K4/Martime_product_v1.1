@@ -19,7 +19,8 @@ public interface ICrewService
     Task<(List<CrewMemberDto> Data, int TotalCount, int TotalPages)> GetAllCrewAsync(
         int page = 1, int pageSize = 50,
         string? search = null, bool? isOnboard = null,
-        Guid? shipId = null, bool? poolOnly = null);
+        Guid? shipId = null, bool? poolOnly = null,
+        string? rankName = null, string? department = null, string? vesselName = null);
 
     /// <summary>Get a single crew member by ID with full details.</summary>
     Task<CrewMemberDto?> GetCrewByIdAsync(Guid id);

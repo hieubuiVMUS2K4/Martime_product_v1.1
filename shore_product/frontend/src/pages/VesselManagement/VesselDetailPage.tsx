@@ -552,7 +552,7 @@ export const VesselDetailPage: React.FC = () => {
                       <button
                         key={item.path}
                         className="vd-tab-dropdown-item"
-                        onClick={() => { navigate(item.path); setOpenNavGroup(null); }}
+                        onClick={() => { navigate(`${item.path}?vesselId=${id}`); setOpenNavGroup(null); }}
                       >
                         <span>{item.label}</span>
                       </button>

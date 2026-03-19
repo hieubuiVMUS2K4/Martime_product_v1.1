@@ -131,6 +131,9 @@ public class MaintenanceTask
     public bool IsDeleted { get; set; } = false;
     public DateTime? DeletedAt { get; set; }
 
+    // Vessel scope
+    public Guid? VesselId { get; set; }
+
     // Audit
     public bool IsSynced { get; set; } = false;
     public DateTime? SyncedAt { get; set; }
