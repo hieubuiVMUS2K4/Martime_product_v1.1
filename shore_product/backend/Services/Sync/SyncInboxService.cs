@@ -215,6 +215,18 @@ public class SyncInboxService : ISyncInboxService
         "voyage_settlement",
     };
 
+    // Tables where entities are scoped per-vessel (have VesselId).
+    // If a record with the same ID already exists for a DIFFERENT vessel,
+    // a new copy is created rather than conflicting.
+    private static readonly HashSet<string> _vesselScopedTables = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "material_item",
+        "equipment_asset",
+        "maintenance_task",
+        "inventory_stock",
+        "material_item_equipment",
+    };
+
     public SyncInboxService(
         AppDbContext context,
         IConflictResolverService conflictResolver,
@@ -711,6 +723,33 @@ public class SyncInboxService : ISyncInboxService
         var existing = await FindEntityByKeyAsync(entityType, item.RecordKey);
         if (existing != null)
         {
+            // For vessel-scoped entities (MaterialItem, EquipmentAsset, MaintenanceTask):
+            // if the existing record already belongs to a DIFFERENT vessel, treat the incoming
+            // data as a NEW record for that vessel (create a copy with a new ID).
+            // This handles the case where multiple vessels use seed data with identical IDs.
+            if (_vesselScopedTables.Contains(item.TableName))
+            {
+                var existingVesselId = existing.GetType().GetProperty("VesselId")?.GetValue(existing) as Guid?;
+                var incomingVessel = await _context.Vessels.AsNoTracking()
+                    .FirstOrDefaultAsync(v => v.IMO == item.OriginNode);
+                var incomingVesselId = incomingVessel?.Id;
+
+                if (incomingVesselId.HasValue && existingVesselId.HasValue
+                    && existingVesselId.Value != incomingVesselId.Value)
+                {
+                    // Different vessel — create a new record with a new GUID
+                    _logger.LogInformation(
+                        "Entity {Table}/{Key} belongs to vessel {Existing}, incoming from {Incoming} — creating new copy",
+                        item.TableName, item.RecordKey, existingVesselId, incomingVesselId);
+                    ForceEntityPrimaryKey(entityType, entity, Guid.NewGuid().ToString());
+                    UpdateSyncMetadata(entity, item);
+                    await ResolveOrphanedForeignKeysAsync(entityType, entity, item.Payload);
+                    await _context.AddAsync(entity);
+                    await ResolveCrewVesselIdAsync(entity, item.OriginNode);
+                    return;
+                }
+            }
+
             _logger.LogDebug("Entity {Table}/{Key} already exists — treating as UPDATE", 
                 item.TableName, item.RecordKey);
             // Apply conflict resolution — copy only meaningful non-default values
