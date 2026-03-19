@@ -782,6 +782,27 @@ public class SyncInboxService : ISyncInboxService
     private async Task ProcessUpdateAsync(Type entityType, SyncQueueItemDto item)
     {
         var existing = await FindEntityByKeyAsync(entityType, item.RecordKey);
+
+        // For vessel-scoped tables: if the existing record belongs to a DIFFERENT vessel,
+        // treat this as a new record creation (same seed ID, different vessel).
+        if (existing != null && _vesselScopedTables.Contains(item.TableName))
+        {
+            var existingVesselId = existing.GetType().GetProperty("VesselId")?.GetValue(existing) as Guid?;
+            var incomingVessel = await _context.Vessels.AsNoTracking()
+                .FirstOrDefaultAsync(v => v.IMO == item.OriginNode);
+            var incomingVesselId = incomingVessel?.Id;
+
+            if (incomingVesselId.HasValue && existingVesselId.HasValue
+                && existingVesselId.Value != incomingVesselId.Value)
+            {
+                _logger.LogInformation(
+                    "SNAPSHOT {Table}/{Key} belongs to vessel {Existing}, incoming from vessel {Incoming} — creating new copy",
+                    item.TableName, item.RecordKey, existingVesselId, incomingVesselId);
+                // Force existing to null so we fall through to ProcessCreateAsync
+                existing = null;
+            }
+        }
+
         if (existing == null)
         {
             // Only fall through to CREATE if the original action is CREATE or SNAPSHOT
