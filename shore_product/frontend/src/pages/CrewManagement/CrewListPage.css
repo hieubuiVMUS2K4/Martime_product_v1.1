@@ -352,10 +352,134 @@
 @media (max-width: 1024px) {
   .cl-stats { flex-wrap: wrap; }
   .cl-table { font-size: 12px; }
+  .cl-cert-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .cl-cert-compliance-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 768px) {
   .cl-header { flex-direction: column; align-items: flex-start; }
   .cl-table th:nth-child(n+6), .cl-table td:nth-child(n+6) { display: none; }
   .cl-selbar { left: 12px; right: 12px; transform: none; }
   @keyframes clBarIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  .cl-cert-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .cl-cert-toolbar { flex-direction: column; }
+  .cl-cert-search-wrap { max-width: 100%; }
 }
+
+/* ============================================================
+   Certificate Monitor – Inline View (MOC Theme)
+   ============================================================ */
+
+/* --- KPI Cards --- */
+.cl-cert-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.cl-cert-kpi {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  background: #fff; border: 1px solid var(--moc-border);
+  border-radius: var(--moc-radius);
+  cursor: pointer; transition: all .12s;
+}
+.cl-cert-kpi:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.cl-cert-kpi--active { border-color: var(--moc-blue); background: var(--moc-head-bg); }
+
+.cl-cert-kpi-val { font-size: 18px; font-weight: 800; line-height: 1; }
+.cl-cert-kpi-lbl { font-size: 11px; color: var(--moc-muted); }
+
+.cl-cert-kpi--total svg { color: var(--moc-blue); }
+.cl-cert-kpi--total .cl-cert-kpi-val { color: var(--moc-blue); }
+.cl-cert-kpi--valid svg { color: var(--moc-success); }
+.cl-cert-kpi--valid .cl-cert-kpi-val { color: var(--moc-success); }
+.cl-cert-kpi--warning svg { color: var(--moc-warn); }
+.cl-cert-kpi--warning .cl-cert-kpi-val { color: var(--moc-warn); }
+.cl-cert-kpi--danger svg { color: var(--moc-danger); }
+.cl-cert-kpi--danger .cl-cert-kpi-val { color: var(--moc-danger); }
+
+/* --- Cert Toolbar --- */
+.cl-cert-toolbar {
+  display: flex; align-items: center; gap: 6px;
+}
+.cl-cert-search-wrap {
+  position: relative; flex: 1; max-width: 340px;
+}
+.cl-cert-search-icon {
+  position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+  color: var(--moc-muted); pointer-events: none;
+}
+.cl-cert-search {
+  width: 100%; padding: 6px 28px 6px 30px;
+  border: 1px solid var(--moc-border); border-radius: var(--moc-radius);
+  font-size: 12px; background: #fff; color: var(--moc-text);
+  outline: none; transition: border-color .12s;
+}
+.cl-cert-search:focus { border-color: var(--moc-blue); }
+.cl-cert-search-clear {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; font-size: 16px;
+  color: var(--moc-muted); cursor: pointer; line-height: 1;
+}
+.cl-cert-days-select {
+  padding: 6px 10px; border: 1px solid var(--moc-border);
+  border-radius: var(--moc-radius); font-size: 12px;
+  background: #fff; color: var(--moc-text); cursor: pointer;
+}
+.cl-cert-days-select:focus { outline: none; border-color: var(--moc-blue); }
+
+/* --- Cert Table rows --- */
+.cl-cert-table td { padding: 6px 10px !important; }
+.cl-cert-crew-name { font-weight: 600; }
+.cl-cert-name { font-weight: 500; display: block; font-size: 12.5px; }
+.cl-cert-cat {
+  font-size: 10px; background: var(--moc-head-bg);
+  padding: 0 4px; border-radius: 3px;
+  color: var(--moc-muted); margin-top: 1px; display: inline-block;
+}
+.cl-cert-num {
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 11px; color: var(--moc-muted);
+}
+.cl-cert-days { font-weight: 600; font-size: 12px; }
+.cl-cert-days--danger { color: var(--moc-danger); }
+.cl-cert-days--warning { color: var(--moc-warn); }
+
+/* Cert status badge */
+.cl-cert-status-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600;
+  padding: 2px 9px; border-radius: 20px; white-space: nowrap;
+}
+.cl-cert-status-badge.cl-cert-valid { background: #d1fae5; color: #059669; }
+.cl-cert-status-badge.cl-cert-expiring { background: #fef3c7; color: #d97706; }
+.cl-cert-status-badge.cl-cert-expired { background: #fee2e2; color: #dc2626; }
+
+/* Row left-border accent for cert rows */
+.cl-tr.cl-cert-expired td:first-child { box-shadow: inset 3px 0 0 var(--moc-danger); }
+.cl-tr.cl-cert-expiring td:first-child { box-shadow: inset 3px 0 0 var(--moc-warn); }
+
+.cl-cert-empty {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding: 48px 20px; color: var(--moc-muted); font-size: 13px;
+}
+
+/* --- Cert Compliance --- */
+.cl-cert-compliance {
+  background: #fff; border: 1px solid var(--moc-border);
+  border-radius: var(--moc-radius); padding: 12px 16px;
+}
+.cl-cert-compliance-title {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 700; color: var(--moc-blue);
+  margin: 0 0 10px;
+}
+.cl-cert-compliance-grid {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  gap: 8px; text-align: center;
+}
+.cl-cert-comp-item { display: flex; flex-direction: column; gap: 1px; }
+.cl-cert-comp-val { font-size: 17px; font-weight: 800; color: var(--moc-text); }
+.cl-cert-comp-lbl { font-size: 11px; color: var(--moc-muted); }
+.cl-cert-comp--green .cl-cert-comp-val { color: var(--moc-success); }
+.cl-cert-comp--yellow .cl-cert-comp-val { color: var(--moc-warn); }
+.cl-cert-comp--red .cl-cert-comp-val { color: var(--moc-danger); }

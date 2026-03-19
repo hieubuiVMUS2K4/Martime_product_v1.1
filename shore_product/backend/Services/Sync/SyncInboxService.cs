@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using ProductApi.Data;
 using ProductApi.Models;
+using ProductApi.Services;
 using Maritime.Shared.DTOs.Sync;
 using Maritime.Shared.Models.Sync;
 using Maritime.Shared.Models.Crew;
@@ -41,6 +43,8 @@ public class SyncInboxService : ISyncInboxService
     private readonly AppDbContext _context;
     private readonly IConflictResolverService _conflictResolver;
     private readonly ILogger<SyncInboxService> _logger;
+    private readonly INotificationService _notifications;
+
 
     /// <summary>
     /// Converts all DateTime/DateTimeOffset values to UTC when deserializing,
@@ -214,11 +218,14 @@ public class SyncInboxService : ISyncInboxService
     public SyncInboxService(
         AppDbContext context,
         IConflictResolverService conflictResolver,
-        ILogger<SyncInboxService> logger)
+        ILogger<SyncInboxService> logger,
+        INotificationService notifications,
+        IConfiguration configuration)
     {
         _context = context;
         _conflictResolver = conflictResolver;
         _logger = logger;
+        _notifications = notifications;
     }
 
     // ============================================================
@@ -345,6 +352,20 @@ public class SyncInboxService : ISyncInboxService
 
                     await ProcessIncomingAsync(item);
 
+                    // Save synced file data if present (base64-encoded document files from edge/shore)
+                    if (!string.IsNullOrEmpty(item.FileData) && !string.IsNullOrEmpty(item.FileName))
+                    {
+                        try
+                        {
+                            await SaveSyncedFileAsync(item);
+                        }
+                        catch (Exception fileEx)
+                        {
+                            _logger.LogWarning(fileEx, "Failed to save synced file for {Table}/{Key}, data sync continues",
+                                item.TableName, item.RecordKey);
+                        }
+                    }
+
                     // Record idempotency key
                     await RecordProcessedAsync(item);
 
@@ -364,11 +385,71 @@ public class SyncInboxService : ISyncInboxService
             }
         }
 
+        // ── Emit a summary notification per vessel ──────────────────────────────
+        if (succeeded > 0)
+        {
+            await EmitSyncBatchNotificationsAsync(items, succeeded);
+        }
+
+        // ── Auto-create VesselCertificateAssignments from synced certificate/crew data ──
+        if (grouped.Any(g => g.Key.Equals("certificate", StringComparison.OrdinalIgnoreCase)
+                          || g.Key.Equals("crew_certificate", StringComparison.OrdinalIgnoreCase)
+                          || g.Key.Equals("crew_member", StringComparison.OrdinalIgnoreCase)))
+        {
+            try
+            {
+                await AutoCreateVesselCertificateAssignmentsAsync(items);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Auto-create VesselCertificateAssignments failed (non-critical)");
+            }
+        }
+
         return (succeeded, failed);
     }
 
-    public async Task<bool> IsAlreadyProcessedAsync(string tableName, string recordKey, long syncVersion)
+    /// <summary>
+    /// After a successful batch, emits one summary notification per distinct vessel.
+    /// Groups tables and builds a Vietnamese summary message.
+    /// </summary>
+    private async Task EmitSyncBatchNotificationsAsync(List<SyncQueueItemDto> items, int totalSucceeded)
     {
+        // Group by origin IMO so each vessel gets its own notification
+        var byVessel = items
+            .Where(i => !string.IsNullOrWhiteSpace(i.OriginNode))
+            .GroupBy(i => i.OriginNode, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var vesselGroup in byVessel)
+        {
+            var imo = vesselGroup.Key;
+            var vessel = await _context.Vessels
+                .Where(v => v.IMO == imo)
+                .Select(v => new { v.Id, v.Name })
+                .FirstOrDefaultAsync();
+
+            var vesselName = vessel?.Name ?? imo;
+            var count = vesselGroup.Count();
+
+            // Collect distinct table names for the summary message
+            var tables = vesselGroup
+                .Select(i => i.TableName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var tablesSummary = string.Join(", ", tables.Select(t => t.Replace("_", " ")));
+            var message = $"Nhận {count} bản ghi từ tàu {vesselName}: {tablesSummary}";
+
+            await _notifications.CreateAsync(
+                type: "sync_batch",
+                title: $"Đồng bộ từ tàu {vesselName}",
+                message: message,
+                vesselId: vessel?.Id,
+                vesselName: vesselName);
+        }
+    }
+
+    public async Task<bool> IsAlreadyProcessedAsync(string tableName, string recordKey, long syncVersion)    {
         if (syncVersion <= 0) return false; // No version = no idempotency check
 
         var key = $"{tableName}:{recordKey}:{syncVersion}";
@@ -389,6 +470,179 @@ public class SyncInboxService : ISyncInboxService
         };
 
         await _context.SyncIdempotencyRecords.AddAsync(record);
+    }
+
+    /// <summary>
+    /// After syncing crew_certificate from edge, auto-create VesselCertificateAssignment
+    /// records so the vessel's required certificate list is populated from snapshot data.
+    /// </summary>
+    private async Task AutoCreateVesselCertificateAssignmentsAsync(List<SyncQueueItemDto> items)
+    {
+        // Find all distinct origin IMOs from this batch
+        var imos = items
+            .Where(i => !string.IsNullOrWhiteSpace(i.OriginNode))
+            .Select(i => i.OriginNode)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var imo in imos)
+        {
+            // Resolve vessel from IMO
+            var vessel = await _context.Vessels
+                .AsNoTracking()
+                .FirstOrDefaultAsync(v => v.IMO == imo);
+            if (vessel == null) continue;
+
+            // Source: certificate records from this vessel's current incoming sync batch.
+            // Fall back to SyncIdempotencyRecords for historical syncs if batch has no cert items.
+            var batchCertIds = items
+                .Where(i => string.Equals(i.OriginNode, imo, StringComparison.OrdinalIgnoreCase)
+                         && string.Equals(i.TableName, "certificate", StringComparison.OrdinalIgnoreCase))
+                .Select(i => i.RecordKey)
+                .Where(k => int.TryParse(k, out _))
+                .Select(int.Parse)
+                .Distinct()
+                .ToList();
+
+            List<int> certTypeIds;
+            if (batchCertIds.Count > 0)
+            {
+                certTypeIds = await _context.CrewCertificateTypes
+                    .Where(c => c.IsActive && batchCertIds.Contains(c.Id))
+                    .Select(c => c.Id)
+                    .Distinct()
+                    .ToListAsync();
+            }
+            else
+            {
+                // No certificate items in current batch — derive from historical sync records.
+                var syncKeys = await _context.SyncIdempotencyRecords
+                    .AsNoTracking()
+                    .Where(r => r.OriginNode == imo && r.IdempotencyKey.StartsWith("certificate:"))
+                    .Select(r => r.IdempotencyKey)
+                    .ToListAsync();
+
+                var historicalIds = syncKeys
+                    .Select(k => k.Split(':'))
+                    .Where(parts => parts.Length >= 2 && int.TryParse(parts[1], out _))
+                    .Select(parts => int.Parse(parts[1]))
+                    .Distinct()
+                    .ToList();
+
+                certTypeIds = historicalIds.Count > 0
+                    ? await _context.CrewCertificateTypes
+                        .Where(c => c.IsActive && historicalIds.Contains(c.Id))
+                        .Select(c => c.Id)
+                        .Distinct()
+                        .ToListAsync()
+                    : new List<int>();
+            }
+
+            if (certTypeIds.Count == 0) continue;
+
+            // Get already-assigned certificate type IDs for this vessel
+            var existingIds = await _context.VesselCertificateAssignments
+                .Where(a => a.VesselId == vessel.Id)
+                .Select(a => a.CertificateId)
+                .ToListAsync();
+
+            var toAdd = certTypeIds.Except(existingIds).ToList();
+            if (toAdd.Count > 0)
+            {
+                var newAssignments = toAdd.Select(certId => new VesselCertificateAssignment
+                {
+                    CertificateId = certId,
+                    VesselId = vessel.Id,
+                    AssignedAt = DateTime.UtcNow,
+                    IsSynced = true,
+                }).ToList();
+
+                _context.VesselCertificateAssignments.AddRange(newAssignments);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation(
+                    "Auto-created {Count} VesselCertificateAssignments for vessel {VesselName} (IMO: {IMO}) from snapshot",
+                    newAssignments.Count, vessel.Name, imo);
+            }
+
+            // Keep auto-synced assignments aligned to current vessel certificate set from snapshot.
+            var staleAutoAssignments = await _context.VesselCertificateAssignments
+                .Where(a => a.VesselId == vessel.Id && a.IsSynced && !certTypeIds.Contains(a.CertificateId))
+                .ToListAsync();
+            if (staleAutoAssignments.Count > 0)
+            {
+                _context.VesselCertificateAssignments.RemoveRange(staleAutoAssignments);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation(
+                    "Removed {Count} stale auto-synced VesselCertificateAssignments for vessel {VesselName} (IMO: {IMO})",
+                    staleAutoAssignments.Count, vessel.Name, imo);
+            }
+        }
+    }
+
+
+
+    /// <summary>
+    /// Save base64-encoded file received via sync to the shore's uploads directory.
+    /// Updates the entity's file path field to point to the locally saved file.
+    /// </summary>
+    private async Task SaveSyncedFileAsync(SyncQueueItemDto item)
+    {
+        var bytes = Convert.FromBase64String(item.FileData!);
+        var ext = Path.GetExtension(item.FileName!).ToLowerInvariant();
+
+        // Determine upload subdirectory based on table type
+        var subDir = item.TableName switch
+        {
+            "crew_certificate" => "crew/certificates",
+            "travel_document" => "crew/documents/travel",
+            "seafarer_document" => "crew/documents/seafarer",
+            "employment_document" => "crew/documents/employment",
+            "health_document" => "crew/documents/health",
+            _ => "crew/synced"
+        };
+
+        var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "uploads", subDir);
+        Directory.CreateDirectory(uploadsDir);
+
+        // Use the original filename from the sender so both shore and edge have identical file paths
+        var safeFileName = !string.IsNullOrEmpty(item.FileName) ? item.FileName : $"{item.TableName}_{item.RecordKey}{ext}";
+        var filePath = Path.Combine(uploadsDir, safeFileName);
+        await System.IO.File.WriteAllBytesAsync(filePath, bytes);
+
+        var relativePath = $"/uploads/{subDir}/{safeFileName}";
+
+        // Update the entity's file path in the database
+        if (_tableEntityMap.TryGetValue(item.TableName, out var entityType))
+        {
+            var entity = await FindEntityByKeyAsync(entityType, item.RecordKey);
+            if (entity != null)
+            {
+                // Try DocumentFilePath, then FilePath, then FileUrl
+                var pathProps = new[] { "DocumentFilePath", "FilePath", "FileUrl" };
+                foreach (var propName in pathProps)
+                {
+                    var prop = entityType.GetProperty(propName);
+                    if (prop != null && prop.PropertyType == typeof(string))
+                    {
+                        // Delete old file if path changed
+                        var oldPath = prop.GetValue(entity) as string;
+                        if (!string.IsNullOrEmpty(oldPath) && oldPath != relativePath)
+                        {
+                            var oldAbsPath = Path.Combine(Directory.GetCurrentDirectory(),
+                                oldPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                            if (System.IO.File.Exists(oldAbsPath))
+                                System.IO.File.Delete(oldAbsPath);
+                        }
+
+                        prop.SetValue(entity, relativePath);
+                        _logger.LogInformation("Saved synced file for {Table}/{Key} → {Path}",
+                            item.TableName, item.RecordKey, relativePath);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     // ============================================================
@@ -465,7 +719,7 @@ public class SyncInboxService : ISyncInboxService
             {
                 CopyNonDefaultProperties(existing, resolution.ResolvedEntity!, entityType);
                 UpdateSyncMetadata(existing, item);
-                await ResolveCrewVesselIdAsync(existing);
+                await ResolveCrewVesselIdAsync(existing, item.OriginNode);
             }
             return;
         }
@@ -477,6 +731,7 @@ public class SyncInboxService : ISyncInboxService
         await ResolveOrphanedForeignKeysAsync(entityType, entity, item.Payload);
 
         await _context.AddAsync(entity);
+        await ResolveCrewVesselIdAsync(entity, item.OriginNode);
 
         _logger.LogDebug("Created {Table}/{Key} from {Node}", 
             item.TableName, item.RecordKey, item.OriginNode);
@@ -560,7 +815,25 @@ public class SyncInboxService : ISyncInboxService
                 }
             }
 
+            // DEBUG: Log OnboardStatus before conflict resolution
+            if (item.TableName == "crew_member")
+            {
+                var osPropBefore = existing.GetType().GetProperty("OnboardStatus");
+                var inOsProp = incomingEntity.GetType().GetProperty("OnboardStatus");
+                _logger.LogWarning("[SYNC-DEBUG] BEFORE resolve: existing.OnboardStatus={ExOs}, incoming.OnboardStatus={InOs}, payloadKeys=[{Keys}]",
+                    osPropBefore?.GetValue(existing), inOsProp?.GetValue(incomingEntity), string.Join(",", payloadKeys));
+            }
+
             var resolution = _conflictResolver.Resolve(item.TableName, existing, incomingEntity, item.OriginNode);
+
+            // DEBUG: Log OnboardStatus after conflict resolution
+            if (item.TableName == "crew_member")
+            {
+                var osPropAfter = existing.GetType().GetProperty("OnboardStatus");
+                _logger.LogWarning("[SYNC-DEBUG] AFTER resolve: ShouldApply={Apply}, existing.OnboardStatus={ExOs}, ResolvedEntity==existing? {Same}",
+                    resolution.ShouldApply, osPropAfter?.GetValue(existing), ReferenceEquals(resolution.ResolvedEntity, existing));
+            }
+
             if (resolution.ShouldApply)
             {
                 // Restore value-type properties that were NOT in the payload
@@ -570,6 +843,14 @@ public class SyncInboxService : ISyncInboxService
                     var prop = existing.GetType().GetProperty(kvp.Key);
                     if (prop?.CanWrite == true)
                         prop.SetValue(existing, kvp.Value);
+                }
+
+                // DEBUG: Log OnboardStatus after savedValueTypes restore
+                if (item.TableName == "crew_member")
+                {
+                    var osPropRestore = existing.GetType().GetProperty("OnboardStatus");
+                    _logger.LogWarning("[SYNC-DEBUG] AFTER restore savedValueTypes: existing.OnboardStatus={ExOs}",
+                        osPropRestore?.GetValue(existing));
                 }
 
                 // If ResolvedEntity IS existing (conflict resolver mutated it in-place),
@@ -596,6 +877,7 @@ public class SyncInboxService : ISyncInboxService
                     }
                 }
                 // When edge sends new EdgeChanges, ensure shore marks them as unviewed
+                // But only if the incoming EdgeChanges is DIFFERENT from what was already cleared/viewed
                 if (item.TableName == "crew_member" && existing is Maritime.Shared.Models.Crew.CrewMember crewEntity)
                 {
                     var hasEdgeChangesKey = payloadKeys.Contains("EdgeChanges")
@@ -603,16 +885,36 @@ public class SyncInboxService : ISyncInboxService
                         || payloadKeys.Contains("edge_changes");
                     if (hasEdgeChangesKey && !string.IsNullOrWhiteSpace(crewEntity.EdgeChanges))
                     {
-                        crewEntity.EdgeChangesViewed = false;
+                        // Get the original value before merge to compare
+                        var originalEntry = _context.Entry(existing);
+                        var originalEdgeChanges = originalEntry.Property("EdgeChanges").OriginalValue as string;
+                        // Only reset viewed if edge sent genuinely NEW change data
+                        if (originalEdgeChanges != crewEntity.EdgeChanges)
+                        {
+                            crewEntity.EdgeChangesViewed = false;
+                        }
                     }
                 }
 
                 UpdateSyncMetadata(existing, item);
-                await ResolveCrewVesselIdAsync(existing);
+                await ResolveCrewVesselIdAsync(existing, item.OriginNode);
+
+                // DEBUG: Final state before SaveChanges
+                if (item.TableName == "crew_member")
+                {
+                    var osFinal = existing.GetType().GetProperty("OnboardStatus")?.GetValue(existing);
+                    var iobFinal = existing.GetType().GetProperty("IsOnboard")?.GetValue(existing);
+                    var efState = _context.Entry(existing).State;
+                    _logger.LogWarning("[SYNC-DEBUG] FINAL before save: OnboardStatus={Os}, IsOnboard={Iob}, EF_State={State}",
+                        osFinal, iobFinal, efState);
+                }
             }
             else
             {
                 await LogSyncOperation(item, "CONFLICT", resolution.ConflictDetail);
+                // DEBUG: Log rejection
+                if (item.TableName == "crew_member")
+                    _logger.LogWarning("[SYNC-DEBUG] REJECTED: {Detail}", resolution.ConflictDetail);
             }
             return;
         }
@@ -649,6 +951,7 @@ public class SyncInboxService : ISyncInboxService
         }
 
         // When edge sends new EdgeChanges via patch, mark as unviewed on shore
+        // But only if the change data is genuinely NEW (not a re-sync of already-viewed data)
         if (item.TableName == "crew_member" && existing is Maritime.Shared.Models.Crew.CrewMember patchCrew)
         {
             var hasEdgeChangesKey = patchData.Keys.Any(k =>
@@ -656,12 +959,16 @@ public class SyncInboxService : ISyncInboxService
                 || string.Equals(k, "edge_changes", StringComparison.OrdinalIgnoreCase));
             if (hasEdgeChangesKey && !string.IsNullOrWhiteSpace(patchCrew.EdgeChanges))
             {
-                patchCrew.EdgeChangesViewed = false;
+                var originalEdgeChanges = _context.Entry(existing).Property("EdgeChanges").OriginalValue as string;
+                if (originalEdgeChanges != patchCrew.EdgeChanges)
+                {
+                    patchCrew.EdgeChangesViewed = false;
+                }
             }
         }
 
         UpdateSyncMetadata(existing, item);
-        await ResolveCrewVesselIdAsync(existing);
+        await ResolveCrewVesselIdAsync(existing, item.OriginNode);
         _logger.LogDebug("Patched {Table}/{Key} from {Node}", 
             item.TableName, item.RecordKey, item.OriginNode);
     }
@@ -700,17 +1007,40 @@ public class SyncInboxService : ISyncInboxService
 
     private async Task<object?> FindEntityByKeyAsync(Type entityType, string recordKey)
     {
-        // Try Guid first (most crew entities), then int, then long
-        if (Guid.TryParse(recordKey, out var guidKey))
-            return await _context.FindAsync(entityType, guidKey);
-        if (int.TryParse(recordKey, out var intKey))
-            return await _context.FindAsync(entityType, intKey);
-        if (long.TryParse(recordKey, out var longKey))
-            return await _context.FindAsync(entityType, longKey);
+        // crew_certificate uses CertificateNumber (string) as sync key — lookup by natural key
+        if (entityType == typeof(CrewCertificate))
+        {
+            return await _context.CrewCertificates
+                .AsTracking()
+                .FirstOrDefaultAsync(c => c.CertificateNumber == recordKey);
+        }
 
-        _logger.LogWarning("Cannot parse recordKey '{Key}' as Guid/int/long for entity {Type}",
-            recordKey, entityType.Name);
-        return null;
+        // Try Guid first (most crew entities), then int, then long
+        object? entity = null;
+        if (Guid.TryParse(recordKey, out var guidKey))
+            entity = await _context.FindAsync(entityType, guidKey);
+        else if (int.TryParse(recordKey, out var intKey))
+            entity = await _context.FindAsync(entityType, intKey);
+        else if (long.TryParse(recordKey, out var longKey))
+            entity = await _context.FindAsync(entityType, longKey);
+        else
+        {
+            _logger.LogWarning("Cannot parse recordKey '{Key}' as Guid/int/long for entity {Type}",
+                recordKey, entityType.Name);
+            return null;
+        }
+
+        // EF default is NoTracking — attach entity so modifications are persisted by SaveChangesAsync
+        if (entity != null)
+        {
+            var entry = _context.Entry(entity);
+            if (entry.State == Microsoft.EntityFrameworkCore.EntityState.Detached)
+            {
+                entry.State = Microsoft.EntityFrameworkCore.EntityState.Unchanged;
+            }
+        }
+
+        return entity;
     }
 
     /// <summary>
@@ -720,6 +1050,10 @@ public class SyncInboxService : ISyncInboxService
     /// </summary>
     private void ForceEntityPrimaryKey(Type entityType, object entity, string recordKey)
     {
+        // crew_certificate: PK is auto-increment int — do NOT force it from recordKey (which is CertificateNumber).
+        // The correct int PK will be assigned by the DB on INSERT. CertificateNumber is set via payload deserialization.
+        if (entityType == typeof(CrewCertificate))
+            return;
         var entry = _context.Entry(entity);
         var keyProp = entry.Metadata.FindPrimaryKey()?.Properties.FirstOrDefault();
         if (keyProp?.PropertyInfo == null) return;
@@ -789,20 +1123,40 @@ public class SyncInboxService : ISyncInboxService
     }
 
     /// <summary>
-    /// Auto-set VesselId from OriginNode (IMO) for crew members that don't have it set.
-    /// Called after sync processing to ensure crew are linked to the correct vessel.
+    /// Auto-set VesselId from OriginNode (IMO) for entities that don't have it set.
+    /// Covers CrewMember, EquipmentAsset, and MaterialItem synced from edge nodes.
     /// </summary>
-    private async Task ResolveCrewVesselIdAsync(object entity)
+    private async Task ResolveCrewVesselIdAsync(object entity, string? overrideOriginNode = null)
     {
-        if (entity is CrewMember crew && !crew.VesselId.HasValue
-            && !string.IsNullOrWhiteSpace(crew.OriginNode) && crew.OriginNode != "SHORE")
+        string? originNode = overrideOriginNode;
+
+        // For entities without OriginNode property (EquipmentAsset, MaterialItem),
+        // the caller must pass overrideOriginNode from the sync item.
+        if (originNode == null)
+            originNode = entity.GetType().GetProperty("OriginNode")?.GetValue(entity) as string;
+
+        if (string.IsNullOrWhiteSpace(originNode) || originNode == "SHORE") return;
+
+        Vessel? vessel = null;
+
+        switch (entity)
         {
-            var vessel = await _context.Vessels.AsNoTracking()
-                .FirstOrDefaultAsync(v => v.IMO == crew.OriginNode);
-            if (vessel != null)
-            {
-                crew.VesselId = vessel.Id;
-            }
+            case CrewMember crew when !crew.VesselId.HasValue:
+                vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
+                if (vessel != null) crew.VesselId = vessel.Id;
+                break;
+            case ProductApi.Models.EquipmentAsset asset when !asset.VesselId.HasValue:
+                vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
+                if (vessel != null) asset.VesselId = vessel.Id;
+                break;
+            case ProductApi.Models.MaterialItem mat when !mat.VesselId.HasValue:
+                vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
+                if (vessel != null) mat.VesselId = vessel.Id;
+                break;
+            case ProductApi.Models.MaintenanceTask task when !task.VesselId.HasValue:
+                vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
+                if (vessel != null) task.VesselId = vessel.Id;
+                break;
         }
     }
 
@@ -1135,7 +1489,9 @@ public class SyncInboxService : ISyncInboxService
         }
 
         // Upsert: find by IMO or create new
-        var vessel = await _context.Vessels.FirstOrDefaultAsync(v => v.IMO == imo);
+        // AsTracking() needed because DbContext default is NoTracking — without it,
+        // changes to the loaded entity are invisible to SaveChangesAsync.
+        var vessel = await _context.Vessels.AsTracking().FirstOrDefaultAsync(v => v.IMO == imo);
         bool isNew = vessel == null;
         
         if (isNew)
@@ -1624,6 +1980,20 @@ public class SyncInboxService : ISyncInboxService
         _logger.LogInformation("Processed sign_on_record {Id} crew={CrewId} vessel={VesselId} from Edge",
             record.Id, record.CrewMemberId, record.VesselId);
         await LogSyncOperation(item, "SUCCESS");
+
+        // ── Sign-on notification ───────────────────────────────────────────────
+        var crewName = crew?.FullName ?? record.CrewMemberId.ToString();
+        var signOnVessel = await _context.Vessels.FindAsync(record.VesselId);
+        var vesselName = signOnVessel?.Name ?? record.VesselId.ToString();
+        await _notifications.CreateAsync(
+            type: "sign_on",
+            title: "Thuyền viên lên tàu",
+            message: $"{crewName} đã ký lên tàu {vesselName}" +
+                     (string.IsNullOrWhiteSpace(record.SignedOnBy) ? "" : $" (bởi {record.SignedOnBy})"),
+            vesselId: record.VesselId,
+            vesselName: vesselName,
+            crewMemberId: record.CrewMemberId,
+            crewName: crewName);
     }
 
     private async Task ProcessSignOffFromEdgeAsync(string payload, SyncQueueItemDto item)
@@ -1719,5 +2089,19 @@ public class SyncInboxService : ISyncInboxService
         _logger.LogInformation("Processed sign_off_record {Id} crew={CrewId} vessel={VesselId} reason={Reason} from Edge",
             record.Id, record.CrewMemberId, record.VesselId, record.Reason);
         await LogSyncOperation(item, "SUCCESS");
+
+        // ── Sign-off notification ──────────────────────────────────────────────
+        var signOffCrewName = crew?.FullName ?? record.CrewMemberId.ToString();
+        var signOffVessel = await _context.Vessels.FindAsync(record.VesselId);
+        var signOffVesselName = signOffVessel?.Name ?? record.VesselId.ToString();
+        await _notifications.CreateAsync(
+            type: "sign_off",
+            title: "Thuyền viên xuống tàu",
+            message: $"{signOffCrewName} đã ký xuống tàu {signOffVesselName}" +
+                     (string.IsNullOrWhiteSpace(record.Reason) ? "" : $" (lý do: {record.Reason})"),
+            vesselId: record.VesselId,
+            vesselName: signOffVesselName,
+            crewMemberId: record.CrewMemberId,
+            crewName: signOffCrewName);
     }
 }

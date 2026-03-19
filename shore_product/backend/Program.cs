@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json;
@@ -124,6 +125,7 @@ builder.Services.AddScoped<ProductApi.Services.CrewManagement.IOnboardEventServi
 builder.Services.AddScoped<ProductApi.Services.Sync.ISyncInboxService, ProductApi.Services.Sync.SyncInboxService>();
 builder.Services.AddScoped<ProductApi.Services.Sync.ISyncOutboxService, ProductApi.Services.Sync.SyncOutboxService>();
 builder.Services.AddScoped<ProductApi.Services.Sync.IConflictResolverService, ProductApi.Services.Sync.ConflictResolverService>();
+builder.Services.AddScoped<ProductApi.Services.INotificationService, ProductApi.Services.NotificationService>();
 builder.Services.AddScoped<ProductApi.Services.Sync.ICrewSyncOrchestrator, ProductApi.Services.Sync.CrewSyncOrchestrator>();
 
 // Register voyage management service
@@ -214,6 +216,60 @@ using (var scope = app.Services.CreateScope())
                     END IF;
                 END $$;
             ");
+            // ── PMS: add VesselId to equipment_assets & material_items ──
+            await db.Database.ExecuteSqlRawAsync(@"
+                ALTER TABLE equipment_assets
+                ADD COLUMN IF NOT EXISTS ""VesselId"" uuid;
+
+                DROP INDEX IF EXISTS ""IX_equipment_assets_AssetCode"";
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_equipment_assets_VesselId_AssetCode""
+                    ON equipment_assets (""VesselId"", ""AssetCode"");
+
+                ALTER TABLE material_items
+                ADD COLUMN IF NOT EXISTS ""VesselId"" uuid;
+
+                DROP INDEX IF EXISTS ""IX_material_items_ItemCode"";
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_material_items_VesselId_ItemCode""
+                    ON material_items (""VesselId"", ""ItemCode"");
+
+                ALTER TABLE ""MaintenanceTasks""
+                ADD COLUMN IF NOT EXISTS ""VesselId"" uuid;
+
+                CREATE INDEX IF NOT EXISTS ""IX_MaintenanceTasks_VesselId""
+                    ON ""MaintenanceTasks"" (""VesselId"");
+
+                -- Backfill VesselId from OriginNode (IMO) for existing tasks
+                UPDATE ""MaintenanceTasks"" AS mt
+                SET ""VesselId"" = v.""Id""
+                FROM ""Vessels"" AS v
+                WHERE mt.""VesselId"" IS NULL
+                  AND mt.""OriginNode"" IS NOT NULL
+                  AND mt.""OriginNode"" <> ''
+                  AND mt.""OriginNode"" <> 'SHORE'
+                  AND v.""IMO"" = mt.""OriginNode"";
+            ");
+
+            // ── Shore notifications table ──
+            await db.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS shore_notifications (
+                    ""Id""         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                    ""Type""       character varying(50)  NOT NULL,
+                    ""Title""      character varying(200) NOT NULL,
+                    ""Message""    character varying(500) NOT NULL,
+                    ""VesselId""   uuid,
+                    ""VesselName"" character varying(200),
+                    ""CrewMemberId"" uuid,
+                    ""CrewName""   character varying(200),
+                    ""CreatedAt""  timestamp with time zone NOT NULL DEFAULT NOW(),
+                    ""IsRead""     boolean NOT NULL DEFAULT false
+                );
+
+                CREATE INDEX IF NOT EXISTS ""IX_shore_notifications_CreatedAt""
+                    ON shore_notifications (""CreatedAt"");
+                CREATE INDEX IF NOT EXISTS ""IX_shore_notifications_IsRead""
+                    ON shore_notifications (""IsRead"");
+            ");
+
             logger.LogInformation("Database migration/verification completed successfully.");
             break;
         }
@@ -265,7 +321,25 @@ app.UseExceptionHandler(errorApp =>
     });
 });
 
+// Create uploads directories
+var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
+Directory.CreateDirectory(uploadsPath);
+Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "certificates"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "avatars"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "travel_documents"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "seafarer_documents"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "employment_documents"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "health_documents"));
+
 app.UseCors("AllowWebMobile");
+
+// Serve uploaded files
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads"
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

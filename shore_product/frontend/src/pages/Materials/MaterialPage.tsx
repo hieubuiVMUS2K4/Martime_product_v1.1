@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Search, Package, Eye, Edit2, Trash2, ChevronsUpDown, Upload, Link2 } from 'lucide-react';
 import { materialService } from '@/services/materialService';
 import type { CreateMaterialItemDto, UpdateMaterialItemDto } from '@/services/materialService';
@@ -13,6 +14,8 @@ const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50];
 
 export function MaterialPage() {
   const { t } = useTranslationSafe();
+  const [searchParams] = useSearchParams();
+  const vesselId = searchParams.get('vesselId') ?? undefined;
 
   const [items, setItems] = useState<MaterialItem[]>([]);
   const [categories, setCategories] = useState<MaterialCategory[]>([]);
@@ -42,13 +45,13 @@ export function MaterialPage() {
   const [equipmentCounts, setEquipmentCounts] = useState<Map<string, number>>(new Map());
   const [singleAssignItemId, setSingleAssignItemId] = useState<string | null>(null);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [vesselId]);
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [its, cats, eqCounts] = await Promise.all([
-        materialService.getItems({ onlyActive: true }),
+        materialService.getItems({ onlyActive: true, vesselId }),
         materialService.getCategories(true),
         materialService.getEquipmentCounts(),
       ]);
@@ -60,7 +63,7 @@ export function MaterialPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [vesselId]);
 
   // ---------- Handlers ----------
   const handleCreateItem = async (data: CreateMaterialItemDto) => {

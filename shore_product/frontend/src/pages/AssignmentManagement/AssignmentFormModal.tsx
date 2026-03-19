@@ -24,7 +24,7 @@ export const AssignmentFormModal: React.FC<Props> = ({ ranks, onSubmit, onClose 
 
   useEffect(() => {
     crewApi.getAll({ pageSize: 500 }).then(r => setCrewList(r.data)).catch(() => {});
-    fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/vessels`)
+    fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/vessels`)
       .then(r => r.json()).then(setVessels).catch(() => {});
   }, []);
 

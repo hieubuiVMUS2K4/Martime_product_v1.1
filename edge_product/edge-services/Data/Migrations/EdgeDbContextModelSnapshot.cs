@@ -327,6 +327,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("contract_end");
 
+                    b.Property<int?>("CountryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("country_id");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -349,6 +353,14 @@ namespace MaritimeEdge.Data.Migrations
                     b.Property<DateTime?>("DisembarkDate")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("disembark_date");
+
+                    b.Property<string>("EdgeChanges")
+                        .HasColumnType("text")
+                        .HasColumnName("edge_changes");
+
+                    b.Property<bool>("EdgeChangesViewed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("edge_changes_viewed");
 
                     b.Property<string>("EducationCourse")
                         .HasMaxLength(200)
@@ -422,11 +434,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("marital_status");
 
-                    b.Property<string>("Nationality")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("nationality");
-
                     b.Property<string>("NextOfKinAddress")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -450,6 +457,20 @@ namespace MaritimeEdge.Data.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("text")
                         .HasColumnName("notes");
+
+                    b.Property<string>("OnboardStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("onboard_status");
+
+                    b.Property<DateTime?>("OnboardStatusChangedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("onboard_status_changed_at");
+
+                    b.Property<string>("OnboardStatusChangedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("onboard_status_changed_by");
 
                     b.Property<string>("OriginNode")
                         .IsRequired()
@@ -476,6 +497,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("rank_id");
 
+                    b.Property<string>("ReviewChecklist")
+                        .HasColumnType("text")
+                        .HasColumnName("review_checklist");
+
+                    b.Property<string>("ReviewNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("review_notes");
+
                     b.Property<string>("ShoeSize")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)")
@@ -496,6 +525,9 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasKey("Id")
                         .HasName("p_k_crew_members");
 
+                    b.HasIndex("CountryId")
+                        .HasDatabaseName("idx_crew_country_id");
+
                     b.HasIndex("CrewId")
                         .IsUnique()
                         .HasDatabaseName("idx_crew_id_unique");
@@ -507,6 +539,10 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("IsSynced")
                         .HasDatabaseName("idx_crew_synced")
                         .HasFilter("is_synced = false");
+
+                    b.HasIndex("OnboardStatus")
+                        .HasDatabaseName("idx_crew_onboard_status")
+                        .HasFilter("onboard_status IS NOT NULL");
 
                     b.HasIndex("RankId")
                         .HasDatabaseName("idx_crew_rank_id");
@@ -566,112 +602,112 @@ namespace MaritimeEdge.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8764),
+                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(74),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "MAST",
                             RankName = "Master (Captain)",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8774)
+                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(77)
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8776),
+                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(83),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/O",
                             RankName = "Chief Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8776)
+                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(83)
                         },
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8777),
+                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(84),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/O",
                             RankName = "Second Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8777)
+                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(84)
                         },
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8778),
+                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(85),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "3/O",
                             RankName = "Third Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8778)
+                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(85)
                         },
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8779),
+                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(86),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/E",
                             RankName = "Chief Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8780)
+                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(86)
                         },
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8781),
+                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(87),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/E",
                             RankName = "Second Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8781)
+                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(88)
                         },
                         new
                         {
                             Id = 7,
-                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8782),
+                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(88),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "BOSN",
                             RankName = "Bosun",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8782)
+                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(89)
                         },
                         new
                         {
                             Id = 8,
-                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8783),
+                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(89),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "AB",
                             RankName = "Able Seaman",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8783)
+                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(89)
                         },
                         new
                         {
                             Id = 9,
-                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8784),
+                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(90),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "OILR",
                             RankName = "Oiler",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8784)
+                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(90)
                         },
                         new
                         {
                             Id = 10,
-                            CreatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8785),
+                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(91),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "COOK",
                             RankName = "Chief Cook",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 15, 14, 12, 59, 372, DateTimeKind.Utc).AddTicks(8786)
+                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(91)
                         });
                 });
 
@@ -1168,6 +1204,28 @@ namespace MaritimeEdge.Data.Migrations
                         .HasFilter("synced_at IS NULL");
 
                     b.ToTable("sync_queue", "public");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.Sync.SyncState", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("key");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("value");
+
+                    b.HasKey("Key")
+                        .HasName("p_k_sync_state");
+
+                    b.ToTable("sync_state", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.AbstractLogDailyEntry", b =>
@@ -3840,6 +3898,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("origin_node");
 
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
                     b.Property<string>("SerialNumber")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -3865,6 +3927,8 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("AssetCode")
                         .IsUnique()
                         .HasDatabaseName("uk_equipment_assets_asset_code");
+
+                    b.HasIndex("ParentId");
 
                     b.ToTable("equipment_assets", "public");
                 });
@@ -5097,6 +5161,55 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("material_receipt_items", "public");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.InventoryStock", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("LastReceiptDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_receipt_date");
+
+                    b.Property<Guid>("MaterialItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("material_item_id");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("decimal(14,3)")
+                        .HasColumnName("quantity");
+
+                    b.Property<Guid>("StoreLocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("store_location_id");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("unit_cost");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_inventory_stocks");
+
+                    b.HasIndex("MaterialItemId", "StoreLocationId")
+                        .IsUnique()
+                        .HasDatabaseName("uk_inventory_material_location");
+
+                    b.ToTable("inventory_stock", "public");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.LoginAttempt", b =>
                 {
                     b.Property<long>("Id")
@@ -5247,7 +5360,11 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("days_before_due");
 
-                    b.Property<Guid>("EquipmentGroupId")
+                    b.Property<Guid?>("EquipmentAssetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("equipment_asset_id");
+
+                    b.Property<Guid?>("EquipmentGroupId")
                         .HasColumnType("uuid")
                         .HasColumnName("equipment_group_id");
 
@@ -5289,6 +5406,12 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("double precision")
                         .HasColumnName("last_running_hours");
 
+                    b.Property<string>("MaintenanceCategory")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("maintenance_category");
+
                     b.Property<DateTime?>("NextDueDate")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("next_due_date");
@@ -5328,7 +5451,11 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasKey("Id")
                         .HasName("p_k_maintenance_schedules");
 
-                    b.HasIndex("EquipmentGroupId");
+                    b.HasIndex("EquipmentAssetId")
+                        .HasDatabaseName("idx_schedule_equipment_asset");
+
+                    b.HasIndex("EquipmentGroupId")
+                        .HasDatabaseName("idx_schedule_equipment_group");
 
                     b.ToTable("maintenance_schedules", "public");
                 });
@@ -5418,6 +5545,15 @@ namespace MaritimeEdge.Data.Migrations
                     b.Property<string>("DeletionReason")
                         .HasColumnType("text")
                         .HasColumnName("deletion_reason");
+
+                    b.Property<Guid?>("EquipmentAssetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("equipment_asset_id");
+
+                    b.Property<string>("EquipmentAssetName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("equipment_asset_name");
 
                     b.Property<Guid?>("EquipmentGroupId")
                         .HasColumnType("uuid")
@@ -5625,6 +5761,9 @@ namespace MaritimeEdge.Data.Migrations
 
                     b.HasIndex("AssignedTo")
                         .HasDatabaseName("idx_maintenance_assigned_to");
+
+                    b.HasIndex("EquipmentAssetId")
+                        .HasDatabaseName("idx_maintenance_equipment_asset");
 
                     b.HasIndex("EquipmentGroupId");
 
@@ -5965,6 +6104,11 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("expiry_required");
 
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("image_url");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
@@ -6079,6 +6223,186 @@ namespace MaritimeEdge.Data.Migrations
                         .HasDatabaseName("idx_material_item_code_unique");
 
                     b.ToTable("material_items", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.MaterialItemEquipment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("EquipmentAssetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("equipment_asset_id");
+
+                    b.Property<Guid>("MaterialItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("material_item_id");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_material_item_equipments");
+
+                    b.ToTable("material_item_equipments", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.MaterialRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Attachments")
+                        .HasColumnType("text")
+                        .HasColumnName("attachments");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTime>("NeededDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("needed_date");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<string>("RequestCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("request_code");
+
+                    b.Property<DateTime>("RequestDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("request_date");
+
+                    b.Property<string>("RequestedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("requested_by");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("Urgency")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("urgency");
+
+                    b.Property<string>("VesselName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("vessel_name");
+
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.Property<string>("VoyageName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("voyage_name");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_material_requests");
+
+                    b.HasIndex("RequestCode")
+                        .IsUnique()
+                        .HasDatabaseName("uk_material_request_code");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("idx_material_request_status");
+
+                    b.ToTable("material_requests", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.MaterialRequestItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<Guid?>("EquipmentAssetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("equipment_asset_id");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("item_name");
+
+                    b.Property<Guid?>("MaterialItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("material_item_id");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<decimal>("QuantityOnHand")
+                        .HasColumnType("decimal(14,3)")
+                        .HasColumnName("quantity_on_hand");
+
+                    b.Property<decimal>("QuantityRequested")
+                        .HasColumnType("decimal(14,3)")
+                        .HasColumnName("quantity_requested");
+
+                    b.Property<int>("RequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("request_id");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("unit");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_material_request_items");
+
+                    b.HasIndex("RequestId");
+
+                    b.ToTable("material_request_items", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.MonthlySummaryReport", b =>
@@ -9424,6 +9748,270 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("ship_sternthrusters", "public");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.StockReceipt", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Attachments")
+                        .HasColumnType("text")
+                        .HasColumnName("attachments");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<int?>("MaterialRequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("material_request_id");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<string>("ReceiptCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("receipt_code");
+
+                    b.Property<DateTime>("ReceiptDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("receipt_date");
+
+                    b.Property<DateTime>("ReceivedDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("SupplierCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("supplier_code");
+
+                    b.Property<string>("SupplierName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("supplier_name");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("VesselName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("vessel_name");
+
+                    b.Property<Guid?>("VoyageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voyage_id");
+
+                    b.Property<string>("VoyageName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("voyage_name");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_stock_receipts");
+
+                    b.HasIndex("MaterialRequestId");
+
+                    b.HasIndex("ReceiptCode")
+                        .IsUnique()
+                        .HasDatabaseName("uk_stock_receipt_code");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("idx_stock_receipt_status");
+
+                    b.ToTable("stock_receipts", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.StockReceiptItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("ItemCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("item_code");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("item_name");
+
+                    b.Property<Guid?>("MaterialItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("material_item_id");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<decimal>("QuantityReceived")
+                        .HasColumnType("decimal(14,3)")
+                        .HasColumnName("quantity_received");
+
+                    b.Property<decimal>("QuantityRequested")
+                        .HasColumnType("decimal(14,3)")
+                        .HasColumnName("quantity_requested");
+
+                    b.Property<int>("ReceiptId")
+                        .HasColumnType("integer")
+                        .HasColumnName("receipt_id");
+
+                    b.Property<Guid?>("StoreLocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("store_location_id");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("unit");
+
+                    b.Property<decimal?>("UnitCost")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("unit_cost");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_stock_receipt_items");
+
+                    b.HasIndex("ReceiptId");
+
+                    b.ToTable("stock_receipt_items", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.StoreLocation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("address");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("email");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("LocationCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("location_code");
+
+                    b.Property<string>("ManagerName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("manager_name");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("phone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_store_locations");
+
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("idx_store_location_active")
+                        .HasFilter("is_active = true");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_store_location_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.HasIndex("LocationCode")
+                        .IsUnique()
+                        .HasDatabaseName("uk_store_locations_code");
+
+                    b.HasIndex("ParentId");
+
+                    b.ToTable("store_locations", "public");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.SystemLog", b =>
                 {
                     b.Property<long>("Id")
@@ -12439,10 +13027,18 @@ namespace MaritimeEdge.Data.Migrations
 
             modelBuilder.Entity("Maritime.Shared.Models.Crew.CrewMember", b =>
                 {
+                    b.HasOne("Maritime.Shared.Models.Crew.Country", "Country")
+                        .WithMany()
+                        .HasForeignKey("CountryId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_crew_members_countries_country_id");
+
                     b.HasOne("Maritime.Shared.Models.Crew.Rank", "Rank")
                         .WithMany()
                         .HasForeignKey("RankId")
                         .HasConstraintName("f_k_crew_members__ranks_rank_id");
+
+                    b.Navigation("Country");
 
                     b.Navigation("Rank");
                 });
@@ -12849,11 +13445,15 @@ namespace MaritimeEdge.Data.Migrations
 
             modelBuilder.Entity("MaritimeEdge.Models.MaintenanceSchedule", b =>
                 {
+                    b.HasOne("MaritimeEdge.Models.EquipmentAsset", null)
+                        .WithMany()
+                        .HasForeignKey("EquipmentAssetId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("MaritimeEdge.Models.EquipmentGroup", null)
                         .WithMany()
                         .HasForeignKey("EquipmentGroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.MaintenanceTask", b =>
@@ -12904,6 +13504,18 @@ namespace MaritimeEdge.Data.Migrations
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.MaterialRequestItem", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.MaterialRequest", "Request")
+                        .WithMany("Items")
+                        .HasForeignKey("RequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_material_request_items_material_requests_request_id");
+
+                    b.Navigation("Request");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.NoonReport", b =>
@@ -13142,6 +13754,40 @@ namespace MaritimeEdge.Data.Migrations
                         .HasConstraintName("f_k_ship_sternthrusters_ship_data_ship_data_id");
 
                     b.Navigation("ShipData");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.StockReceipt", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.MaterialRequest", "MaterialRequest")
+                        .WithMany()
+                        .HasForeignKey("MaterialRequestId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_stock_receipts_material_requests_material_request_id");
+
+                    b.Navigation("MaterialRequest");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.StockReceiptItem", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.StockReceipt", "Receipt")
+                        .WithMany("Items")
+                        .HasForeignKey("ReceiptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_stock_receipt_items_stock_receipts_receipt_id");
+
+                    b.Navigation("Receipt");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.StoreLocation", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.StoreLocation", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_store_locations_store_locations_parent_id");
+
+                    b.Navigation("Parent");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.TaskChecklistItem", b =>
@@ -13532,6 +14178,11 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("Schedules");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.EquipmentAsset", b =>
+                {
+                    b.Navigation("Children");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.Inventory.MaterialReceipt", b =>
                 {
                     b.Navigation("ReceiptItems");
@@ -13544,6 +14195,11 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("DeferralRequests");
 
                     b.Navigation("StatusHistory");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.MaterialRequest", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.ShipData", b =>
@@ -13567,6 +14223,16 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("ShaftGenerators");
 
                     b.Navigation("Sternthrusters");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.StockReceipt", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.StoreLocation", b =>
+                {
+                    b.Navigation("Children");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.VoyageRecord", b =>

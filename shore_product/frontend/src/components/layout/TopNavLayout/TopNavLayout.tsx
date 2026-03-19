@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Anchor, Bell, Menu, X, ChevronDown, Ship, Check } from 'lucide-react';
-import { crewApi } from '../../../services/crew.service';
-import type { HoldNotification } from '../../../services/crew.service';
+import { Anchor, Bell, Menu, X, ChevronDown, Ship, Check, RefreshCw, LogIn, LogOut } from 'lucide-react';
+import { notificationApi } from '../../../services/notification.service';
+import type { ShoreNotification } from '../../../services/notification.service';
 import { useVessel } from '../../../contexts/VesselContext';
 import './TopNavLayout.css';
 
-const LAST_SEEN_KEY = 'hold_notifications_last_seen';
+const LAST_SEEN_KEY = 'shore_notifications_last_seen';
 
 function getLastSeenDate(): Date {
   const stored = localStorage.getItem(LAST_SEEN_KEY);
   return stored ? new Date(stored) : new Date(0);
 }
 
-function markAllSeen() {
+function markAllSeenLocally() {
   localStorage.setItem(LAST_SEEN_KEY, new Date().toISOString());
 }
 
@@ -70,7 +70,7 @@ export const TopNavLayout: React.FC = () => {
   const location = useLocation();
   const { vessels, selectedVessel, selectVessel, isLoading } = useVessel();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [notifications, setNotifications] = useState<HoldNotification[]>([]);
+  const [notifications, setNotifications] = useState<ShoreNotification[]>([]);
   const [bellOpen, setBellOpen] = useState(false);
   const [openDropdownIdx, setOpenDropdownIdx] = useState<number | null>(null);
   const [vesselDropdownOpen, setVesselDropdownOpen] = useState(false);
@@ -78,15 +78,13 @@ export const TopNavLayout: React.FC = () => {
   const navLinksRef = useRef<HTMLDivElement>(null);
   const vesselDropdownRef = useRef<HTMLDivElement>(null);
 
-  const unreadCount = notifications.filter(
-    n => new Date(n.onboardStatusChangedAt) > getLastSeenDate()
-  ).length;
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
-        const data = await crewApi.holdNotifications();
+        const data = await notificationApi.getRecent(50);
         if (!cancelled) setNotifications(data);
       } catch { /* silent */ }
     };
@@ -129,14 +127,16 @@ export const TopNavLayout: React.FC = () => {
   const handleBellClick = () => {
     setBellOpen(prev => !prev);
     if (!bellOpen) {
-      markAllSeen();
-      setNotifications(prev => [...prev]); // force re-render to clear badge
+      markAllSeenLocally();
+      notificationApi.markAllRead().catch(() => {});
+      // Optimistically mark all as read in local state
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     }
   };
 
-  const handleNotificationClick = (n: HoldNotification) => {
+  const handleNotificationClick = (n: ShoreNotification) => {
     setBellOpen(false);
-    navigate(`/vessels/${n.vesselId}`);
+    if (n.vesselId) navigate(`/vessels/${n.vesselId}`);
   };
 
   const isDropdownActive = (item: NavDropdown) =>
@@ -320,7 +320,7 @@ export const TopNavLayout: React.FC = () => {
                     <span>Thông báo tàu</span>
                     {notifications.length > 0 && (
                       <span style={{ fontSize: 11, color: '#64748b', fontWeight: 400 }}>
-                        {notifications.length} yêu cầu tạm giữ
+                        {notifications.length} thông báo
                       </span>
                     )}
                   </div>
@@ -331,39 +331,55 @@ export const TopNavLayout: React.FC = () => {
                   ) : (
                     <div style={{ maxHeight: 320, overflowY: 'auto' }}>
                       {notifications.map(n => {
-                        const isNew = new Date(n.onboardStatusChangedAt) > getLastSeenDate();
+                        const isNew = !n.isRead;
+                        const icon = n.type === 'sign_on'
+                          ? <LogIn size={13} style={{ color: '#16a34a', flexShrink: 0 }} />
+                          : n.type === 'sign_off'
+                          ? <LogOut size={13} style={{ color: '#dc2626', flexShrink: 0 }} />
+                          : <RefreshCw size={13} style={{ color: '#2563eb', flexShrink: 0 }} />;
+
+                        const badgeColor = n.type === 'sign_on'
+                          ? { bg: '#dcfce7', text: '#166534' }
+                          : n.type === 'sign_off'
+                          ? { bg: '#fee2e2', text: '#991b1b' }
+                          : { bg: '#dbeafe', text: '#1e40af' };
+
+                        const badgeLabel = n.type === 'sign_on'
+                          ? 'Lên tàu'
+                          : n.type === 'sign_off'
+                          ? 'Xuống tàu'
+                          : 'Đồng bộ';
+
                         return (
                           <button
                             key={n.id}
                             onClick={() => handleNotificationClick(n)}
                             style={{
                               display: 'block', width: '100%', textAlign: 'left',
-                              padding: '10px 14px', border: 'none', cursor: 'pointer',
-                              background: isNew ? '#fff7ed' : '#fff',
+                              padding: '10px 14px', border: 'none', cursor: n.vesselId ? 'pointer' : 'default',
+                              background: isNew ? '#f0f9ff' : '#fff',
                               borderBottom: '1px solid #f3f4f6',
                             }}
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              {isNew && (
-                                <span style={{
-                                  width: 8, height: 8, borderRadius: '50%',
-                                  background: '#ef4444', flexShrink: 0
-                                }} />
-                              )}
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                              <div style={{ paddingTop: 2 }}>{icon}</div>
                               <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>
-                                  {n.fullName}
+                                <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                  {n.title}
                                   <span style={{
-                                    marginLeft: 6, background: '#fed7aa', color: '#c2410c',
+                                    background: badgeColor.bg, color: badgeColor.text,
                                     fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 6
-                                  }}>Tạm giữ</span>
+                                  }}>{badgeLabel}</span>
+                                  {isNew && (
+                                    <span style={{
+                                      width: 7, height: 7, borderRadius: '50%',
+                                      background: '#ef4444', display: 'inline-block', flexShrink: 0
+                                    }} />
+                                  )}
                                 </div>
-                                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                                  Tàu: <strong>{n.vesselName}</strong>
-                                  {n.onboardStatusChangedBy && ` • Bởi: ${n.onboardStatusChangedBy}`}
-                                </div>
+                                <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>{n.message}</div>
                                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                                  {new Date(n.onboardStatusChangedAt).toLocaleString('vi-VN', {
+                                  {new Date(n.createdAt).toLocaleString('vi-VN', {
                                     day: '2-digit', month: '2-digit', year: 'numeric',
                                     hour: '2-digit', minute: '2-digit'
                                   })}

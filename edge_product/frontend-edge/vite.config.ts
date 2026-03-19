@@ -14,13 +14,13 @@ export default defineConfig({
     host: '0.0.0.0', // Allow access from other devices on LAN
     proxy: {
       '/api': {
-        target: 'http://localhost:5001', // Edge Backend API
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:5001', // Edge Backend API
         changeOrigin: true,
         secure: false,
         ws: true,
       },
       '/uploads': {
-        target: 'http://localhost:5001', // Static files from backend
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:5001', // Static files from backend
         changeOrigin: true,
         secure: false,
       },

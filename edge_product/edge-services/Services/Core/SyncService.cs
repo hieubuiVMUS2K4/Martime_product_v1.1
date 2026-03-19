@@ -118,14 +118,15 @@ public class SyncService : ISyncService
         {
             var client = _httpClientFactory.CreateClient("ShoreAPI");
             
-            // Get last pull timestamp from config or DB
-            var lastPull = await GetLastPullTimestampAsync(context);
+            // Don't use timestamp-based filtering — rely on DeliveredAt IS NULL on shore.
+            // Using 'since' caused items to be missed when ACK failed (items stay undelivered
+            // but lastPull advances past their CreatedAt).
             var cursor = (string?)null;
             var totalProcessed = 0;
 
             do
             {
-                var url = $"{baseUrl}/api/sync/pull?nodeId={nodeId}&since={lastPull:O}";
+                var url = $"{baseUrl}/api/sync/pull?nodeId={nodeId}";
                 if (!string.IsNullOrEmpty(cursor))
                     url += $"&cursor={cursor}";
 
@@ -159,6 +160,22 @@ public class SyncService : ISyncService
                             await ApplyIncomingItemAsync(context, item, cancellationToken);
 
                         await context.SaveChangesAsync(cancellationToken);
+
+                        // Save synced file data if present (base64-encoded document files from shore)
+                        if (!string.IsNullOrEmpty(item.FileData) && !string.IsNullOrEmpty(item.FileName))
+                        {
+                            try
+                            {
+                                await SaveSyncedFileAsync(context, item);
+                                await context.SaveChangesAsync(cancellationToken);
+                            }
+                            catch (Exception fileEx)
+                            {
+                                _logger.LogWarning(fileEx, "Failed to save synced file for {Table}/{Key}",
+                                    item.TableName, item.RecordKey);
+                            }
+                        }
+
                         context.ChangeTracker.Clear();
                         totalProcessed++;
                     }
@@ -188,6 +205,9 @@ public class SyncService : ISyncService
 
             if (totalProcessed > 0)
                 _logger.LogInformation("Pulled {Count} items from shore", totalProcessed);
+
+            // Persist the pull timestamp so next restart doesn't re-pull old data
+            await SaveLastPullTimestampAsync(context, DateTime.UtcNow);
         }
         catch (HttpRequestException ex)
         {
@@ -240,6 +260,50 @@ public class SyncService : ISyncService
             SyncVersion = q.Id > 0 ? q.Id : q.CreatedAt.Ticks,
             Timestamp = q.CreatedAt
         }).ToList();
+
+        // Attach file data for items with document file paths (certificates, documents)
+        var fileTableNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "crew_certificate", "travel_document", "seafarer_document",
+            "employment_document", "health_document"
+        };
+        foreach (var dto in dtoItems)
+        {
+            if (!fileTableNames.Contains(dto.TableName)) continue;
+            try
+            {
+                // Extract DocumentFilePath or FilePath from JSON payload
+                using var doc = System.Text.Json.JsonDocument.Parse(dto.Payload);
+                var filePath = doc.RootElement.TryGetProperty("DocumentFilePath", out var dfp) ? dfp.GetString()
+                             : doc.RootElement.TryGetProperty("documentFilePath", out var dfp2) ? dfp2.GetString()
+                             : doc.RootElement.TryGetProperty("FilePath", out var fp) ? fp.GetString()
+                             : doc.RootElement.TryGetProperty("filePath", out var fp2) ? fp2.GetString()
+                             : doc.RootElement.TryGetProperty("FileUrl", out var fu) ? fu.GetString()
+                             : doc.RootElement.TryGetProperty("fileUrl", out var fu2) ? fu2.GetString()
+                             : null;
+                if (string.IsNullOrEmpty(filePath)) continue;
+
+                // Resolve to absolute path on the edge server
+                var absPath = filePath.StartsWith("/")
+                    ? Path.Combine(Directory.GetCurrentDirectory(), filePath.TrimStart('/'))
+                    : filePath;
+                if (!System.IO.File.Exists(absPath)) continue;
+
+                // Only attach files under 10 MB
+                var fileInfo = new FileInfo(absPath);
+                if (fileInfo.Length > 10 * 1024 * 1024) continue;
+
+                var bytes = await System.IO.File.ReadAllBytesAsync(absPath, cancellationToken);
+                dto.FileData = Convert.ToBase64String(bytes);
+                dto.FileName = Path.GetFileName(absPath);
+                _logger.LogDebug("Attached file {FileName} ({Size}KB) to {Table}/{Key}",
+                    dto.FileName, bytes.Length / 1024, dto.TableName, dto.RecordKey);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to attach file for {Table}/{Key}", dto.TableName, dto.RecordKey);
+            }
+        }
 
         // Log what we're sending - especially crew_member updates
         var crewUpdates = dtoItems.Where(d => d.TableName == "crew_member").ToList();
@@ -311,6 +375,78 @@ public class SyncService : ISyncService
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Save base64-encoded file received via sync to the edge's uploads directory.
+    /// Updates the entity's file path field to point to the locally saved file.
+    /// </summary>
+    private async Task SaveSyncedFileAsync(EdgeDbContext context, Maritime.Shared.DTOs.Sync.SyncQueueItemDto item)
+    {
+        var bytes = Convert.FromBase64String(item.FileData!);
+        var ext = Path.GetExtension(item.FileName!).ToLowerInvariant();
+
+        var subDir = item.TableName switch
+        {
+            "crew_member" => Path.Combine("crew", "avatars"),
+            "crew_certificate" => Path.Combine("crew", "certificates"),
+            "travel_document" => Path.Combine("crew", "documents", "travel"),
+            "seafarer_document" => Path.Combine("crew", "documents", "seafarer"),
+            "employment_document" => Path.Combine("crew", "documents", "employment"),
+            "health_document" => Path.Combine("crew", "documents", "health"),
+            _ => Path.Combine("crew", "synced")
+        };
+
+        var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "uploads", subDir);
+        Directory.CreateDirectory(uploadsDir);
+
+        // Use the original filename from the sender so both shore and edge have identical file paths
+        var safeFileName = !string.IsNullOrEmpty(item.FileName) ? item.FileName : $"{item.TableName}_{item.RecordKey}{ext}";
+        var filePath = Path.Combine(uploadsDir, safeFileName);
+        await System.IO.File.WriteAllBytesAsync(filePath, bytes);
+
+        var relativePath = $"/uploads/{subDir.Replace(Path.DirectorySeparatorChar, '/')}/{safeFileName}";
+
+        // Update entity's file path in DB
+        if (item.TableName == "crew_member" && Guid.TryParse(item.RecordKey, out var crewGuid))
+        {
+            var crew = await context.CrewMembers.FindAsync(crewGuid);
+            if (crew != null)
+            {
+                if (!string.IsNullOrEmpty(crew.PhotoUrl) && crew.PhotoUrl != relativePath)
+                {
+                    var oldAbsPath = Path.Combine(Directory.GetCurrentDirectory(),
+                        crew.PhotoUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                    if (System.IO.File.Exists(oldAbsPath))
+                        System.IO.File.Delete(oldAbsPath);
+                }
+                crew.PhotoUrl = relativePath;
+                _logger.LogInformation("Saved synced avatar for crew_member/{Key} → {Path}", item.RecordKey, relativePath);
+            }
+        }
+        else if (item.TableName == "crew_certificate" && int.TryParse(item.RecordKey, out var certId))
+        {
+            var crewCert = await context.CrewCertificates.FindAsync(certId);
+            if (crewCert != null)
+            {
+                // Delete old file if path changed
+                if (!string.IsNullOrEmpty(crewCert.DocumentFilePath) && crewCert.DocumentFilePath != relativePath)
+                {
+                    var oldAbsPath = Path.Combine(Directory.GetCurrentDirectory(),
+                        crewCert.DocumentFilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                    if (System.IO.File.Exists(oldAbsPath))
+                        System.IO.File.Delete(oldAbsPath);
+                }
+
+                crewCert.DocumentFilePath = relativePath;
+                _logger.LogInformation("Saved synced file for crew_certificate/{Key} → {Path}", item.RecordKey, relativePath);
+            }
+        }
+        // For document tables, try to update via reflection
+        else
+        {
+            _logger.LogInformation("Saved synced file for {Table}/{Key} → {Path}", item.TableName, item.RecordKey, relativePath);
+        }
+    }
+
     private async Task ApplyIncomingItemAsync(
         EdgeDbContext context, Maritime.Shared.DTOs.Sync.SyncQueueItemDto item, CancellationToken token)
     {
@@ -322,11 +458,43 @@ public class SyncService : ISyncService
         // As a fallback, we just log.
     }
 
+    private const string LastPullTimestampKey = "LastPullTimestamp";
+
     private async Task<DateTime> GetLastPullTimestampAsync(EdgeDbContext context)
     {
-        // Find last successful pull timestamp from any stored state
-        // For now, default to 7 days ago
-        return await Task.FromResult(DateTime.UtcNow.AddDays(-7));
+        var state = await context.SyncState
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Key == LastPullTimestampKey);
+
+        if (state != null && DateTime.TryParse(state.Value, null,
+                System.Globalization.DateTimeStyles.RoundtripKind, out var ts))
+            return ts;
+
+        // First ever pull — go back 7 days to catch any existing data
+        return DateTime.UtcNow.AddDays(-7);
+    }
+
+    private async Task SaveLastPullTimestampAsync(EdgeDbContext context, DateTime timestamp)
+    {
+        var state = await context.SyncState
+            .FirstOrDefaultAsync(s => s.Key == LastPullTimestampKey);
+
+        if (state == null)
+        {
+            context.SyncState.Add(new SyncState
+            {
+                Key = LastPullTimestampKey,
+                Value = timestamp.ToString("O"),
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            state.Value = timestamp.ToString("O");
+            state.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await context.SaveChangesAsync();
     }
 
     private List<SyncPriority> GetAllowedPriorities(NetworkType network)

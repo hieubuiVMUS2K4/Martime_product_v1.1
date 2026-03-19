@@ -269,7 +269,7 @@ public class SyncController : ControllerBase
 
             // Dependent on CrewMember
             var crewCerts = await _context.CrewCertificates.AsNoTracking().ToListAsync();
-            foreach (var x in crewCerts) Enqueue("crew_certificate", x.Id.ToString(), x);
+            foreach (var x in crewCerts) Enqueue("crew_certificate", x.CertificateNumber, x);
 
             var svcRecs = await _context.ServiceRecords.AsNoTracking().ToListAsync();
             foreach (var x in svcRecs) Enqueue("service_record", x.Id.ToString(), x);
@@ -414,7 +414,7 @@ public class SyncController : ControllerBase
                         foreach (var x in crew) Enqueue("crew_member", x.Id.ToString(), x);
 
                         var crewCerts    = await _context.CrewCertificates.AsNoTracking().ToListAsync();
-                        foreach (var x in crewCerts) Enqueue("crew_certificate", x.Id.ToString(), x);
+                        foreach (var x in crewCerts) Enqueue("crew_certificate", x.CertificateNumber, x);
 
                         var svcRecs      = await _context.ServiceRecords.AsNoTracking().ToListAsync();
                         foreach (var x in svcRecs) Enqueue("service_record", x.Id.ToString(), x);

@@ -14,6 +14,7 @@ global using SyncActionType = Maritime.Shared.Models.Sync.SyncActionType;
 global using SyncPriority = Maritime.Shared.Models.Sync.SyncPriority;
 global using NetworkType = Maritime.Shared.Models.Sync.NetworkType;
 global using SyncQueue = Maritime.Shared.Models.Sync.SyncQueue;
+global using SyncState = Maritime.Shared.Models.Sync.SyncState;
 
 // Crew models
 global using CrewMember = Maritime.Shared.Models.Crew.CrewMember;

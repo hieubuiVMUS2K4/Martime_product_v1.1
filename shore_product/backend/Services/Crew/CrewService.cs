@@ -45,7 +45,8 @@ public class CrewService : ICrewService
     public async Task<(List<CrewMemberDto> Data, int TotalCount, int TotalPages)> GetAllCrewAsync(
         int page = 1, int pageSize = 50,
         string? search = null, bool? isOnboard = null,
-        Guid? shipId = null, bool? poolOnly = null)
+        Guid? shipId = null, bool? poolOnly = null,
+        string? rankName = null, string? department = null, string? vesselName = null)
     {
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 50;
@@ -76,6 +77,25 @@ public class CrewService : ICrewService
 
         if (poolOnly == true)
             query = query.Where(c => c.VesselId == null && !c.IsOnboard);
+
+        if (!string.IsNullOrWhiteSpace(rankName))
+        {
+            var rn = rankName.ToLower();
+            query = query.Where(c => c.Rank != null && c.Rank.RankName.ToLower().Contains(rn));
+        }
+
+        if (!string.IsNullOrWhiteSpace(department))
+        {
+            var dept = department.ToLower();
+            query = query.Where(c => c.Department != null && c.Department.ToLower().Contains(dept));
+        }
+
+        if (!string.IsNullOrWhiteSpace(vesselName))
+        {
+            var vn = vesselName.ToLower();
+            query = query.Where(c => c.VesselId.HasValue &&
+                _context.Vessels.Any(v => v.Id == c.VesselId.Value && v.Name.ToLower().Contains(vn)));
+        }
 
         var totalCount = await query.CountAsync();
         var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
@@ -810,6 +830,7 @@ public class CrewService : ICrewService
             MedicalExpiry = crew.MedicalExpiry,
             DateOfBirth = crew.DateOfBirth,
             PhotoUrl = crew.PhotoUrl,
+            AvatarUrl = crew.PhotoUrl,
             PlaceOfBirth = crew.PlaceOfBirth,
             IdCardNumber = crew.IdCardNumber,
             MaritalStatus = crew.MaritalStatus,

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Upload, Download, Search, Package, Edit2, Eye, Trash2, ChevronDown, ChevronRight, FolderOpen, Copy, ChevronsUpDown } from 'lucide-react';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { AddAssetModal } from '@/components/pms/AddAssetModal';
@@ -41,6 +42,8 @@ function getDescendantIds(node: EquipmentAsset): Set<string> {
 
 export default function AssetsPage() {
   const { t } = useTranslationSafe();
+  const [searchParams] = useSearchParams();
+  const vesselId = searchParams.get('vesselId') ?? undefined;
 
   const statusOptions = useMemo(() => STATUS_VALUES.map(v => ({
     value: v,
@@ -73,12 +76,12 @@ export default function AssetsPage() {
   });
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [vesselId]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const data = await equipmentAssetService.getTree();
+      const data = await equipmentAssetService.getTree(vesselId);
       setAssets(data);
     } catch (error) {
       console.error('Error loading assets:', error);
@@ -88,7 +91,7 @@ export default function AssetsPage() {
   };
 
   const loadAssets = async () => {
-    const data = await equipmentAssetService.getTree();
+    const data = await equipmentAssetService.getTree(vesselId);
     setAssets(data);
   };
 

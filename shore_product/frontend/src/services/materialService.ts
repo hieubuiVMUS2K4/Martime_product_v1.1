@@ -209,11 +209,12 @@ export const materialService = {
 
   // ======== ITEMS ========
 
-  getItems: async (options?: { categoryId?: number; q?: string; onlyActive?: boolean }): Promise<MaterialItem[]> => {
+  getItems: async (options?: { categoryId?: number; q?: string; onlyActive?: boolean; vesselId?: string }): Promise<MaterialItem[]> => {
     const params = new URLSearchParams()
     if (options?.categoryId) params.append('categoryId', String(options.categoryId))
     if (options?.q) params.append('q', options.q)
     if (options?.onlyActive !== undefined) params.append('onlyActive', String(options.onlyActive))
+    if (options?.vesselId) params.append('vesselId', options.vesselId)
     params.append('pageSize', '1000') // fetch all
     const res = await apiClient.get<{ items: MaterialItem[]; total: number; page: number; pageSize: number }>(`/material/items?${params}`)
     return res.items ?? (Array.isArray(res) ? res : [])
