@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using Maritime.Shared.DTOs.Crew;
 using ProductApi.Data;
 using ProductApi.Services.Crew;
+using ProductApi.Services.Sync;
+using Maritime.Shared.Models.Sync;
 
 namespace ProductApi.Controllers.Crew;
 
@@ -24,12 +26,14 @@ public class CrewController : ControllerBase
     private readonly ICrewService _crewService;
     private readonly ILogger<CrewController> _logger;
     private readonly AppDbContext _context;
+    private readonly ISyncOutboxService _syncOutbox;
 
-    public CrewController(ICrewService crewService, ILogger<CrewController> logger, AppDbContext context)
+    public CrewController(ICrewService crewService, ILogger<CrewController> logger, AppDbContext context, ISyncOutboxService syncOutbox)
     {
         _crewService = crewService;
         _logger = logger;
         _context = context;
+        _syncOutbox = syncOutbox;
     }
 
     // ============================================================
@@ -449,14 +453,10 @@ public class CrewController : ControllerBase
             var crew = await _context.CrewMembers.FindAsync(id);
             if (crew == null) return NotFound(new { error = "Crew member not found" });
 
-            // Attach if detached (global NoTracking) so changes are persisted
-            var entry = _context.Entry(crew);
-            if (entry.State == Microsoft.EntityFrameworkCore.EntityState.Detached)
-                entry.State = Microsoft.EntityFrameworkCore.EntityState.Unchanged;
-
             crew.EdgeChangesViewed = true;
             crew.EdgeChanges = null;
             crew.UpdatedAt = DateTime.UtcNow;
+            _context.CrewMembers.Update(crew);
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Edge changes marked as viewed" });
@@ -510,9 +510,13 @@ public class CrewController : ControllerBase
 
             crew.PhotoUrl = $"/uploads/crew/avatars/{fileName}";
             crew.UpdatedAt = DateTime.UtcNow;
+            _context.CrewMembers.Update(crew);
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Uploaded avatar for crew: {Id}", id);
+
+            // Broadcast crew member update to edge so avatar syncs
+            await _syncOutbox.BroadcastAsync("crew_member", id.ToString(), SyncActionType.UPDATE, crew);
 
             var dto = await _crewService.GetCrewByIdAsync(id);
             return Ok(new

@@ -71,6 +71,7 @@ public class SyncOutboxService : ISyncOutboxService
             // Deduplication: if an undelivered item for the same (node, table, key) already exists,
             // update its payload and version instead of inserting a duplicate.
             var existing = await _context.SyncOutbox
+                .AsTracking()
                 .Where(o => o.DeliveredAt == null
                          && o.TargetNode == targetNode
                          && o.TableName == tableName
@@ -203,7 +204,7 @@ public class SyncOutboxService : ISyncOutboxService
             // Attach file data for document-related items
             var fileTableNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "crew_certificate", "travel_document", "seafarer_document",
+                "crew_member", "crew_certificate", "travel_document", "seafarer_document",
                 "employment_document", "health_document"
             };
             foreach (var dto in response.Items)
@@ -213,7 +214,7 @@ public class SyncOutboxService : ISyncOutboxService
                 {
                     using var doc = System.Text.Json.JsonDocument.Parse(dto.Payload);
                     string? filePath = null;
-                    foreach (var propName in new[] { "documentFilePath", "DocumentFilePath", "filePath", "FilePath", "fileUrl", "FileUrl" })
+                    foreach (var propName in new[] { "documentFilePath", "DocumentFilePath", "filePath", "FilePath", "fileUrl", "FileUrl", "photoUrl", "PhotoUrl" })
                     {
                         if (doc.RootElement.TryGetProperty(propName, out var val))
                         {
@@ -266,6 +267,7 @@ public class SyncOutboxService : ISyncOutboxService
         {
             // Try matching by exact outbox IDs first
             var baseQuery = _context.SyncOutbox
+                .AsTracking()
                 .Where(o => o.DeliveredAt == null)
                 .Where(o => o.TargetNode == nodeId || o.TargetNode == "*");
 

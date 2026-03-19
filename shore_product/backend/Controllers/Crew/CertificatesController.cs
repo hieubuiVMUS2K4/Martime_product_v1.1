@@ -217,16 +217,12 @@ public class CertificatesController : ControllerBase
         try
         {
             var cert = await _certService.AddCrewCertificateAsync(request);
-            // Broadcast to edge for sync
-            var entity = await _context.CrewCertificates.FindAsync(cert.Id);
-            if (entity != null)
-                await _syncOutbox.BroadcastAsync("crew_certificate", cert.Id.ToString(), SyncActionType.CREATE, entity);
             return Created($"/api/certificates/crew-certificates/{cert.Id}", cert);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error adding crew certificate");
-            return StatusCode(500, new { error = "Internal server error" });
+            return StatusCode(500, new { error = ex.Message, inner = ex.InnerException?.Message });
         }
     }
 
@@ -239,10 +235,6 @@ public class CertificatesController : ControllerBase
         {
             var cert = await _certService.UpdateCrewCertificateAsync(id, request);
             if (cert == null) return NotFound(new { error = "Crew certificate not found" });
-            // Broadcast to edge for sync
-            var entity = await _context.CrewCertificates.FindAsync(id);
-            if (entity != null)
-                await _syncOutbox.BroadcastAsync("crew_certificate", id.ToString(), SyncActionType.UPDATE, entity);
             return Ok(cert);
         }
         catch (Exception ex)
@@ -261,8 +253,6 @@ public class CertificatesController : ControllerBase
         {
             var result = await _certService.DeleteCrewCertificateAsync(id);
             if (!result) return NotFound(new { error = "Crew certificate not found" });
-            // Broadcast delete to edge for sync
-            await _syncOutbox.BroadcastAsync("crew_certificate", id.ToString(), SyncActionType.DELETE, new { Id = id });
             return Ok(new { message = "Crew certificate deleted" });
         }
         catch (Exception ex)
@@ -384,6 +374,7 @@ public class CertificatesController : ControllerBase
 
             crewCertificate.DocumentFilePath = $"/uploads/crew/certificates/{fileName}";
             crewCertificate.UpdatedAt = DateTime.UtcNow;
+            _context.CrewCertificates.Update(crewCertificate);
             await _context.SaveChangesAsync();
 
             // Broadcast updated certificate to edge with file path

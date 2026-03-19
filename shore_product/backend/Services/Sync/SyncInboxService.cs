@@ -829,6 +829,7 @@ public class SyncInboxService : ISyncInboxService
                     }
                 }
                 // When edge sends new EdgeChanges, ensure shore marks them as unviewed
+                // But only if the incoming EdgeChanges is DIFFERENT from what was already cleared/viewed
                 if (item.TableName == "crew_member" && existing is Maritime.Shared.Models.Crew.CrewMember crewEntity)
                 {
                     var hasEdgeChangesKey = payloadKeys.Contains("EdgeChanges")
@@ -836,7 +837,14 @@ public class SyncInboxService : ISyncInboxService
                         || payloadKeys.Contains("edge_changes");
                     if (hasEdgeChangesKey && !string.IsNullOrWhiteSpace(crewEntity.EdgeChanges))
                     {
-                        crewEntity.EdgeChangesViewed = false;
+                        // Get the original value before merge to compare
+                        var originalEntry = _context.Entry(existing);
+                        var originalEdgeChanges = originalEntry.Property("EdgeChanges").OriginalValue as string;
+                        // Only reset viewed if edge sent genuinely NEW change data
+                        if (originalEdgeChanges != crewEntity.EdgeChanges)
+                        {
+                            crewEntity.EdgeChangesViewed = false;
+                        }
                     }
                 }
 
@@ -895,6 +903,7 @@ public class SyncInboxService : ISyncInboxService
         }
 
         // When edge sends new EdgeChanges via patch, mark as unviewed on shore
+        // But only if the change data is genuinely NEW (not a re-sync of already-viewed data)
         if (item.TableName == "crew_member" && existing is Maritime.Shared.Models.Crew.CrewMember patchCrew)
         {
             var hasEdgeChangesKey = patchData.Keys.Any(k =>
@@ -902,7 +911,11 @@ public class SyncInboxService : ISyncInboxService
                 || string.Equals(k, "edge_changes", StringComparison.OrdinalIgnoreCase));
             if (hasEdgeChangesKey && !string.IsNullOrWhiteSpace(patchCrew.EdgeChanges))
             {
-                patchCrew.EdgeChangesViewed = false;
+                var originalEdgeChanges = _context.Entry(existing).Property("EdgeChanges").OriginalValue as string;
+                if (originalEdgeChanges != patchCrew.EdgeChanges)
+                {
+                    patchCrew.EdgeChangesViewed = false;
+                }
             }
         }
 

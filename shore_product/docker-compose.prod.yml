@@ -45,6 +45,8 @@ services:
       JWT__Key: "${JWT_KEY:-VerySecretKey12345_CHANGE_THIS_IN_PRODUCTION}"
       JWT__Issuer: "product"
       JWT__Audience: "product-users"
+    volumes:
+      - backend-uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,6 +88,7 @@ services:
 
 volumes:
   postgres-data:
+  backend-uploads:
 
 networks:
   shore-net:

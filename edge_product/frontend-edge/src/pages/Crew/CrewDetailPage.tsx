@@ -477,8 +477,8 @@ export function CrewDetailPage() {
           if (imageUrl.startsWith('data:')) {
             doc.addImage(imageUrl, 'JPEG', photoX + 1, photoY + 1, photoW - 2, photoH - 2)
           } else {
-            if (!imageUrl.startsWith('http')) {
-              imageUrl = `http://localhost:5001${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`
+            if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+              imageUrl = `/${imageUrl}`
             }
             doc.addImage(imageUrl, 'JPEG', photoX + 1, photoY + 1, photoW - 2, photoH - 2)
           }
@@ -913,8 +913,9 @@ export function CrewDetailPage() {
           if (imageUrl.startsWith('data:')) {
             base64Data = imageUrl.split(',')[1]
           } else {
-            if (!imageUrl.startsWith('http'))
-              imageUrl = `http://localhost:5001${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`
+            if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+              imageUrl = `/${imageUrl}`
+            }
             const resp = await fetch(imageUrl)
             const blob = await resp.blob()
             const reader = new FileReader()

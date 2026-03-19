@@ -118,14 +118,15 @@ public class SyncService : ISyncService
         {
             var client = _httpClientFactory.CreateClient("ShoreAPI");
             
-            // Get last pull timestamp from config or DB
-            var lastPull = await GetLastPullTimestampAsync(context);
+            // Don't use timestamp-based filtering — rely on DeliveredAt IS NULL on shore.
+            // Using 'since' caused items to be missed when ACK failed (items stay undelivered
+            // but lastPull advances past their CreatedAt).
             var cursor = (string?)null;
             var totalProcessed = 0;
 
             do
             {
-                var url = $"{baseUrl}/api/sync/pull?nodeId={nodeId}&since={lastPull:O}";
+                var url = $"{baseUrl}/api/sync/pull?nodeId={nodeId}";
                 if (!string.IsNullOrEmpty(cursor))
                     url += $"&cursor={cursor}";
 
@@ -385,6 +386,7 @@ public class SyncService : ISyncService
 
         var subDir = item.TableName switch
         {
+            "crew_member" => Path.Combine("crew", "avatars"),
             "crew_certificate" => Path.Combine("crew", "certificates"),
             "travel_document" => Path.Combine("crew", "documents", "travel"),
             "seafarer_document" => Path.Combine("crew", "documents", "seafarer"),
@@ -404,7 +406,23 @@ public class SyncService : ISyncService
         var relativePath = $"/uploads/{subDir.Replace(Path.DirectorySeparatorChar, '/')}/{safeFileName}";
 
         // Update entity's file path in DB
-        if (item.TableName == "crew_certificate" && int.TryParse(item.RecordKey, out var certId))
+        if (item.TableName == "crew_member" && Guid.TryParse(item.RecordKey, out var crewGuid))
+        {
+            var crew = await context.CrewMembers.FindAsync(crewGuid);
+            if (crew != null)
+            {
+                if (!string.IsNullOrEmpty(crew.PhotoUrl) && crew.PhotoUrl != relativePath)
+                {
+                    var oldAbsPath = Path.Combine(Directory.GetCurrentDirectory(),
+                        crew.PhotoUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                    if (System.IO.File.Exists(oldAbsPath))
+                        System.IO.File.Delete(oldAbsPath);
+                }
+                crew.PhotoUrl = relativePath;
+                _logger.LogInformation("Saved synced avatar for crew_member/{Key} → {Path}", item.RecordKey, relativePath);
+            }
+        }
+        else if (item.TableName == "crew_certificate" && int.TryParse(item.RecordKey, out var certId))
         {
             var crewCert = await context.CrewCertificates.FindAsync(certId);
             if (crewCert != null)

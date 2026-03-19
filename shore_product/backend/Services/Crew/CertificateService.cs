@@ -257,8 +257,8 @@ public class CertificateService : ICertificateService
             CrewMemberId = request.CrewMemberId,
             CertificateId = request.CertificateId,
             CertificateNumber = request.CertificateNumber,
-            IssueDate = request.IssueDate,
-            ExpiryDate = request.ExpiryDate,
+            IssueDate = DateTime.SpecifyKind(request.IssueDate, DateTimeKind.Utc),
+            ExpiryDate = DateTime.SpecifyKind(request.ExpiryDate, DateTimeKind.Utc),
             IssuingAuthority = request.IssuingAuthority,
             CertificateOfCompetency = request.CertificateOfCompetency,
             CountryId = request.CountryId,
@@ -300,8 +300,8 @@ public class CertificateService : ICertificateService
         if (cc == null) return null;
 
         cc.CertificateNumber = request.CertificateNumber;
-        cc.IssueDate = request.IssueDate;
-        cc.ExpiryDate = request.ExpiryDate;
+        cc.IssueDate = DateTime.SpecifyKind(request.IssueDate, DateTimeKind.Utc);
+        cc.ExpiryDate = DateTime.SpecifyKind(request.ExpiryDate, DateTimeKind.Utc);
         cc.IssuingAuthority = request.IssuingAuthority;
         cc.CertificateOfCompetency = request.CertificateOfCompetency;
         cc.CountryId = request.CountryId;

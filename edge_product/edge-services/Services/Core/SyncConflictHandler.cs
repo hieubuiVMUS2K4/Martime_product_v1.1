@@ -249,7 +249,8 @@ public class SyncConflictHandler : ISyncConflictHandler
                 {
                     "IsOnboard", "EmbarkDate", "DisembarkDate",
                     "EmbarkPort", "DisembarkPort", "AvatarUrl",
-                    "OnboardStatusChangedAt", "OnboardStatusChangedBy"
+                    "OnboardStatusChangedAt", "OnboardStatusChangedBy",
+                    "EdgeChanges", "EdgeChangesViewed"
                 };
                 shouldApply = !edgeOwnedFields.Contains(prop.Name);
 
