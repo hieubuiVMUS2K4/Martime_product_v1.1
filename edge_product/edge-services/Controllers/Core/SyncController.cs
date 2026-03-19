@@ -263,12 +263,18 @@ public class SyncController : ControllerBase
             var certs = await _context.Certificates.AsNoTracking().ToListAsync();
             foreach (var x in certs) Enqueue("certificate", x.Id.ToString(), x);
 
-            // Crew members (depend on Rank)
-            var crew = await _context.CrewMembers.AsNoTracking().ToListAsync();
+            // Crew members (depend on Rank + Country — include nav props for FK resolution on Shore)
+            var crew = await _context.CrewMembers.AsNoTracking()
+                .Include(c => c.Rank)
+                .Include(c => c.Country)
+                .ToListAsync();
             foreach (var x in crew) Enqueue("crew_member", x.Id.ToString(), x);
 
-            // Dependent on CrewMember
-            var crewCerts = await _context.CrewCertificates.AsNoTracking().ToListAsync();
+            // Dependent on CrewMember (include Certificate + Country nav props for FK resolution)
+            var crewCerts = await _context.CrewCertificates.AsNoTracking()
+                .Include(c => c.Certificate)
+                .Include(c => c.Country)
+                .ToListAsync();
             foreach (var x in crewCerts) Enqueue("crew_certificate", x.CertificateNumber, x);
 
             var svcRecs = await _context.ServiceRecords.AsNoTracking().ToListAsync();
@@ -410,10 +416,16 @@ public class SyncController : ControllerBase
                         var certs        = await _context.Certificates.AsNoTracking().ToListAsync();
                         foreach (var x in certs) Enqueue("certificate", x.Id.ToString(), x);
 
-                        var crew         = await _context.CrewMembers.AsNoTracking().ToListAsync();
+                        var crew         = await _context.CrewMembers.AsNoTracking()
+                            .Include(c => c.Rank)
+                            .Include(c => c.Country)
+                            .ToListAsync();
                         foreach (var x in crew) Enqueue("crew_member", x.Id.ToString(), x);
 
-                        var crewCerts    = await _context.CrewCertificates.AsNoTracking().ToListAsync();
+                        var crewCerts    = await _context.CrewCertificates.AsNoTracking()
+                            .Include(c => c.Certificate)
+                            .Include(c => c.Country)
+                            .ToListAsync();
                         foreach (var x in crewCerts) Enqueue("crew_certificate", x.CertificateNumber, x);
 
                         var svcRecs      = await _context.ServiceRecords.AsNoTracking().ToListAsync();
