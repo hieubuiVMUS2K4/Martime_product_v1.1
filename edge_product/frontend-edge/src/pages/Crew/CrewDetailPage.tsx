@@ -23,7 +23,7 @@ import AddDocumentModal from '../../components/crew/AddDocumentModal'
 import AddHealthDocumentModal from '../../components/crew/AddHealthDocumentModal'
 import ImageViewerModal from '../../components/crew/ImageViewerModal'
 import { AddCrewCertificateModal } from './AddCrewCertificateModal'
-import jsPDF from 'jspdf'
+import jsPDF from 'jspdf' 
 import 'jspdf-autotable'
 
 type TabType = 'basic-data' | 'documents' | 'voyage-history'

@@ -7,6 +7,7 @@ import '../auth/token_storage.dart';
 import '../../data/repositories/task_repository.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/alarm_repository.dart';
+import '../../data/repositories/chat_repository.dart';
 import '../../data/data_sources/remote/alarm_api.dart';
 import '../../data/data_sources/remote/task_api.dart';
 
@@ -76,6 +77,12 @@ Future<void> setupServiceLocator() async {
   sl.registerLazySingleton<AlarmRepository>(
     () => AlarmRepository(
       AlarmApi(sl<ApiClient>().dio),
+    ),
+  );
+  
+  sl.registerLazySingleton<ChatRepository>(
+    () => ChatRepository(
+      apiClient: sl<ApiClient>(),
     ),
   );
 

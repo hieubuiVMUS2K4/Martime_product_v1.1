@@ -1402,4 +1402,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vietnameseLanguage => 'Vietnamese Language';
+
+  @override
+  String get aiAssistant => 'AI Assistant';
+
+  @override
+  String get chatWelcomeTitle => 'Maritime AI Assistant';
+
+  @override
+  String get chatWelcomeSubtitle =>
+      'Ask me about safety procedures, navigation rules, regulations, maintenance, and more.';
+
+  @override
+  String get suggestedQuestions => 'Suggested Questions';
+
+  @override
+  String get typeMessage => 'Ask a maritime question...';
+
+  @override
+  String get clearChat => 'Clear Chat';
 }

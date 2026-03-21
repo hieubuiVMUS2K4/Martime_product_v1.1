@@ -466,5 +466,12 @@
   "requestTimeoutError": "Request timeout - ảnh có thể quá lớn. Vui lòng thử ảnh nhỏ hơn",
   "validationError": "Validation error - kiểm tra lại form",
   "serverError": "Server error - vui lòng thử lại sau",
-  "vietnameseLanguage": "Ngôn ngữ Việt Nam"
+  "vietnameseLanguage": "Ngôn ngữ Việt Nam",
+  
+  "aiAssistant": "Trợ lý AI",
+  "chatWelcomeTitle": "Trợ Lý AI Hàng Hải",
+  "chatWelcomeSubtitle": "Hỏi tôi về quy trình an toàn, luật hàng hải, quy định, bảo trì và nhiều hơn nữa.",
+  "suggestedQuestions": "Câu hỏi gợi ý",
+  "typeMessage": "Đặt câu hỏi hàng hải...",
+  "clearChat": "Xóa trò chuyện"
 }

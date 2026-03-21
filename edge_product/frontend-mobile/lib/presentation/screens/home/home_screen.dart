@@ -126,6 +126,19 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const Divider(),
             ListTile(
+              leading: const Icon(Icons.smart_toy, color: Colors.blue),
+              title: Text(
+                l10n.aiAssistant,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                if (mounted) {
+                  Navigator.pushNamed(context, '/chat');
+                }
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.notifications_active, color: Colors.red),
               title: Text(
                 l10n.safetyAlarms,

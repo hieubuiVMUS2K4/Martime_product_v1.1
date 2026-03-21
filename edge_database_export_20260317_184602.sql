@@ -9136,7 +9136,7 @@ a1b2c3d4-e5f6-7890-abcd-ef1234567890	9876543	VN-2018-001234	3WHP9	MV PACIFIC VOY
 
 --
 -- Data for Name: ship_load_lines; Type: TABLE DATA; Schema: public; Owner: edge_user
---
+--  
 
 COPY public.ship_load_lines (id, ship_data_id, load_line_type, draft_m, freeboard_m, displacement_mt, deadweight_mt, sort_order) FROM stdin;
 0a62471a-544f-4594-a17d-690c1844a861	a1b2c3d4-e5f6-7890-abcd-ef1234567890	Tropical Fresh Water (TF)	13.9	\N	88500	66000	5

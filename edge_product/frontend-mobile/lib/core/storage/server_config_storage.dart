@@ -3,7 +3,7 @@ import 'package:hive/hive.dart';
 class ServerConfigStorage {
   static const String _boxName = 'server_config';
   static const String _serverUrlKey = 'server_url';
-  static const String _defaultUrl = 'http://192.168.1.100:5001';
+  static const String _defaultUrl = 'http://10.0.2.2:5001';
 
   static Future<Box> _getBox() async {
     return await Hive.openBox(_boxName);

@@ -2653,6 +2653,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Vietnamese Language'**
   String get vietnameseLanguage;
+
+  /// No description provided for @aiAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Assistant'**
+  String get aiAssistant;
+
+  /// No description provided for @chatWelcomeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Maritime AI Assistant'**
+  String get chatWelcomeTitle;
+
+  /// No description provided for @chatWelcomeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask me about safety procedures, navigation rules, regulations, maintenance, and more.'**
+  String get chatWelcomeSubtitle;
+
+  /// No description provided for @suggestedQuestions.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested Questions'**
+  String get suggestedQuestions;
+
+  /// No description provided for @typeMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask a maritime question...'**
+  String get typeMessage;
+
+  /// No description provided for @clearChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Chat'**
+  String get clearChat;
 }
 
 class _AppLocalizationsDelegate
