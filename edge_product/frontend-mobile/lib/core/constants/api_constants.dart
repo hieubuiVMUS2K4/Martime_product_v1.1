@@ -26,6 +26,10 @@ class ApiConstants {
   static const String syncStatus = '/api/sync/status';
   static const String syncData = '/api/sync/upload';
   
+  // Chat Endpoints
+  static const String chatSend = '/api/chat/send';
+  static const String chatSuggestions = '/api/chat/suggestions';
+  
   // Timeouts
   static const int connectionTimeout = 60000; // Tăng lên 60s cho deferral với photos
   static const int receiveTimeout = 60000;

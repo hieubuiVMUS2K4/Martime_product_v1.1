@@ -788,5 +788,12 @@
   "requestTimeoutError": "Request timeout - image may be too large. Please try a smaller image",
   "validationError": "Validation error - please check the form again",
   "serverError": "Server error - please try again later",
-  "vietnameseLanguage": "Vietnamese Language"
+  "vietnameseLanguage": "Vietnamese Language",
+  
+  "aiAssistant": "AI Assistant",
+  "chatWelcomeTitle": "Maritime AI Assistant",
+  "chatWelcomeSubtitle": "Ask me about safety procedures, navigation rules, regulations, maintenance, and more.",
+  "suggestedQuestions": "Suggested Questions",
+  "typeMessage": "Ask a maritime question...",
+  "clearChat": "Clear Chat"
 }

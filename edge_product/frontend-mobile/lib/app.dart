@@ -8,13 +8,16 @@ import 'presentation/screens/home/home_screen.dart';
 import 'presentation/screens/alarms/alarm_list_screen.dart';
 import 'presentation/screens/alarms/alarm_statistics_screen.dart';
 import 'presentation/screens/alarms/alarm_history_screen.dart';
+import 'presentation/screens/chat/chat_screen.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/task_provider.dart';
 import 'presentation/providers/sync_provider.dart';
 import 'presentation/providers/alarm_provider.dart';
+import 'presentation/providers/chat_provider.dart';
 import 'providers/watchkeeping_provider.dart';
 import 'core/di/service_locator.dart';
 import 'data/repositories/alarm_repository.dart';
+import 'data/repositories/chat_repository.dart';
 import 'core/localization/locale_provider.dart';
 
 class MyApp extends StatelessWidget {
@@ -37,6 +40,9 @@ class MyApp extends StatelessWidget {
             create: (_) => AlarmProvider(sl<AlarmRepository>()),
           ),
           ChangeNotifierProvider(create: (_) => WatchkeepingProvider()),
+          ChangeNotifierProvider(
+            create: (_) => ChatProvider(sl<ChatRepository>()),
+          ),
         ],
         child: Builder(
           builder: (context) {
@@ -114,6 +120,7 @@ class MyApp extends StatelessWidget {
               '/alarms': (context) => const AlarmListScreen(),
               '/alarms/statistics': (context) => const AlarmStatisticsScreen(),
               '/alarms/history': (context) => const AlarmHistoryScreen(),
+              '/chat': (context) => const ChatScreen(),
             },
             );
           },

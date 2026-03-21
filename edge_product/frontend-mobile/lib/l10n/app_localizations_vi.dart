@@ -1404,4 +1404,23 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get vietnameseLanguage => 'Ngôn ngữ Việt Nam';
+
+  @override
+  String get aiAssistant => 'Trợ lý AI';
+
+  @override
+  String get chatWelcomeTitle => 'Trợ Lý AI Hàng Hải';
+
+  @override
+  String get chatWelcomeSubtitle =>
+      'Hỏi tôi về quy trình an toàn, luật hàng hải, quy định, bảo trì và nhiều hơn nữa.';
+
+  @override
+  String get suggestedQuestions => 'Câu hỏi gợi ý';
+
+  @override
+  String get typeMessage => 'Đặt câu hỏi hàng hải...';
+
+  @override
+  String get clearChat => 'Xóa trò chuyện';
 }

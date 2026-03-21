@@ -14,6 +14,7 @@ using MaritimeEdge.Services.Voyage;
 using MaritimeEdge.Services.Logbooks;
 using MaritimeEdge.Services.AbstractLog;
 using MaritimeEdge.Services;
+using MaritimeEdge.Services.AI;
 using MaritimeEdge.Repositories;
 
 namespace MaritimeEdge
@@ -178,6 +179,9 @@ namespace MaritimeEdge
             // Add Ship Data Services
             builder.Services.AddScoped<IShipDataRepository, ShipDataRepository>();
             builder.Services.AddScoped<IShipDataService, ShipDataService>();
+
+            // Add AI Chat Service
+            builder.Services.AddScoped<IChatService, ChatService>();
 
             // Add Background Services
             builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.TelemetrySimulatorService>();
