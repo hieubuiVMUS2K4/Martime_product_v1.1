@@ -7,7 +7,7 @@ namespace ProductApi.Controllers.CrewManagement;
 
 [ApiController]
 [Route("api/onboarding-cases")]
-[AllowAnonymous] // TODO: restore [Authorize(Policy = "CrewManagement")] after auth is implemented
+[Authorize(Policy = "InternalAccess")]
 public class OnboardingController : ControllerBase
 {
     private readonly IOnboardingService _onboardingService;

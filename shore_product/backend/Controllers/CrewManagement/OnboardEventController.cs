@@ -6,7 +6,7 @@ namespace ProductApi.Controllers.CrewManagement;
 
 [ApiController]
 [Route("api/onboard-events")]
-[AllowAnonymous] // TODO: restore [Authorize(Policy = "OnboardManagement")] after auth is implemented
+[Authorize(Policy = "InternalAccess")]
 public class OnboardEventController : ControllerBase
 {
     private readonly ProductApi.Services.CrewManagement.IOnboardEventService _service;

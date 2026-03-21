@@ -27,7 +27,9 @@ public class SyncBackgroundWorker : BackgroundService
 
         var pushInterval = TimeSpan.FromSeconds(_configuration.GetValue("Sync:HighPriorityInterval", 60));
         var pullInterval = TimeSpan.FromSeconds(_configuration.GetValue("Sync:SyncInterval", 300));
+        var heartbeatInterval = TimeSpan.FromSeconds(_configuration.GetValue("Sync:HeartbeatInterval", 60));
         var lastPull = DateTime.MinValue;
+        var lastHeartbeat = DateTime.MinValue;
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -36,6 +38,12 @@ public class SyncBackgroundWorker : BackgroundService
                 using (var scope = _serviceProvider.CreateScope())
                 {
                     var syncService = scope.ServiceProvider.GetRequiredService<ISyncService>();
+
+                    if (DateTime.UtcNow - lastHeartbeat >= heartbeatInterval)
+                    {
+                        await syncService.SendHeartbeatAsync(stoppingToken);
+                        lastHeartbeat = DateTime.UtcNow;
+                    }
 
                     // Push: Edge → Shore (every push interval)
                     await syncService.ExecuteSyncAsync(stoppingToken);

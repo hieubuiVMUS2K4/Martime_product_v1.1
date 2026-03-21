@@ -15,7 +15,7 @@ namespace ProductApi.Controllers.Crew;
 /// </summary>
 [ApiController]
 [Route("api/certificates")]
-[Authorize]
+[Authorize(Policy = "InternalAccess")]
 public class CertificatesController : ControllerBase
 {
     private readonly ICertificateService _certService;
@@ -37,7 +37,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>GET /api/certificates — Get all certificate types.</summary>
     [HttpGet]
-    [AllowAnonymous]
     public async Task<IActionResult> GetCertificateTypes([FromQuery] string? category = null)
     {
         try
@@ -54,7 +53,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>GET /api/certificates/{id} — Get a certificate type by ID.</summary>
     [HttpGet("{id:int}")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetCertificateType(int id)
     {
         try
@@ -72,7 +70,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>POST /api/certificates — Create a new certificate type.</summary>
     [HttpPost]
-    [AllowAnonymous]
     public async Task<IActionResult> CreateCertificateType([FromBody] CreateCertificateRequest request)
     {
         try
@@ -92,7 +89,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>PUT /api/certificates/{id} — Update a certificate type.</summary>
     [HttpPut("{id:int}")]
-    [AllowAnonymous]
     public async Task<IActionResult> UpdateCertificateType(int id, [FromBody] CreateCertificateRequest request)
     {
         try
@@ -110,7 +106,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>DELETE /api/certificates/{id} — Deactivate a certificate type.</summary>
     [HttpDelete("{id:int}")]
-    [AllowAnonymous]
     public async Task<IActionResult> DeleteCertificateType(int id)
     {
         try
@@ -132,7 +127,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>GET /api/certificates/{id}/countries — Get country IDs mapped to a certificate.</summary>
     [HttpGet("{id:int}/countries")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetCertificateCountries(int id)
     {
         try
@@ -152,7 +146,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>GET /api/certificates/{id}/ranks — Get rank IDs mapped to a certificate.</summary>
     [HttpGet("{id:int}/ranks")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetCertificateRanks(int id)
     {
         try
@@ -176,7 +169,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>GET /api/certificates/crew/{crewId} — Get all certificates for a crew member.</summary>
     [HttpGet("crew/{crewId:guid}")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetCrewCertificates(Guid crewId)
     {
         try
@@ -193,7 +185,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>GET /api/certificates/crew-certificates/{id} — Get a specific crew certificate.</summary>
     [HttpGet("crew-certificates/{id:int}")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetCrewCertificate(int id)
     {
         try
@@ -211,7 +202,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>POST /api/certificates/crew-certificates — Add certificate to crew.</summary>
     [HttpPost("crew-certificates")]
-    [AllowAnonymous]
     public async Task<IActionResult> AddCrewCertificate([FromBody] CrewCertificateRequest request)
     {
         try
@@ -228,7 +218,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>PUT /api/certificates/crew-certificates/{id} — Update crew certificate.</summary>
     [HttpPut("crew-certificates/{id:int}")]
-    [AllowAnonymous]
     public async Task<IActionResult> UpdateCrewCertificate(int id, [FromBody] CrewCertificateRequest request)
     {
         try
@@ -246,7 +235,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>DELETE /api/certificates/crew-certificates/{id} — Delete crew certificate.</summary>
     [HttpDelete("crew-certificates/{id:int}")]
-    [AllowAnonymous]
     public async Task<IActionResult> DeleteCrewCertificate(int id)
     {
         try
@@ -268,7 +256,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>GET /api/certificates/expiring?days=90 — Fleet-wide expiring certificates.</summary>
     [HttpGet("expiring")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetExpiringCertificates([FromQuery] int days = 90)
     {
         try
@@ -285,7 +272,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>GET /api/certificates/compliance — Fleet-wide compliance report.</summary>
     [HttpGet("compliance")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetFleetCompliance()
     {
         try
@@ -302,7 +288,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>GET /api/certificates/compliance/{crewId} — STCW compliance for crew.</summary>
     [HttpGet("compliance/{crewId:guid}")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetCrewCompliance(Guid crewId)
     {
         try
@@ -327,7 +312,6 @@ public class CertificatesController : ControllerBase
 
     /// <summary>PUT /api/certificates/crew-certificates/{id}/file — Upload certificate document image.</summary>
     [HttpPut("crew-certificates/{id:int}/file")]
-    [AllowAnonymous]
     public async Task<IActionResult> UploadCertificateFile(int id, [FromForm] IFormFile file)
     {
         try

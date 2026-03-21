@@ -8,6 +8,7 @@ using Maritime.Shared.Models.Sync;
 using Maritime.Shared.Models.Crew;
 using Maritime.Shared.Models.CrewManagement;
 using Maritime.Shared.Models.Documents;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -600,12 +601,13 @@ public class SyncInboxService : ISyncInboxService
     /// </summary>
     private async Task SaveSyncedFileAsync(SyncQueueItemDto item)
     {
-        var bytes = Convert.FromBase64String(item.FileData!);
+        var bytes = DecodeAndValidateSyncFile(item);
         var ext = Path.GetExtension(item.FileName!).ToLowerInvariant();
 
         // Determine upload subdirectory based on table type
         var subDir = item.TableName switch
         {
+            "crew_member" => "crew/avatars",
             "crew_certificate" => "crew/certificates",
             "travel_document" => "crew/documents/travel",
             "seafarer_document" => "crew/documents/seafarer",
@@ -618,7 +620,9 @@ public class SyncInboxService : ISyncInboxService
         Directory.CreateDirectory(uploadsDir);
 
         // Use the original filename from the sender so both shore and edge have identical file paths
-        var safeFileName = !string.IsNullOrEmpty(item.FileName) ? item.FileName : $"{item.TableName}_{item.RecordKey}{ext}";
+        var safeFileName = !string.IsNullOrEmpty(item.FileName)
+            ? Path.GetFileName(item.FileName)
+            : $"{item.TableName}_{item.RecordKey}{ext}";
         var filePath = Path.Combine(uploadsDir, safeFileName);
         await System.IO.File.WriteAllBytesAsync(filePath, bytes);
 
@@ -630,8 +634,8 @@ public class SyncInboxService : ISyncInboxService
             var entity = await FindEntityByKeyAsync(entityType, item.RecordKey);
             if (entity != null)
             {
-                // Try DocumentFilePath, then FilePath, then FileUrl
-                var pathProps = new[] { "DocumentFilePath", "FilePath", "FileUrl" };
+                // Try DocumentFilePath, then FilePath, then FileUrl, then PhotoUrl
+                var pathProps = new[] { "DocumentFilePath", "FilePath", "FileUrl", "PhotoUrl" };
                 foreach (var propName in pathProps)
                 {
                     var prop = entityType.GetProperty(propName);
@@ -648,13 +652,41 @@ public class SyncInboxService : ISyncInboxService
                         }
 
                         prop.SetValue(entity, relativePath);
-                        _logger.LogInformation("Saved synced file for {Table}/{Key} → {Path}",
-                            item.TableName, item.RecordKey, relativePath);
+                        _logger.LogInformation("Saved synced file for {Table}/{Key} → {Path} (source {SourceNode}:{SourcePath})",
+                            item.TableName, item.RecordKey, relativePath, item.FileSourceNodeId, item.FileSourcePath);
                         break;
                     }
                 }
             }
         }
+    }
+
+    private static byte[] DecodeAndValidateSyncFile(SyncQueueItemDto item)
+    {
+        if (string.IsNullOrWhiteSpace(item.FileData) || string.IsNullOrWhiteSpace(item.FileName))
+            throw new InvalidOperationException("Sync file payload is incomplete.");
+
+        if (string.IsNullOrWhiteSpace(item.FileChecksumSha256))
+            throw new InvalidOperationException("Sync file checksum is missing.");
+
+        if (string.IsNullOrWhiteSpace(item.FileSourceNodeId))
+            throw new InvalidOperationException("Sync file provenance node is missing.");
+
+        if (!string.Equals(item.FileSourceNodeId, item.OriginNode, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Sync file provenance node does not match item origin.");
+
+        var bytes = Convert.FromBase64String(item.FileData);
+        var actualChecksum = ComputeSha256Hex(bytes);
+        if (!string.Equals(actualChecksum, item.FileChecksumSha256, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Sync file checksum verification failed.");
+
+        return bytes;
+    }
+
+    private static string ComputeSha256Hex(byte[] content)
+    {
+        var hash = SHA256.HashData(content);
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     // ============================================================
@@ -1307,6 +1339,44 @@ public class SyncInboxService : ISyncInboxService
                 }
             }
 
+            // ── CountryId resolution ──
+            if (crew.CountryId.HasValue)
+            {
+                var shoreCountry = await _context.Set<Country>().FirstOrDefaultAsync(c => c.Id == crew.CountryId.Value);
+                if (shoreCountry == null)
+                {
+                    // Edge CountryId doesn't exist on shore — resolve by CountryCode from payload
+                    string? countryCode = null;
+                    if (!string.IsNullOrEmpty(rawPayload))
+                        countryCode = ExtractCountryCodeFromPayload(rawPayload);
+
+                    if (!string.IsNullOrEmpty(countryCode))
+                    {
+                        var matchedCountry = await _context.Set<Country>()
+                            .FirstOrDefaultAsync(c => c.CountryCode == countryCode);
+                        if (matchedCountry != null)
+                        {
+                            _logger.LogInformation(
+                                "CrewMember {CrewId}: Resolved edge CountryId {EdgeId} → shore CountryId {ShoreId} via CountryCode {Code}",
+                                crew.CrewId, crew.CountryId, matchedCountry.Id, countryCode);
+                            crew.CountryId = matchedCountry.Id;
+                        }
+                        else
+                        {
+                            _logger.LogWarning("CrewMember {CrewId}: CountryCode {Code} not found on shore — setting CountryId to null",
+                                crew.CrewId, countryCode);
+                            crew.CountryId = null;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("CrewMember {CrewId}: CountryId {Id} not found on shore and no CountryCode in payload — setting to null",
+                            crew.CrewId, crew.CountryId);
+                        crew.CountryId = null;
+                    }
+                }
+            }
+
             // Auto-set VesselId from OriginNode (IMO) if not already set
             if (!crew.VesselId.HasValue && !string.IsNullOrWhiteSpace(crew.OriginNode) && crew.OriginNode != "SHORE")
             {
@@ -1317,6 +1387,83 @@ public class SyncInboxService : ISyncInboxService
                     crew.VesselId = vessel.Id;
                     _logger.LogDebug("CrewMember {CrewId}: Auto-set VesselId from OriginNode {IMO}",
                         crew.CrewId, crew.OriginNode);
+                }
+            }
+        }
+        // CrewCertificate → Certificate + Country: resolve FK IDs by code
+        if (entityType == typeof(CrewCertificate))
+        {
+            var cert = (CrewCertificate)entity;
+
+            // ── CertificateId resolution ──
+            if (cert.CertificateId > 0)
+            {
+                var shoreCert = await _context.Set<Certificate>().FirstOrDefaultAsync(c => c.Id == cert.CertificateId);
+                if (shoreCert == null)
+                {
+                    string? certCode = null;
+                    if (!string.IsNullOrEmpty(rawPayload))
+                        certCode = ExtractCertificateCodeFromPayload(rawPayload);
+
+                    if (!string.IsNullOrEmpty(certCode))
+                    {
+                        var matched = await _context.Set<Certificate>()
+                            .FirstOrDefaultAsync(c => c.CertificateCode == certCode);
+                        if (matched != null)
+                        {
+                            _logger.LogInformation(
+                                "CrewCertificate {CertNum}: Resolved edge CertificateId {EdgeId} → shore {ShoreId} via code {Code}",
+                                cert.CertificateNumber, cert.CertificateId, matched.Id, certCode);
+                            cert.CertificateId = matched.Id;
+                        }
+                        else
+                        {
+                            _logger.LogWarning("CrewCertificate {CertNum}: CertificateCode {Code} not found on shore",
+                                cert.CertificateNumber, certCode);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("CrewCertificate {CertNum}: CertificateId {Id} not found on shore and no code in payload",
+                            cert.CertificateNumber, cert.CertificateId);
+                    }
+                }
+            }
+
+            // ── CountryId resolution ──
+            if (cert.CountryId.HasValue)
+            {
+                var shoreCountry = await _context.Set<Country>().FirstOrDefaultAsync(c => c.Id == cert.CountryId.Value);
+                if (shoreCountry == null)
+                {
+                    string? countryCode = null;
+                    if (!string.IsNullOrEmpty(rawPayload))
+                        countryCode = ExtractCountryCodeFromPayload(rawPayload);
+
+                    if (!string.IsNullOrEmpty(countryCode))
+                    {
+                        var matched = await _context.Set<Country>()
+                            .FirstOrDefaultAsync(c => c.CountryCode == countryCode);
+                        if (matched != null)
+                        {
+                            _logger.LogInformation(
+                                "CrewCertificate {CertNum}: Resolved edge CountryId {EdgeId} → shore {ShoreId} via code {Code}",
+                                cert.CertificateNumber, cert.CountryId, matched.Id, countryCode);
+                            cert.CountryId = matched.Id;
+                        }
+                        else
+                        {
+                            _logger.LogWarning("CrewCertificate {CertNum}: CountryCode {Code} not found on shore — setting CountryId to null",
+                                cert.CertificateNumber, countryCode);
+                            cert.CountryId = null;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("CrewCertificate {CertNum}: CountryId {Id} not found on shore — setting to null",
+                            cert.CertificateNumber, cert.CountryId);
+                        cert.CountryId = null;
+                    }
                 }
             }
         }
@@ -1397,6 +1544,60 @@ public class SyncInboxService : ISyncInboxService
                         {
                             return codeElement.GetString();
                         }
+                    }
+                }
+            }
+        }
+        catch { /* payload is not valid JSON */ }
+        return null;
+    }
+
+    /// <summary>
+    /// Extract CountryCode from the embedded Country navigation property in the raw payload.
+    /// The raw payload from edge may contain: "country": { "countryCode": "VNM", ... }
+    /// </summary>
+    private static string? ExtractCountryCodeFromPayload(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            foreach (var propName in new[] { "country", "Country" })
+            {
+                if (doc.RootElement.TryGetProperty(propName, out var el)
+                    && el.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var codeProp in new[] { "countryCode", "CountryCode", "country_code" })
+                    {
+                        if (el.TryGetProperty(codeProp, out var codeEl)
+                            && codeEl.ValueKind == JsonValueKind.String)
+                            return codeEl.GetString();
+                    }
+                }
+            }
+        }
+        catch { /* payload is not valid JSON */ }
+        return null;
+    }
+
+    /// <summary>
+    /// Extract CertificateCode from the embedded Certificate navigation property in the raw payload.
+    /// The raw payload from edge may contain: "certificate": { "certificateCode": "BST", ... }
+    /// </summary>
+    private static string? ExtractCertificateCodeFromPayload(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            foreach (var propName in new[] { "certificate", "Certificate" })
+            {
+                if (doc.RootElement.TryGetProperty(propName, out var el)
+                    && el.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var codeProp in new[] { "certificateCode", "CertificateCode", "certificate_code" })
+                    {
+                        if (el.TryGetProperty(codeProp, out var codeEl)
+                            && codeEl.ValueKind == JsonValueKind.String)
+                            return codeEl.GetString();
                     }
                 }
             }

@@ -9,7 +9,7 @@ services:
     environment:
       POSTGRES_DB: ${EDGE_POSTGRES_DB:-maritime_edge}
       POSTGRES_USER: ${EDGE_POSTGRES_USER:-edge_user}
-      POSTGRES_PASSWORD: ${EDGE_POSTGRES_PASSWORD:-edge_password}
+      POSTGRES_PASSWORD: ${EDGE_POSTGRES_PASSWORD:?EDGE_POSTGRES_PASSWORD must be set}
     ports:
       - "${EDGE_POSTGRES_PORT:-5433}:5432"
     volumes:
@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${EDGE_PGADMIN_EMAIL:-admin@localhost.com}
-      PGADMIN_DEFAULT_PASSWORD: ${EDGE_PGADMIN_PASSWORD:-admin}
+      PGADMIN_DEFAULT_PASSWORD: ${EDGE_PGADMIN_PASSWORD:?EDGE_PGADMIN_PASSWORD must be set}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
     ports:
@@ -49,7 +49,16 @@ services:
     restart: unless-stopped
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - Database__ConnectionString=Host=edge-postgres;Port=5432;Database=${EDGE_POSTGRES_DB:-maritime_edge};Username=${EDGE_POSTGRES_USER:-edge_user};Password=${EDGE_POSTGRES_PASSWORD:-edge_password}
+      - Database__ConnectionString=Host=edge-postgres;Port=5432;Database=${EDGE_POSTGRES_DB:-maritime_edge};Username=${EDGE_POSTGRES_USER:-edge_user};Password=${EDGE_POSTGRES_PASSWORD:?EDGE_POSTGRES_PASSWORD must be set}
+      - Auth__TokenSigningKey=${EDGE_AUTH_TOKEN_SIGNING_KEY:?EDGE_AUTH_TOKEN_SIGNING_KEY must be set}
+      - Security__EnforceHttps=${EDGE_SECURITY_ENFORCE_HTTPS:-false}
+      - Security__RequireInternalAccess=${EDGE_SECURITY_REQUIRE_INTERNAL_ACCESS:-false}
+      - InternalAccess__ApiKey=${EDGE_INTERNAL_API_KEY:?EDGE_INTERNAL_API_KEY must be set}
+      - SyncSecurity__Enabled=${EDGE_SYNC_SECURITY_ENABLED:-false}
+      - SyncSecurity__ProtocolVersion=${EDGE_SYNC_PROTOCOL_VERSION:-2}
+      - SyncSecurity__NodeId=${EDGE_SYNC_NODE_ID:-}
+      - SyncSecurity__SigningKey=${EDGE_SYNC_SIGNING_KEY:-}
+      - SyncSecurity__KeyVersion=${EDGE_SYNC_KEY_VERSION:-1}
     depends_on:
       edge-postgres:
         condition: service_healthy

@@ -17,7 +17,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-product}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-productpwd}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_DB: ${POSTGRES_DB:-productdb}
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -41,10 +41,15 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://+:5000"
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-productdb};Username=${POSTGRES_USER:-product};Password=${POSTGRES_PASSWORD:-productpwd}"
-      JWT__Key: "${JWT_KEY:-VerySecretKey12345_CHANGE_THIS_IN_PRODUCTION}"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-productdb};Username=${POSTGRES_USER:-product};Password=${POSTGRES_PASSWORD}"
+      JWT__Key: "${JWT_KEY:?JWT_KEY must be set}"
       JWT__Issuer: "product"
       JWT__Audience: "product-users"
+      Security__EnforceHttps: "${SECURITY_ENFORCE_HTTPS:-true}"
+      Security__RequireInternalAccess: "${SECURITY_REQUIRE_INTERNAL_ACCESS:-true}"
+      InternalAccess__ApiKey: "${INTERNAL_API_KEY:?INTERNAL_API_KEY must be set}"
+      SyncSecurity__RequireSignedRequests: "${SYNC_REQUIRE_SIGNED_REQUESTS:-true}"
+      SyncSecurity__ProtocolVersion: "${SYNC_PROTOCOL_VERSION:-2}"
     volumes:
       - backend-uploads:/app/uploads
     depends_on:
@@ -61,6 +66,8 @@ services:
       args:
         VITE_API_BASE_URL: "/api"
     restart: always
+    environment:
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:?INTERNAL_API_KEY must be set}"
     ports:
       - "80:80"
     depends_on:
@@ -74,7 +81,7 @@ services:
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@localhost.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?PGADMIN_PASSWORD must be set}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
     ports:

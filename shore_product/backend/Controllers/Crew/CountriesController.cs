@@ -10,7 +10,7 @@ namespace ProductApi.Controllers.Crew;
 /// </summary>
 [ApiController]
 [Route("api/countries")]
-[Authorize]
+[Authorize(Policy = "InternalAccess")]
 public class CountriesController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -24,7 +24,6 @@ public class CountriesController : ControllerBase
 
     /// <summary>GET /api/countries — Get all countries.</summary>
     [HttpGet]
-    [AllowAnonymous]
     public async Task<IActionResult> GetAll()
     {
         try
@@ -53,7 +52,6 @@ public class CountriesController : ControllerBase
 
     /// <summary>GET /api/countries/{id} — Get country by ID.</summary>
     [HttpGet("{id:int}")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetById(int id)
     {
         try
@@ -78,7 +76,6 @@ public class CountriesController : ControllerBase
 
     /// <summary>POST /api/countries — Create a new country.</summary>
     [HttpPost]
-    [AllowAnonymous]
     public async Task<IActionResult> Create([FromBody] CountryRequest request)
     {
         try
@@ -114,7 +111,6 @@ public class CountriesController : ControllerBase
 
     /// <summary>PUT /api/countries/{id} — Update a country.</summary>
     [HttpPut("{id:int}")]
-    [AllowAnonymous]
     public async Task<IActionResult> Update(int id, [FromBody] CountryRequest request)
     {
         try
@@ -146,7 +142,6 @@ public class CountriesController : ControllerBase
 
     /// <summary>DELETE /api/countries/{id} — Deactivate a country.</summary>
     [HttpDelete("{id:int}")]
-    [AllowAnonymous]
     public async Task<IActionResult> Delete(int id)
     {
         try

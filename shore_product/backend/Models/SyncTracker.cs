@@ -25,6 +25,46 @@ public class SyncNodeTracker
     [MaxLength(20)]
     public string? ImoNumber { get; set; }
 
+    /// <summary>True when node identity has been explicitly provisioned on Shore.</summary>
+    public bool IsRegistered { get; set; }
+
+    /// <summary>Shared signing key for protocol v2 request signing. Stored in DB to support per-node provisioning and rotation.</summary>
+    [MaxLength(500)]
+    public string? SigningKey { get; set; }
+
+    /// <summary>Monotonic version for the current signing key.</summary>
+    public int KeyVersion { get; set; } = 1;
+
+    /// <summary>Previous signing key retained during a grace window so Edge can switch keys safely.</summary>
+    [MaxLength(500)]
+    public string? PreviousSigningKey { get; set; }
+
+    /// <summary>Version of the previous signing key, if a rotation grace window is active.</summary>
+    public int? PreviousKeyVersion { get; set; }
+
+    /// <summary>UTC cutoff after which the previous signing key is no longer accepted.</summary>
+    public DateTime? PreviousKeyGraceUntil { get; set; }
+
+    /// <summary>Most recent key version that has been acknowledged by a successful signed request from Edge.</summary>
+    public int? LastAcknowledgedKeyVersion { get; set; }
+
+    /// <summary>UTC timestamp when Edge last acknowledged the active key version.</summary>
+    public DateTime? LastKeyVersionAcknowledgedAt { get; set; }
+
+    /// <summary>Last time the signing key was rotated.</summary>
+    public DateTime? LastKeyRotatedAt { get; set; }
+
+    /// <summary>True when Shore must deny this node regardless of provided signature.</summary>
+    public bool IsRevoked { get; set; }
+
+    public DateTime? RevokedAt { get; set; }
+
+    [MaxLength(500)]
+    public string? RevokedReason { get; set; }
+
+    /// <summary>Last time Shore accepted a signed sync request from this node.</summary>
+    public DateTime? LastSignedRequestAt { get; set; }
+
     // ── Push tracking (Edge → Shore) ──
 
     /// <summary>Last time this node successfully pushed data to shore.</summary>

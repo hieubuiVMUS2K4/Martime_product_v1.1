@@ -4,8 +4,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using System.Threading.RateLimiting;
 using MaritimeEdge.Data;
+using MaritimeEdge.Security;
 using MaritimeEdge.Services.Core;
 using MaritimeEdge.Services.Inventory;
 using MaritimeEdge.Services.Maintenance;
@@ -71,11 +74,19 @@ namespace MaritimeEdge
             if (string.IsNullOrEmpty(db) && string.IsNullOrEmpty(user) && string.IsNullOrEmpty(password))
                 return baseConnStr ?? string.Empty;
 
+            if (string.IsNullOrWhiteSpace(db) ||
+                string.IsNullOrWhiteSpace(user) ||
+                string.IsNullOrWhiteSpace(password))
+            {
+                throw new InvalidOperationException(
+                    "EDGE_POSTGRES_DB, EDGE_POSTGRES_USER, and EDGE_POSTGRES_PASSWORD must all be configured when overriding the database connection via environment variables.");
+            }
+
             // Nếu có env var → build lại connection string với giá trị từ .env
             return $"Host={host};Port={port};" +
-                   $"Database={db ?? "maritime_edge"};" +
-                   $"Username={user ?? "edge_user"};" +
-                   $"Password={password ?? "edge_password"};" +
+                   $"Database={db};" +
+                   $"Username={user};" +
+                   $"Password={password};" +
                    "Pooling=true;MinPoolSize=2;MaxPoolSize=50;" +
                    "ConnectionIdleLifetime=300;ConnectionPruningInterval=10";
         }
@@ -135,6 +146,7 @@ namespace MaritimeEdge
             builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<IAggregateReportService, AggregateReportService>();
             builder.Services.AddScoped<ISyncService, SyncService>();
+            builder.Services.AddScoped<ISyncRequestSigningService, SyncRequestSigningService>();
             builder.Services.AddScoped<ISyncConflictHandler, SyncConflictHandler>();
             builder.Services.AddScoped<IWatchkeepingService, WatchkeepingService>();
             builder.Services.AddScoped<IDeckLogbookService, DeckLogbookService>();
@@ -196,6 +208,20 @@ namespace MaritimeEdge
                     options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
                     options.JsonSerializerOptions.PropertyNameCaseInsensitive = true; // Accept both camelCase and PascalCase input
                 });
+
+            builder.Services.AddAuthorizationBuilder()
+                .AddPolicy("InternalAccess", policy =>
+                    policy.Requirements.Add(new InternalAccessRequirement()));
+            builder.Services.AddSingleton<IAuthorizationHandler, InternalAccessHandler>();
+
+            builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
+                                           ForwardedHeaders.XForwardedProto |
+                                           ForwardedHeaders.XForwardedHost;
+                options.KnownNetworks.Clear();
+                options.KnownProxies.Clear();
+            });
             
             // Add CORS for frontend-edge (support both port 3001 and 3002)
             builder.Services.AddCors(options =>
@@ -261,6 +287,18 @@ namespace MaritimeEdge
                             QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                             QueueLimit = 0
                         }));
+
+                // Cost-sensitive limiter for AI endpoints.
+                options.AddPolicy("ai", httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 20,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            QueueLimit = 0
+                        }));
             });
 
             var app = builder.Build();
@@ -312,6 +350,14 @@ namespace MaritimeEdge
                 });
             }
 
+            app.UseForwardedHeaders();
+
+            if (!app.Environment.IsDevelopment() && builder.Configuration.GetValue("Security:EnforceHttps", false))
+            {
+                app.UseHsts();
+                app.UseHttpsRedirection();
+            }
+
             var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
             Directory.CreateDirectory(uploadsPath);
             
@@ -341,8 +387,8 @@ namespace MaritimeEdge
                          origin.StartsWith("http://192.168.") ||
                          origin.StartsWith("http://172.")))
                     {
-                        ctx.Context.Response.Headers.Add("Access-Control-Allow-Origin", origin);
-                        ctx.Context.Response.Headers.Add("Access-Control-Allow-Credentials", "true");
+                        ctx.Context.Response.Headers["Access-Control-Allow-Origin"] = origin;
+                        ctx.Context.Response.Headers["Access-Control-Allow-Credentials"] = "true";
                     }
                 }
             });

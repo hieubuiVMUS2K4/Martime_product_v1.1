@@ -1,17 +1,24 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json;
+using System.Threading.RateLimiting;
 using ProductApi.Data;
+using ProductApi.Security;
 using ProductApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Configuration
 var configuration = builder.Configuration;
+var environment = builder.Environment;
+var enforceHttps = configuration.GetValue("Security:EnforceHttps", false);
 
 // Add services
 builder.Services.AddControllers()
@@ -23,9 +30,13 @@ builder.Services.AddControllers()
     });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddMemoryCache();
 
 // DbContext
-var conn = configuration.GetConnectionString("DefaultConnection") ?? "Host=postgres;Port=5432;Database=productdb;Username=product;Password=productpwd";
+var conn = configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(conn))
+    throw new InvalidOperationException("ConnectionStrings:DefaultConnection must be configured.");
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(conn)
            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
@@ -35,12 +46,28 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowWebMobile", policy =>
     {
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+        if (allowedOrigins.Length > 0)
+            policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
+        else
+            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
     });
 });
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
+                               ForwardedHeaders.XForwardedProto |
+                               ForwardedHeaders.XForwardedHost;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 // JWT
-var jwtKey = configuration["JWT:Key"] ?? configuration["JWT__Key"] ?? "VerySecretKey12345";
+var jwtKey = configuration["JWT:Key"] ?? configuration["JWT__Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+    throw new InvalidOperationException("JWT:Key must be configured via appsettings or environment variables.");
+
 var key = Encoding.ASCII.GetBytes(jwtKey);
 builder.Services.AddAuthentication(options =>
 {
@@ -49,7 +76,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false;
+    options.RequireHttpsMetadata = enforceHttps && !environment.IsDevelopment();
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -79,7 +106,51 @@ builder.Services.AddAuthorizationBuilder()
         policy.RequireRole("Admin", "Master", "ChiefOfficer", "CrewCoordinator", "SystemAdmin"))
     // Read-only access for authenticated users
     .AddPolicy("CrewReadOnly", policy =>
-        policy.RequireAuthenticatedUser());
+        policy.RequireAuthenticatedUser())
+    // Internal operational access for observability and admin sync endpoints.
+    .AddPolicy("InternalAccess", policy =>
+        policy.Requirements.Add(new InternalAccessRequirement()));
+
+builder.Services.AddSingleton<IAuthorizationHandler, InternalAccessHandler>();
+builder.Services.AddScoped<ProductApi.Security.SyncRequestVerificationMiddleware>();
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("sync", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 240,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 10,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            }));
+
+    options.AddPolicy("observability", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            }));
+
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 600,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 20,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            }));
+});
 
 // Add Redis cache (commented out until package is available)
 // builder.Services.AddStackExchangeRedisCache(options =>
@@ -283,8 +354,19 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseForwardedHeaders();
+
+if (!app.Environment.IsDevelopment() && enforceHttps)
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
 
 // Global exception handling middleware
 app.UseExceptionHandler(errorApp =>
@@ -332,6 +414,11 @@ Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "employ
 Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "health_documents"));
 
 app.UseCors("AllowWebMobile");
+app.UseRouting();
+app.UseRateLimiter();
+app.UseWhen(
+    context => ProductApi.Security.SyncRequestVerificationMiddleware.IsProtectedSyncRequest(context.Request),
+    branch => branch.UseMiddleware<ProductApi.Security.SyncRequestVerificationMiddleware>());
 
 // Serve uploaded files
 app.UseStaticFiles(new StaticFileOptions

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import { authService } from '@/services/auth.service'
 import type {
   UserInfo,
@@ -8,7 +8,7 @@ import type {
 } from '@/types/auth.types'
 
 // ============================================================
-// AUTH STORE - Zustand with localStorage persistence
+// AUTH STORE - Zustand with session-scoped persistence
 // Maritime ISPS/ISM Compliant Session Management
 // ============================================================
 
@@ -159,9 +159,19 @@ export const useAuthStore = create<AuthStore>()(
       initializeAuth: async () => {
         const { accessToken, storedRefreshToken: rt, expiresAt } = get()
 
-        // No stored tokens
-        if (!accessToken) {
+        // No stored session material
+        if (!accessToken && !rt) {
           set({ isLoading: false, isAuthenticated: false })
+          return
+        }
+
+        // Access token is intentionally not persisted across tab restarts.
+        // If only refresh token remains, bootstrap a fresh access token.
+        if (!accessToken && rt) {
+          const refreshed = await get().doRefreshToken()
+          if (!refreshed) {
+            set({ ...initialState, isLoading: false })
+          }
           return
         }
 
@@ -267,8 +277,8 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: STORAGE_KEY,
+      storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
-        accessToken: state.accessToken,
         storedRefreshToken: state.storedRefreshToken,
         expiresAt: state.expiresAt,
         user: state.user,

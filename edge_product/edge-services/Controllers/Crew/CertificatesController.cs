@@ -58,9 +58,9 @@ public class CertificatesController : ControllerBase
                 {
                     CertificateId = g.Key,
                     CrewCount = g.Count(),
-                    ValidCount = g.Count(cc => cc.ExpiryDate != null && cc.ExpiryDate > warningDate),
-                    ExpiringCount = g.Count(cc => cc.ExpiryDate != null && cc.ExpiryDate <= warningDate && cc.ExpiryDate > now),
-                    ExpiredCount = g.Count(cc => cc.ExpiryDate != null && cc.ExpiryDate <= now)
+                    ValidCount = g.Count(cc => cc.ExpiryDate > warningDate),
+                    ExpiringCount = g.Count(cc => cc.ExpiryDate <= warningDate && cc.ExpiryDate > now),
+                    ExpiredCount = g.Count(cc => cc.ExpiryDate <= now)
                 })
                 .ToDictionaryAsync(x => x.CertificateId);
 

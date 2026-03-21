@@ -15,7 +15,7 @@ namespace ProductApi.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/vessels/{vesselId:guid}/certificates")]
-[AllowAnonymous]
+[Authorize(Policy = "InternalAccess")]
 public class VesselCertificateAssignmentsController : ControllerBase
 {
     private readonly AppDbContext _context;

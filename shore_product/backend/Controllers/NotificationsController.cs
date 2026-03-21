@@ -6,7 +6,8 @@ namespace ProductApi.Controllers;
 
 [ApiController]
 [Route("api/notifications")]
-[AllowAnonymous]
+[Authorize(Policy = "InternalAccess")]
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("observability")]
 public class NotificationsController : ControllerBase
 {
     private readonly INotificationService _notifications;

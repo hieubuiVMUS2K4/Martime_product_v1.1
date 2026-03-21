@@ -255,6 +255,18 @@ namespace ProductApi.Data
                 entity.HasIndex(pc => pc.IsSynced);
             });
 
+            modelBuilder.Entity<SyncNodeTracker>(entity =>
+            {
+                entity.ToTable("sync_node_trackers");
+                entity.HasIndex(e => e.NodeId).IsUnique();
+                entity.HasIndex(e => e.IsOnline);
+                entity.HasIndex(e => e.IsRegistered);
+                entity.HasIndex(e => e.IsRevoked);
+                entity.Property(e => e.SigningKey).HasMaxLength(500);
+                entity.Property(e => e.PreviousSigningKey).HasMaxLength(500);
+                entity.Property(e => e.RevokedReason).HasMaxLength(500);
+            });
+
             modelBuilder.Entity<VoyageRecord>(entity =>
             {
                 entity.ToTable("voyage_records");

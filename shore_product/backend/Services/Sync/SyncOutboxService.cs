@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using ProductApi.Data;
 using Maritime.Shared.DTOs.Sync;
 using Maritime.Shared.Models.Sync;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace ProductApi.Services.Sync;
@@ -38,6 +39,11 @@ public class SyncOutboxService : ISyncOutboxService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<SyncOutboxService> _logger;
+    private static readonly HashSet<string> _fileTableNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "crew_member", "crew_certificate", "travel_document", "seafarer_document",
+        "employment_document", "health_document"
+    };
 
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -202,38 +208,11 @@ public class SyncOutboxService : ISyncOutboxService
             };
 
             // Attach file data for document-related items
-            var fileTableNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "crew_member", "crew_certificate", "travel_document", "seafarer_document",
-                "employment_document", "health_document"
-            };
             foreach (var dto in response.Items)
             {
-                if (!fileTableNames.Contains(dto.TableName)) continue;
                 try
                 {
-                    using var doc = System.Text.Json.JsonDocument.Parse(dto.Payload);
-                    string? filePath = null;
-                    foreach (var propName in new[] { "documentFilePath", "DocumentFilePath", "filePath", "FilePath", "fileUrl", "FileUrl", "photoUrl", "PhotoUrl" })
-                    {
-                        if (doc.RootElement.TryGetProperty(propName, out var val))
-                        {
-                            filePath = val.GetString();
-                            if (!string.IsNullOrEmpty(filePath)) break;
-                        }
-                    }
-                    if (string.IsNullOrEmpty(filePath)) continue;
-
-                    var absPath = filePath.StartsWith("/")
-                        ? Path.Combine(Directory.GetCurrentDirectory(), filePath.TrimStart('/'))
-                        : filePath;
-                    if (!System.IO.File.Exists(absPath)) continue;
-
-                    var fileInfo = new FileInfo(absPath);
-                    if (fileInfo.Length > 10 * 1024 * 1024) continue; // Skip files > 10MB
-
-                    dto.FileData = Convert.ToBase64String(await System.IO.File.ReadAllBytesAsync(absPath));
-                    dto.FileName = Path.GetFileName(absPath);
+                    await PopulateFileAttachmentAsync(dto, "SHORE");
                 }
                 catch (Exception ex)
                 {
@@ -251,6 +230,61 @@ public class SyncOutboxService : ISyncOutboxService
             _logger.LogError(ex, "Error fetching pending items for node {NodeId}", nodeId);
             throw;
         }
+    }
+
+    private async Task PopulateFileAttachmentAsync(SyncQueueItemDto dto, string sourceNodeId)
+    {
+        if (!_fileTableNames.Contains(dto.TableName))
+            return;
+
+        var filePath = ExtractSyncFilePath(dto.Payload);
+        if (string.IsNullOrWhiteSpace(filePath))
+            return;
+
+        var absPath = ResolveSyncFilePath(filePath);
+        if (!System.IO.File.Exists(absPath))
+            return;
+
+        var fileInfo = new FileInfo(absPath);
+        if (fileInfo.Length > 10 * 1024 * 1024)
+            return;
+
+        var bytes = await System.IO.File.ReadAllBytesAsync(absPath);
+        dto.FileData = Convert.ToBase64String(bytes);
+        dto.FileName = Path.GetFileName(absPath);
+        dto.FileChecksumSha256 = ComputeSha256Hex(bytes);
+        dto.FileSourceNodeId = sourceNodeId;
+        dto.FileSourcePath = filePath;
+        dto.FileCapturedAtUtc = fileInfo.LastWriteTimeUtc;
+    }
+
+    private static string? ExtractSyncFilePath(string payload)
+    {
+        using var doc = JsonDocument.Parse(payload);
+        foreach (var propName in new[] { "documentFilePath", "DocumentFilePath", "filePath", "FilePath", "fileUrl", "FileUrl", "photoUrl", "PhotoUrl" })
+        {
+            if (doc.RootElement.TryGetProperty(propName, out var val))
+            {
+                var filePath = val.GetString();
+                if (!string.IsNullOrWhiteSpace(filePath))
+                    return filePath;
+            }
+        }
+
+        return null;
+    }
+
+    private static string ResolveSyncFilePath(string filePath)
+    {
+        return filePath.StartsWith("/", StringComparison.Ordinal)
+            ? Path.Combine(Directory.GetCurrentDirectory(), filePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar))
+            : filePath;
+    }
+
+    private static string ComputeSha256Hex(byte[] content)
+    {
+        var hash = SHA256.HashData(content);
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     public async Task AcknowledgeDeliveryAsync(string nodeId, List<long> itemIds)

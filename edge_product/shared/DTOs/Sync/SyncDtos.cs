@@ -21,6 +21,33 @@ public class SyncQueueItemDto
 
     /// <summary>Original file name to preserve file extension when saving on the receiving end.</summary>
     public string? FileName { get; set; }
+
+    /// <summary>SHA-256 checksum of the decoded file bytes, encoded as lowercase hex.</summary>
+    public string? FileChecksumSha256 { get; set; }
+
+    /// <summary>Node that originally produced the file attachment metadata.</summary>
+    public string? FileSourceNodeId { get; set; }
+
+    /// <summary>Original relative or absolute file path on the sending node for provenance tracing.</summary>
+    public string? FileSourcePath { get; set; }
+
+    /// <summary>UTC timestamp when the sender captured the file for sync.</summary>
+    public DateTime? FileCapturedAtUtc { get; set; }
+}
+
+/// <summary>
+/// Canonical signed sync metadata transported via HTTP headers in protocol v2.
+/// Stored here as a shared contract for docs/tests even when runtime transport uses headers.
+/// </summary>
+public class SyncSecurityMetadataDto
+{
+    public string NodeId { get; set; } = string.Empty;
+    public string Timestamp { get; set; } = string.Empty;
+    public string Nonce { get; set; } = string.Empty;
+    public int KeyVersion { get; set; } = 1;
+    public string ContentSha256 { get; set; } = string.Empty;
+    public string ProtocolVersion { get; set; } = "2";
+    public string Signature { get; set; } = string.Empty;
 }
 
 /// <summary>

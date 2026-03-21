@@ -110,6 +110,9 @@ public class DeferralRequestController : ControllerBase
 
             var deferralDays = (int)(dto.ProposedDueDate - task.NextDueAt).TotalDays;
             _logger.LogInformation("Deferral days calculated: {Days}", deferralDays);
+            var effectiveReason = dto.Reason ?? string.Empty;
+            var effectivePriority = string.IsNullOrWhiteSpace(dto.Priority) ? "NORMAL" : dto.Priority;
+            var reasonPreview = effectiveReason;
 
             // CMS validation: require Class Permission Letter if deferral > 90 days
             if (task.IsCms && deferralDays > 90 && string.IsNullOrEmpty(dto.ClassPermissionLetter))
@@ -161,12 +164,12 @@ public class DeferralRequestController : ControllerBase
                 TaskId = dto.TaskId,
                 RequestedBy = userId,
                 RequestedAt = DateTime.UtcNow,
-                Reason = dto.Reason,
+                Reason = effectiveReason,
                 CurrentDueDate = task.NextDueAt,
                 ProposedDueDate = dto.ProposedDueDate,
                 DeferralDays = deferralDays,
                 Status = "PENDING",
-                Priority = isOverdueDeferral ? "HIGH" : dto.Priority,
+                Priority = isOverdueDeferral ? "HIGH" : effectivePriority,
                 IsCmsItem = task.IsCms,
                 ClassPermissionLetter = dto.ClassPermissionLetter,
                 Attachments = attachmentsJson,
@@ -194,7 +197,7 @@ public class DeferralRequestController : ControllerBase
                 ToStatus = "DEFERRAL_REQUESTED",
                 ChangedBy = userId,
                 ChangedAt = DateTime.UtcNow,
-                Reason = $"Deferral requested: {dto.Reason.Substring(0, Math.Min(100, dto.Reason.Length))}...",
+                Reason = $"Deferral requested: {reasonPreview[..Math.Min(100, reasonPreview.Length)]}...",
                 DeviceType = deviceType
             };
 

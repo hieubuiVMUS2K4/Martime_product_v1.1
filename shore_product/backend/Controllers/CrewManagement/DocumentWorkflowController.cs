@@ -7,7 +7,7 @@ namespace ProductApi.Controllers.CrewManagement;
 
 [ApiController]
 [Route("api/document-submissions")]
-[AllowAnonymous] // TODO: restore [Authorize(Policy = "ComplianceManagement")] after auth is implemented
+[Authorize(Policy = "InternalAccess")]
 public class DocumentWorkflowController : ControllerBase
 {
     private readonly IDocumentWorkflowService _docService;

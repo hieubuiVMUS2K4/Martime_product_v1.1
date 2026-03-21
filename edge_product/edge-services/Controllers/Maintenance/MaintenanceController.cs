@@ -665,7 +665,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpPost("tasks")]
-    public async Task<IActionResult> CreateTask([FromBody] CreateMaintenanceTaskRequest request)
+    public IActionResult CreateTask([FromBody] CreateMaintenanceTaskRequest request)
     {
         return BadRequest(new { error = "TaskType feature removed. Please use PMS Planning v2.0 instead." });
     }
@@ -1290,7 +1290,7 @@ public class MaintenanceController : ControllerBase
     /// NOTE: Use /api/maintenance/tasks/{taskId}/checklist endpoint from TaskChecklistItemsController instead
     /// </summary>
     [HttpGet("tasks/{taskId}/checklist-legacy")]
-    public async Task<IActionResult> GetTaskChecklistLegacy(Guid taskId)
+    public IActionResult GetTaskChecklistLegacy(Guid taskId)
     {
         return Ok(new List<object>()); // Legacy endpoint - TaskType feature removed
     }
@@ -1301,7 +1301,7 @@ public class MaintenanceController : ControllerBase
     /// NOTE: Use /api/maintenance/tasks/{taskId}/checklist/{itemId}/complete from TaskChecklistItemsController instead
     /// </summary>
     [HttpPost("tasks/{taskId}/details/{detailId}/complete")]
-    public async Task<IActionResult> CompleteChecklistItemLegacy(Guid taskId, long detailId, [FromBody] CompleteChecklistItemRequest request)
+    public IActionResult CompleteChecklistItemLegacy(Guid taskId, long detailId, [FromBody] CompleteChecklistItemRequest request)
     {
         return BadRequest(new { error = "Legacy endpoint - Use /api/maintenance/tasks/{taskId}/checklist/{itemId}/complete instead" });
     }

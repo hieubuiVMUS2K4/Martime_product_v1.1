@@ -20,7 +20,7 @@ public class AssignVesselRequest
 /// </summary>
 [ApiController]
 [Route("api/crew")]
-[Authorize]
+[Authorize(Policy = "InternalAccess")]
 public class CrewController : ControllerBase
 {
     private readonly ICrewService _crewService;
@@ -45,7 +45,6 @@ public class CrewController : ControllerBase
     /// Shore-specific: supports shipId and pool filters.
     /// </summary>
     [HttpGet]
-    [AllowAnonymous] // TODO: Require auth after frontend integration
     public async Task<IActionResult> GetAllCrew(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
@@ -85,7 +84,6 @@ public class CrewController : ControllerBase
 
     /// <summary>GET /api/crew/stats — Fleet-wide crew counts (total, onboard, pool).</summary>
     [HttpGet("stats")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetCrewStats()
     {
         try
@@ -106,7 +104,6 @@ public class CrewController : ControllerBase
     /// ordered newest first. Used by the shore notification bell.
     /// </summary>
     [HttpGet("hold-notifications")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetHoldNotifications()
     {
         try
@@ -143,7 +140,6 @@ public class CrewController : ControllerBase
 
     /// <summary>GET /api/crew/{id} — Get crew member by ID.</summary>
     [HttpGet("{id:guid}")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetCrew(Guid id)
     {
         try
@@ -161,7 +157,6 @@ public class CrewController : ControllerBase
 
     /// <summary>GET /api/crew/{id}/detail — Get detailed crew info (certs, docs).</summary>
     [HttpGet("{id:guid}/detail")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetCrewDetail(Guid id)
     {
         try
@@ -179,7 +174,6 @@ public class CrewController : ControllerBase
 
     /// <summary>POST /api/crew — Create a new crew member.</summary>
     [HttpPost]
-    [AllowAnonymous]
     public async Task<IActionResult> CreateCrew([FromBody] CreateCrewRequest request)
     {
         try
@@ -208,7 +202,6 @@ public class CrewController : ControllerBase
 
     /// <summary>PUT /api/crew/{id} — Update an existing crew member.</summary>
     [HttpPut("{id:guid}")]
-    [AllowAnonymous]
     public async Task<IActionResult> UpdateCrew(Guid id, [FromBody] UpdateCrewRequest request)
     {
         try
@@ -226,7 +219,6 @@ public class CrewController : ControllerBase
 
     /// <summary>DELETE /api/crew/{id} — Delete a crew member.</summary>
     [HttpDelete("{id:guid}")]
-    [AllowAnonymous]
     public async Task<IActionResult> DeleteCrew(Guid id)
     {
         try
@@ -248,7 +240,6 @@ public class CrewController : ControllerBase
 
     /// <summary>POST /api/crew/{id}/assign — Assign crew to a vessel.</summary>
     [HttpPost("{id:guid}/assign")]
-    [AllowAnonymous]
     public async Task<IActionResult> AssignToVessel(Guid id, [FromBody] AssignVesselRequest request)
     {
         try
@@ -270,7 +261,6 @@ public class CrewController : ControllerBase
 
     /// <summary>POST /api/crew/{id}/unassign — Remove crew from vessel (back to pool).</summary>
     [HttpPost("{id:guid}/unassign")]
-    [AllowAnonymous]
     public async Task<IActionResult> UnassignFromVessel(Guid id)
     {
         try
@@ -288,7 +278,6 @@ public class CrewController : ControllerBase
 
     /// <summary>GET /api/crew/vessels — Get simple list of all vessels for assignment dropdown.</summary>
     [HttpGet("vessels")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetVesselsForAssignment()
     {
         try
@@ -314,7 +303,6 @@ public class CrewController : ControllerBase
 
     /// <summary>GET /api/crew/{id}/documents/{category} — Get documents by category.</summary>
     [HttpGet("{id:guid}/documents/{category}")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetCrewDocuments(Guid id, string category)
     {
         try
@@ -331,7 +319,6 @@ public class CrewController : ControllerBase
 
     /// <summary>POST /api/crew/{id}/documents — Add a document to crew member.</summary>
     [HttpPost("{id:guid}/documents")]
-    [AllowAnonymous]
     public async Task<IActionResult> AddCrewDocument(Guid id, [FromBody] CreateIdentityDocumentDto request)
     {
         try
@@ -352,7 +339,6 @@ public class CrewController : ControllerBase
 
     /// <summary>DELETE /api/crew/{crewId}/documents/{category}/{documentId}</summary>
     [HttpDelete("{crewId:guid}/documents/{category}/{documentId:guid}")]
-    [AllowAnonymous]
     public async Task<IActionResult> DeleteCrewDocument(Guid crewId, string category, Guid documentId)
     {
         try
@@ -374,7 +360,6 @@ public class CrewController : ControllerBase
 
     /// <summary>GET /api/crew/{id}/service-records — Get sea service history.</summary>
     [HttpGet("{id:guid}/service-records")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetServiceRecords(Guid id)
     {
         try
@@ -391,7 +376,6 @@ public class CrewController : ControllerBase
 
     /// <summary>POST /api/crew/{id}/service-records — Add a service record.</summary>
     [HttpPost("{id:guid}/service-records")]
-    [AllowAnonymous]
     public async Task<IActionResult> AddServiceRecord(Guid id, [FromBody] CreateServiceRecordRequest request)
     {
         try
@@ -408,7 +392,6 @@ public class CrewController : ControllerBase
 
     /// <summary>PUT /api/crew/{id}/service-records/{recordId}</summary>
     [HttpPut("{id:guid}/service-records/{recordId:guid}")]
-    [AllowAnonymous]
     public async Task<IActionResult> UpdateServiceRecord(Guid id, Guid recordId, [FromBody] CreateServiceRecordRequest request)
     {
         try
@@ -426,7 +409,6 @@ public class CrewController : ControllerBase
 
     /// <summary>DELETE /api/crew/{id}/service-records/{recordId}</summary>
     [HttpDelete("{id:guid}/service-records/{recordId:guid}")]
-    [AllowAnonymous]
     public async Task<IActionResult> DeleteServiceRecord(Guid id, Guid recordId)
     {
         try
@@ -448,7 +430,6 @@ public class CrewController : ControllerBase
 
     /// <summary>POST /api/crew/{id}/mark-changes-viewed — Mark edge changes as viewed by shore.</summary>
     [HttpPost("{id:guid}/mark-changes-viewed")]
-    [AllowAnonymous]
     public async Task<IActionResult> MarkChangesViewed(Guid id)
     {
         try
@@ -473,7 +454,6 @@ public class CrewController : ControllerBase
 
     /// <summary>POST /api/crew/{id}/avatar — Upload or replace crew avatar photo.</summary>
     [HttpPost("{id:guid}/avatar")]
-    [AllowAnonymous]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadAvatar(Guid id, [FromForm] IFormFile file)
     {

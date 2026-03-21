@@ -7,7 +7,7 @@ namespace ProductApi.Controllers.CrewManagement;
 
 [ApiController]
 [Route("api/assignments")]
-[AllowAnonymous] // TODO: restore [Authorize(Policy = "FleetManagement")] after auth is implemented
+[Authorize(Policy = "InternalAccess")]
 public class AssignmentController : ControllerBase
 {
     private readonly IAssignmentService _service;

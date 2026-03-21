@@ -220,6 +220,9 @@ public class CrewSyncOrchestrator : ICrewSyncOrchestrator
                 NodeId = nodeId,
                 ShipName = shipName,
                 ImoNumber = imo,
+                IsRegistered = false,
+                IsRevoked = false,
+                KeyVersion = 1,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -227,9 +230,10 @@ public class CrewSyncOrchestrator : ICrewSyncOrchestrator
             await _context.SaveChangesAsync();
             _logger.LogInformation("Registered new sync node: {NodeId} ({ShipName})", nodeId, shipName);
         }
-        else if (shipName != null && node.ShipName != shipName)
+        else if ((shipName != null && node.ShipName != shipName) || (imo != null && node.ImoNumber != imo))
         {
             node.ShipName = shipName;
+            node.ImoNumber = imo ?? node.ImoNumber;
             node.UpdatedAt = DateTime.UtcNow;
         }
 

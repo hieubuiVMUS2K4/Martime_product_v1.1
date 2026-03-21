@@ -59,6 +59,11 @@ services:
       JWT__Key:       ${JWT_KEY}
       JWT__Issuer:    ${JWT_ISSUER:-product}
       JWT__Audience:  ${JWT_AUDIENCE:-product-users}
+      Security__EnforceHttps: ${SECURITY_ENFORCE_HTTPS:-true}
+      Security__RequireInternalAccess: ${SECURITY_REQUIRE_INTERNAL_ACCESS:-true}
+      InternalAccess__ApiKey: ${INTERNAL_API_KEY}
+      SyncSecurity__RequireSignedRequests: ${SYNC_REQUIRE_SIGNED_REQUESTS:-true}
+      SyncSecurity__ProtocolVersion: ${SYNC_PROTOCOL_VERSION:-2}
     volumes:
       - uploads-data:/app/uploads
     depends_on:
@@ -78,6 +83,8 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
     restart: unless-stopped
+    environment:
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
     ports:
       - "${HTTP_PORT:-80}:80"
     volumes:

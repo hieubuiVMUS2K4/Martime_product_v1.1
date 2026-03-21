@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using ProductApi.Data;
 using ProductApi.Models;
@@ -12,6 +14,8 @@ namespace ProductApi.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/sync/dashboard")]
+[Authorize(Policy = "InternalAccess")]
+[EnableRateLimiting("observability")]
 public class SyncDashboardController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -133,9 +137,19 @@ public class SyncDashboardController : ControllerBase
                 health = new
                 {
                     lastHeartbeat = n.LastHeartbeatAt,
+                    lastSignedRequestAt = n.LastSignedRequestAt,
                     consecutiveFailures = n.ConsecutiveFailures,
                     lastError = n.LastError,
                     lastErrorAt = n.LastErrorAt
+                },
+                security = new
+                {
+                    n.IsRegistered,
+                    n.IsRevoked,
+                    n.KeyVersion,
+                    n.LastKeyRotatedAt,
+                    n.RevokedAt,
+                    n.RevokedReason
                 }
             }));
         }
@@ -181,6 +195,211 @@ public class SyncDashboardController : ControllerBase
             _logger.LogError(ex, "Error fetching node history for {NodeId}", nodeId);
             return StatusCode(500, new { error = "Internal server error" });
         }
+    }
+
+    /// <summary>
+    /// GET /api/sync/dashboard/nodes/{nodeId}/security — Security/provisioning state for a node.
+    /// </summary>
+    [HttpGet("nodes/{nodeId}/security")]
+    public async Task<IActionResult> GetNodeSecurity(string nodeId)
+    {
+        var node = await _context.SyncNodeTrackers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(n => n.NodeId == nodeId);
+
+        if (node == null)
+            return NotFound(new { error = "Node not found" });
+
+        return Ok(new
+        {
+            node.NodeId,
+            node.ShipName,
+            node.ImoNumber,
+            node.IsRegistered,
+            node.IsRevoked,
+            node.KeyVersion,
+            node.LastKeyRotatedAt,
+            node.LastSignedRequestAt,
+            node.LastAcknowledgedKeyVersion,
+            node.LastKeyVersionAcknowledgedAt,
+            node.PreviousKeyVersion,
+            node.PreviousKeyGraceUntil,
+            node.RevokedAt,
+            node.RevokedReason,
+            canRollbackKey = !string.IsNullOrWhiteSpace(node.PreviousSigningKey)
+                && node.PreviousKeyVersion.HasValue
+                && node.PreviousKeyGraceUntil.HasValue
+                && node.PreviousKeyGraceUntil.Value >= DateTime.UtcNow,
+            hasSigningKey = !string.IsNullOrWhiteSpace(node.SigningKey)
+        });
+    }
+
+    /// <summary>
+    /// PUT /api/sync/dashboard/nodes/{nodeId}/security — Provision or rotate signing key for a node.
+    /// </summary>
+    [HttpPut("nodes/{nodeId}/security")]
+    public async Task<IActionResult> UpsertNodeSecurity(string nodeId, [FromBody] UpsertSyncNodeSecurityRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.SigningKey))
+            return BadRequest(new { error = "signingKey is required" });
+
+        if (request.KeyVersion.HasValue && request.KeyVersion.Value <= 0)
+            return BadRequest(new { error = "keyVersion must be a positive integer" });
+
+        var node = await _context.SyncNodeTrackers
+            .AsTracking()
+            .FirstOrDefaultAsync(n => n.NodeId == nodeId);
+
+        var now = DateTime.UtcNow;
+
+        if (node == null)
+        {
+            node = new SyncNodeTracker
+            {
+                NodeId = nodeId,
+                CreatedAt = now
+            };
+            _context.SyncNodeTrackers.Add(node);
+        }
+
+        var isRotation = !string.IsNullOrWhiteSpace(node.SigningKey)
+            && !string.Equals(node.SigningKey, request.SigningKey, StringComparison.Ordinal);
+
+        node.ShipName = request.ShipName ?? node.ShipName;
+        node.ImoNumber = request.ImoNumber ?? node.ImoNumber;
+        node.IsRegistered = true;
+        node.IsRevoked = false;
+        node.RevokedAt = null;
+        node.RevokedReason = null;
+
+        if (isRotation)
+        {
+            var graceMinutes = Math.Max(1, request.PreviousKeyGraceMinutes ?? 1440);
+            node.PreviousSigningKey = node.SigningKey;
+            node.PreviousKeyVersion = node.KeyVersion;
+            node.PreviousKeyGraceUntil = now.AddMinutes(graceMinutes);
+            node.SigningKey = request.SigningKey;
+            node.KeyVersion = request.KeyVersion ?? (node.KeyVersion <= 0 ? 1 : node.KeyVersion + 1);
+            node.LastKeyRotatedAt = now;
+        }
+        else
+        {
+            node.SigningKey = request.SigningKey;
+            if (node.KeyVersion <= 0)
+                node.KeyVersion = 1;
+            else if (request.KeyVersion.HasValue)
+                node.KeyVersion = request.KeyVersion.Value;
+            if (node.LastKeyRotatedAt == null)
+                node.LastKeyRotatedAt = now;
+        }
+
+        if (!node.LastAcknowledgedKeyVersion.HasValue)
+            node.LastAcknowledgedKeyVersion = node.KeyVersion;
+
+        node.UpdatedAt = now;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            node.NodeId,
+            node.IsRegistered,
+            node.IsRevoked,
+            node.KeyVersion,
+            node.LastKeyRotatedAt,
+            node.PreviousKeyVersion,
+            node.PreviousKeyGraceUntil,
+            node.LastAcknowledgedKeyVersion
+        });
+    }
+
+    /// <summary>
+    /// POST /api/sync/dashboard/nodes/{nodeId}/rollback-key — Roll back to the previous signing key during the grace window.
+    /// </summary>
+    [HttpPost("nodes/{nodeId}/rollback-key")]
+    public async Task<IActionResult> RollbackNodeKey(string nodeId)
+    {
+        var node = await _context.SyncNodeTrackers
+            .AsTracking()
+            .FirstOrDefaultAsync(n => n.NodeId == nodeId);
+
+        if (node == null)
+            return NotFound(new { error = "Node not found" });
+
+        if (string.IsNullOrWhiteSpace(node.PreviousSigningKey) ||
+            !node.PreviousKeyVersion.HasValue ||
+            !node.PreviousKeyGraceUntil.HasValue)
+        {
+            return Conflict(new { error = "No previous signing key is available for rollback" });
+        }
+
+        if (node.PreviousKeyGraceUntil.Value < DateTime.UtcNow)
+        {
+            return Conflict(new { error = "Previous signing key grace window has expired" });
+        }
+
+        node.SigningKey = node.PreviousSigningKey;
+        node.KeyVersion = node.PreviousKeyVersion.Value;
+        node.PreviousSigningKey = null;
+        node.PreviousKeyVersion = null;
+        node.PreviousKeyGraceUntil = null;
+        node.LastKeyRotatedAt = DateTime.UtcNow;
+        node.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            node.NodeId,
+            node.KeyVersion,
+            node.LastKeyRotatedAt,
+            rolledBack = true
+        });
+    }
+
+    /// <summary>
+    /// POST /api/sync/dashboard/nodes/{nodeId}/revoke — Revoke a node identity.
+    /// </summary>
+    [HttpPost("nodes/{nodeId}/revoke")]
+    public async Task<IActionResult> RevokeNode(string nodeId, [FromBody] RevokeSyncNodeRequest request)
+    {
+        var node = await _context.SyncNodeTrackers
+            .AsTracking()
+            .FirstOrDefaultAsync(n => n.NodeId == nodeId);
+
+        if (node == null)
+            return NotFound(new { error = "Node not found" });
+
+        node.IsRevoked = true;
+        node.RevokedAt = DateTime.UtcNow;
+        node.RevokedReason = request.Reason;
+        node.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return Ok(new { node.NodeId, node.IsRevoked, node.RevokedAt, node.RevokedReason });
+    }
+
+    /// <summary>
+    /// POST /api/sync/dashboard/nodes/{nodeId}/activate — Reactivate a revoked node.
+    /// </summary>
+    [HttpPost("nodes/{nodeId}/activate")]
+    public async Task<IActionResult> ActivateNode(string nodeId)
+    {
+        var node = await _context.SyncNodeTrackers
+            .AsTracking()
+            .FirstOrDefaultAsync(n => n.NodeId == nodeId);
+
+        if (node == null)
+            return NotFound(new { error = "Node not found" });
+
+        node.IsRegistered = true;
+        node.IsRevoked = false;
+        node.RevokedAt = null;
+        node.RevokedReason = null;
+        node.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return Ok(new { node.NodeId, node.IsRegistered, node.IsRevoked });
     }
 
     /// <summary>
@@ -369,4 +588,18 @@ public class SyncDashboardController : ControllerBase
             })
             .ToListAsync();
     }
+}
+
+public sealed class UpsertSyncNodeSecurityRequest
+{
+    public string? ShipName { get; set; }
+    public string? ImoNumber { get; set; }
+    public string SigningKey { get; set; } = string.Empty;
+    public int? KeyVersion { get; set; }
+    public int? PreviousKeyGraceMinutes { get; set; }
+}
+
+public sealed class RevokeSyncNodeRequest
+{
+    public string? Reason { get; set; }
 }

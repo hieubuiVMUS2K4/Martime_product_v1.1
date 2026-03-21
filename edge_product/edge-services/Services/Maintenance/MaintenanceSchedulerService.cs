@@ -182,13 +182,18 @@ public class MaintenanceSchedulerService : BackgroundService
             int fixedCount = 0;
             foreach (var schedule in pastDueSchedules)
             {
-                var daysPast = (today - schedule.NextDueDate!.Value.Date).Days;
+                if (!schedule.NextDueDate.HasValue || !schedule.IntervalDays.HasValue)
+                {
+                    continue;
+                }
+
+                var oldDueDate = schedule.NextDueDate.Value;
                 var intervalDays = schedule.IntervalDays.Value;
+                var daysPast = (today - oldDueDate.Date).Days;
                 
                 // Calculate how many intervals to skip to get to future
                 var intervalsToSkip = (int)Math.Ceiling((double)daysPast / intervalDays);
-                
-                var oldDueDate = schedule.NextDueDate.Value;
+
                 schedule.NextDueDate = oldDueDate.AddDays(intervalsToSkip * intervalDays);
                 schedule.UpdatedAt = DateTime.UtcNow;
                 

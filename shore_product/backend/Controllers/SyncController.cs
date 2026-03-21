@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using ProductApi.Data;
 using ProductApi.Models;
@@ -13,8 +15,11 @@ namespace ProductApi.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("sync")]
 public class SyncController : ControllerBase
 {
+    private const string VerifiedNodeIdItemKey = "VerifiedSyncNodeId";
+
     private readonly AppDbContext _context;
     private readonly ISyncInboxService _syncInbox;
     private readonly ISyncOutboxService _syncOutbox;
@@ -45,12 +50,37 @@ public class SyncController : ControllerBase
         if (items == null || items.Count == 0)
             return Ok(new { message = "No items to sync", succeeded = 0, failed = 0 });
 
+        var verifiedNodeId = HttpContext.Items[VerifiedNodeIdItemKey] as string;
+        var distinctOriginNodes = items
+            .Select(i => i.OriginNode)
+            .Where(i => !string.IsNullOrWhiteSpace(i))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (distinctOriginNodes.Count > 1)
+            return BadRequest(new { error = "Sync batch must contain a single origin node." });
+
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId) &&
+            distinctOriginNodes.Count == 1 &&
+            !string.Equals(verifiedNodeId, distinctOriginNodes[0], StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "Signed node identity does not match payload origin node." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId))
+        {
+            foreach (var item in items)
+            {
+                item.OriginNode = verifiedNodeId;
+            }
+        }
+
         // Limit batch size to prevent abuse
         const int maxBatchSize = 5000;
         if (items.Count > maxBatchSize)
             return BadRequest(new { error = $"Batch size {items.Count} exceeds maximum of {maxBatchSize}" });
 
-        var originNode = items.FirstOrDefault()?.OriginNode ?? "UNKNOWN";
+        var originNode = verifiedNodeId ?? items.FirstOrDefault()?.OriginNode ?? "UNKNOWN";
         _logger.LogInformation("Received {Count} sync items from {Node}", items.Count, originNode);
 
         using var transaction = await _context.Database.BeginTransactionAsync();
@@ -98,6 +128,18 @@ public class SyncController : ControllerBase
     [HttpPost("heartbeat")]
     public async Task<IActionResult> Heartbeat([FromBody] SyncHeartbeatDto heartbeat)
     {
+        var verifiedNodeId = HttpContext.Items[VerifiedNodeIdItemKey] as string;
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId) &&
+            !string.Equals(verifiedNodeId, heartbeat.NodeId, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "Signed node identity does not match heartbeat node." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId))
+        {
+            heartbeat.NodeId = verifiedNodeId;
+        }
+
         try
         {
             var node = await _crewSync.GetOrCreateNodeAsync(
@@ -143,6 +185,18 @@ public class SyncController : ControllerBase
         [FromQuery] string? cursor = null,
         [FromQuery] int pageSize = 50)
     {
+        var verifiedNodeId = HttpContext.Items[VerifiedNodeIdItemKey] as string;
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId) &&
+            !string.Equals(verifiedNodeId, nodeId, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "Signed node identity does not match pull node." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId))
+        {
+            nodeId = verifiedNodeId;
+        }
+
         try
         {
             if (string.IsNullOrEmpty(nodeId))
@@ -184,6 +238,18 @@ public class SyncController : ControllerBase
     [HttpPost("acknowledge")]
     public async Task<IActionResult> Acknowledge([FromBody] Maritime.Shared.DTOs.Sync.SyncAcknowledgeDto ack)
     {
+        var verifiedNodeId = HttpContext.Items[VerifiedNodeIdItemKey] as string;
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId) &&
+            !string.Equals(verifiedNodeId, ack.NodeId, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "Signed node identity does not match acknowledge node." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId))
+        {
+            ack.NodeId = verifiedNodeId;
+        }
+
         try
         {
             if (string.IsNullOrEmpty(ack.NodeId))
@@ -206,6 +272,7 @@ public class SyncController : ControllerBase
     /// Enhanced with node tracker data.
     /// </summary>
     [HttpGet("status")]
+    [Authorize(Policy = "InternalAccess")]
     public async Task<IActionResult> GetSyncStatus()
     {
         try
@@ -271,6 +338,7 @@ public class SyncController : ControllerBase
     /// POST /api/sync/reconcile — Trigger reconciliation of unsynced records.
     /// </summary>
     [HttpPost("reconcile")]
+    [Authorize(Policy = "InternalAccess")]
     public async Task<IActionResult> Reconcile()
     {
         try
@@ -290,6 +358,7 @@ public class SyncController : ControllerBase
     /// Pushes all crew/certificate data to target ship's outbox.
     /// </summary>
     [HttpPost("force-push/{nodeId}")]
+    [Authorize(Policy = "InternalAccess")]
     public async Task<IActionResult> ForcePush(string nodeId)
     {
         try
@@ -324,6 +393,7 @@ public class SyncController : ControllerBase
     /// POST /api/sync/force-push-all — Broadcast push to all connected nodes.
     /// </summary>
     [HttpPost("force-push-all")]
+    [Authorize(Policy = "InternalAccess")]
     public async Task<IActionResult> ForcePushAll()
     {
         try

@@ -7,7 +7,7 @@ namespace ProductApi.Controllers.CrewManagement;
 
 [ApiController]
 [Route("api/external-requests")]
-[AllowAnonymous] // TODO: restore [Authorize(Policy = "FleetManagement")] after auth is implemented
+[Authorize(Policy = "InternalAccess")]
 public class ExternalRequestController : ControllerBase
 {
     private readonly IExternalRequestService _service;

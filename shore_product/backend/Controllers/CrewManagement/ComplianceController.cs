@@ -7,7 +7,7 @@ namespace ProductApi.Controllers.CrewManagement;
 
 [ApiController]
 [Route("api/compliance")]
-[AllowAnonymous] // TODO: restore [Authorize(Policy = "ComplianceManagement")] after auth is implemented
+[Authorize(Policy = "InternalAccess")]
 public class ComplianceController : ControllerBase
 {
     private readonly IComplianceService _service;
@@ -141,7 +141,6 @@ public class ComplianceController : ControllerBase
     /// Evaluate compliance for a crew member against all applicable rules
     /// </summary>
     [HttpGet("evaluate/{crewMemberId:guid}")]
-    [AllowAnonymous] // TODO: restore [Authorize(Policy = "CrewReadOnly")] after auth is implemented
     public async Task<ActionResult<ComplianceEvaluationDto>> EvaluateCrew(
         Guid crewMemberId, [FromQuery] Guid? vesselId, [FromQuery] string? stage)
     {
@@ -164,7 +163,6 @@ public class ComplianceController : ControllerBase
     // ================================================================
 
     [HttpGet("snapshots/{crewMemberId:guid}")]
-    [AllowAnonymous] // TODO: restore [Authorize(Policy = "CrewReadOnly")] after auth is implemented
     public async Task<ActionResult<ComplianceSnapshotDto>> GetSnapshot(Guid crewMemberId, [FromQuery] Guid? vesselId)
     {
         var result = await _service.GetSnapshotAsync(crewMemberId, vesselId);

@@ -7,7 +7,7 @@ namespace ProductApi.Controllers.CrewManagement;
 
 [ApiController]
 [Route("api/travel-requests")]
-[AllowAnonymous] // TODO: restore [Authorize(Policy = "TravelManagement")] after auth is implemented
+[Authorize(Policy = "InternalAccess")]
 public class TravelController : ControllerBase
 {
     private readonly ITravelService _service;

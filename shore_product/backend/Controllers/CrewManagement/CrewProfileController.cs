@@ -7,7 +7,7 @@ namespace ProductApi.Controllers.CrewManagement;
 
 [ApiController]
 [Route("api/crew-profiles")]
-[AllowAnonymous] // TODO: restore [Authorize(Policy = "CrewManagement")] after auth is implemented
+[Authorize(Policy = "InternalAccess")]
 public class CrewProfileController : ControllerBase
 {
     private readonly ICrewStatusService _statusService;
@@ -64,7 +64,7 @@ public class CrewProfileController : ControllerBase
 
 [ApiController]
 [Route("api/audit-logs")]
-[AllowAnonymous] // TODO: Replace with proper authorization
+[Authorize(Policy = "InternalAccess")]
 public class AuditLogController : ControllerBase
 {
     private readonly IAuditService _auditService;

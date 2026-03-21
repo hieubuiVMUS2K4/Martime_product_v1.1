@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using MaritimeEdge.Services.AI;
 
 namespace MaritimeEdge.Controllers.AI;
@@ -8,6 +10,8 @@ namespace MaritimeEdge.Controllers.AI;
 /// </summary>
 [ApiController]
 [Route("api/chat")]
+[Authorize(Policy = "InternalAccess")]
+[EnableRateLimiting("ai")]
 public class ChatController : ControllerBase
 {
     private readonly IChatService _chatService;

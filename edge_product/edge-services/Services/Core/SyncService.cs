@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using Microsoft.Extensions.Logging;
-using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -13,6 +13,7 @@ public interface ISyncService
     Task ExecuteSyncAsync(CancellationToken cancellationToken);
     Task<NetworkType> GetCurrentNetworkStatusAsync();
     Task PullFromShoreAsync(CancellationToken cancellationToken);
+    Task SendHeartbeatAsync(CancellationToken cancellationToken);
 }
 
 public class SyncService : ISyncService
@@ -21,6 +22,12 @@ public class SyncService : ISyncService
     private readonly ILogger<SyncService> _logger;
     private readonly IConfiguration _configuration;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ISyncRequestSigningService _syncRequestSigningService;
+    private static readonly HashSet<string> _fileTableNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "crew_member", "crew_certificate", "travel_document", "seafarer_document",
+        "employment_document", "health_document"
+    };
     
     // Network type: read from config (Sync:NetworkType). In production this would be detected from router API.
     // Supported values: None, Satellite_Iridium, Satellite_VSAT, Cellular_4G, Shore_WiFi
@@ -38,12 +45,14 @@ public class SyncService : ISyncService
         IServiceProvider serviceProvider, 
         ILogger<SyncService> logger,
         IConfiguration configuration,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        ISyncRequestSigningService syncRequestSigningService)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
+        _syncRequestSigningService = syncRequestSigningService;
 
         // Read network type from config, default to Shore_WiFi (allows all priorities)
         var networkTypeName = configuration.GetValue("Sync:NetworkType", "Shore_WiFi");
@@ -130,7 +139,12 @@ public class SyncService : ISyncService
                 if (!string.IsNullOrEmpty(cursor))
                     url += $"&cursor={cursor}";
 
-                var response = await client.GetAsync(url, cancellationToken);
+                using var request = await _syncRequestSigningService.CreateSignedRequestAsync(
+                    HttpMethod.Get,
+                    url,
+                    null,
+                    cancellationToken);
+                var response = await client.SendAsync(request, cancellationToken);
                 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -159,22 +173,10 @@ public class SyncService : ISyncService
                         else
                             await ApplyIncomingItemAsync(context, item, cancellationToken);
 
-                        await context.SaveChangesAsync(cancellationToken);
+                        if (!string.IsNullOrEmpty(item.FileData))
+                            await SaveSyncedFileAsync(context, item);
 
-                        // Save synced file data if present (base64-encoded document files from shore)
-                        if (!string.IsNullOrEmpty(item.FileData) && !string.IsNullOrEmpty(item.FileName))
-                        {
-                            try
-                            {
-                                await SaveSyncedFileAsync(context, item);
-                                await context.SaveChangesAsync(cancellationToken);
-                            }
-                            catch (Exception fileEx)
-                            {
-                                _logger.LogWarning(fileEx, "Failed to save synced file for {Table}/{Key}",
-                                    item.TableName, item.RecordKey);
-                            }
-                        }
+                        await context.SaveChangesAsync(cancellationToken);
 
                         context.ChangeTracker.Clear();
                         totalProcessed++;
@@ -193,9 +195,13 @@ public class SyncService : ISyncService
                     NodeId = nodeId,
                     ItemIds = pullResponse.Items.Select(i => i.OutboxId).ToList()
                 };
-                await client.PostAsync($"{baseUrl}/api/sync/acknowledge",
-                    new StringContent(JsonSerializer.Serialize(ack, _jsonOptions), Encoding.UTF8, "application/json"),
+                var ackJson = JsonSerializer.Serialize(ack, _jsonOptions);
+                using var ackRequest = await _syncRequestSigningService.CreateSignedRequestAsync(
+                    HttpMethod.Post,
+                    $"{baseUrl}/api/sync/acknowledge",
+                    ackJson,
                     cancellationToken);
+                await client.SendAsync(ackRequest, cancellationToken);
 
                 cursor = pullResponse.NextCursor;
                 
@@ -216,6 +222,51 @@ public class SyncService : ISyncService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during shore pull");
+        }
+    }
+
+    public async Task SendHeartbeatAsync(CancellationToken cancellationToken)
+    {
+        var baseUrl = _configuration["ShoreAPI:BaseUrl"];
+        var enabled = _configuration.GetValue("ShoreAPI:Enabled", true);
+        if (!enabled || string.IsNullOrEmpty(baseUrl))
+        {
+            _logger.LogDebug("Shore API heartbeat disabled or not configured.");
+            return;
+        }
+
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<EdgeDbContext>();
+
+        var nodeId = _configuration["SyncSecurity:NodeId"] ?? _configuration["Vessel:IMO"] ?? "UNKNOWN";
+        var networkType = await GetCurrentNetworkStatusAsync();
+        var pendingSyncItems = await context.SyncQueue
+            .AsNoTracking()
+            .Where(q => q.SyncedAt == null)
+            .CountAsync(cancellationToken);
+
+        var heartbeat = new SyncHeartbeatRequest
+        {
+            NodeId = nodeId,
+            ShipName = _configuration["Vessel:Name"],
+            ImoNumber = _configuration["Vessel:IMO"],
+            NetworkType = networkType.ToString(),
+            PendingSyncItems = pendingSyncItems,
+            SentAt = DateTime.UtcNow
+        };
+
+        var client = _httpClientFactory.CreateClient("ShoreAPI");
+        var json = JsonSerializer.Serialize(heartbeat, _jsonOptions);
+        using var request = await _syncRequestSigningService.CreateSignedRequestAsync(
+            HttpMethod.Post,
+            $"{baseUrl}/api/sync/heartbeat",
+            json,
+            cancellationToken);
+
+        var response = await client.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning("Signed heartbeat failed with status {Status}", response.StatusCode);
         }
     }
 
@@ -262,42 +313,11 @@ public class SyncService : ISyncService
         }).ToList();
 
         // Attach file data for items with document file paths (certificates, documents)
-        var fileTableNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "crew_certificate", "travel_document", "seafarer_document",
-            "employment_document", "health_document"
-        };
         foreach (var dto in dtoItems)
         {
-            if (!fileTableNames.Contains(dto.TableName)) continue;
             try
             {
-                // Extract DocumentFilePath or FilePath from JSON payload
-                using var doc = System.Text.Json.JsonDocument.Parse(dto.Payload);
-                var filePath = doc.RootElement.TryGetProperty("DocumentFilePath", out var dfp) ? dfp.GetString()
-                             : doc.RootElement.TryGetProperty("documentFilePath", out var dfp2) ? dfp2.GetString()
-                             : doc.RootElement.TryGetProperty("FilePath", out var fp) ? fp.GetString()
-                             : doc.RootElement.TryGetProperty("filePath", out var fp2) ? fp2.GetString()
-                             : doc.RootElement.TryGetProperty("FileUrl", out var fu) ? fu.GetString()
-                             : doc.RootElement.TryGetProperty("fileUrl", out var fu2) ? fu2.GetString()
-                             : null;
-                if (string.IsNullOrEmpty(filePath)) continue;
-
-                // Resolve to absolute path on the edge server
-                var absPath = filePath.StartsWith("/")
-                    ? Path.Combine(Directory.GetCurrentDirectory(), filePath.TrimStart('/'))
-                    : filePath;
-                if (!System.IO.File.Exists(absPath)) continue;
-
-                // Only attach files under 10 MB
-                var fileInfo = new FileInfo(absPath);
-                if (fileInfo.Length > 10 * 1024 * 1024) continue;
-
-                var bytes = await System.IO.File.ReadAllBytesAsync(absPath, cancellationToken);
-                dto.FileData = Convert.ToBase64String(bytes);
-                dto.FileName = Path.GetFileName(absPath);
-                _logger.LogDebug("Attached file {FileName} ({Size}KB) to {Table}/{Key}",
-                    dto.FileName, bytes.Length / 1024, dto.TableName, dto.RecordKey);
+                await PopulateFileAttachmentAsync(dto, nodeId, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -321,11 +341,15 @@ public class SyncService : ISyncService
         {
             var client = _httpClientFactory.CreateClient("ShoreAPI");
             var json = JsonSerializer.Serialize(dtoItems, _jsonOptions);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             _logger.LogInformation("Posting batch of {Count} items to {Url}", dtoItems.Count, $"{baseUrl}/api/sync");
 
-            var response = await client.PostAsync($"{baseUrl}/api/sync", content, cancellationToken);
+            using var request = await _syncRequestSigningService.CreateSignedRequestAsync(
+                HttpMethod.Post,
+                $"{baseUrl}/api/sync",
+                json,
+                cancellationToken);
+            var response = await client.SendAsync(request, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
@@ -381,7 +405,7 @@ public class SyncService : ISyncService
     /// </summary>
     private async Task SaveSyncedFileAsync(EdgeDbContext context, Maritime.Shared.DTOs.Sync.SyncQueueItemDto item)
     {
-        var bytes = Convert.FromBase64String(item.FileData!);
+        var bytes = DecodeAndValidateSyncFile(item);
         var ext = Path.GetExtension(item.FileName!).ToLowerInvariant();
 
         var subDir = item.TableName switch
@@ -399,7 +423,9 @@ public class SyncService : ISyncService
         Directory.CreateDirectory(uploadsDir);
 
         // Use the original filename from the sender so both shore and edge have identical file paths
-        var safeFileName = !string.IsNullOrEmpty(item.FileName) ? item.FileName : $"{item.TableName}_{item.RecordKey}{ext}";
+        var safeFileName = !string.IsNullOrEmpty(item.FileName)
+            ? Path.GetFileName(item.FileName)
+            : $"{item.TableName}_{item.RecordKey}{ext}";
         var filePath = Path.Combine(uploadsDir, safeFileName);
         await System.IO.File.WriteAllBytesAsync(filePath, bytes);
 
@@ -419,7 +445,8 @@ public class SyncService : ISyncService
                         System.IO.File.Delete(oldAbsPath);
                 }
                 crew.PhotoUrl = relativePath;
-                _logger.LogInformation("Saved synced avatar for crew_member/{Key} → {Path}", item.RecordKey, relativePath);
+                _logger.LogInformation("Saved synced avatar for crew_member/{Key} → {Path} (source {SourceNode}:{SourcePath})",
+                    item.RecordKey, relativePath, item.FileSourceNodeId, item.FileSourcePath);
             }
         }
         else if (item.TableName == "crew_certificate" && int.TryParse(item.RecordKey, out var certId))
@@ -437,17 +464,99 @@ public class SyncService : ISyncService
                 }
 
                 crewCert.DocumentFilePath = relativePath;
-                _logger.LogInformation("Saved synced file for crew_certificate/{Key} → {Path}", item.RecordKey, relativePath);
+                _logger.LogInformation("Saved synced file for crew_certificate/{Key} → {Path} (source {SourceNode}:{SourcePath})",
+                    item.RecordKey, relativePath, item.FileSourceNodeId, item.FileSourcePath);
             }
         }
         // For document tables, try to update via reflection
         else
         {
-            _logger.LogInformation("Saved synced file for {Table}/{Key} → {Path}", item.TableName, item.RecordKey, relativePath);
+            _logger.LogInformation("Saved synced file for {Table}/{Key} → {Path} (source {SourceNode}:{SourcePath})",
+                item.TableName, item.RecordKey, relativePath, item.FileSourceNodeId, item.FileSourcePath);
         }
     }
 
-    private async Task ApplyIncomingItemAsync(
+    private async Task PopulateFileAttachmentAsync(Maritime.Shared.DTOs.Sync.SyncQueueItemDto dto, string sourceNodeId, CancellationToken cancellationToken)
+    {
+        if (!_fileTableNames.Contains(dto.TableName))
+            return;
+
+        var filePath = ExtractSyncFilePath(dto.Payload);
+        if (string.IsNullOrWhiteSpace(filePath))
+            return;
+
+        var absPath = ResolveSyncFilePath(filePath);
+        if (!System.IO.File.Exists(absPath))
+            return;
+
+        var fileInfo = new FileInfo(absPath);
+        if (fileInfo.Length > 10 * 1024 * 1024)
+            return;
+
+        var bytes = await System.IO.File.ReadAllBytesAsync(absPath, cancellationToken);
+        dto.FileData = Convert.ToBase64String(bytes);
+        dto.FileName = Path.GetFileName(absPath);
+        dto.FileChecksumSha256 = ComputeSha256Hex(bytes);
+        dto.FileSourceNodeId = sourceNodeId;
+        dto.FileSourcePath = filePath;
+        dto.FileCapturedAtUtc = fileInfo.LastWriteTimeUtc;
+
+        _logger.LogDebug("Attached file {FileName} ({Size}KB) to {Table}/{Key} with checksum {Checksum}",
+            dto.FileName, bytes.Length / 1024, dto.TableName, dto.RecordKey, dto.FileChecksumSha256);
+    }
+
+    private static string? ExtractSyncFilePath(string payload)
+    {
+        using var doc = JsonDocument.Parse(payload);
+        foreach (var propName in new[] { "DocumentFilePath", "documentFilePath", "FilePath", "filePath", "FileUrl", "fileUrl", "PhotoUrl", "photoUrl" })
+        {
+            if (doc.RootElement.TryGetProperty(propName, out var value))
+            {
+                var filePath = value.GetString();
+                if (!string.IsNullOrWhiteSpace(filePath))
+                    return filePath;
+            }
+        }
+
+        return null;
+    }
+
+    private static string ResolveSyncFilePath(string filePath)
+    {
+        return filePath.StartsWith("/", StringComparison.Ordinal)
+            ? Path.Combine(Directory.GetCurrentDirectory(), filePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar))
+            : filePath;
+    }
+
+    private static byte[] DecodeAndValidateSyncFile(Maritime.Shared.DTOs.Sync.SyncQueueItemDto item)
+    {
+        if (string.IsNullOrWhiteSpace(item.FileData) || string.IsNullOrWhiteSpace(item.FileName))
+            throw new InvalidOperationException("Sync file payload is incomplete.");
+
+        if (string.IsNullOrWhiteSpace(item.FileChecksumSha256))
+            throw new InvalidOperationException("Sync file checksum is missing.");
+
+        if (string.IsNullOrWhiteSpace(item.FileSourceNodeId))
+            throw new InvalidOperationException("Sync file provenance node is missing.");
+
+        if (!string.Equals(item.FileSourceNodeId, item.OriginNode, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Sync file provenance node does not match item origin.");
+
+        var bytes = Convert.FromBase64String(item.FileData);
+        var actualChecksum = ComputeSha256Hex(bytes);
+        if (!string.Equals(actualChecksum, item.FileChecksumSha256, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Sync file checksum verification failed.");
+
+        return bytes;
+    }
+
+    private static string ComputeSha256Hex(byte[] content)
+    {
+        var hash = SHA256.HashData(content);
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private Task ApplyIncomingItemAsync(
         EdgeDbContext context, Maritime.Shared.DTOs.Sync.SyncQueueItemDto item, CancellationToken token)
     {
         // Simple apply without conflict handling — used as fallback
@@ -456,6 +565,7 @@ public class SyncService : ISyncService
 
         // This is handled by the SyncConflictHandler for full implementation.
         // As a fallback, we just log.
+        return Task.CompletedTask;
     }
 
     private const string LastPullTimestampKey = "LastPullTimestamp";
@@ -528,6 +638,16 @@ public class SyncResultResponse
     public long Id { get; set; }
     public bool Success { get; set; }
     public string? Error { get; set; }
+}
+
+public sealed class SyncHeartbeatRequest
+{
+    public string NodeId { get; set; } = string.Empty;
+    public string? ShipName { get; set; }
+    public string? ImoNumber { get; set; }
+    public string? NetworkType { get; set; }
+    public int PendingSyncItems { get; set; }
+    public DateTime? SentAt { get; set; }
 }
 
 /// <summary>

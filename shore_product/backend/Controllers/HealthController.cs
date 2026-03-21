@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using ProductApi.Data;
 
@@ -34,6 +36,8 @@ public class HealthController : ControllerBase
     /// Used by edge frontend SyncDashboard to verify shore connectivity
     /// </summary>
     [HttpGet("ready")]
+    [Authorize(Policy = "InternalAccess")]
+    [EnableRateLimiting("observability")]
     public async Task<IActionResult> GetReadiness()
     {
         var checks = new Dictionary<string, object>();

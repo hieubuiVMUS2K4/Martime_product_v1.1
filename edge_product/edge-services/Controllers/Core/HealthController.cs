@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
@@ -33,6 +34,8 @@ public class HealthController : ControllerBase
     /// Detailed readiness probe — checks database connectivity and key subsystems
     /// </summary>
     [HttpGet("ready")]
+    [Authorize(Policy = "InternalAccess")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("fixed")]
     public async Task<IActionResult> GetReadiness()
     {
         var checks = new Dictionary<string, object>();

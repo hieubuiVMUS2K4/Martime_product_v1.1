@@ -10,7 +10,7 @@ namespace ProductApi.Controllers.Crew;
 /// </summary>
 [ApiController]
 [Route("api/ranks")]
-[Authorize]
+[Authorize(Policy = "InternalAccess")]
 public class RanksController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -24,7 +24,6 @@ public class RanksController : ControllerBase
 
     /// <summary>GET /api/ranks — Get all ranks.</summary>
     [HttpGet]
-    [AllowAnonymous]
     public async Task<IActionResult> GetAll()
     {
         try
@@ -54,7 +53,6 @@ public class RanksController : ControllerBase
 
     /// <summary>GET /api/ranks/{id} — Get rank by ID.</summary>
     [HttpGet("{id:int}")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetById(int id)
     {
         try
@@ -80,7 +78,6 @@ public class RanksController : ControllerBase
 
     /// <summary>POST /api/ranks — Create a new rank.</summary>
     [HttpPost]
-    [AllowAnonymous]
     public async Task<IActionResult> Create([FromBody] RankRequest request)
     {
         try
@@ -118,7 +115,6 @@ public class RanksController : ControllerBase
 
     /// <summary>PUT /api/ranks/{id} — Update a rank.</summary>
     [HttpPut("{id:int}")]
-    [AllowAnonymous]
     public async Task<IActionResult> Update(int id, [FromBody] RankRequest request)
     {
         try
@@ -152,7 +148,6 @@ public class RanksController : ControllerBase
 
     /// <summary>DELETE /api/ranks/{id} — Deactivate a rank.</summary>
     [HttpDelete("{id:int}")]
-    [AllowAnonymous]
     public async Task<IActionResult> Delete(int id)
     {
         try

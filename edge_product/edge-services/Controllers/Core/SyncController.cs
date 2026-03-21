@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
@@ -7,6 +8,7 @@ namespace MaritimeEdge.Controllers.Core;
 
 [ApiController]
 [Route("api/sync")]
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("fixed")]
 public class SyncController : ControllerBase
 {
     private readonly EdgeDbContext _context;
@@ -26,6 +28,7 @@ public class SyncController : ControllerBase
     }
 
     [HttpGet("queue")]
+    [Authorize(Policy = "InternalAccess")]
     public async Task<IActionResult> GetSyncQueue()
     {
         try
@@ -48,6 +51,7 @@ public class SyncController : ControllerBase
     }
 
     [HttpGet("status")]
+    [Authorize(Policy = "InternalAccess")]
     public async Task<IActionResult> GetSyncStatus()
     {
         try
@@ -99,6 +103,7 @@ public class SyncController : ControllerBase
     }
 
     [HttpPost("trigger")]
+    [Authorize(Policy = "InternalAccess")]
     public async Task<IActionResult> TriggerSync()
     {
         try
@@ -169,6 +174,7 @@ public class SyncController : ControllerBase
     /// POST /api/sync/reset-errors — Reset retry count for all stuck items so they can be retried
     /// </summary>
     [HttpPost("reset-errors")]
+    [Authorize(Policy = "InternalAccess")]
     public async Task<IActionResult> ResetErrors()
     {
         try
@@ -203,6 +209,7 @@ public class SyncController : ControllerBase
     /// After calling this, use POST /api/sync/trigger to push queued items to Shore.
     /// </summary>
     [HttpPost("snapshot-crew")]
+    [Authorize(Policy = "InternalAccess")]
     public async Task<IActionResult> SnapshotCrew()
     {
         try
@@ -326,6 +333,7 @@ public class SyncController : ControllerBase
     /// Uses ActionType = SNAPSHOT so Shore applies as UPSERT (safe to run multiple times).
     /// </summary>
     [HttpPost("snapshot")]
+    [Authorize(Policy = "InternalAccess")]
     public async Task<IActionResult> Snapshot([FromBody] SnapshotRequestDto request)
     {
         if (request?.Groups == null || request.Groups.Count == 0)
