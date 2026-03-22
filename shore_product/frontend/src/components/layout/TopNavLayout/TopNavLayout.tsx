@@ -235,51 +235,6 @@ export const TopNavLayout: React.FC = () => {
             })}
           </div>
 
-          <div className="vessel-selector" ref={vesselDropdownRef}>
-            <button
-              className={`vessel-selector-btn ${selectedVessel ? 'vessel-selector-btn--active' : ''}`}
-              onClick={() => setVesselDropdownOpen((prev) => !prev)}
-              title="Chọn tàu"
-              type="button"
-            >
-              <Ship size={14} />
-              <span className="vessel-selector-label">
-                {isLoading ? 'Đang tải...' : selectedVessel ? selectedVessel.name : 'Tất cả tàu'}
-              </span>
-              <ChevronDown size={12} className={`vessel-chevron ${vesselDropdownOpen ? 'vessel-chevron--open' : ''}`} />
-            </button>
-            {vesselDropdownOpen && (
-              <div className="vessel-dropdown">
-                <div className="vessel-dropdown-header">Chọn tàu</div>
-                <button
-                  className={`vessel-dropdown-item ${!selectedVessel ? 'vessel-dropdown-item--active' : ''}`}
-                  onClick={() => { selectVessel(null); setVesselDropdownOpen(false); }}
-                  type="button"
-                >
-                  <Ship size={13} />
-                  <span>Tất cả tàu (Fleet)</span>
-                  {!selectedVessel && <Check size={13} className="vessel-check" />}
-                </button>
-                <div className="vessel-dropdown-divider" />
-                {vessels.map((vessel) => (
-                  <button
-                    key={vessel.id}
-                    className={`vessel-dropdown-item ${selectedVessel?.id === vessel.id ? 'vessel-dropdown-item--active' : ''}`}
-                    onClick={() => { selectVessel(vessel.id); setVesselDropdownOpen(false); }}
-                    type="button"
-                  >
-                    <Ship size={13} />
-                    <div className="vessel-dropdown-info">
-                      <span className="vessel-dropdown-name">{vessel.name}</span>
-                      <span className="vessel-dropdown-imo">IMO: {vessel.imo}</span>
-                    </div>
-                    {selectedVessel?.id === vessel.id && <Check size={13} className="vessel-check" />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* Right side actions */}
           <div className="topnav-actions">
             {/* Notification Bell */}
