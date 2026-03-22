@@ -165,7 +165,7 @@ export const useAuthStore = create<AuthStore>()(
           return
         }
 
-        // Access token is intentionally not persisted across tab restarts.
+        // Access token is persisted in localStorage to survive page reloads.
         // If only refresh token remains, bootstrap a fresh access token.
         if (!accessToken && rt) {
           const refreshed = await get().doRefreshToken()
@@ -277,8 +277,9 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: STORAGE_KEY,
-      storage: createJSONStorage(() => sessionStorage),
+      storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
+        accessToken: state.accessToken,
         storedRefreshToken: state.storedRefreshToken,
         expiresAt: state.expiresAt,
         user: state.user,
