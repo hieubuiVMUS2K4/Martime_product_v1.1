@@ -123,6 +123,15 @@ export const VoyageListPage: React.FC = () => {
           <div className="vm-empty"><Ship size={32} /><p>Không tìm thấy tàu nào.</p></div>
         )}
 
+        {dashboard && !loading && (
+          <div className="vm-summary-bar">
+            <div className="vm-summary-item"><span>Tổng hải trình</span><strong>{dashboard.summary.totalVoyages}</strong></div>
+            <div className="vm-summary-item"><span>Đang hoạt động</span><strong>{dashboard.summary.activeVoyages}</strong></div>
+            <div className="vm-summary-item"><span>Hoàn thành</span><strong>{dashboard.summary.completedVoyages}</strong></div>
+            <div className="vm-summary-item"><span>Lập kế hoạch</span><strong>{dashboard.summary.planningVoyages}</strong></div>
+          </div>
+        )}
+
         {!loading && !error && filteredVessels.length > 0 && (
           <div className="vm-grid">
             {filteredVessels.map(vessel => (
@@ -163,14 +172,6 @@ export const VoyageListPage: React.FC = () => {
           </div>
         )}
 
-        {dashboard && !loading && (
-          <div className="vm-summary-bar">
-            <div className="vm-summary-item"><span>Tổng hải trình</span><strong>{dashboard.summary.totalVoyages}</strong></div>
-            <div className="vm-summary-item"><span>Đang hoạt động</span><strong>{dashboard.summary.activeVoyages}</strong></div>
-            <div className="vm-summary-item"><span>Hoàn thành</span><strong>{dashboard.summary.completedVoyages}</strong></div>
-            <div className="vm-summary-item"><span>Lập kế hoạch</span><strong>{dashboard.summary.planningVoyages}</strong></div>
-          </div>
-        )}
       </div>
     );
   }
