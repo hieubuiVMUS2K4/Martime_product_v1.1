@@ -206,6 +206,7 @@ builder.Services.AddScoped<ProductApi.Services.Voyage.IVoyageService, ProductApi
 builder.Services.AddHostedService<AlertBackgroundService>();
 builder.Services.AddHostedService<ProductApi.Services.Sync.CertificateExpiryMonitorService>();
 builder.Services.AddHostedService<ProductApi.Services.Sync.SyncHealthMonitorService>();
+builder.Services.AddHostedService<ProductApi.Services.Sync.SyncNodeAutoProvisionService>();
 
 var app = builder.Build();
 

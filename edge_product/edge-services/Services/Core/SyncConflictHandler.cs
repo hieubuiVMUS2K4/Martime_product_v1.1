@@ -237,6 +237,14 @@ public class SyncConflictHandler : ISyncConflictHandler
             if (prop.GetSetMethod() == null) continue;
             if (prop.Name == "Id") continue; // Never overwrite PK
 
+            // Skip navigation properties and collection types — only merge scalar fields and FKs.
+            // Setting untracked navigation objects on a tracked EF entity causes it to be marked
+            // as "Added" and attempts an INSERT on SaveChanges, resulting in a PK violation.
+            // Note: Nullable<T> (int?, bool?, Guid?, etc.) is a value type — IsValueType = true — so it's kept.
+            var propType = prop.PropertyType;
+            if (!propType.IsValueType && propType != typeof(string))
+                continue;
+
             var incomingValue = prop.GetValue(incoming);
             if (incomingValue == null) continue;
 
@@ -255,22 +263,11 @@ public class SyncConflictHandler : ISyncConflictHandler
                 shouldApply = !edgeOwnedFields.Contains(prop.Name);
 
                 // Special handling for OnboardStatus:
-                // Accept "PendingReview" from shore only if edge hasn't already approved
+                // Shore always wins for "PendingReview" — this means a (re-)assignment happened.
+                // Removing the Approved guard prevents re-assignments from being silently blocked.
                 if (prop.Name == "OnboardStatus")
                 {
-                    var existingStatus = prop.GetValue(existing) as string;
-                    var incomingStatus = incomingValue as string;
-                    
-                    if (incomingStatus == "PendingReview" && 
-                        (existingStatus == "Approved" || existingStatus == "Rejected"))
-                    {
-                        // Don't reset an already-reviewed crew member
-                        shouldApply = false;
-                    }
-                    else
-                    {
-                        shouldApply = true;
-                    }
+                    shouldApply = true;
                 }
             }
             else if (tableName == "crew_certificate")
