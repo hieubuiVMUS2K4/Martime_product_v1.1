@@ -24,6 +24,7 @@ public sealed class SyncRequestVerificationMiddleware : IMiddleware
     private readonly IMemoryCache _memoryCache;
     private readonly AppDbContext _dbContext;
     private readonly IAuditService _auditService;
+    private readonly IDataEncryptionService _dataEncryptionService;
     private readonly ILogger<SyncRequestVerificationMiddleware> _logger;
 
     public SyncRequestVerificationMiddleware(
@@ -31,12 +32,14 @@ public sealed class SyncRequestVerificationMiddleware : IMiddleware
         IMemoryCache memoryCache,
         AppDbContext dbContext,
         IAuditService auditService,
+        IDataEncryptionService dataEncryptionService,
         ILogger<SyncRequestVerificationMiddleware> logger)
     {
         _configuration = configuration;
         _memoryCache = memoryCache;
         _dbContext = dbContext;
         _auditService = auditService;
+        _dataEncryptionService = dataEncryptionService;
         _logger = logger;
     }
 
@@ -55,6 +58,18 @@ public sealed class SyncRequestVerificationMiddleware : IMiddleware
             return true;
 
         if (request.Method.Equals(HttpMethods.Post, StringComparison.OrdinalIgnoreCase) && remaining.Equals("/acknowledge", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (request.Method.Equals(HttpMethods.Get, StringComparison.OrdinalIgnoreCase) && remaining.Equals("/file-requests", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (request.Method.Equals(HttpMethods.Post, StringComparison.OrdinalIgnoreCase) && remaining.Equals("/file-request", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (request.Method.Equals(HttpMethods.Get, StringComparison.OrdinalIgnoreCase) && remaining.Equals("/file-download", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (request.Method.Equals(HttpMethods.Post, StringComparison.OrdinalIgnoreCase) && remaining.Equals("/file-upload", StringComparison.OrdinalIgnoreCase))
             return true;
 
         return false;
@@ -143,7 +158,7 @@ public sealed class SyncRequestVerificationMiddleware : IMiddleware
             return;
         }
 
-        var (sharedKey, matchedKeyVersion, matchedKeySlot) = ResolveAcceptedSigningKey(node, keyVersion);
+        var (sharedKey, matchedKeyVersion, matchedKeySlot) = ResolveAcceptedSigningKey(node, keyVersion, _dataEncryptionService);
         if (string.IsNullOrWhiteSpace(sharedKey))
         {
             _logger.LogWarning("Denied signed sync request because node {NodeId} has no accepted signing key for version {KeyVersion}", nodeId, keyVersion);
@@ -248,10 +263,13 @@ public sealed class SyncRequestVerificationMiddleware : IMiddleware
         });
     }
 
-    private static (string? SharedKey, int MatchedKeyVersion, string MatchedKeySlot) ResolveAcceptedSigningKey(ProductApi.Models.SyncNodeTracker node, int requestedKeyVersion)
+    private static (string? SharedKey, int MatchedKeyVersion, string MatchedKeySlot) ResolveAcceptedSigningKey(
+        ProductApi.Models.SyncNodeTracker node,
+        int requestedKeyVersion,
+        IDataEncryptionService dataEncryptionService)
     {
         if (requestedKeyVersion == node.KeyVersion && !string.IsNullOrWhiteSpace(node.SigningKey))
-            return (node.SigningKey, node.KeyVersion, "current");
+            return (dataEncryptionService.Decrypt(node.SigningKey), node.KeyVersion, "current");
 
         var previousKeyVersion = node.PreviousKeyVersion;
         var previousStillValid = node.PreviousKeyVersion.HasValue
@@ -263,7 +281,7 @@ public sealed class SyncRequestVerificationMiddleware : IMiddleware
             requestedKeyVersion == previousKeyVersion.Value &&
             !string.IsNullOrWhiteSpace(node.PreviousSigningKey))
         {
-            return (node.PreviousSigningKey, previousKeyVersion.Value, "previous");
+            return (dataEncryptionService.Decrypt(node.PreviousSigningKey), previousKeyVersion.Value, "previous");
         }
 
         return (null, requestedKeyVersion, "missing");

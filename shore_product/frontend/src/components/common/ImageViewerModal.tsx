@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Upload } from 'lucide-react';
+import { fetchProtectedMediaObjectUrl, isProtectedMediaPath } from '../../services/protectedMedia';
 
 interface ImageViewerModalProps {
   isOpen: boolean;
@@ -22,12 +23,35 @@ const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
   const [currentImageUrl, setCurrentImageUrl] = useState(imageUrl);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(imageUrl);
 
   useEffect(() => {
     setCurrentImageUrl(imageUrl);
     setPreviewFile(null);
     setPreviewUrl(null);
   }, [imageUrl]);
+
+  useEffect(() => {
+    if (!currentImageUrl || !isProtectedMediaPath(currentImageUrl)) {
+      setResolvedImageUrl(currentImageUrl);
+      return;
+    }
+
+    const controller = new AbortController();
+    let objectUrl: string | null = null;
+
+    fetchProtectedMediaObjectUrl(currentImageUrl, controller.signal)
+      .then((url) => {
+        objectUrl = url;
+        setResolvedImageUrl(url);
+      })
+      .catch(() => setResolvedImageUrl(null));
+
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [currentImageUrl]);
 
   const isCurrentPdf = previewFile
     ? previewFile.type === 'application/pdf'
@@ -99,13 +123,13 @@ const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
             </div>
           ) : isCurrentPdf ? (
             <iframe
-              src={previewUrl || currentImageUrl || imageUrl || ''}
+              src={previewUrl || resolvedImageUrl || ''}
               title="PDF Document"
               style={{ width: '100%', height: '100%', minHeight: '60vh', border: 'none' }}
             />
           ) : (
             <img
-              src={previewUrl || currentImageUrl || imageUrl || ''}
+              src={previewUrl || resolvedImageUrl || ''}
               alt="Document"
               style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
               onError={(e) => {

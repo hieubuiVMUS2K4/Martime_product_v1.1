@@ -1,0 +1,22 @@
+﻿{
+    "scenario":  "ProgressSmoke",
+    "network":  "LAN",
+    "repetition":  1,
+    "record_count":  10,
+    "pending_before":  10,
+    "pending_after":  10,
+    "trigger_iterations":  21,
+    "queue_drain_seconds":  30.43,
+    "avg_trigger_latency_ms":  23.708,
+    "max_trigger_latency_ms":  65.24,
+    "queued_records":  10,
+    "synced_records":  0,
+    "benchmark_pending_records":  10,
+    "retried_records":  10,
+    "retry_count_total":  10,
+    "primary_cpu_percent":  0.48,
+    "primary_memory_bytes":  52533658,
+    "success":  false,
+    "started_at_utc":  "2026-03-22T05:45:53.4179849Z",
+    "finished_at_utc":  "2026-03-22T05:46:26.9304654Z"
+}

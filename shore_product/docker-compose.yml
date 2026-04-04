@@ -65,6 +65,7 @@ services:
       Security__EnforceHttps: "${SECURITY_ENFORCE_HTTPS:-false}"
       Security__RequireInternalAccess: "${SECURITY_REQUIRE_INTERNAL_ACCESS:-false}"
       InternalAccess__ApiKey: "${INTERNAL_API_KEY:?INTERNAL_API_KEY must be set in shore_product/.env}"
+      DataProtection__EncryptionKey: "${DATA_PROTECTION__ENCRYPTION_KEY:-}"
       SyncSecurity__RequireSignedRequests: "${SYNC_REQUIRE_SIGNED_REQUESTS:-false}"
       SyncSecurity__ProtocolVersion: "${SYNC_PROTOCOL_VERSION:-2}"
     volumes:

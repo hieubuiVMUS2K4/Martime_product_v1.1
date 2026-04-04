@@ -48,6 +48,7 @@ services:
       Security__EnforceHttps: "${SECURITY_ENFORCE_HTTPS:-true}"
       Security__RequireInternalAccess: "${SECURITY_REQUIRE_INTERNAL_ACCESS:-true}"
       InternalAccess__ApiKey: "${INTERNAL_API_KEY:?INTERNAL_API_KEY must be set}"
+      DataProtection__EncryptionKey: "${DATA_PROTECTION__ENCRYPTION_KEY:?DATA_PROTECTION__ENCRYPTION_KEY must be set}"
       SyncSecurity__RequireSignedRequests: "${SYNC_REQUIRE_SIGNED_REQUESTS:-true}"
       SyncSecurity__ProtocolVersion: "${SYNC_PROTOCOL_VERSION:-2}"
     volumes:

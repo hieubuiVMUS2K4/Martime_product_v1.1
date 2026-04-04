@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ProductApi.Data;
 using ProductApi.DTOs;
 using ProductApi.Services.Voyage;
+using ProductApi.Services.Sync;
 
 namespace ProductApi.Controllers;
 
@@ -14,12 +15,21 @@ public class VoyagesController : ControllerBase
     private readonly AppDbContext _context;
     private readonly ILogger<VoyagesController> _logger;
     private readonly IVoyageService _voyageService;
+    private readonly IVoyagePlanningService _voyagePlanningService;
+    private readonly ISyncDlqService _dlqService;
 
-    public VoyagesController(AppDbContext context, ILogger<VoyagesController> logger, IVoyageService voyageService)
+    public VoyagesController(
+        AppDbContext context,
+        ILogger<VoyagesController> logger,
+        IVoyageService voyageService,
+        IVoyagePlanningService voyagePlanningService,
+        ISyncDlqService dlqService)
     {
         _context = context;
         _logger = logger;
         _voyageService = voyageService;
+        _voyagePlanningService = voyagePlanningService;
+        _dlqService = dlqService;
     }
 
     [HttpGet]
@@ -608,4 +618,581 @@ public class VoyagesController : ControllerBase
             return StatusCode(500, "Internal server error");
         }
     }
+
+    // ============================================================
+    // CARGO PLAN ENDPOINTS
+    // ============================================================
+
+    /// <summary>Create a new cargo plan for a voyage</summary>
+    [HttpPost("{voyageId:guid}/cargo-plans")]
+    public async Task<IActionResult> CreateCargoPlan(
+        Guid voyageId,
+        [FromBody] CreateCargoplanRequest request)
+    {
+        try
+        {
+            var plan = await _voyagePlanningService.CreateCargoplanAsync(voyageId, request);
+            return CreatedAtAction(nameof(GetCargoPlan), new { id = plan.Id }, plan);
+        }
+        catch (VoyagePlanningNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating cargo plan for voyage {VoyageId}", voyageId);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>Get a specific cargo plan</summary>
+    [HttpGet("cargo-plans/{id:guid}")]
+    public async Task<IActionResult> GetCargoPlan(Guid id)
+    {
+        try
+        {
+            var plan = await _context.VoyageCargoPlans
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == id);
+            
+            if (plan == null)
+                return NotFound($"Cargo plan {id} not found");
+            
+            return Ok(plan);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving cargo plan {CargoplanId}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>Update a cargo plan</summary>
+    [HttpPut("cargo-plans/{id:guid}")]
+    public async Task<IActionResult> UpdateCargoPlan(
+        Guid id,
+        [FromBody] UpdateCargoplanRequest request)
+    {
+        try
+        {
+            var plan = await _voyagePlanningService.UpdateCargoplanAsync(id, request);
+            return Ok(plan);
+        }
+        catch (VoyagePlanningNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating cargo plan {CargoplanId}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>Delete a cargo plan</summary>
+    [HttpDelete("cargo-plans/{id:guid}")]
+    public async Task<IActionResult> DeleteCargoPlan(Guid id)
+    {
+        try
+        {
+            await _voyagePlanningService.DeleteCargoplanAsync(id);
+            return NoContent();
+        }
+        catch (VoyagePlanningNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting cargo plan {CargoplanId}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    // ============================================================
+    // BUNKER PLAN ENDPOINTS
+    // ============================================================
+
+    /// <summary>Create a new bunker plan for a voyage</summary>
+    [HttpPost("{voyageId:guid}/bunker-plans")]
+    public async Task<IActionResult> CreateBunkerPlan(
+        Guid voyageId,
+        [FromBody] CreateBunkerplanRequest request)
+    {
+        try
+        {
+            var plan = await _voyagePlanningService.CreateBunkerplanAsync(voyageId, request);
+            return CreatedAtAction(nameof(GetBunkerPlan), new { id = plan.Id }, plan);
+        }
+        catch (VoyagePlanningNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating bunker plan for voyage {VoyageId}", voyageId);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>Get a specific bunker plan</summary>
+    [HttpGet("bunker-plans/{id:guid}")]
+    public async Task<IActionResult> GetBunkerPlan(Guid id)
+    {
+        try
+        {
+            var plan = await _context.VoyageBunkerPlans
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == id);
+            
+            if (plan == null)
+                return NotFound($"Bunker plan {id} not found");
+            
+            return Ok(plan);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving bunker plan {BunkerplanId}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>Update a bunker plan</summary>
+    [HttpPut("bunker-plans/{id:guid}")]
+    public async Task<IActionResult> UpdateBunkerPlan(
+        Guid id,
+        [FromBody] UpdateBunkerplanRequest request)
+    {
+        try
+        {
+            var plan = await _voyagePlanningService.UpdateBunkerplanAsync(id, request);
+            return Ok(plan);
+        }
+        catch (VoyagePlanningNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating bunker plan {BunkerplanId}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>Delete a bunker plan</summary>
+    [HttpDelete("bunker-plans/{id:guid}")]
+    public async Task<IActionResult> DeleteBunkerPlan(Guid id)
+    {
+        try
+        {
+            await _voyagePlanningService.DeleteBunkerplanAsync(id);
+            return NoContent();
+        }
+        catch (VoyagePlanningNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting bunker plan {BunkerplanId}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    // ============================================================
+    // CREW CHANGE PLAN ENDPOINTS
+    // ============================================================
+
+    /// <summary>Create a new crew change plan for a voyage</summary>
+    [HttpPost("{voyageId:guid}/crew-change-plans")]
+    public async Task<IActionResult> CreateCrewChangePlan(
+        Guid voyageId,
+        [FromBody] CreateCrewchangeplanRequest request)
+    {
+        try
+        {
+            var plan = await _voyagePlanningService.CreateCrewchangeplanAsync(voyageId, request);
+            return CreatedAtAction(nameof(GetCrewChangePlan), new { id = plan.Id }, plan);
+        }
+        catch (VoyagePlanningNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating crew change plan for voyage {VoyageId}", voyageId);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>Get a specific crew change plan</summary>
+    [HttpGet("crew-change-plans/{id:guid}")]
+    public async Task<IActionResult> GetCrewChangePlan(Guid id)
+    {
+        try
+        {
+            var plan = await _context.VoyageCrewChangePlans
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == id);
+            
+            if (plan == null)
+                return NotFound($"Crew change plan {id} not found");
+            
+            return Ok(plan);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving crew change plan {PlanId}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>Update a crew change plan</summary>
+    [HttpPut("crew-change-plans/{id:guid}")]
+    public async Task<IActionResult> UpdateCrewChangePlan(
+        Guid id,
+        [FromBody] UpdateCrewchangeplanRequest request)
+    {
+        try
+        {
+            var plan = await _voyagePlanningService.UpdateCrewchangeplanAsync(id, request);
+            return Ok(plan);
+        }
+        catch (VoyagePlanningNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating crew change plan {PlanId}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>Delete a crew change plan</summary>
+    [HttpDelete("crew-change-plans/{id:guid}")]
+    public async Task<IActionResult> DeleteCrewChangePlan(Guid id)
+    {
+        try
+        {
+            await _voyagePlanningService.DeleteCrewchangeplanAsync(id);
+            return NoContent();
+        }
+        catch (VoyagePlanningNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting crew change plan {PlanId}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    // ============================================================
+    // COST ESTIMATE ENDPOINTS
+    // ============================================================
+
+    /// <summary>Create a new cost estimate for a voyage</summary>
+    [HttpPost("{voyageId:guid}/cost-estimates")]
+    public async Task<IActionResult> CreateCostEstimate(
+        Guid voyageId,
+        [FromBody] CreateCostestimateRequest request)
+    {
+        try
+        {
+            var estimate = await _voyagePlanningService.CreateCostestimateAsync(voyageId, request);
+            return CreatedAtAction(nameof(GetCostEstimate), new { id = estimate.Id }, estimate);
+        }
+        catch (VoyagePlanningNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating cost estimate for voyage {VoyageId}", voyageId);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>Get a specific cost estimate</summary>
+    [HttpGet("cost-estimates/{id:guid}")]
+    public async Task<IActionResult> GetCostEstimate(Guid id)
+    {
+        try
+        {
+            var estimate = await _context.VoyageCostEstimates
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.Id == id);
+            
+            if (estimate == null)
+                return NotFound($"Cost estimate {id} not found");
+            
+            return Ok(estimate);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving cost estimate {EstimateId}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>Update a cost estimate</summary>
+    [HttpPut("cost-estimates/{id:guid}")]
+    public async Task<IActionResult> UpdateCostEstimate(
+        Guid id,
+        [FromBody] UpdateCostestimateRequest request)
+    {
+        try
+        {
+            var estimate = await _voyagePlanningService.UpdateCostestimateAsync(id, request);
+            return Ok(estimate);
+        }
+        catch (VoyagePlanningNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating cost estimate {EstimateId}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>Delete a cost estimate</summary>
+    [HttpDelete("cost-estimates/{id:guid}")]
+    public async Task<IActionResult> DeleteCostEstimate(Guid id)
+    {
+        try
+        {
+            await _voyagePlanningService.DeleteCostestimateAsync(id);
+            return NoContent();
+        }
+        catch (VoyagePlanningNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting cost estimate {EstimateId}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    // ============================================================
+    // REVENUE ESTIMATE ENDPOINTS
+    // ============================================================
+
+    /// <summary>Create a new revenue estimate for a voyage</summary>
+    [HttpPost("{voyageId:guid}/revenue-estimates")]
+    public async Task<IActionResult> CreateRevenueEstimate(
+        Guid voyageId,
+        [FromBody] CreateRevenueestimateRequest request)
+    {
+        try
+        {
+            var estimate = await _voyagePlanningService.CreateRevenueestimateAsync(voyageId, request);
+            return CreatedAtAction(nameof(GetRevenueEstimate), new { id = estimate.Id }, estimate);
+        }
+        catch (VoyagePlanningNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating revenue estimate for voyage {VoyageId}", voyageId);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>Get a specific revenue estimate</summary>
+    [HttpGet("revenue-estimates/{id:guid}")]
+    public async Task<IActionResult> GetRevenueEstimate(Guid id)
+    {
+        try
+        {
+            var estimate = await _context.VoyageRevenueEstimates
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.Id == id);
+            
+            if (estimate == null)
+                return NotFound($"Revenue estimate {id} not found");
+            
+            return Ok(estimate);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving revenue estimate {EstimateId}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>Update a revenue estimate</summary>
+    [HttpPut("revenue-estimates/{id:guid}")]
+    public async Task<IActionResult> UpdateRevenueEstimate(
+        Guid id,
+        [FromBody] UpdateRevenueestimateRequest request)
+    {
+        try
+        {
+            var estimate = await _voyagePlanningService.UpdateRevenueestimateAsync(id, request);
+            return Ok(estimate);
+        }
+        catch (VoyagePlanningNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating revenue estimate {EstimateId}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>Delete a revenue estimate</summary>
+    [HttpDelete("revenue-estimates/{id:guid}")]
+    public async Task<IActionResult> DeleteRevenueEstimate(Guid id)
+    {
+        try
+        {
+            await _voyagePlanningService.DeleteRevenueestimateAsync(id);
+            return NoContent();
+        }
+        catch (VoyagePlanningNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting revenue estimate {EstimateId}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    // ============================================================
+    // SYNC DEAD-LETTER QUEUE (DLQ) - Phase 2.4
+    // ============================================================
+
+    /// <summary>Get all pending DLQ items (awaiting manual review)</summary>
+    [HttpGet("sync/dlq")]
+    public async Task<IActionResult> GetPendingDlqItems()
+    {
+        try
+        {
+            var items = await _dlqService.GetPendingDlqItemsAsync();
+            _logger.LogInformation("[DLQ-API] Retrieved {Count} pending DLQ items", items.Count);
+            return Ok(items);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[DLQ-API] Error retrieving pending DLQ items");
+            return StatusCode(500, "Error retrieving DLQ items");
+        }
+    }
+
+    /// <summary>Get a specific DLQ item for inspection</summary>
+    [HttpGet("sync/dlq/{id:long}")]
+    public async Task<IActionResult> GetDlqItem(long id)
+    {
+        try
+        {
+            var item = await _dlqService.GetDlqItemAsync(id);
+            if (item == null)
+                return NotFound($"DLQ item {id} not found");
+
+            _logger.LogInformation("[DLQ-API] Retrieved DLQ item {ItemId} for inspection", item.ItemId);
+            return Ok(item);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[DLQ-API] Error retrieving DLQ item {Id}", id);
+            return StatusCode(500, "Error retrieving DLQ item");
+        }
+    }
+
+    /// <summary>Approve DLQ item for manual replay</summary>
+    [HttpPost("sync/dlq/{id:long}/approve")]
+    public async Task<IActionResult> ApproveDlqForReplay(long id, [FromBody] DlqApprovalRequest? request = null)
+    {
+        try
+        {
+            bool approved = await _dlqService.ApproveDlqItemForReplayAsync(id, request?.Notes);
+            if (!approved)
+                return NotFound($"DLQ item {id} not found");
+
+            _logger.LogInformation("[DLQ-API] DLQ item {Id} approved for replay", id);
+            return Ok(new { message = "DLQ item approved for replay", itemId = id });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[DLQ-API] Error approving DLQ item {Id}", id);
+            return StatusCode(500, "Error approving DLQ item");
+        }
+    }
+
+    /// <summary>Manually retry a DLQ item</summary>
+    [HttpPost("sync/dlq/{id:long}/retry")]
+    public async Task<IActionResult> ReplayDlqItem(long id, [FromBody] DlqApprovalRequest? request = null)
+    {
+        try
+        {
+            bool retried = await _dlqService.ReplayDlqItemAsync(id, request?.Notes);
+            if (!retried)
+                return NotFound($"DLQ item {id} not found");
+
+            _logger.LogInformation("[DLQ-API] DLQ item {Id} queued for manual replay", id);
+            return Ok(new { message = "DLQ item queued for manual replay", itemId = id });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[DLQ-API] Error retrying DLQ item {Id}", id);
+            return StatusCode(500, "Error retrying DLQ item");
+        }
+    }
+
+    /// <summary>Clear/delete a DLQ item after review</summary>
+    [HttpDelete("sync/dlq/{id:long}")]
+    public async Task<IActionResult> ClearDlqItem(long id)
+    {
+        try
+        {
+            bool cleared = await _dlqService.ClearDlqItemAsync(id);
+            if (!cleared)
+                return NotFound($"DLQ item {id} not found");
+
+            _logger.LogInformation("[DLQ-API] DLQ item {Id} cleared", id);
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[DLQ-API] Error clearing DLQ item {Id}", id);
+            return StatusCode(500, "Error clearing DLQ item");
+        }
+    }
+
+    /// <summary>Get DLQ statistics and health metrics</summary>
+    [HttpGet("sync/dlq/stats")]
+    public async Task<IActionResult> GetDlqStats()
+    {
+        try
+        {
+            var stats = await _dlqService.GetDlqStatsAsync();
+            _logger.LogInformation(
+                "[DLQ-API] DLQ Stats: Total={Total}, Pending={Pending}, Critical={Critical}",
+                stats.TotalDlqItems, stats.PendingItems, stats.CriticalPriority);
+            return Ok(stats);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[DLQ-API] Error retrieving DLQ statistics");
+            return StatusCode(500, "Error retrieving DLQ statistics");
+        }
+    }
+}
+
+/// <summary>Request model for DLQ approval and replay</summary>
+public class DlqApprovalRequest
+{
+    /// <summary>Optional notes from manual review</summary>
+    public string? Notes { get; set; }
 }

@@ -146,6 +146,8 @@ namespace MaritimeEdge
             builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<IAggregateReportService, AggregateReportService>();
             builder.Services.AddScoped<ISyncService, SyncService>();
+            builder.Services.AddScoped<ISyncFileStorageService, LocalSyncFileStorageService>();
+            builder.Services.AddScoped<ISyncFilePreparationService, SyncFilePreparationService>();
             builder.Services.AddScoped<ISyncRequestSigningService, SyncRequestSigningService>();
             builder.Services.AddScoped<ISyncConflictHandler, SyncConflictHandler>();
             builder.Services.AddScoped<IWatchkeepingService, WatchkeepingService>();
@@ -308,21 +310,29 @@ namespace MaritimeEdge
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<EdgeDbContext>();
                 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+                var autoMigrate = app.Configuration.GetValue("Database:AutoMigrate", true);
                 
                 try
                 {
-                    logger.LogInformation("Checking database migrations...");
-                    
-                    var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
-                    if (pendingMigrations.Any())
+                    if (autoMigrate)
                     {
-                        logger.LogInformation($"Applying {pendingMigrations.Count()} pending migration(s)...");
-                        await dbContext.Database.MigrateAsync();
-                        logger.LogInformation("Database migrations applied successfully");
+                        logger.LogInformation("Checking database migrations...");
+
+                        var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+                        if (pendingMigrations.Any())
+                        {
+                            logger.LogInformation($"Applying {pendingMigrations.Count()} pending migration(s)...");
+                            await dbContext.Database.MigrateAsync();
+                            logger.LogInformation("Database migrations applied successfully");
+                        }
+                        else
+                        {
+                            logger.LogInformation("Database is up-to-date, no pending migrations");
+                        }
                     }
                     else
                     {
-                        logger.LogInformation("Database is up-to-date, no pending migrations");
+                        logger.LogInformation("Database auto-migration disabled by configuration");
                     }
 
                     await EnsurePortSeedDataAsync(dbContext, logger, app.Environment.ContentRootPath);

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using ProductApi.Data;
 using ProductApi.Models;
+using ProductApi.Security;
 using ProductApi.Services.Sync;
 
 namespace ProductApi.Controllers;
@@ -19,11 +20,16 @@ namespace ProductApi.Controllers;
 public class SyncDashboardController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly IDataEncryptionService _dataEncryptionService;
     private readonly ILogger<SyncDashboardController> _logger;
 
-    public SyncDashboardController(AppDbContext context, ILogger<SyncDashboardController> logger)
+    public SyncDashboardController(
+        AppDbContext context,
+        IDataEncryptionService dataEncryptionService,
+        ILogger<SyncDashboardController> logger)
     {
         _context = context;
+        _dataEncryptionService = dataEncryptionService;
         _logger = logger;
     }
 
@@ -210,6 +216,9 @@ public class SyncDashboardController : ControllerBase
         if (node == null)
             return NotFound(new { error = "Node not found" });
 
+        var currentSigningKey = _dataEncryptionService.Decrypt(node.SigningKey);
+        var previousSigningKey = _dataEncryptionService.Decrypt(node.PreviousSigningKey);
+
         return Ok(new
         {
             node.NodeId,
@@ -226,11 +235,11 @@ public class SyncDashboardController : ControllerBase
             node.PreviousKeyGraceUntil,
             node.RevokedAt,
             node.RevokedReason,
-            canRollbackKey = !string.IsNullOrWhiteSpace(node.PreviousSigningKey)
+            canRollbackKey = !string.IsNullOrWhiteSpace(previousSigningKey)
                 && node.PreviousKeyVersion.HasValue
                 && node.PreviousKeyGraceUntil.HasValue
                 && node.PreviousKeyGraceUntil.Value >= DateTime.UtcNow,
-            hasSigningKey = !string.IsNullOrWhiteSpace(node.SigningKey)
+            hasSigningKey = !string.IsNullOrWhiteSpace(currentSigningKey)
         });
     }
 
@@ -262,8 +271,11 @@ public class SyncDashboardController : ControllerBase
             _context.SyncNodeTrackers.Add(node);
         }
 
-        var isRotation = !string.IsNullOrWhiteSpace(node.SigningKey)
-            && !string.Equals(node.SigningKey, request.SigningKey, StringComparison.Ordinal);
+        var currentSigningKey = _dataEncryptionService.Decrypt(node.SigningKey);
+        var isRotation = !string.IsNullOrWhiteSpace(currentSigningKey)
+            && !string.Equals(currentSigningKey, request.SigningKey, StringComparison.Ordinal);
+
+        var encryptedRequestedSigningKey = _dataEncryptionService.Encrypt(request.SigningKey);
 
         node.ShipName = request.ShipName ?? node.ShipName;
         node.ImoNumber = request.ImoNumber ?? node.ImoNumber;
@@ -275,16 +287,16 @@ public class SyncDashboardController : ControllerBase
         if (isRotation)
         {
             var graceMinutes = Math.Max(1, request.PreviousKeyGraceMinutes ?? 1440);
-            node.PreviousSigningKey = node.SigningKey;
+            node.PreviousSigningKey = _dataEncryptionService.Encrypt(currentSigningKey);
             node.PreviousKeyVersion = node.KeyVersion;
             node.PreviousKeyGraceUntil = now.AddMinutes(graceMinutes);
-            node.SigningKey = request.SigningKey;
+            node.SigningKey = encryptedRequestedSigningKey;
             node.KeyVersion = request.KeyVersion ?? (node.KeyVersion <= 0 ? 1 : node.KeyVersion + 1);
             node.LastKeyRotatedAt = now;
         }
         else
         {
-            node.SigningKey = request.SigningKey;
+            node.SigningKey = encryptedRequestedSigningKey;
             if (node.KeyVersion <= 0)
                 node.KeyVersion = 1;
             else if (request.KeyVersion.HasValue)
@@ -338,7 +350,7 @@ public class SyncDashboardController : ControllerBase
             return Conflict(new { error = "Previous signing key grace window has expired" });
         }
 
-        node.SigningKey = node.PreviousSigningKey;
+        node.SigningKey = _dataEncryptionService.Encrypt(_dataEncryptionService.Decrypt(node.PreviousSigningKey));
         node.KeyVersion = node.PreviousKeyVersion.Value;
         node.PreviousSigningKey = null;
         node.PreviousKeyVersion = null;

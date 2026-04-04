@@ -1,0 +1,2 @@
+﻿"scenario","network","repetition","record_count","pending_before","pending_after","trigger_iterations","queue_drain_seconds","avg_trigger_latency_ms","max_trigger_latency_ms","queued_records","synced_records","benchmark_pending_records","retried_records","retry_count_total","primary_cpu_percent","primary_memory_bytes","success","started_at_utc","finished_at_utc"
+"live-smoke","LAN","1","10","10","0","1","2.213","173.59","173.59","10","10","0","0","0","0.03","49419387","True","2026-03-21T18:02:20.2469289Z","2026-03-21T18:02:24.7078504Z"

@@ -84,12 +84,66 @@ public class ConflictResolverService : IConflictResolverService
     {
         "service_record",
         "position_data", "engine_data", "maritime_report", "noon_report",
-        "voyage_record", "port", "voyage_plan_leg", "voyage_status_history",
-        "port_call", "voyage_crew_assignment", "cargo_operation", "voyage_log_entry",
-        "voyage_cargo_plan", "voyage_bunker_plan", "voyage_crew_change_plan",
-        "voyage_cost_estimate", "voyage_revenue_estimate", "voyage_expense_request",
-        "voyage_advance_payment", "voyage_disbursement", "voyage_actual_revenue",
-        "voyage_settlement"
+        // Voyage tables are NOT here — they have special handling below
+        "port_call", "voyage_status_history",
+        "cargo_operation", "voyage_log_entry"
+    };
+
+    // ════════════════════════════════════════════════════════════
+    // VOYAGE DOMAIN OWNERSHIP RULES (Phase 1)
+    // ════════════════════════════════════════════════════════════
+    // VoyageRecord: Factual data (EDGE) + Planning data (SHORE)
+    // Properties where Edge owns the data (actual operation status)
+    private static readonly HashSet<string> _voyageEdgeOwnedFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Actual execution status & timeline (Ship is authority)
+        "VoyageStatus", "Status",
+        "StartDateTime", "DepartureTime",
+        "EndDateTime", "ArrivalTime",
+        "DeparturePort", "DeparturePortCode",
+        "ArrivalPort", "ArrivalPortCode",
+        "CargoType", "CargoWeight",
+        "DistanceTraveled", "FuelConsumed", "AverageSpeed",
+        "CommencedAt", "ArrivedAt", "CompletedAt", "CancelledAt"
+    };
+
+    // Properties where Shore owns the data (planning & financial)
+    private static readonly HashSet<string> _voyageShoreOwnedFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Planning & estimates (Shore HR/Commercial team)
+        "PlannedDistance", "PlannedDurationHours", "PlannedAverageSpeed",
+        "PlannedFuelConsumption",
+        "VoyageInstructions",
+        "TotalEstimatedCost", "TotalEstimatedRevenue", "EstimatedProfitMargin",
+        "FinancialStatus", "FinancialClosedAt", "FinancialClosedBy",
+        "ApprovedAt", "ReadyAt"
+    };
+
+    // VoyagePlanLeg: Use Last-Write-Wins (Hybrid ownership)
+    private static readonly HashSet<string> _voyagePlanLegHybridFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "PlannedDepartureTime", "PlannedArrivalTime",
+        "PlannedDistance", "PlannedDurationHours", "PlannedAverageSpeed",
+        "PlannedFuelConsumption"
+    };
+
+    // Tables that require special voyage handling
+    private static readonly HashSet<string> _voyageDomainTables = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "voyage_record",
+        "voyage_plan_leg",
+        "voyage_crew_assignment",
+        "voyage_cargo_plan",
+        "voyage_bunker_plan",
+        "voyage_crew_change_plan",
+        "voyage_cost_estimate",
+        "voyage_revenue_estimate",
+        "voyage_expense_request",
+        "voyage_advance_payment",
+        "voyage_disbursement",
+        "voyage_actual_revenue",
+        "voyage_settlement",
+        "port"
     };
 
     public ConflictResolverService(ILogger<ConflictResolverService> logger)
@@ -118,6 +172,12 @@ public class ConflictResolverService : IConflictResolverService
                 }
             }
             return ConflictResolution.Apply(incoming);
+        }
+
+        // Rule 1.5: VOYAGE DOMAIN — Field-level conflict resolution
+        if (_voyageDomainTables.Contains(tableName))
+        {
+            return ResolveVoyageConflict(tableName, existing, incoming, originNode);
         }
 
         // Rule 5: Edge-authoritative tables — always accept from edge
@@ -298,6 +358,164 @@ public class ConflictResolverService : IConflictResolverService
 
             if (shouldApply)
                 prop.SetValue(existing, incomingValue);
+        }
+
+        return ConflictResolution.Apply(existing);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // VOYAGE DOMAIN CONFLICT RESOLUTION (Phase 1)
+    // ════════════════════════════════════════════════════════════
+    // VoyageRecord: Field-level ownership (Edge controls status/actual, Shore controls planning)
+    // VoyagePlanLeg: Hybrid - use Last-Write-Wins for planning fields
+    // Other voyage tables: always from Edge (cargo ops, crew assignments, logs, financial actuals)
+    // ════════════════════════════════════════════════════════════
+    private ConflictResolution ResolveVoyageConflict(string tableName, object existing, object incoming, string originNode)
+    {
+        var existingUpdated = GetUpdatedAt(existing);
+        var incomingUpdated = GetUpdatedAt(incoming);
+        bool incomingIsNewer = !existingUpdated.HasValue || !incomingUpdated.HasValue || 
+                               incomingUpdated.Value > existingUpdated.Value;
+
+        _logger.LogInformation(
+            "[VOYAGE-CONFLICT] table={Table}, origin={Origin}, existingUpdated={ExistingUpdated}, incomingUpdated={IncomingUpdated}, isNewer={IsNewer}",
+            tableName, originNode, existingUpdated, incomingUpdated, incomingIsNewer);
+
+        // Table-specific handling
+        if (tableName == "voyage_record")
+        {
+            return ResolveVoyageRecordConflict(existing, incoming, originNode, incomingIsNewer);
+        }
+
+        if (tableName == "voyage_plan_leg")
+        {
+            return ResolveVoyagePlanLegConflict(existing, incoming, originNode, incomingIsNewer);
+        }
+
+        // All other voyage tables: Edge owns (cargo_operation, voyage_log_entry, voyage_crew_assignment, etc.)
+        // Planning entities from Shore will be handled via separate Shore→Edge pull mechanism
+        if (originNode == "EDGE" || originNode == "SHIP_01" || string.IsNullOrEmpty(originNode))
+        {
+            _logger.LogInformation("[VOYAGE-CONFLICT] {Table}: ACCEPT (Edge-owned)", tableName);
+            return ConflictResolution.Apply(incoming);
+        }
+
+        // Shore will send planning entities on pull — for now, if Shore tries to push, reject
+        return ConflictResolution.Reject($"Voyage table {tableName} from Shore during push not yet supported. Use Shore→Edge pull mechanism.");
+    }
+
+    private ConflictResolution ResolveVoyageRecordConflict(object existing, object incoming, string originNode, bool incomingIsNewer)
+    {
+        var existingType = existing.GetType();
+        var properties = existingType.GetProperties();
+
+        foreach (var prop in properties)
+        {
+            if (prop.GetSetMethod() == null) continue;
+            if (prop.Name == "Id" || prop.Name == "CreatedAt" || prop.Name == "CancelledAt") continue;
+
+            var existingValue = prop.GetValue(existing);
+            var incomingValue = prop.GetValue(incoming);
+
+            // Skip null/empty incoming
+            if (incomingValue == null || (incomingValue is string s && s.Length == 0)) 
+                continue;
+
+            bool shouldApply;
+
+            if (originNode == "SHORE")
+            {
+                // Shore pushing → apply only Shore-owned fields (planning, estimates)
+                shouldApply = _voyageShoreOwnedFields.Contains(prop.Name);
+                _logger.LogInformation(
+                    "[VOYAGE-RECORD] Field {Field} from SHORE: {ShouldApply} (owned={Owned})",
+                   prop.Name, shouldApply, _voyageShoreOwnedFields.Contains(prop.Name));
+            }
+            else
+            {
+                // Edge pushing:
+                // • Edge-owned fields (Status, timing…) → always apply
+                // • Shore-owned fields (PlannedDistance, estimates…) → skip (preserve Shore's plan)
+                // • Other fields → always apply
+                if (_voyageEdgeOwnedFields.Contains(prop.Name))
+                {
+                    shouldApply = true;
+                }
+                else if (_voyageShoreOwnedFields.Contains(prop.Name))
+                {
+                    shouldApply = false; // Keep Shore's planning data
+                }
+                else
+                {
+                    shouldApply = true; // Default: accept from Edge
+                }
+
+                _logger.LogInformation(
+                    "[VOYAGE-RECORD] Field {Field} from EDGE: {ShouldApply} (edgeOwned={E}, shoreOwned={S})",
+                    prop.Name, shouldApply, 
+                    _voyageEdgeOwnedFields.Contains(prop.Name),
+                    _voyageShoreOwnedFields.Contains(prop.Name));
+            }
+
+            if (shouldApply)
+            {
+                try
+                {
+                    if (existingValue?.ToString() != incomingValue?.ToString())
+                    {
+                        _logger.LogInformation(
+                            "[VOYAGE-RECORD] Applied field {Field}: {Old} → {New}",
+                            prop.Name, existingValue, incomingValue);
+                    }
+                    prop.SetValue(existing, incomingValue);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug("[VOYAGE-RECORD] Skipping field {Field}: {Error}", prop.Name, ex.Message);
+                }
+            }
+        }
+
+        return ConflictResolution.Apply(existing);
+    }
+
+    private ConflictResolution ResolveVoyagePlanLegConflict(object existing, object incoming, string originNode, bool incomingIsNewer)
+    {
+        // VoyagePlanLeg: Last-Write-Wins for planning fields (can come from either Edge or Shore)
+        var existingType = existing.GetType();
+        var properties = existingType.GetProperties();
+
+        foreach (var prop in properties)
+        {
+            if (prop.GetSetMethod() == null) continue;
+            if (prop.Name == "Id" || prop.Name == "VoyageId") continue;
+
+            var incomingValue = prop.GetValue(incoming);
+            if (incomingValue == null || (incomingValue is string s && s.Length == 0)) 
+                continue;
+
+            // For hybrid fields (planning dates, distances, fuel), use LWW
+            if (_voyagePlanLegHybridFields.Contains(prop.Name))
+            {
+                if (incomingIsNewer)
+                {
+                    _logger.LogInformation(
+                        "[VOYAGE-PLANLEG] Field {Field}: LWW applied (newer win), origin={Origin}",
+                        prop.Name, originNode);
+                    prop.SetValue(existing, incomingValue);
+                }
+                continue;
+            }
+
+            // Other fields: Edge is owner (Sequence, LegType, CargoActivity, Notes)
+            if (originNode == "EDGE" || originNode == "SHIP_01" || string.IsNullOrEmpty(originNode))
+            {
+                try
+                {
+                    prop.SetValue(existing, incomingValue);
+                }
+                catch { /* ignore */ }
+            }
         }
 
         return ConflictResolution.Apply(existing);

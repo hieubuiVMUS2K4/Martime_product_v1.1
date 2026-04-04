@@ -1,0 +1,22 @@
+﻿{
+    "scenario":  "LAN-10",
+    "network":  "LAN",
+    "record_count":  10,
+    "repetitions":  1,
+    "current_repetition":  1,
+    "status":  "scenario-complete",
+    "iteration":  0,
+    "max_trigger_iterations":  5,
+    "poll_seconds":  1,
+    "heartbeat_seconds":  2,
+    "scenario_timeout_seconds":  30,
+    "pending_before":  null,
+    "pending_current":  null,
+    "progress_percent":  null,
+    "elapsed_seconds":  0,
+    "last_trigger_latency_ms":  0,
+    "scenario_root":  "F:\\NCKH\\Product\\Martime_product_v1.1\\artifacts\\research-sync\\progress-campaign\\campaign-20260322-054814\\LAN-10-LAN-20260322-054814",
+    "repetition_dir":  "",
+    "updated_at_utc":  "2026-03-22T05:48:22.5997319Z",
+    "note":  "Scenario summary file written."
+}

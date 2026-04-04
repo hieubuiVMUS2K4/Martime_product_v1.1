@@ -602,112 +602,112 @@ namespace MaritimeEdge.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(74),
+                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7144),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "MAST",
                             RankName = "Master (Captain)",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(77)
+                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7148)
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(83),
+                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7149),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/O",
                             RankName = "Chief Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(83)
+                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7150)
                         },
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(84),
+                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7150),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/O",
                             RankName = "Second Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(84)
+                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7151)
                         },
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(85),
+                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7158),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "3/O",
                             RankName = "Third Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(85)
+                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7159)
                         },
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(86),
+                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7160),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/E",
                             RankName = "Chief Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(86)
+                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7160)
                         },
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(87),
+                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7161),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/E",
                             RankName = "Second Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(88)
+                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7162)
                         },
                         new
                         {
                             Id = 7,
-                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(88),
+                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7163),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "BOSN",
                             RankName = "Bosun",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(89)
+                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7163)
                         },
                         new
                         {
                             Id = 8,
-                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(89),
+                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7166),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "AB",
                             RankName = "Able Seaman",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(89)
+                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7167)
                         },
                         new
                         {
                             Id = 9,
-                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(90),
+                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7168),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "OILR",
                             RankName = "Oiler",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(90)
+                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7168)
                         },
                         new
                         {
                             Id = 10,
-                            CreatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(91),
+                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7171),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "COOK",
                             RankName = "Chief Cook",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 18, 2, 30, 26, 368, DateTimeKind.Utc).AddTicks(91)
+                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7172)
                         });
                 });
 
@@ -1129,6 +1129,393 @@ namespace MaritimeEdge.Data.Migrations
                     b.HasIndex("CrewMemberId");
 
                     b.ToTable("travel_documents", "public");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.Sync.SyncFileChunkSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("ChunkSizeBytes")
+                        .HasColumnType("integer")
+                        .HasColumnName("chunk_size_bytes");
+
+                    b.Property<long>("CommittedBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("committed_bytes");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at_utc");
+
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("direction");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<Guid>("FileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("file_id");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("FileRole")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("file_role");
+
+                    b.Property<bool>("IsDeltaSession")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_delta_session");
+
+                    b.Property<DateTime>("LastActivityAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_activity_at_utc");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("last_error");
+
+                    b.Property<Guid>("ManifestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("manifest_id");
+
+                    b.Property<int>("NextChunkIndex")
+                        .HasColumnType("integer")
+                        .HasColumnName("next_chunk_index");
+
+                    b.Property<string>("ReceiverBaseSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("receiver_base_sha256");
+
+                    b.Property<string>("RecordKey")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("record_key");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_id");
+
+                    b.Property<string>("RequestedChunkIndexesJson")
+                        .HasColumnType("text")
+                        .HasColumnName("requested_chunk_indexes_json");
+
+                    b.Property<string>("RequesterNodeId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("requester_node_id");
+
+                    b.Property<string>("ResumeToken")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("resume_token");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<string>("SourcePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("source_path");
+
+                    b.Property<string>("StagingPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("staging_path");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<string>("StoragePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("storage_path");
+
+                    b.Property<string>("SupplierNodeId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("supplier_node_id");
+
+                    b.Property<string>("TableName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("table_name");
+
+                    b.Property<int>("TotalChunks")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_chunks");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_sync_file_chunk_sessions");
+
+                    b.HasIndex("ExpiresAtUtc")
+                        .HasDatabaseName("idx_sync_file_chunk_session_expires");
+
+                    b.HasIndex("ResumeToken")
+                        .IsUnique()
+                        .HasDatabaseName("idx_sync_file_chunk_session_resume_token");
+
+                    b.HasIndex("ManifestId", "Direction", "Status")
+                        .HasDatabaseName("idx_sync_file_chunk_session_manifest_status");
+
+                    b.HasIndex("RequesterNodeId", "SupplierNodeId", "Direction", "Status")
+                        .HasDatabaseName("idx_sync_file_chunk_session_nodes_status");
+
+                    b.ToTable("sync_file_chunk_sessions", "public");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.Sync.SyncFileManifest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CapturedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("captured_at_utc");
+
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("FileRole")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("file_role");
+
+                    b.Property<bool>("IsPreprocessed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_preprocessed");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTime?>("LastRequestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_requested_at_utc");
+
+                    b.Property<long?>("OriginalSizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("original_size_bytes");
+
+                    b.Property<string>("OwnerNodeId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("owner_node_id");
+
+                    b.Property<string>("PreprocessProfile")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("preprocess_profile");
+
+                    b.Property<string>("ReceiverNodeId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("receiver_node_id");
+
+                    b.Property<string>("RecordKey")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("record_key");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<string>("SourcePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("source_path");
+
+                    b.Property<string>("StoragePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("storage_path");
+
+                    b.Property<string>("TableName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("table_name");
+
+                    b.Property<int>("TransferPriority")
+                        .HasColumnType("integer")
+                        .HasColumnName("transfer_priority");
+
+                    b.Property<int>("TransferStatus")
+                        .HasColumnType("integer")
+                        .HasColumnName("transfer_status");
+
+                    b.Property<string>("TransportEncoding")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("transport_encoding");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<DateTime?>("VerifiedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("verified_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_sync_file_manifests");
+
+                    b.HasIndex("Id")
+                        .IsUnique()
+                        .HasDatabaseName("idx_sync_file_manifest_id");
+
+                    b.HasIndex("Sha256")
+                        .HasDatabaseName("idx_sync_file_manifest_sha256");
+
+                    b.HasIndex("ReceiverNodeId", "TransferStatus")
+                        .HasDatabaseName("idx_sync_file_manifest_receiver_status");
+
+                    b.HasIndex("OwnerNodeId", "TableName", "RecordKey")
+                        .HasDatabaseName("idx_sync_file_manifest_owner_record");
+
+                    b.ToTable("sync_file_manifests", "public");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.Sync.SyncFileTransferRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at_utc");
+
+                    b.Property<int?>("DeltaBlockSizeBytes")
+                        .HasColumnType("integer")
+                        .HasColumnName("delta_block_size_bytes");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("last_error");
+
+                    b.Property<Guid>("ManifestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("manifest_id");
+
+                    b.Property<DateTime?>("NextRetryAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_retry_at");
+
+                    b.Property<bool>("PreferDeltaTransfer")
+                        .HasColumnType("boolean")
+                        .HasColumnName("prefer_delta_transfer");
+
+                    b.Property<string>("ReceiverBaseSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("receiver_base_sha256");
+
+                    b.Property<string>("ReceiverBlockHashesJson")
+                        .HasColumnType("text")
+                        .HasColumnName("receiver_block_hashes_json");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at_utc");
+
+                    b.Property<string>("RequesterNodeId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("requester_node_id");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("retry_count");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<string>("SupplierNodeId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("supplier_node_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_sync_file_transfer_requests");
+
+                    b.HasIndex("ManifestId");
+
+                    b.HasIndex("RequesterNodeId", "Status")
+                        .HasDatabaseName("idx_sync_file_request_requester_status");
+
+                    b.HasIndex("SupplierNodeId", "Status")
+                        .HasDatabaseName("idx_sync_file_request_supplier_status");
+
+                    b.ToTable("sync_file_transfer_requests", "public");
                 });
 
             modelBuilder.Entity("Maritime.Shared.Models.Sync.SyncQueue", b =>
@@ -13143,6 +13530,18 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("Country");
 
                     b.Navigation("CrewMember");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.Sync.SyncFileTransferRequest", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.Sync.SyncFileManifest", "Manifest")
+                        .WithMany()
+                        .HasForeignKey("ManifestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_sync_file_transfer_requests_sync_file_manifests_manifest_id");
+
+                    b.Navigation("Manifest");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.AbstractLogDailyEntry", b =>

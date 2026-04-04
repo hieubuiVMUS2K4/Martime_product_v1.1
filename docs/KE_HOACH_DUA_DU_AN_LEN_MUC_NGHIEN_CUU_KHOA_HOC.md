@@ -417,6 +417,14 @@ Noi cach khac, deploy 1 lan la hop ly neu va chi neu code cua Giai doan 1 va Gia
 - Bang ket qua thuc nghiem, do thi tong hop va phan tich metric.
 - Chuong giai phap, cai dat, thuc nghiem, ket luan va slide bao ve.
 
+### Da khoi dong ngay sau deploy de vao Phase 3
+
+- Da chot threat model va trust boundary tai `docs/PHASE3_THREAT_MODEL_AND_TRUST_BOUNDARY.md`.
+- Da chot bo test matrix va benchmark profile tai `docs/PHASE3_EXPERIMENT_TEST_MATRIX.md`.
+- Da chot runbook thu thap metric va bang chung tai `docs/PHASE3_METRIC_COLLECTION_RUNBOOK.md`.
+
+Ba tai lieu nay danh dau moc bat dau chinh thuc cua Phase 3 theo huong post-deploy, khong doi them runtime code tru khi phat hien loi nghiem trong lam vo hieu bang chung thuc nghiem.
+
 ### Dieu kien de ra quyet dinh deploy 1 lan ngay
 
 - Build Shore va Edge pass tren commit da chot.

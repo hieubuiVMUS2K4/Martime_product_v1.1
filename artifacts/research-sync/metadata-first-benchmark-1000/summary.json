@@ -1,0 +1,70 @@
+﻿{
+    "Overall":  {
+                    "FileCount":  1000,
+                    "TotalFileBytes":  335670833,
+                    "TotalMetadataJsonBytes":  483604,
+                    "TotalContentJsonBytes":  448050265,
+                    "TotalSavedInitialBytes":  447566661,
+                    "ReductionPercent":  99.8921,
+                    "AvgRatio":  942.81,
+                    "MedianRatio":  745.76,
+                    "DistinctTables":  4
+                },
+    "ByTable":  [
+                    {
+                        "TableName":  "crew_certificate",
+                        "FileCount":  89,
+                        "TotalFileBytes":  91093725,
+                        "TotalMetadataJsonBytes":  39516,
+                        "TotalContentJsonBytes":  121500219,
+                        "TotalSavedInitialBytes":  121460703,
+                        "ReductionPercent":  99.9675,
+                        "AvgRatio":  3074.71
+                    },
+                    {
+                        "TableName":  "crew_member",
+                        "FileCount":  350,
+                        "TotalFileBytes":  21238032,
+                        "TotalMetadataJsonBytes":  168236,
+                        "TotalContentJsonBytes":  28487050,
+                        "TotalSavedInitialBytes":  28318814,
+                        "ReductionPercent":  99.4094,
+                        "AvgRatio":  176.13
+                    },
+                    {
+                        "TableName":  "health_document",
+                        "FileCount":  167,
+                        "TotalFileBytes":  87986953,
+                        "TotalMetadataJsonBytes":  82032,
+                        "TotalContentJsonBytes":  117398476,
+                        "TotalSavedInitialBytes":  117316444,
+                        "ReductionPercent":  99.9301,
+                        "AvgRatio":  1429.85
+                    },
+                    {
+                        "TableName":  "travel_document",
+                        "FileCount":  394,
+                        "TotalFileBytes":  135352123,
+                        "TotalMetadataJsonBytes":  193820,
+                        "TotalContentJsonBytes":  180664520,
+                        "TotalSavedInitialBytes":  180470700,
+                        "ReductionPercent":  99.8927,
+                        "AvgRatio":  935.86
+                    }
+                ],
+    "NetworkScenarios":  {
+                             "Cellular_4G":  {
+                                                 "EligibleFileCount":  439,
+                                                 "DeferredFileCount":  561,
+                                                 "EligibleContentJsonBytes":  149987269,
+                                                 "DeferredContentJsonBytes":  298062996,
+                                                 "InitialMetadataJsonBytesAllFiles":  483604
+                                             },
+                             "Shore_WiFi":  {
+                                                "EligibleFileCount":  1000,
+                                                "DeferredFileCount":  0,
+                                                "EligibleContentJsonBytes":  448050265,
+                                                "InitialMetadataJsonBytesAllFiles":  483604
+                                            }
+                         }
+}

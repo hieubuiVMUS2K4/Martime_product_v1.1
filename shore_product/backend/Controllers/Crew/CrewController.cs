@@ -27,13 +27,15 @@ public class CrewController : ControllerBase
     private readonly ILogger<CrewController> _logger;
     private readonly AppDbContext _context;
     private readonly ISyncOutboxService _syncOutbox;
+    private readonly ISyncFileStorageService _syncFileStorageService;
 
-    public CrewController(ICrewService crewService, ILogger<CrewController> logger, AppDbContext context, ISyncOutboxService syncOutbox)
+    public CrewController(ICrewService crewService, ILogger<CrewController> logger, AppDbContext context, ISyncOutboxService syncOutbox, ISyncFileStorageService syncFileStorageService)
     {
         _crewService = crewService;
         _logger = logger;
         _context = context;
         _syncOutbox = syncOutbox;
+        _syncFileStorageService = syncFileStorageService;
     }
 
     // ============================================================
@@ -473,25 +475,18 @@ public class CrewController : ControllerBase
             var crew = await _context.CrewMembers.FindAsync(id);
             if (crew == null) return NotFound(new { error = "Crew member not found" });
 
-            var uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "crew", "avatars");
-            Directory.CreateDirectory(uploadsRoot);
-
             var fileName = $"avatar_{id}_{DateTime.UtcNow:yyyyMMddHHmmss}{extension}";
-            var filePath = Path.Combine(uploadsRoot, fileName);
+            var relativePath = $"/uploads/crew/avatars/{fileName}";
 
             // Delete old avatar file if stored locally
             if (!string.IsNullOrEmpty(crew.PhotoUrl) && crew.PhotoUrl.StartsWith("/uploads/"))
-            {
-                var oldPath = Path.Combine(Directory.GetCurrentDirectory(),
-                    crew.PhotoUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-                if (System.IO.File.Exists(oldPath))
-                    System.IO.File.Delete(oldPath);
-            }
+                await _syncFileStorageService.DeleteIfExistsAsync(crew.PhotoUrl, HttpContext.RequestAborted);
 
-            await using var stream = new FileStream(filePath, FileMode.Create);
-            await file.CopyToAsync(stream);
+            await using var buffer = new MemoryStream();
+            await file.CopyToAsync(buffer, HttpContext.RequestAborted);
+            await _syncFileStorageService.WriteAllBytesAsync(relativePath, buffer.ToArray(), HttpContext.RequestAborted);
 
-            crew.PhotoUrl = $"/uploads/crew/avatars/{fileName}";
+            crew.PhotoUrl = relativePath;
             crew.UpdatedAt = DateTime.UtcNow;
             _context.CrewMembers.Update(crew);
             await _context.SaveChangesAsync();

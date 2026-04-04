@@ -1,0 +1,2 @@
+﻿"scenario","repetition","iteration","timestamp_utc","pending_before","pending_after","trigger_latency_ms","response_json"
+"LAN-10","1","1","2026-03-21T18:05:47.4716779Z","10","0","119.413","{""message"":""Đồng bộ hoàn tất"",""totalSynced"":10,""pendingRecords"":0}"

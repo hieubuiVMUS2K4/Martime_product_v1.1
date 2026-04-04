@@ -1,0 +1,2 @@
+﻿"scenario","network","repetition","record_count","pending_before","pending_after","trigger_iterations","queue_drain_seconds","avg_trigger_latency_ms","max_trigger_latency_ms","queued_records","synced_records","benchmark_pending_records","retried_records","retry_count_total","primary_cpu_percent","primary_memory_bytes","success","started_at_utc","finished_at_utc"
+"ProgressSmoke","LAN","1","10","10","10","21","30.43","23.708","65.24","10","0","10","10","10","0.48","52533658","False","2026-03-22T05:45:53.4179849Z","2026-03-22T05:46:26.9304654Z"

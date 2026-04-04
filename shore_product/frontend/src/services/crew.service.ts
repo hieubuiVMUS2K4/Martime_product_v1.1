@@ -1,4 +1,5 @@
 import { ENV } from '../config/env';
+import { buildAuthHeaders } from './api.client';
 import type {
   CrewMember, CrewDetail, CrewCertificate, CrewDocument, ServiceRecord,
   CertificateType, Rank, Country, ComplianceReport,
@@ -15,7 +16,7 @@ const BASE = ENV.API_BASE_URL;
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: buildAuthHeaders({ 'Content-Type': 'application/json', ...options?.headers }),
     ...options,
   });
 
@@ -168,7 +169,11 @@ export const crewApi = {
 
   /** Upload / replace crew avatar photo */
   uploadAvatar: async (crewId: string, formData: FormData): Promise<{ message: string; avatarUrl: string; crewMember: CrewMember }> => {
-    const res = await fetch(`${BASE}/crew/${crewId}/avatar`, { method: 'POST', body: formData });
+    const res = await fetch(`${BASE}/crew/${crewId}/avatar`, {
+      method: 'POST',
+      body: formData,
+      headers: buildAuthHeaders(),
+    });
     if (!res.ok) {
       let message = res.statusText;
       try { const b = await res.json(); message = b.error || b.message || message; } catch { /* ignore */ }
@@ -250,6 +255,7 @@ export const certificateApi = {
     const res = await fetch(`${BASE}/certificates/crew-certificates/${crewCertificateId}/file`, {
       method: 'PUT',
       body: formData,
+      headers: buildAuthHeaders(),
     });
     if (!res.ok) {
       let message = res.statusText;

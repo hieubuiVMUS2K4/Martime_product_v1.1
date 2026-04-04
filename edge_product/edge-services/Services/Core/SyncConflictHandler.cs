@@ -248,7 +248,7 @@ public class SyncConflictHandler : ISyncConflictHandler
                 var edgeOwnedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
                     "IsOnboard", "EmbarkDate", "DisembarkDate",
-                    "EmbarkPort", "DisembarkPort", "AvatarUrl",
+                    "EmbarkPort", "DisembarkPort", "AvatarUrl", "PhotoUrl",
                     "OnboardStatusChangedAt", "OnboardStatusChangedBy",
                     "EdgeChanges", "EdgeChangesViewed"
                 };
@@ -275,11 +275,10 @@ public class SyncConflictHandler : ISyncConflictHandler
             }
             else if (tableName == "crew_certificate")
             {
-                // Shore wins official cert data including file path
-                // (SaveSyncedFileAsync saves the actual file locally with the same filename)
+                // Shore wins official cert metadata, edge keeps local file state.
                 var edgeOwnedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
-                    "Remarks"
+                    "Remarks", "DocumentFilePath", "FilePath", "FileUrl"
                 };
                 shouldApply = !edgeOwnedFields.Contains(prop.Name);
             }
