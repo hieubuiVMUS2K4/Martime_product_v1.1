@@ -1,0 +1,1 @@
+INSERT INTO sync_outbox ("TargetNode", "TableName", "RecordKey", "ActionType", "Payload", "SyncVersion", "CreatedAt", "DeliveredAt") VALUES ('IMO-LOCAL-EDGE', 'crew_members', 'fcfeb2b1-7a6c-4b62-9e90-c651ad26add6', 0, '{"Id":"fcfeb2b1-7a6c-4b62-9e90-c651ad26add6","Name":"Nguyen Van Test"}', 1, now(), NULL);

@@ -37,7 +37,7 @@ var conn = configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(conn))
     throw new InvalidOperationException("ConnectionStrings:DefaultConnection must be configured.");
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContext<AppDbContext>((sp, options) =>
     options.UseNpgsql(conn)
            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 
