@@ -31,6 +31,7 @@ import { parseTaskScheduleInfo } from '@/types/maritime.types';
 import type { EquipmentAsset, MaintenanceSchedule, CreateMaintenanceScheduleDto, CreateScheduleSparePartDto, ChecklistItemTemplateDto } from '@/types/pms.types';
 
 type ViewTab = 'table' | 'calendar' | 'gantt' | 'kanban' | 'counter' | 'config';
+const SHOW_KANBAN_TAB = false;
 
 // Checklist templates for common equipment
 const CHECKLIST_TEMPLATES: Record<string, { label: string; items: { desc: string; reading?: boolean; unit?: string; min?: number; max?: number }[] }> = {
@@ -174,6 +175,12 @@ export default function WorkPlanningPage() {
 
   // === View state ===
   const [activeTab, setActiveTab] = useState<ViewTab>('table');
+
+  useEffect(() => {
+    if (!SHOW_KANBAN_TAB && activeTab === 'kanban') {
+      setActiveTab('table');
+    }
+  }, [activeTab]);
 
   // === Data state ===
   const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
@@ -773,25 +780,10 @@ export default function WorkPlanningPage() {
   }, [loadData, loadSchedules]);
 
   // === Split active vs history tasks ===
-  const HISTORY_DAYS = 7;
   const { activeTasks, historyTasks } = useMemo(() => {
-    const now = new Date();
-    const active: MaintenanceTask[] = [];
-    const history: MaintenanceTask[] = [];
-    for (const task of tasks) {
-      if (
-        (task.status === 'COMPLETED' || task.status === 'CANCELLED') &&
-        task.completedAt
-      ) {
-        const completedDate = parseISO(task.completedAt);
-        const daysSinceCompleted = Math.floor((now.getTime() - completedDate.getTime()) / 86400000);
-        if (daysSinceCompleted >= HISTORY_DAYS) {
-          history.push(task);
-          continue;
-        }
-      }
-      active.push(task);
-    }
+    const history = tasks.filter(task => task.status === 'COMPLETED' || task.status === 'CANCELLED');
+    // Keep main list intact; history is an additional copied view
+    const active = [...tasks];
     return { activeTasks: active, historyTasks: history };
   }, [tasks]);
 
@@ -1191,7 +1183,7 @@ export default function WorkPlanningPage() {
             { key: 'table' as ViewTab, label: t('pms.workPlanning.tabs.table'), icon: Table2 },
             { key: 'calendar' as ViewTab, label: t('pms.workPlanning.tabs.calendar'), icon: Calendar },
             { key: 'gantt' as ViewTab, label: t('pms.workPlanning.tabs.gantt'), icon: BarChart3 },
-            { key: 'kanban' as ViewTab, label: t('pms.workPlanning.tabs.kanban'), icon: LayoutGrid },
+            ...(SHOW_KANBAN_TAB ? [{ key: 'kanban' as ViewTab, label: t('pms.workPlanning.tabs.kanban'), icon: LayoutGrid }] : []),
             { key: 'counter' as ViewTab, label: t('pms.workPlanning.tabs.counter'), icon: Gauge },
             { key: 'config' as ViewTab, label: t('pms.workPlanning.tabs.config'), icon: Settings },
           ]).map(tab => (
@@ -1760,7 +1752,7 @@ export default function WorkPlanningPage() {
           )}
 
           {/* ============ TAB: KANBAN ============ */}
-          {activeTab === 'kanban' && (
+          {SHOW_KANBAN_TAB && activeTab === 'kanban' && (
             <div className="p-4">
               <KanbanBoard
                 tasks={filteredTasks}
