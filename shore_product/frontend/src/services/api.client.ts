@@ -1,9 +1,40 @@
 import { API_CONFIG } from '@/config/app.config';
 
 // ── Auth Token Provider ────────────────────────────────────────────────────────
-// Shore has no authentication layer yet; token is always null.
 export function getAuthToken(): string | null {
+  const candidates = ['authToken', 'token', 'accessToken', 'jwt'];
+  for (const key of candidates) {
+    const localValue = globalThis.localStorage?.getItem(key);
+    if (localValue) return localValue;
+
+    const sessionValue = globalThis.sessionStorage?.getItem(key);
+    if (sessionValue) return sessionValue;
+  }
+
   return null;
+}
+
+export function getInternalApiKey(): string | null {
+  const configured = import.meta.env.VITE_INTERNAL_API_KEY;
+  return typeof configured === 'string' && configured.trim() !== ''
+    ? configured.trim()
+    : null;
+}
+
+export function buildAuthHeaders(headers: HeadersInit = {}): HeadersInit {
+  const merged = new Headers(headers);
+  const token = getAuthToken();
+  const internalApiKey = getInternalApiKey();
+
+  if (token && !merged.has('Authorization')) {
+    merged.set('Authorization', `Bearer ${token}`);
+  }
+
+  if (internalApiKey && !merged.has('X-Internal-Api-Key')) {
+    merged.set('X-Internal-Api-Key', internalApiKey);
+  }
+
+  return merged;
 }
 
 // ── ApiClient ─────────────────────────────────────────────────────────────────
@@ -26,10 +57,10 @@ export class ApiClient {
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         ...options,
         signal: controller.signal,
-        headers: {
+        headers: buildAuthHeaders({
           'Content-Type': 'application/json',
           ...options.headers,
-        },
+        }),
       });
 
       clearTimeout(timeoutId);

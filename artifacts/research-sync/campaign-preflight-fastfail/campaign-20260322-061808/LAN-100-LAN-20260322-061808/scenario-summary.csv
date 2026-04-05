@@ -1,0 +1,2 @@
+﻿"scenario","network","repetition","record_count","pending_before","pending_after","trigger_iterations","queue_drain_seconds","avg_trigger_latency_ms","max_trigger_latency_ms","queued_records","synced_records","benchmark_pending_records","retried_records","retry_count_total","primary_cpu_percent","primary_memory_bytes","success","started_at_utc","finished_at_utc"
+"LAN-100","LAN","1","100","100","102","15","31.105","24.22","53.144","100","0","100","100","100","0.2","87912612","False","2026-03-22T06:18:08.9689565Z","2026-03-22T06:18:42.1305926Z"

@@ -15,6 +15,7 @@ import { useToast } from '../../components/common/Toast';
 import { useConfirmDialog } from '../../components/common/ConfirmDialog';
 import { CrewFormModal } from './CrewFormModal';
 import { AssignShipModal } from './AssignShipModal';
+import ProtectedImage from '../../components/common/ProtectedImage';
 import type { CrewMember, CreateCrewRequest, CrewCertificate } from '../../types/crew.types';
 import './CrewListPage.css';
 
@@ -388,7 +389,7 @@ export const CrewListPage: React.FC = () => {
                   <td>
                     <button className="cl-name-link" onClick={() => navigate(`/crew/${m.id}`)}>
                       <span className="cl-av" style={{ background: hashColor(m.id) }}>
-                        {m.avatarUrl ? <img src={m.avatarUrl} alt="" /> : getInitials(m.fullName)}
+                        {m.avatarUrl ? <ProtectedImage src={m.avatarUrl} alt="" /> : getInitials(m.fullName)}
                       </span>
                       <div>
                         <div className="cl-name">{m.fullName}</div>

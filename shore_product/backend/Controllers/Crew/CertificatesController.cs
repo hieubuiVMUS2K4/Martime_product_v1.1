@@ -22,13 +22,15 @@ public class CertificatesController : ControllerBase
     private readonly AppDbContext _context;
     private readonly ILogger<CertificatesController> _logger;
     private readonly ISyncOutboxService _syncOutbox;
+    private readonly ISyncFileStorageService _syncFileStorageService;
 
-    public CertificatesController(ICertificateService certService, AppDbContext context, ILogger<CertificatesController> logger, ISyncOutboxService syncOutbox)
+    public CertificatesController(ICertificateService certService, AppDbContext context, ILogger<CertificatesController> logger, ISyncOutboxService syncOutbox, ISyncFileStorageService syncFileStorageService)
     {
         _certService = certService;
         _context = context;
         _logger = logger;
         _syncOutbox = syncOutbox;
+        _syncFileStorageService = syncFileStorageService;
     }
 
     // ============================================================
@@ -334,29 +336,22 @@ public class CertificatesController : ControllerBase
             if (crewCertificate == null)
                 return NotFound(new { error = "Crew certificate not found", id });
 
-            var uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "crew", "certificates");
-            Directory.CreateDirectory(uploadsRoot);
-
             // Name file by crewId + certificate name for clarity
             var safeCrewId = crewCertificate.CrewMember?.CrewId ?? crewCertificate.CrewMemberId.ToString();
             var safeCertName = (crewCertificate.Certificate?.CertificateName ?? $"cert_{id}")
                 .Replace(" ", "_").Replace("/", "_").Replace("\\", "_");
             var fileName = $"{safeCrewId}_{safeCertName}{extension}";
-            var filePath = Path.Combine(uploadsRoot, fileName);
+            var relativePath = $"/uploads/crew/certificates/{fileName}";
 
             // Delete old file if exists
             if (!string.IsNullOrEmpty(crewCertificate.DocumentFilePath))
-            {
-                var oldPath = Path.Combine(Directory.GetCurrentDirectory(),
-                    crewCertificate.DocumentFilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-                if (System.IO.File.Exists(oldPath))
-                    System.IO.File.Delete(oldPath);
-            }
+                await _syncFileStorageService.DeleteIfExistsAsync(crewCertificate.DocumentFilePath, HttpContext.RequestAborted);
 
-            await using var stream = new FileStream(filePath, FileMode.Create);
-            await file.CopyToAsync(stream);
+            await using var buffer = new MemoryStream();
+            await file.CopyToAsync(buffer, HttpContext.RequestAborted);
+            await _syncFileStorageService.WriteAllBytesAsync(relativePath, buffer.ToArray(), HttpContext.RequestAborted);
 
-            crewCertificate.DocumentFilePath = $"/uploads/crew/certificates/{fileName}";
+            crewCertificate.DocumentFilePath = relativePath;
             crewCertificate.UpdatedAt = DateTime.UtcNow;
             _context.CrewCertificates.Update(crewCertificate);
             await _context.SaveChangesAsync();

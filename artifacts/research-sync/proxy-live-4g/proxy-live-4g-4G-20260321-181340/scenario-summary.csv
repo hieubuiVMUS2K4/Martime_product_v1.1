@@ -1,0 +1,2 @@
+﻿"scenario","network","repetition","record_count","pending_before","pending_after","trigger_iterations","queue_drain_seconds","avg_trigger_latency_ms","max_trigger_latency_ms","queued_records","synced_records","benchmark_pending_records","retried_records","retry_count_total","primary_cpu_percent","primary_memory_bytes","success","started_at_utc","finished_at_utc"
+"proxy-live-4g","4G","1","100","100","0","1","3.306","1267.22","1267.22","100","100","0","0","0","0.03","50667192","True","2026-03-21T18:13:41.7089082Z","2026-03-21T18:13:47.4435351Z"

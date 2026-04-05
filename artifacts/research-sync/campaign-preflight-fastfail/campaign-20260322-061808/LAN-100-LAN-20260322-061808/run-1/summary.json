@@ -1,0 +1,22 @@
+﻿{
+    "scenario":  "LAN-100",
+    "network":  "LAN",
+    "repetition":  1,
+    "record_count":  100,
+    "pending_before":  100,
+    "pending_after":  102,
+    "trigger_iterations":  15,
+    "queue_drain_seconds":  31.105,
+    "avg_trigger_latency_ms":  24.22,
+    "max_trigger_latency_ms":  53.144,
+    "queued_records":  100,
+    "synced_records":  0,
+    "benchmark_pending_records":  100,
+    "retried_records":  100,
+    "retry_count_total":  100,
+    "primary_cpu_percent":  0.2,
+    "primary_memory_bytes":  87912612,
+    "success":  false,
+    "started_at_utc":  "2026-03-22T06:18:08.9689565Z",
+    "finished_at_utc":  "2026-03-22T06:18:42.1305926Z"
+}

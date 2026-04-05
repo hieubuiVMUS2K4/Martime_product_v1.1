@@ -1,0 +1,11 @@
+﻿{
+    "BlockIO":  "516MB / 4.12GB",
+    "CPUPerc":  "3.32%",
+    "Container":  "maritime-edge-postgres",
+    "ID":  "1936510ca9c2",
+    "MemPerc":  "3.41%",
+    "MemUsage":  "536.1MiB / 15.33GiB",
+    "Name":  "maritime-edge-postgres",
+    "NetIO":  "239MB / 616MB",
+    "PIDs":  "8"
+}

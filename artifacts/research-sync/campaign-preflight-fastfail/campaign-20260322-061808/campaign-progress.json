@@ -1,0 +1,19 @@
+﻿{
+    "status":  "completed",
+    "preset":  "Custom",
+    "campaign_root":  "F:\\NCKH\\Product\\Martime_product_v1.1\\artifacts\\research-sync\\campaign-preflight-fastfail\\campaign-20260322-061808",
+    "total_profiles":  1,
+    "total_record_counts":  1,
+    "total_scenarios":  1,
+    "total_repetitions":  1,
+    "completed_scenarios":  1,
+    "current_scenario_index":  1,
+    "progress_percent":  100,
+    "current_profile":  "",
+    "current_record_count":  0,
+    "current_repetitions":  0,
+    "current_scenario_name":  "",
+    "current_scenario_path":  "",
+    "updated_at_utc":  "2026-03-22T06:18:42.2318341Z",
+    "note":  "Campaign completed successfully."
+}

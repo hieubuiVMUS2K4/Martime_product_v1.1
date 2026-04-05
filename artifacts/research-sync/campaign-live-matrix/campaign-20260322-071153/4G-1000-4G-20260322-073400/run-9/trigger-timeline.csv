@@ -1,0 +1,2 @@
+﻿"scenario","repetition","iteration","timestamp_utc","pending_before","pending_after","benchmark_synced_before","benchmark_synced_after","global_pending_before","global_pending_after","progress_detected","trigger_latency_ms","response_json"
+"4G-1000","9","1","2026-03-22T07:35:48.7162693Z","1000","0","0","1000","1000","0","True","6126.046","{""message"":""Đồng bộ hoàn tất"",""totalSynced"":1000,""pendingRecords"":0}"

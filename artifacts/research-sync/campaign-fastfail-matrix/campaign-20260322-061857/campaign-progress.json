@@ -1,0 +1,19 @@
+﻿{
+    "status":  "running-scenario",
+    "preset":  "Custom",
+    "campaign_root":  "F:\\NCKH\\Product\\Martime_product_v1.1\\artifacts\\research-sync\\campaign-fastfail-matrix\\campaign-20260322-061857",
+    "total_profiles":  3,
+    "total_record_counts":  4,
+    "total_scenarios":  12,
+    "total_repetitions":  12,
+    "completed_scenarios":  0,
+    "current_scenario_index":  1,
+    "progress_percent":  0,
+    "current_profile":  "LAN",
+    "current_record_count":  100,
+    "current_repetitions":  1,
+    "current_scenario_name":  "LAN-100",
+    "current_scenario_path":  "",
+    "updated_at_utc":  "2026-03-22T06:18:57.6560920Z",
+    "note":  "Scenario execution started."
+}

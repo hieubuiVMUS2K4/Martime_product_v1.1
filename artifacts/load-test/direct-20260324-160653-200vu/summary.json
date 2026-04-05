@@ -1,0 +1,500 @@
+{
+    "metrics": {
+        "iterations": {
+            "count": 2932,
+            "rate": 19.30936997010299
+        },
+        "http_req_connecting": {
+            "min": 0,
+            "med": 0,
+            "p(90)": 0,
+            "p(95)": 117.73969999999981,
+            "p(99)": 1693.127571999997,
+            "max": 7371.9789,
+            "avg": 63.83484504596522
+        },
+        "checks": {
+            "passes": 4468,
+            "fails": 2837,
+            "thresholds": {
+                "rate>0.98": true
+            },
+            "value": 0.6116358658453114
+        },
+        "vus": {
+            "value": 1,
+            "min": 0,
+            "max": 200
+        },
+        "vus_max": {
+            "max": 200,
+            "value": 200,
+            "min": 200
+        },
+        "data_sent": {
+            "rate": 3805.0457015676584,
+            "count": 577771
+        },
+        "http_req_duration{endpoint:reports-vessel-detail}": {
+            "avg": 8455.69309934211,
+            "min": 0,
+            "med": 1298.5050999999999,
+            "p(90)": 30000.3012,
+            "p(95)": 30000.3917,
+            "p(99)": 30000.534994,
+            "max": 30000.6205,
+            "thresholds": {
+                "p(95)<3000": true
+            }
+        },
+        "http_reqs": {
+            "count": 2937,
+            "rate": 19.342298636491297
+        },
+        "http_req_tls_handshaking": {
+            "p(95)": 96.18305999999968,
+            "p(99)": 1030.2421759999972,
+            "max": 12877.2384,
+            "avg": 42.40201538985358,
+            "min": 0,
+            "med": 0,
+            "p(90)": 0
+        },
+        "http_req_duration{endpoint:health}": {
+            "avg": 1429.369272916667,
+            "min": 0,
+            "med": 440.8115,
+            "p(90)": 2397.432980000003,
+            "p(95)": 4043.7692249999986,
+            "p(99)": 17960.922386999988,
+            "max": 30000.7089,
+            "thresholds": {
+                "p(95)<500": true
+            }
+        },
+        "http_req_duration{endpoint:vessels}": {
+            "p(90)": 20136.168560000002,
+            "p(95)": 30000.153,
+            "p(99)": 30000.530972,
+            "max": 30000.6502,
+            "avg": 5353.846456242118,
+            "min": 0,
+            "med": 1191.1339,
+            "thresholds": {
+                "p(95)<2500": true
+            }
+        },
+        "http_req_receiving": {
+            "min": 0,
+            "med": 0,
+            "p(90)": 103.00392000000002,
+            "p(95)": 439.004579999999,
+            "p(99)": 2735.9424319999794,
+            "max": 26030.7949,
+            "avg": 133.6565449778685
+        },
+        "http_req_duration{endpoint:voyages-list}": {
+            "med": 992.1157000000001,
+            "p(90)": 23231.05633,
+            "p(95)": 30000.263935,
+            "p(99)": 30000.63181,
+            "max": 30000.7908,
+            "avg": 6033.358363561639,
+            "min": 0,
+            "thresholds": {
+                "p(95)<2500": true
+            }
+        },
+        "http_req_duration{expected_response:true}": {
+            "p(90)": 8559.617860000004,
+            "p(95)": 9792.33348,
+            "p(99)": 13555.803256999998,
+            "max": 23385.9653,
+            "avg": 3013.261188181822,
+            "min": 63.3996,
+            "med": 1443.7195000000002
+        },
+        "http_req_duration{endpoint:reports-vessels}": {
+            "med": 1032.766,
+            "p(90)": 19746.183479999996,
+            "p(95)": 30000.2287,
+            "p(99)": 30000.552092,
+            "max": 30000.6941,
+            "avg": 5035.430976470588,
+            "min": 57.0589,
+            "thresholds": {
+                "p(95)<2500": true
+            }
+        },
+        "http_req_failed": {
+            "passes": 1287,
+            "fails": 1650,
+            "thresholds": {
+                "rate<0.02": true
+            },
+            "value": 0.43820224719101125
+        },
+        "http_req_blocked": {
+            "min": 0,
+            "med": 0,
+            "p(90)": 0,
+            "p(95)": 238.6553199999993,
+            "p(99)": 2631.096963999994,
+            "max": 13110.3568,
+            "avg": 92.76181144024517
+        },
+        "http_req_duration": {
+            "avg": 5757.68316670072,
+            "min": 0,
+            "med": 1088.9628,
+            "p(90)": 21994.04594,
+            "p(95)": 30000.26014,
+            "p(99)": 30000.604128,
+            "max": 30001.3329,
+            "thresholds": {
+                "p(95)<2000": true,
+                "p(99)<5000": true
+            }
+        },
+        "http_req_sending": {
+            "p(95)": 0.5347,
+            "p(99)": 0.6613399999999996,
+            "max": 0.9945,
+            "avg": 0.14347351038474626,
+            "min": 0,
+            "med": 0,
+            "p(90)": 0.46614
+        },
+        "http_req_waiting": {
+            "p(95)": 30000.147680000002,
+            "p(99)": 30000.540784,
+            "max": 30000.9512,
+            "avg": 5623.883148212466,
+            "min": 0,
+            "med": 1030.4334,
+            "p(90)": 21895.90066
+        },
+        "shore_endpoint_duration": {
+            "min": 0,
+            "med": 1088.9628,
+            "p(90)": 21994.04594,
+            "p(95)": 30000.26014,
+            "p(99)": 30000.604128,
+            "max": 30001.3329,
+            "avg": 5757.68316670072
+        },
+        "data_received": {
+            "count": 11940811,
+            "rate": 78638.99636496435
+        },
+        "http_req_duration{endpoint:voyage-detail}": {
+            "p(90)": 22194.563840000003,
+            "p(95)": 24959.209649999993,
+            "p(99)": 30000.496070999998,
+            "max": 30000.6269,
+            "avg": 6391.99928587786,
+            "min": 55.1681,
+            "med": 1534.8903,
+            "thresholds": {
+                "p(95)<3000": true
+            }
+        },
+        "http_req_duration{endpoint:fleet-summary}": {
+            "med": 1158.1518,
+            "p(90)": 25702.88316000003,
+            "p(95)": 30000.389760000002,
+            "p(99)": 30000.634956,
+            "max": 30001.3329,
+            "avg": 6418.56388694885,
+            "min": 0,
+            "thresholds": {
+                "p(95)<2500": true
+            }
+        },
+        "iteration_duration": {
+            "avg": 7505.693703376533,
+            "min": 913.3409,
+            "med": 2973.40495,
+            "p(90)": 23607.843910000003,
+            "p(95)": 31354.993019999998,
+            "p(99)": 32274.106557,
+            "max": 32497.8088
+        }
+    },
+    "setup_data": {
+        "fleetCount": 5,
+        "reportVesselIds": [
+            "4999069e-f38d-46a8-b46c-41f79d06f9f1",
+            "c7fc415e-65d6-4e80-876b-e33090a957b1",
+            "c207aae8-8388-47df-aa4d-271ae887bc25",
+            "0cad390b-4cfe-4890-ae46-6423737f8b64",
+            "19b47ed5-14fe-4230-bb76-37d94779f07e"
+        ],
+        "vesselIds": [
+            "0cad390b-4cfe-4890-ae46-6423737f8b64",
+            "19b47ed5-14fe-4230-bb76-37d94779f07e",
+            "4999069e-f38d-46a8-b46c-41f79d06f9f1",
+            "c207aae8-8388-47df-aa4d-271ae887bc25",
+            "c7fc415e-65d6-4e80-876b-e33090a957b1"
+        ],
+        "voyageIds": [
+            "bbbbbbbb-0003-0000-0000-000000000003",
+            "bbbbbbbb-0002-0000-0000-000000000002",
+            "59cab894-99f3-45ec-823e-21aec6c736c4",
+            "54b1276d-41e6-44fd-bea8-b7868ffef263",
+            "95476429-f4de-4224-aa90-3691af398591",
+            "22328ac6-8ff0-4a8c-b4b3-c8a522bcd093",
+            "0a458900-ba32-4bd2-84ec-cb61db2e26d1",
+            "bbbbbbbb-0001-0000-0000-000000000001"
+        ],
+        "voyagesTotal": 8
+    },
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {
+            "setup": {
+                "path": "::setup",
+                "id": "5c0f8025f7e0b6654089e5b00e950f1a",
+                "groups": {},
+                "checks": {
+                        "health status is 200": {
+                            "name": "health status is 200",
+                            "path": "::setup::health status is 200",
+                            "id": "3f54d753cc06693c0278cb39b16724c0",
+                            "passes": 1,
+                            "fails": 0
+                        },
+                        "health body is not empty": {
+                            "name": "health body is not empty",
+                            "path": "::setup::health body is not empty",
+                            "id": "aba1ebb2b67b65e92b5d64358ebed9a2",
+                            "passes": 1,
+                            "fails": 0
+                        },
+                        "health payload status is healthy": {
+                            "passes": 1,
+                            "fails": 0,
+                            "name": "health payload status is healthy",
+                            "path": "::setup::health payload status is healthy",
+                            "id": "502a30b45e65a69c0ebc068d7ef59cb6"
+                        },
+                        "vessels status is 200": {
+                            "fails": 0,
+                            "name": "vessels status is 200",
+                            "path": "::setup::vessels status is 200",
+                            "id": "6f399d6c7f9450eb59bdac7b7b7cb207",
+                            "passes": 1
+                        },
+                        "vessels body is not empty": {
+                            "passes": 1,
+                            "fails": 0,
+                            "name": "vessels body is not empty",
+                            "path": "::setup::vessels body is not empty",
+                            "id": "413fb8e8f58d6df64514e0906fcaf576"
+                        },
+                        "reports-vessels status is 200": {
+                            "path": "::setup::reports-vessels status is 200",
+                            "id": "7d9c0c5a5e7bc493632696fcf5561ab8",
+                            "passes": 1,
+                            "fails": 0,
+                            "name": "reports-vessels status is 200"
+                        },
+                        "reports-vessels body is not empty": {
+                            "fails": 0,
+                            "name": "reports-vessels body is not empty",
+                            "path": "::setup::reports-vessels body is not empty",
+                            "id": "2b2ebb8722112f162eefd4156967fcae",
+                            "passes": 1
+                        },
+                        "voyages-list status is 200": {
+                            "passes": 1,
+                            "fails": 0,
+                            "name": "voyages-list status is 200",
+                            "path": "::setup::voyages-list status is 200",
+                            "id": "333359307b94c4987baee98f3942de63"
+                        },
+                        "voyages-list body is not empty": {
+                            "name": "voyages-list body is not empty",
+                            "path": "::setup::voyages-list body is not empty",
+                            "id": "a88db2735a2012f84597c81fcb8a270d",
+                            "passes": 1,
+                            "fails": 0
+                        },
+                        "fleet-summary status is 200": {
+                            "id": "f1e4894d7f6f4d6d1b6c26ec383cb25f",
+                            "passes": 1,
+                            "fails": 0,
+                            "name": "fleet-summary status is 200",
+                            "path": "::setup::fleet-summary status is 200"
+                        },
+                        "fleet-summary body is not empty": {
+                            "name": "fleet-summary body is not empty",
+                            "path": "::setup::fleet-summary body is not empty",
+                            "id": "eff5efb1083868b846fc3e86d2b6fe2b",
+                            "passes": 1,
+                            "fails": 0
+                        }
+                    },
+                "name": "setup"
+            }
+        },
+        "checks": {
+            "reports-vessels status is 200": {
+                "fails": 100,
+                "name": "reports-vessels status is 200",
+                "path": "::reports-vessels status is 200",
+                "id": "16acf9f2b920dd242141f05970ddf7ec",
+                "passes": 188
+            },
+            "reports-vessels body is not empty": {
+                "name": "reports-vessels body is not empty",
+                "path": "::reports-vessels body is not empty",
+                "id": "0feeee4cf710471244660e1ba8c937a0",
+                "passes": 270,
+                "fails": 18
+            },
+            "fleet-summary status is 200": {
+                "name": "fleet-summary status is 200",
+                "path": "::fleet-summary status is 200",
+                "id": "e479138e3f1072389e21e04b9c995518",
+                "passes": 302,
+                "fails": 264
+            },
+            "fleet-summary body is not empty": {
+                "passes": 512,
+                "fails": 54,
+                "name": "fleet-summary body is not empty",
+                "path": "::fleet-summary body is not empty",
+                "id": "39b1e526bdb95c3ae53f16923732e6dc"
+            },
+            "vessels status is 200": {
+                "id": "77a6ed7b77e157cd240d80f0d6512ef3",
+                "passes": 463,
+                "fails": 329,
+                "name": "vessels status is 200",
+                "path": "::vessels status is 200"
+            },
+            "vessels body is not empty": {
+                "fails": 43,
+                "name": "vessels body is not empty",
+                "path": "::vessels body is not empty",
+                "id": "74c5a8773e099ca48279fd0a84dd77a2",
+                "passes": 749
+            },
+            "voyage-detail status is 200": {
+                "path": "::voyage-detail status is 200",
+                "id": "4b920698095f16e7a2f9d292a3b6113b",
+                "passes": 151,
+                "fails": 111,
+                "name": "voyage-detail status is 200"
+            },
+            "voyage-detail body is not empty": {
+                "fails": 9,
+                "name": "voyage-detail body is not empty",
+                "path": "::voyage-detail body is not empty",
+                "id": "430bc4e4fe1245eeb07af4005241a5a9",
+                "passes": 253
+            },
+            "voyages-list status is 200": {
+                "name": "voyages-list status is 200",
+                "path": "::voyages-list status is 200",
+                "id": "66b29017cabb786f8074c68bceba485b",
+                "passes": 381,
+                "fails": 348
+            },
+            "voyages-list body is not empty": {
+                "passes": 671,
+                "fails": 58,
+                "name": "voyages-list body is not empty",
+                "path": "::voyages-list body is not empty",
+                "id": "eae033e1ccb30a94655a330ea1295f9a"
+            },
+            "reports-vessel-detail status is 200": {
+                "name": "reports-vessel-detail status is 200",
+                "path": "::reports-vessel-detail status is 200",
+                "id": "5fbd37a7d9bed3dddc662cf9f380d196",
+                "passes": 72,
+                "fails": 80
+            },
+            "reports-vessel-detail body is not empty": {
+                "passes": 128,
+                "fails": 24,
+                "name": "reports-vessel-detail body is not empty",
+                "path": "::reports-vessel-detail body is not empty",
+                "id": "f582d7c74f508fd924dabd397ffd3b33"
+            },
+            "health status is 200": {
+                "passes": 88,
+                "fails": 55,
+                "name": "health status is 200",
+                "path": "::health status is 200",
+                "id": "ab698ad652ee317628077e42e47eda00"
+            },
+            "health body is not empty": {
+                "fails": 2,
+                "name": "health body is not empty",
+                "path": "::health body is not empty",
+                "id": "1936f2a7c875cb62d288eb80728506f8",
+                "passes": 141
+            },
+            "health stays healthy during load": {
+                "name": "health stays healthy during load",
+                "path": "::health stays healthy during load",
+                "id": "8d114e5473ea37e448837eb65e45769a",
+                "passes": 88,
+                "fails": 55
+            },
+            "fleet-summary returns valid json": {
+                "passes": 0,
+                "fails": 264,
+                "name": "fleet-summary returns valid json",
+                "path": "::fleet-summary returns valid json",
+                "id": "5870503bb8b9d67acd77c488d538eb99"
+            },
+            "reports-vessel-detail returns valid json": {
+                "name": "reports-vessel-detail returns valid json",
+                "path": "::reports-vessel-detail returns valid json",
+                "id": "9d9b8c917d5f7f2d39249e0b19e6f328",
+                "passes": 0,
+                "fails": 80
+            },
+            "health returns valid json": {
+                "passes": 0,
+                "fails": 55,
+                "name": "health returns valid json",
+                "path": "::health returns valid json",
+                "id": "016a7e2d80902f38b12c8888ce67bfdd"
+            },
+            "voyages-list returns valid json": {
+                "name": "voyages-list returns valid json",
+                "path": "::voyages-list returns valid json",
+                "id": "3e4f7b985bd7472d210a9855aa8d8a3d",
+                "passes": 0,
+                "fails": 348
+            },
+            "vessels returns valid json": {
+                "fails": 329,
+                "name": "vessels returns valid json",
+                "path": "::vessels returns valid json",
+                "id": "8b3948d535615181a367055d9e509330",
+                "passes": 0
+            },
+            "reports-vessels returns valid json": {
+                "id": "d46d20b45ae4473a0c29469ab96a4a3f",
+                "passes": 0,
+                "fails": 100,
+                "name": "reports-vessels returns valid json",
+                "path": "::reports-vessels returns valid json"
+            },
+            "voyage-detail returns valid json": {
+                "name": "voyage-detail returns valid json",
+                "path": "::voyage-detail returns valid json",
+                "id": "dbac97495522768b83e4f0fb81574897",
+                "passes": 0,
+                "fails": 111
+            }
+        }
+    }
+}

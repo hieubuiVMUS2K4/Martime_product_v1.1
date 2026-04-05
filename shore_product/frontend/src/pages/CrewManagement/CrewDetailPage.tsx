@@ -15,6 +15,8 @@ import { AddCrewCertificateModal } from './AddCrewCertificateModal';
 import { AddDocumentModal } from './AddDocumentModal';
 import { AddHealthDocumentModal } from './AddHealthDocumentModal';
 import ImageViewerModal from '../../components/common/ImageViewerModal';
+import ProtectedImage from '../../components/common/ProtectedImage';
+import { openProtectedMediaInNewTab } from '../../services/protectedMedia';
 
 type TabType = 'basic-data' | 'documents' | 'voyage-history' | 'onboarding' | 'doc-workflow' | 'status-history' | 'audit';
 
@@ -346,10 +348,12 @@ export const CrewDetailPage: React.FC = () => {
               <td className="px-4 py-2 text-gray-600 truncate">{doc.countryName || '—'}</td>
               <td className="px-4 py-2 text-center">
                 {doc.fileUrl ? (
-                  <a href={doc.fileUrl} target="_blank" rel="noreferrer"
-                    className="inline-flex items-center justify-center w-7 h-7 rounded bg-blue-500 hover:bg-blue-600 text-white">
+                  <button
+                    onClick={() => { void openProtectedMediaInNewTab(doc.fileUrl!); }}
+                    className="inline-flex items-center justify-center w-7 h-7 rounded bg-blue-500 hover:bg-blue-600 text-white"
+                    style={{ border: 'none', cursor: 'pointer' }}>
                     <Eye className="w-3.5 h-3.5" />
-                  </a>
+                  </button>
                 ) : (
                   <span className="inline-flex items-center justify-center w-7 h-7 rounded bg-gray-200 text-gray-400">
                     <Upload className="w-3.5 h-3.5" />
@@ -568,8 +572,9 @@ export const CrewDetailPage: React.FC = () => {
                     <input className={`${fieldCls} text-center w-32`} value={edited.crewId ?? ''} onChange={e => set('crewId', e.target.value)} />
                   </div>
                   <div className="w-40 h-52 rounded-lg overflow-hidden bg-gray-200 shadow-md relative">
-                    <img
-                      src={pendingAvatarPreview || crew.avatarUrl || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 260'%3E%3Crect width='200' height='260' fill='%23e5e7eb'/%3E%3Ccircle cx='100' cy='70' r='35' fill='%239ca3af'/%3E%3Cellipse cx='100' cy='180' rx='65' ry='50' fill='%239ca3af'/%3E%3C/svg%3E"}
+                    <ProtectedImage
+                      src={pendingAvatarPreview || crew.avatarUrl}
+                      fallbackSrc="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 260'%3E%3Crect width='200' height='260' fill='%23e5e7eb'/%3E%3Ccircle cx='100' cy='70' r='35' fill='%239ca3af'/%3E%3Cellipse cx='100' cy='180' rx='65' ry='50' fill='%239ca3af'/%3E%3C/svg%3E"
                       alt="Avatar"
                       className="w-full h-full object-cover"
                     />

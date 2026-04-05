@@ -1,0 +1,19 @@
+﻿{
+    "status":  "failed",
+    "preset":  "Custom",
+    "campaign_root":  "F:\\NCKH\\Product\\Martime_product_v1.1\\artifacts\\research-sync\\campaign-live-matrix\\campaign-20260322-071122",
+    "total_profiles":  3,
+    "total_record_counts":  4,
+    "total_scenarios":  12,
+    "total_repetitions":  140,
+    "completed_scenarios":  0,
+    "current_scenario_index":  1,
+    "progress_percent":  0,
+    "current_profile":  "LAN",
+    "current_record_count":  100,
+    "current_repetitions":  10,
+    "current_scenario_name":  "LAN-100",
+    "current_scenario_path":  "",
+    "updated_at_utc":  "2026-03-22T07:11:22.1698154Z",
+    "note":  "At F:\\NCKH\\Product\\Martime_product_v1.1\\scripts\\research-sync\\Invoke-ResearchSyncScenario.ps1:241 char:90\r\n+ ... vel WARN -Message \"Trigger/status failed for repetition $rep: $repeti ...\r\n+                                                             ~~~~~\nVariable reference is not valid. \u0027:\u0027 was not followed by a valid variable name character. Consider using ${} to delimit the name."
+}
