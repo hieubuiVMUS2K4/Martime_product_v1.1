@@ -1,0 +1,70 @@
+erDiagram
+    equipment_groups
+    equipment_assets
+    equipment_group_members
+    maintenance_schedules
+    maintenance_tasks
+    maintenance_task_details
+    schedule_checklist_templates
+    task_checklist_items
+    task_deferral_requests
+    task_status_history
+
+    equipment_assets ||--o{ equipment_group_members : 1-N
+    equipment_groups ||--o{ equipment_group_members : 1-N
+
+    equipment_assets ||--o{ maintenance_schedules : 1-N
+    maintenance_schedules ||--o{ maintenance_tasks : 1-N
+    maintenance_tasks ||--o{ maintenance_task_details : 1-N
+
+    maintenance_schedules ||--o{ schedule_checklist_templates : 1-N
+
+    maintenance_tasks ||--o{ task_checklist_items : 1-N
+    equipment_assets ||--o{ task_checklist_items : 1-N
+
+    maintenance_tasks ||--o{ task_deferral_requests : 1-N
+    maintenance_tasks ||--o{ task_status_history : 1-N
+
+    material_categories
+    material_items
+    material_requests
+    material_request_items
+    material_receipts
+    material_receipt_items
+    stock_receipts
+    stock_receipt_items
+    inventory_stock
+    store_locations
+
+    material_categories ||--o{ material_items : 1-N
+    material_requests ||--o{ material_request_items : 1-N
+    material_receipts ||--o{ material_receipt_items : 1-N
+    material_items ||--o{ material_receipt_items : 1-N
+    material_requests ||--o{ stock_receipts : 1-N
+    stock_receipts ||--o{ stock_receipt_items : 1-N
+    MAINTENANCE_HISTORIES {
+        string id PK
+    }
+    SCHEDULE_CHECKLIST_TEMPLATES {
+        string id PK
+    }
+    TASK_CHECKLIST_ITEMS {
+        string id PK
+    }
+    TASK_DEFERRAL_REQUESTS {
+        string id PK
+    }
+    TASK_STATUS_HISTORY {
+        string id PK
+    }
+    STOCK_RECEIPTS {
+        string id PK
+    }
+    STOCK_RECEIPT_ITEMS {
+        string id PK
+    }
+
+    MAINTENANCE_TASKS ||--o{ TASK_CHECKLIST_ITEMS : "has"
+    MAINTENANCE_TASKS ||--o{ TASK_DEFERRAL_REQUESTS : "deferrals"
+    MAINTENANCE_TASKS ||--o{ TASK_STATUS_HISTORY : "status_history"
+    MATERIAL_RECEIPTS ||--o{ STOCK_RECEIPTS : "stock_in"

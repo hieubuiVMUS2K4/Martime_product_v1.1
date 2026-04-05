@@ -1,0 +1,45 @@
+erDiagram
+    crew_members
+    ranks
+    countries
+    certificates
+    crew_certificates
+    rank_certificates
+    country_certificates
+    employment_documents
+    seafarer_documents
+    travel_documents
+    health_documents
+    service_records
+    roles
+    users
+    user_sessions
+
+    ranks ||--o{ crew_members : 1-N
+    countries ||--o{ crew_members : 1-N
+
+    crew_members ||--o{ crew_certificates : 1-N
+    certificates ||--o{ crew_certificates : 1-N
+    countries ||--o{ crew_certificates : 1-N
+
+    ranks ||--o{ rank_certificates : 1-N
+    certificates ||--o{ rank_certificates : 1-N
+
+    countries ||--o{ country_certificates : 1-N
+    certificates ||--o{ country_certificates : 1-N
+
+    crew_members ||--o{ employment_documents : 1-N
+    countries ||--o{ employment_documents : 1-N
+
+    crew_members ||--o{ seafarer_documents : 1-N
+    countries ||--o{ seafarer_documents : 1-N
+
+    crew_members ||--o{ travel_documents : 1-N
+    countries ||--o{ travel_documents : 1-N
+
+    crew_members ||--o{ health_documents : 1-N
+    crew_members ||--o{ service_records : 1-N
+
+    crew_members ||--o{ users : 1-N
+    roles ||--o{ users : 1-N
+    users ||--o{ user_sessions : 1-N

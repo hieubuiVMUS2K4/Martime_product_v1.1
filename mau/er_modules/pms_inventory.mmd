@@ -1,0 +1,151 @@
+erDiagram
+    EQUIPMENT_ASSETS {
+        string id PK
+        string asset_code
+        string name
+        string category
+        string manufacturer
+        string model
+        string serial_number
+        datetime installation_date
+        float current_running_hours
+        datetime last_running_hours_update
+        string equipment_group_id
+        string location
+        string criticality
+        string status
+        datetime created_at
+    }
+    EQUIPMENT_GROUPS {
+        string id PK
+        string name
+        string description
+    }
+    EQUIPMENT_GROUP_MEMBERS {
+        string id PK
+        string group_id FK
+        string asset_id FK
+        int sequence_order
+    }
+    MAINTENANCE_SCHEDULES {
+        string id PK
+        string schedule_code
+        string schedule_name
+        string interval_type
+        int interval_hours
+        int interval_days
+        datetime last_maintenance_date
+        datetime next_due_date
+        string priority
+        boolean auto_generate
+        string assigned_to_role
+        boolean is_active
+        string equipment_asset_id
+        string equipment_group_id
+    }
+    MAINTENANCE_TASKS {
+        string id PK
+        string task_id
+        int task_type_id
+        string equipment_id
+        string equipment_name
+        string task_type
+        string task_description
+        datetime next_due_at
+        string priority
+        string status
+        string assigned_to
+        datetime started_at
+        datetime completed_at
+    }
+    MAINTENANCE_TASK_DETAILS {
+        string id PK
+        string maintenance_task_id FK
+        int task_detail_id
+        string status
+        boolean is_completed
+        float measured_value
+        string notes
+        datetime completed_at
+    }
+    SCHEDULE_SPARE_PARTS {
+        string id PK
+        string schedule_id FK
+        string material_item_id FK
+        float quantity
+    }
+    MATERIAL_ITEMS {
+        string id PK
+        string item_code
+        string name
+        int category_id
+        string specification
+        string unit
+        float on_hand_quantity
+        float unit_cost
+        boolean is_active
+    }
+    MATERIAL_REQUESTS {
+        int id PK
+        string request_code
+        string urgency
+        datetime needed_date
+        datetime request_date
+        string requested_by
+        string status
+        boolean is_active
+        datetime created_at
+    }
+    MATERIAL_REQUEST_ITEMS {
+        int id PK
+        int request_id FK
+        string material_item_id FK
+        string item_name
+        float quantity_requested
+        float quantity_on_hand
+    }
+    MATERIAL_RECEIPTS {
+        int id PK
+        string receipt_code
+        datetime receipt_date
+        float total_amount
+        string currency
+        string status
+        string created_by
+    }
+    MATERIAL_RECEIPT_ITEMS {
+        int id PK
+        int receipt_id FK
+        string material_item_id FK
+        float quantity
+        float unit_cost
+        float total_cost
+    }
+    INVENTORY_STOCK {
+        int id PK
+        string material_item_id FK
+        string store_location_id FK
+        float quantity
+        float unit_cost
+        datetime last_receipt_date
+    }
+    STORE_LOCATIONS {
+        string id PK
+        string location_code
+        string name
+        string description
+    }
+
+    EQUIPMENT_ASSETS ||--o{ EQUIPMENT_GROUP_MEMBERS : "belongs_to"
+    EQUIPMENT_GROUPS ||--o{ EQUIPMENT_GROUP_MEMBERS : "contains"
+    EQUIPMENT_ASSETS ||--o{ MAINTENANCE_SCHEDULES : "requires"
+    MAINTENANCE_SCHEDULES ||--o{ MAINTENANCE_TASKS : "generates"
+    MAINTENANCE_TASKS ||--o{ MAINTENANCE_TASK_DETAILS : "has"
+    MAINTENANCE_SCHEDULES ||--o{ SCHEDULE_SPARE_PARTS : "needs"
+    MATERIAL_ITEMS ||--o{ SCHEDULE_SPARE_PARTS : "used_in"
+    MATERIAL_REQUESTS ||--o{ MATERIAL_REQUEST_ITEMS : "contains"
+    MATERIAL_RECEIPTS ||--o{ MATERIAL_RECEIPT_ITEMS : "contains"
+    MATERIAL_ITEMS ||--o{ MATERIAL_RECEIPT_ITEMS : "supplies"
+    MATERIAL_ITEMS ||--o{ MATERIAL_REQUEST_ITEMS : "requested_in"
+    MATERIAL_ITEMS ||--o{ INVENTORY_STOCK : "stocked_in"
+    STORE_LOCATIONS ||--o{ INVENTORY_STOCK : "location"

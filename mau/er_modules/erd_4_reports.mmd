@@ -1,0 +1,26 @@
+erDiagram
+    report_types
+    maritime_reports
+    arrival_reports
+    departure_reports
+    noon_reports
+    position_reports
+    bunker_reports
+    report_attachments
+    report_transmission_logs
+    report_distributions
+    voyage_records
+
+    voyage_records ||--o{ maritime_reports : 1-N
+    report_types ||--o{ maritime_reports : 1-N
+
+    maritime_reports ||--o{ arrival_reports : 1-N
+    maritime_reports ||--o{ departure_reports : 1-N
+    maritime_reports ||--o{ noon_reports : 1-N
+    maritime_reports ||--o{ position_reports : 1-N
+    maritime_reports ||--o{ bunker_reports : 1-N
+
+    maritime_reports ||--o{ report_attachments : 1-N
+    maritime_reports ||--o{ report_transmission_logs : 1-N
+
+    report_types ||--o{ report_distributions : 1-N

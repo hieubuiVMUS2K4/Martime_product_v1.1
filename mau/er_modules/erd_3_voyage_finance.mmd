@@ -1,0 +1,19 @@
+erDiagram
+    voyage_records
+    voyage_cost_estimates
+    voyage_revenue_estimates
+    voyage_actual_revenues
+    voyage_expense_requests
+    voyage_advance_payments
+    voyage_disbursements
+    voyage_settlements
+
+    voyage_records ||--o{ voyage_cost_estimates : 1-N
+    voyage_records ||--o{ voyage_revenue_estimates : 1-N
+    voyage_records ||--o{ voyage_actual_revenues : 1-N
+    voyage_records ||--o{ voyage_expense_requests : 1-N
+    voyage_records ||--o{ voyage_advance_payments : 1-N
+    voyage_records ||--o{ voyage_disbursements : 1-N
+    voyage_expense_requests ||--o{ voyage_disbursements : 1-N
+    voyage_advance_payments ||--o{ voyage_disbursements : 1-N
+    voyage_records ||--o{ voyage_settlements : 1-N
