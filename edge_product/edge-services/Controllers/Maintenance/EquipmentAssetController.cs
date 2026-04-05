@@ -307,8 +307,9 @@ public class EquipmentAssetController : ControllerBase
             if (triggeredCount > 0)
                 _logger.LogInformation("Promoted {Count} tasks to DUE for asset {Id} at {Hours}h", triggeredCount, id, runningHours);
 
-            // Recalc NextDueDate cho các RUNNING_HOURS schedules dựa trên tốc độ chạy thực
-            await RecalcNextDueDateByActualRate(id, runningHours, previousRH, lastUpdate);
+            // Counter-centric flow: skip auto-recalculating NextDueDate for RUNNING_HOURS.
+            // Status promotion remains handled by CheckAndPromoteTasksByRunningHours.
+            _logger.LogDebug("Skip RecalcNextDueDateByActualRate for asset {Id} in counter-centric mode", id);
             
             return Ok(new { triggeredTasks = triggeredCount });
         }

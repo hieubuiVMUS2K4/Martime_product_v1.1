@@ -1590,6 +1590,7 @@ export default function WorkPlanningPage() {
                               UPCOMING: { bg: '#FEF3C7', text: '#92400E' },
                               OVERDUE: { bg: '#FEE2E2', text: '#991B1B' },
                             };
+                            const isRunningHours = !!task.intervalHours && !task.intervalDays;
                             const override = statusOverride[task.status];
                             const colors = override || PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.NORMAL;
                             return (
@@ -1598,9 +1599,9 @@ export default function WorkPlanningPage() {
                                 onClick={() => navigate(`/pms/work-report/${task.id}`)}
                                 className="w-full text-left px-1.5 py-0.5 rounded text-[10px] truncate hover:opacity-80 transition-opacity"
                                 style={{ backgroundColor: colors.bg, color: colors.text }}
-                                title={`${task.taskId} - ${task.taskDescription}${task.status === 'UPCOMING' ? ` ⚠️ ${t('pms.workPlanning.calendar.upcomingTooltip')}` : ''}`}
+                                title={`${task.taskId} - ${task.taskDescription}${task.status === 'UPCOMING' ? ` ⚠️ ${t('pms.workPlanning.calendar.upcomingTooltip')}` : ''}${isRunningHours ? ' • RH ước tính, cập nhật thực qua Counter' : ''}`}
                               >
-                                {task.status === 'UPCOMING' ? '⚠️ ' : ''}{task.taskId}
+                                {task.status === 'UPCOMING' ? '⚠️ ' : ''}{isRunningHours ? 'RH ' : ''}{task.taskId}
                               </button>
                             );
                           })}
@@ -1622,6 +1623,9 @@ export default function WorkPlanningPage() {
                     <span className="text-xs text-gray-600">{getPriorityLabel(key)}</span>
                   </div>
                 ))}
+              </div>
+              <div className="mt-2 text-xs text-gray-500">
+                RH: mốc lịch ước tính, trạng thái thực tế được cập nhật theo tab Counter.
               </div>
             </div>
           )}
