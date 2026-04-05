@@ -1,0 +1,132 @@
+# =============================================================
+# EDGE PRODUCTION - docker-compose.yml
+#
+# Build inputs expected in this folder:
+#   - backend/        : published .NET output (contains MaritimeEdgeServer.dll)
+#   - frontend/dist/  : built Vite output from frontend-edge
+#
+# Usage:
+#   1. Copy .env.production to .env and fill secrets
+#   2. Copy backend publish output into production/backend/
+#   3. Copy frontend build output into production/frontend/dist/
+#   4. cd production && docker compose up -d
+# =============================================================
+
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${EDGE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${EDGE_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${EDGE_POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EDGE_POSTGRES_USER} -d ${EDGE_POSTGRES_DB}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - edge-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5001
+      EDGE_POSTGRES_HOST: postgres
+      EDGE_POSTGRES_PORT: 5432
+      EDGE_POSTGRES_DB: ${EDGE_POSTGRES_DB}
+      EDGE_POSTGRES_USER: ${EDGE_POSTGRES_USER}
+      EDGE_POSTGRES_PASSWORD: ${EDGE_POSTGRES_PASSWORD}
+      Database__AutoMigrate: ${EDGE_DATABASE_AUTO_MIGRATE:-false}
+      Auth__TokenSigningKey: ${EDGE_AUTH_TOKEN_SIGNING_KEY}
+      InternalAccess__ApiKey: ${EDGE_INTERNAL_API_KEY}
+      Security__EnforceHttps: ${EDGE_SECURITY_ENFORCE_HTTPS:-true}
+      Security__RequireInternalAccess: ${EDGE_SECURITY_REQUIRE_INTERNAL_ACCESS:-true}
+      SyncSecurity__Enabled: ${EDGE_SYNC_SECURITY_ENABLED:-true}
+      SyncSecurity__ProtocolVersion: ${EDGE_SYNC_PROTOCOL_VERSION:-2}
+      SyncSecurity__NodeId: ${EDGE_SYNC_NODE_ID:-}
+      SyncSecurity__SigningKey: ${EDGE_SYNC_SIGNING_KEY:-}
+      SyncSecurity__KeyVersion: ${EDGE_SYNC_KEY_VERSION:-1}
+      ShoreAPI__BaseUrl: ${SHORE_API_URL}
+      ShoreAPI__ApiKey: ${SHORE_API_KEY}
+      ShoreAPI__Enabled: ${SHORE_API_ENABLED:-true}
+      Sync__Enabled: ${EDGE_SYNC_ENABLED:-true}
+    volumes:
+      - uploads-data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - edge-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    restart: unless-stopped
+    environment:
+      INTERNAL_API_KEY: ${EDGE_INTERNAL_API_KEY}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - uploads-data:/app/uploads
+    depends_on:
+      - backend
+    networks:
+      - edge-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: unless-stopped
+    profiles: ["tools"]
+    env_file: .env
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${EDGE_PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${EDGE_PGADMIN_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "${EDGE_PGADMIN_PORT:-5050}:80"
+    depends_on:
+      - postgres
+    networks:
+      - edge-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"
+
+volumes:
+  postgres-data:
+    driver: local
+  uploads-data:
+    driver: local
+
+networks:
+  edge-net:
+    driver: bridge

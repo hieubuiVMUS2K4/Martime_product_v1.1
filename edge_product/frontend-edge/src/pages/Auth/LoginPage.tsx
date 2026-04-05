@@ -312,6 +312,10 @@ export function LoginPage() {
                              hover:border-white/25
                              disabled:opacity-50 disabled:cursor-not-allowed
                              transition-all duration-300"
+                    style={{
+                      backgroundColor: 'transparent',
+                      WebkitTextFillColor: '#ffffff',
+                    }}
                   />
                   <User className="absolute right-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-white/25 group-focus-within:text-blue-400/60 transition-colors duration-200 pointer-events-none" />
                 </div>
@@ -340,6 +344,10 @@ export function LoginPage() {
                              hover:border-white/25
                              disabled:opacity-50 disabled:cursor-not-allowed
                              transition-all duration-300"
+                    style={{
+                      backgroundColor: 'transparent',
+                      WebkitTextFillColor: '#ffffff',
+                    }}
                   />
                   <button
                     type="button"

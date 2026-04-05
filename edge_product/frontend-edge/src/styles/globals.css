@@ -235,7 +235,7 @@ html.no-transition * {
   }
 
   /* ========== FORM ELEMENTS ========== */
-  .dark input,
+  .dark input:not(.login-input),
   .dark select,
   .dark textarea {
     background-color: rgb(55 65 81) !important; /* gray-600 */
@@ -243,9 +243,32 @@ html.no-transition * {
     color: rgb(243 244 246) !important; /* gray-100 */
   }
   
-  .dark input::placeholder,
+  .dark input:not(.login-input)::placeholder,
   .dark textarea::placeholder {
     color: rgb(156 163 175) !important; /* gray-400 */
+  }
+
+  /* Keep login inputs glass/transparent even when dark mode class is active */
+  .dark input.login-input {
+    background-color: transparent !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    color: rgb(255 255 255) !important;
+    -webkit-text-fill-color: rgb(255 255 255) !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+  }
+
+  /* Prevent browser autofill from painting gray/yellow background on login page */
+  .dark input.login-input:-webkit-autofill,
+  .dark input.login-input:-webkit-autofill:hover,
+  .dark input.login-input:-webkit-autofill:focus,
+  .dark input.login-input:-webkit-autofill:active {
+    -webkit-text-fill-color: rgb(255 255 255) !important;
+    caret-color: rgb(255 255 255) !important;
+    -webkit-box-shadow: 0 0 0px 1000px transparent inset !important;
+    box-shadow: 0 0 0px 1000px transparent inset !important;
+    background-color: transparent !important;
+    transition: background-color 9999s ease-out 0s;
   }
 
   /* Select options */

@@ -1,0 +1,12 @@
+# =============================================================
+# Edge Backend - Production Runtime Image
+# Expected publish output: production/backend/
+# Main assembly: MaritimeEdgeServer.dll
+# =============================================================
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+COPY backend/ ./
+ENV ASPNETCORE_URLS=http://+:5001
+ENV ASPNETCORE_ENVIRONMENT=Production
+EXPOSE 5001
+ENTRYPOINT ["dotnet", "MaritimeEdgeServer.dll"]
