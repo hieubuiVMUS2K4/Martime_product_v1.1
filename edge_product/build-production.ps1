@@ -104,9 +104,13 @@ foreach ($sql in $sqlFiles) {
         $raw,
         "(?m)^\\\\(restrict|unrestrict)\\b.*(?:\\r?\\n)?",
         "")
+    $sanitized = [System.Text.RegularExpressions.Regex]::Replace(
+        $sanitized,
+        "(?m)^CREATE SCHEMA public;\\s*$",
+        "CREATE SCHEMA IF NOT EXISTS public;")
     if ($sanitized -ne $raw) {
         Set-Content -Path $sql.FullName -Value $sanitized -Encoding UTF8 -NoNewline
-        Write-OK ("Sanitized unsupported psql meta commands: " + $sql.Name)
+        Write-OK ("Sanitized init SQL for compatibility/idempotency: " + $sql.Name)
     }
 }
 Write-OK "Init scripts prepared"
