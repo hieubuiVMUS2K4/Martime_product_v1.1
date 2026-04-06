@@ -1324,13 +1324,7 @@ INSERT INTO public."__EFMigrationsHistory" ("MigrationId", "ProductVersion") VAL
 ('20260319130406_AddVesselIdToMaterialItems', '8.0.0'),
 ('20260321120000_AddSyncNodeSecurityRegistry', '8.0.0'),
 ('20260321173000_AddSyncKeyRotationGraceWindow', '8.0.0'),
-('20260322095539_AddMetadataFirstFileSyncPhase1', '8.0.0'),
-('20260322120754_AddSyncFileChunkSessionsPhase3', '8.0.0'),
-('20260322135447_AddSyncTransferOptimizations', '8.0.0'),
-('20260322141903_FixSyncTransferSchemaDrift', '8.0.0'),
 ('20260401110009_AddVoyageDateTimeUtcConverters', '8.0.0'),
-('20260401121443_AddSyncNonceRegistry', '8.0.0'),
-('20260401121517_AddSyncDlq', '8.0.0'),
 ('20260406105632_FixVoyageNumberUniquePerVessel', '8.0.0');
 
 --
