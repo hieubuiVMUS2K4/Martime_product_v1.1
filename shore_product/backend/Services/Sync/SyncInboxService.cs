@@ -209,6 +209,45 @@ public class SyncInboxService : ISyncInboxService
         ["maintenance_history"]    = typeof(ProductApi.Models.MaintenanceHistory),
     };
 
+    // Some sync producers emit plural table names while Shore expects singular.
+    // Canonicalize them early so downstream conflict and idempotency rules are consistent.
+    private static readonly Dictionary<string, string> _tableAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["voyage_records"] = "voyage_record",
+        ["voyage_plan_legs"] = "voyage_plan_leg",
+        ["voyage_status_histories"] = "voyage_status_history",
+        ["port_calls"] = "port_call",
+        ["voyage_crew_assignments"] = "voyage_crew_assignment",
+        ["cargo_operations"] = "cargo_operation",
+        ["voyage_log_entries"] = "voyage_log_entry",
+        ["voyage_cargo_plans"] = "voyage_cargo_plan",
+        ["voyage_bunker_plans"] = "voyage_bunker_plan",
+        ["voyage_crew_change_plans"] = "voyage_crew_change_plan",
+        ["voyage_cost_estimates"] = "voyage_cost_estimate",
+        ["voyage_revenue_estimates"] = "voyage_revenue_estimate",
+        ["voyage_expense_requests"] = "voyage_expense_request",
+        ["voyage_advance_payments"] = "voyage_advance_payment",
+        ["voyage_disbursements"] = "voyage_disbursement",
+        ["voyage_actual_revenues"] = "voyage_actual_revenue",
+        ["voyage_settlements"] = "voyage_settlement",
+        ["maritime_reports"] = "maritime_report",
+        ["noon_reports"] = "noon_report",
+        ["departure_reports"] = "departure_report",
+        ["arrival_reports"] = "arrival_report",
+        ["bunker_reports"] = "bunker_report",
+        ["position_reports"] = "position_report",
+    };
+
+    private static string CanonicalizeTableName(string? tableName)
+    {
+        if (string.IsNullOrWhiteSpace(tableName))
+            return string.Empty;
+
+        return _tableAliases.TryGetValue(tableName, out var canonical)
+            ? canonical
+            : tableName;
+    }
+
     // Edge auto-queue emits full-entity snapshots for voyage sync rows even when the
     // action type is UPDATE. On first arrival at Shore there is no existing mirror row,
     // so these tables must be allowed to CREATE from a missing UPDATE payload.
@@ -289,13 +328,17 @@ public class SyncInboxService : ISyncInboxService
 
         foreach (var group in grouped)
         {
+            var canonicalTable = CanonicalizeTableName(group.Key);
+
             // ── Special handler: ship_data → Vessels table (field mapping required) ──
-            if (group.Key.Equals("ship_data", StringComparison.OrdinalIgnoreCase))
+            if (canonicalTable.Equals("ship_data", StringComparison.OrdinalIgnoreCase))
             {
                 foreach (var item in group)
                 {
                     try
                     {
+                        item.TableName = canonicalTable;
+
                         if (await IsAlreadyProcessedAsync(item.TableName, item.RecordKey, item.SyncVersion))
                         { result.Succeeded++; continue; }
 
@@ -317,14 +360,16 @@ public class SyncInboxService : ISyncInboxService
             }
 
             // ── Special handler: onboard events from Edge with business logic ──
-            if (group.Key.Equals("onboard_event", StringComparison.OrdinalIgnoreCase)
-                || group.Key.Equals("sign_on_record", StringComparison.OrdinalIgnoreCase)
-                || group.Key.Equals("sign_off_record", StringComparison.OrdinalIgnoreCase))
+            if (canonicalTable.Equals("onboard_event", StringComparison.OrdinalIgnoreCase)
+                || canonicalTable.Equals("sign_on_record", StringComparison.OrdinalIgnoreCase)
+                || canonicalTable.Equals("sign_off_record", StringComparison.OrdinalIgnoreCase))
             {
                 foreach (var item in group)
                 {
                     try
                     {
+                        item.TableName = canonicalTable;
+
                         if (await IsAlreadyProcessedAsync(item.TableName, item.RecordKey, item.SyncVersion))
                         { result.Succeeded++; continue; }
 
@@ -345,9 +390,9 @@ public class SyncInboxService : ISyncInboxService
                 continue;
             }
 
-            if (!_tableEntityMap.TryGetValue(group.Key, out var entityType))
+            if (!_tableEntityMap.TryGetValue(canonicalTable, out var entityType))
             {
-                _logger.LogWarning("Unknown table in batch: {Table}, skipping {Count} items", group.Key, group.Count());
+                _logger.LogWarning("Unknown table in batch: {Table} (canonical: {Canonical}), skipping {Count} items", group.Key, canonicalTable, group.Count());
                 foreach (var item in group)
                 {
                     var error = $"Unknown table: {group.Key}";
@@ -362,6 +407,8 @@ public class SyncInboxService : ISyncInboxService
             {
                 try
                 {
+                    item.TableName = canonicalTable;
+
                     // Idempotency check — skip already processed
                     if (await IsAlreadyProcessedAsync(item.TableName, item.RecordKey, item.SyncVersion))
                     {
@@ -372,7 +419,7 @@ public class SyncInboxService : ISyncInboxService
                     }
 
                     // ── Guard: only accept TRANSMITTED reports on shore ──
-                    if (group.Key.Equals("maritime_report", StringComparison.OrdinalIgnoreCase)
+                    if (canonicalTable.Equals("maritime_report", StringComparison.OrdinalIgnoreCase)
                         && !string.IsNullOrEmpty(item.Payload))
                     {
                         try
@@ -865,6 +912,8 @@ public class SyncInboxService : ISyncInboxService
 
     public async Task ProcessIncomingAsync(SyncQueueItemDto item)
     {
+        item.TableName = CanonicalizeTableName(item.TableName);
+
         if (!_tableEntityMap.TryGetValue(item.TableName, out var entityType))
         {
             _logger.LogWarning("Unknown sync table: {Table}", item.TableName);

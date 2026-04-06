@@ -34,6 +34,7 @@ export const VoyageListPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const vesselFilter = searchParams.get('vessel') || '';
+  const vesselNodeFilter = searchParams.get('node') || '';
 
   const [dashboard, setDashboard] = useState<FleetDashboard | null>(null);
   const [payload, setPayload] = useState<VoyageListResponse | null>(null);
@@ -52,13 +53,18 @@ export const VoyageListPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!vesselFilter) { setPayload(null); return; }
+    if (!vesselFilter && !vesselNodeFilter) { setPayload(null); return; }
     setListLoading(true);
-    voyageApi.getVoyages({ search: vesselFilter, page: 1, pageSize: 50 })
+    voyageApi.getVoyages({
+      search: vesselFilter || undefined,
+      node: vesselNodeFilter || undefined,
+      page: 1,
+      pageSize: 50,
+    })
       .then(setPayload)
       .catch(() => {})
       .finally(() => setListLoading(false));
-  }, [vesselFilter]);
+  }, [vesselFilter, vesselNodeFilter]);
 
   const vessels = dashboard?.vesselSummaries ?? [];
   const filteredVessels = vessels.filter(v =>
@@ -73,7 +79,12 @@ export const VoyageListPage: React.FC = () => {
   );
 
   function selectVessel(v: VesselVoyageSummary) {
-    setSearchParams({ vessel: v.vesselIMO || v.vesselName });
+    const nextParams = new URLSearchParams();
+    const vesselKey = v.vesselIMO || (v.vesselName !== 'Unknown' ? v.vesselName : '');
+    if (vesselKey) nextParams.set('vessel', vesselKey);
+    if (v.originNode) nextParams.set('node', v.originNode);
+    if (!vesselKey && !v.originNode) return;
+    setSearchParams(nextParams);
   }
 
   function clearVessel() {
@@ -93,7 +104,7 @@ export const VoyageListPage: React.FC = () => {
   }
 
   // ═══════════ VESSEL CARDS VIEW ═══════════
-  if (!vesselFilter) {
+  if (!vesselFilter && !vesselNodeFilter) {
     return (
       <div className="vm-page">
         <div className="vm-header">
@@ -177,7 +188,10 @@ export const VoyageListPage: React.FC = () => {
   }
 
   // ═══════════ VESSEL VOYAGE LIST VIEW ═══════════
-  const selectedVessel = vessels.find(v => v.vesselIMO === vesselFilter || v.vesselName === vesselFilter);
+  const selectedVessel = vessels.find(v =>
+    (vesselNodeFilter && v.originNode === vesselNodeFilter) ||
+    (vesselFilter && (v.vesselIMO === vesselFilter || v.vesselName === vesselFilter))
+  );
 
   return (
     <div className="vm-page">
@@ -188,8 +202,12 @@ export const VoyageListPage: React.FC = () => {
           </button>
           <div className="vm-header-divider" />
           <Ship size={17} className="vm-header-icon" />
-          <h1 className="vm-title">{selectedVessel?.vesselName || vesselFilter}</h1>
-          {selectedVessel && <span className="vm-subtitle">IMO: {selectedVessel.vesselIMO}</span>}
+          <h1 className="vm-title">{selectedVessel?.vesselName || vesselFilter || vesselNodeFilter}</h1>
+          {selectedVessel && (
+            <span className="vm-subtitle">
+              IMO: {selectedVessel.vesselIMO || 'N/A'} · Node: {selectedVessel.originNode}
+            </span>
+          )}
         </div>
         <div className="vm-header-right">
           <div className="vm-search-wrap">
