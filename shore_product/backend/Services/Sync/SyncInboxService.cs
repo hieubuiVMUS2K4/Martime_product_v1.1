@@ -285,6 +285,14 @@ public class SyncInboxService : ISyncInboxService
         "material_item_equipment",
     };
 
+    // Reference tables managed by Shore — applying natural-key dedup to avoid 23505/23503 errors
+    // when Edge sends reference data with different PKs than Shore's seed data.
+    private static readonly HashSet<string> _shoreAuthoritative = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "certificate", "country", "rank",
+        "rank_certificate", "country_certificate"
+    };
+
     public SyncInboxService(
         AppDbContext context,
         IConflictResolverService conflictResolver,
@@ -1020,6 +1028,19 @@ public class SyncInboxService : ISyncInboxService
         // Resolve any orphaned FK references (e.g. RankId pointing to a rank not yet on shore)
         await ResolveOrphanedForeignKeysAsync(entityType, entity, item.Payload);
 
+        // For shore-authoritative reference tables (country, rank, certificate, rank_certificate,
+        // country_certificate): edge and shore may use different PKs for the same data.
+        // If shore already has equivalent data by natural key, skip the insert to avoid
+        // unique-constraint violations (23505) or FK violations (23503) from mismatched IDs.
+        if (_shoreAuthoritative.Contains(item.TableName)
+            && await IsShoreRefDataDuplicateAsync(entityType, entity))
+        {
+            _logger.LogDebug(
+                "Shore-authoritative {Table}/{Key}: already exists by natural key or FK mismatch — skipping insert",
+                item.TableName, item.RecordKey);
+            return;
+        }
+
         await _context.AddAsync(entity);
         await ResolveCrewVesselIdAsync(entity, item.OriginNode);
 
@@ -1315,6 +1336,58 @@ public class SyncInboxService : ISyncInboxService
     // ============================================================
     // HELPERS
     // ============================================================
+
+    /// <summary>
+    /// Returns true if the entity already exists on shore by natural unique key (for simple ref data)
+    /// or if its FK references don't exist on shore (for junction tables). Used to skip INSERT for
+    /// shore-authoritative reference tables when edge and shore use different PKs for the same data.
+    /// </summary>
+    private async Task<bool> IsShoreRefDataDuplicateAsync(Type entityType, object entity)
+    {
+        if (entityType == typeof(Country))
+        {
+            var code = (entity as Country)?.CountryCode;
+            return !string.IsNullOrEmpty(code)
+                && await _context.Set<Country>().AnyAsync(c => c.CountryCode == code);
+        }
+        if (entityType == typeof(Rank))
+        {
+            var code = (entity as Rank)?.RankCode;
+            return !string.IsNullOrEmpty(code)
+                && await _context.Set<Rank>().AnyAsync(r => r.RankCode == code);
+        }
+        if (entityType == typeof(Certificate))
+        {
+            var code = (entity as Certificate)?.CertificateCode;
+            return !string.IsNullOrEmpty(code)
+                && await _context.Set<Certificate>().AnyAsync(c => c.CertificateCode == code);
+        }
+        if (entityType == typeof(RankCertificate))
+        {
+            var rc = entity as RankCertificate;
+            if (rc == null) return false;
+            // Skip if FK IDs don't exist on shore (edge uses different PK sequence)
+            bool rankExists = await _context.Set<Rank>().AnyAsync(r => r.Id == rc.RankId);
+            bool certExists = await _context.Set<Certificate>().AnyAsync(c => c.Id == rc.CertificateId);
+            if (!rankExists || !certExists) return true;
+            // Skip if this (RankId, CertificateId) pair already exists
+            return await _context.Set<RankCertificate>()
+                .AnyAsync(x => x.RankId == rc.RankId && x.CertificateId == rc.CertificateId);
+        }
+        if (entityType == typeof(CountryCertificate))
+        {
+            var cc = entity as CountryCertificate;
+            if (cc == null) return false;
+            // Skip if FK IDs don't exist on shore
+            bool countryExists = await _context.Set<Country>().AnyAsync(c => c.Id == cc.CountryId);
+            bool certExists = await _context.Set<Certificate>().AnyAsync(c => c.Id == cc.CertificateId);
+            if (!countryExists || !certExists) return true;
+            // Skip if this (CountryId, CertificateId) pair already exists
+            return await _context.Set<CountryCertificate>()
+                .AnyAsync(x => x.CountryId == cc.CountryId && x.CertificateId == cc.CertificateId);
+        }
+        return false;
+    }
 
     private async Task<object?> FindEntityByKeyAsync(Type entityType, string recordKey)
     {

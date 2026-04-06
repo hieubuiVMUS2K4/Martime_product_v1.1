@@ -2666,308 +2666,6 @@ namespace productapi.Migrations
                     b.ToTable("travel_documents", (string)null);
                 });
 
-            modelBuilder.Entity("Maritime.Shared.Models.Sync.SyncFileChunkSession", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("ChunkSizeBytes")
-                        .HasColumnType("integer");
-
-                    b.Property<long>("CommittedBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("CompletedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ContentType")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Direction")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<DateTime>("ExpiresAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("FileId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(260)
-                        .HasColumnType("character varying(260)");
-
-                    b.Property<string>("FileRole")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<bool>("IsDeltaSession")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("LastActivityAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastError")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<Guid>("ManifestId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("NextChunkIndex")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ReceiverBaseSha256")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("RecordKey")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<Guid>("RequestId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("RequestedChunkIndexesJson")
-                        .HasColumnType("text");
-
-                    b.Property<string>("RequesterNodeId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("ResumeToken")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("Sha256")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<long>("SizeBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("SourcePath")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("StagingPath")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("StoragePath")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("SupplierNodeId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("TableName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<int>("TotalChunks")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExpiresAtUtc");
-
-                    b.HasIndex("ResumeToken")
-                        .IsUnique();
-
-                    b.HasIndex("ManifestId", "Direction", "Status");
-
-                    b.HasIndex("RequesterNodeId", "SupplierNodeId", "Direction", "Status");
-
-                    b.ToTable("sync_file_chunk_sessions", (string)null);
-                });
-
-            modelBuilder.Entity("Maritime.Shared.Models.Sync.SyncFileManifest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CapturedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ContentType")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(260)
-                        .HasColumnType("character varying(260)");
-
-                    b.Property<string>("FileRole")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<bool>("IsPreprocessed")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("LastError")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime?>("LastRequestedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("OriginalSizeBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("OwnerNodeId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("PreprocessProfile")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("ReceiverNodeId")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("RecordKey")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("Sha256")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<long>("SizeBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("SourcePath")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("StoragePath")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("TableName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<int>("TransferPriority")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TransferStatus")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("TransportEncoding")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("VerifiedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Sha256");
-
-                    b.HasIndex("ReceiverNodeId", "TransferStatus");
-
-                    b.HasIndex("OwnerNodeId", "TableName", "RecordKey");
-
-                    b.ToTable("sync_file_manifests", (string)null);
-                });
-
-            modelBuilder.Entity("Maritime.Shared.Models.Sync.SyncFileTransferRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("CompletedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("DeltaBlockSizeBytes")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("LastError")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<Guid>("ManifestId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("NextRetryAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("PreferDeltaTransfer")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("ReceiverBaseSha256")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("ReceiverBlockHashesJson")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("RequestedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RequesterNodeId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<int>("RetryCount")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("SupplierNodeId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ManifestId");
-
-                    b.HasIndex("RequesterNodeId", "Status");
-
-                    b.HasIndex("SupplierNodeId", "Status");
-
-                    b.ToTable("sync_file_transfer_requests", (string)null);
-                });
-
             modelBuilder.Entity("Maritime.Shared.Models.Sync.SyncLog", b =>
                 {
                     b.Property<long>("Id")
@@ -5624,72 +5322,6 @@ namespace productapi.Migrations
                     b.ToTable("store_locations", (string)null);
                 });
 
-            modelBuilder.Entity("ProductApi.Models.SyncDlqEntry", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("BatchId")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("DiagnosticInfo")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("ErrorReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<int>("FailureCount")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("IsApprovedForManualReplay")
-                        .HasColumnType("boolean");
-
-                    b.Property<byte[]>("ItemContent")
-                        .IsRequired()
-                        .HasColumnType("bytea");
-
-                    b.Property<string>("ItemId")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<DateTime?>("LastFailedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ManualReviewNotes")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime>("MovedToDlqAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("OriginEdgeNode")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<int>("Priority")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MovedToDlqAtUtc");
-
-                    b.HasIndex("OriginEdgeNode");
-
-                    b.HasIndex("Priority");
-
-                    b.HasIndex("IsApprovedForManualReplay", "MovedToDlqAtUtc");
-
-                    b.ToTable("sync_dlq_items", (string)null);
-                });
-
             modelBuilder.Entity("ProductApi.Models.SyncIdempotencyRecord", b =>
                 {
                     b.Property<long>("Id")
@@ -5751,20 +5383,8 @@ namespace productapi.Migrations
                     b.Property<bool>("IsOnline")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("IsRegistered")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsRevoked")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("KeyVersion")
-                        .HasColumnType("integer");
-
                     b.Property<long>("LastAcknowledgedId")
                         .HasColumnType("bigint");
-
-                    b.Property<int?>("LastAcknowledgedKeyVersion")
-                        .HasColumnType("integer");
 
                     b.Property<string>("LastError")
                         .HasMaxLength(500)
@@ -5774,12 +5394,6 @@ namespace productapi.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("LastHeartbeatAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("LastKeyRotatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("LastKeyVersionAcknowledgedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("LastPullAt")
@@ -5794,9 +5408,6 @@ namespace productapi.Migrations
                     b.Property<long>("LastReceivedVersion")
                         .HasColumnType("bigint");
 
-                    b.Property<DateTime?>("LastSignedRequestAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("NodeId")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -5805,30 +5416,9 @@ namespace productapi.Migrations
                     b.Property<int>("PendingOutboxCount")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime?>("PreviousKeyGraceUntil")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("PreviousKeyVersion")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("PreviousSigningKey")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RevokedReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
                     b.Property<string>("ShipName")
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
-
-                    b.Property<string>("SigningKey")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
 
                     b.Property<long>("TotalDeliveredCount")
                         .HasColumnType("bigint");
@@ -5843,61 +5433,10 @@ namespace productapi.Migrations
 
                     b.HasIndex("IsOnline");
 
-                    b.HasIndex("IsRegistered");
-
-                    b.HasIndex("IsRevoked");
-
                     b.HasIndex("NodeId")
                         .IsUnique();
 
                     b.ToTable("sync_node_trackers", (string)null);
-                });
-
-            modelBuilder.Entity("ProductApi.Models.SyncNonceRegistryEntry", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("EndpointPath")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<DateTime>("ExpiresAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Nonce")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("OriginNode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("OriginTimestampUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("RegisteredAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RequesterIpAddress")
-                        .HasMaxLength(45)
-                        .HasColumnType("character varying(45)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExpiresAtUtc");
-
-                    b.HasIndex("Nonce")
-                        .IsUnique();
-
-                    b.HasIndex("OriginNode", "RegisteredAtUtc");
-
-                    b.ToTable("sync_nonce_registry", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.SyncTableStats", b =>
@@ -9277,17 +8816,6 @@ namespace productapi.Migrations
                     b.Navigation("Country");
 
                     b.Navigation("CrewMember");
-                });
-
-            modelBuilder.Entity("Maritime.Shared.Models.Sync.SyncFileTransferRequest", b =>
-                {
-                    b.HasOne("Maritime.Shared.Models.Sync.SyncFileManifest", "Manifest")
-                        .WithMany()
-                        .HasForeignKey("ManifestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Manifest");
                 });
 
             modelBuilder.Entity("ProductApi.Models.CargoOperation", b =>
