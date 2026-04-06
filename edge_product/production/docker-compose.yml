@@ -14,13 +14,17 @@
 
 services:
   postgres:
-    image: postgres:15
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
     restart: unless-stopped
     env_file: .env
     environment:
       POSTGRES_USER: ${EDGE_POSTGRES_USER}
       POSTGRES_PASSWORD: ${EDGE_POSTGRES_PASSWORD}
       POSTGRES_DB: ${EDGE_POSTGRES_DB}
+      TZ: ${TZ:-UTC}
+    command: ["postgres", "-c", "timezone=${TZ:-UTC}"]
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d:ro
@@ -30,6 +34,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    ports:
+      - "5432:5432"
     networks:
       - edge-net
     logging:
@@ -52,7 +58,6 @@ services:
       EDGE_POSTGRES_DB: ${EDGE_POSTGRES_DB}
       EDGE_POSTGRES_USER: ${EDGE_POSTGRES_USER}
       EDGE_POSTGRES_PASSWORD: ${EDGE_POSTGRES_PASSWORD}
-      Database__AutoMigrate: ${EDGE_DATABASE_AUTO_MIGRATE:-true}
       Auth__TokenSigningKey: ${EDGE_AUTH_TOKEN_SIGNING_KEY}
       InternalAccess__ApiKey: ${EDGE_INTERNAL_API_KEY}
       Security__EnforceHttps: ${EDGE_SECURITY_ENFORCE_HTTPS:-true}

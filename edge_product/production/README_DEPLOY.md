@@ -13,7 +13,7 @@ Quick start on server
 Database bootstrap policy (same direction as shore)
 ---------------------------------------------------
 - Production uses dump-first bootstrap from init-scripts, not full EF migration replay.
-- Auto migration is disabled in production package (Database__AutoMigrate=false).
+- Production compose does not override Database__AutoMigrate (same behavior as shore).
 - Note: init-scripts run only when postgres volume is empty.
 
 If you need to re-initialize DB from dump
