@@ -3,6 +3,7 @@ using MaritimeEdge.Services;
 using MaritimeEdge.DTOs;
 using MaritimeEdge.Data;
 using Microsoft.EntityFrameworkCore;
+using Maritime.Shared.Models.Sync;
 
 namespace MaritimeEdge.Controllers.Core;
 
@@ -85,9 +86,33 @@ public class ShipDataController : ControllerBase
                 _logger.LogInformation("ShipData already exists (Id={Id}), marking for sync", existing.Id);
                 existing.IsSynced = false;
                 existing.UpdatedAt = DateTime.UtcNow;
+
+                var recordKey = existing.Id.ToString();
+                var alreadyQueued = await _context.SyncQueue
+                    .AnyAsync(q => q.SyncedAt == null
+                                   && q.TableName == "ship_data"
+                                   && q.RecordKey == recordKey);
+
+                if (!alreadyQueued)
+                {
+                    _context.SyncQueue.Add(new SyncQueue
+                    {
+                        TableName = "ship_data",
+                        RecordKey = recordKey,
+                        ActionType = SyncActionType.SNAPSHOT,
+                        Payload = System.Text.Json.JsonSerializer.Serialize(existing),
+                        Priority = SyncPriority.Operational,
+                        RetryCount = 0,
+                        MaxRetries = 5,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+
                 await _context.SaveChangesAsync();
                 return Ok(new { 
-                    message = "Ship data already exists, marked for sync", 
+                    message = alreadyQueued
+                        ? "Ship data already exists, pending sync item found"
+                        : "Ship data already exists, snapshot queued for sync",
                     shipDataId = existing.Id,
                     imo = existing.ImoNumber,
                     name = existing.ShipName
