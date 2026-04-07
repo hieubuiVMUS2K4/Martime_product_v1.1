@@ -110,6 +110,7 @@ public class EquipmentAssetController : ControllerBase
                 SerialNumber = dto.SerialNumber,
                 InstallationDate = dto.InstallationDate,
                 EquipmentGroupId = dto.EquipmentGroupId,
+                ParentId = dto.ParentId,
                 Location = dto.Location,
                 Criticality = dto.Criticality,
                 Status = dto.Status,
