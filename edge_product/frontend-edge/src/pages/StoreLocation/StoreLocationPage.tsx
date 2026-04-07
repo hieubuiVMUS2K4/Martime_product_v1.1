@@ -356,19 +356,36 @@ export default function StoreLocationPage() {
   return (
     <div className="h-full w-full flex flex-col overflow-hidden bg-white">
       <div className="flex flex-shrink-0 border-b border-gray-200">
-        <button
-          onClick={() => setSelectedNodeId(null)}
-          className={`w-64 flex-shrink-0 flex items-center gap-1.5 px-3 py-3 text-sm font-semibold border-r border-gray-200 ${
+        <div
+          className={`w-64 flex-shrink-0 flex items-center border-r border-gray-200 ${
             selectedNodeId === null && !editMode
               ? 'bg-blue-800 text-white'
-              : 'text-gray-700 hover:bg-gray-50 bg-white'
+              : 'text-gray-700 bg-white'
           }`}
         >
-          <FolderOpen className="w-4 h-4 flex-shrink-0" />
-          <span className="flex-1 text-left truncate">
-            {t('storeLocations.allLocations')} (SL:{locations.length})
-          </span>
-        </button>
+          <button
+            onClick={() => setSelectedNodeId(null)}
+            className="flex-1 flex items-center gap-1.5 px-3 py-3 text-sm font-semibold text-left min-w-0 hover:opacity-90"
+          >
+            <FolderOpen className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1 text-left truncate">
+              {t('storeLocations.allLocations')} (SL:{locations.length})
+            </span>
+          </button>
+          {editMode && (
+            <button
+              onClick={() => startInlineNew(null)}
+              className={`flex-shrink-0 mr-2 p-1 rounded transition-colors ${
+                selectedNodeId === null
+                  ? 'text-blue-200 hover:text-white hover:bg-blue-700'
+                  : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+              }`}
+              title="Thêm kho gốc mới"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
         <div className="flex-1 flex items-center justify-between px-4 py-3 bg-white">
           <div className="flex items-center gap-2">
@@ -450,7 +467,7 @@ export default function StoreLocationPage() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
           {editMode ? (
             !selectedEditLocation ? (
               <div className="flex-1 flex items-center justify-center text-gray-400">
@@ -463,7 +480,7 @@ export default function StoreLocationPage() {
                 </div>
               </div>
             ) : (
-              <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 flex flex-col overflow-hidden min-h-0">
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 bg-gray-50 flex-shrink-0">
                   <div className="flex items-center gap-2 min-w-0">
                     <FolderOpen className="w-4 h-4 text-blue-600 flex-shrink-0" />

@@ -368,19 +368,36 @@ export default function AssetsPage() {
       <div className="flex flex-shrink-0 border-b border-gray-200">
 
         {/* Header trái: root node "Tất cả thiết bị" */}
-        <button
-          onClick={() => setSelectedNodeId(null)}
-          className={`w-64 flex-shrink-0 flex items-center gap-1.5 px-3 py-3 text-sm font-semibold border-r border-gray-200 ${
+        <div
+          className={`w-64 flex-shrink-0 flex items-center border-r border-gray-200 ${
             selectedNodeId === null
               ? 'bg-blue-800 text-white'
-              : 'text-gray-700 hover:bg-gray-50 bg-white'
+              : 'text-gray-700 bg-white'
           }`}
         >
-          <FolderOpen className="w-4 h-4 flex-shrink-0" />
-          <span className="flex-1 text-left truncate">
-            {t('pms.assets.allEquipment')} ({t('pms.assets.childCount', { count: assets.length })})
-          </span>
-        </button>
+          <button
+            onClick={() => setSelectedNodeId(null)}
+            className="flex-1 flex items-center gap-1.5 px-3 py-3 text-sm font-semibold text-left min-w-0 hover:opacity-90"
+          >
+            <FolderOpen className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1 text-left truncate">
+              {t('pms.assets.allEquipment')} ({t('pms.assets.childCount', { count: assets.length })})
+            </span>
+          </button>
+          {editMode && (
+            <button
+              onClick={() => startInlineNew(null)}
+              className={`flex-shrink-0 mr-2 p-1 rounded transition-colors ${
+                selectedNodeId === null
+                  ? 'text-blue-200 hover:text-white hover:bg-blue-700'
+                  : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+              }`}
+              title="Thêm thiết bị gốc mới"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
         {/* Header phải: title + action buttons */}
         <div className="flex-1 flex items-center justify-between px-4 py-3 bg-white">
@@ -479,11 +496,11 @@ export default function AssetsPage() {
         </div>
 
         {/* RIGHT: table (view mode) OR detail form (edit mode) */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
           {!editMode ? (
             /* ── VIEW MODE: bảng dữ liệu ── */
             <>
-              <div className="flex-1 overflow-auto">
+              <div className="flex-1 overflow-auto min-h-0">
                 <table className="min-w-full text-sm border-collapse">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-blue-50">
