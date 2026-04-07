@@ -158,18 +158,16 @@ public class ConflictResolverService : IConflictResolverService
         if (string.IsNullOrWhiteSpace(originNode))
             throw new ArgumentNullException(nameof(originNode));
 
-        // Rule 1: Shore-authoritative tables — if data comes FROM Edge,
-        //         only apply if shore doesn't have it yet (SyncVersion == 0)
+        // Rule 1: Shore-authoritative tables — Shore ALWAYS wins.
+        // certificate, country, rank and their mapping tables are managed exclusively on Shore.
+        // Any update pushed by an Edge node must be rejected to prevent edge's stale data
+        // from overwriting shore edits (e.g. certificate rename/delete).
         if (_shoreAuthoritative.Contains(tableName))
         {
             if (originNode != "SHORE")
             {
-                // Edge is pushing master data → only accept if new (not modified on shore)
-                if (existing is ISyncableEntity existingSyncable && existingSyncable.SyncVersion > 0)
-                {
-                    return ConflictResolution.Reject(
-                        $"Master data '{tableName}' is maintained by Shore. Edge change rejected.");
-                }
+                return ConflictResolution.Reject(
+                    $"Shore-authoritative table '{tableName}': edge update rejected. Shore always wins.");
             }
             return ConflictResolution.Apply(incoming);
         }

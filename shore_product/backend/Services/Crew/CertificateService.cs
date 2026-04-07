@@ -32,7 +32,9 @@ public class CertificateService : ICertificateService
 
     public async Task<List<CertificateDto>> GetAllCertificateTypesAsync(string? category = null)
     {
-        var query = _context.CrewCertificateTypes.AsNoTracking().AsQueryable();
+        var query = _context.CrewCertificateTypes.AsNoTracking()
+            .Where(c => c.IsActive)
+            .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(category))
             query = query.Where(c => c.Category == category.ToUpper());
@@ -93,7 +95,7 @@ public class CertificateService : ICertificateService
 
     public async Task<CertificateDto?> UpdateCertificateTypeAsync(int id, CreateCertificateRequest request)
     {
-        var cert = await _context.CrewCertificateTypes.FindAsync(id);
+        var cert = await _context.CrewCertificateTypes.AsTracking().FirstOrDefaultAsync(c => c.Id == id);
         if (cert == null) return null;
 
         cert.CertificateCode = request.CertificateCode;
@@ -199,7 +201,7 @@ public class CertificateService : ICertificateService
 
     public async Task<bool> DeleteCertificateTypeAsync(int id)
     {
-        var cert = await _context.CrewCertificateTypes.FindAsync(id);
+        var cert = await _context.CrewCertificateTypes.AsTracking().FirstOrDefaultAsync(c => c.Id == id);
         if (cert == null) return false;
 
         // Soft delete: mark inactive
