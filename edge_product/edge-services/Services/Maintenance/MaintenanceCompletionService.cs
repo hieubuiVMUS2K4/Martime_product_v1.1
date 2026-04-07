@@ -63,7 +63,9 @@ public class MaintenanceCompletionService
                     .FirstOrDefaultAsync(s => s.ScheduleCode == scheduleCode);
             }
 
-            // 3. Deduct spare parts from inventory
+            // 3. Deduct spare parts from InventoryStock (source of truth for ROB).
+            //    Strategy A: deduct from the location with the largest available quantity first.
+            //    After deduction, sync MaterialItem.OnHandQuantity = sum of remaining InventoryStock.
             var deductionErrors = new List<string>();
             var deductedItems = new List<SparePartDeduction>();
 
@@ -78,19 +80,55 @@ public class MaintenanceCompletionService
                     continue;
                 }
 
-                // Check if sufficient quantity available
-                if (materialItem.OnHandQuantity < usage.QuantityUsed)
+                // Total available = sum across all InventoryStock locations
+                var stocks = await _context.InventoryStocks
+                    .Where(s => s.MaterialItemId == usage.MaterialItemId)
+                    .OrderByDescending(s => s.Quantity)
+                    .ToListAsync();
+
+                var totalAvailable = stocks.Any()
+                    ? (double)stocks.Sum(s => s.Quantity)
+                    : materialItem.OnHandQuantity; // fallback for items not yet in inventory stock
+
+                if (totalAvailable < usage.QuantityUsed)
                 {
-                    var error = $"Insufficient stock for {materialItem.Name} (Available: {materialItem.OnHandQuantity}, Required: {usage.QuantityUsed})";
+                    var error = $"Insufficient stock for {materialItem.Name} (Available: {totalAvailable}, Required: {usage.QuantityUsed})";
                     deductionErrors.Add(error);
                     _logger.LogWarning(error);
-                    
                     // Still allow completion but log warning
                 }
 
-                // Deduct quantity
-                var previousQuantity = materialItem.OnHandQuantity;
-                materialItem.OnHandQuantity -= usage.QuantityUsed;
+                var previousTotal = totalAvailable;
+                var remaining = (decimal)usage.QuantityUsed;
+
+                if (stocks.Any())
+                {
+                    // Deduct from InventoryStock locations (largest first)
+                    foreach (var stock in stocks)
+                    {
+                        if (remaining <= 0) break;
+                        var take = Math.Min(stock.Quantity, remaining);
+                        stock.Quantity -= take;
+                        stock.UpdatedAt = DateTime.UtcNow;
+                        remaining -= take;
+                        _logger.LogInformation(
+                            "Deducted {Take} of {Code} from location {Loc}",
+                            take, materialItem.ItemCode, stock.StoreLocationId);
+                    }
+
+                    // Sync MaterialItem.OnHandQuantity = sum of InventoryStock
+                    var newTotal = (double)stocks.Sum(s => s.Quantity);
+                    materialItem.OnHandQuantity = newTotal;
+                }
+                else
+                {
+                    // No InventoryStock records yet — fall back to deducting from MaterialItem directly
+                    materialItem.OnHandQuantity -= usage.QuantityUsed;
+                    _logger.LogWarning(
+                        "No InventoryStock records for {Code} — deducted from MaterialItem.OnHandQuantity directly",
+                        materialItem.ItemCode);
+                }
+
                 materialItem.UpdatedAt = DateTime.UtcNow;
 
                 deductedItems.Add(new SparePartDeduction
@@ -99,7 +137,7 @@ public class MaintenanceCompletionService
                     MaterialCode = materialItem.ItemCode,
                     MaterialName = materialItem.Name,
                     QuantityUsed = usage.QuantityUsed,
-                    PreviousStock = previousQuantity,
+                    PreviousStock = previousTotal,
                     NewStock = materialItem.OnHandQuantity,
                     UnitCost = materialItem.UnitCost
                 });
@@ -109,14 +147,9 @@ public class MaintenanceCompletionService
                 {
                     _logger.LogWarning(
                         "Low stock alert: {ItemCode} {ItemName} - Current: {Current}, Min: {Min}",
-                        materialItem.ItemCode, materialItem.Name, 
+                        materialItem.ItemCode, materialItem.Name,
                         materialItem.OnHandQuantity, materialItem.MinStock.Value);
-                    
-                    // TODO: Create low stock alert notification
                 }
-
-                // Entity is already tracked - no need for explicit Update()
-                // _context.MaterialItems.Update(materialItem);
             }
 
             // 4. Update task status

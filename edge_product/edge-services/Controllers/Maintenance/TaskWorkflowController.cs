@@ -288,7 +288,9 @@ public class TaskWorkflowController : ControllerBase
 
             if (action == "APPROVE")
             {
-                // === DEDUCT SPARE PARTS FROM INVENTORY ===
+                // === DEDUCT SPARE PARTS FROM INVENTORY STOCK (source of truth for ROB) ===
+                // Strategy A: deduct from the location with the largest quantity first.
+                // After deduction, sync MaterialItem.OnHandQuantity = sum of remaining InventoryStock.
                 if (!string.IsNullOrEmpty(task.SparePartsUsed))
                 {
                     try
@@ -310,35 +312,67 @@ public class TaskWorkflowController : ControllerBase
                                 var materialItem = await _context.MaterialItems
                                     .FirstOrDefaultAsync(m => m.Id == usage.MaterialItemId);
                                 
-                                if (materialItem != null)
+                                if (materialItem == null) continue;
+
+                                var stocks = await _context.InventoryStocks
+                                    .Where(s => s.MaterialItemId == usage.MaterialItemId)
+                                    .OrderByDescending(s => s.Quantity)
+                                    .ToListAsync();
+
+                                var previousStock = stocks.Any()
+                                    ? (double)stocks.Sum(s => s.Quantity)
+                                    : materialItem.OnHandQuantity;
+
+                                if (stocks.Any())
                                 {
-                                    var previousStock = materialItem.OnHandQuantity;
-                                    materialItem.OnHandQuantity -= quantityToDeduct;
-                                    materialItem.UpdatedAt = DateTime.UtcNow;
-                                    
-                                    _logger.LogInformation(
-                                        "Deducted {Qty} of {ItemCode} for task {TaskId}. Stock: {Prev} → {New}",
-                                        quantityToDeduct, materialItem.ItemCode, task.TaskId,
-                                        previousStock, materialItem.OnHandQuantity);
-                                    
-                                    deductedItems.Add(new {
-                                        materialItemId = materialItem.Id,
-                                        materialCode = materialItem.ItemCode,
-                                        materialName = materialItem.Name,
-                                        quantityUsed = quantityToDeduct,
-                                        previousStock = previousStock,
-                                        newStock = materialItem.OnHandQuantity
-                                    });
-                                    
-                                    // Check low stock alert
-                                    if (materialItem.MinStock.HasValue && 
-                                        materialItem.OnHandQuantity < materialItem.MinStock.Value)
+                                    var remaining = (decimal)quantityToDeduct;
+                                    foreach (var stock in stocks)
                                     {
-                                        _logger.LogWarning(
-                                            "LOW STOCK: {ItemCode} {Name} - Current: {Current}, Min: {Min}",
-                                            materialItem.ItemCode, materialItem.Name,
-                                            materialItem.OnHandQuantity, materialItem.MinStock.Value);
+                                        if (remaining <= 0) break;
+                                        var take = Math.Min(stock.Quantity, remaining);
+                                        stock.Quantity -= take;
+                                        stock.UpdatedAt = DateTime.UtcNow;
+                                        remaining -= take;
+                                        _logger.LogInformation(
+                                            "Deducted {Take} of {Code} from location {Loc} for task {TaskId}",
+                                            take, materialItem.ItemCode, stock.StoreLocationId, task.TaskId);
                                     }
+                                    // Sync cache
+                                    materialItem.OnHandQuantity = (double)stocks.Sum(s => s.Quantity);
+                                }
+                                else
+                                {
+                                    // Fallback: no InventoryStock records yet
+                                    materialItem.OnHandQuantity -= quantityToDeduct;
+                                    _logger.LogWarning(
+                                        "No InventoryStock records for {Code} — deducted from MaterialItem directly",
+                                        materialItem.ItemCode);
+                                }
+
+                                materialItem.UpdatedAt = DateTime.UtcNow;
+
+                                _logger.LogInformation(
+                                    "Deducted {Qty} of {ItemCode} for task {TaskId}. Stock: {Prev} → {New}",
+                                    quantityToDeduct, materialItem.ItemCode, task.TaskId,
+                                    previousStock, materialItem.OnHandQuantity);
+                                    
+                                deductedItems.Add(new {
+                                    materialItemId = materialItem.Id,
+                                    materialCode = materialItem.ItemCode,
+                                    materialName = materialItem.Name,
+                                    quantityUsed = quantityToDeduct,
+                                    previousStock = previousStock,
+                                    newStock = materialItem.OnHandQuantity
+                                });
+                                    
+                                // Check low stock alert
+                                if (materialItem.MinStock.HasValue && 
+                                    materialItem.OnHandQuantity < materialItem.MinStock.Value)
+                                {
+                                    _logger.LogWarning(
+                                        "LOW STOCK: {ItemCode} {Name} - Current: {Current}, Min: {Min}",
+                                        materialItem.ItemCode, materialItem.Name,
+                                        materialItem.OnHandQuantity, materialItem.MinStock.Value);
                                 }
                             }
                             
