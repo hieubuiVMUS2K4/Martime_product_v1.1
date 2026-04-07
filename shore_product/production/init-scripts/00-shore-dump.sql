@@ -2,6 +2,7 @@
 -- PostgreSQL database dump
 --
 
+\restrict p3xFAqlyNjiCo9DYc3h6VLgoqr8pEaylm0hNbaL1antbftmWenkfDkVWgsaCMgP
 
 -- Dumped from database version 15.14 (Debian 15.14-1.pgdg13+1)
 -- Dumped by pg_dump version 15.14 (Debian 15.14-1.pgdg13+1)
@@ -17,580 +18,6 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
-ALTER TABLE IF EXISTS ONLY public.voyage_status_history DROP CONSTRAINT IF EXISTS "FK_voyage_status_history_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.voyage_settlements DROP CONSTRAINT IF EXISTS "FK_voyage_settlements_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.voyage_reviews DROP CONSTRAINT IF EXISTS "FK_voyage_reviews_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.voyage_revenue_estimates DROP CONSTRAINT IF EXISTS "FK_voyage_revenue_estimates_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.voyage_plan_legs DROP CONSTRAINT IF EXISTS "FK_voyage_plan_legs_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.voyage_log_entries DROP CONSTRAINT IF EXISTS "FK_voyage_log_entries_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.voyage_expense_requests DROP CONSTRAINT IF EXISTS "FK_voyage_expense_requests_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.voyage_disbursements DROP CONSTRAINT IF EXISTS "FK_voyage_disbursements_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.voyage_disbursements DROP CONSTRAINT IF EXISTS "FK_voyage_disbursements_voyage_expense_requests_ExpenseRequest~";
-ALTER TABLE IF EXISTS ONLY public.voyage_disbursements DROP CONSTRAINT IF EXISTS "FK_voyage_disbursements_voyage_advance_payments_AdvancePayment~";
-ALTER TABLE IF EXISTS ONLY public.voyage_crew_change_plans DROP CONSTRAINT IF EXISTS "FK_voyage_crew_change_plans_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.voyage_crew_change_plans DROP CONSTRAINT IF EXISTS "FK_voyage_crew_change_plans_voyage_plan_legs_PlanLegId";
-ALTER TABLE IF EXISTS ONLY public.voyage_crew_change_plans DROP CONSTRAINT IF EXISTS "FK_voyage_crew_change_plans_ranks_RankId";
-ALTER TABLE IF EXISTS ONLY public.voyage_crew_change_plans DROP CONSTRAINT IF EXISTS "FK_voyage_crew_change_plans_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.voyage_crew_assignments DROP CONSTRAINT IF EXISTS "FK_voyage_crew_assignments_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.voyage_crew_assignments DROP CONSTRAINT IF EXISTS "FK_voyage_crew_assignments_ranks_RankId";
-ALTER TABLE IF EXISTS ONLY public.voyage_crew_assignments DROP CONSTRAINT IF EXISTS "FK_voyage_crew_assignments_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.voyage_cost_estimates DROP CONSTRAINT IF EXISTS "FK_voyage_cost_estimates_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.voyage_cargo_plans DROP CONSTRAINT IF EXISTS "FK_voyage_cargo_plans_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.voyage_cargo_plans DROP CONSTRAINT IF EXISTS "FK_voyage_cargo_plans_voyage_plan_legs_PlanLegId";
-ALTER TABLE IF EXISTS ONLY public.voyage_bunker_plans DROP CONSTRAINT IF EXISTS "FK_voyage_bunker_plans_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.voyage_bunker_plans DROP CONSTRAINT IF EXISTS "FK_voyage_bunker_plans_voyage_plan_legs_PlanLegId";
-ALTER TABLE IF EXISTS ONLY public.voyage_advance_payments DROP CONSTRAINT IF EXISTS "FK_voyage_advance_payments_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.voyage_actual_revenues DROP CONSTRAINT IF EXISTS "FK_voyage_actual_revenues_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.vessel_certificate_assignments DROP CONSTRAINT IF EXISTS "FK_vessel_certificate_assignments_certificates_CertificateId";
-ALTER TABLE IF EXISTS ONLY public.travel_status_history DROP CONSTRAINT IF EXISTS "FK_travel_status_history_travel_requests_TravelRequestId";
-ALTER TABLE IF EXISTS ONLY public.travel_segments DROP CONSTRAINT IF EXISTS "FK_travel_segments_travel_requests_TravelRequestId";
-ALTER TABLE IF EXISTS ONLY public.travel_requests DROP CONSTRAINT IF EXISTS "FK_travel_requests_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.travel_requests DROP CONSTRAINT IF EXISTS "FK_travel_requests_crew_assignments_AssignmentId";
-ALTER TABLE IF EXISTS ONLY public.travel_documents DROP CONSTRAINT IF EXISTS "FK_travel_documents_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.travel_documents DROP CONSTRAINT IF EXISTS "FK_travel_documents_countries_CountryId";
-ALTER TABLE IF EXISTS ONLY public.store_locations DROP CONSTRAINT IF EXISTS "FK_store_locations_store_locations_ParentId";
-ALTER TABLE IF EXISTS ONLY public.stock_receipts DROP CONSTRAINT IF EXISTS "FK_stock_receipts_material_requests_MaterialRequestId";
-ALTER TABLE IF EXISTS ONLY public.stock_receipt_items DROP CONSTRAINT IF EXISTS "FK_stock_receipt_items_stock_receipts_ReceiptId";
-ALTER TABLE IF EXISTS ONLY public.sign_on_records DROP CONSTRAINT IF EXISTS "FK_sign_on_records_ranks_RankId";
-ALTER TABLE IF EXISTS ONLY public.sign_on_records DROP CONSTRAINT IF EXISTS "FK_sign_on_records_onboard_events_OnboardEventId";
-ALTER TABLE IF EXISTS ONLY public.sign_on_records DROP CONSTRAINT IF EXISTS "FK_sign_on_records_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.sign_on_records DROP CONSTRAINT IF EXISTS "FK_sign_on_records_crew_assignments_AssignmentId";
-ALTER TABLE IF EXISTS ONLY public.sign_off_records DROP CONSTRAINT IF EXISTS "FK_sign_off_records_sign_on_records_SignOnRecordId";
-ALTER TABLE IF EXISTS ONLY public.sign_off_records DROP CONSTRAINT IF EXISTS "FK_sign_off_records_ranks_RankId";
-ALTER TABLE IF EXISTS ONLY public.sign_off_records DROP CONSTRAINT IF EXISTS "FK_sign_off_records_onboard_events_OnboardEventId";
-ALTER TABLE IF EXISTS ONLY public.sign_off_records DROP CONSTRAINT IF EXISTS "FK_sign_off_records_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.sign_off_records DROP CONSTRAINT IF EXISTS "FK_sign_off_records_crew_assignments_AssignmentId";
-ALTER TABLE IF EXISTS ONLY public.service_records DROP CONSTRAINT IF EXISTS "FK_service_records_crew_members_CrewMemberId1";
-ALTER TABLE IF EXISTS ONLY public.service_records DROP CONSTRAINT IF EXISTS "FK_service_records_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.seafarer_documents DROP CONSTRAINT IF EXISTS "FK_seafarer_documents_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.seafarer_documents DROP CONSTRAINT IF EXISTS "FK_seafarer_documents_countries_CountryId";
-ALTER TABLE IF EXISTS ONLY public.schedule_spare_parts DROP CONSTRAINT IF EXISTS "FK_schedule_spare_parts_maintenance_schedules_ScheduleId";
-ALTER TABLE IF EXISTS ONLY public.schedule_checklist_templates DROP CONSTRAINT IF EXISTS "FK_schedule_checklist_templates_maintenance_schedules_Schedule~";
-ALTER TABLE IF EXISTS ONLY public.rank_certificates DROP CONSTRAINT IF EXISTS "FK_rank_certificates_ranks_RankId";
-ALTER TABLE IF EXISTS ONLY public.rank_certificates DROP CONSTRAINT IF EXISTS "FK_rank_certificates_certificates_CertificateId";
-ALTER TABLE IF EXISTS ONLY public.onboarding_checklist_items DROP CONSTRAINT IF EXISTS "FK_onboarding_checklist_items_onboarding_cases_OnboardingCaseId";
-ALTER TABLE IF EXISTS ONLY public.onboarding_cases DROP CONSTRAINT IF EXISTS "FK_onboarding_cases_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.onboard_events DROP CONSTRAINT IF EXISTS "FK_onboard_events_onboard_events_OriginalEventId";
-ALTER TABLE IF EXISTS ONLY public.onboard_events DROP CONSTRAINT IF EXISTS "FK_onboard_events_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.onboard_events DROP CONSTRAINT IF EXISTS "FK_onboard_events_crew_assignments_AssignmentId";
-ALTER TABLE IF EXISTS ONLY public.material_request_items DROP CONSTRAINT IF EXISTS "FK_material_request_items_material_requests_RequestId";
-ALTER TABLE IF EXISTS ONLY public.manning_positions DROP CONSTRAINT IF EXISTS "FK_manning_positions_vessel_manning_standards_ManningStandardId";
-ALTER TABLE IF EXISTS ONLY public.manning_positions DROP CONSTRAINT IF EXISTS "FK_manning_positions_ranks_RankId";
-ALTER TABLE IF EXISTS ONLY public.health_documents DROP CONSTRAINT IF EXISTS "FK_health_documents_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.external_requests DROP CONSTRAINT IF EXISTS "FK_external_requests_ranks_RankId";
-ALTER TABLE IF EXISTS ONLY public.external_requests DROP CONSTRAINT IF EXISTS "FK_external_requests_crew_assignments_AssignmentId";
-ALTER TABLE IF EXISTS ONLY public.external_request_messages DROP CONSTRAINT IF EXISTS "FK_external_request_messages_external_requests_ExternalRequest~";
-ALTER TABLE IF EXISTS ONLY public.external_candidates DROP CONSTRAINT IF EXISTS "FK_external_candidates_ranks_RankId";
-ALTER TABLE IF EXISTS ONLY public.external_candidates DROP CONSTRAINT IF EXISTS "FK_external_candidates_external_requests_ExternalRequestId";
-ALTER TABLE IF EXISTS ONLY public.external_candidates DROP CONSTRAINT IF EXISTS "FK_external_candidates_crew_members_LinkedCrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.equipment_group_members DROP CONSTRAINT IF EXISTS "FK_equipment_group_members_equipment_groups_GroupId";
-ALTER TABLE IF EXISTS ONLY public.equipment_group_members DROP CONSTRAINT IF EXISTS "FK_equipment_group_members_equipment_assets_AssetId";
-ALTER TABLE IF EXISTS ONLY public.equipment_assets DROP CONSTRAINT IF EXISTS "FK_equipment_assets_equipment_assets_ParentId";
-ALTER TABLE IF EXISTS ONLY public.employment_documents DROP CONSTRAINT IF EXISTS "FK_employment_documents_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.employment_documents DROP CONSTRAINT IF EXISTS "FK_employment_documents_countries_CountryId";
-ALTER TABLE IF EXISTS ONLY public.document_verification_tasks DROP CONSTRAINT IF EXISTS "FK_document_verification_tasks_crew_document_versions_VersionId";
-ALTER TABLE IF EXISTS ONLY public.document_verification_tasks DROP CONSTRAINT IF EXISTS "FK_document_verification_tasks_crew_document_submissions_Submi~";
-ALTER TABLE IF EXISTS ONLY public.document_verification_actions DROP CONSTRAINT IF EXISTS "FK_document_verification_actions_document_verification_tasks_T~";
-ALTER TABLE IF EXISTS ONLY public.crew_status_history DROP CONSTRAINT IF EXISTS "FK_crew_status_history_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.crew_members DROP CONSTRAINT IF EXISTS "FK_crew_members_ranks_RankId";
-ALTER TABLE IF EXISTS ONLY public.crew_members DROP CONSTRAINT IF EXISTS "FK_crew_members_countries_CountryId";
-ALTER TABLE IF EXISTS ONLY public.crew_document_versions DROP CONSTRAINT IF EXISTS "FK_crew_document_versions_crew_document_submissions_Submission~";
-ALTER TABLE IF EXISTS ONLY public.crew_document_submissions DROP CONSTRAINT IF EXISTS "FK_crew_document_submissions_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.crew_document_submissions DROP CONSTRAINT IF EXISTS "FK_crew_document_submissions_countries_IssuingCountryId";
-ALTER TABLE IF EXISTS ONLY public.crew_certificates DROP CONSTRAINT IF EXISTS "FK_crew_certificates_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.crew_certificates DROP CONSTRAINT IF EXISTS "FK_crew_certificates_countries_CountryId";
-ALTER TABLE IF EXISTS ONLY public.crew_certificates DROP CONSTRAINT IF EXISTS "FK_crew_certificates_certificates_CertificateId";
-ALTER TABLE IF EXISTS ONLY public.crew_assignments DROP CONSTRAINT IF EXISTS "FK_crew_assignments_ranks_RankId";
-ALTER TABLE IF EXISTS ONLY public.crew_assignments DROP CONSTRAINT IF EXISTS "FK_crew_assignments_manning_positions_ManningPositionId";
-ALTER TABLE IF EXISTS ONLY public.crew_assignments DROP CONSTRAINT IF EXISTS "FK_crew_assignments_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.crew_access_grants DROP CONSTRAINT IF EXISTS "FK_crew_access_grants_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.crew_access_grants DROP CONSTRAINT IF EXISTS "FK_crew_access_grants_crew_assignments_AssignmentId";
-ALTER TABLE IF EXISTS ONLY public.country_certificates DROP CONSTRAINT IF EXISTS "FK_country_certificates_countries_CountryId";
-ALTER TABLE IF EXISTS ONLY public.country_certificates DROP CONSTRAINT IF EXISTS "FK_country_certificates_certificates_CertificateId";
-ALTER TABLE IF EXISTS ONLY public.compliance_waivers DROP CONSTRAINT IF EXISTS "FK_compliance_waivers_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.compliance_waivers DROP CONSTRAINT IF EXISTS "FK_compliance_waivers_compliance_rules_RuleId";
-ALTER TABLE IF EXISTS ONLY public.compliance_snapshots DROP CONSTRAINT IF EXISTS "FK_compliance_snapshots_crew_members_CrewMemberId";
-ALTER TABLE IF EXISTS ONLY public.compliance_rules DROP CONSTRAINT IF EXISTS "FK_compliance_rules_compliance_rule_sets_RuleSetId";
-ALTER TABLE IF EXISTS ONLY public.compliance_dimensions DROP CONSTRAINT IF EXISTS "FK_compliance_dimensions_compliance_rules_RuleId";
-ALTER TABLE IF EXISTS ONLY public.cargo_operations DROP CONSTRAINT IF EXISTS "FK_cargo_operations_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public.assignment_status_history DROP CONSTRAINT IF EXISTS "FK_assignment_status_history_crew_assignments_AssignmentId";
-ALTER TABLE IF EXISTS ONLY public.assignment_conflicts DROP CONSTRAINT IF EXISTS "FK_assignment_conflicts_crew_assignments_AssignmentId";
-ALTER TABLE IF EXISTS ONLY public.assignment_confirmations DROP CONSTRAINT IF EXISTS "FK_assignment_confirmations_crew_assignments_AssignmentId";
-ALTER TABLE IF EXISTS ONLY public.assignment_comments DROP CONSTRAINT IF EXISTS "FK_assignment_comments_crew_assignments_AssignmentId";
-ALTER TABLE IF EXISTS ONLY public."VesselPositions" DROP CONSTRAINT IF EXISTS "FK_VesselPositions_Vessels_VesselId";
-ALTER TABLE IF EXISTS ONLY public."VesselAlerts" DROP CONSTRAINT IF EXISTS "FK_VesselAlerts_Vessels_VesselId";
-ALTER TABLE IF EXISTS ONLY public."PortCalls" DROP CONSTRAINT IF EXISTS "FK_PortCalls_voyage_records_VoyageId";
-ALTER TABLE IF EXISTS ONLY public."PortCalls" DROP CONSTRAINT IF EXISTS "FK_PortCalls_voyage_plan_legs_VoyagePlanLegId";
-ALTER TABLE IF EXISTS ONLY public."PortCalls" DROP CONSTRAINT IF EXISTS "FK_PortCalls_ports_PortId";
-ALTER TABLE IF EXISTS ONLY public."PortCalls" DROP CONSTRAINT IF EXISTS "FK_PortCalls_Vessels_VesselId";
-ALTER TABLE IF EXISTS ONLY public."FuelConsumptions" DROP CONSTRAINT IF EXISTS "FK_FuelConsumptions_Vessels_VesselId";
-ALTER TABLE IF EXISTS ONLY public."Certificates" DROP CONSTRAINT IF EXISTS "FK_Certificates_Vessels_VesselId";
-DROP INDEX IF EXISTS public."IX_voyage_status_history_VoyageId_ChangedAt";
-DROP INDEX IF EXISTS public."IX_voyage_status_history_ToStatus";
-DROP INDEX IF EXISTS public."IX_voyage_status_history_IsSynced";
-DROP INDEX IF EXISTS public."IX_voyage_settlements_VoyageId";
-DROP INDEX IF EXISTS public."IX_voyage_settlements_Status";
-DROP INDEX IF EXISTS public."IX_voyage_settlements_SettlementNumber";
-DROP INDEX IF EXISTS public."IX_voyage_settlements_IsSynced";
-DROP INDEX IF EXISTS public."IX_voyage_reviews_VoyageId";
-DROP INDEX IF EXISTS public."IX_voyage_reviews_ReviewStatus";
-DROP INDEX IF EXISTS public."IX_voyage_revenue_estimates_VoyageId_Sequence";
-DROP INDEX IF EXISTS public."IX_voyage_revenue_estimates_RevenueCategory";
-DROP INDEX IF EXISTS public."IX_voyage_revenue_estimates_IsSynced";
-DROP INDEX IF EXISTS public."IX_voyage_records_VoyageStatus";
-DROP INDEX IF EXISTS public."IX_voyage_records_VoyageNumber";
-DROP INDEX IF EXISTS public."IX_voyage_records_VesselIMO";
-DROP INDEX IF EXISTS public."IX_voyage_records_IsSynced";
-DROP INDEX IF EXISTS public."IX_voyage_records_DepartureTime";
-DROP INDEX IF EXISTS public."IX_voyage_plan_legs_VoyageId_Sequence";
-DROP INDEX IF EXISTS public."IX_voyage_plan_legs_LegType";
-DROP INDEX IF EXISTS public."IX_voyage_plan_legs_IsSynced";
-DROP INDEX IF EXISTS public."IX_voyage_log_entries_VoyageId";
-DROP INDEX IF EXISTS public."IX_voyage_log_entries_PortLocode";
-DROP INDEX IF EXISTS public."IX_voyage_log_entries_IsSynced";
-DROP INDEX IF EXISTS public."IX_voyage_log_entries_EventType";
-DROP INDEX IF EXISTS public."IX_voyage_log_entries_EventDateTime";
-DROP INDEX IF EXISTS public."IX_voyage_expense_requests_VoyageId";
-DROP INDEX IF EXISTS public."IX_voyage_expense_requests_Status";
-DROP INDEX IF EXISTS public."IX_voyage_expense_requests_RequestNumber";
-DROP INDEX IF EXISTS public."IX_voyage_expense_requests_IsSynced";
-DROP INDEX IF EXISTS public."IX_voyage_expense_requests_CostCategory";
-DROP INDEX IF EXISTS public."IX_voyage_disbursements_VoyageId";
-DROP INDEX IF EXISTS public."IX_voyage_disbursements_Status";
-DROP INDEX IF EXISTS public."IX_voyage_disbursements_IsSynced";
-DROP INDEX IF EXISTS public."IX_voyage_disbursements_ExpenseRequestId";
-DROP INDEX IF EXISTS public."IX_voyage_disbursements_DisbursementNumber";
-DROP INDEX IF EXISTS public."IX_voyage_disbursements_CostCategory";
-DROP INDEX IF EXISTS public."IX_voyage_disbursements_AdvancePaymentId";
-DROP INDEX IF EXISTS public."IX_voyage_crew_change_plans_VoyageId_Sequence";
-DROP INDEX IF EXISTS public."IX_voyage_crew_change_plans_RankId";
-DROP INDEX IF EXISTS public."IX_voyage_crew_change_plans_PlanLegId";
-DROP INDEX IF EXISTS public."IX_voyage_crew_change_plans_IsSynced";
-DROP INDEX IF EXISTS public."IX_voyage_crew_change_plans_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_voyage_crew_assignments_VoyageId_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_voyage_crew_assignments_Status";
-DROP INDEX IF EXISTS public."IX_voyage_crew_assignments_RankId";
-DROP INDEX IF EXISTS public."IX_voyage_crew_assignments_IsSynced";
-DROP INDEX IF EXISTS public."IX_voyage_crew_assignments_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_voyage_cost_estimates_VoyageId_Sequence";
-DROP INDEX IF EXISTS public."IX_voyage_cost_estimates_IsSynced";
-DROP INDEX IF EXISTS public."IX_voyage_cost_estimates_CostCategory";
-DROP INDEX IF EXISTS public."IX_voyage_cargo_plans_VoyageId_Sequence";
-DROP INDEX IF EXISTS public."IX_voyage_cargo_plans_PlanLegId";
-DROP INDEX IF EXISTS public."IX_voyage_cargo_plans_IsSynced";
-DROP INDEX IF EXISTS public."IX_voyage_bunker_plans_VoyageId_Sequence";
-DROP INDEX IF EXISTS public."IX_voyage_bunker_plans_PlanLegId";
-DROP INDEX IF EXISTS public."IX_voyage_bunker_plans_IsSynced";
-DROP INDEX IF EXISTS public."IX_voyage_advance_payments_VoyageId";
-DROP INDEX IF EXISTS public."IX_voyage_advance_payments_Status";
-DROP INDEX IF EXISTS public."IX_voyage_advance_payments_IsSynced";
-DROP INDEX IF EXISTS public."IX_voyage_advance_payments_AdvanceNumber";
-DROP INDEX IF EXISTS public."IX_voyage_actual_revenues_VoyageId";
-DROP INDEX IF EXISTS public."IX_voyage_actual_revenues_Status";
-DROP INDEX IF EXISTS public."IX_voyage_actual_revenues_RevenueNumber";
-DROP INDEX IF EXISTS public."IX_voyage_actual_revenues_RevenueCategory";
-DROP INDEX IF EXISTS public."IX_voyage_actual_revenues_IsSynced";
-DROP INDEX IF EXISTS public."IX_vessel_manning_standards_VesselId";
-DROP INDEX IF EXISTS public."IX_vessel_manning_standards_IsActive";
-DROP INDEX IF EXISTS public."IX_vessel_certificate_assignments_VesselId_CertificateId";
-DROP INDEX IF EXISTS public."IX_vessel_certificate_assignments_IsSynced";
-DROP INDEX IF EXISTS public."IX_vessel_certificate_assignments_CertificateId";
-DROP INDEX IF EXISTS public."IX_travel_status_history_TravelRequestId";
-DROP INDEX IF EXISTS public."IX_travel_segments_TravelRequestId";
-DROP INDEX IF EXISTS public."IX_travel_requests_Status";
-DROP INDEX IF EXISTS public."IX_travel_requests_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_travel_requests_AssignmentId";
-DROP INDEX IF EXISTS public."IX_travel_documents_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_travel_documents_CountryId";
-DROP INDEX IF EXISTS public."IX_sync_table_stats_NodeId_TableName";
-DROP INDEX IF EXISTS public."IX_sync_outbox_TableName_RecordKey";
-DROP INDEX IF EXISTS public."IX_sync_outbox_DeliveredAt";
-DROP INDEX IF EXISTS public."IX_sync_node_trackers_NodeId";
-DROP INDEX IF EXISTS public."IX_sync_node_trackers_IsOnline";
-DROP INDEX IF EXISTS public."IX_sync_logs_ProcessedAt";
-DROP INDEX IF EXISTS public."IX_sync_logs_OriginNode";
-DROP INDEX IF EXISTS public."IX_sync_idempotency_records_ProcessedAt";
-DROP INDEX IF EXISTS public."IX_sync_idempotency_records_IdempotencyKey";
-DROP INDEX IF EXISTS public."IX_store_locations_ParentId";
-DROP INDEX IF EXISTS public."IX_store_locations_LocationCode";
-DROP INDEX IF EXISTS public."IX_stock_receipts_ReceiptCode";
-DROP INDEX IF EXISTS public."IX_stock_receipts_MaterialRequestId";
-DROP INDEX IF EXISTS public."IX_stock_receipt_items_ReceiptId";
-DROP INDEX IF EXISTS public."IX_sign_on_records_VesselId";
-DROP INDEX IF EXISTS public."IX_sign_on_records_SignOnDate";
-DROP INDEX IF EXISTS public."IX_sign_on_records_RankId";
-DROP INDEX IF EXISTS public."IX_sign_on_records_OnboardEventId";
-DROP INDEX IF EXISTS public."IX_sign_on_records_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_sign_on_records_AssignmentId";
-DROP INDEX IF EXISTS public."IX_sign_off_records_VesselId";
-DROP INDEX IF EXISTS public."IX_sign_off_records_SignOnRecordId";
-DROP INDEX IF EXISTS public."IX_sign_off_records_SignOffDate";
-DROP INDEX IF EXISTS public."IX_sign_off_records_RankId";
-DROP INDEX IF EXISTS public."IX_sign_off_records_OnboardEventId";
-DROP INDEX IF EXISTS public."IX_sign_off_records_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_sign_off_records_AssignmentId";
-DROP INDEX IF EXISTS public."IX_service_records_IsSynced";
-DROP INDEX IF EXISTS public."IX_service_records_CrewMemberId1";
-DROP INDEX IF EXISTS public."IX_service_records_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_seafarer_documents_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_seafarer_documents_CountryId";
-DROP INDEX IF EXISTS public."IX_schedule_spare_parts_ScheduleId";
-DROP INDEX IF EXISTS public."IX_schedule_checklist_templates_ScheduleId";
-DROP INDEX IF EXISTS public."IX_report_types_TypeCode";
-DROP INDEX IF EXISTS public."IX_ranks_RankCode";
-DROP INDEX IF EXISTS public."IX_rank_certificates_RankId_CertificateId";
-DROP INDEX IF EXISTS public."IX_rank_certificates_CertificateId";
-DROP INDEX IF EXISTS public."IX_position_reports_MaritimeReportId";
-DROP INDEX IF EXISTS public."IX_ports_PortName";
-DROP INDEX IF EXISTS public."IX_ports_PortCode";
-DROP INDEX IF EXISTS public."IX_ports_IsSynced";
-DROP INDEX IF EXISTS public."IX_ports_IsActive";
-DROP INDEX IF EXISTS public."IX_ports_CountryCode";
-DROP INDEX IF EXISTS public."IX_onboarding_checklist_items_OnboardingCaseId_Status";
-DROP INDEX IF EXISTS public."IX_onboarding_checklist_items_OnboardingCaseId";
-DROP INDEX IF EXISTS public."IX_onboarding_cases_Status";
-DROP INDEX IF EXISTS public."IX_onboarding_cases_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_onboarding_cases_CreatedAt";
-DROP INDEX IF EXISTS public."IX_onboard_events_VesselId";
-DROP INDEX IF EXISTS public."IX_onboard_events_OriginalEventId";
-DROP INDEX IF EXISTS public."IX_onboard_events_EventType";
-DROP INDEX IF EXISTS public."IX_onboard_events_EventTimestamp";
-DROP INDEX IF EXISTS public."IX_onboard_events_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_onboard_events_AssignmentId";
-DROP INDEX IF EXISTS public."IX_noon_reports_MaritimeReportId";
-DROP INDEX IF EXISTS public."IX_material_requests_RequestCode";
-DROP INDEX IF EXISTS public."IX_material_request_items_RequestId";
-DROP INDEX IF EXISTS public."IX_material_items_ItemCode";
-DROP INDEX IF EXISTS public."IX_material_item_equipments_MaterialItemId_EquipmentAssetId";
-DROP INDEX IF EXISTS public."IX_material_categories_CategoryCode";
-DROP INDEX IF EXISTS public."IX_maritime_reports_Status";
-DROP INDEX IF EXISTS public."IX_maritime_reports_ReportNumber";
-DROP INDEX IF EXISTS public."IX_maritime_reports_ReportDateTime";
-DROP INDEX IF EXISTS public."IX_maritime_reports_OriginNode";
-DROP INDEX IF EXISTS public."IX_manning_positions_RankId";
-DROP INDEX IF EXISTS public."IX_manning_positions_ManningStandardId";
-DROP INDEX IF EXISTS public."IX_maintenance_schedules_ScheduleCode";
-DROP INDEX IF EXISTS public."IX_inventory_stocks_MaterialItemId_StoreLocationId";
-DROP INDEX IF EXISTS public."IX_health_documents_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_external_requests_VesselId";
-DROP INDEX IF EXISTS public."IX_external_requests_Status";
-DROP INDEX IF EXISTS public."IX_external_requests_RankId";
-DROP INDEX IF EXISTS public."IX_external_requests_AssignmentId";
-DROP INDEX IF EXISTS public."IX_external_request_messages_ExternalRequestId";
-DROP INDEX IF EXISTS public."IX_external_candidates_Status";
-DROP INDEX IF EXISTS public."IX_external_candidates_RankId";
-DROP INDEX IF EXISTS public."IX_external_candidates_LinkedCrewMemberId";
-DROP INDEX IF EXISTS public."IX_external_candidates_ExternalRequestId";
-DROP INDEX IF EXISTS public."IX_equipment_groups_GroupCode";
-DROP INDEX IF EXISTS public."IX_equipment_group_members_GroupId_AssetId";
-DROP INDEX IF EXISTS public."IX_equipment_group_members_AssetId";
-DROP INDEX IF EXISTS public."IX_equipment_assets_ParentId";
-DROP INDEX IF EXISTS public."IX_equipment_assets_AssetCode";
-DROP INDEX IF EXISTS public."IX_employment_documents_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_employment_documents_CountryId";
-DROP INDEX IF EXISTS public."IX_document_verification_tasks_VersionId";
-DROP INDEX IF EXISTS public."IX_document_verification_tasks_SubmissionId";
-DROP INDEX IF EXISTS public."IX_document_verification_tasks_Status_Priority";
-DROP INDEX IF EXISTS public."IX_document_verification_tasks_DueAt";
-DROP INDEX IF EXISTS public."IX_document_verification_tasks_AssignedTo";
-DROP INDEX IF EXISTS public."IX_document_verification_actions_TaskId";
-DROP INDEX IF EXISTS public."IX_departure_reports_MaritimeReportId";
-DROP INDEX IF EXISTS public."IX_crew_status_history_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_crew_status_history_ChangedAt";
-DROP INDEX IF EXISTS public."IX_crew_members_VesselId";
-DROP INDEX IF EXISTS public."IX_crew_members_RankId";
-DROP INDEX IF EXISTS public."IX_crew_members_IsSynced";
-DROP INDEX IF EXISTS public."IX_crew_members_IsOnboard";
-DROP INDEX IF EXISTS public."IX_crew_members_FullName";
-DROP INDEX IF EXISTS public."IX_crew_members_CrewId";
-DROP INDEX IF EXISTS public."IX_crew_members_CountryId";
-DROP INDEX IF EXISTS public."IX_crew_document_versions_SubmissionId_IsActiveVersion";
-DROP INDEX IF EXISTS public."IX_crew_document_versions_SubmissionId";
-DROP INDEX IF EXISTS public."IX_crew_document_submissions_Status";
-DROP INDEX IF EXISTS public."IX_crew_document_submissions_IssuingCountryId";
-DROP INDEX IF EXISTS public."IX_crew_document_submissions_CrewMemberId_DocumentType_IsActiv~";
-DROP INDEX IF EXISTS public."IX_crew_document_submissions_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_crew_certificates_IsSynced";
-DROP INDEX IF EXISTS public."IX_crew_certificates_ExpiryDate";
-DROP INDEX IF EXISTS public."IX_crew_certificates_CrewMemberId_CertificateId";
-DROP INDEX IF EXISTS public."IX_crew_certificates_CountryId";
-DROP INDEX IF EXISTS public."IX_crew_certificates_CertificateId";
-DROP INDEX IF EXISTS public."IX_crew_assignments_VesselId_Status";
-DROP INDEX IF EXISTS public."IX_crew_assignments_VesselId";
-DROP INDEX IF EXISTS public."IX_crew_assignments_Status";
-DROP INDEX IF EXISTS public."IX_crew_assignments_RankId";
-DROP INDEX IF EXISTS public."IX_crew_assignments_PlannedStartDate_PlannedEndDate";
-DROP INDEX IF EXISTS public."IX_crew_assignments_ManningPositionId";
-DROP INDEX IF EXISTS public."IX_crew_assignments_CrewMemberId_Status";
-DROP INDEX IF EXISTS public."IX_crew_assignments_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_crew_access_grants_VesselId";
-DROP INDEX IF EXISTS public."IX_crew_access_grants_Status";
-DROP INDEX IF EXISTS public."IX_crew_access_grants_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_crew_access_grants_AssignmentId";
-DROP INDEX IF EXISTS public."IX_country_certificates_CountryId_CertificateId";
-DROP INDEX IF EXISTS public."IX_country_certificates_CertificateId";
-DROP INDEX IF EXISTS public."IX_countries_CountryCode";
-DROP INDEX IF EXISTS public."IX_compliance_waivers_Status";
-DROP INDEX IF EXISTS public."IX_compliance_waivers_RuleId";
-DROP INDEX IF EXISTS public."IX_compliance_waivers_CrewMemberId_RuleId_Status";
-DROP INDEX IF EXISTS public."IX_compliance_waivers_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_compliance_snapshots_OverallResult";
-DROP INDEX IF EXISTS public."IX_compliance_snapshots_EvaluatedAt";
-DROP INDEX IF EXISTS public."IX_compliance_snapshots_CrewMemberId_VesselId";
-DROP INDEX IF EXISTS public."IX_compliance_snapshots_CrewMemberId";
-DROP INDEX IF EXISTS public."IX_compliance_rules_Severity";
-DROP INDEX IF EXISTS public."IX_compliance_rules_RuleSetId";
-DROP INDEX IF EXISTS public."IX_compliance_rules_RequiredCertificateId";
-DROP INDEX IF EXISTS public."IX_compliance_rules_IsActive";
-DROP INDEX IF EXISTS public."IX_compliance_rules_EvaluationStage";
-DROP INDEX IF EXISTS public."IX_compliance_rule_sets_IsActive";
-DROP INDEX IF EXISTS public."IX_compliance_rule_sets_Code";
-DROP INDEX IF EXISTS public."IX_compliance_dimensions_RuleId";
-DROP INDEX IF EXISTS public."IX_compliance_dimensions_DimensionType_Value";
-DROP INDEX IF EXISTS public."IX_certificates_CertificateCode";
-DROP INDEX IF EXISTS public."IX_cargo_operations_VoyageId";
-DROP INDEX IF EXISTS public."IX_cargo_operations_Status";
-DROP INDEX IF EXISTS public."IX_cargo_operations_OperationId";
-DROP INDEX IF EXISTS public."IX_cargo_operations_IsSynced";
-DROP INDEX IF EXISTS public."IX_cargo_operations_CargoType";
-DROP INDEX IF EXISTS public."IX_cargo_operations_BillOfLading";
-DROP INDEX IF EXISTS public."IX_bunker_reports_MaritimeReportId";
-DROP INDEX IF EXISTS public."IX_audit_logs_Timestamp";
-DROP INDEX IF EXISTS public."IX_audit_logs_EntityType_EntityId";
-DROP INDEX IF EXISTS public."IX_audit_logs_CorrelationId";
-DROP INDEX IF EXISTS public."IX_audit_logs_Actor";
-DROP INDEX IF EXISTS public."IX_assignment_status_history_AssignmentId";
-DROP INDEX IF EXISTS public."IX_assignment_conflicts_AssignmentId_IsResolved";
-DROP INDEX IF EXISTS public."IX_assignment_conflicts_AssignmentId";
-DROP INDEX IF EXISTS public."IX_assignment_confirmations_AssignmentId";
-DROP INDEX IF EXISTS public."IX_assignment_comments_AssignmentId";
-DROP INDEX IF EXISTS public."IX_arrival_reports_MaritimeReportId";
-DROP INDEX IF EXISTS public."IX_Vessels_IMO";
-DROP INDEX IF EXISTS public."IX_VesselPositions_VesselId_Timestamp";
-DROP INDEX IF EXISTS public."IX_VesselAlerts_VesselId_Timestamp";
-DROP INDEX IF EXISTS public."IX_VesselAlerts_IsAcknowledged";
-DROP INDEX IF EXISTS public."IX_PortCalls_VoyagePlanLegId";
-DROP INDEX IF EXISTS public."IX_PortCalls_VoyageId_Sequence";
-DROP INDEX IF EXISTS public."IX_PortCalls_VesselId_ArrivalTime";
-DROP INDEX IF EXISTS public."IX_PortCalls_PortId";
-DROP INDEX IF EXISTS public."IX_PortCalls_PortCode";
-DROP INDEX IF EXISTS public."IX_PortCalls_IsSynced";
-DROP INDEX IF EXISTS public."IX_PortCalls_CallType";
-DROP INDEX IF EXISTS public."IX_FuelConsumptions_VesselId";
-DROP INDEX IF EXISTS public."IX_Certificates_VesselId_ExpiryDate";
-DROP INDEX IF EXISTS public."IX_Certificates_CertificateNumber";
-ALTER TABLE IF EXISTS ONLY public.vessel_certificate_assignments DROP CONSTRAINT IF EXISTS vessel_certificate_assignments_pkey;
-ALTER TABLE IF EXISTS ONLY public.voyage_status_history DROP CONSTRAINT IF EXISTS "PK_voyage_status_history";
-ALTER TABLE IF EXISTS ONLY public.voyage_settlements DROP CONSTRAINT IF EXISTS "PK_voyage_settlements";
-ALTER TABLE IF EXISTS ONLY public.voyage_reviews DROP CONSTRAINT IF EXISTS "PK_voyage_reviews";
-ALTER TABLE IF EXISTS ONLY public.voyage_revenue_estimates DROP CONSTRAINT IF EXISTS "PK_voyage_revenue_estimates";
-ALTER TABLE IF EXISTS ONLY public.voyage_records DROP CONSTRAINT IF EXISTS "PK_voyage_records";
-ALTER TABLE IF EXISTS ONLY public.voyage_plan_legs DROP CONSTRAINT IF EXISTS "PK_voyage_plan_legs";
-ALTER TABLE IF EXISTS ONLY public.voyage_log_entries DROP CONSTRAINT IF EXISTS "PK_voyage_log_entries";
-ALTER TABLE IF EXISTS ONLY public.voyage_expense_requests DROP CONSTRAINT IF EXISTS "PK_voyage_expense_requests";
-ALTER TABLE IF EXISTS ONLY public.voyage_disbursements DROP CONSTRAINT IF EXISTS "PK_voyage_disbursements";
-ALTER TABLE IF EXISTS ONLY public.voyage_crew_change_plans DROP CONSTRAINT IF EXISTS "PK_voyage_crew_change_plans";
-ALTER TABLE IF EXISTS ONLY public.voyage_crew_assignments DROP CONSTRAINT IF EXISTS "PK_voyage_crew_assignments";
-ALTER TABLE IF EXISTS ONLY public.voyage_cost_estimates DROP CONSTRAINT IF EXISTS "PK_voyage_cost_estimates";
-ALTER TABLE IF EXISTS ONLY public.voyage_cargo_plans DROP CONSTRAINT IF EXISTS "PK_voyage_cargo_plans";
-ALTER TABLE IF EXISTS ONLY public.voyage_bunker_plans DROP CONSTRAINT IF EXISTS "PK_voyage_bunker_plans";
-ALTER TABLE IF EXISTS ONLY public.voyage_advance_payments DROP CONSTRAINT IF EXISTS "PK_voyage_advance_payments";
-ALTER TABLE IF EXISTS ONLY public.voyage_actual_revenues DROP CONSTRAINT IF EXISTS "PK_voyage_actual_revenues";
-ALTER TABLE IF EXISTS ONLY public.vessel_manning_standards DROP CONSTRAINT IF EXISTS "PK_vessel_manning_standards";
-ALTER TABLE IF EXISTS ONLY public.travel_status_history DROP CONSTRAINT IF EXISTS "PK_travel_status_history";
-ALTER TABLE IF EXISTS ONLY public.travel_segments DROP CONSTRAINT IF EXISTS "PK_travel_segments";
-ALTER TABLE IF EXISTS ONLY public.travel_requests DROP CONSTRAINT IF EXISTS "PK_travel_requests";
-ALTER TABLE IF EXISTS ONLY public.travel_documents DROP CONSTRAINT IF EXISTS "PK_travel_documents";
-ALTER TABLE IF EXISTS ONLY public.sync_table_stats DROP CONSTRAINT IF EXISTS "PK_sync_table_stats";
-ALTER TABLE IF EXISTS ONLY public.sync_outbox DROP CONSTRAINT IF EXISTS "PK_sync_outbox";
-ALTER TABLE IF EXISTS ONLY public.sync_node_trackers DROP CONSTRAINT IF EXISTS "PK_sync_node_trackers";
-ALTER TABLE IF EXISTS ONLY public.sync_logs DROP CONSTRAINT IF EXISTS "PK_sync_logs";
-ALTER TABLE IF EXISTS ONLY public.sync_idempotency_records DROP CONSTRAINT IF EXISTS "PK_sync_idempotency_records";
-ALTER TABLE IF EXISTS ONLY public.store_locations DROP CONSTRAINT IF EXISTS "PK_store_locations";
-ALTER TABLE IF EXISTS ONLY public.stock_receipts DROP CONSTRAINT IF EXISTS "PK_stock_receipts";
-ALTER TABLE IF EXISTS ONLY public.stock_receipt_items DROP CONSTRAINT IF EXISTS "PK_stock_receipt_items";
-ALTER TABLE IF EXISTS ONLY public.sign_on_records DROP CONSTRAINT IF EXISTS "PK_sign_on_records";
-ALTER TABLE IF EXISTS ONLY public.sign_off_records DROP CONSTRAINT IF EXISTS "PK_sign_off_records";
-ALTER TABLE IF EXISTS ONLY public.service_records DROP CONSTRAINT IF EXISTS "PK_service_records";
-ALTER TABLE IF EXISTS ONLY public.seafarer_documents DROP CONSTRAINT IF EXISTS "PK_seafarer_documents";
-ALTER TABLE IF EXISTS ONLY public.schedule_spare_parts DROP CONSTRAINT IF EXISTS "PK_schedule_spare_parts";
-ALTER TABLE IF EXISTS ONLY public.schedule_checklist_templates DROP CONSTRAINT IF EXISTS "PK_schedule_checklist_templates";
-ALTER TABLE IF EXISTS ONLY public.report_types DROP CONSTRAINT IF EXISTS "PK_report_types";
-ALTER TABLE IF EXISTS ONLY public.ranks DROP CONSTRAINT IF EXISTS "PK_ranks";
-ALTER TABLE IF EXISTS ONLY public.rank_certificates DROP CONSTRAINT IF EXISTS "PK_rank_certificates";
-ALTER TABLE IF EXISTS ONLY public.position_reports DROP CONSTRAINT IF EXISTS "PK_position_reports";
-ALTER TABLE IF EXISTS ONLY public.ports DROP CONSTRAINT IF EXISTS "PK_ports";
-ALTER TABLE IF EXISTS ONLY public.onboarding_checklist_items DROP CONSTRAINT IF EXISTS "PK_onboarding_checklist_items";
-ALTER TABLE IF EXISTS ONLY public.onboarding_cases DROP CONSTRAINT IF EXISTS "PK_onboarding_cases";
-ALTER TABLE IF EXISTS ONLY public.onboard_events DROP CONSTRAINT IF EXISTS "PK_onboard_events";
-ALTER TABLE IF EXISTS ONLY public.noon_reports DROP CONSTRAINT IF EXISTS "PK_noon_reports";
-ALTER TABLE IF EXISTS ONLY public.material_requests DROP CONSTRAINT IF EXISTS "PK_material_requests";
-ALTER TABLE IF EXISTS ONLY public.material_request_items DROP CONSTRAINT IF EXISTS "PK_material_request_items";
-ALTER TABLE IF EXISTS ONLY public.material_items DROP CONSTRAINT IF EXISTS "PK_material_items";
-ALTER TABLE IF EXISTS ONLY public.material_item_equipments DROP CONSTRAINT IF EXISTS "PK_material_item_equipments";
-ALTER TABLE IF EXISTS ONLY public.material_categories DROP CONSTRAINT IF EXISTS "PK_material_categories";
-ALTER TABLE IF EXISTS ONLY public.maritime_reports DROP CONSTRAINT IF EXISTS "PK_maritime_reports";
-ALTER TABLE IF EXISTS ONLY public.manning_positions DROP CONSTRAINT IF EXISTS "PK_manning_positions";
-ALTER TABLE IF EXISTS ONLY public.maintenance_schedules DROP CONSTRAINT IF EXISTS "PK_maintenance_schedules";
-ALTER TABLE IF EXISTS ONLY public.maintenance_histories DROP CONSTRAINT IF EXISTS "PK_maintenance_histories";
-ALTER TABLE IF EXISTS ONLY public.inventory_stocks DROP CONSTRAINT IF EXISTS "PK_inventory_stocks";
-ALTER TABLE IF EXISTS ONLY public.health_documents DROP CONSTRAINT IF EXISTS "PK_health_documents";
-ALTER TABLE IF EXISTS ONLY public.external_requests DROP CONSTRAINT IF EXISTS "PK_external_requests";
-ALTER TABLE IF EXISTS ONLY public.external_request_messages DROP CONSTRAINT IF EXISTS "PK_external_request_messages";
-ALTER TABLE IF EXISTS ONLY public.external_candidates DROP CONSTRAINT IF EXISTS "PK_external_candidates";
-ALTER TABLE IF EXISTS ONLY public.equipment_groups DROP CONSTRAINT IF EXISTS "PK_equipment_groups";
-ALTER TABLE IF EXISTS ONLY public.equipment_group_members DROP CONSTRAINT IF EXISTS "PK_equipment_group_members";
-ALTER TABLE IF EXISTS ONLY public.equipment_assets DROP CONSTRAINT IF EXISTS "PK_equipment_assets";
-ALTER TABLE IF EXISTS ONLY public.employment_documents DROP CONSTRAINT IF EXISTS "PK_employment_documents";
-ALTER TABLE IF EXISTS ONLY public.document_verification_tasks DROP CONSTRAINT IF EXISTS "PK_document_verification_tasks";
-ALTER TABLE IF EXISTS ONLY public.document_verification_actions DROP CONSTRAINT IF EXISTS "PK_document_verification_actions";
-ALTER TABLE IF EXISTS ONLY public.departure_reports DROP CONSTRAINT IF EXISTS "PK_departure_reports";
-ALTER TABLE IF EXISTS ONLY public.crew_status_history DROP CONSTRAINT IF EXISTS "PK_crew_status_history";
-ALTER TABLE IF EXISTS ONLY public.crew_members DROP CONSTRAINT IF EXISTS "PK_crew_members";
-ALTER TABLE IF EXISTS ONLY public.crew_document_versions DROP CONSTRAINT IF EXISTS "PK_crew_document_versions";
-ALTER TABLE IF EXISTS ONLY public.crew_document_submissions DROP CONSTRAINT IF EXISTS "PK_crew_document_submissions";
-ALTER TABLE IF EXISTS ONLY public.crew_certificates DROP CONSTRAINT IF EXISTS "PK_crew_certificates";
-ALTER TABLE IF EXISTS ONLY public.crew_assignments DROP CONSTRAINT IF EXISTS "PK_crew_assignments";
-ALTER TABLE IF EXISTS ONLY public.crew_access_grants DROP CONSTRAINT IF EXISTS "PK_crew_access_grants";
-ALTER TABLE IF EXISTS ONLY public.country_certificates DROP CONSTRAINT IF EXISTS "PK_country_certificates";
-ALTER TABLE IF EXISTS ONLY public.countries DROP CONSTRAINT IF EXISTS "PK_countries";
-ALTER TABLE IF EXISTS ONLY public.compliance_waivers DROP CONSTRAINT IF EXISTS "PK_compliance_waivers";
-ALTER TABLE IF EXISTS ONLY public.compliance_snapshots DROP CONSTRAINT IF EXISTS "PK_compliance_snapshots";
-ALTER TABLE IF EXISTS ONLY public.compliance_rules DROP CONSTRAINT IF EXISTS "PK_compliance_rules";
-ALTER TABLE IF EXISTS ONLY public.compliance_rule_sets DROP CONSTRAINT IF EXISTS "PK_compliance_rule_sets";
-ALTER TABLE IF EXISTS ONLY public.compliance_dimensions DROP CONSTRAINT IF EXISTS "PK_compliance_dimensions";
-ALTER TABLE IF EXISTS ONLY public.certificates DROP CONSTRAINT IF EXISTS "PK_certificates";
-ALTER TABLE IF EXISTS ONLY public.cargo_operations DROP CONSTRAINT IF EXISTS "PK_cargo_operations";
-ALTER TABLE IF EXISTS ONLY public.bunker_reports DROP CONSTRAINT IF EXISTS "PK_bunker_reports";
-ALTER TABLE IF EXISTS ONLY public.audit_logs DROP CONSTRAINT IF EXISTS "PK_audit_logs";
-ALTER TABLE IF EXISTS ONLY public.assignment_status_history DROP CONSTRAINT IF EXISTS "PK_assignment_status_history";
-ALTER TABLE IF EXISTS ONLY public.assignment_conflicts DROP CONSTRAINT IF EXISTS "PK_assignment_conflicts";
-ALTER TABLE IF EXISTS ONLY public.assignment_confirmations DROP CONSTRAINT IF EXISTS "PK_assignment_confirmations";
-ALTER TABLE IF EXISTS ONLY public.assignment_comments DROP CONSTRAINT IF EXISTS "PK_assignment_comments";
-ALTER TABLE IF EXISTS ONLY public.arrival_reports DROP CONSTRAINT IF EXISTS "PK_arrival_reports";
-ALTER TABLE IF EXISTS ONLY public."__EFMigrationsHistory" DROP CONSTRAINT IF EXISTS "PK___EFMigrationsHistory";
-ALTER TABLE IF EXISTS ONLY public."Vessels" DROP CONSTRAINT IF EXISTS "PK_Vessels";
-ALTER TABLE IF EXISTS ONLY public."VesselPositions" DROP CONSTRAINT IF EXISTS "PK_VesselPositions";
-ALTER TABLE IF EXISTS ONLY public."VesselAlerts" DROP CONSTRAINT IF EXISTS "PK_VesselAlerts";
-ALTER TABLE IF EXISTS ONLY public."Users" DROP CONSTRAINT IF EXISTS "PK_Users";
-ALTER TABLE IF EXISTS ONLY public."TankLevels" DROP CONSTRAINT IF EXISTS "PK_TankLevels";
-ALTER TABLE IF EXISTS ONLY public."Ships" DROP CONSTRAINT IF EXISTS "PK_Ships";
-ALTER TABLE IF EXISTS ONLY public."SafetyAlarms" DROP CONSTRAINT IF EXISTS "PK_SafetyAlarms";
-ALTER TABLE IF EXISTS ONLY public."PositionData" DROP CONSTRAINT IF EXISTS "PK_PositionData";
-ALTER TABLE IF EXISTS ONLY public."PortCalls" DROP CONSTRAINT IF EXISTS "PK_PortCalls";
-ALTER TABLE IF EXISTS ONLY public."MaintenanceTasks" DROP CONSTRAINT IF EXISTS "PK_MaintenanceTasks";
-ALTER TABLE IF EXISTS ONLY public."GeneratorData" DROP CONSTRAINT IF EXISTS "PK_GeneratorData";
-ALTER TABLE IF EXISTS ONLY public."FuelConsumptions" DROP CONSTRAINT IF EXISTS "PK_FuelConsumptions";
-ALTER TABLE IF EXISTS ONLY public."FuelConsumptionData" DROP CONSTRAINT IF EXISTS "PK_FuelConsumptionData";
-ALTER TABLE IF EXISTS ONLY public."EngineData" DROP CONSTRAINT IF EXISTS "PK_EngineData";
-ALTER TABLE IF EXISTS ONLY public."Certificates" DROP CONSTRAINT IF EXISTS "PK_Certificates";
-ALTER TABLE IF EXISTS ONLY public."AisData" DROP CONSTRAINT IF EXISTS "PK_AisData";
-DROP TABLE IF EXISTS public.voyage_status_history;
-DROP TABLE IF EXISTS public.voyage_settlements;
-DROP TABLE IF EXISTS public.voyage_reviews;
-DROP TABLE IF EXISTS public.voyage_revenue_estimates;
-DROP TABLE IF EXISTS public.voyage_records;
-DROP TABLE IF EXISTS public.voyage_plan_legs;
-DROP TABLE IF EXISTS public.voyage_log_entries;
-DROP TABLE IF EXISTS public.voyage_expense_requests;
-DROP TABLE IF EXISTS public.voyage_disbursements;
-DROP TABLE IF EXISTS public.voyage_crew_change_plans;
-DROP TABLE IF EXISTS public.voyage_crew_assignments;
-DROP TABLE IF EXISTS public.voyage_cost_estimates;
-DROP TABLE IF EXISTS public.voyage_cargo_plans;
-DROP TABLE IF EXISTS public.voyage_bunker_plans;
-DROP TABLE IF EXISTS public.voyage_advance_payments;
-DROP TABLE IF EXISTS public.voyage_actual_revenues;
-DROP TABLE IF EXISTS public.vessel_manning_standards;
-DROP TABLE IF EXISTS public.vessel_certificate_assignments;
-DROP TABLE IF EXISTS public.travel_status_history;
-DROP TABLE IF EXISTS public.travel_segments;
-DROP TABLE IF EXISTS public.travel_requests;
-DROP TABLE IF EXISTS public.travel_documents;
-DROP TABLE IF EXISTS public.sync_table_stats;
-DROP TABLE IF EXISTS public.sync_outbox;
-DROP TABLE IF EXISTS public.sync_node_trackers;
-DROP TABLE IF EXISTS public.sync_logs;
-DROP TABLE IF EXISTS public.sync_idempotency_records;
-DROP TABLE IF EXISTS public.store_locations;
-DROP TABLE IF EXISTS public.stock_receipts;
-DROP TABLE IF EXISTS public.stock_receipt_items;
-DROP TABLE IF EXISTS public.sign_on_records;
-DROP TABLE IF EXISTS public.sign_off_records;
-DROP TABLE IF EXISTS public.service_records;
-DROP TABLE IF EXISTS public.seafarer_documents;
-DROP TABLE IF EXISTS public.schedule_spare_parts;
-DROP TABLE IF EXISTS public.schedule_checklist_templates;
-DROP TABLE IF EXISTS public.ranks;
-DROP TABLE IF EXISTS public.rank_certificates;
-DROP TABLE IF EXISTS public.position_reports;
-DROP TABLE IF EXISTS public.ports;
-DROP TABLE IF EXISTS public.onboarding_checklist_items;
-DROP TABLE IF EXISTS public.onboarding_cases;
-DROP TABLE IF EXISTS public.onboard_events;
-DROP TABLE IF EXISTS public.noon_reports;
-DROP TABLE IF EXISTS public.material_requests;
-DROP TABLE IF EXISTS public.material_request_items;
-DROP TABLE IF EXISTS public.material_items;
-DROP TABLE IF EXISTS public.material_item_equipments;
-DROP TABLE IF EXISTS public.material_categories;
-DROP TABLE IF EXISTS public.maritime_reports;
-DROP TABLE IF EXISTS public.manning_positions;
-DROP TABLE IF EXISTS public.maintenance_schedules;
-DROP TABLE IF EXISTS public.maintenance_histories;
-DROP TABLE IF EXISTS public.inventory_stocks;
-DROP TABLE IF EXISTS public.health_documents;
-DROP TABLE IF EXISTS public.external_requests;
-DROP TABLE IF EXISTS public.external_request_messages;
-DROP TABLE IF EXISTS public.external_candidates;
-DROP TABLE IF EXISTS public.equipment_groups;
-DROP TABLE IF EXISTS public.equipment_group_members;
-DROP TABLE IF EXISTS public.equipment_assets;
-DROP TABLE IF EXISTS public.employment_documents;
-DROP TABLE IF EXISTS public.document_verification_tasks;
-DROP TABLE IF EXISTS public.document_verification_actions;
-DROP TABLE IF EXISTS public.departure_reports;
-DROP TABLE IF EXISTS public.crew_status_history;
-DROP TABLE IF EXISTS public.crew_members;
-DROP TABLE IF EXISTS public.crew_document_versions;
-DROP TABLE IF EXISTS public.crew_document_submissions;
-DROP TABLE IF EXISTS public.crew_certificates;
-DROP TABLE IF EXISTS public.crew_assignments;
-DROP TABLE IF EXISTS public.crew_access_grants;
-DROP TABLE IF EXISTS public.country_certificates;
-DROP TABLE IF EXISTS public.countries;
-DROP TABLE IF EXISTS public.compliance_waivers;
-DROP TABLE IF EXISTS public.compliance_snapshots;
-DROP TABLE IF EXISTS public.compliance_rules;
-DROP TABLE IF EXISTS public.compliance_rule_sets;
-DROP TABLE IF EXISTS public.compliance_dimensions;
-DROP TABLE IF EXISTS public.certificates;
-DROP TABLE IF EXISTS public.cargo_operations;
-DROP TABLE IF EXISTS public.bunker_reports;
-DROP TABLE IF EXISTS public.audit_logs;
-DROP TABLE IF EXISTS public.assignment_status_history;
-DROP TABLE IF EXISTS public.assignment_conflicts;
-DROP TABLE IF EXISTS public.assignment_confirmations;
-DROP TABLE IF EXISTS public.assignment_comments;
-DROP TABLE IF EXISTS public.arrival_reports;
-DROP TABLE IF EXISTS public."__EFMigrationsHistory";
-DROP TABLE IF EXISTS public."Vessels";
-DROP TABLE IF EXISTS public."VesselPositions";
-DROP TABLE IF EXISTS public."VesselAlerts";
-DROP TABLE IF EXISTS public."Users";
-DROP TABLE IF EXISTS public."TankLevels";
-DROP TABLE IF EXISTS public."Ships";
-DROP TABLE IF EXISTS public."SafetyAlarms";
-DROP TABLE IF EXISTS public.report_types;
-DROP TABLE IF EXISTS public."PositionData";
-DROP TABLE IF EXISTS public."PortCalls";
-DROP TABLE IF EXISTS public."MaintenanceTasks";
-DROP TABLE IF EXISTS public."GeneratorData";
-DROP TABLE IF EXISTS public."FuelConsumptions";
-DROP TABLE IF EXISTS public."FuelConsumptionData";
-DROP TABLE IF EXISTS public."EngineData";
-DROP TABLE IF EXISTS public."Certificates";
-DROP TABLE IF EXISTS public."AisData";
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -649,6 +76,8 @@ CREATE TABLE public."EngineData" (
     "Id" uuid NOT NULL,
     "Timestamp" timestamp with time zone NOT NULL,
     "EngineId" character varying(50) NOT NULL,
+    "Rpm" double precision,
+    "LoadPercent" double precision,
     "FuelRate" double precision,
     "RunningHours" double precision,
     "AlarmStatus" integer,
@@ -659,13 +88,6 @@ CREATE TABLE public."EngineData" (
 
 
 ALTER TABLE public."EngineData" OWNER TO product;
-
---
--- Name: TABLE "EngineData"; Type: COMMENT; Schema: public; Owner: product
---
-
-COMMENT ON TABLE public."EngineData" IS 'Optimized - Removed Rpm/LoadPercent realtime data';
-
 
 --
 -- Name: FuelConsumptionData; Type: TABLE; Schema: public; Owner: product
@@ -727,13 +149,6 @@ CREATE TABLE public."GeneratorData" (
 
 
 ALTER TABLE public."GeneratorData" OWNER TO product;
-
---
--- Name: TABLE "GeneratorData"; Type: COMMENT; Schema: public; Owner: product
---
-
-COMMENT ON TABLE public."GeneratorData" IS 'Optimized - Removed electrical details, kept performance metrics only';
-
 
 --
 -- Name: MaintenanceTasks; Type: TABLE; Schema: public; Owner: product
@@ -799,7 +214,8 @@ CREATE TABLE public."MaintenanceTasks" (
     "VerificationNotes" text,
     "VerificationResult" character varying(20),
     "VerifiedAt" timestamp with time zone,
-    "VerifiedBy" character varying(50)
+    "VerifiedBy" character varying(50),
+    "VesselId" uuid
 );
 
 
@@ -862,42 +278,6 @@ CREATE TABLE public."PositionData" (
 
 
 ALTER TABLE public."PositionData" OWNER TO product;
-
---
--- Name: report_types; Type: TABLE; Schema: public; Owner: product
---
-
-CREATE TABLE public.report_types (
-    "Id" integer NOT NULL,
-    "TypeCode" character varying(50) NOT NULL,
-    "TypeName" character varying(100) NOT NULL,
-    "Category" character varying(50) NOT NULL,
-    "Description" text,
-    "RegulationReference" character varying(100),
-    "Frequency" character varying(30) NOT NULL,
-    "IsMandatory" boolean NOT NULL,
-    "RequiresMasterSignature" boolean NOT NULL,
-    "TemplateSchema" text,
-    "IsActive" boolean NOT NULL,
-    "CreatedAt" timestamp with time zone NOT NULL
-);
-
-
-ALTER TABLE public.report_types OWNER TO product;
-
---
--- Name: ReportTypes_Id_seq; Type: SEQUENCE; Schema: public; Owner: product
---
-
-ALTER TABLE public.report_types ALTER COLUMN "Id" ADD GENERATED BY DEFAULT AS IDENTITY (
-    SEQUENCE NAME public."ReportTypes_Id_seq"
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
 
 --
 -- Name: SafetyAlarms; Type: TABLE; Schema: public; Owner: product
@@ -1025,267 +405,267 @@ CREATE TABLE public."Vessels" (
     "BuildDate" timestamp with time zone NOT NULL,
     "Flag" character varying(100) NOT NULL,
     "IsActive" boolean NOT NULL,
+    "OfficialNumber" character varying(50),
+    "PortOfRegistry" character varying(200),
+    "PreviousName" character varying(200),
+    "PreviousFlag" character varying(100),
+    "MmsiNumber" character varying(20),
+    "ClassNotation" character varying(200),
+    "ClassRegisterNumber" character varying(50),
+    "ShipyardCountry" character varying(100),
+    "ShipyardName" character varying(200),
+    "YardNo" character varying(50),
+    "CompanyImoNumber" character varying(50),
+    "SuezCanalIdNumber" character varying(50),
+    "KeelLaidDate" timestamp with time zone,
+    "YearBuilt" integer,
+    "DateOfRegistry" timestamp with time zone,
+    "OwnerImoNumber" character varying(50),
+    "PanamaCanalIdNumber" character varying(50),
+    "MaxPersonsAllowedOB" integer,
+    "ServiceSpeedKts" double precision,
+    "VrpNumber" character varying(50),
+    "VrpType" character varying(50),
+    "NoOfCrewSafeManning" integer,
+    "MaxPassengersAllowedOB" integer,
+    "Loa" double precision,
+    "Lbp" double precision,
+    "BreadthMoulded" double precision,
+    "DepthMoulded" double precision,
+    "DraftMoulded" double precision,
+    "DraftScantling" double precision,
+    "DraftFullBallast" double precision,
+    "HMaxAirdraft" double precision,
     "AirdraftReductionMastFouled" double precision,
-    "Ais" boolean DEFAULT false NOT NULL,
+    "DDistance" double precision,
+    "BridgeToAft" double precision,
+    "BridgeToBow" double precision,
+    "BowToBulbousBow" double precision,
+    "ParallelBodyBallast" double precision,
+    "ParallelBodyLoaded" double precision,
+    "LightShip" double precision,
+    "BlockCoefficientNA" boolean NOT NULL,
+    "BlockCoefficient" double precision,
+    "TpcAtSummerDraft" double precision,
+    "FreshWaterAllowanceFwa" double precision,
+    "GrossTonnageInternational" double precision,
+    "GrossTonnageSuezCanal" double precision,
+    "GrossTonnagePanamaCanal" double precision,
+    "NettTonnageInternational" double precision,
+    "NettTonnageSuezCanal" double precision,
+    "NettTonnagePanamaCanal" double precision,
+    "ManifoldToWaterlineBallast" double precision,
+    "ManifoldToWaterlineLoaded" double precision,
+    "DeckToManifold" double precision,
+    "SternToManifold" double precision,
+    "ShipsideToManifold" double precision,
+    "BowToManifold" double precision,
+    "ManifoldToKeel" double precision,
+    "ManifoldToBridge" double precision,
+    "MaxLoadingRateShip" double precision,
+    "NumberOfLines" integer,
+    "MaxAllowablePressurePsi" double precision,
+    "VentingSystemShip" character varying(200),
     "AnchorChainPort" integer,
     "AnchorChainStarboard" integer,
     "AnchorChainStern" integer,
-    "AnchorChainSternNA" boolean DEFAULT false NOT NULL,
-    "AzimuthEngAftCount" integer,
-    "AzimuthEngAftMaxPowerKW" double precision,
-    "AzimuthEngFwdCount" integer,
-    "AzimuthEngFwdMaxPowerKW" double precision,
-    "BalesCbm" double precision,
-    "BallastWaterCbm" double precision,
-    "BareboatChartererCity" character varying(100),
-    "BareboatChartererContactPerson" character varying(200),
-    "BareboatChartererCountry" character varying(100),
-    "BareboatChartererEmail" character varying(200),
-    "BareboatChartererFax" character varying(50),
-    "BareboatChartererName" character varying(300),
-    "BareboatChartererPhone" character varying(50),
-    "BareboatChartererStreet" character varying(300),
-    "BareboatChartererTlx" character varying(50),
-    "BareboatChartererZip" character varying(20),
-    "BilgeWaterCbm" double precision,
-    "BlockCoefficient" double precision,
-    "BlockCoefficientNA" boolean DEFAULT false NOT NULL,
-    "BowToBulbousBow" double precision,
-    "BowToManifold" double precision,
-    "BowthrusterNA" boolean DEFAULT false NOT NULL,
-    "BreadthMoulded" double precision,
-    "BridgeToAft" double precision,
-    "BridgeToBow" double precision,
-    "ChartererCity" character varying(100),
-    "ChartererContactPerson" character varying(200),
-    "ChartererCountry" character varying(100),
-    "ChartererEmail" character varying(200),
-    "ChartererFax" character varying(50),
-    "ChartererName" character varying(300),
-    "ChartererPhone" character varying(50),
-    "ChartererStreet" character varying(300),
-    "ChartererTlx" character varying(50),
-    "ChartererZip" character varying(20),
-    "ClassNotation" character varying(200),
-    "ClassRegisterNumber" character varying(50),
-    "ClassSocietyCity" character varying(100),
-    "ClassSocietyContactPerson" character varying(200),
-    "ClassSocietyCountry" character varying(100),
-    "ClassSocietyEmail" character varying(200),
-    "ClassSocietyFax" character varying(50),
-    "ClassSocietyName" character varying(300),
-    "ClassSocietyPhone" character varying(50),
-    "ClassSocietyStreet" character varying(300),
-    "ClassSocietyTlx" character varying(50),
-    "ClassSocietyZip" character varying(20),
-    "CompanyImoNumber" character varying(50),
-    "CreatedAt" timestamp with time zone DEFAULT '-infinity'::timestamp with time zone NOT NULL,
-    "CsoCity" character varying(100),
-    "CsoCountry" character varying(100),
-    "CsoEmail" character varying(200),
-    "CsoFax" character varying(50),
-    "CsoFirstName" character varying(100),
-    "CsoLastName" character varying(100),
-    "CsoPhone24h" character varying(50),
-    "CsoStreet" character varying(300),
-    "CsoTitle" character varying(20),
-    "CsoTlx" character varying(50),
-    "CsoZip" character varying(20),
-    "DDistance" double precision,
-    "DateOfRegistry" timestamp with time zone,
-    "DeckToManifold" double precision,
-    "DepthMoulded" double precision,
-    "DpaCity" character varying(100),
-    "DpaCountry" character varying(100),
-    "DpaEmail" character varying(200),
-    "DpaFax" character varying(50),
-    "DpaFirstName" character varying(100),
-    "DpaLastName" character varying(100),
-    "DpaPhone24h" character varying(50),
-    "DpaStreet" character varying(300),
-    "DpaTitle" character varying(20),
-    "DpaTlx" character varying(50),
-    "DpaZip" character varying(20),
-    "DraftFullBallast" double precision,
-    "DraftMoulded" double precision,
-    "DraftScantling" double precision,
-    "DscHF" boolean DEFAULT false NOT NULL,
-    "DscMF" boolean DEFAULT false NOT NULL,
-    "DscVHF" boolean DEFAULT false NOT NULL,
-    "EmailAddress1" character varying(200),
-    "EmailAddress2" character varying(200),
-    "EpirbFrequency" character varying(50),
-    "EpirbMaker" character varying(100),
-    "EpirbModel" character varying(100),
-    "EpirbNumber" character varying(50),
-    "EpirbOperatingSystem" character varying(50),
-    "FieldOwnership" text,
-    "FlagStateCity" character varying(100),
-    "FlagStateContactPerson" character varying(200),
-    "FlagStateCountry" character varying(100),
-    "FlagStateEmail" character varying(200),
-    "FlagStateFax" character varying(50),
-    "FlagStateName" character varying(300),
-    "FlagStatePhone" character varying(50),
-    "FlagStateStreet" character varying(300),
-    "FlagStateTlx" character varying(50),
-    "FlagStateZip" character varying(20),
-    "FreshWaterAllowanceFwa" double precision,
-    "FreshWaterCbm" double precision,
-    "GrainCbm" double precision,
-    "GrossTonnageInternational" double precision,
-    "GrossTonnagePanamaCanal" double precision,
-    "GrossTonnageSuezCanal" double precision,
-    "GsmPhone" character varying(50),
-    "HMaxAirdraft" double precision,
+    "AnchorChainSternNA" boolean NOT NULL,
+    "BowthrusterNA" boolean NOT NULL,
+    "SternthrusterNA" boolean NOT NULL,
+    "ShaftGeneratorNA" boolean NOT NULL,
     "HarbourGeneratorMaker" character varying(200),
     "HarbourGeneratorMaxPowerKW" double precision,
-    "HfoCbm" double precision,
-    "HmClubCity" character varying(100),
-    "HmClubContactPerson" character varying(200),
-    "HmClubCountry" character varying(100),
-    "HmClubEmail" character varying(200),
-    "HmClubFax" character varying(50),
-    "HmClubName" character varying(300),
-    "HmClubPhone" character varying(50),
-    "HmClubStreet" character varying(300),
-    "HmClubTlx" character varying(50),
-    "HmClubZip" character varying(20),
-    "InmarsatFax1" character varying(50),
-    "InmarsatFax2" character varying(50),
-    "InmarsatPhone1" character varying(50),
-    "InmarsatPhone2" character varying(50),
-    "InmarsatTelex1" character varying(50),
-    "InmarsatTelex2" character varying(50),
-    "KeelLaidDate" timestamp with time zone,
-    "LastEdgeSyncAt" timestamp with time zone,
-    "LastShoreSyncAt" timestamp with time zone,
-    "Lbp" double precision,
-    "LightShip" double precision,
-    "Loa" double precision,
-    "LubOilCbm" double precision,
-    "ManagingOwnerCity" character varying(100),
-    "ManagingOwnerContactPerson" character varying(200),
-    "ManagingOwnerCountry" character varying(100),
-    "ManagingOwnerEmail" character varying(200),
-    "ManagingOwnerFax" character varying(50),
+    "AzimuthEngFwdCount" integer,
+    "AzimuthEngFwdMaxPowerKW" double precision,
+    "AzimuthEngAftCount" integer,
+    "AzimuthEngAftMaxPowerKW" double precision,
+    "ShipownerName" character varying(300),
+    "ShipownerStreet" character varying(300),
+    "ShipownerCountry" character varying(100),
+    "ShipownerZip" character varying(20),
+    "ShipownerCity" character varying(100),
+    "ShipownerPhone" character varying(50),
+    "ShipownerFax" character varying(50),
+    "ShipownerTlx" character varying(50),
+    "ShipownerEmail" character varying(200),
+    "ShipownerContactPerson" character varying(200),
     "ManagingOwnerName" character varying(300),
-    "ManagingOwnerPhone" character varying(50),
     "ManagingOwnerStreet" character varying(300),
-    "ManagingOwnerTlx" character varying(50),
+    "ManagingOwnerCountry" character varying(100),
     "ManagingOwnerZip" character varying(20),
-    "ManifoldToBridge" double precision,
-    "ManifoldToKeel" double precision,
-    "ManifoldToWaterlineBallast" double precision,
-    "ManifoldToWaterlineLoaded" double precision,
-    "MaxAllowablePressurePsi" double precision,
-    "MaxLoadingRateShip" double precision,
-    "MaxPassengersAllowedOB" integer,
-    "MaxPersonsAllowedOB" integer,
-    "MdoCbm" double precision,
-    "MmsiNumber" character varying(20),
-    "Navtex" boolean DEFAULT false NOT NULL,
-    "NettTonnageInternational" double precision,
-    "NettTonnagePanamaCanal" double precision,
-    "NettTonnageSuezCanal" double precision,
-    "NoOfBallastTanks" integer,
-    "NoOfCargoHolds" integer,
-    "NoOfCrewSafeManning" integer,
-    "NoOfHatches" integer,
-    "NumberOfLines" integer,
-    "OfficialNumber" character varying(50),
-    "OperatorCity" character varying(100),
-    "OperatorContactPerson" character varying(200),
-    "OperatorCountry" character varying(100),
-    "OperatorEmail" character varying(200),
-    "OperatorFax" character varying(50),
+    "ManagingOwnerCity" character varying(100),
+    "ManagingOwnerPhone" character varying(50),
+    "ManagingOwnerFax" character varying(50),
+    "ManagingOwnerTlx" character varying(50),
+    "ManagingOwnerEmail" character varying(200),
+    "ManagingOwnerContactPerson" character varying(200),
     "OperatorName" character varying(300),
-    "OperatorPhone" character varying(50),
     "OperatorStreet" character varying(300),
-    "OperatorTlx" character varying(50),
+    "OperatorCountry" character varying(100),
     "OperatorZip" character varying(20),
-    "OtherRadioEquipment" character varying(500),
-    "OwnerImoNumber" character varying(50),
-    "PanamaCanalIdNumber" character varying(50),
-    "ParallelBodyBallast" double precision,
-    "ParallelBodyLoaded" double precision,
-    "PiClubCity" character varying(100),
-    "PiClubContactPerson" character varying(200),
-    "PiClubCountry" character varying(100),
-    "PiClubEmail" character varying(200),
-    "PiClubFax" character varying(50),
-    "PiClubName" character varying(300),
-    "PiClubPhone" character varying(50),
-    "PiClubStreet" character varying(300),
-    "PiClubTlx" character varying(50),
-    "PiClubZip" character varying(20),
-    "PortOfRegistry" character varying(200),
-    "PreviousFlag" character varying(100),
-    "PreviousName" character varying(200),
-    "QiPanamaCity" character varying(100),
-    "QiPanamaCountry" character varying(100),
-    "QiPanamaEmail" character varying(200),
-    "QiPanamaFax" character varying(50),
-    "QiPanamaFirstName" character varying(100),
-    "QiPanamaLastName" character varying(100),
-    "QiPanamaPhone24h" character varying(50),
-    "QiPanamaStreet" character varying(300),
-    "QiPanamaTitle" character varying(20),
-    "QiPanamaTlx" character varying(50),
-    "QiPanamaZip" character varying(20),
-    "QiUsaCity" character varying(100),
-    "QiUsaCountry" character varying(100),
-    "QiUsaEmail" character varying(200),
-    "QiUsaFax" character varying(50),
+    "OperatorCity" character varying(100),
+    "OperatorPhone" character varying(50),
+    "OperatorFax" character varying(50),
+    "OperatorTlx" character varying(50),
+    "OperatorEmail" character varying(200),
+    "OperatorContactPerson" character varying(200),
+    "CsoTitle" character varying(20),
+    "CsoFirstName" character varying(100),
+    "CsoLastName" character varying(100),
+    "CsoStreet" character varying(300),
+    "CsoCountry" character varying(100),
+    "CsoZip" character varying(20),
+    "CsoCity" character varying(100),
+    "CsoPhone24h" character varying(50),
+    "CsoFax" character varying(50),
+    "CsoTlx" character varying(50),
+    "CsoEmail" character varying(200),
+    "DpaTitle" character varying(20),
+    "DpaFirstName" character varying(100),
+    "DpaLastName" character varying(100),
+    "DpaStreet" character varying(300),
+    "DpaCountry" character varying(100),
+    "DpaZip" character varying(20),
+    "DpaCity" character varying(100),
+    "DpaPhone24h" character varying(50),
+    "DpaFax" character varying(50),
+    "DpaTlx" character varying(50),
+    "DpaEmail" character varying(200),
+    "QiUsaTitle" character varying(20),
     "QiUsaFirstName" character varying(100),
     "QiUsaLastName" character varying(100),
-    "QiUsaPhone24h" character varying(50),
     "QiUsaStreet" character varying(300),
-    "QiUsaTitle" character varying(20),
-    "QiUsaTlx" character varying(50),
+    "QiUsaCountry" character varying(100),
     "QiUsaZip" character varying(20),
-    "RadiotelegraphHF" boolean DEFAULT false NOT NULL,
-    "RadiotelegraphMF" boolean DEFAULT false NOT NULL,
-    "RadiotelegraphVHF" boolean DEFAULT false NOT NULL,
-    "RadiotelephoneHF" boolean DEFAULT false NOT NULL,
-    "RadiotelephoneMF" boolean DEFAULT false NOT NULL,
-    "RadiotelephoneVHF" boolean DEFAULT false NOT NULL,
-    "Radiotelex" boolean DEFAULT false NOT NULL,
-    "SartTransponder" boolean DEFAULT false NOT NULL,
-    "SeaAreaA1" boolean DEFAULT false NOT NULL,
-    "SeaAreaA2" boolean DEFAULT false NOT NULL,
-    "SeaAreaA3" boolean DEFAULT false NOT NULL,
-    "SeaAreaA4" boolean DEFAULT false NOT NULL,
-    "ServiceSpeedKts" double precision,
-    "SewageCbm" double precision,
-    "ShaftGeneratorNA" boolean DEFAULT false NOT NULL,
-    "ShipownerCity" character varying(100),
-    "ShipownerContactPerson" character varying(200),
-    "ShipownerCountry" character varying(100),
-    "ShipownerEmail" character varying(200),
-    "ShipownerFax" character varying(50),
-    "ShipownerName" character varying(300),
-    "ShipownerPhone" character varying(50),
-    "ShipownerStreet" character varying(300),
-    "ShipownerTlx" character varying(50),
-    "ShipownerZip" character varying(20),
-    "ShipsideToManifold" double precision,
-    "ShipyardCountry" character varying(100),
-    "ShipyardName" character varying(200),
+    "QiUsaCity" character varying(100),
+    "QiUsaPhone24h" character varying(50),
+    "QiUsaFax" character varying(50),
+    "QiUsaTlx" character varying(50),
+    "QiUsaEmail" character varying(200),
+    "QiPanamaTitle" character varying(20),
+    "QiPanamaFirstName" character varying(100),
+    "QiPanamaLastName" character varying(100),
+    "QiPanamaStreet" character varying(300),
+    "QiPanamaCountry" character varying(100),
+    "QiPanamaZip" character varying(20),
+    "QiPanamaCity" character varying(100),
+    "QiPanamaPhone24h" character varying(50),
+    "QiPanamaFax" character varying(50),
+    "QiPanamaTlx" character varying(50),
+    "QiPanamaEmail" character varying(200),
+    "ChartererName" character varying(300),
+    "ChartererStreet" character varying(300),
+    "ChartererCountry" character varying(100),
+    "ChartererZip" character varying(20),
+    "ChartererCity" character varying(100),
+    "ChartererPhone" character varying(50),
+    "ChartererFax" character varying(50),
+    "ChartererTlx" character varying(50),
+    "ChartererEmail" character varying(200),
+    "ChartererContactPerson" character varying(200),
+    "BareboatChartererName" character varying(300),
+    "BareboatChartererStreet" character varying(300),
+    "BareboatChartererCountry" character varying(100),
+    "BareboatChartererZip" character varying(20),
+    "BareboatChartererCity" character varying(100),
+    "BareboatChartererPhone" character varying(50),
+    "BareboatChartererFax" character varying(50),
+    "BareboatChartererTlx" character varying(50),
+    "BareboatChartererEmail" character varying(200),
+    "BareboatChartererContactPerson" character varying(200),
+    "ClassSocietyName" character varying(300),
+    "ClassSocietyStreet" character varying(300),
+    "ClassSocietyCountry" character varying(100),
+    "ClassSocietyZip" character varying(20),
+    "ClassSocietyCity" character varying(100),
+    "ClassSocietyPhone" character varying(50),
+    "ClassSocietyFax" character varying(50),
+    "ClassSocietyTlx" character varying(50),
+    "ClassSocietyEmail" character varying(200),
+    "ClassSocietyContactPerson" character varying(200),
+    "FlagStateName" character varying(300),
+    "FlagStateStreet" character varying(300),
+    "FlagStateCountry" character varying(100),
+    "FlagStateZip" character varying(20),
+    "FlagStateCity" character varying(100),
+    "FlagStatePhone" character varying(50),
+    "FlagStateFax" character varying(50),
+    "FlagStateTlx" character varying(50),
+    "FlagStateEmail" character varying(200),
+    "FlagStateContactPerson" character varying(200),
+    "PiClubName" character varying(300),
+    "PiClubStreet" character varying(300),
+    "PiClubCountry" character varying(100),
+    "PiClubZip" character varying(20),
+    "PiClubCity" character varying(100),
+    "PiClubPhone" character varying(50),
+    "PiClubFax" character varying(50),
+    "PiClubTlx" character varying(50),
+    "PiClubEmail" character varying(200),
+    "PiClubContactPerson" character varying(200),
+    "HmClubName" character varying(300),
+    "HmClubStreet" character varying(300),
+    "HmClubCountry" character varying(100),
+    "HmClubZip" character varying(20),
+    "HmClubCity" character varying(100),
+    "HmClubPhone" character varying(50),
+    "HmClubFax" character varying(50),
+    "HmClubTlx" character varying(50),
+    "HmClubEmail" character varying(200),
+    "HmClubContactPerson" character varying(200),
+    "InmarsatTelex1" character varying(50),
+    "InmarsatTelex2" character varying(50),
+    "InmarsatPhone1" character varying(50),
+    "InmarsatPhone2" character varying(50),
+    "InmarsatFax1" character varying(50),
+    "InmarsatFax2" character varying(50),
+    "EmailAddress1" character varying(200),
+    "EmailAddress2" character varying(200),
+    "GsmPhone" character varying(50),
+    "SeaAreaA1" boolean NOT NULL,
+    "SeaAreaA2" boolean NOT NULL,
+    "SeaAreaA3" boolean NOT NULL,
+    "SeaAreaA4" boolean NOT NULL,
+    "DscHF" boolean NOT NULL,
+    "DscMF" boolean NOT NULL,
+    "DscVHF" boolean NOT NULL,
+    "RadiotelephoneHF" boolean NOT NULL,
+    "RadiotelephoneMF" boolean NOT NULL,
+    "RadiotelephoneVHF" boolean NOT NULL,
+    "RadiotelegraphHF" boolean NOT NULL,
+    "RadiotelegraphMF" boolean NOT NULL,
+    "RadiotelegraphVHF" boolean NOT NULL,
+    "Navtex" boolean NOT NULL,
+    "Ais" boolean NOT NULL,
+    "SartTransponder" boolean NOT NULL,
+    "Radiotelex" boolean NOT NULL,
+    "OtherRadioEquipment" character varying(500),
+    "EpirbNumber" character varying(50),
+    "EpirbOperatingSystem" character varying(50),
+    "EpirbMaker" character varying(100),
+    "EpirbModel" character varying(100),
+    "EpirbFrequency" character varying(50),
+    "HfoCbm" double precision,
+    "MdoCbm" double precision,
+    "LubOilCbm" double precision,
     "SludgeCbm" double precision,
-    "SternToManifold" double precision,
-    "SternthrusterNA" boolean DEFAULT false NOT NULL,
-    "SuezCanalIdNumber" character varying(50),
-    "TeuOnDeck" integer,
+    "BilgeWaterCbm" double precision,
+    "SewageCbm" double precision,
+    "FreshWaterCbm" double precision,
+    "BallastWaterCbm" double precision,
+    "NoOfBallastTanks" integer,
     "TeuTotal" integer,
+    "TeuOnDeck" integer,
     "TeuUnderDeck" integer,
-    "TpcAtSummerDraft" double precision,
-    "UpdatedAt" timestamp with time zone DEFAULT '-infinity'::timestamp with time zone NOT NULL,
-    "VentingSystemShip" character varying(200),
-    "VrpNumber" character varying(50),
-    "VrpType" character varying(50),
-    "YardNo" character varying(50),
-    "YearBuilt" integer
+    "GrainCbm" double precision,
+    "BalesCbm" double precision,
+    "NoOfCargoHolds" integer,
+    "NoOfHatches" integer,
+    "LastEdgeSyncAt" timestamp with time zone,
+    "LastShoreSyncAt" timestamp with time zone,
+    "FieldOwnership" text,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "UpdatedAt" timestamp with time zone NOT NULL
 );
 
 
@@ -1302,30 +682,6 @@ CREATE TABLE public."__EFMigrationsHistory" (
 
 
 ALTER TABLE public."__EFMigrationsHistory" OWNER TO product;
-
---
--- Data for Name: __EFMigrationsHistory; Type: TABLE DATA; Schema: public; Owner: product
---
-
-INSERT INTO public."__EFMigrationsHistory" ("MigrationId", "ProductVersion") VALUES
-('20260310144509_InitialCreate', '8.0.0'),
-('20260310154924_ReplaceNationalityWithCountryId', '8.0.0'),
-('20260311031412_AddVesselIdToCrewMember', '8.0.0'),
-('20260311040145_AddBunkerAndPositionReports', '8.0.0'),
-('20260311065927_AlignReportFieldsWithEdge', '8.0.0'),
-('20260311155340_AddVesselCertificateAssignments', '8.0.0'),
-('20260315123341_AddVoyageSyncCoreMirror', '8.0.0'),
-('20260315130449_AddVoyageMirrorPlanningCore', '8.0.0'),
-('20260315141013_AddPmsMaterials', '8.0.0'),
-('20260315141316_AddVoyageMirrorPlanningFinancial', '8.0.0'),
-('20260315180409_AddCrewReviewWorkflowColumns', '8.0.0'),
-('20260317031411_AddFullMaintenanceTasks', '8.0.0'),
-('20260317031827_RebuildMaintenanceTasks', '8.0.0'),
-('20260319130406_AddVesselIdToMaterialItems', '8.0.0'),
-('20260321120000_AddSyncNodeSecurityRegistry', '8.0.0'),
-('20260321173000_AddSyncKeyRotationGraceWindow', '8.0.0'),
-('20260401110009_AddVoyageDateTimeUtcConverters', '8.0.0'),
-('20260406105632_FixVoyageNumberUniquePerVessel', '8.0.0');
 
 --
 -- Name: arrival_reports; Type: TABLE; Schema: public; Owner: product
@@ -1836,6 +1192,27 @@ ALTER TABLE public.crew_certificates ALTER COLUMN "Id" ADD GENERATED BY DEFAULT 
 
 
 --
+-- Name: crew_certificates_id_seq; Type: SEQUENCE; Schema: public; Owner: product
+--
+
+CREATE SEQUENCE public.crew_certificates_id_seq
+    START WITH 77
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.crew_certificates_id_seq OWNER TO product;
+
+--
+-- Name: crew_certificates_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: product
+--
+
+ALTER SEQUENCE public.crew_certificates_id_seq OWNED BY public.crew_certificates."Id";
+
+
+--
 -- Name: crew_document_submissions; Type: TABLE; Schema: public; Owner: product
 --
 
@@ -1897,7 +1274,6 @@ CREATE TABLE public.crew_members (
     "FullName" character varying(200) NOT NULL,
     "RankId" integer,
     "Department" character varying(100),
-    "Nationality" character varying(50),
     "DateOfBirth" timestamp with time zone,
     "JoinDate" timestamp with time zone,
     "EmbarkDate" timestamp with time zone,
@@ -1929,24 +1305,24 @@ CREATE TABLE public.crew_members (
     "EducationPeriodYears" integer,
     "EducationGraduationYear" integer,
     "Notes" text,
+    "Status" character varying(20) NOT NULL,
+    "StatusChangedAt" timestamp with time zone,
+    "StatusChangedBy" character varying(100),
+    "PoolStatus" character varying(20),
     "IsSynced" boolean NOT NULL,
     "CreatedAt" timestamp with time zone NOT NULL,
     "UpdatedAt" timestamp with time zone NOT NULL,
     "OriginNode" character varying(50) NOT NULL,
     "SyncVersion" bigint NOT NULL,
-    "PoolStatus" character varying(20),
-    "Status" character varying(20) DEFAULT ''::character varying NOT NULL,
-    "StatusChangedAt" timestamp with time zone,
-    "StatusChangedBy" character varying(100),
-    "VesselId" uuid,
     "CountryId" integer,
-    "EdgeChanges" text,
-    "EdgeChangesViewed" boolean DEFAULT false NOT NULL,
-    "OnboardStatus" character varying(50),
+    "VesselId" uuid,
+    "OnboardStatus" character varying(20),
     "OnboardStatusChangedAt" timestamp with time zone,
     "OnboardStatusChangedBy" character varying(100),
     "ReviewChecklist" text,
-    "ReviewNotes" text
+    "ReviewNotes" text,
+    "EdgeChanges" text,
+    "EdgeChangesViewed" boolean DEFAULT false
 );
 
 
@@ -2090,7 +1466,8 @@ CREATE TABLE public.equipment_assets (
     "ParentId" uuid,
     "IsActive" boolean NOT NULL,
     "CreatedAt" timestamp with time zone NOT NULL,
-    "UpdatedAt" timestamp with time zone NOT NULL
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    "VesselId" uuid
 );
 
 
@@ -2431,7 +1808,8 @@ CREATE TABLE public.material_items (
     "ImageUrl" character varying(500),
     "IsActive" boolean NOT NULL,
     "CreatedAt" timestamp with time zone NOT NULL,
-    "UpdatedAt" timestamp with time zone NOT NULL
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    "VesselId" uuid
 );
 
 
@@ -2775,6 +2153,42 @@ ALTER TABLE public.ranks ALTER COLUMN "Id" ADD GENERATED BY DEFAULT AS IDENTITY 
 
 
 --
+-- Name: report_types; Type: TABLE; Schema: public; Owner: product
+--
+
+CREATE TABLE public.report_types (
+    "Id" integer NOT NULL,
+    "TypeCode" character varying(50) NOT NULL,
+    "TypeName" character varying(100) NOT NULL,
+    "Category" character varying(50) NOT NULL,
+    "Description" text,
+    "RegulationReference" character varying(100),
+    "Frequency" character varying(30) NOT NULL,
+    "IsMandatory" boolean NOT NULL,
+    "RequiresMasterSignature" boolean NOT NULL,
+    "TemplateSchema" text,
+    "IsActive" boolean NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.report_types OWNER TO product;
+
+--
+-- Name: report_types_Id_seq; Type: SEQUENCE; Schema: public; Owner: product
+--
+
+ALTER TABLE public.report_types ALTER COLUMN "Id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public."report_types_Id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: schedule_checklist_templates; Type: TABLE; Schema: public; Owner: product
 --
 
@@ -2870,6 +2284,26 @@ CREATE TABLE public.service_records (
 
 
 ALTER TABLE public.service_records OWNER TO product;
+
+--
+-- Name: shore_notifications; Type: TABLE; Schema: public; Owner: product
+--
+
+CREATE TABLE public.shore_notifications (
+    "Id" uuid DEFAULT gen_random_uuid() NOT NULL,
+    "Type" character varying(50) NOT NULL,
+    "Title" character varying(200) NOT NULL,
+    "Message" character varying(500) NOT NULL,
+    "VesselId" uuid,
+    "VesselName" character varying(200),
+    "CrewMemberId" uuid,
+    "CrewName" character varying(200),
+    "CreatedAt" timestamp with time zone DEFAULT now() NOT NULL,
+    "IsRead" boolean DEFAULT false NOT NULL
+);
+
+
+ALTER TABLE public.shore_notifications OWNER TO product;
 
 --
 -- Name: sign_off_records; Type: TABLE; Schema: public; Owner: product
@@ -3107,7 +2541,20 @@ CREATE TABLE public.sync_node_trackers (
     "LastError" character varying(500),
     "LastErrorAt" timestamp with time zone,
     "CreatedAt" timestamp with time zone NOT NULL,
-    "UpdatedAt" timestamp with time zone NOT NULL
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    "IsRegistered" boolean DEFAULT false NOT NULL,
+    "IsRevoked" boolean DEFAULT false NOT NULL,
+    "KeyVersion" integer DEFAULT 1 NOT NULL,
+    "LastKeyRotatedAt" timestamp with time zone,
+    "LastSignedRequestAt" timestamp with time zone,
+    "RevokedAt" timestamp with time zone,
+    "RevokedReason" character varying(500),
+    "SigningKey" character varying(500),
+    "LastAcknowledgedKeyVersion" integer,
+    "LastKeyVersionAcknowledgedAt" timestamp with time zone,
+    "PreviousSigningKey" character varying(500),
+    "PreviousKeyVersion" integer,
+    "PreviousKeyGraceUntil" timestamp with time zone
 );
 
 
@@ -3292,7 +2739,7 @@ CREATE TABLE public.vessel_certificate_assignments (
     "CertificateId" integer NOT NULL,
     "VesselId" uuid NOT NULL,
     "AssignedAt" timestamp with time zone NOT NULL,
-    "IsSynced" boolean DEFAULT false NOT NULL,
+    "IsSynced" boolean NOT NULL,
     "LastSyncedAt" timestamp with time zone
 );
 
@@ -4550,6 +3997,14 @@ ALTER TABLE ONLY public.travel_status_history
 
 
 --
+-- Name: vessel_certificate_assignments PK_vessel_certificate_assignments; Type: CONSTRAINT; Schema: public; Owner: product
+--
+
+ALTER TABLE ONLY public.vessel_certificate_assignments
+    ADD CONSTRAINT "PK_vessel_certificate_assignments" PRIMARY KEY ("Id");
+
+
+--
 -- Name: vessel_manning_standards PK_vessel_manning_standards; Type: CONSTRAINT; Schema: public; Owner: product
 --
 
@@ -4686,11 +4141,11 @@ ALTER TABLE ONLY public.voyage_status_history
 
 
 --
--- Name: vessel_certificate_assignments vessel_certificate_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: product
+-- Name: shore_notifications shore_notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: product
 --
 
-ALTER TABLE ONLY public.vessel_certificate_assignments
-    ADD CONSTRAINT vessel_certificate_assignments_pkey PRIMARY KEY ("Id");
+ALTER TABLE ONLY public.shore_notifications
+    ADD CONSTRAINT shore_notifications_pkey PRIMARY KEY ("Id");
 
 
 --
@@ -4712,6 +4167,13 @@ CREATE INDEX "IX_Certificates_VesselId_ExpiryDate" ON public."Certificates" USIN
 --
 
 CREATE INDEX "IX_FuelConsumptions_VesselId" ON public."FuelConsumptions" USING btree ("VesselId");
+
+
+--
+-- Name: IX_MaintenanceTasks_VesselId; Type: INDEX; Schema: public; Owner: product
+--
+
+CREATE INDEX "IX_MaintenanceTasks_VesselId" ON public."MaintenanceTasks" USING btree ("VesselId");
 
 
 --
@@ -5345,17 +4807,17 @@ CREATE INDEX "IX_employment_documents_CrewMemberId" ON public.employment_documen
 
 
 --
--- Name: IX_equipment_assets_AssetCode; Type: INDEX; Schema: public; Owner: product
---
-
-CREATE UNIQUE INDEX "IX_equipment_assets_AssetCode" ON public.equipment_assets USING btree ("AssetCode");
-
-
---
 -- Name: IX_equipment_assets_ParentId; Type: INDEX; Schema: public; Owner: product
 --
 
 CREATE INDEX "IX_equipment_assets_ParentId" ON public.equipment_assets USING btree ("ParentId");
+
+
+--
+-- Name: IX_equipment_assets_VesselId_AssetCode; Type: INDEX; Schema: public; Owner: product
+--
+
+CREATE UNIQUE INDEX "IX_equipment_assets_VesselId_AssetCode" ON public.equipment_assets USING btree ("VesselId", "AssetCode");
 
 
 --
@@ -5520,10 +4982,10 @@ CREATE UNIQUE INDEX "IX_material_item_equipments_MaterialItemId_EquipmentAssetId
 
 
 --
--- Name: IX_material_items_ItemCode; Type: INDEX; Schema: public; Owner: product
+-- Name: IX_material_items_VesselId_ItemCode; Type: INDEX; Schema: public; Owner: product
 --
 
-CREATE UNIQUE INDEX "IX_material_items_ItemCode" ON public.material_items USING btree ("ItemCode");
+CREATE UNIQUE INDEX "IX_material_items_VesselId_ItemCode" ON public.material_items USING btree ("VesselId", "ItemCode");
 
 
 --
@@ -5744,6 +5206,20 @@ CREATE INDEX "IX_service_records_IsSynced" ON public.service_records USING btree
 
 
 --
+-- Name: IX_shore_notifications_CreatedAt; Type: INDEX; Schema: public; Owner: product
+--
+
+CREATE INDEX "IX_shore_notifications_CreatedAt" ON public.shore_notifications USING btree ("CreatedAt");
+
+
+--
+-- Name: IX_shore_notifications_IsRead; Type: INDEX; Schema: public; Owner: product
+--
+
+CREATE INDEX "IX_shore_notifications_IsRead" ON public.shore_notifications USING btree ("IsRead");
+
+
+--
 -- Name: IX_sign_off_records_AssignmentId; Type: INDEX; Schema: public; Owner: product
 --
 
@@ -5902,6 +5378,20 @@ CREATE INDEX "IX_sync_logs_ProcessedAt" ON public.sync_logs USING btree ("Proces
 --
 
 CREATE INDEX "IX_sync_node_trackers_IsOnline" ON public.sync_node_trackers USING btree ("IsOnline");
+
+
+--
+-- Name: IX_sync_node_trackers_IsRegistered; Type: INDEX; Schema: public; Owner: product
+--
+
+CREATE INDEX "IX_sync_node_trackers_IsRegistered" ON public.sync_node_trackers USING btree ("IsRegistered");
+
+
+--
+-- Name: IX_sync_node_trackers_IsRevoked; Type: INDEX; Schema: public; Owner: product
+--
+
+CREATE INDEX "IX_sync_node_trackers_IsRevoked" ON public.sync_node_trackers USING btree ("IsRevoked");
 
 
 --
@@ -7339,4 +6829,26 @@ ALTER TABLE ONLY public.voyage_status_history
 -- PostgreSQL database dump complete
 --
 
+\unrestrict p3xFAqlyNjiCo9DYc3h6VLgoqr8pEaylm0hNbaL1antbftmWenkfDkVWgsaCMgP
 
+
+
+-- Seed migration history so EF does not re-run already-applied migrations
+INSERT INTO public."__EFMigrationsHistory" ("MigrationId", "ProductVersion") VALUES
+('20260310144509_InitialCreate', '8.0.0'),
+('20260310154924_ReplaceNationalityWithCountryId', '8.0.0'),
+('20260311031412_AddVesselIdToCrewMember', '8.0.0'),
+('20260311155340_AddVesselCertificateAssignments', '8.0.0'),
+('20260315180409_AddCrewReviewWorkflowColumns', '8.0.0'),
+('20260311040145_AddBunkerAndPositionReports', '8.0.0'),
+('20260311065927_AlignReportFieldsWithEdge', '8.0.0'),
+('20260315123341_AddVoyageSyncCoreMirror', '8.0.0'),
+('20260315130449_AddVoyageMirrorPlanningCore', '8.0.0'),
+('20260315141013_AddPmsMaterials', '8.0.0'),
+('20260315141316_AddVoyageMirrorPlanningFinancial', '8.0.0'),
+('20260317031411_AddFullMaintenanceTasks', '8.0.0'),
+('20260317031827_RebuildMaintenanceTasks', '8.0.0'),
+('20260319130406_AddVesselIdToMaterialItems', '8.0.0'),
+('20260321120000_AddSyncNodeSecurityRegistry', '8.0.0'),
+('20260321173000_AddSyncKeyRotationGraceWindow', '8.0.0')
+ON CONFLICT DO NOTHING;

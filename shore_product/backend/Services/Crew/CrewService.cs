@@ -568,17 +568,21 @@ public class CrewService : ICrewService
 
     public async Task<DocumentDto> AddCrewDocumentAsync(Guid crewId, CreateIdentityDocumentDto request)
     {
+        var crewExists = await _context.CrewMembers.AnyAsync(c => c.Id == crewId);
+        if (!crewExists)
+            throw new ArgumentException($"Crew member {crewId} not found");
+
         var now = DateTime.UtcNow;
         DocumentDto result;
 
-        switch (request.Category.ToLower())
+        switch ((request.Category ?? "travel").ToLower())
         {
             case "travel":
                 var travel = new TravelDocument
                 {
                     CrewMemberId = crewId, DocumentType = request.DocumentType,
-                    DocumentNumber = request.DocumentNumber, IssueDate = request.IssueDate,
-                    ExpiryDate = request.ExpiryDate, CountryId = request.CountryId,
+                    DocumentNumber = request.DocumentNumber, IssueDate = ToUtc(request.IssueDate),
+                    ExpiryDate = ToUtc(request.ExpiryDate), CountryId = request.CountryId,
                     Notes = request.Notes, CreatedAt = now, UpdatedAt = now
                 };
                 _context.TravelDocuments.Add(travel);
@@ -590,14 +594,19 @@ public class CrewService : ICrewService
                     ExpiryDate = travel.ExpiryDate, CountryId = travel.CountryId,
                     Notes = travel.Notes, Category = "travel", CreatedAt = travel.CreatedAt, UpdatedAt = travel.UpdatedAt
                 };
+                if (_syncOutbox != null)
+                {
+                    try { await _syncOutbox.BroadcastAsync("travel_document", travel.Id.ToString(), SyncActionType.CREATE, travel); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Failed to broadcast travel_document sync for {Id}", travel.Id); }
+                }
                 break;
 
             case "seafarer":
                 var seafarer = new SeafarerDocument
                 {
                     CrewMemberId = crewId, DocumentType = request.DocumentType,
-                    DocumentNumber = request.DocumentNumber, IssueDate = request.IssueDate,
-                    ExpiryDate = request.ExpiryDate, CountryId = request.CountryId,
+                    DocumentNumber = request.DocumentNumber, IssueDate = ToUtc(request.IssueDate),
+                    ExpiryDate = ToUtc(request.ExpiryDate), CountryId = request.CountryId,
                     Notes = request.Notes, CreatedAt = now, UpdatedAt = now
                 };
                 _context.SeafarerDocuments.Add(seafarer);
@@ -609,14 +618,19 @@ public class CrewService : ICrewService
                     ExpiryDate = seafarer.ExpiryDate, CountryId = seafarer.CountryId,
                     Notes = seafarer.Notes, Category = "seafarer", CreatedAt = seafarer.CreatedAt, UpdatedAt = seafarer.UpdatedAt
                 };
+                if (_syncOutbox != null)
+                {
+                    try { await _syncOutbox.BroadcastAsync("seafarer_document", seafarer.Id.ToString(), SyncActionType.CREATE, seafarer); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Failed to broadcast seafarer_document sync for {Id}", seafarer.Id); }
+                }
                 break;
 
             case "employment":
                 var employment = new EmploymentDocument
                 {
                     CrewMemberId = crewId, DocumentType = request.DocumentType,
-                    DocumentNumber = request.DocumentNumber, IssueDate = request.IssueDate,
-                    ExpiryDate = request.ExpiryDate, CountryId = request.CountryId,
+                    DocumentNumber = request.DocumentNumber, IssueDate = ToUtc(request.IssueDate),
+                    ExpiryDate = ToUtc(request.ExpiryDate), CountryId = request.CountryId,
                     Notes = request.Notes, CreatedAt = now, UpdatedAt = now
                 };
                 _context.EmploymentDocuments.Add(employment);
@@ -628,14 +642,19 @@ public class CrewService : ICrewService
                     ExpiryDate = employment.ExpiryDate, CountryId = employment.CountryId,
                     Notes = employment.Notes, Category = "employment", CreatedAt = employment.CreatedAt, UpdatedAt = employment.UpdatedAt
                 };
+                if (_syncOutbox != null)
+                {
+                    try { await _syncOutbox.BroadcastAsync("employment_document", employment.Id.ToString(), SyncActionType.CREATE, employment); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Failed to broadcast employment_document sync for {Id}", employment.Id); }
+                }
                 break;
 
             case "health":
                 var health = new HealthDocument
                 {
                     CrewMemberId = crewId, DocumentType = request.DocumentType,
-                    DocumentNumber = request.DocumentNumber, IssueDate = request.IssueDate,
-                    ExpiryDate = request.ExpiryDate,
+                    DocumentNumber = request.DocumentNumber, IssueDate = ToUtc(request.IssueDate),
+                    ExpiryDate = ToUtc(request.ExpiryDate),
                     Notes = request.Notes, CreatedAt = now, UpdatedAt = now
                 };
                 _context.HealthDocuments.Add(health);
@@ -647,6 +666,11 @@ public class CrewService : ICrewService
                     ExpiryDate = health.ExpiryDate,
                     Notes = health.Notes, Category = "health", CreatedAt = health.CreatedAt, UpdatedAt = health.UpdatedAt
                 };
+                if (_syncOutbox != null)
+                {
+                    try { await _syncOutbox.BroadcastAsync("health_document", health.Id.ToString(), SyncActionType.CREATE, health); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Failed to broadcast health_document sync for {Id}", health.Id); }
+                }
                 break;
 
             default:
@@ -658,34 +682,55 @@ public class CrewService : ICrewService
 
     public async Task<bool> DeleteCrewDocumentAsync(Guid crewId, Guid documentId, string category)
     {
-        switch (category.ToLower())
+        switch ((category ?? string.Empty).ToLower())
         {
             case "travel":
                 var t = await _context.TravelDocuments.AsTracking().FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
                 if (t == null) return false;
                 _context.TravelDocuments.Remove(t);
-                break;
+                await _context.SaveChangesAsync();
+                if (_syncOutbox != null)
+                {
+                    try { await _syncOutbox.BroadcastAsync("travel_document", documentId.ToString(), SyncActionType.DELETE, new { Id = documentId }); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Failed to broadcast travel_document delete sync for {Id}", documentId); }
+                }
+                return true;
             case "seafarer":
                 var s = await _context.SeafarerDocuments.AsTracking().FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
                 if (s == null) return false;
                 _context.SeafarerDocuments.Remove(s);
-                break;
+                await _context.SaveChangesAsync();
+                if (_syncOutbox != null)
+                {
+                    try { await _syncOutbox.BroadcastAsync("seafarer_document", documentId.ToString(), SyncActionType.DELETE, new { Id = documentId }); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Failed to broadcast seafarer_document delete sync for {Id}", documentId); }
+                }
+                return true;
             case "employment":
                 var e = await _context.EmploymentDocuments.AsTracking().FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
                 if (e == null) return false;
                 _context.EmploymentDocuments.Remove(e);
-                break;
+                await _context.SaveChangesAsync();
+                if (_syncOutbox != null)
+                {
+                    try { await _syncOutbox.BroadcastAsync("employment_document", documentId.ToString(), SyncActionType.DELETE, new { Id = documentId }); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Failed to broadcast employment_document delete sync for {Id}", documentId); }
+                }
+                return true;
             case "health":
                 var h = await _context.HealthDocuments.AsTracking().FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
                 if (h == null) return false;
                 _context.HealthDocuments.Remove(h);
-                break;
+                await _context.SaveChangesAsync();
+                if (_syncOutbox != null)
+                {
+                    try { await _syncOutbox.BroadcastAsync("health_document", documentId.ToString(), SyncActionType.DELETE, new { Id = documentId }); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Failed to broadcast health_document delete sync for {Id}", documentId); }
+                }
+                return true;
             default:
                 return false;
         }
-
-        await _context.SaveChangesAsync();
-        return true;
     }
 
     // ============================================================
