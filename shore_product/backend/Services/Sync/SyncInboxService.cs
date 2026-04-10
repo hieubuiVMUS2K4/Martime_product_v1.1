@@ -293,13 +293,16 @@ public class SyncInboxService : ISyncInboxService
         "rank_certificate", "country_certificate"
     };
 
+    private readonly ProductApi.Services.Background.ReportEvaluationQueue _reportEvaluationQueue;
+
     public SyncInboxService(
         AppDbContext context,
         IConflictResolverService conflictResolver,
         ILogger<SyncInboxService> logger,
         INotificationService notifications,
         IConfiguration configuration,
-        ISyncFileStorageService syncFileStorageService)
+        ISyncFileStorageService syncFileStorageService,
+        ProductApi.Services.Background.ReportEvaluationQueue reportEvaluationQueue)
     {
         _context = context;
         _configuration = configuration;
@@ -307,6 +310,7 @@ public class SyncInboxService : ISyncInboxService
         _logger = logger;
         _notifications = notifications;
         _syncFileStorageService = syncFileStorageService;
+        _reportEvaluationQueue = reportEvaluationQueue;
         _receiverNodeId = configuration["SyncSecurity:ShoreNodeId"] ?? "SHORE";
     }
 
@@ -463,6 +467,15 @@ public class SyncInboxService : ISyncInboxService
                     // Save each item individually so a single constraint violation
                     // does NOT roll back the entire batch.
                     await _context.SaveChangesAsync();
+
+                    // TRÍCH XUẤT ID ĐỂ EVALUATE (AI)
+                    if ((item.TableName.Equals("noon_report", StringComparison.OrdinalIgnoreCase) || 
+                         item.TableName.Equals("noon_reports", StringComparison.OrdinalIgnoreCase)) &&
+                        Guid.TryParse(item.RecordKey, out var reportId))
+                    {
+                        var ct = new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token;
+                        await _reportEvaluationQueue.EnqueueAsync(reportId, ct);
+                    }
 
                     result.Succeeded++;
                 }

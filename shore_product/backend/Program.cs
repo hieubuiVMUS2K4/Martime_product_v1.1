@@ -118,6 +118,30 @@ builder.Services.AddScoped<ProductApi.Security.SyncRequestVerificationMiddleware
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        int? retryAfterSeconds = null;
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            retryAfterSeconds = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds));
+            context.HttpContext.Response.Headers["Retry-After"] = retryAfterSeconds.Value.ToString();
+        }
+
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.HttpContext.Response.ContentType = "application/json";
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            success = false,
+            answer = retryAfterSeconds.HasValue
+                ? $"Backend đang giới hạn tần suất yêu cầu. Vui lòng thử lại sau {retryAfterSeconds.Value}s."
+                : "Backend đang giới hạn tần suất yêu cầu. Vui lòng thử lại sau.",
+            errorSource = "backend_rate_limiter",
+            retryAfterSeconds
+        });
+
+        await context.HttpContext.Response.WriteAsync(payload, cancellationToken);
+    };
 
     options.AddPolicy("sync", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
@@ -221,6 +245,26 @@ builder.Services.AddHostedService<AlertBackgroundService>();
 builder.Services.AddHostedService<ProductApi.Services.Sync.CertificateExpiryMonitorService>();
 builder.Services.AddHostedService<ProductApi.Services.Sync.SyncHealthMonitorService>();
 builder.Services.AddHostedService<ProductApi.Services.Background.NetworkAwareSyncBackgroundService>();
+
+// AI Services
+builder.Services.AddHttpClient<ProductApi.Services.AI.IGeminiEvaluationService, ProductApi.Services.AI.GeminiEvaluationService>()
+    .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(30)) // 30s timeout (20s chat + buffer)
+    .AddStandardResilienceHandler(options =>
+    {
+        options.Retry.MaxRetryAttempts = 3;
+        options.Retry.Delay = TimeSpan.FromSeconds(2);
+    });
+
+// AI Enhancement Services (V2 - Caching, Semantic Analysis, Conversation History)
+builder.Services.AddSingleton<ProductApi.Services.AI.Caching.IAiCacheService, ProductApi.Services.AI.Caching.AiMemoryCacheService>();
+builder.Services.AddScoped<ProductApi.Services.AI.Analysis.ISemanticAnalysisService, ProductApi.Services.AI.Analysis.SemanticAnalysisService>();
+builder.Services.AddSingleton<ProductApi.Services.AI.Conversation.IConversationHistoryService, ProductApi.Services.AI.Conversation.ConversationHistoryService>();
+
+// Use V2 with enhancements - supports backward compatibility
+builder.Services.AddScoped<ProductApi.Services.AI.IAiChatService, ProductApi.Services.AI.AiChatServiceV2>();
+builder.Services.AddSingleton<ProductApi.Services.Background.ReportEvaluationQueue>();
+builder.Services.AddHostedService<ProductApi.Services.Background.ReportEvaluationWorker>();
+
 // Phase 2.3: Nonce registry cleanup service
 builder.Services.AddHostedService<ProductApi.Services.Sync.SyncNonceRegistryCleanupService>();
 
