@@ -5,6 +5,7 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { ENV } from '../../config/env';
+import AIChatWidget from '../../components/Reports/AIChatWidget';
 import './VesselReportDetailPage.css';
 
 // ─────────────────────────────────────────────────────────────
@@ -486,6 +487,7 @@ export const VesselReportDetailPage: React.FC = () => {
           </div>
         )}
       </div>
+      {vesselId && <AIChatWidget vesselId={vesselId} />}
     </div>
   );
 };
