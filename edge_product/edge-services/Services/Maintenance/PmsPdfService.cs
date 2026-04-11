@@ -28,7 +28,7 @@ public class PmsPdfService
             {
                 page.Size(PageSizes.A4);
                 page.Margin(15, Unit.Millimetre);
-                page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Arial"));
+                page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Lato"));
 
                 page.Content().Column(col =>
                 {
@@ -150,8 +150,8 @@ public class PmsPdfService
                             rc.Item().PaddingTop(2).Element(c => RiskBadge(c, f.ResidualRiskLevel));
                             rc.Item().PaddingTop(6).Row(approveRow =>
                             {
-                                approveRow.AutoItem().Text(f.IsApprovedToProceed ? "☑" : "☐").FontSize(12);
-                                approveRow.AutoItem().PaddingLeft(4).Text("Được phép tiến hành / Approved to Proceed").FontSize(8);
+                                approveRow.AutoItem().Element(c => DrawCheckbox(c, f.IsApprovedToProceed));
+                                approveRow.AutoItem().PaddingLeft(4).AlignMiddle().Text("Được phép tiến hành / Approved to Proceed").FontSize(8);
                             });
                         });
                     });
@@ -237,7 +237,7 @@ public class PmsPdfService
             {
                 page.Size(PageSizes.A4);
                 page.Margin(15, Unit.Millimetre);
-                page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Arial"));
+                page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Lato"));
 
                 page.Content().Column(col =>
                 {
@@ -419,8 +419,8 @@ public class PmsPdfService
     {
         var (text, fg) = status switch
         {
-            "GOOD" => ("Tốt ✓", "#155724"),
-            "BAD" => ("Xấu ✗", "#721c24"),
+            "GOOD" => ("Tốt [V]", "#155724"),
+            "BAD" => ("Xấu [X]", "#721c24"),
             "REPLACED" => ("Thay thế", "#856404"),
             _ => ("—", "#000000")
         };
@@ -431,9 +431,9 @@ public class PmsPdfService
     {
         var (text, fg) = status switch
         {
-            "NORMAL" => ("Hoạt động bình thường ✓", "#155724"),
-            "MONITOR" => ("Cần theo dõi ⚠", "#856404"),
-            "NEEDS_REPAIR" => ("Cần sửa chữa ✗", "#721c24"),
+            "NORMAL" => ("Hoạt động bình thường [V]", "#155724"),
+            "MONITOR" => ("Cần theo dõi [!]", "#856404"),
+            "NEEDS_REPAIR" => ("Cần sửa chữa [X]", "#721c24"),
             _ => ("—", "#000000")
         };
         c.Text(text).FontColor(fg).Bold().FontSize(9);
@@ -443,8 +443,8 @@ public class PmsPdfService
     {
         var (text, fg) = result switch
         {
-            "PASS" => ("ĐẠT ✓", "#155724"),
-            "FAIL" => ("KHÔNG ĐẠT ✗", "#721c24"),
+            "PASS" => ("ĐẠT [V]", "#155724"),
+            "FAIL" => ("KHÔNG ĐẠT [X]", "#721c24"),
             _ => ("—", "#000000")
         };
         c.Text(text).FontColor(fg).Bold().FontSize(11);
@@ -469,7 +469,15 @@ public class PmsPdfService
         _ => s ?? "—"
     };
 
-    // Intentionally unused — removed HTML template approach (IronPDF replaced by QuestPDF)
+    /// <summary>
+    /// Draws a 10x10 checkbox. If checked, draws an "X" inside.
+    /// </summary>
+    internal static void DrawCheckbox(IContainer container, bool isChecked)
+    {
+        container.Width(11).Height(11).Border(1).BorderColor("#333333").Background(isChecked ? "#e8f5e9" : "#ffffff")
+            .AlignCenter().AlignMiddle()
+            .Text(isChecked ? "X" : "").Bold().FontSize(7);
+    }
 }
 
 /// <summary>
@@ -491,8 +499,8 @@ internal static class PdfExtensions
     {
         c.Row(r =>
         {
-            r.AutoItem().Text(isChecked ? "☑" : "☐").FontSize(11);
-            r.AutoItem().PaddingLeft(3).Text(label).FontSize(8);
+            r.AutoItem().Element(cb => PmsPdfService.DrawCheckbox(cb, isChecked));
+            r.AutoItem().PaddingLeft(3).AlignMiddle().Text(label).FontSize(8);
         });
     }
 }

@@ -12,7 +12,7 @@ import {
   Eye, Pencil, Trash2,
   RefreshCw, Clock, Settings, Gauge, Plus, Save, ExternalLink,
   CheckCircle, ChevronsUpDown, FolderOpen, ClipboardList, X as XIcon, Users, Package,
-  AlertTriangle, FileText, History, Upload, Link2, Copy, CalendarDays
+  AlertTriangle, FileText, History, Link2, Copy, CalendarDays
 } from 'lucide-react';
 import { parseISO, format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, addDays, getDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
