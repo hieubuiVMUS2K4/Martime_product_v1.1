@@ -314,9 +314,6 @@ export default function InventoryPage() {
                   <th className="w-24 px-3 py-2 border-b border-r border-gray-200">
                     <span className="text-xs font-semibold text-gray-600">Cập nhật</span>
                   </th>
-                  <th className="w-20 px-2 py-2 border-b border-gray-200 text-center">
-                    <span className="text-xs font-semibold text-gray-600">Thao tác</span>
-                  </th>
                 </tr>
                 {/* Row 2: Column filters */}
                 <tr className="bg-white border-b border-gray-200">
@@ -362,7 +359,6 @@ export default function InventoryPage() {
                     <td className="px-3 py-2 text-xs text-right font-semibold text-green-700 border-r border-gray-100">{fmt(row.totalValue)}</td>
                     <td className="px-3 py-2 text-xs border-r border-gray-100">{row.unit}</td>
                     <td className="px-3 py-2 text-gray-400 text-xs border-r border-gray-100">{row.updatedAt?.slice(0, 10)}</td>
-                    <td className="px-2 py-2 text-center text-xs text-gray-300">—</td>
                   </tr>
                 ))}
               </tbody>
