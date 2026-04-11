@@ -71,6 +71,8 @@ services:
       DataProtection__EncryptionKey: ${DATA_PROTECTION__ENCRYPTION_KEY}
       SyncSecurity__RequireSignedRequests: ${SYNC_REQUIRE_SIGNED_REQUESTS:-true}
       SyncSecurity__ProtocolVersion: ${SYNC_PROTOCOL_VERSION:-2}
+      Groq__ApiKey: ${GROQ_API_KEY}
+      Gemini__ApiKey: ${GEMINI_API_KEY}
     volumes:
       - uploads-data:/app/uploads
     depends_on:

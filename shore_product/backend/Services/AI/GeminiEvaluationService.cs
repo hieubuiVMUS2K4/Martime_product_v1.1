@@ -155,8 +155,8 @@ Trả lại CHỈ nguyên định dạng JSON: {{""status"": ""Normal/Warning/Cr
 
         public async Task<GeminiChatResult> ChatWithReportsAsync(string message, string reportsJson, CancellationToken token)
         {
-            var apiKey = _config["Groq:ApiKey"] ?? _config["Gemini:ApiKey"];
-            if (string.IsNullOrEmpty(apiKey))
+            var keys = GetApiKeys();
+            if (keys.Length == 0)
             {
                 _logger.LogWarning("API Key missing");
                 return new GeminiChatResult
@@ -166,6 +166,7 @@ Trả lại CHỈ nguyên định dạng JSON: {{""status"": ""Normal/Warning/Cr
                     ErrorSource = "gemini_config"
                 };
             }
+            var apiKey = GetNextApiKey(keys);
 
             // Use upstream prompt as single source of truth when depth is already configured.
             var prompt = reportsJson.Contains("[DEPTH_CONFIGURED]", StringComparison.Ordinal)
