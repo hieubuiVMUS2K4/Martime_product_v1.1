@@ -68,7 +68,31 @@ namespace ProductApi.Services.Background
                         })
                         .ToListAsync(stoppingToken);
 
-                    string jsonData = JsonSerializer.Serialize(history);
+                    var currentReport = history.FirstOrDefault(r => r.ReportDate.Date == report.ReportDate.Date) ?? new ShipMetricsDto
+                    {
+                        ReportDate = report.ReportDate,
+                        EngineTemp = report.SeaTemperature ?? 0.0, 
+                        FuelConsumption = report.FuelOilConsumed ?? 0.0, 
+                        Rpm = report.MainEngineRPM ?? 0.0,
+                        Speed = report.SpeedOverGround ?? 0.0
+                    };
+
+                    var past7Days = history.Where(r => r.ReportDate.Date != report.ReportDate.Date).ToList();
+
+                    var payload = new 
+                    {
+                        CurrentReport = currentReport,
+                        Past7DaysAverage = new 
+                        {
+                            AvgEngineTemp = past7Days.Any() ? past7Days.Average(x => x.EngineTemp) : 0,
+                            AvgFuelConsumption = past7Days.Any() ? past7Days.Average(x => x.FuelConsumption) : 0,
+                            AvgRpm = past7Days.Any() ? past7Days.Average(x => x.Rpm) : 0,
+                            AvgSpeed = past7Days.Any() ? past7Days.Average(x => x.Speed) : 0,
+                        },
+                        DetailedHistoryCount = past7Days.Count
+                    };
+
+                    string jsonData = JsonSerializer.Serialize(payload);
 
                     var aiResult = await aiService.EvaluateReportAsync(jsonData, stoppingToken);
 

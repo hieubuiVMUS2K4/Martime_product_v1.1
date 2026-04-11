@@ -31,9 +31,15 @@ namespace ProductApi.Services.AI
                 return new AiEvaluationResponse { Status = "Normal", ContentVi = "API Key chưa được cấu hình." };
             }
 
-            var prompt = $@"Bạn là chuyên gia máy trưởng hàng hải. Phân tích dữ liệu báo cáo JSON:
+            var prompt = $@"Bạn là chuyên gia máy trưởng hàng hải. 
+Nhiệm vụ của bạn là đánh giá BÁO CÁO CỦA NGÀY HIỆN TẠI (CurrentReport) bằng cách so sánh thông số của nó với trung bình 7 ngày qua (Past7DaysAverage) được cung cấp trong dữ liệu JSON sau:
 {jsonData}
-Trả lại JSON: {{""status"": ""Normal/Warning/Critical"", ""contentVi"": ""Nhận xét tiếng Việt 100 chữ""}}";
+
+YÊU CẦU BẮT BUỘC: 
+- Nhận xét phải tập trung trực tiếp vào số liệu của báo cáo hiện tại (CurrentReport).
+- Đánh giá xem số liệu của ngày hôm nay có bất thường hay tốt/xấu hơn như thế nào so với xu hướng 7 ngày qua (Past7DaysAverage). 
+- Tuyệt đối KHÔNG trả lời theo kiểu tổng kết cả tuần.
+Trả lại CHỈ nguyên định dạng JSON: {{""status"": ""Normal/Warning/Critical"", ""contentVi"": ""Nhận xét tiếng Việt khoảng 100 chữ""}}";
 
             try
             {
