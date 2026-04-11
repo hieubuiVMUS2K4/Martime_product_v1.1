@@ -33,6 +33,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
   final _runningHoursController = TextEditingController();
   final _sparePartsController = TextEditingController();
   final _notesController = TextEditingController();
+  final _actualDurationController = TextEditingController();
   final _startDateController = TextEditingController();
   final _endDateController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -68,7 +69,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
     }
     // Pre-fill description
     _descriptionController.text = widget.task.taskDescription;
-    
+
     // Initialize local checklist state from task
     _checklistItems = List.from(widget.task.checklistItems);
     
@@ -297,6 +298,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
     _runningHoursController.dispose();
     _sparePartsController.dispose();
     _notesController.dispose();
+    _actualDurationController.dispose();
     _startDateController.dispose();
     _endDateController.dispose();
     _descriptionController.dispose();
@@ -369,6 +371,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
+        actualDurationMinutes: int.tryParse(_actualDurationController.text),
       );
 
       // Trigger sync if online
@@ -745,6 +748,29 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
               }
               return null;
             },
+          ),
+
+          const SizedBox(height: 20),
+
+          // Actual Duration Field
+          Text(
+            'Thời gian thực hiện',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _actualDurationController,
+            decoration: const InputDecoration(
+              hintText: 'Nhập thời gian thực hiện',
+              prefixIcon: Icon(Icons.timer_outlined, size: 20),
+              suffixText: 'phút',
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            ),
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+            ],
           ),
 
           const SizedBox(height: 20),

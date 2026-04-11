@@ -65,6 +65,7 @@ export default function WorkReportPage() {
   const [reportReceiver, setReportReceiver] = useState('')
   const [hasRiskAssessment, setHasRiskAssessment] = useState(false)
 
+  const [equipmentDescription, setEquipmentDescription] = useState('')
   const [equipmentRunningHours, setEquipmentRunningHours] = useState<number>(0)
   const [currentEquipmentHours, setCurrentEquipmentHours] = useState<number>(0)
   const [completionDate, setCompletionDate] = useState('')
@@ -148,13 +149,18 @@ export default function WorkReportPage() {
       setIsCbm(data.taskType === 'CONDITION')
       setEquipmentRunningHours(data.actualRunningHours || 0)
 
-      // Auto-fill "Thời gian hiện tại của thiết bị" từ counter thực tế
-      if (data.equipmentAssetId && !data.runningHoursAtLastDone) {
+      // Auto-fill "Thời gian hiện tại của thiết bị" và "Mô tả thiết bị" từ equipment asset
+      if (data.equipmentAssetId) {
         try {
           const asset = await equipmentAssetService.getById(data.equipmentAssetId)
-          setCurrentEquipmentHours(asset.currentRunningHours ?? 0)
+          if (!data.runningHoursAtLastDone) {
+            setCurrentEquipmentHours(asset.currentRunningHours ?? 0)
+          }
+          setEquipmentDescription(asset.notes || '')
         } catch {
-          setCurrentEquipmentHours(0)
+          if (!data.runningHoursAtLastDone) {
+            setCurrentEquipmentHours(0)
+          }
         }
       } else {
         setCurrentEquipmentHours(data.runningHoursAtLastDone || 0)
@@ -570,7 +576,7 @@ export default function WorkReportPage() {
               {/* Row 5: Mô tả thiết bị */}
               <div className="flex items-start">
                 <label className={`${lbl} pt-1.5`} style={{ width: 110 }}>Mô tả thiết bị:</label>
-                <textarea rows={2} readOnly value="" className={`${inpRo} resize-none`} />
+                <textarea rows={2} readOnly value={equipmentDescription} className={`${inpRo} resize-none`} />
               </div>
               {/* Row 6: Đánh giá rủi ro + Biên bản kiểm tra */}
               <div className="flex gap-4">

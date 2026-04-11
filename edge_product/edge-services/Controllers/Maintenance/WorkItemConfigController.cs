@@ -953,18 +953,23 @@ public class WorkItemConfigController : ControllerBase
                 }
 
                 // UPDATE TASK STATUS based on new validation
+                // Only change status for tasks still in configuration/setup states.
+                // Tasks in operational states (DUE, OVERDUE, PENDING_APPROVAL, RECTIFY) must not be overwritten.
                 var hasPIC = !string.IsNullOrWhiteSpace(task.AssignedTo);
                 var hasChecklist = newTemplates.Any();
                 var oldStatus = task.Status;
-                var newStatus = DetermineTaskStatus(task.AssignedTo, hasChecklist, task.Priority);
-
-                if (oldStatus != newStatus)
+                var configurableStatuses = new[] { "MISSING_BOTH", "MISSING_PIC", "MISSING_CHECKLIST", "SCHEDULED" };
+                if (Array.IndexOf(configurableStatuses, oldStatus) >= 0)
                 {
-                    task.Status = newStatus;
-                    task.UpdatedAt = DateTime.UtcNow;
-                    _logger.LogInformation(
-                        "Task {TaskId} status updated: {OldStatus} → {NewStatus} (PIC: {HasPIC}, Checklist: {HasChecklist})",
-                        task.TaskId, oldStatus, newStatus, hasPIC, hasChecklist);
+                    var newStatus = DetermineTaskStatus(task.AssignedTo, hasChecklist, task.Priority);
+                    if (oldStatus != newStatus)
+                    {
+                        task.Status = newStatus;
+                        task.UpdatedAt = DateTime.UtcNow;
+                        _logger.LogInformation(
+                            "Task {TaskId} status updated: {OldStatus} → {NewStatus} (PIC: {HasPIC}, Checklist: {HasChecklist})",
+                            task.TaskId, oldStatus, newStatus, hasPIC, hasChecklist);
+                    }
                 }
 
                 tasksUpdated++;
@@ -994,7 +999,8 @@ public class WorkItemConfigController : ControllerBase
         if (!hasPIC) return "MISSING_PIC";
         if (!hasChecklist) return "MISSING_CHECKLIST";
 
-        return (priority == "HIGH" || priority == "CRITICAL") ? "PENDING_APPROVAL" : "PENDING";
+        // Task is ready for scheduling — actual progression to DUE/OVERDUE is handled by counter/scheduler
+        return "SCHEDULED";
     }
 
     /// <summary>
@@ -1136,9 +1142,14 @@ public class WorkItemConfigController : ControllerBase
                 }
 
                 // Update task status
+                // Only touch status for tasks still in configuration/setup states.
                 var hasChecklist = checklistTemplates.Any();
-                var newStatus = DetermineTaskStatus(task.AssignedTo, hasChecklist, task.Priority);
-                task.Status = newStatus;
+                var configurableStatuses = new[] { "MISSING_BOTH", "MISSING_PIC", "MISSING_CHECKLIST", "SCHEDULED" };
+                if (Array.IndexOf(configurableStatuses, task.Status) >= 0)
+                {
+                    var newStatus = DetermineTaskStatus(task.AssignedTo, hasChecklist, task.Priority);
+                    task.Status = newStatus;
+                }
                 task.UpdatedAt = DateTime.UtcNow;
                 tasksUpdated++;
             }

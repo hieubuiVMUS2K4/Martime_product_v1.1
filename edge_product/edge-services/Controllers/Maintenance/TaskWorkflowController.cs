@@ -184,8 +184,12 @@ public class TaskWorkflowController : ControllerBase
                 });
             }
 
-            // Calculate actual duration
-            if (task.StartedAt.HasValue)
+            // Calculate actual duration (use submitted value if provided, else auto-calculate)
+            if (dto.ActualDurationMinutes.HasValue && dto.ActualDurationMinutes.Value > 0)
+            {
+                task.ActualDuration = dto.ActualDurationMinutes.Value;
+            }
+            else if (task.StartedAt.HasValue)
             {
                 task.ActualDuration = (int)(DateTime.UtcNow - task.StartedAt.Value).TotalMinutes;
             }
