@@ -7,7 +7,6 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-
 namespace MaritimeEdge.Services.Core;
 
 public interface ISyncService
@@ -1858,7 +1857,7 @@ public class SyncService : ISyncService
         if (string.Equals(transportEncoding, nameof(SyncFileTransportEncoding.Gzip).ToLowerInvariant(), StringComparison.OrdinalIgnoreCase))
         {
             using var input = new MemoryStream(rawBytes);
-            using var gzip = new GZipStream(input, CompressionMode.Decompress);
+            using var gzip = new GZipStream(input, System.IO.Compression.CompressionMode.Decompress);
             using var output = new MemoryStream();
             gzip.CopyTo(output);
             return output.ToArray();

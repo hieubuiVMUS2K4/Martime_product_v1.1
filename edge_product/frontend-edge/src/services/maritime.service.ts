@@ -25,6 +25,7 @@ import type {
   PaginatedResponse,
   ServiceRecord,
 } from '@/types/maritime.types'
+import type { TaskRiskAssessment, TaskInspectionReport } from '@/types/pms.types'
 
 // ============================================================
 // MARITIME SERVICE CLASS (for direct API base URL usage)
@@ -362,6 +363,36 @@ export class MaritimeService {
       this.request(`/maintenance/tasks/${id}`, {
         method: 'DELETE',
       }),
+    getRiskAssessment: (taskId: string) =>
+      this.request<TaskRiskAssessment>(`/maintenance/tasks/${taskId}/risk-assessment`),
+    saveRiskAssessment: (taskId: string, data: Partial<TaskRiskAssessment>) =>
+      this.request<{ success: boolean; isFilled: boolean }>(`/maintenance/tasks/${taskId}/risk-assessment`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    getInspectionReport: (taskId: string) =>
+      this.request<TaskInspectionReport>(`/maintenance/tasks/${taskId}/inspection-report`),
+    saveInspectionReport: (taskId: string, data: Partial<TaskInspectionReport>) =>
+      this.request<{ success: boolean; isFilled: boolean }>(`/maintenance/tasks/${taskId}/inspection-report`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    downloadRiskAssessmentPdf: async (taskId: string): Promise<string> => {
+      const url = this.baseUrl ? `${this.baseUrl}/api/maintenance/tasks/${taskId}/risk-assessment/pdf` : `/api/maintenance/tasks/${taskId}/risk-assessment/pdf`
+      const token = getAuthToken()
+      const resp = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      if (!resp.ok) throw new Error('PDF chưa có')
+      const blob = await resp.blob()
+      return URL.createObjectURL(blob)
+    },
+    downloadInspectionReportPdf: async (taskId: string): Promise<string> => {
+      const url = this.baseUrl ? `${this.baseUrl}/api/maintenance/tasks/${taskId}/inspection-report/pdf` : `/api/maintenance/tasks/${taskId}/inspection-report/pdf`
+      const token = getAuthToken()
+      const resp = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      if (!resp.ok) throw new Error('PDF chưa có')
+      const blob = await resp.blob()
+      return URL.createObjectURL(blob)
+    },
   }
 
   voyage = {

@@ -189,6 +189,7 @@ namespace MaritimeEdge
 
             // Add PMS Services
             builder.Services.AddScoped<MaintenanceCompletionService>();
+            builder.Services.AddScoped<PmsPdfService>();
 
             // Add Ship Data Services
             builder.Services.AddScoped<IShipDataRepository, ShipDataRepository>();
@@ -305,6 +306,9 @@ namespace MaritimeEdge
                             QueueLimit = 0
                         }));
             });
+
+            // QuestPDF Community License (free for internal/open use)
+            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
             var app = builder.Build();
 

@@ -2062,6 +2062,18 @@ public class MaintenanceTask
     public string? DeletedBy { get; set; }
     
     public string? DeletionReason { get; set; }
+
+    // ============ FORM REQUIREMENTS ============
+
+    /// <summary>
+    /// Inherited from schedule: task requires a Risk Assessment form (ĐGRR) to be filled
+    /// </summary>
+    public bool RequireRiskAssessment { get; set; } = false;
+
+    /// <summary>
+    /// Inherited from schedule: task requires an Inspection Report form (BBKT) to be filled
+    /// </summary>
+    public bool RequireInspectionReport { get; set; } = false;
     
     // ============ AUDIT ============
     
@@ -4975,6 +4987,16 @@ public class MaintenanceSchedule
     /// Additional instructions
     /// </summary>
     public string? Instructions { get; set; }
+
+    /// <summary>
+    /// Whether crew must fill the Risk Assessment form (ĐGRR) before task can be completed
+    /// </summary>
+    public bool RequireRiskAssessment { get; set; } = false;
+
+    /// <summary>
+    /// Whether crew must fill the Inspection Report form (BBKT) before task can be completed
+    /// </summary>
+    public bool RequireInspectionReport { get; set; } = false;
     
     public bool IsActive { get; set; } = true;
     
@@ -4985,6 +5007,138 @@ public class MaintenanceSchedule
     
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+}
+
+/// <summary>
+/// Task Risk Assessment Form (Biểu mẫu Đánh giá Rủi ro - ĐGRR)
+/// </summary>
+[Table("task_risk_assessments", Schema = "public")]
+public class TaskRiskAssessment
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    /// <summary>FK → MaintenanceTask.TaskId (string code)</summary>
+    [Required]
+    [MaxLength(100)]
+    public string TaskId { get; set; } = string.Empty;
+
+    // ── Section I: Thông tin chung ──
+    [MaxLength(200)]
+    public string? JobName { get; set; }
+    [MaxLength(200)]
+    public string? EquipmentName { get; set; }
+    [MaxLength(200)]
+    public string? Location { get; set; }
+    public DateTime? AssessmentDate { get; set; }
+    [MaxLength(500)]
+    public string? Personnel { get; set; }
+    [MaxLength(50)]
+    public string? RaNumber { get; set; }  // e.g. "001/RA/PMS"
+
+    // ── Section II: Nhận diện mối nguy ──
+    public bool HazardMechanical { get; set; }       // Cơ học
+    public bool HazardElectrical { get; set; }       // Điện
+    public bool HazardChemical { get; set; }         // Hóa chất
+    public bool HazardEnvironmental { get; set; }    // Môi trường (không gian kín, trên cao, nhiệt độ cao)
+    public string? HazardNotes { get; set; }
+
+    // ── Section III: Đánh giá rủi ro trước biện pháp ──
+    /// <summary>Severity (Hậu quả): LOW / MEDIUM / HIGH / CRITICAL</summary>
+    [MaxLength(20)]
+    public string? InitialSeverity { get; set; }
+    /// <summary>Likelihood (Khả năng xảy ra): LOW / MEDIUM / HIGH</summary>
+    [MaxLength(20)]
+    public string? InitialLikelihood { get; set; }
+    /// <summary>Risk Level = Severity × Likelihood: LOW / MEDIUM / HIGH</summary>
+    [MaxLength(20)]
+    public string? InitialRiskLevel { get; set; }
+
+    // ── Section IV: Biện pháp kiểm soát ──
+    [Column("control_loto")]
+    public bool ControlLOTO { get; set; }            // Lockout/Tagout
+    [Column("control_ptw")]
+    public bool ControlPTW { get; set; }             // Permit to Work
+    [Column("control_ppe")]
+    public bool ControlPPE { get; set; }             // PPE
+    public bool ControlVentilation { get; set; }     // Thông gió, chiếu sáng
+    public string? ControlNotes { get; set; }
+
+    // ── Section V: Rủi ro dư thừa ──
+    [MaxLength(20)]
+    public string? ResidualSeverity { get; set; }
+    [MaxLength(20)]
+    public string? ResidualLikelihood { get; set; }
+    [MaxLength(20)]
+    public string? ResidualRiskLevel { get; set; }
+    public string? ResidualRiskNotes { get; set; }
+    /// <summary>False if residual risk still HIGH → work must stop</summary>
+    public bool IsApprovedToProceed { get; set; } = true;
+
+    // ── Section VI: Phê duyệt ──
+    [MaxLength(100)]
+    public string? WorkerSignature { get; set; }
+    [MaxLength(100)]
+    public string? SupervisorSignature { get; set; }
+    [MaxLength(100)]
+    public string? ChiefEngineerApproval { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    [MaxLength(50)]
+    public string? CreatedBy { get; set; }
+}
+
+/// <summary>
+/// Task Inspection Report Form (Biên bản Bảo trì - BBKT)
+/// </summary>
+[Table("task_inspection_reports", Schema = "public")]
+public class TaskInspectionReport
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    /// <summary>FK → MaintenanceTask.TaskId (string code)</summary>
+    [Required]
+    [MaxLength(100)]
+    public string TaskId { get; set; } = string.Empty;
+
+    // ── Section I: Thông tin chung ──
+    [MaxLength(200)]
+    public string? ShipName { get; set; }
+    [MaxLength(200)]
+    public string? EquipmentName { get; set; }
+    [MaxLength(50)]
+    public string? EquipmentCode { get; set; }
+    /// <summary>DAILY / WEEKLY / MONTHLY / ANNUAL / RUNNING_HOURS</summary>
+    [MaxLength(30)]
+    public string? MaintenanceType { get; set; }
+    public DateTime? MaintenanceDate { get; set; }
+
+    // ── Section II: Nội dung công việc ──
+    /// <summary>JSON array: [{seq, description, status: "GOOD"|"BAD"|"REPLACED", notes}]</summary>
+    public string? JobItemsJson { get; set; }
+
+    // ── Section III: Kết luận ──
+    /// <summary>NORMAL / MONITOR / NEEDS_REPAIR</summary>
+    [MaxLength(30)]
+    public string? PostMaintenanceStatus { get; set; }
+    public string? Recommendations { get; set; }
+
+    // ── Section IV: Xác nhận ──
+    [MaxLength(100)]
+    public string? OperatorSignature { get; set; }
+    [MaxLength(100)]
+    public string? ChiefEngineerSignature { get; set; }
+
+    /// <summary>Overall: PASS / FAIL</summary>
+    [MaxLength(10)]
+    public string? OverallResult { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    [MaxLength(50)]
+    public string? CreatedBy { get; set; }
 }
 
 /// <summary>

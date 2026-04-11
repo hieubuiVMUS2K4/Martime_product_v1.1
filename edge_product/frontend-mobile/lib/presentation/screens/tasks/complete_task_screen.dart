@@ -500,6 +500,29 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
                 // Task Info Header (always visible)
                 _buildTaskInfoHeader(context, l10n),
                 
+                // ĐGRR / BBKT required warning
+                if (widget.task.requireRiskAssessment || widget.task.requireInspectionReport)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    color: Colors.amber.shade50,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.amber.shade800, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Công việc này yêu cầu điền '
+                            '${[if (widget.task.requireRiskAssessment) 'ĐGRR', if (widget.task.requireInspectionReport) 'BBKT'].join(' và ')} '
+                            'trên giao diện web trước khi hoàn thành.',
+                            style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 // Offline Warning
                 if (!syncProvider.isOnline)
                   Container(

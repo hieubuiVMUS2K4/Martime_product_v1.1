@@ -408,6 +408,8 @@ public class MaintenanceController : ControllerBase
                     t.CancelledBy,
                     t.CancellationReason,
                     t.IsCms,
+                    t.RequireRiskAssessment,
+                    t.RequireInspectionReport,
                     t.ApprovedBy,
                     t.ApprovedAt,
                     t.IsDeleted,
@@ -480,7 +482,7 @@ public class MaintenanceController : ControllerBase
                     t.RejectionReason, t.RejectionCount, t.LastRejectedAt, t.LastRejectedBy,
                     t.RejectionHistory, t.CompletedAt, t.CompletedBy,
                     t.CancelledAt, t.CancelledBy, t.CancellationReason,
-                    t.IsCms, t.ApprovedBy, t.ApprovedAt,
+                    t.IsCms, t.RequireRiskAssessment, t.RequireInspectionReport, t.ApprovedBy, t.ApprovedAt,
                     t.IsDeleted, t.DeletedAt, t.DeletedBy, t.DeletionReason,
                     t.IsSynced, t.SyncedAt, t.CreatedAt, t.UpdatedAt, t.OriginNode,
                     t.EquipmentGroup,
@@ -638,6 +640,10 @@ public class MaintenanceController : ControllerBase
             
             // CMS
             task.IsCms,
+            
+            // ĐGRR / BBKT requirements
+            task.RequireRiskAssessment,
+            task.RequireInspectionReport,
             
             // Audit
             task.IsSynced,
