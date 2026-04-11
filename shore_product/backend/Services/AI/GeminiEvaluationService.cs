@@ -14,6 +14,29 @@ namespace ProductApi.Services.AI
         private const int INITIAL_DELAY_MS = 500; // Reduced from 1000
         private const int EVALUATION_TIMEOUT_MS = 25000; // 25 seconds (reduced from 120)
         private const int CHAT_TIMEOUT_MS = 20000; // 20 seconds (reduced from 45)
+        
+        private static int _currentKeyIndex = 0;
+        private static readonly object _keyLock = new object();
+
+        private string[] GetApiKeys()
+        {
+            var apiKeyString = _config["Groq:ApiKey"] ?? _config["Gemini:ApiKey"];
+            if (string.IsNullOrEmpty(apiKeyString)) return Array.Empty<string>();
+
+            return apiKeyString.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                               .Select(k => k.Trim())
+                               .ToArray();
+        }
+
+        private string GetNextApiKey(string[] keys)
+        {
+            lock (_keyLock)
+            {
+                var key = keys[_currentKeyIndex % keys.Length];
+                _currentKeyIndex = (_currentKeyIndex + 1) % keys.Length;
+                return key;
+            }
+        }
 
         public GeminiEvaluationService(HttpClient httpClient, IConfiguration config, ILogger<GeminiEvaluationService> logger)
         {
@@ -24,8 +47,8 @@ namespace ProductApi.Services.AI
 
         public async Task<AiEvaluationResponse> EvaluateReportAsync(string jsonData, CancellationToken token)
         {
-            var apiKey = _config["Groq:ApiKey"] ?? _config["Gemini:ApiKey"];
-            if (string.IsNullOrEmpty(apiKey))
+            var keys = GetApiKeys();
+            if (keys.Length == 0)
             {
                 _logger.LogWarning("AI API Key is missing.");
                 return new AiEvaluationResponse { Status = "Normal", ContentVi = "API Key chưa được cấu hình." };
@@ -41,85 +64,93 @@ YÊU CẦU BẮT BUỘC:
 - Tuyệt đối KHÔNG trả lời theo kiểu tổng kết cả tuần.
 Trả lại CHỈ nguyên định dạng JSON: {{""status"": ""Normal/Warning/Critical"", ""contentVi"": ""Nhận xét tiếng Việt khoảng 100 chữ""}}";
 
-            try
+            Exception lastException = null;
+
+            for (int attempt = 0; attempt < keys.Length; attempt++)
             {
-                _logger.LogInformation("Calling Groq API...");
-                
-                var requestBody = new
+                var apiKey = GetNextApiKey(keys);
+                try
                 {
-                    model = "llama-3.3-70b-versatile",
-                    messages = new[] { new { role = "user", content = prompt } }
-                };
-
-                var requestJson = JsonSerializer.Serialize(requestBody);
-                var requestContent = new StringContent(requestJson, Encoding.UTF8, "application/json");
-                
-                var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                cts.CancelAfter(TimeSpan.FromMilliseconds(EVALUATION_TIMEOUT_MS));
-
-                var reqMsg = new HttpRequestMessage(HttpMethod.Post, "https://api.groq.com/openai/v1/chat/completions") { Content = requestContent };
-                reqMsg.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-                var response = await _httpClient.SendAsync(reqMsg, cts.Token);
-
-                var responseBody = await response.Content.ReadAsStringAsync(cts.Token);
-                _logger.LogInformation($"Groq API Status: {response.StatusCode}");
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogError($"API Error: {response.StatusCode} - {responseBody}");
+                    _logger.LogInformation($"Calling Groq API... (Attempt {attempt + 1}/{keys.Length})");
                     
-                    if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
-                        return new AiEvaluationResponse { Status = "Normal", ContentVi = "Dịch vụ AI tạm thời không khả dụng." };
-                    else if (response.StatusCode == HttpStatusCode.TooManyRequests)
-                        return new AiEvaluationResponse { Status = "Normal", ContentVi = "Quá nhiều yêu cầu. Vui lòng thử lại sau." };
-                    else
-                        return new AiEvaluationResponse { Status = "Normal", ContentVi = "Lỗi gọi API Gemini." };
-                }
-
-                using var jsonDoc = JsonDocument.Parse(responseBody);
-                var root = jsonDoc.RootElement;
-                
-                if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
-                {
-                    var choice = choices[0];
-                    if (choice.TryGetProperty("message", out var message) &&
-                        message.TryGetProperty("content", out var contentProp))
+                    var requestBody = new
                     {
-                        var text = contentProp.GetString() ?? "";
-                        
-                        text = text.Replace("```json", "").Replace("```", "").Trim();
-                        _logger.LogInformation($"AI Response: {text}");
+                        model = "llama-3.3-70b-versatile",
+                        messages = new[] { new { role = "user", content = prompt } }
+                    };
 
-                        try
+                    var requestJson = JsonSerializer.Serialize(requestBody);
+                    var requestContent = new StringContent(requestJson, Encoding.UTF8, "application/json");
+                    
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    cts.CancelAfter(TimeSpan.FromMilliseconds(EVALUATION_TIMEOUT_MS));
+
+                    var reqMsg = new HttpRequestMessage(HttpMethod.Post, "https://api.groq.com/openai/v1/chat/completions") { Content = requestContent };
+                    reqMsg.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+                    var response = await _httpClient.SendAsync(reqMsg, cts.Token);
+
+                    var responseBody = await response.Content.ReadAsStringAsync(cts.Token);
+                    _logger.LogInformation($"Groq API Status: {response.StatusCode}");
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        if (response.StatusCode == HttpStatusCode.TooManyRequests)
                         {
-                            var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                            var result = JsonSerializer.Deserialize<AiEvaluationResponse>(text, opts);
-                            if (result != null)
-                                return result;
+                            _logger.LogWarning($"Rate limit hit (429) for key {apiKey.Substring(0, 5)}... Switching key.");
+                            continue; // Try next key
                         }
-                        catch { }
-                        
-                        return new AiEvaluationResponse { Status = "Normal", ContentVi = text };
-                    }
-                }
 
-                return new AiEvaluationResponse { Status = "Normal", ContentVi = "Không thể phân tích." };
+                        _logger.LogError($"API Error: {response.StatusCode} - {responseBody}");
+                        if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
+                            return new AiEvaluationResponse { Status = "Normal", ContentVi = "Dịch vụ AI tạm thời không khả dụng." };
+                        
+                        return new AiEvaluationResponse { Status = "Normal", ContentVi = "Lỗi gọi API Gemini." };
+                    }
+
+                    using var jsonDoc = JsonDocument.Parse(responseBody);
+                    var root = jsonDoc.RootElement;
+                    
+                    if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
+                    {
+                        var choice = choices[0];
+                        if (choice.TryGetProperty("message", out var message) &&
+                            message.TryGetProperty("content", out var contentProp))
+                        {
+                            var text = contentProp.GetString() ?? "";
+                            text = text.Replace("```json", "").Replace("```", "").Trim();
+                            
+                            try
+                            {
+                                var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                                var result = JsonSerializer.Deserialize<AiEvaluationResponse>(text, opts);
+                                if (result != null)
+                                    return result;
+                            }
+                            catch { }
+                            
+                            return new AiEvaluationResponse { Status = "Normal", ContentVi = text };
+                        }
+                    }
+                    return new AiEvaluationResponse { Status = "Normal", ContentVi = "Không thể phân tích." };
+                }
+                catch (OperationCanceledException ex)
+                {
+                    _logger.LogError("API timeout fallback triggered");
+                    lastException = ex;
+                    continue; // You can also switch key on timeout
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                    _logger.LogError(ex, "Network or system error on API");
+                    break; // Stop immediately on unhandled crashes
+                }
             }
-            catch (OperationCanceledException)
-            {
-                _logger.LogError("API timeout");
-                return new AiEvaluationResponse { Status = "Warning", ContentVi = "Yêu cầu vượt thời gian chờ." };
-            }
-            catch (HttpRequestException ex)
-            {
-                _logger.LogError(ex, "Network error");
-                return new AiEvaluationResponse { Status = "Warning", ContentVi = "Lỗi kết nối mạng." };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error");
-                return new AiEvaluationResponse { Status = "Warning", ContentVi = "Lỗi hệ thống." };
-            }
+
+            if (lastException is OperationCanceledException)
+                 return new AiEvaluationResponse { Status = "Warning", ContentVi = "Yêu cầu AI vượt thời gian chờ." };
+
+            return new AiEvaluationResponse { Status = "Warning", ContentVi = "Toàn bộ API Key đã bị Rate Limit hoặc có lỗi xảy ra." };
         }
 
         public async Task<GeminiChatResult> ChatWithReportsAsync(string message, string reportsJson, CancellationToken token)

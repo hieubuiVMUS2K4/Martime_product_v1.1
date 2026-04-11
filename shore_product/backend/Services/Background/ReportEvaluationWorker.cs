@@ -111,7 +111,8 @@ namespace ProductApi.Services.Background
                     _logger.LogError(ex, "Failed to evaluate report {ReportId}", reportId);
                 }
 
-                await Task.Delay(4000, stoppingToken); // Chống Rate Limit
+                _logger.LogInformation("Waiting 10s before next evaluation to avoid Rate Limit (HTTP 429)");
+                await Task.Delay(10000, stoppingToken); // Chống Rate Limit: Chỉ xử lý 6 report/phút
             }
         }
     }
