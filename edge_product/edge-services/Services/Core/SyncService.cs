@@ -614,24 +614,9 @@ public class SyncService : ISyncService
                 continue;
             }
 
-            // If the file property is edge-owned and edge already has a valid local file,
-            // skip the incoming file transfer from shore. This prevents shore's older file
-            // from overwriting edge's newer local upload (e.g. avatar uploaded on edge).
-            if (IsEdgeOwnedFileProperty(item.TableName, fileRef.FileRole))
-            {
-                var currentPath = StripQueryString(await FindEntityFilePathAsync(context, item.TableName, item.RecordKey));
-                if (!string.IsNullOrWhiteSpace(currentPath) && _syncFileStorageService.Exists(currentPath))
-                {
-                    _logger.LogInformation(
-                        "Skipping incoming file for edge-owned {Role} on {Table}/{Key}: local file exists (hash differs from shore)",
-                        fileRef.FileRole, item.TableName, item.RecordKey);
-                    manifest.StoragePath = currentPath;
-                    manifest.TransferStatus = SyncFileTransferStatus.Duplicate;
-                    manifest.VerifiedAtUtc = DateTime.UtcNow;
-                    manifest.LastError = null;
-                    continue;
-                }
-            }
+            // SHA256 duplicate check above is sufficient — if shore sends a genuinely
+            // new file (different hash), edge should download it even for avatars/documents.
+            // The old IsEdgeOwnedFileProperty guard prevented shore files from ever reaching edge.
 
             manifest.TransferStatus = SyncFileTransferStatus.Requested;
             manifest.LastRequestedAtUtc = DateTime.UtcNow;

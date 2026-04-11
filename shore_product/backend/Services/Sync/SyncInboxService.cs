@@ -1477,12 +1477,23 @@ public class SyncInboxService : ISyncInboxService
 
     private async Task<object?> FindEntityByKeyAsync(Type entityType, string recordKey)
     {
-        // crew_certificate uses CertificateNumber (string) as sync key — lookup by natural key
+        // crew_certificate: edge sends int Id as recordKey, but some older paths
+        // may send CertificateNumber. Try Id first, then fall back to CertificateNumber.
         if (entityType == typeof(CrewCertificate))
         {
-            return await _context.CrewCertificates
+            if (int.TryParse(recordKey, out var certId))
+            {
+                var byId = await _context.CrewCertificates
+                    .AsTracking()
+                    .FirstOrDefaultAsync(c => c.Id == certId);
+                if (byId != null) return byId;
+            }
+            // Fallback: lookup by CertificateNumber (natural key)
+            var byNumber = await _context.CrewCertificates
                 .AsTracking()
                 .FirstOrDefaultAsync(c => c.CertificateNumber == recordKey);
+            if (byNumber != null) return byNumber;
+            return null;
         }
 
         // Try Guid first (most crew entities), then int, then long

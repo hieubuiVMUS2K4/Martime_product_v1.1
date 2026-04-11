@@ -76,7 +76,8 @@ public class ConflictResolverService : IConflictResolverService
     private static readonly HashSet<string> _shoreAuthoritative = new(StringComparer.OrdinalIgnoreCase)
     {
         "certificate", "country", "rank",
-        "rank_certificate", "country_certificate"
+        "rank_certificate", "country_certificate",
+        "report_type"
     };
 
     // Tables where Edge always wins
@@ -328,9 +329,15 @@ public class ConflictResolverService : IConflictResolverService
 
     private ConflictResolution ResolveDocumentConflict(object existing, object incoming, string originNode)
     {
-        // Edge is authoritative for all document data (documents are created/edited on board).
-        // Shore wins only for file path when shore manages the file (shore-uploaded scan).
-        var fileProps = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        // Shore wins: DocumentNumber, DocumentType, IssueDate, ExpiryDate, CountryId, Notes
+        //   (metadata entered/corrected by shore admin must not be overwritten by edge image update)
+        // Edge wins: FileUrl, DocumentFilePath, FilePath, FileName
+        //   (files are scanned/captured on board)
+        var shoreFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "DocumentType", "DocumentNumber", "IssueDate", "ExpiryDate", "CountryId", "Notes"
+        };
+        var edgeFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "DocumentFilePath", "FilePath", "FileUrl", "FileName"
         };
@@ -347,11 +354,9 @@ public class ConflictResolverService : IConflictResolverService
 
             bool shouldApply;
             if (originNode == "SHORE")
-                // Shore can update metadata but not overwrite edge's local file
-                shouldApply = !fileProps.Contains(prop.Name);
+                shouldApply = !edgeFields.Contains(prop.Name);
             else
-                // Edge wins everything — it owns the documents
-                shouldApply = true;
+                shouldApply = !shoreFields.Contains(prop.Name);
 
             if (shouldApply)
             {
