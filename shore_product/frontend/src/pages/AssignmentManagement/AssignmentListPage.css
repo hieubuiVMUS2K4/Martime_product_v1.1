@@ -22,7 +22,7 @@
 }
 .assignment-stats .stat-value { font-size: 1.6rem; font-weight: 700; }
 .assignment-stats .stat-label { font-size: 0.75rem; color: #64748b; }
-.assignment-stats .total .stat-value { color: #3b82f6; }
+.assignment-stats .total .stat-value { color: #14b8a6; }
 .assignment-stats .active .stat-value { color: #10b981; }
 .assignment-stats .pending .stat-value { color: #f59e0b; }
 .assignment-stats .blockers .stat-value { color: #ef4444; }
@@ -52,7 +52,7 @@
 }
 .data-table td { padding: 10px 14px; font-size: 0.84rem; color: #334155; border-top: 1px solid #f1f5f9; }
 .data-table .clickable-row { cursor: pointer; transition: background 0.15s; }
-.data-table .clickable-row:hover { background: #f0f9ff; }
+.data-table .clickable-row:hover { background: #f0fdfa; }
 
 .muted { color: #94a3b8; font-size: 0.75rem; }
 
@@ -65,7 +65,7 @@
 .status-danger { background: #fee2e2; color: #991b1b; }
 .status-warning { background: #fef3c7; color: #92400e; }
 .status-muted { background: #f1f5f9; color: #64748b; }
-.status-info { background: #dbeafe; color: #1e40af; }
+.status-info { background: #ccfbf1; color: #0a7068; }
 
 /* Conflict badges */
 .conflict-badge {
@@ -79,9 +79,9 @@
 .btn-primary {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 8px 16px; border-radius: 8px; border: none;
-  background: #3b82f6; color: #fff; font-size: 0.82rem; font-weight: 500; cursor: pointer;
+  background: #14b8a6; color: #fff; font-size: 0.82rem; font-weight: 500; cursor: pointer;
 }
-.btn-primary:hover { background: #2563eb; }
+.btn-primary:hover { background: #0d9488; }
 .btn-secondary {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0;
@@ -94,7 +94,7 @@
   background: #fff; color: #475569; font-size: 0.8rem; cursor: pointer;
 }
 .btn-icon-sm { background: none; border: none; cursor: pointer; color: #64748b; padding: 4px; }
-.btn-icon-sm:hover { color: #3b82f6; }
+.btn-icon-sm:hover { color: #14b8a6; }
 
 /* Empty & loading */
 .empty-state {
@@ -103,3 +103,4 @@
 .empty-state p { margin-top: 8px; }
 .loading-state, .error-state { padding: 40px; text-align: center; color: #64748b; }
 .error-state { color: #ef4444; }
+

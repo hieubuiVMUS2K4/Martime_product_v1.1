@@ -158,7 +158,8 @@ namespace ProductApi.Controllers
                     r.Id,
                     r.ReportNumber,
                     r.ReportTypeId,
-                    TypeCode = typeCodeMap.TryGetValue(r.ReportTypeId, out var tc) ? tc : "UNKNOWN",
+                    TypeCode = typeCodeMap.TryGetValue(r.ReportTypeId, out var tc) ? tc
+                               : InferTypeCodeFromReportNumber(r.ReportNumber),
                     r.ReportDateTime,
                     r.Status,
                     r.OriginNode,
@@ -234,7 +235,8 @@ namespace ProductApi.Controllers
                         {
                             r.Id,
                             r.ReportNumber,
-                            TypeCode = typeMap.TryGetValue(r.ReportTypeId, out var tc) ? tc : "UNKNOWN",
+                            TypeCode = typeMap.TryGetValue(r.ReportTypeId, out var tc) ? tc
+                                       : InferTypeCodeFromReportNumber(r.ReportNumber),
                             Time = r.ReportDateTime.ToString("HH:mm"),
                             r.Status
                         }).ToList()
@@ -349,7 +351,25 @@ namespace ProductApi.Controllers
                     .AsNoTracking()
                     .FirstOrDefaultAsync(rt => rt.Id == report.ReportTypeId);
 
-                var typeCode = reportType?.TypeCode ?? "UNKNOWN";
+                // If ReportTypeId from edge doesn't match shore's ReportTypes IDs (ID mismatch
+                // between edge and shore databases), fall back to inferring typeCode from the
+                // ReportNumber prefix, then re-query ReportTypes by TypeCode.
+                string typeCode;
+                string typeName;
+                if (reportType != null)
+                {
+                    typeCode = reportType.TypeCode ?? "UNKNOWN";
+                    typeName = reportType.TypeName ?? "Unknown";
+                }
+                else
+                {
+                    typeCode = InferTypeCodeFromReportNumber(report.ReportNumber);
+                    var inferredType = typeCode != "UNKNOWN"
+                        ? await _context.ReportTypes.AsNoTracking()
+                            .FirstOrDefaultAsync(rt => rt.TypeCode == typeCode)
+                        : null;
+                    typeName = inferredType?.TypeName ?? typeCode;
+                }
 
                 object? childReport = typeCode switch
                 {
@@ -372,7 +392,7 @@ namespace ProductApi.Controllers
                     report.ReportNumber,
                     report.ReportTypeId,
                     TypeCode = typeCode,
-                    TypeName = reportType?.TypeName ?? "Unknown",
+                    TypeName = typeName,
                     report.ReportDateTime,
                     report.Status,
                     report.PreparedBy,
@@ -443,6 +463,24 @@ namespace ProductApi.Controllers
                 _logger.LogError(ex, "Error getting report statistics");
                 return StatusCode(500, "Internal server error");
             }
+        }
+
+        // Infer typeCode from ReportNumber prefix as fallback when ReportTypeId from edge
+        // doesn't match shore's ReportTypes table (ID mismatch between edge/shore databases).
+        private static string InferTypeCodeFromReportNumber(string? reportNumber)
+        {
+            if (string.IsNullOrEmpty(reportNumber)) return "UNKNOWN";
+            var prefix = reportNumber.Split('-')[0].ToUpperInvariant();
+            return prefix switch
+            {
+                "POS"       => "POSITION",
+                "NOON"      => "NOON",
+                "DEP"       => "DEPARTURE",
+                "ARR"       => "ARRIVAL",
+                "BNK"       => "BUNKER",
+                "BUNKER"    => "BUNKER",
+                _           => "UNKNOWN"
+            };
         }
     }
 

@@ -1,0 +1,281 @@
+﻿{
+    "generatedAtUtc":  "2026-03-22T16:31:10.7226628Z",
+    "outputDirectory":  "F:\\NCKH\\Product\\Martime_product_v1.1\\artifacts\\research-sync\\campaign-live-matrix\\campaign-rerun-20260322-fileflow-v5",
+    "crew":  {
+                 "id":  "bd000001-0001-4000-a000-000000000016",
+                 "crewId":  "BD-016",
+                 "firstName":  "Ahmad",
+                 "lastName":  "Hidayat BENCH-20260321-180437-01-000091 BENCH-20260321-180549-01-000091 BENCH-20260321-181341-01-000091 BENCH-20260321-181408-01-000091 BENCH-20260321-181415-01-0 BENCH-20260322-110630-01-000095",
+                 "fullName":  "Ahmad Hidayat BENCH-20260321-180437-01-000091 BENCH-20260321-180549-01-000091 BENCH-20260321-181341-01-000091 BENCH-20260321-181408-01-000091 BENCH-20260321-181415-01-0 BENCH-20260322-110630-01-000095",
+                 "rank":  {
+                              "id":  24,
+                              "rankCode":  "OILR",
+                              "rankName":  "Oiler",
+                              "isActive":  true
+                          },
+                 "rankId":  24,
+                 "rankGroup":  "Engine",
+                 "isOnboard":  true,
+                 "department":  "Engine",
+                 "countryId":  1,
+                 "countryName":  "Vietnam",
+                 "emailAddress":  "admin@example.com",
+                 "phoneNumber":  null,
+                 "embarkDate":  "2026-02-01T00:00:00Z",
+                 "disembarkDate":  null,
+                 "contractEnd":  "2026-08-01T00:00:00Z",
+                 "joinDate":  "2025-05-01T00:00:00Z",
+                 "certificateNumber":  null,
+                 "certificateIssue":  null,
+                 "certificateExpiry":  null,
+                 "medicalIssue":  null,
+                 "medicalExpiry":  null,
+                 "dateOfBirth":  "1980-02-07T00:00:00Z",
+                 "photoUrl":  null,
+                 "placeOfBirth":  "Jakarta, Indonesia",
+                 "idCardNumber":  "13431414",
+                 "maritalStatus":  "Single",
+                 "height":  163,
+                 "weight":  60.4,
+                 "bloodGroup":  "B+",
+                 "clothingSize":  "XL",
+                 "shoeSize":  "45",
+                 "cateringSize":  null,
+                 "isSmoker":  null,
+                 "isCovidVaccinated":  null,
+                 "emergencyContact":  null,
+                 "address":  null,
+                 "nextOfKinName":  "Hidayat",
+                 "nextOfKinRelation":  "Father",
+                 "nextOfKinPhone":  "+62-821-567-8902",
+                 "nextOfKinAddress":  "45 Jl Pelabuhan, Jakarta, Indonesia",
+                 "educationInstitution":  "Politeknik Ilmu Pelayaran Semarang",
+                 "educationCourse":  "Engine Rating Certificate",
+                 "educationPeriodYears":  2,
+                 "educationGraduationYear":  2016,
+                 "notes":  null,
+                 "isSynced":  false,
+                 "createdAt":  "2026-02-28T05:22:49.325316Z",
+                 "updatedAt":  "2026-03-22T11:08:06.409297Z",
+                 "onboardStatus":  "Approved",
+                 "onboardStatusChangedAt":  "2026-03-17T07:43:30.051003Z",
+                 "onboardStatusChangedBy":  "Captain",
+                 "reviewChecklist":  "{\"personalInfo\":true,\"physicalDetails\":false,\"employmentDates\":true,\"nextOfKin\":true,\"education\":false,\"contactInfo\":true,\"documents\":false}",
+                 "reviewNotes":  "Missing/incomplete sections: physicalDetails, education, documents. Additional notes: bo sung them",
+                 "edgeChanges":  null,
+                 "edgeChangesViewed":  false
+             },
+    "certificate":  {
+                        "id":  13,
+                        "certificateCode":  "COC_III_2",
+                        "certificateName":  "Certificate of Competency - Chief Engineer",
+                        "category":  "COMPETENCY",
+                        "validityPeriodMonths":  60,
+                        "description":  "STCW Reg. III/2 Chief Engineer",
+                        "isMandatory":  true,
+                        "isActive":  true,
+                        "createdAt":  "2026-02-26T03:45:33.630094Z",
+                        "updatedAt":  "2026-02-26T03:45:33.630094Z"
+                    },
+    "scenarios":  {
+                      "smallBundle":  {
+                                          "recordKeys":  [
+                                                             "53e02486-0ac6-43aa-a3ad-60866846ba97",
+                                                             "6818725d-befc-48d3-8ecb-f52d2b52b857",
+                                                             "b3ec0aa3-5754-452c-85a2-9d367d542f79"
+                                                         ],
+                                          "triggerLatencyMs":  254.64,
+                                          "edgeQueueAfter":  {
+                                                                 "trackedTable":  "health_document",
+                                                                 "trackedRecordKeys":  [
+                                                                                           "53e02486-0ac6-43aa-a3ad-60866846ba97",
+                                                                                           "6818725d-befc-48d3-8ecb-f52d2b52b857",
+                                                                                           "b3ec0aa3-5754-452c-85a2-9d367d542f79"
+                                                                                       ],
+                                                                 "pendingScenarioRecords":  0
+                                                             },
+                                          "edgeManifests":  [
+                                                                null,
+                                                                null,
+                                                                null
+                                                            ],
+                                          "shoreManifests":  [
+                                                                 {
+                                                                     "id":  "a56bd94d-c660-d24f-573c-eff3bf551226",
+                                                                     "table_name":  "health_document",
+                                                                     "record_key":  "53e02486-0ac6-43aa-a3ad-60866846ba97",
+                                                                     "file_name":  "bd000001-0001-4000-a000-000000000016_researchbundle1_20260322163235891.pdf",
+                                                                     "size_bytes":  14648,
+                                                                     "original_size_bytes":  14648,
+                                                                     "sha256":  "151ae1dfd6806c3253af6857963ad4a2cb476c0a56d7e525c52c808f11c478d4",
+                                                                     "transport_encoding":  "identity",
+                                                                     "is_preprocessed":  false,
+                                                                     "preprocess_profile":  null,
+                                                                     "transfer_status":  2,
+                                                                     "storage_path":  "/uploads/sync-content/15/1a/151ae1dfd6806c3253af6857963ad4a2cb476c0a56d7e525c52c808f11c478d4.pdf",
+                                                                     "verified_at_utc":  "2026-03-22T16:32:36.153769+00:00",
+                                                                     "created_at":  "2026-03-22T16:32:36.020496+00:00",
+                                                                     "updated_at":  "2026-03-22T16:32:36.153769+00:00"
+                                                                 },
+                                                                 {
+                                                                     "id":  "a42122f1-eb1c-3bb7-df8b-988e60c9ceab",
+                                                                     "table_name":  "health_document",
+                                                                     "record_key":  "6818725d-befc-48d3-8ecb-f52d2b52b857",
+                                                                     "file_name":  "bd000001-0001-4000-a000-000000000016_researchbundle2_20260322163235942.pdf",
+                                                                     "size_bytes":  16696,
+                                                                     "original_size_bytes":  16696,
+                                                                     "sha256":  "69f3822e4152a3573b371ec06e025c22033a2d9eb1512add42f36e7c5e1fdd85",
+                                                                     "transport_encoding":  "identity",
+                                                                     "is_preprocessed":  false,
+                                                                     "preprocess_profile":  null,
+                                                                     "transfer_status":  2,
+                                                                     "storage_path":  "/uploads/sync-content/69/f3/69f3822e4152a3573b371ec06e025c22033a2d9eb1512add42f36e7c5e1fdd85.pdf",
+                                                                     "verified_at_utc":  "2026-03-22T16:32:36.16888+00:00",
+                                                                     "created_at":  "2026-03-22T16:32:36.042843+00:00",
+                                                                     "updated_at":  "2026-03-22T16:32:36.16888+00:00"
+                                                                 },
+                                                                 {
+                                                                     "id":  "4431957a-b644-cfa2-c821-8b76e3895169",
+                                                                     "table_name":  "health_document",
+                                                                     "record_key":  "b3ec0aa3-5754-452c-85a2-9d367d542f79",
+                                                                     "file_name":  "bd000001-0001-4000-a000-000000000016_researchbundle3_20260322163235962.pdf",
+                                                                     "size_bytes":  18744,
+                                                                     "original_size_bytes":  18744,
+                                                                     "sha256":  "ef788d434efa47daa1a93022623900933466de7e04d29c9da696e467c5aee8a2",
+                                                                     "transport_encoding":  "identity",
+                                                                     "is_preprocessed":  false,
+                                                                     "preprocess_profile":  null,
+                                                                     "transfer_status":  2,
+                                                                     "storage_path":  "/uploads/sync-content/ef/78/ef788d434efa47daa1a93022623900933466de7e04d29c9da696e467c5aee8a2.pdf",
+                                                                     "verified_at_utc":  "2026-03-22T16:32:36.184438+00:00",
+                                                                     "created_at":  "2026-03-22T16:32:36.063027+00:00",
+                                                                     "updated_at":  "2026-03-22T16:32:36.184438+00:00"
+                                                                 }
+                                                             ],
+                                          "edgeUploadChunkSessionCount":  0,
+                                          "shoreUploadChunkSessionCount":  0
+                                      },
+                      "deltaTransfer":  {
+                                            "recordKey":  "1d6240b5-1d2d-4f4f-935f-2403cbe5842b",
+                                            "baselineTriggerLatencyMs":  362.64,
+                                            "baselineQueueAfter":  {
+                                                                       "trackedTable":  "travel_document",
+                                                                       "trackedRecordKeys":  [
+                                                                                                 "1d6240b5-1d2d-4f4f-935f-2403cbe5842b"
+                                                                                             ],
+                                                                       "pendingScenarioRecords":  0
+                                                                   },
+                                            "baselineChunkSession":  {
+                                                                         "id":  "659e1223-1fab-4ff1-827c-e47906480fd8",
+                                                                         "request_id":  "d5edd99a-4f84-4d9c-8a4b-fb99ab64e521",
+                                                                         "manifest_id":  "ae9e371b-cdac-ea7c-1736-c0a6c7231d79",
+                                                                         "direction":  "upload",
+                                                                         "table_name":  "travel_document",
+                                                                         "record_key":  "1d6240b5-1d2d-4f4f-935f-2403cbe5842b",
+                                                                         "file_name":  "bd000001-0001-4000-a000-000000000016_researchdelta.pdf",
+                                                                         "size_bytes":  1572896,
+                                                                         "chunk_size_bytes":  262144,
+                                                                         "total_chunks":  7,
+                                                                         "next_chunk_index":  7,
+                                                                         "committed_bytes":  1572896,
+                                                                         "is_delta_session":  false,
+                                                                         "requested_chunk_indexes_json":  null,
+                                                                         "receiver_base_sha256":  null,
+                                                                         "status":  2,
+                                                                         "created_at_utc":  "2026-03-22T16:32:38.691444+00:00",
+                                                                         "completed_at_utc":  "2026-03-22T16:32:38.895921+00:00"
+                                                                     },
+                                            "modifiedTriggerLatencyMs":  302.01,
+                                            "modifiedQueueAfter":  {
+                                                                       "trackedTable":  "travel_document",
+                                                                       "trackedRecordKeys":  [
+                                                                                                 "1d6240b5-1d2d-4f4f-935f-2403cbe5842b"
+                                                                                             ],
+                                                                       "pendingScenarioRecords":  0
+                                                                   },
+                                            "edgeManifest":  null,
+                                            "shoreManifest":  {
+                                                                  "id":  "2e5c1986-0b26-c5f4-95bc-3a1761e170a8",
+                                                                  "table_name":  "travel_document",
+                                                                  "record_key":  "1d6240b5-1d2d-4f4f-935f-2403cbe5842b",
+                                                                  "file_name":  "bd000001-0001-4000-a000-000000000016_researchdelta_20260322163239702.pdf",
+                                                                  "size_bytes":  1572896,
+                                                                  "original_size_bytes":  1572896,
+                                                                  "sha256":  "0bed9f68aedafa55ab270044c97230d05eafbcdd8a329d22887a0f35c9224006",
+                                                                  "transport_encoding":  "identity",
+                                                                  "is_preprocessed":  false,
+                                                                  "preprocess_profile":  null,
+                                                                  "transfer_status":  2,
+                                                                  "storage_path":  "/uploads/sync-content/0b/ed/0bed9f68aedafa55ab270044c97230d05eafbcdd8a329d22887a0f35c9224006.pdf",
+                                                                  "verified_at_utc":  "2026-03-22T16:32:39.972482+00:00",
+                                                                  "created_at":  "2026-03-22T16:32:39.743607+00:00",
+                                                                  "updated_at":  "2026-03-22T16:32:39.972482+00:00"
+                                                              },
+                                            "shoreTransferRequest":  {
+                                                                         "id":  "0205d684-6358-4bdf-86d9-ece370e68778",
+                                                                         "manifest_id":  "2e5c1986-0b26-c5f4-95bc-3a1761e170a8",
+                                                                         "requester_node_id":  "SHORE",
+                                                                         "supplier_node_id":  "8765432",
+                                                                         "status":  2,
+                                                                         "retry_count":  0,
+                                                                         "prefer_delta_transfer":  false,
+                                                                         "delta_block_size_bytes":  null,
+                                                                         "receiver_base_sha256":  null,
+                                                                         "receiver_block_hashes_json":  null,
+                                                                         "requested_at_utc":  "2026-03-22T16:32:39.745312+00:00",
+                                                                         "completed_at_utc":  "2026-03-22T16:32:39.972482+00:00"
+                                                                     },
+                                            "shoreChunkSession":  {
+                                                                      "id":  "1cd12212-2ca2-4c0f-943f-53f60cac9481",
+                                                                      "request_id":  "0205d684-6358-4bdf-86d9-ece370e68778",
+                                                                      "manifest_id":  "2e5c1986-0b26-c5f4-95bc-3a1761e170a8",
+                                                                      "direction":  "upload",
+                                                                      "table_name":  "travel_document",
+                                                                      "record_key":  "1d6240b5-1d2d-4f4f-935f-2403cbe5842b",
+                                                                      "file_name":  "bd000001-0001-4000-a000-000000000016_researchdelta_20260322163239702.pdf",
+                                                                      "size_bytes":  1572896,
+                                                                      "chunk_size_bytes":  262144,
+                                                                      "total_chunks":  7,
+                                                                      "next_chunk_index":  7,
+                                                                      "committed_bytes":  1572896,
+                                                                      "is_delta_session":  false,
+                                                                      "requested_chunk_indexes_json":  null,
+                                                                      "receiver_base_sha256":  null,
+                                                                      "status":  2,
+                                                                      "created_at_utc":  "2026-03-22T16:32:39.777332+00:00",
+                                                                      "completed_at_utc":  "2026-03-22T16:32:39.972483+00:00"
+                                                                  },
+                                            "changedChunkCount":  0
+                                        },
+                      "largeImage":  {
+                                         "certificateId":  88,
+                                         "certificateNumber":  "RS-LARGE-20260322163110",
+                                         "triggerLatencyMs":  2403.58,
+                                         "edgeQueueAfter":  {
+                                                                "trackedTable":  "crew_certificate",
+                                                                "trackedRecordKeys":  [
+                                                                                          "RS-LARGE-20260322163110"
+                                                                                      ],
+                                                                "pendingScenarioRecords":  0
+                                                            },
+                                         "edgeManifest":  null,
+                                         "shoreManifest":  {
+                                                               "id":  "37054c75-776d-7749-5c5e-6fe39d6fca61",
+                                                               "table_name":  "crew_certificate",
+                                                               "record_key":  "RS-LARGE-20260322163110",
+                                                               "file_name":  "cert_88_20260322163111.png",
+                                                               "size_bytes":  943138,
+                                                               "original_size_bytes":  1023525,
+                                                               "sha256":  "ea0cae52b9b9663b56025417eefd9159a746631774591123369d74e481665094",
+                                                               "transport_encoding":  "identity",
+                                                               "is_preprocessed":  true,
+                                                               "preprocess_profile":  "image-optimized",
+                                                               "transfer_status":  2,
+                                                               "storage_path":  "/uploads/sync-content/ea/0c/ea0cae52b9b9663b56025417eefd9159a746631774591123369d74e481665094.png",
+                                                               "verified_at_utc":  "2026-03-22T16:31:13.4165+00:00",
+                                                               "created_at":  "2026-03-22T16:31:12.769278+00:00",
+                                                               "updated_at":  "2026-03-22T16:31:13.416517+00:00"
+                                                           }
+                                     }
+                  }
+}

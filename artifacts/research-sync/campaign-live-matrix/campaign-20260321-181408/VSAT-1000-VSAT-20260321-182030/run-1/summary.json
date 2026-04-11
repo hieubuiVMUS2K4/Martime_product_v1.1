@@ -1,0 +1,22 @@
+﻿{
+    "scenario":  "VSAT-1000",
+    "network":  "VSAT",
+    "repetition":  1,
+    "record_count":  1000,
+    "pending_before":  1000,
+    "pending_after":  0,
+    "trigger_iterations":  1,
+    "queue_drain_seconds":  11.531,
+    "avg_trigger_latency_ms":  9495.549,
+    "max_trigger_latency_ms":  9495.549,
+    "queued_records":  1000,
+    "synced_records":  1000,
+    "benchmark_pending_records":  0,
+    "retried_records":  0,
+    "retry_count_total":  0,
+    "primary_cpu_percent":  0.17,
+    "primary_memory_bytes":  133169152,
+    "success":  true,
+    "started_at_utc":  "2026-03-21T18:20:31.4887156Z",
+    "finished_at_utc":  "2026-03-21T18:20:45.4848666Z"
+}

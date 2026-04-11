@@ -146,6 +146,8 @@ namespace MaritimeEdge
             builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<IAggregateReportService, AggregateReportService>();
             builder.Services.AddScoped<ISyncService, SyncService>();
+            builder.Services.AddScoped<ISyncFileStorageService, LocalSyncFileStorageService>();
+            builder.Services.AddScoped<ISyncFilePreparationService, SyncFilePreparationService>();
             builder.Services.AddScoped<ISyncRequestSigningService, SyncRequestSigningService>();
             builder.Services.AddScoped<ISyncConflictHandler, SyncConflictHandler>();
             builder.Services.AddScoped<IWatchkeepingService, WatchkeepingService>();
@@ -199,7 +201,10 @@ namespace MaritimeEdge
             builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.TelemetrySimulatorService>();
             builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.SignalKDataCollectorService>();
             builder.Services.AddHostedService<MaritimeEdge.Services.Core.DataCleanupService>();
-            builder.Services.AddHostedService<MaritimeEdge.Services.Core.SyncBackgroundWorker>();
+            if (builder.Configuration.GetValue("Sync:Enabled", true))
+            {
+                builder.Services.AddHostedService<MaritimeEdge.Services.Core.SyncBackgroundWorker>();
+            }
 
             // Add Controllers
             builder.Services.AddControllers()
@@ -308,21 +313,29 @@ namespace MaritimeEdge
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<EdgeDbContext>();
                 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+                var autoMigrate = app.Configuration.GetValue("Database:AutoMigrate", true);
                 
                 try
                 {
-                    logger.LogInformation("Checking database migrations...");
-                    
-                    var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
-                    if (pendingMigrations.Any())
+                    if (autoMigrate)
                     {
-                        logger.LogInformation($"Applying {pendingMigrations.Count()} pending migration(s)...");
-                        await dbContext.Database.MigrateAsync();
-                        logger.LogInformation("Database migrations applied successfully");
+                        logger.LogInformation("Checking database migrations...");
+
+                        var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+                        if (pendingMigrations.Any())
+                        {
+                            logger.LogInformation($"Applying {pendingMigrations.Count()} pending migration(s)...");
+                            await dbContext.Database.MigrateAsync();
+                            logger.LogInformation("Database migrations applied successfully");
+                        }
+                        else
+                        {
+                            logger.LogInformation("Database is up-to-date, no pending migrations");
+                        }
                     }
                     else
                     {
-                        logger.LogInformation("Database is up-to-date, no pending migrations");
+                        logger.LogInformation("Database auto-migration disabled by configuration");
                     }
 
                     await EnsurePortSeedDataAsync(dbContext, logger, app.Environment.ContentRootPath);
@@ -412,6 +425,7 @@ namespace MaritimeEdge
         private static async Task EnsurePortSeedDataAsync(EdgeDbContext dbContext, ILogger logger, string contentRootPath)
         {
             var portCount = await dbContext.Ports.CountAsync();
+
             if (portCount >= 80)
             {
                 logger.LogInformation("Port master data already seeded with {PortCount} record(s)", portCount);
@@ -435,6 +449,7 @@ namespace MaritimeEdge
             await dbContext.Database.ExecuteSqlRawAsync(seedSql);
 
             var updatedCount = await dbContext.Ports.CountAsync();
+
             logger.LogInformation("Port master data seeded/top-up complete: {PortCount} record(s)", updatedCount);
         }
     }

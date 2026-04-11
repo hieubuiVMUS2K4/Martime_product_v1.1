@@ -237,14 +237,6 @@ public class SyncConflictHandler : ISyncConflictHandler
             if (prop.GetSetMethod() == null) continue;
             if (prop.Name == "Id") continue; // Never overwrite PK
 
-            // Skip navigation properties and collection types — only merge scalar fields and FKs.
-            // Setting untracked navigation objects on a tracked EF entity causes it to be marked
-            // as "Added" and attempts an INSERT on SaveChanges, resulting in a PK violation.
-            // Note: Nullable<T> (int?, bool?, Guid?, etc.) is a value type — IsValueType = true — so it's kept.
-            var propType = prop.PropertyType;
-            if (!propType.IsValueType && propType != typeof(string))
-                continue;
-
             var incomingValue = prop.GetValue(incoming);
             if (incomingValue == null) continue;
 
@@ -256,27 +248,37 @@ public class SyncConflictHandler : ISyncConflictHandler
                 var edgeOwnedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
                     "IsOnboard", "EmbarkDate", "DisembarkDate",
-                    "EmbarkPort", "DisembarkPort", "AvatarUrl",
+                    "EmbarkPort", "DisembarkPort", "AvatarUrl", "PhotoUrl",
                     "OnboardStatusChangedAt", "OnboardStatusChangedBy",
                     "EdgeChanges", "EdgeChangesViewed"
                 };
                 shouldApply = !edgeOwnedFields.Contains(prop.Name);
 
                 // Special handling for OnboardStatus:
-                // Shore always wins for "PendingReview" — this means a (re-)assignment happened.
-                // Removing the Approved guard prevents re-assignments from being silently blocked.
+                // Accept "PendingReview" from shore only if edge hasn't already approved
                 if (prop.Name == "OnboardStatus")
                 {
-                    shouldApply = true;
+                    var existingStatus = prop.GetValue(existing) as string;
+                    var incomingStatus = incomingValue as string;
+                    
+                    if (incomingStatus == "PendingReview" && 
+                        (existingStatus == "Approved" || existingStatus == "Rejected"))
+                    {
+                        // Don't reset an already-reviewed crew member
+                        shouldApply = false;
+                    }
+                    else
+                    {
+                        shouldApply = true;
+                    }
                 }
             }
             else if (tableName == "crew_certificate")
             {
-                // Shore wins official cert data including file path
-                // (SaveSyncedFileAsync saves the actual file locally with the same filename)
+                // Shore wins official cert metadata, edge keeps local file state.
                 var edgeOwnedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
-                    "Remarks"
+                    "Remarks", "DocumentFilePath", "FilePath", "FileUrl"
                 };
                 shouldApply = !edgeOwnedFields.Contains(prop.Name);
             }

@@ -18,7 +18,7 @@ interface ItemFormModalProps {
 
 type TabKey = 'part' | 'remarks' | 'history'
 
-const inp = 'w-full px-2 py-1.5 border border-gray-300 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white'
+const inp = 'w-full px-2 py-1.5 border border-gray-300 text-sm focus:ring-1 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white'
 const inpRo = 'w-full px-2 py-1.5 border border-gray-300 text-sm bg-gray-50 text-gray-600 outline-none'
 const lbl = 'text-sm text-gray-600 whitespace-nowrap text-right pr-3'
 
@@ -212,7 +212,7 @@ export function ItemFormModal({
                 onClick={() => setActiveTab(tab.key)}
                 className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
                   activeTab === tab.key
-                    ? 'border-blue-600 text-blue-600'
+                    ? 'border-blue-600 text-teal-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -339,7 +339,7 @@ export function ItemFormModal({
                                 type="button"
                                 onClick={() => fileRef.current?.click()}
                                 disabled={imageUploading}
-                                className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs text-blue-600 hover:bg-blue-50"
+                                className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs text-teal-600 hover:bg-teal-50"
                               >
                                 <Upload className="w-3 h-3" /> {imageUploading ? 'Đang tải...' : 'Browse'}
                               </button>
@@ -432,7 +432,7 @@ export function ItemFormModal({
                     {/* Active toggle */}
                     <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100">
                       <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" checked={formData.isActive} onChange={e => set('isActive', e.target.checked)} disabled={ro} className="w-4 h-4 text-blue-600 rounded" />
+                        <input type="checkbox" checked={formData.isActive} onChange={e => set('isActive', e.target.checked)} disabled={ro} className="w-4 h-4 text-teal-600 rounded" />
                         Đang hoạt động
                       </label>
                     </div>
@@ -503,7 +503,7 @@ export function ItemFormModal({
                         <tbody className="divide-y divide-gray-100">
                           {activity.receipts.map((r, i) => (
                             <tr key={i} className="hover:bg-gray-50">
-                              <td className="px-3 py-2 font-mono text-xs text-blue-600">{r.code}</td>
+                              <td className="px-3 py-2 font-mono text-xs text-teal-600">{r.code}</td>
                               <td className="px-3 py-2 text-gray-600">{new Date(r.date).toLocaleDateString('vi-VN')}</td>
                               <td className="px-3 py-2 text-gray-600">{r.supplierName || '—'}</td>
                               <td className="px-3 py-2 text-right font-medium text-green-700">+{r.quantityReceived}</td>
@@ -511,7 +511,7 @@ export function ItemFormModal({
                               <td className="px-3 py-2 text-center">
                                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                                   r.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                                  r.status === 'Approved' ? 'bg-blue-100 text-blue-700' :
+                                  r.status === 'Approved' ? 'bg-teal-100 text-teal-700' :
                                   'bg-gray-100 text-gray-600'
                                 }`}>{r.status}</span>
                               </td>
@@ -548,7 +548,7 @@ export function ItemFormModal({
                         <tbody className="divide-y divide-gray-100">
                           {activity.requests.map((r, i) => (
                             <tr key={i} className="hover:bg-gray-50">
-                              <td className="px-3 py-2 font-mono text-xs text-blue-600">{r.code}</td>
+                              <td className="px-3 py-2 font-mono text-xs text-teal-600">{r.code}</td>
                               <td className="px-3 py-2 text-gray-600">{new Date(r.date).toLocaleDateString('vi-VN')}</td>
                               <td className="px-3 py-2 text-gray-600">{r.requestedBy || '—'}</td>
                               <td className="px-3 py-2 text-right font-medium">{r.quantity}</td>
@@ -562,7 +562,7 @@ export function ItemFormModal({
                               <td className="px-3 py-2 text-center">
                                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                                   r.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                                  r.status === 'Approved' ? 'bg-blue-100 text-blue-700' :
+                                  r.status === 'Approved' ? 'bg-teal-100 text-teal-700' :
                                   r.status === 'Submitted' ? 'bg-yellow-100 text-yellow-700' :
                                   r.status === 'Rejected' ? 'bg-red-100 text-red-700' :
                                   'bg-gray-100 text-gray-600'
@@ -605,3 +605,4 @@ export function ItemFormModal({
     </div>
   )
 }
+

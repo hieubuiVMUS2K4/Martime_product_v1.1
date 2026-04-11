@@ -114,6 +114,14 @@ public class CrewSyncOrchestrator : ICrewSyncOrchestrator
         foreach (var d in seafarerDocs)
             batch.Add(("seafarer_document", d.Id.ToString(), SyncActionType.SNAPSHOT, d));
 
+        var employmentDocs = await _context.EmploymentDocuments.AsNoTracking().ToListAsync();
+        foreach (var d in employmentDocs)
+            batch.Add(("employment_document", d.Id.ToString(), SyncActionType.SNAPSHOT, d));
+
+        var healthDocs = await _context.HealthDocuments.AsNoTracking().ToListAsync();
+        foreach (var d in healthDocs)
+            batch.Add(("health_document", d.Id.ToString(), SyncActionType.SNAPSHOT, d));
+
         // Enqueue all items in a single batch (one SaveChanges)
         await _syncOutbox.EnqueueBatchAsync(targetNode, batch);
 
@@ -156,6 +164,78 @@ public class CrewSyncOrchestrator : ICrewSyncOrchestrator
         foreach (var ct in changedCertTypes)
         {
             await _syncOutbox.EnqueueAsync(targetNode, "certificate", ct.Id.ToString(), SyncActionType.UPDATE, ct);
+            enqueued++;
+        }
+
+        var changedCountries = await _context.Countries
+            .Where(c => c.UpdatedAt >= since)
+            .ToListAsync();
+
+        foreach (var c in changedCountries)
+        {
+            await _syncOutbox.EnqueueAsync(targetNode, "country", c.Id.ToString(), SyncActionType.UPDATE, c);
+            enqueued++;
+        }
+
+        var changedRanks = await _context.Ranks
+            .Where(r => r.UpdatedAt >= since)
+            .ToListAsync();
+
+        foreach (var r in changedRanks)
+        {
+            await _syncOutbox.EnqueueAsync(targetNode, "rank", r.Id.ToString(), SyncActionType.UPDATE, r);
+            enqueued++;
+        }
+
+        // Service records
+        var changedServiceRecords = await _context.ServiceRecords
+            .Where(sr => sr.UpdatedAt >= since && sr.OriginNode == "SHORE")
+            .ToListAsync();
+
+        foreach (var sr in changedServiceRecords)
+        {
+            await _syncOutbox.EnqueueAsync(targetNode, "service_record", sr.Id.ToString(), SyncActionType.UPDATE, sr);
+            enqueued++;
+        }
+
+        // Documents (no ISyncableEntity — filter by UpdatedAt only)
+        var changedTravelDocs = await _context.TravelDocuments
+            .Where(d => d.UpdatedAt >= since)
+            .ToListAsync();
+
+        foreach (var d in changedTravelDocs)
+        {
+            await _syncOutbox.EnqueueAsync(targetNode, "travel_document", d.Id.ToString(), SyncActionType.UPDATE, d);
+            enqueued++;
+        }
+
+        var changedSeafarerDocs = await _context.SeafarerDocuments
+            .Where(d => d.UpdatedAt >= since)
+            .ToListAsync();
+
+        foreach (var d in changedSeafarerDocs)
+        {
+            await _syncOutbox.EnqueueAsync(targetNode, "seafarer_document", d.Id.ToString(), SyncActionType.UPDATE, d);
+            enqueued++;
+        }
+
+        var changedEmploymentDocs = await _context.EmploymentDocuments
+            .Where(d => d.UpdatedAt >= since)
+            .ToListAsync();
+
+        foreach (var d in changedEmploymentDocs)
+        {
+            await _syncOutbox.EnqueueAsync(targetNode, "employment_document", d.Id.ToString(), SyncActionType.UPDATE, d);
+            enqueued++;
+        }
+
+        var changedHealthDocs = await _context.HealthDocuments
+            .Where(d => d.UpdatedAt >= since)
+            .ToListAsync();
+
+        foreach (var d in changedHealthDocs)
+        {
+            await _syncOutbox.EnqueueAsync(targetNode, "health_document", d.Id.ToString(), SyncActionType.UPDATE, d);
             enqueued++;
         }
 
@@ -266,6 +346,17 @@ public class CrewSyncOrchestrator : ICrewSyncOrchestrator
         {
             await _syncOutbox.BroadcastAsync("crew_certificate", cc.Id.ToString(), SyncActionType.CREATE, cc);
             cc.IsSynced = true;
+            enqueued++;
+        }
+
+        var unsyncedServiceRecords = await _context.ServiceRecords
+            .Where(sr => !sr.IsSynced && sr.OriginNode == "SHORE")
+            .ToListAsync();
+
+        foreach (var sr in unsyncedServiceRecords)
+        {
+            await _syncOutbox.BroadcastAsync("service_record", sr.Id.ToString(), SyncActionType.CREATE, sr);
+            sr.IsSynced = true;
             enqueued++;
         }
 

@@ -1,0 +1,58 @@
+erDiagram
+    MARITIME_REPORTS {
+        string id PK
+        string report_number
+        int report_type_id
+        datetime report_date_time
+        string voyage_id FK
+        string status
+        string prepared_by
+        string report_data
+        boolean is_transmitted
+        datetime transmitted_at
+        datetime created_at
+    }
+    REPORT_ATTACHMENTS {
+        string id PK
+        string maritime_report_id FK
+        string file_name
+        string file_url
+        datetime uploaded_at
+    }
+    REPORT_WORKFLOW_HISTORIES {
+        string id PK
+        string report_id FK
+        string action
+        string performed_by
+        datetime performed_at
+        string notes
+    }
+    NOON_REPORTS {
+        string id PK
+        string maritime_report_id FK
+        datetime report_date
+        float position_lat
+        float position_lon
+        string remarks
+    }
+    DECK_LOG_BOOKS {
+        string id PK
+        datetime log_date_time
+        string watch_period
+        string officer_on_watch
+        string description
+    }
+    ENGINE_LOG_BOOKS {
+        string id PK
+        datetime log_date_time
+        string engineer_on_watch
+        float main_engine_running_hours
+        string remarks
+    }
+
+    VOYAGE_RECORDS ||--o{ MARITIME_REPORTS : "generates"
+    MARITIME_REPORTS ||--o{ REPORT_ATTACHMENTS : "has"
+    MARITIME_REPORTS ||--o{ REPORT_WORKFLOW_HISTORIES : "history"
+    MARITIME_REPORTS ||--o{ NOON_REPORTS : "includes"
+    VOYAGE_RECORDS ||--o{ DECK_LOG_BOOKS : "logs"
+    VOYAGE_RECORDS ||--o{ ENGINE_LOG_BOOKS : "logs"

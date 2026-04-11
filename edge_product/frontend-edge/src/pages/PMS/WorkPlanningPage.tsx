@@ -25,12 +25,12 @@ import { AddScheduleModal } from '@/components/pms/AddScheduleModal';
 
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
 import type { MaintenanceTask, CrewMember, MaterialItem } from '@/types/maritime.types';
 import { parseTaskScheduleInfo } from '@/types/maritime.types';
 import type { EquipmentAsset, MaintenanceSchedule, CreateMaintenanceScheduleDto, CreateScheduleSparePartDto, ChecklistItemTemplateDto } from '@/types/pms.types';
 
 type ViewTab = 'table' | 'calendar' | 'gantt' | 'kanban' | 'counter' | 'config';
+const SHOW_KANBAN_TAB = false;
 
 // Checklist templates for common equipment
 const CHECKLIST_TEMPLATES: Record<string, { label: string; items: { desc: string; reading?: boolean; unit?: string; min?: number; max?: number }[] }> = {
@@ -121,7 +121,7 @@ interface GanttTask {
   priority: string;
   isOverdue: boolean;
   daysUntilDue: number;
-  intervalType?: string;
+  intervalType?: 'CALENDAR' | 'RUNNING_HOURS';
   intervalValue?: number;
   progress: number;
   nextDueDate?: Date;
@@ -174,6 +174,12 @@ export default function WorkPlanningPage() {
 
   // === View state ===
   const [activeTab, setActiveTab] = useState<ViewTab>('table');
+
+  useEffect(() => {
+    if (!SHOW_KANBAN_TAB && activeTab === 'kanban') {
+      setActiveTab('table');
+    }
+  }, [activeTab]);
 
   // === Data state ===
   const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
@@ -742,6 +748,18 @@ export default function WorkPlanningPage() {
     setActiveTab('config');
   };
 
+  const handleTaskDelete = async (taskId: string) => {
+    if (!confirm(t('pms.workPlanning.toast.confirmDeleteTask'))) return;
+    try {
+      await maritimeService.maintenance.delete(taskId);
+      toast.success(t('pms.workPlanning.toast.deleteTaskSuccess'));
+      loadData(false);
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error(t('pms.workPlanning.toast.deleteTaskFailed'));
+    }
+  };
+
   const handleCounterSave = async (assetId: string) => {
     const newHours = counterEditing[assetId];
     if (newHours === undefined) return;
@@ -773,25 +791,10 @@ export default function WorkPlanningPage() {
   }, [loadData, loadSchedules]);
 
   // === Split active vs history tasks ===
-  const HISTORY_DAYS = 7;
   const { activeTasks, historyTasks } = useMemo(() => {
-    const now = new Date();
-    const active: MaintenanceTask[] = [];
-    const history: MaintenanceTask[] = [];
-    for (const task of tasks) {
-      if (
-        (task.status === 'COMPLETED' || task.status === 'CANCELLED') &&
-        task.completedAt
-      ) {
-        const completedDate = parseISO(task.completedAt);
-        const daysSinceCompleted = Math.floor((now.getTime() - completedDate.getTime()) / 86400000);
-        if (daysSinceCompleted >= HISTORY_DAYS) {
-          history.push(task);
-          continue;
-        }
-      }
-      active.push(task);
-    }
+    const history = tasks.filter(task => task.status === 'COMPLETED' || task.status === 'CANCELLED');
+    // Keep main list intact; history is an additional copied view
+    const active = [...tasks];
     return { activeTasks: active, historyTasks: history };
   }, [tasks]);
 
@@ -876,6 +879,7 @@ export default function WorkPlanningPage() {
         const dueDt = new Date(dueDate); dueDt.setHours(0,0,0,0);
         const daysUntil = Math.ceil((dueDt.getTime() - today.getTime()) / 86400000);
         const isRunningHours = !!t.intervalHours && !t.intervalDays;
+        const intervalType: GanttTask['intervalType'] = isRunningHours ? 'RUNNING_HOURS' : 'CALENDAR';
 
         const leadTimeDays = isRunningHours ? 1 : 7;
         const startDate = addDays(dueDate, -leadTimeDays);
@@ -901,80 +905,13 @@ export default function WorkPlanningPage() {
           priority: t.priority,
           isOverdue,
           daysUntilDue: daysUntil,
-          intervalType: isRunningHours ? 'RUNNING_HOURS' : 'CALENDAR',
+          intervalType,
           intervalValue: t.intervalHours || t.intervalDays,
           progress,
         };
       })
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [filteredTasks]);
-
-  // === Export Excel ===
-  const handleExportExcel = () => {
-    try {
-      const data = sortedFilteredTasks.map((task, idx) => ({
-        [t('pms.workPlanning.table.index')]: idx + 1,
-        [t('pms.workPlanning.export.taskCode')]: task.taskId,
-        [t('pms.workPlanning.export.equipmentName')]: task.equipmentName || task.equipmentAssetName || task.equipmentGroupName || '',
-        [t('pms.workPlanning.export.taskName')]: task.taskDescription?.split('\n')[0] || task.taskType,
-        [t('pms.workPlanning.export.taskDescription')]: task.taskDescription,
-        [t('pms.workPlanning.export.priority')]: getPriorityLabel(task.priority),
-        [t('pms.workPlanning.export.status')]: getStatusLabel(task.status),
-        [t('pms.workPlanning.export.type')]: (task.taskType === 'AD_HOC' || task.taskType === 'CORRECTIVE') ? t('pms.workPlanning.filters.adhoc') : t('pms.workPlanning.filters.periodic'),
-        [t('pms.workPlanning.export.dueDate')]: task.nextDueAt ? format(parseISO(task.nextDueAt), 'dd/MM/yyyy') : '',
-        [t('pms.workPlanning.export.assignee')]: task.assignedTo ? (crewList.find(c => c.crewId === task.assignedTo)?.fullName || task.assignedTo) : '',
-        [t('pms.workPlanning.export.startDate')]: task.startedAt ? format(parseISO(task.startedAt), 'dd/MM/yyyy HH:mm') : '',
-        [t('pms.workPlanning.export.completedDate')]: task.completedAt ? format(parseISO(task.completedAt), 'dd/MM/yyyy HH:mm') : '',
-        [t('pms.workPlanning.export.notes')]: task.notes || '',
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(data);
-
-      // Column widths
-      ws['!cols'] = [
-        { wch: 5 },   // TT
-        { wch: 18 },  // Mã công việc
-        { wch: 30 },  // Tên thiết bị
-        { wch: 18 },  // Tên công việc
-        { wch: 40 },  // Mô tả
-        { wch: 14 },  // Độ ưu tiên
-        { wch: 16 },  // Trạng thái
-        { wch: 12 },  // Loại
-        { wch: 14 },  // Ngày đến hạn
-        { wch: 22 },  // Người thực hiện
-        { wch: 18 },  // Ngày bắt đầu
-        { wch: 18 },  // Ngày hoàn thành
-        { wch: 30 },  // Ghi chú
-      ];
-
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, t('pms.workPlanning.export.sheetName'));
-
-      // Summary sheet
-      const statsLabel = t('pms.workPlanning.export.statsLabel');
-      const countLabel = t('pms.workPlanning.export.count');
-      const summaryData = [
-        { [statsLabel]: t('pms.workPlanning.export.total'), [countLabel]: sortedFilteredTasks.length },
-        { [statsLabel]: getStatusLabel('SCHEDULED'), [countLabel]: sortedFilteredTasks.filter(t => t.status === 'SCHEDULED').length },
-        { [statsLabel]: getStatusLabel('DUE'), [countLabel]: sortedFilteredTasks.filter(t => t.status === 'DUE').length },
-        { [statsLabel]: getStatusLabel('OVERDUE'), [countLabel]: sortedFilteredTasks.filter(t => t.status === 'OVERDUE').length },
-        { [statsLabel]: getStatusLabel('IN_PROGRESS'), [countLabel]: sortedFilteredTasks.filter(t => t.status === 'IN_PROGRESS').length },
-        { [statsLabel]: getStatusLabel('PENDING_APPROVAL'), [countLabel]: sortedFilteredTasks.filter(t => t.status === 'PENDING_APPROVAL').length },
-        { [statsLabel]: getStatusLabel('COMPLETED'), [countLabel]: sortedFilteredTasks.filter(t => t.status === 'COMPLETED').length },
-        { [statsLabel]: getStatusLabel('CANCELLED'), [countLabel]: sortedFilteredTasks.filter(t => t.status === 'CANCELLED').length },
-      ];
-      const ws2 = XLSX.utils.json_to_sheet(summaryData);
-      ws2['!cols'] = [{ wch: 25 }, { wch: 12 }];
-      XLSX.utils.book_append_sheet(wb, ws2, t('pms.workPlanning.export.statsSheet'));
-
-      const filename = `Danh_sach_cong_viec_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`;
-      XLSX.writeFile(wb, filename);
-      toast.success(t('pms.workPlanning.toast.exportSuccess', { filename }));
-    } catch (err) {
-      console.error('Export error:', err);
-      toast.error(t('pms.workPlanning.toast.exportFailed'));
-    }
-  };
 
   // === Sorting ===
   const sortedFilteredTasks = useMemo(() => {
@@ -1090,24 +1027,6 @@ export default function WorkPlanningPage() {
     return days;
   }, []);
 
-  const getGanttWorkPeriod = (task: GanttTask, days: Date[]): { start: number; width: number } | null => {
-    const sd = new Date(task.startDate); sd.setHours(0,0,0,0);
-    const dd = new Date(task.dueDate); dd.setHours(0,0,0,0);
-    let si = -1, ei = -1;
-    for (let i = 0; i < days.length; i++) {
-      const d = new Date(days[i]); d.setHours(0,0,0,0);
-      if (si === -1 && d.getTime() >= sd.getTime()) si = i;
-      if (d.getTime() === dd.getTime()) { ei = i; break; }
-    }
-    if (si !== -1 && ei === -1) {
-      const last = new Date(days[days.length - 1]); last.setHours(0,0,0,0);
-      if (dd.getTime() > last.getTime()) ei = days.length - 1;
-    }
-    if (si === -1 || ei === -1) return null;
-    const cw = 100 / days.length;
-    return { start: si * cw, width: Math.max(cw * 0.8, (ei - si + 1) * cw) };
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -1191,7 +1110,7 @@ export default function WorkPlanningPage() {
             { key: 'table' as ViewTab, label: t('pms.workPlanning.tabs.table'), icon: Table2 },
             { key: 'calendar' as ViewTab, label: t('pms.workPlanning.tabs.calendar'), icon: Calendar },
             { key: 'gantt' as ViewTab, label: t('pms.workPlanning.tabs.gantt'), icon: BarChart3 },
-            { key: 'kanban' as ViewTab, label: t('pms.workPlanning.tabs.kanban'), icon: LayoutGrid },
+            ...(SHOW_KANBAN_TAB ? [{ key: 'kanban' as ViewTab, label: t('pms.workPlanning.tabs.kanban'), icon: LayoutGrid }] : []),
             { key: 'counter' as ViewTab, label: t('pms.workPlanning.tabs.counter'), icon: Gauge },
             { key: 'config' as ViewTab, label: t('pms.workPlanning.tabs.config'), icon: Settings },
           ]).map(tab => (
@@ -1287,7 +1206,7 @@ export default function WorkPlanningPage() {
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">{t('pms.workPlanning.filters.taskStatus')}</label>
               <div className="grid grid-cols-2 gap-1">
-                {Object.entries(STATUS_LABELS).slice(0, 6).map(([key, val]) => (
+                {Object.entries(STATUS_LABELS).slice(0, 6).map(([key]) => (
                   <label key={key} className="flex items-center gap-1.5 text-xs">
                     <input type="checkbox" checked={statusFilter.has(key)} onChange={() => {
                       setStatusFilter(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
@@ -1406,13 +1325,13 @@ export default function WorkPlanningPage() {
                       <th className="px-2 py-1 border-r border-gray-200">
                         <select value={colFilterPriority} onChange={e => { setColFilterPriority(e.target.value); setTablePage(1); }} className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white">
                           <option value="">{t('pms.workPlanning.table.searchPlaceholder')}</option>
-                          {Object.entries(PRIORITY_LABELS).map(([k,v])=><option key={k} value={k}>{getPriorityLabel(k)}</option>)}
+                          {Object.entries(PRIORITY_LABELS).map(([k])=><option key={k} value={k}>{getPriorityLabel(k)}</option>)}
                         </select>
                       </th>
                       <th className="px-2 py-1 border-r border-gray-200">
                         <select value={colFilterStatus} onChange={e => { setColFilterStatus(e.target.value); setTablePage(1); }} className="w-full py-0.5 text-xs border border-gray-200 rounded outline-none bg-white">
                           <option value="">{t('pms.workPlanning.table.searchPlaceholder')}</option>
-                          {Object.entries(STATUS_LABELS).map(([k,v])=><option key={k} value={k}>{getStatusLabel(k)}</option>)}
+                          {Object.entries(STATUS_LABELS).map(([k])=><option key={k} value={k}>{getStatusLabel(k)}</option>)}
                         </select>
                       </th>
                       <th className="px-2 py-1 border-r border-gray-200">
@@ -1598,6 +1517,7 @@ export default function WorkPlanningPage() {
                               UPCOMING: { bg: '#FEF3C7', text: '#92400E' },
                               OVERDUE: { bg: '#FEE2E2', text: '#991B1B' },
                             };
+                            const isRunningHours = !!task.intervalHours && !task.intervalDays;
                             const override = statusOverride[task.status];
                             const colors = override || PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.NORMAL;
                             return (
@@ -1606,9 +1526,9 @@ export default function WorkPlanningPage() {
                                 onClick={() => navigate(`/pms/work-report/${task.id}`)}
                                 className="w-full text-left px-1.5 py-0.5 rounded text-[10px] truncate hover:opacity-80 transition-opacity"
                                 style={{ backgroundColor: colors.bg, color: colors.text }}
-                                title={`${task.taskId} - ${task.taskDescription}${task.status === 'UPCOMING' ? ` ⚠️ ${t('pms.workPlanning.calendar.upcomingTooltip')}` : ''}`}
+                                title={`${task.taskId} - ${task.taskDescription}${task.status === 'UPCOMING' ? ` ⚠️ ${t('pms.workPlanning.calendar.upcomingTooltip')}` : ''}${isRunningHours ? ' • RH ước tính, cập nhật thực qua Counter' : ''}`}
                               >
-                                {task.status === 'UPCOMING' ? '⚠️ ' : ''}{task.taskId}
+                                {task.status === 'UPCOMING' ? '⚠️ ' : ''}{isRunningHours ? 'RH ' : ''}{task.taskId}
                               </button>
                             );
                           })}
@@ -1630,6 +1550,9 @@ export default function WorkPlanningPage() {
                     <span className="text-xs text-gray-600">{getPriorityLabel(key)}</span>
                   </div>
                 ))}
+              </div>
+              <div className="mt-2 text-xs text-gray-500">
+                RH: mốc lịch ước tính, trạng thái thực tế được cập nhật theo tab Counter.
               </div>
             </div>
           )}
@@ -1722,7 +1645,6 @@ export default function WorkPlanningPage() {
                             const taskDue = new Date(task.dueDate); taskDue.setHours(0,0,0,0);
                             const taskStart = new Date(task.startDate); taskStart.setHours(0,0,0,0);
 
-                            const startOffset = Math.max(0, Math.floor((taskStart.getTime() - firstDay.getTime()) / 86400000));
                             const dueOffset = Math.floor((taskDue.getTime() - firstDay.getTime()) / 86400000);
                             const barLeft = dueOffset * dayWidth;
                             const barWidth = Math.max(task.workDurationDays * dayWidth, dayWidth);
@@ -1760,7 +1682,7 @@ export default function WorkPlanningPage() {
           )}
 
           {/* ============ TAB: KANBAN ============ */}
-          {activeTab === 'kanban' && (
+          {SHOW_KANBAN_TAB && activeTab === 'kanban' && (
             <div className="p-4">
               <KanbanBoard
                 tasks={filteredTasks}
@@ -2093,7 +2015,16 @@ export default function WorkPlanningPage() {
                       {/* Loại chu kỳ */}
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.workPlanning.config.intervalType')} <span className="text-red-500">*</span></label>
-                        <select value={cfgForm.intervalType} onChange={e => setCfgForm(f => ({ ...f, intervalType: e.target.value, ...(e.target.value === 'CALENDAR' ? { intervalHours: undefined, daysBeforeDue: 7 } : { intervalDays: undefined, daysBeforeDue: 70 }) }))} className="w-full border border-gray-300 px-2.5 py-1.5 text-sm bg-white">
+                        <select value={cfgForm.intervalType} onChange={e => {
+                          const intervalType = e.target.value as CreateMaintenanceScheduleDto['intervalType'];
+                          setCfgForm(f => ({
+                            ...f,
+                            intervalType,
+                            ...(intervalType === 'CALENDAR'
+                              ? { intervalHours: undefined, daysBeforeDue: 7 }
+                              : { intervalDays: undefined, daysBeforeDue: 70 })
+                          }));
+                        }} className="w-full border border-gray-300 px-2.5 py-1.5 text-sm bg-white">
                           <option value="RUNNING_HOURS">{t('pms.workPlanning.config.runningHours')}</option>
                           <option value="CALENDAR">{t('pms.workPlanning.config.calendarType')}</option>
                         </select>

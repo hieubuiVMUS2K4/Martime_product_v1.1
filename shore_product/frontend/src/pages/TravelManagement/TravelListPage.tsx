@@ -16,7 +16,7 @@ const ACTIVE_TRAVEL_STATUSES = [
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  Draft: '#6b7280', Pending: '#f59e0b', BookingInProgress: '#3b82f6', Booked: '#8b5cf6',
+  Draft: '#6b7280', Pending: '#f59e0b', BookingInProgress: '#14b8a6', Booked: '#8b5cf6',
   InTransit: '#06b6d4', Completed: '#10b981', Cancelled: '#ef4444', Reissued: '#f97316',
 };
 const STATUS_LABELS: Record<string, string> = {
@@ -198,3 +198,4 @@ export default function TravelListPage() {
     </div>
   );
 }
+

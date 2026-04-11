@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Upload, Trash2, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Package, FileText, ClipboardList } from 'lucide-react'
+import { X, Upload, Trash2, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Package, ClipboardList } from 'lucide-react'
 import type { MaterialItem, MaterialCategory } from '@/types/maritime.types'
 import type { CreateMaterialItemDto, UpdateMaterialItemDto, ItemActivityResponse } from '@/services/materialService'
 import { materialService } from '@/services/materialService'
@@ -368,7 +368,7 @@ export function ItemFormModal({
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       {/* Stock Status */}
                       {(() => {
-                        const qty = formData.onHandQuantity
+                        const qty = formData.onHandQuantity ?? 0
                         const min = formData.minStock
                         const max = formData.maxStock
                         const isLow = min != null && qty < min
@@ -395,7 +395,7 @@ export function ItemFormModal({
                           <span className="text-xs font-medium">Giá trị tồn kho</span>
                         </div>
                         <div className="text-lg font-bold text-gray-800">
-                          {formData.unitCost ? `${(formData.unitCost * formData.onHandQuantity).toLocaleString('vi-VN')}` : '—'}
+                          {formData.unitCost ? `${(formData.unitCost * (formData.onHandQuantity ?? 0)).toLocaleString('vi-VN')}` : '—'}
                         </div>
                         <div className="text-xs text-gray-400 mt-0.5">{formData.currency || 'USD'}</div>
                       </div>

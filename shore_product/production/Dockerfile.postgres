@@ -1,0 +1,4 @@
+FROM postgres:15
+
+# Keep legacy timezone alias for clients that still send Asia/Saigon.
+RUN ln -sf /usr/share/zoneinfo/Asia/Ho_Chi_Minh /usr/share/zoneinfo/Asia/Saigon

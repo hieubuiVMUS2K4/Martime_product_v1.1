@@ -1,0 +1,19 @@
+﻿{
+    "status":  "failed",
+    "preset":  "Custom",
+    "campaign_root":  "F:\\NCKH\\Product\\Martime_product_v1.1\\artifacts\\research-sync\\campaign-live-matrix\\campaign-20260322-062726",
+    "total_profiles":  3,
+    "total_record_counts":  4,
+    "total_scenarios":  12,
+    "total_repetitions":  140,
+    "completed_scenarios":  7,
+    "current_scenario_index":  8,
+    "progress_percent":  58.33,
+    "current_profile":  "4G",
+    "current_record_count":  10000,
+    "current_repetitions":  10,
+    "current_scenario_name":  "4G-10000",
+    "current_scenario_path":  "",
+    "updated_at_utc":  "2026-03-22T06:43:37.4245184Z",
+    "note":  "The operation has timed out."
+}

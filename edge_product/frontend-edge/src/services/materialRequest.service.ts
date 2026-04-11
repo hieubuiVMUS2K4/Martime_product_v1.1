@@ -29,6 +29,16 @@ export const materialRequestService = {
     return response.data;
   },
 
+  async approve(id: number) {
+    const response = await axios.put(`${API}/${id}/approve`);
+    return response.data;
+  },
+
+  async reject(id: number) {
+    const response = await axios.put(`${API}/${id}/reject`);
+    return response.data;
+  },
+
   async delete(id: number) {
     await axios.delete(`${API}/${id}`);
   },

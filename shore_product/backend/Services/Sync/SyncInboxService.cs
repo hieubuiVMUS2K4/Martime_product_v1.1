@@ -25,9 +25,9 @@ public interface ISyncInboxService
     /// <summary>
     /// Process a batch of sync items with bulk optimizations.
     /// Groups by table for efficient bulk inserts, checks idempotency.
-    /// Returns (successCount, failureCount).
+    /// Returns counts plus per-item failure details for diagnostics.
     /// </summary>
-    Task<(int Succeeded, int Failed)> ProcessBatchAsync(List<SyncQueueItemDto> items);
+    Task<SyncBatchProcessResult> ProcessBatchAsync(List<SyncQueueItemDto> items);
 
     /// <summary>Check if an item has already been processed (idempotency).</summary>
     Task<bool> IsAlreadyProcessedAsync(string tableName, string recordKey, long syncVersion);
@@ -39,12 +39,30 @@ public interface ISyncInboxService
 /// Integrates with ConflictResolverService for domain-based conflict resolution.
 /// Enhanced with: batch processing, idempotency keys, and hash validation.
 /// </summary>
+public sealed class SyncBatchItemFailure
+{
+    public string TableName { get; init; } = string.Empty;
+    public string RecordKey { get; init; } = string.Empty;
+    public string? ActionType { get; init; }
+    public string Error { get; init; } = string.Empty;
+}
+
+public sealed class SyncBatchProcessResult
+{
+    public int Succeeded { get; set; }
+    public int Failed { get; set; }
+    public List<SyncBatchItemFailure> FailedItems { get; } = new();
+}
+
 public class SyncInboxService : ISyncInboxService
 {
     private readonly AppDbContext _context;
+    private readonly IConfiguration _configuration;
     private readonly IConflictResolverService _conflictResolver;
     private readonly ILogger<SyncInboxService> _logger;
     private readonly INotificationService _notifications;
+    private readonly ISyncFileStorageService _syncFileStorageService;
+    private readonly string _receiverNodeId;
 
 
     /// <summary>
@@ -189,7 +207,73 @@ public class SyncInboxService : ISyncInboxService
         // PMS — Maintenance Tasks (synced from Edge, read-only on Shore)
         ["maintenance_task"]       = typeof(ProductApi.Models.MaintenanceTask),
         ["maintenance_history"]    = typeof(ProductApi.Models.MaintenanceHistory),
+        ["maintenance_schedule"]   = typeof(ProductApi.Models.MaintenanceSchedule),
+
+        // Telemetry — additional sensor data from Edge
+        ["ais_data"]               = typeof(ProductApi.Models.AisData),
+        ["fuel_consumption"]       = typeof(ProductApi.Models.FuelConsumptionData),
+        ["tank_level"]             = typeof(ProductApi.Models.TankLevel),
+        ["generator_data"]         = typeof(ProductApi.Models.GeneratorData),
+        ["safety_alarm"]           = typeof(ProductApi.Models.SafetyAlarm),
+
+        // Reporting — master data from Edge
+        ["report_type"]            = typeof(ProductApi.Models.ReportType),
     };
+
+    // Some sync producers emit plural table names while Shore expects singular.
+    // Canonicalize them early so downstream conflict and idempotency rules are consistent.
+    private static readonly Dictionary<string, string> _tableAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["voyage_records"] = "voyage_record",
+        ["voyage_plan_legs"] = "voyage_plan_leg",
+        ["voyage_status_histories"] = "voyage_status_history",
+        ["port_calls"] = "port_call",
+        ["voyage_crew_assignments"] = "voyage_crew_assignment",
+        ["cargo_operations"] = "cargo_operation",
+        ["voyage_log_entries"] = "voyage_log_entry",
+        ["voyage_cargo_plans"] = "voyage_cargo_plan",
+        ["voyage_bunker_plans"] = "voyage_bunker_plan",
+        ["voyage_crew_change_plans"] = "voyage_crew_change_plan",
+        ["voyage_cost_estimates"] = "voyage_cost_estimate",
+        ["voyage_revenue_estimates"] = "voyage_revenue_estimate",
+        ["voyage_expense_requests"] = "voyage_expense_request",
+        ["voyage_advance_payments"] = "voyage_advance_payment",
+        ["voyage_disbursements"] = "voyage_disbursement",
+        ["voyage_actual_revenues"] = "voyage_actual_revenue",
+        ["voyage_settlements"] = "voyage_settlement",
+        ["maritime_reports"] = "maritime_report",
+        ["noon_reports"] = "noon_report",
+        ["departure_reports"] = "departure_report",
+        ["arrival_reports"] = "arrival_report",
+        ["bunker_reports"] = "bunker_report",
+        ["position_reports"] = "position_report",
+    };
+
+    // Tables that edge auto-syncs but shore intentionally does not store.
+    // These are silently skipped (not logged as failures) to avoid noise.
+    private static readonly HashSet<string> _ignoredTables = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "nmea_raw_data",             // Raw NMEA — only needed for edge debugging
+        "task_deferral_request",     // PMS workflow — edge-only
+        "watchkeeping_log",          // Logbook — no shore model
+        "oil_record_book",           // Logbook — no shore model
+        "deck_log_book",             // Logbook — no shore model
+        "engine_log_book",           // Logbook — no shore model
+        "garbage_record_book",       // Logbook — no shore model
+        "garbage_record_part_i",     // Logbook — no shore model
+        "garbage_record_part_ii",    // Logbook — no shore model
+        "ballast_water_record_book", // Logbook — no shore model
+    };
+
+    private static string CanonicalizeTableName(string? tableName)
+    {
+        if (string.IsNullOrWhiteSpace(tableName))
+            return string.Empty;
+
+        return _tableAliases.TryGetValue(tableName, out var canonical)
+            ? canonical
+            : tableName;
+    }
 
     // Edge auto-queue emits full-entity snapshots for voyage sync rows even when the
     // action type is UPDATE. On first arrival at Shore there is no existing mirror row,
@@ -214,6 +298,12 @@ public class SyncInboxService : ISyncInboxService
         "voyage_disbursement",
         "voyage_actual_revenue",
         "voyage_settlement",
+        // Document tables — edge creates documents locally; if not yet on shore, create them.
+        "travel_document",
+        "seafarer_document",
+        "employment_document",
+        "health_document",
+        "crew_certificate",
     };
 
     // Tables where entities are scoped per-vessel (have VesselId).
@@ -228,26 +318,38 @@ public class SyncInboxService : ISyncInboxService
         "material_item_equipment",
     };
 
+    // Reference tables managed by Shore — applying natural-key dedup to avoid 23505/23503 errors
+    // when Edge sends reference data with different PKs than Shore's seed data.
+    private static readonly HashSet<string> _shoreAuthoritative = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "certificate", "country", "rank",
+        "rank_certificate", "country_certificate"
+    };
+
     public SyncInboxService(
         AppDbContext context,
         IConflictResolverService conflictResolver,
         ILogger<SyncInboxService> logger,
         INotificationService notifications,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ISyncFileStorageService syncFileStorageService)
     {
         _context = context;
+        _configuration = configuration;
         _conflictResolver = conflictResolver;
         _logger = logger;
         _notifications = notifications;
+        _syncFileStorageService = syncFileStorageService;
+        _receiverNodeId = configuration["SyncSecurity:ShoreNodeId"] ?? "SHORE";
     }
 
     // ============================================================
     // BATCH PROCESSING — optimized for high-throughput sync
     // ============================================================
 
-    public async Task<(int Succeeded, int Failed)> ProcessBatchAsync(List<SyncQueueItemDto> items)
+    public async Task<SyncBatchProcessResult> ProcessBatchAsync(List<SyncQueueItemDto> items)
     {
-        int succeeded = 0, failed = 0;
+        var result = new SyncBatchProcessResult();
 
         // Auto-register any vessel whose IMO is not yet in the Vessels table.
         // This happens the first time a new ship pushes data to shore.
@@ -267,62 +369,85 @@ public class SyncInboxService : ISyncInboxService
 
         foreach (var group in grouped)
         {
+            var canonicalTable = CanonicalizeTableName(group.Key);
+
             // ── Special handler: ship_data → Vessels table (field mapping required) ──
-            if (group.Key.Equals("ship_data", StringComparison.OrdinalIgnoreCase))
+            if (canonicalTable.Equals("ship_data", StringComparison.OrdinalIgnoreCase))
             {
                 foreach (var item in group)
                 {
                     try
                     {
+                        item.TableName = canonicalTable;
+
                         if (await IsAlreadyProcessedAsync(item.TableName, item.RecordKey, item.SyncVersion))
-                        { succeeded++; continue; }
+                        { result.Succeeded++; continue; }
 
                         await ProcessShipDataAsync(item);
                         await RecordProcessedAsync(item);
                         await _context.SaveChangesAsync();
-                        succeeded++;
+                        result.Succeeded++;
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "ship_data sync failed for key {Key}", item.RecordKey);
+                        await PersistFailureLogAsync(item, ex.Message);
                         _context.ChangeTracker.Clear();
-                        failed++;
+                        result.Failed++;
+                        result.FailedItems.Add(CreateFailure(item, ex.Message));
                     }
                 }
                 continue;
             }
 
             // ── Special handler: onboard events from Edge with business logic ──
-            if (group.Key.Equals("onboard_event", StringComparison.OrdinalIgnoreCase)
-                || group.Key.Equals("sign_on_record", StringComparison.OrdinalIgnoreCase)
-                || group.Key.Equals("sign_off_record", StringComparison.OrdinalIgnoreCase))
+            if (canonicalTable.Equals("onboard_event", StringComparison.OrdinalIgnoreCase)
+                || canonicalTable.Equals("sign_on_record", StringComparison.OrdinalIgnoreCase)
+                || canonicalTable.Equals("sign_off_record", StringComparison.OrdinalIgnoreCase))
             {
                 foreach (var item in group)
                 {
                     try
                     {
+                        item.TableName = canonicalTable;
+
                         if (await IsAlreadyProcessedAsync(item.TableName, item.RecordKey, item.SyncVersion))
-                        { succeeded++; continue; }
+                        { result.Succeeded++; continue; }
 
                         await ProcessOnboardEventFromEdgeAsync(item);
                         await RecordProcessedAsync(item);
                         await _context.SaveChangesAsync();
-                        succeeded++;
+                        result.Succeeded++;
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Onboard event sync failed: {Table}/{Key}", item.TableName, item.RecordKey);
+                        await PersistFailureLogAsync(item, ex.Message);
                         _context.ChangeTracker.Clear();
-                        failed++;
+                        result.Failed++;
+                        result.FailedItems.Add(CreateFailure(item, ex.Message));
                     }
                 }
                 continue;
             }
 
-            if (!_tableEntityMap.TryGetValue(group.Key, out var entityType))
+            if (!_tableEntityMap.TryGetValue(canonicalTable, out var entityType))
             {
-                _logger.LogWarning("Unknown table in batch: {Table}, skipping {Count} items", group.Key, group.Count());
-                failed += group.Count();
+                if (_ignoredTables.Contains(canonicalTable))
+                {
+                    _logger.LogDebug("Ignoring edge-only table: {Table}, {Count} items skipped", canonicalTable, group.Count());
+                    result.Succeeded += group.Count();
+                    continue;
+                }
+
+                _logger.LogWarning("Unknown table in batch: {Table} (canonical: {Canonical}), skipping {Count} items", group.Key, canonicalTable, group.Count());
+                foreach (var item in group)
+                {
+                    var error = $"Unknown table: {group.Key}";
+                    await PersistFailureLogAsync(item, error);
+                    result.Failed++;
+                    result.FailedItems.Add(CreateFailure(item, error));
+                }
                 continue;
             }
 
@@ -330,17 +455,19 @@ public class SyncInboxService : ISyncInboxService
             {
                 try
                 {
+                    item.TableName = canonicalTable;
+
                     // Idempotency check — skip already processed
                     if (await IsAlreadyProcessedAsync(item.TableName, item.RecordKey, item.SyncVersion))
                     {
                         _logger.LogDebug("Skipping duplicate: {Table}/{Key} v{Version}",
                             item.TableName, item.RecordKey, item.SyncVersion);
-                        succeeded++; // Count as success (already done)
+                        result.Succeeded++; // Count as success (already done)
                         continue;
                     }
 
                     // ── Guard: only accept TRANSMITTED reports on shore ──
-                    if (group.Key.Equals("maritime_report", StringComparison.OrdinalIgnoreCase)
+                    if (canonicalTable.Equals("maritime_report", StringComparison.OrdinalIgnoreCase)
                         && !string.IsNullOrEmpty(item.Payload))
                     {
                         try
@@ -355,7 +482,9 @@ public class SyncInboxService : ISyncInboxService
                                     _logger.LogWarning(
                                         "Rejecting non-TRANSMITTED report {Key} (status={Status})",
                                         item.RecordKey, status);
-                                    failed++;
+                                    await PersistFailureLogAsync(item, $"Rejected non-TRANSMITTED report (status={status})");
+                                    result.Failed++;
+                                    result.FailedItems.Add(CreateFailure(item, $"Rejected non-TRANSMITTED report (status={status})"));
                                     continue;
                                 }
                             }
@@ -363,21 +492,18 @@ public class SyncInboxService : ISyncInboxService
                         catch { /* parse error — continue normal processing */ }
                     }
 
-                    await ProcessIncomingAsync(item);
+                    // For document tables: keep FileUrl so ConflictResolver can apply edge's file path.
+                    // For crew_certificate: keep DocumentFilePath (edge scans certs on board).
+                    // For other tables (crew_member, etc.): strip all file properties — files
+                    // arrive via the separate file-transfer pipeline.
+                    var isDocumentTable = canonicalTable.EndsWith("_document", StringComparison.OrdinalIgnoreCase);
+                    var isCrewCertificate = string.Equals(canonicalTable, "crew_certificate", StringComparison.OrdinalIgnoreCase);
+                    item.Payload = (isDocumentTable || isCrewCertificate)
+                        ? StripFileReferencePropertiesExceptFileUrl(item.Payload)
+                        : StripFileReferenceProperties(item.Payload);
 
-                    // Save synced file data if present (base64-encoded document files from edge/shore)
-                    if (!string.IsNullOrEmpty(item.FileData) && !string.IsNullOrEmpty(item.FileName))
-                    {
-                        try
-                        {
-                            await SaveSyncedFileAsync(item);
-                        }
-                        catch (Exception fileEx)
-                        {
-                            _logger.LogWarning(fileEx, "Failed to save synced file for {Table}/{Key}, data sync continues",
-                                item.TableName, item.RecordKey);
-                        }
-                    }
+                    await ProcessIncomingAsync(item);
+                    await UpsertIncomingFileReferencesAsync(item);
 
                     // Record idempotency key
                     await RecordProcessedAsync(item);
@@ -386,22 +512,24 @@ public class SyncInboxService : ISyncInboxService
                     // does NOT roll back the entire batch.
                     await _context.SaveChangesAsync();
 
-                    succeeded++;
+                    result.Succeeded++;
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Batch item failed: {Table}/{Key}", item.TableName, item.RecordKey);
+                    await PersistFailureLogAsync(item, ex.Message);
                     // Clear any partially-tracked state so the next item starts clean.
                     _context.ChangeTracker.Clear();
-                    failed++;
+                    result.Failed++;
+                    result.FailedItems.Add(CreateFailure(item, ex.Message));
                 }
             }
         }
 
         // ── Emit a summary notification per vessel ──────────────────────────────
-        if (succeeded > 0)
+        if (result.Succeeded > 0)
         {
-            await EmitSyncBatchNotificationsAsync(items, succeeded);
+            await EmitSyncBatchNotificationsAsync(items, result.Succeeded);
         }
 
         // ── Auto-create VesselCertificateAssignments from synced certificate/crew data ──
@@ -419,7 +547,25 @@ public class SyncInboxService : ISyncInboxService
             }
         }
 
-        return (succeeded, failed);
+        return result;
+    }
+
+    private static SyncBatchItemFailure CreateFailure(SyncQueueItemDto item, string error)
+    {
+        return new SyncBatchItemFailure
+        {
+            TableName = item.TableName,
+            RecordKey = item.RecordKey,
+            ActionType = item.ActionType,
+            Error = error
+        };
+    }
+
+    private async Task PersistFailureLogAsync(SyncQueueItemDto item, string detail)
+    {
+        _context.ChangeTracker.Clear();
+        await LogSyncOperation(item, "FAILED", detail);
+        await _context.SaveChangesAsync();
     }
 
     /// <summary>
@@ -595,98 +741,260 @@ public class SyncInboxService : ISyncInboxService
 
 
 
-    /// <summary>
-    /// Save base64-encoded file received via sync to the shore's uploads directory.
-    /// Updates the entity's file path field to point to the locally saved file.
-    /// </summary>
-    private async Task SaveSyncedFileAsync(SyncQueueItemDto item)
+    private async Task UpsertIncomingFileReferencesAsync(SyncQueueItemDto item)
     {
-        var bytes = DecodeAndValidateSyncFile(item);
-        var ext = Path.GetExtension(item.FileName!).ToLowerInvariant();
+        if (item.FileRefs == null || item.FileRefs.Count == 0)
+            return;
 
-        // Determine upload subdirectory based on table type
-        var subDir = item.TableName switch
+        foreach (var fileRef in item.FileRefs)
         {
-            "crew_member" => "crew/avatars",
-            "crew_certificate" => "crew/certificates",
-            "travel_document" => "crew/documents/travel",
-            "seafarer_document" => "crew/documents/seafarer",
-            "employment_document" => "crew/documents/employment",
-            "health_document" => "crew/documents/health",
-            _ => "crew/synced"
-        };
-
-        var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "uploads", subDir);
-        Directory.CreateDirectory(uploadsDir);
-
-        // Use the original filename from the sender so both shore and edge have identical file paths
-        var safeFileName = !string.IsNullOrEmpty(item.FileName)
-            ? Path.GetFileName(item.FileName)
-            : $"{item.TableName}_{item.RecordKey}{ext}";
-        var filePath = Path.Combine(uploadsDir, safeFileName);
-        await System.IO.File.WriteAllBytesAsync(filePath, bytes);
-
-        var relativePath = $"/uploads/{subDir}/{safeFileName}";
-
-        // Update the entity's file path in the database
-        if (_tableEntityMap.TryGetValue(item.TableName, out var entityType))
-        {
-            var entity = await FindEntityByKeyAsync(entityType, item.RecordKey);
-            if (entity != null)
+            var manifest = await _context.SyncFileManifests.FirstOrDefaultAsync(m => m.Id == fileRef.FileId);
+            if (manifest == null)
             {
-                // Try DocumentFilePath, then FilePath, then FileUrl, then PhotoUrl
-                var pathProps = new[] { "DocumentFilePath", "FilePath", "FileUrl", "PhotoUrl" };
-                foreach (var propName in pathProps)
+                manifest = new SyncFileManifest
                 {
-                    var prop = entityType.GetProperty(propName);
-                    if (prop != null && prop.PropertyType == typeof(string))
-                    {
-                        // Delete old file if path changed
-                        var oldPath = prop.GetValue(entity) as string;
-                        if (!string.IsNullOrEmpty(oldPath) && oldPath != relativePath)
-                        {
-                            var oldAbsPath = Path.Combine(Directory.GetCurrentDirectory(),
-                                oldPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-                            if (System.IO.File.Exists(oldAbsPath))
-                                System.IO.File.Delete(oldAbsPath);
-                        }
-
-                        prop.SetValue(entity, relativePath);
-                        _logger.LogInformation("Saved synced file for {Table}/{Key} → {Path} (source {SourceNode}:{SourcePath})",
-                            item.TableName, item.RecordKey, relativePath, item.FileSourceNodeId, item.FileSourcePath);
-                        break;
-                    }
-                }
+                    Id = fileRef.FileId,
+                    OwnerNodeId = item.OriginNode,
+                    ReceiverNodeId = _receiverNodeId,
+                    TableName = item.TableName,
+                    RecordKey = item.RecordKey,
+                    FileRole = fileRef.FileRole,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _context.SyncFileManifests.AddAsync(manifest);
             }
+
+            manifest.OwnerNodeId = item.OriginNode;
+            manifest.ReceiverNodeId = _receiverNodeId;
+            manifest.TableName = item.TableName;
+            manifest.RecordKey = item.RecordKey;
+            manifest.FileRole = fileRef.FileRole;
+            manifest.FileName = fileRef.FileName;
+            manifest.ContentType = fileRef.ContentType;
+            manifest.SizeBytes = fileRef.SizeBytes;
+            manifest.OriginalSizeBytes = fileRef.OriginalSizeBytes;
+            manifest.Sha256 = fileRef.Sha256;
+            manifest.TransportEncoding = fileRef.TransportEncoding;
+            manifest.IsPreprocessed = fileRef.IsPreprocessed;
+            manifest.PreprocessProfile = fileRef.PreprocessProfile;
+            manifest.SourcePath = fileRef.SourcePath;
+            manifest.TransferPriority = fileRef.TransferPriority;
+            manifest.CapturedAtUtc = fileRef.CapturedAtUtc;
+            manifest.UpdatedAt = DateTime.UtcNow;
+
+            var localPath = await GetExistingLocalFilePathAsync(item, fileRef);
+            if (!string.IsNullOrWhiteSpace(localPath))
+            {
+                manifest.StoragePath = localPath;
+                manifest.TransferStatus = SyncFileTransferStatus.Duplicate;
+                manifest.VerifiedAtUtc = DateTime.UtcNow;
+                manifest.LastError = null;
+                continue;
+            }
+
+            manifest.TransferStatus = SyncFileTransferStatus.Requested;
+            manifest.LastRequestedAtUtc = DateTime.UtcNow;
+            manifest.LastError = null;
+
+            var existingRequest = await _context.SyncFileTransferRequests.FirstOrDefaultAsync(r =>
+                r.ManifestId == manifest.Id &&
+                (r.Status == SyncFileRequestStatus.Pending || r.Status == SyncFileRequestStatus.Deferred));
+
+            if (existingRequest == null)
+            {
+                existingRequest = new SyncFileTransferRequest
+                {
+                    ManifestId = manifest.Id,
+                    RequesterNodeId = _receiverNodeId,
+                    SupplierNodeId = item.OriginNode,
+                    Status = SyncFileRequestStatus.Pending,
+                    RequestedAtUtc = DateTime.UtcNow
+                };
+                await _context.SyncFileTransferRequests.AddAsync(existingRequest);
+            }
+
+            await ApplyDeltaHintsAsync(item, fileRef, existingRequest);
         }
     }
 
-    private static byte[] DecodeAndValidateSyncFile(SyncQueueItemDto item)
+    private async Task ApplyDeltaHintsAsync(SyncQueueItemDto item, SyncFileReferenceDto fileRef, SyncFileTransferRequest request)
     {
-        if (string.IsNullOrWhiteSpace(item.FileData) || string.IsNullOrWhiteSpace(item.FileName))
-            throw new InvalidOperationException("Sync file payload is incomplete.");
+        request.PreferDeltaTransfer = false;
+        request.DeltaBlockSizeBytes = null;
+        request.ReceiverBaseSha256 = null;
+        request.ReceiverBlockHashesJson = null;
 
-        if (string.IsNullOrWhiteSpace(item.FileChecksumSha256))
-            throw new InvalidOperationException("Sync file checksum is missing.");
+        if (!_configuration.GetValue("Sync:DeltaSyncEnabled", true))
+            return;
 
-        if (string.IsNullOrWhiteSpace(item.FileSourceNodeId))
-            throw new InvalidOperationException("Sync file provenance node is missing.");
+        var localCandidatePath = await FindEntityFilePathAsync(_tableEntityMap[item.TableName], item.RecordKey);
+        if (string.IsNullOrWhiteSpace(localCandidatePath))
+            return;
 
-        if (!string.Equals(item.FileSourceNodeId, item.OriginNode, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Sync file provenance node does not match item origin.");
+        var absolutePath = ResolveLocalFilePath(localCandidatePath);
+        if (!System.IO.File.Exists(absolutePath))
+            return;
 
-        var bytes = Convert.FromBase64String(item.FileData);
-        var actualChecksum = ComputeSha256Hex(bytes);
-        if (!string.Equals(actualChecksum, item.FileChecksumSha256, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Sync file checksum verification failed.");
+        if (_syncFileStorageService.GetFileSize(localCandidatePath) != fileRef.SizeBytes)
+            return;
 
-        return bytes;
+        var localSha256 = await _syncFileStorageService.ComputeSha256HexAsync(localCandidatePath, CancellationToken.None);
+        if (string.Equals(localSha256, fileRef.Sha256, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var blockSizeBytes = Math.Max(64 * 1024, _configuration.GetValue("Sync:DeltaBlockSizeBytes", 256 * 1024));
+        var blockHashes = await ComputeBlockHashesAsync(localCandidatePath, blockSizeBytes, CancellationToken.None);
+        if (blockHashes.Count == 0)
+            return;
+
+        request.PreferDeltaTransfer = true;
+        request.DeltaBlockSizeBytes = blockSizeBytes;
+        request.ReceiverBaseSha256 = localSha256;
+        request.ReceiverBlockHashesJson = System.Text.Json.JsonSerializer.Serialize(blockHashes);
     }
 
-    private static string ComputeSha256Hex(byte[] content)
+    private async Task<string?> GetExistingLocalFilePathAsync(SyncQueueItemDto item, SyncFileReferenceDto fileRef)
     {
-        var hash = SHA256.HashData(content);
-        return Convert.ToHexString(hash).ToLowerInvariant();
+        if (!_tableEntityMap.TryGetValue(item.TableName, out var entityType))
+            return null;
+
+        var entity = await FindEntityByKeyAsync(entityType, item.RecordKey);
+        if (entity == null)
+            return null;
+
+        foreach (var propName in new[] { "DocumentFilePath", "FilePath", "FileUrl", "PhotoUrl" })
+        {
+            var prop = entity.GetType().GetProperty(propName);
+            if (prop?.PropertyType != typeof(string))
+                continue;
+
+            var value = prop.GetValue(entity) as string;
+            if (string.IsNullOrWhiteSpace(value))
+                continue;
+
+            var absPath = ResolveLocalFilePath(value);
+            if (!System.IO.File.Exists(absPath))
+                continue;
+
+            var checksum = await _syncFileStorageService.ComputeSha256HexAsync(value, CancellationToken.None);
+            if (string.Equals(checksum, fileRef.Sha256, StringComparison.OrdinalIgnoreCase))
+                return value;
+        }
+
+        return null;
+    }
+
+    private async Task<string?> FindEntityFilePathAsync(Type entityType, string recordKey)
+    {
+        var entity = await FindEntityByKeyAsync(entityType, recordKey);
+        if (entity == null)
+            return null;
+
+        foreach (var propName in new[] { "DocumentFilePath", "FilePath", "FileUrl", "PhotoUrl" })
+        {
+            var prop = entity.GetType().GetProperty(propName);
+            if (prop?.PropertyType != typeof(string))
+                continue;
+
+            var value = prop.GetValue(entity) as string;
+            if (string.IsNullOrWhiteSpace(value))
+                continue;
+
+            var absPath = ResolveLocalFilePath(value);
+            if (System.IO.File.Exists(absPath))
+                return value;
+        }
+
+        return null;
+    }
+
+    private static string StripFileReferenceProperties(string payload)
+    {
+        using var doc = JsonDocument.Parse(payload);
+        var root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+            return payload;
+
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartObject();
+            foreach (var property in root.EnumerateObject())
+            {
+                if (property.NameEquals("DocumentFilePath") || property.NameEquals("documentFilePath")
+                    || property.NameEquals("FilePath") || property.NameEquals("filePath")
+                    || property.NameEquals("FileUrl") || property.NameEquals("fileUrl")
+                    || property.NameEquals("PhotoUrl") || property.NameEquals("photoUrl"))
+                {
+                    continue;
+                }
+
+                property.WriteTo(writer);
+            }
+            writer.WriteEndObject();
+        }
+
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    /// <summary>
+    /// Strip file reference properties EXCEPT FileUrl.
+    /// Used for document tables where ConflictResolver needs FileUrl
+    /// to apply it from edge (edge wins for file properties on documents).
+    /// </summary>
+    private static string StripFileReferencePropertiesExceptFileUrl(string payload)
+    {
+        using var doc = JsonDocument.Parse(payload);
+        var root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+            return payload;
+
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartObject();
+            foreach (var property in root.EnumerateObject())
+            {
+                // Strip PhotoUrl — always server by file transfer, never in metadata payload.
+                // Keep FileUrl and DocumentFilePath — edge uploads files to these properties
+                // directly, and the conflict resolver needs them to update the entity.
+                if (property.NameEquals("PhotoUrl") || property.NameEquals("photoUrl")
+                    || property.NameEquals("FilePath") || property.NameEquals("filePath"))
+                {
+                    continue;
+                }
+
+                property.WriteTo(writer);
+            }
+            writer.WriteEndObject();
+        }
+
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static string ResolveLocalFilePath(string path)
+    {
+        return path.StartsWith("/", StringComparison.Ordinal)
+            ? Path.Combine(Directory.GetCurrentDirectory(), path.TrimStart('/').Replace('/', Path.DirectorySeparatorChar))
+            : path;
+    }
+
+    private async Task<List<string>> ComputeBlockHashesAsync(string relativeOrAbsolutePath, int blockSizeBytes, CancellationToken cancellationToken)
+    {
+        var hashes = new List<string>();
+        var content = await _syncFileStorageService.ReadAllBytesAsync(relativeOrAbsolutePath, cancellationToken);
+        var buffer = new byte[blockSizeBytes];
+        var offset = 0;
+
+        while (offset < content.Length)
+        {
+            var read = Math.Min(blockSizeBytes, content.Length - offset);
+            Buffer.BlockCopy(content, offset, buffer, 0, read);
+            hashes.Add(Convert.ToHexString(SHA256.HashData(buffer.AsSpan(0, read))).ToLowerInvariant());
+            offset += read;
+        }
+
+        return hashes;
     }
 
     // ============================================================
@@ -695,8 +1003,13 @@ public class SyncInboxService : ISyncInboxService
 
     public async Task ProcessIncomingAsync(SyncQueueItemDto item)
     {
+        item.TableName = CanonicalizeTableName(item.TableName);
+
         if (!_tableEntityMap.TryGetValue(item.TableName, out var entityType))
         {
+            if (_ignoredTables.Contains(item.TableName))
+                return; // silently skip edge-only tables
+
             _logger.LogWarning("Unknown sync table: {Table}", item.TableName);
             await LogSyncOperation(item, "FAILED", $"Unknown table: {item.TableName}");
             return;
@@ -800,6 +1113,19 @@ public class SyncInboxService : ISyncInboxService
 
         // Resolve any orphaned FK references (e.g. RankId pointing to a rank not yet on shore)
         await ResolveOrphanedForeignKeysAsync(entityType, entity, item.Payload);
+
+        // For shore-authoritative reference tables (country, rank, certificate, rank_certificate,
+        // country_certificate): edge and shore may use different PKs for the same data.
+        // If shore already has equivalent data by natural key, skip the insert to avoid
+        // unique-constraint violations (23505) or FK violations (23503) from mismatched IDs.
+        if (_shoreAuthoritative.Contains(item.TableName)
+            && await IsShoreRefDataDuplicateAsync(entityType, entity))
+        {
+            _logger.LogDebug(
+                "Shore-authoritative {Table}/{Key}: already exists by natural key or FK mismatch — skipping insert",
+                item.TableName, item.RecordKey);
+            return;
+        }
 
         await _context.AddAsync(entity);
         await ResolveCrewVesselIdAsync(entity, item.OriginNode);
@@ -1096,6 +1422,58 @@ public class SyncInboxService : ISyncInboxService
     // ============================================================
     // HELPERS
     // ============================================================
+
+    /// <summary>
+    /// Returns true if the entity already exists on shore by natural unique key (for simple ref data)
+    /// or if its FK references don't exist on shore (for junction tables). Used to skip INSERT for
+    /// shore-authoritative reference tables when edge and shore use different PKs for the same data.
+    /// </summary>
+    private async Task<bool> IsShoreRefDataDuplicateAsync(Type entityType, object entity)
+    {
+        if (entityType == typeof(Country))
+        {
+            var code = (entity as Country)?.CountryCode;
+            return !string.IsNullOrEmpty(code)
+                && await _context.Set<Country>().AnyAsync(c => c.CountryCode == code);
+        }
+        if (entityType == typeof(Rank))
+        {
+            var code = (entity as Rank)?.RankCode;
+            return !string.IsNullOrEmpty(code)
+                && await _context.Set<Rank>().AnyAsync(r => r.RankCode == code);
+        }
+        if (entityType == typeof(Certificate))
+        {
+            var code = (entity as Certificate)?.CertificateCode;
+            return !string.IsNullOrEmpty(code)
+                && await _context.Set<Certificate>().AnyAsync(c => c.CertificateCode == code);
+        }
+        if (entityType == typeof(RankCertificate))
+        {
+            var rc = entity as RankCertificate;
+            if (rc == null) return false;
+            // Skip if FK IDs don't exist on shore (edge uses different PK sequence)
+            bool rankExists = await _context.Set<Rank>().AnyAsync(r => r.Id == rc.RankId);
+            bool certExists = await _context.Set<Certificate>().AnyAsync(c => c.Id == rc.CertificateId);
+            if (!rankExists || !certExists) return true;
+            // Skip if this (RankId, CertificateId) pair already exists
+            return await _context.Set<RankCertificate>()
+                .AnyAsync(x => x.RankId == rc.RankId && x.CertificateId == rc.CertificateId);
+        }
+        if (entityType == typeof(CountryCertificate))
+        {
+            var cc = entity as CountryCertificate;
+            if (cc == null) return false;
+            // Skip if FK IDs don't exist on shore
+            bool countryExists = await _context.Set<Country>().AnyAsync(c => c.Id == cc.CountryId);
+            bool certExists = await _context.Set<Certificate>().AnyAsync(c => c.Id == cc.CertificateId);
+            if (!countryExists || !certExists) return true;
+            // Skip if this (CountryId, CertificateId) pair already exists
+            return await _context.Set<CountryCertificate>()
+                .AnyAsync(x => x.CountryId == cc.CountryId && x.CertificateId == cc.CertificateId);
+        }
+        return false;
+    }
 
     private async Task<object?> FindEntityByKeyAsync(Type entityType, string recordKey)
     {
@@ -1395,6 +1773,25 @@ public class SyncInboxService : ISyncInboxService
         {
             var cert = (CrewCertificate)entity;
 
+            var crewExists = await _context.Set<CrewMember>().AnyAsync(c => c.Id == cert.CrewMemberId);
+            if (!crewExists)
+            {
+                var matchedCrew = await ResolveCrewMemberFromPayloadAsync(rawPayload);
+                if (matchedCrew != null)
+                {
+                    _logger.LogInformation(
+                        "CrewCertificate {CertNum}: Resolved edge CrewMemberId {EdgeCrewId} -> shore {ShoreCrewId}",
+                        cert.CertificateNumber,
+                        cert.CrewMemberId,
+                        matchedCrew.Id);
+                    cert.CrewMemberId = matchedCrew.Id;
+                }
+                else
+                {
+                    throw new InvalidOperationException($"Unable to resolve CrewMember for crew certificate {cert.CertificateNumber}");
+                }
+            }
+
             // ── CertificateId resolution ──
             if (cert.CertificateId > 0)
             {
@@ -1467,6 +1864,13 @@ public class SyncInboxService : ISyncInboxService
                 }
             }
         }
+        if (entityType == typeof(TravelDocument)
+            || entityType == typeof(SeafarerDocument)
+            || entityType == typeof(EmploymentDocument)
+            || entityType == typeof(HealthDocument))
+        {
+            await ResolveIdentityDocumentForeignKeysAsync(entity, rawPayload);
+        }
         // VoyageCrewAssignment → Rank: null out RankId if it doesn't exist on shore
         // (Edge and shore may have same ranks but with different auto-generated IDs)
         if (entityType == typeof(VoyageCrewAssignment))
@@ -1512,6 +1916,157 @@ public class SyncInboxService : ISyncInboxService
                 }
             }
         }
+    }
+
+    private async Task ResolveIdentityDocumentForeignKeysAsync(object entity, string? rawPayload)
+    {
+        var entityName = entity.GetType().Name;
+        var crewMemberIdProperty = entity.GetType().GetProperty("CrewMemberId");
+        if (crewMemberIdProperty?.PropertyType == typeof(Guid))
+        {
+            var crewMemberId = (Guid)(crewMemberIdProperty.GetValue(entity) ?? Guid.Empty);
+            if (crewMemberId != Guid.Empty)
+            {
+                var crewExists = await _context.CrewMembers.AnyAsync(c => c.Id == crewMemberId);
+                if (!crewExists)
+                {
+                    var matchedCrew = await ResolveCrewMemberFromPayloadAsync(rawPayload);
+                    if (matchedCrew != null)
+                    {
+                        crewMemberIdProperty.SetValue(entity, matchedCrew.Id);
+                    }
+                    else
+                    {
+                        var crewId = string.IsNullOrWhiteSpace(rawPayload) ? null : ExtractCrewIdFromPayload(rawPayload);
+                        var crewFullName = string.IsNullOrWhiteSpace(rawPayload) ? null : ExtractCrewFullNameFromPayload(rawPayload);
+                        throw new InvalidOperationException($"{entityName}: CrewMemberId {crewMemberId} not found on shore; unable to resolve CrewId '{crewId}' or CrewFullName '{crewFullName}'");
+                    }
+                }
+            }
+        }
+
+        var countryIdProperty = entity.GetType().GetProperty("CountryId");
+        if (countryIdProperty?.PropertyType == typeof(int?))
+        {
+            var countryId = countryIdProperty.GetValue(entity) as int?;
+            if (countryId.HasValue)
+            {
+                var countryExists = await _context.Countries.AnyAsync(c => c.Id == countryId.Value);
+                if (!countryExists)
+                {
+                    var countryCode = string.IsNullOrWhiteSpace(rawPayload) ? null : ExtractCountryCodeFromPayload(rawPayload);
+                    if (!string.IsNullOrWhiteSpace(countryCode))
+                    {
+                        var matchedCountry = await _context.Countries.FirstOrDefaultAsync(c => c.CountryCode == countryCode);
+                        countryIdProperty.SetValue(entity, matchedCountry?.Id);
+                    }
+                    else
+                    {
+                        countryIdProperty.SetValue(entity, null);
+                    }
+                }
+            }
+        }
+    }
+
+    private async Task<CrewMember?> ResolveCrewMemberFromPayloadAsync(string? rawPayload)
+    {
+        if (string.IsNullOrWhiteSpace(rawPayload))
+        {
+            return null;
+        }
+
+        var crewId = ExtractCrewIdFromPayload(rawPayload);
+        if (!string.IsNullOrWhiteSpace(crewId))
+        {
+            var exactCrew = await _context.CrewMembers.FirstOrDefaultAsync(c => c.CrewId == crewId);
+            if (exactCrew != null)
+            {
+                return exactCrew;
+            }
+
+            var normalizedCrewId = NormalizeCrewBusinessKey(crewId);
+            if (!string.IsNullOrWhiteSpace(normalizedCrewId))
+            {
+                var normalizedMatches = await _context.CrewMembers
+                    .Where(c => c.CrewId != null)
+                    .ToListAsync();
+
+                normalizedMatches = normalizedMatches
+                    .Where(c => NormalizeCrewBusinessKey(c.CrewId) == normalizedCrewId)
+                    .ToList();
+
+                if (normalizedMatches.Count == 1)
+                {
+                    _logger.LogInformation(
+                        "Resolved crew by normalized CrewId: payload {PayloadCrewId} -> shore {ShoreCrewId}",
+                        crewId,
+                        normalizedMatches[0].CrewId);
+                    return normalizedMatches[0];
+                }
+            }
+        }
+
+        var crewFullName = ExtractCrewFullNameFromPayload(rawPayload);
+        if (!string.IsNullOrWhiteSpace(crewFullName))
+        {
+            var fullNameMatches = await _context.CrewMembers
+                .Where(c => c.FullName == crewFullName)
+                .ToListAsync();
+
+            if (fullNameMatches.Count == 1)
+            {
+                _logger.LogInformation(
+                    "Resolved crew by full name: payload {CrewFullName} -> shore {ShoreCrewId}",
+                    crewFullName,
+                    fullNameMatches[0].CrewId);
+                return fullNameMatches[0];
+            }
+        }
+
+        var crewIdCardNumber = ExtractCrewIdCardNumberFromPayload(rawPayload);
+        var crewDateOfBirth = ExtractCrewDateOfBirthFromPayload(rawPayload);
+        if (!string.IsNullOrWhiteSpace(crewIdCardNumber))
+        {
+            var idCardMatches = await _context.CrewMembers
+                .Where(c => c.IdCardNumber == crewIdCardNumber)
+                .ToListAsync();
+
+            if (crewDateOfBirth.HasValue)
+            {
+                idCardMatches = idCardMatches
+                    .Where(c => c.DateOfBirth.HasValue && c.DateOfBirth.Value.Date == crewDateOfBirth.Value.Date)
+                    .ToList();
+            }
+
+            if (idCardMatches.Count == 1)
+            {
+                _logger.LogInformation(
+                    "Resolved crew by ID card/date of birth: payload {CrewIdCardNumber} -> shore {ShoreCrewId}",
+                    crewIdCardNumber,
+                    idCardMatches[0].CrewId);
+                return idCardMatches[0];
+            }
+        }
+
+        return null;
+    }
+
+    private static string? NormalizeCrewBusinessKey(string? crewId)
+    {
+        if (string.IsNullOrWhiteSpace(crewId))
+        {
+            return null;
+        }
+
+        var digits = new string(crewId.Where(char.IsDigit).ToArray());
+        if (!string.IsNullOrWhiteSpace(digits))
+        {
+            var trimmedDigits = digits.TrimStart('0');
+            return string.IsNullOrWhiteSpace(trimmedDigits) ? "0" : trimmedDigits;
+        }
+
+        return new string(crewId.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
     }
 
     // ============================================================
@@ -1576,6 +2131,148 @@ public class SyncInboxService : ISyncInboxService
             }
         }
         catch { /* payload is not valid JSON */ }
+        return null;
+    }
+
+    private static string? ExtractCrewIdFromPayload(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            foreach (var propName in new[] { "crewId", "CrewId", "crew_id" })
+            {
+                if (doc.RootElement.TryGetProperty(propName, out var value)
+                    && value.ValueKind == JsonValueKind.String)
+                {
+                    return value.GetString();
+                }
+            }
+
+            foreach (var propName in new[] { "crewMember", "CrewMember" })
+            {
+                if (doc.RootElement.TryGetProperty(propName, out var crewElement)
+                    && crewElement.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var crewIdProp in new[] { "crewId", "CrewId", "crew_id" })
+                    {
+                        if (crewElement.TryGetProperty(crewIdProp, out var crewIdElement)
+                            && crewIdElement.ValueKind == JsonValueKind.String)
+                        {
+                            return crewIdElement.GetString();
+                        }
+                    }
+                }
+            }
+        }
+        catch { /* payload is not valid JSON */ }
+
+        return null;
+    }
+
+    private static string? ExtractCrewFullNameFromPayload(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            foreach (var propName in new[] { "crewFullName", "CrewFullName", "crew_full_name", "fullName", "FullName", "full_name" })
+            {
+                if (doc.RootElement.TryGetProperty(propName, out var value)
+                    && value.ValueKind == JsonValueKind.String)
+                {
+                    return value.GetString();
+                }
+            }
+
+            foreach (var propName in new[] { "crewMember", "CrewMember" })
+            {
+                if (doc.RootElement.TryGetProperty(propName, out var crewElement)
+                    && crewElement.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var nameProp in new[] { "fullName", "FullName", "full_name" })
+                    {
+                        if (crewElement.TryGetProperty(nameProp, out var nameElement)
+                            && nameElement.ValueKind == JsonValueKind.String)
+                        {
+                            return nameElement.GetString();
+                        }
+                    }
+                }
+            }
+        }
+        catch { /* payload is not valid JSON */ }
+
+        return null;
+    }
+
+    private static string? ExtractCrewIdCardNumberFromPayload(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            foreach (var propName in new[] { "crewIdCardNumber", "CrewIdCardNumber", "crew_id_card_number", "idCardNumber", "IdCardNumber", "id_card_number" })
+            {
+                if (doc.RootElement.TryGetProperty(propName, out var value)
+                    && value.ValueKind == JsonValueKind.String)
+                {
+                    return value.GetString();
+                }
+            }
+
+            foreach (var propName in new[] { "crewMember", "CrewMember" })
+            {
+                if (doc.RootElement.TryGetProperty(propName, out var crewElement)
+                    && crewElement.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var idCardProp in new[] { "idCardNumber", "IdCardNumber", "id_card_number" })
+                    {
+                        if (crewElement.TryGetProperty(idCardProp, out var idCardElement)
+                            && idCardElement.ValueKind == JsonValueKind.String)
+                        {
+                            return idCardElement.GetString();
+                        }
+                    }
+                }
+            }
+        }
+        catch { /* payload is not valid JSON */ }
+
+        return null;
+    }
+
+    private static DateTime? ExtractCrewDateOfBirthFromPayload(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            foreach (var propName in new[] { "crewDateOfBirth", "CrewDateOfBirth", "crew_date_of_birth", "dateOfBirth", "DateOfBirth", "date_of_birth" })
+            {
+                if (doc.RootElement.TryGetProperty(propName, out var value)
+                    && value.ValueKind == JsonValueKind.String
+                    && DateTime.TryParse(value.GetString(), out var parsedDate))
+                {
+                    return parsedDate;
+                }
+            }
+
+            foreach (var propName in new[] { "crewMember", "CrewMember" })
+            {
+                if (doc.RootElement.TryGetProperty(propName, out var crewElement)
+                    && crewElement.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var dobProp in new[] { "dateOfBirth", "DateOfBirth", "date_of_birth" })
+                    {
+                        if (crewElement.TryGetProperty(dobProp, out var dobElement)
+                            && dobElement.ValueKind == JsonValueKind.String
+                            && DateTime.TryParse(dobElement.GetString(), out var parsedDate))
+                        {
+                            return parsedDate;
+                        }
+                    }
+                }
+            }
+        }
+        catch { /* payload is not valid JSON */ }
+
         return null;
     }
 

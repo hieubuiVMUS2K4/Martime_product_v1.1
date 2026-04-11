@@ -199,19 +199,20 @@ const TABS: { id: TabId; label: string; edgeSource: boolean }[] = [
   { id: 'radio-comm',       label: 'Radio Comm.',        edgeSource: true },
   { id: 'tanks-cargo',      label: 'Tanks & Cargo',      edgeSource: true },
   { id: 'certificates',     label: 'Chứng chỉ',          edgeSource: false },
-  { id: 'crew',             label: 'Crew / Thuyền viên', edgeSource: false },
+  { id: 'crew',             label: 'Thuyền viên', edgeSource: false },
 ];
 
 // Grouped menus — giống TopNav PMS / Vật tư
 const TAB_GROUPS: { label: string; items: TabId[] }[] = [
   {
+    label: 'Thuyền viên',
+    items: ['crew'],
+  },
+  {
     label: 'Ship Data',
     items: ['basic-data', 'dimensions', 'class-flag-state', 'machinery', 'radio-comm', 'tanks-cargo', 'shipowner', 'charterer', 'insurance', 'certificates'],
   },
-  {
-    label: 'Crew / Thuyền viên',
-    items: ['crew'],
-  },
+  
 ];
 
 // External navigation groups (navigate away from this page)
@@ -256,7 +257,7 @@ export const VesselDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [activeTab, setActiveTab] = useState<TabId>('basic-data');
+  const [activeTab, setActiveTab] = useState<TabId>('crew');
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [openNavGroup, setOpenNavGroup] = useState<string | null>(null);

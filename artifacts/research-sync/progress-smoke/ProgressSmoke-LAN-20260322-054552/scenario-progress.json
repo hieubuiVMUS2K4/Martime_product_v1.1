@@ -1,0 +1,22 @@
+﻿{
+    "scenario":  "ProgressSmoke",
+    "network":  "LAN",
+    "record_count":  10,
+    "repetitions":  1,
+    "current_repetition":  1,
+    "status":  "scenario-complete",
+    "iteration":  0,
+    "max_trigger_iterations":  20,
+    "poll_seconds":  1,
+    "heartbeat_seconds":  3,
+    "scenario_timeout_seconds":  90,
+    "pending_before":  null,
+    "pending_current":  null,
+    "progress_percent":  null,
+    "elapsed_seconds":  0,
+    "last_trigger_latency_ms":  0,
+    "scenario_root":  "F:\\NCKH\\Product\\Martime_product_v1.1\\artifacts\\research-sync\\progress-smoke\\ProgressSmoke-LAN-20260322-054552",
+    "repetition_dir":  "",
+    "updated_at_utc":  "2026-03-22T05:46:26.9436135Z",
+    "note":  "Scenario summary file written."
+}

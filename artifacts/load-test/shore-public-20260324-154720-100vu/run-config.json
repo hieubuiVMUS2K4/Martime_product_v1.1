@@ -1,0 +1,12 @@
+{
+    "baseUrl":  "https://shcdvmu.site",
+    "targetVus":  100,
+    "rampUp":  "1m",
+    "hold":  "3m",
+    "rampDown":  "45s",
+    "minThinkMs":  800,
+    "maxThinkMs":  2500,
+    "accessTokenConfigured":  false,
+    "startedAt":  "2026-03-24T15:47:20.2751039+07:00",
+    "scriptPath":  "F:\\NCKH\\Product\\Martime_product_v1.1\\scripts\\load-test\\shore-public-load.js"
+}

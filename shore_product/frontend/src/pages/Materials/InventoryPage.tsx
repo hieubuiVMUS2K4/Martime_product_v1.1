@@ -198,7 +198,7 @@ export default function InventoryPage() {
     return (
       <div key={node.id}>
         <div
-          className={`flex items-center gap-1.5 py-1.5 px-2 rounded cursor-pointer text-sm hover:bg-blue-50 ${isSelected ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
+          className={`flex items-center gap-1.5 py-1.5 px-2 rounded cursor-pointer text-sm hover:bg-teal-50 ${isSelected ? 'bg-teal-100 text-teal-700 font-medium' : 'text-gray-700'}`}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
           onClick={() => selectLocation(isSelected ? null : node.id)}
         >
@@ -245,7 +245,7 @@ export default function InventoryPage() {
           </div>
           {summary && (
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+              <div className="flex items-center gap-1 text-xs bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full font-medium">
                 <Package size={12} /> {summary.totalItems} mặt hàng
               </div>
               <div className="flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
@@ -289,7 +289,7 @@ export default function InventoryPage() {
             <table className="min-w-full text-sm border-collapse">
               <thead className="sticky top-0 z-10">
                 {/* Row 1: Column headers + sort icons */}
-                <tr className="bg-blue-50">
+                <tr className="bg-teal-50">
                   <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">TT</th>
                   <th className="w-32 px-3 py-2 text-left border-b border-r border-gray-200">
                     <div className="flex items-center justify-between gap-1">
@@ -376,7 +376,7 @@ export default function InventoryPage() {
                 ) : items.length === 0 ? (
                   <tr><td colSpan={11} className="text-center py-8 text-gray-400">Không có dữ liệu tồn kho</td></tr>
                 ) : items.map((row, idx) => (
-                  <tr key={row.id} className={`hover:bg-blue-50 ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
+                  <tr key={row.id} className={`hover:bg-teal-50 ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
                     <td className="px-2 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{(currentPage - 1) * pageSize + idx + 1}</td>
                     <td className="px-3 py-2 text-xs font-medium border-r border-gray-100">{row.itemCode}</td>
                     <td className="px-3 py-2 text-xs border-r border-gray-100">{row.itemName}</td>
@@ -419,7 +419,7 @@ export default function InventoryPage() {
                 else if (currentPage >= tp - 2) page = tp - 4 + i;
                 else page = currentPage - 2 + i;
                 return (
-                  <button key={page} onClick={() => setCurrentPage(page)} className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${currentPage === page ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}>
+                  <button key={page} onClick={() => setCurrentPage(page)} className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${currentPage === page ? 'bg-teal-600 text-white border-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}>
                     {page}
                   </button>
                 );
@@ -557,7 +557,7 @@ export default function InventoryPage() {
               </table>
               <button
                 onClick={() => setDeclareItems([...declareItems, { materialItemId: '', storeLocationId: locations[0]?.id || '', quantity: 0, unitCost: 0 }])}
-                className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                className="mt-2 flex items-center gap-1 text-xs text-teal-600 hover:underline"
               >
                 <Plus size={13} /> Thêm dòng
               </button>
@@ -625,3 +625,4 @@ export default function InventoryPage() {
     </div>
   );
 }
+

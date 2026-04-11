@@ -20,7 +20,7 @@
   align-items: center;
   padding: 28px 32px;
   border-radius: 16px;
-  background: linear-gradient(135deg, #0f2b45 0%, #1a4a72 50%, #1e5a8a 100%);
+  background: linear-gradient(135deg, #0c2b29 0%, #135550 50%, #156760 100%);
   color: #fff;
   position: relative;
   overflow: hidden;
@@ -72,7 +72,7 @@
   gap: 14px;
   padding: 18px 20px;
   background: #fff;
-  border: 1px solid #e5eaf0;
+  border: 1px solid #ddf0eb;
   border-radius: 14px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   transition: transform 0.2s, box-shadow 0.2s;
@@ -105,14 +105,14 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #7a8ea0;
+  color: #5ca090;
   font-weight: 600;
 }
 
 .dash-kpi-info strong {
   font-size: 22px;
   font-weight: 700;
-  color: #0f2b45;
+  color: #0c2b29;
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
@@ -127,7 +127,7 @@
 /* Cards */
 .dash-card {
   background: #fff;
-  border: 1px solid #e5eaf0;
+  border: 1px solid #ddf0eb;
   border-radius: 14px;
   padding: 22px 24px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
@@ -144,12 +144,12 @@
   margin: 0;
   font-size: 15px;
   font-weight: 700;
-  color: #14324a;
+  color: #103230;
 }
 
 .dash-card-link {
   font-size: 13px;
-  color: #1a5a8e;
+  color: #146660;
   font-weight: 600;
   text-decoration: none;
 }
@@ -160,7 +160,7 @@
 
 .dash-card-sub {
   font-size: 12px;
-  color: #8a9db0;
+  color: #6fb0a0;
   font-weight: 600;
 }
 
@@ -175,13 +175,13 @@
   padding: 14px 16px;
   border-radius: 10px;
   background: #f8fafc;
-  border: 1px solid #e5eaf0;
-  border-left: 3px solid #1a5a8e;
+  border: 1px solid #ddf0eb;
+  border-left: 3px solid #146660;
   transition: background 0.15s;
 }
 
 .dash-vessel-item:hover {
-  background: #f0f5fa;
+  background: #effaf5;
 }
 
 .dash-vessel-name {
@@ -193,12 +193,12 @@
 
 .dash-vessel-name strong {
   font-size: 14px;
-  color: #14324a;
+  color: #103230;
 }
 
 .dash-vessel-name span {
   font-size: 12px;
-  color: #8a9db0;
+  color: #6fb0a0;
   font-family: var(--font-mono, monospace);
 }
 
@@ -206,13 +206,13 @@
   display: flex;
   gap: 16px;
   font-size: 12px;
-  color: #6e8497;
+  color: #4f9488;
 }
 
 .dash-vessel-route {
   margin-top: 6px;
   font-size: 13px;
-  color: #1a5a8e;
+  color: #146660;
   font-weight: 600;
 }
 
@@ -227,7 +227,7 @@
   padding: 14px 16px;
   border-radius: 10px;
   background: #f8fafc;
-  border: 1px solid #e5eaf0;
+  border: 1px solid #ddf0eb;
 }
 
 .dash-sync-header {
@@ -239,7 +239,7 @@
 
 .dash-sync-header strong {
   font-size: 14px;
-  color: #14324a;
+  color: #103230;
 }
 
 .dash-sync-badge {
@@ -270,7 +270,7 @@
   display: flex;
   gap: 16px;
   font-size: 12px;
-  color: #6e8497;
+  color: #4f9488;
 }
 
 .dash-sync-meta .is-stale {
@@ -288,8 +288,8 @@
 .dash-fin-item {
   padding: 16px 18px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #f7fafc 0%, #f0f4f8 100%);
-  border: 1px solid #e5eaf0;
+  background: linear-gradient(135deg, #f7fafc 0%, #effaf5 100%);
+  border: 1px solid #ddf0eb;
 }
 
 .dash-fin-item span {
@@ -297,7 +297,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #7a8ea0;
+  color: #5ca090;
   font-weight: 600;
   margin-bottom: 8px;
 }
@@ -305,7 +305,7 @@
 .dash-fin-item strong {
   font-size: 22px;
   font-weight: 700;
-  color: #0f2b45;
+  color: #0c2b29;
   letter-spacing: -0.02em;
 }
 
@@ -322,7 +322,7 @@
   gap: 16px;
   padding: 20px 22px;
   background: #fff;
-  border: 1px solid #e5eaf0;
+  border: 1px solid #ddf0eb;
   border-radius: 14px;
   text-decoration: none;
   transition: all 0.2s;
@@ -332,14 +332,14 @@
 .dash-module-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 14px rgba(17,41,61,0.08);
-  border-color: #c8d5e0;
+  border-color: #b0d8cc;
 }
 
 .dash-module-icon {
   width: 48px;
   height: 48px;
   border-radius: 14px;
-  background: #f0f5fa;
+  background: #effaf5;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -351,13 +351,13 @@
   margin: 0 0 4px;
   font-size: 14px;
   font-weight: 700;
-  color: #14324a;
+  color: #103230;
 }
 
 .dash-module-info p {
   margin: 0;
   font-size: 12px;
-  color: #7a8ea0;
+  color: #5ca090;
   line-height: 1.4;
 }
 
@@ -365,14 +365,14 @@
 .dash-loading {
   padding: 64px;
   text-align: center;
-  color: #6e8497;
+  color: #4f9488;
   font-size: 15px;
 }
 
 .dash-empty {
   padding: 24px;
   text-align: center;
-  color: #8a9db0;
+  color: #6fb0a0;
   font-size: 13px;
   font-style: italic;
 }
@@ -434,3 +434,5 @@
     grid-template-columns: 1fr;
   }
 }
+
+

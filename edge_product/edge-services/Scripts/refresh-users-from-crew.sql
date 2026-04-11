@@ -45,7 +45,6 @@ COMMIT;
 SELECT
     u.username,
     cm.full_name,
-    cm.position,
     r.role_code,
     u.is_active,
     u.created_at

@@ -11,7 +11,6 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { MaintenanceTask, CrewMember } from '../../types/maritime.types'
 import { KanbanCard } from './KanbanCard'
 import { KanbanColumn } from './KanbanColumn'
-import { AlertCircle, Clock, Wrench, CheckCircle, ClipboardList, RefreshCw, Calendar, FileText } from 'lucide-react'
 import { maritimeService } from '../../services/maritime.service'
 
 interface KanbanBoardProps {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Upload } from 'lucide-react';
+import { fetchProtectedMediaObjectUrl, isProtectedMediaPath } from '../../services/protectedMedia';
 
 interface ImageViewerModalProps {
   isOpen: boolean;
@@ -22,12 +23,35 @@ const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
   const [currentImageUrl, setCurrentImageUrl] = useState(imageUrl);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(imageUrl);
 
   useEffect(() => {
     setCurrentImageUrl(imageUrl);
     setPreviewFile(null);
     setPreviewUrl(null);
   }, [imageUrl]);
+
+  useEffect(() => {
+    if (!currentImageUrl || !isProtectedMediaPath(currentImageUrl)) {
+      setResolvedImageUrl(currentImageUrl);
+      return;
+    }
+
+    const controller = new AbortController();
+    let objectUrl: string | null = null;
+
+    fetchProtectedMediaObjectUrl(currentImageUrl, controller.signal)
+      .then((url) => {
+        objectUrl = url;
+        setResolvedImageUrl(url);
+      })
+      .catch(() => setResolvedImageUrl(null));
+
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [currentImageUrl]);
 
   const isCurrentPdf = previewFile
     ? previewFile.type === 'application/pdf'
@@ -94,18 +118,18 @@ const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
         <div style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb', minHeight: 400 }}>
           {uploading ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-              <div className="animate-spin" style={{ width: 48, height: 48, borderRadius: '50%', border: '4px solid #3b82f6', borderTopColor: 'transparent' }} />
+              <div className="animate-spin" style={{ width: 48, height: 48, borderRadius: '50%', border: '4px solid #14b8a6', borderTopColor: 'transparent' }} />
               <p style={{ color: '#4b5563', fontWeight: 500 }}>Đang tải lên...</p>
             </div>
           ) : isCurrentPdf ? (
             <iframe
-              src={previewUrl || currentImageUrl || imageUrl || ''}
+              src={previewUrl || resolvedImageUrl || ''}
               title="PDF Document"
               style={{ width: '100%', height: '100%', minHeight: '60vh', border: 'none' }}
             />
           ) : (
             <img
-              src={previewUrl || currentImageUrl || imageUrl || ''}
+              src={previewUrl || resolvedImageUrl || ''}
               alt="Document"
               style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
               onError={(e) => {
@@ -120,7 +144,7 @@ const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {documentId && customUploadHandler && !previewFile && (
               <button onClick={handleSelectFile} disabled={uploading}
-                style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 500 }}>
+                style={{ padding: '8px 16px', background: '#0d9488', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 500 }}>
                 <Upload style={{ width: 16, height: 16 }} /> Thay đổi file
               </button>
             )}
@@ -148,3 +172,4 @@ const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
 };
 
 export default ImageViewerModal;
+

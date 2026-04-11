@@ -1,0 +1,2 @@
+﻿"scenario","network","repetition","record_count","pending_before","pending_after","trigger_iterations","queue_drain_seconds","avg_trigger_latency_ms","max_trigger_latency_ms","queued_records","synced_records","benchmark_pending_records","retried_records","retry_count_total","primary_cpu_percent","primary_memory_bytes","success","started_at_utc","finished_at_utc"
+"VSAT-10000","VSAT","1","10000","10000","0","2","80.738","38329.547","76555.085","10000","10000","0","0","0","0.13","91467284","True","2026-03-21T18:56:02.2041075Z","2026-03-21T18:57:25.9955678Z"

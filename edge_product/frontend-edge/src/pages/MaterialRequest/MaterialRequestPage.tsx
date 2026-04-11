@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Send, Eye, ArrowLeft, ChevronRight, Search, X, Paperclip, Info, ChevronsUpDown } from 'lucide-react';
+import { Plus, Edit2, Trash2, Send, Eye, ArrowLeft, ChevronRight, Search, X, Paperclip, Info, ChevronsUpDown, CheckCircle, XCircle } from 'lucide-react';
 import { materialRequestService } from '@/services/materialRequest.service';
 import { materialService } from '@/services/materialService';
 import { voyageService } from '@/services/maritime.service';
@@ -188,6 +188,24 @@ export default function MaterialRequestPage() {
     loadList();
   };
 
+  const handleApprove = async (id: number) => {
+    if (!confirm('Xác nhận duyệt yêu cầu này?')) return;
+    await materialRequestService.approve(id);
+    if (detailData?.id === id) {
+      setDetailData({ ...detailData, status: 'Approved' });
+    }
+    loadList();
+  };
+
+  const handleReject = async (id: number) => {
+    if (!confirm('Xác nhận từ chối yêu cầu này?')) return;
+    await materialRequestService.reject(id);
+    if (detailData?.id === id) {
+      setDetailData({ ...detailData, status: 'Rejected' });
+    }
+    loadList();
+  };
+
   const addFormItem = () => {
     setFormItems(prev => [...prev, {
       equipmentAssetId: null,
@@ -367,6 +385,12 @@ export default function MaterialRequestPage() {
                           <button onClick={() => handleDelete(r.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Xóa"><Trash2 size={15} /></button>
                         </>
                       )}
+                      {r.status === 'Submitted' && (
+                        <>
+                          <button onClick={() => handleApprove(r.id)} className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title="Duyệt"><CheckCircle size={15} /></button>
+                          <button onClick={() => handleReject(r.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Từ chối"><XCircle size={15} /></button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -436,6 +460,26 @@ export default function MaterialRequestPage() {
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
                 ><Send className="w-3.5 h-3.5" /> Gửi duyệt</button>
+              </>
+            )}
+            {detailData.status === 'Submitted' && (
+              <>
+                <button
+                  onClick={async () => {
+                    await handleApprove(detailData.id);
+                    const latest = await materialRequestService.getById(detailData.id);
+                    setDetailData(latest);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                ><CheckCircle className="w-3.5 h-3.5" /> Duyệt</button>
+                <button
+                  onClick={async () => {
+                    await handleReject(detailData.id);
+                    const latest = await materialRequestService.getById(detailData.id);
+                    setDetailData(latest);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                ><XCircle className="w-3.5 h-3.5" /> Từ chối</button>
               </>
             )}
           </div>

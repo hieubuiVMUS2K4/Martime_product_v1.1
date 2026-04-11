@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Models;
 using MaritimeEdge.Models.Inventory;
+using Maritime.Shared.Models.Sync;
 
 namespace MaritimeEdge.Data;
 
@@ -51,6 +52,9 @@ public class EdgeDbContext : DbContext
     // Sync Queue & State
     public DbSet<SyncQueue> SyncQueue { get; set; } = null!;
     public DbSet<SyncState> SyncState { get; set; } = null!;
+    public DbSet<SyncFileManifest> SyncFileManifests { get; set; } = null!;
+    public DbSet<SyncFileTransferRequest> SyncFileTransferRequests { get; set; } = null!;
+    public DbSet<SyncFileChunkSession> SyncFileChunkSessions { get; set; } = null!;
 
     // Critical Operational Tables (SOLAS/ISM/MARPOL)
     public DbSet<CrewMember> CrewMembers { get; set; } = null!;
@@ -1173,6 +1177,58 @@ public class EdgeDbContext : DbContext
             // FIXME: SyncQueue.RecordId property does not exist - commented out
             // entity.HasIndex(e => new { e.TableName, e.RecordId })
             //     .HasDatabaseName("idx_sync_table_record");
+        });
+
+        modelBuilder.Entity<SyncFileManifest>(entity =>
+        {
+            entity.ToTable("sync_file_manifests");
+
+            entity.HasIndex(e => e.Id)
+                .IsUnique()
+                .HasDatabaseName("idx_sync_file_manifest_id");
+
+            entity.HasIndex(e => new { e.OwnerNodeId, e.TableName, e.RecordKey })
+                .HasDatabaseName("idx_sync_file_manifest_owner_record");
+
+            entity.HasIndex(e => new { e.ReceiverNodeId, e.TransferStatus })
+                .HasDatabaseName("idx_sync_file_manifest_receiver_status");
+
+            entity.HasIndex(e => e.Sha256)
+                .HasDatabaseName("idx_sync_file_manifest_sha256");
+        });
+
+        modelBuilder.Entity<SyncFileTransferRequest>(entity =>
+        {
+            entity.ToTable("sync_file_transfer_requests");
+
+            entity.HasIndex(e => new { e.RequesterNodeId, e.Status })
+                .HasDatabaseName("idx_sync_file_request_requester_status");
+
+            entity.HasIndex(e => new { e.SupplierNodeId, e.Status })
+                .HasDatabaseName("idx_sync_file_request_supplier_status");
+
+            entity.HasOne(e => e.Manifest)
+                .WithMany()
+                .HasForeignKey(e => e.ManifestId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SyncFileChunkSession>(entity =>
+        {
+            entity.ToTable("sync_file_chunk_sessions");
+
+            entity.HasIndex(e => new { e.RequesterNodeId, e.SupplierNodeId, e.Direction, e.Status })
+                .HasDatabaseName("idx_sync_file_chunk_session_nodes_status");
+
+            entity.HasIndex(e => new { e.ManifestId, e.Direction, e.Status })
+                .HasDatabaseName("idx_sync_file_chunk_session_manifest_status");
+
+            entity.HasIndex(e => e.ExpiresAtUtc)
+                .HasDatabaseName("idx_sync_file_chunk_session_expires");
+
+            entity.HasIndex(e => e.ResumeToken)
+                .IsUnique()
+                .HasDatabaseName("idx_sync_file_chunk_session_resume_token");
         });
 
         // ========== CERTIFICATES (Master Data) ==========
@@ -2832,6 +2888,12 @@ public class EdgeDbContext : DbContext
             // Assumption: All our models use "Id" as Key (Guid or Long)
             var keyProperty = entry.Properties.FirstOrDefault(p => p.Metadata.IsPrimaryKey());
             var recordKey = keyProperty?.CurrentValue?.ToString();
+
+            if (entry.Entity is CrewCertificate crewCertificateEntity &&
+                !string.IsNullOrWhiteSpace(crewCertificateEntity.CertificateNumber))
+            {
+                recordKey = crewCertificateEntity.CertificateNumber;
+            }
             
             if (string.IsNullOrEmpty(recordKey)) continue;
 
@@ -2858,13 +2920,7 @@ public class EdgeDbContext : DbContext
             else if (entry.State == EntityState.Added)
             {
                 syncItem.ActionType = SyncActionType.CREATE;
-                // Serialize full object
-                syncItem.Payload = System.Text.Json.JsonSerializer.Serialize(entry.Entity, new System.Text.Json.JsonSerializerOptions 
-                { 
-                    WriteIndented = false,
-                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
-                    ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
-                });
+                syncItem.Payload = SerializeSyncPayload(entry.Entity);
                 Console.WriteLine($"[EDGE-SYNC] Queued CREATE: {tableName}/{recordKey}");
             }
             else if (entry.State == EntityState.Modified)
@@ -2904,6 +2960,11 @@ public class EdgeDbContext : DbContext
                         changedProps["ImoNumber"] = imoProp.CurrentValue;
                 }
 
+                if (entry.Entity is CrewCertificate modifiedCertificate)
+                {
+                    EnrichCrewCertificatePayload(changedProps, modifiedCertificate);
+                }
+
                 syncItem.Payload = System.Text.Json.JsonSerializer.Serialize(changedProps);
                 
                 // Log CrewMember updates with FullName specifically
@@ -2919,6 +2980,73 @@ public class EdgeDbContext : DbContext
 
             // 5. Add to SyncQueue
             SyncQueue.Add(syncItem);
+        }
+    }
+
+    private string SerializeSyncPayload(object entity)
+    {
+        if (entity is CrewCertificate crewCertificate)
+        {
+            var payload = new Dictionary<string, object?>
+            {
+                ["Id"] = crewCertificate.Id,
+                ["CrewMemberId"] = crewCertificate.CrewMemberId,
+                ["CertificateId"] = crewCertificate.CertificateId,
+                ["CertificateNumber"] = crewCertificate.CertificateNumber,
+                ["IssueDate"] = crewCertificate.IssueDate,
+                ["ExpiryDate"] = crewCertificate.ExpiryDate,
+                ["IssuingAuthority"] = crewCertificate.IssuingAuthority,
+                ["CertificateOfCompetency"] = crewCertificate.CertificateOfCompetency,
+                ["CountryId"] = crewCertificate.CountryId,
+                ["DocumentFilePath"] = crewCertificate.DocumentFilePath,
+                ["Status"] = crewCertificate.Status,
+                ["Notes"] = crewCertificate.Notes,
+                ["IsSynced"] = crewCertificate.IsSynced,
+                ["OriginNode"] = crewCertificate.OriginNode,
+                ["SyncVersion"] = crewCertificate.SyncVersion,
+                ["CreatedAt"] = crewCertificate.CreatedAt,
+                ["UpdatedAt"] = crewCertificate.UpdatedAt
+            };
+
+            EnrichCrewCertificatePayload(payload, crewCertificate);
+            return System.Text.Json.JsonSerializer.Serialize(payload);
+        }
+
+        return System.Text.Json.JsonSerializer.Serialize(entity, new System.Text.Json.JsonSerializerOptions
+        {
+            WriteIndented = false,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+            ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+        });
+    }
+
+    private void EnrichCrewCertificatePayload(Dictionary<string, object?> payload, CrewCertificate crewCertificate)
+    {
+        var crewMember = CrewMembers.Local.FirstOrDefault(c => c.Id == crewCertificate.CrewMemberId)
+            ?? CrewMembers.AsNoTracking().FirstOrDefault(c => c.Id == crewCertificate.CrewMemberId);
+        if (crewMember != null)
+        {
+            payload["CrewId"] = crewMember.CrewId;
+            payload["CrewFullName"] = crewMember.FullName;
+            payload["CrewIdCardNumber"] = crewMember.IdCardNumber;
+            payload["CrewDateOfBirth"] = crewMember.DateOfBirth;
+        }
+
+        var certificate = Certificates.Local.FirstOrDefault(c => c.Id == crewCertificate.CertificateId)
+            ?? Certificates.AsNoTracking().FirstOrDefault(c => c.Id == crewCertificate.CertificateId);
+        if (certificate != null)
+        {
+            payload["CertificateCode"] = certificate.CertificateCode;
+        }
+
+        if (crewCertificate.CountryId.HasValue)
+        {
+            var country = Countries.Local.FirstOrDefault(c => c.Id == crewCertificate.CountryId.Value)
+                ?? Countries.AsNoTracking().FirstOrDefault(c => c.Id == crewCertificate.CountryId.Value);
+            if (country != null)
+            {
+                payload["CountryCode"] = country.CountryCode;
+            }
         }
     }
 

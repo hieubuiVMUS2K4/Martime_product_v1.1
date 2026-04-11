@@ -27,13 +27,15 @@ public class CrewController : ControllerBase
     private readonly ILogger<CrewController> _logger;
     private readonly AppDbContext _context;
     private readonly ISyncOutboxService _syncOutbox;
+    private readonly ISyncFileStorageService _syncFileStorageService;
 
-    public CrewController(ICrewService crewService, ILogger<CrewController> logger, AppDbContext context, ISyncOutboxService syncOutbox)
+    public CrewController(ICrewService crewService, ILogger<CrewController> logger, AppDbContext context, ISyncOutboxService syncOutbox, ISyncFileStorageService syncFileStorageService)
     {
         _crewService = crewService;
         _logger = logger;
         _context = context;
         _syncOutbox = syncOutbox;
+        _syncFileStorageService = syncFileStorageService;
     }
 
     // ============================================================
@@ -354,6 +356,121 @@ public class CrewController : ControllerBase
         }
     }
 
+    /// <summary>PUT /api/crew/{crewId}/documents/{category}/{documentId}/file — Upload or replace a document file.</summary>
+    [HttpPut("{crewId:guid}/documents/{category}/{documentId:guid}/file")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadDocumentFile(Guid crewId, string category, Guid documentId, [FromForm] IFormFile file)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { error = "File is required" });
+
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".pdf" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+                return BadRequest(new { error = "Only image files (jpg, jpeg, png, gif) and PDF are allowed" });
+
+            if (file.Length > 10 * 1024 * 1024)
+                return BadRequest(new { error = "File size must not exceed 10MB" });
+
+            var cat = (category ?? "travel").ToLower();
+            string? oldFileUrl = null;
+            string relativePath;
+            var fileName = $"doc_{crewId}_{documentId}_{DateTime.UtcNow:yyyyMMddHHmmss}{extension}";
+
+            switch (cat)
+            {
+                case "travel":
+                {
+                    var doc = await _context.TravelDocuments.AsTracking()
+                        .FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
+                    if (doc == null) return NotFound(new { error = "Document not found" });
+                    oldFileUrl = doc.FileUrl;
+                    relativePath = $"/uploads/crew/documents/{fileName}";
+                    if (!string.IsNullOrEmpty(oldFileUrl))
+                        await _syncFileStorageService.DeleteIfExistsAsync(oldFileUrl, HttpContext.RequestAborted);
+                    await using var buf = new MemoryStream();
+                    await file.CopyToAsync(buf, HttpContext.RequestAborted);
+                    await _syncFileStorageService.WriteAllBytesAsync(relativePath, buf.ToArray(), HttpContext.RequestAborted);
+                    doc.FileUrl = relativePath;
+                    doc.UpdatedAt = DateTime.UtcNow;
+                    _context.TravelDocuments.Update(doc);
+                    await _context.SaveChangesAsync();
+                    await _syncOutbox.BroadcastAsync("travel_document", documentId.ToString(), SyncActionType.UPDATE, doc);
+                    break;
+                }
+                case "seafarer":
+                {
+                    var doc = await _context.SeafarerDocuments.AsTracking()
+                        .FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
+                    if (doc == null) return NotFound(new { error = "Document not found" });
+                    oldFileUrl = doc.FileUrl;
+                    relativePath = $"/uploads/crew/documents/{fileName}";
+                    if (!string.IsNullOrEmpty(oldFileUrl))
+                        await _syncFileStorageService.DeleteIfExistsAsync(oldFileUrl, HttpContext.RequestAborted);
+                    await using var buf = new MemoryStream();
+                    await file.CopyToAsync(buf, HttpContext.RequestAborted);
+                    await _syncFileStorageService.WriteAllBytesAsync(relativePath, buf.ToArray(), HttpContext.RequestAborted);
+                    doc.FileUrl = relativePath;
+                    doc.UpdatedAt = DateTime.UtcNow;
+                    _context.SeafarerDocuments.Update(doc);
+                    await _context.SaveChangesAsync();
+                    await _syncOutbox.BroadcastAsync("seafarer_document", documentId.ToString(), SyncActionType.UPDATE, doc);
+                    break;
+                }
+                case "employment":
+                {
+                    var doc = await _context.EmploymentDocuments.AsTracking()
+                        .FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
+                    if (doc == null) return NotFound(new { error = "Document not found" });
+                    oldFileUrl = doc.FileUrl;
+                    relativePath = $"/uploads/crew/documents/{fileName}";
+                    if (!string.IsNullOrEmpty(oldFileUrl))
+                        await _syncFileStorageService.DeleteIfExistsAsync(oldFileUrl, HttpContext.RequestAborted);
+                    await using var buf = new MemoryStream();
+                    await file.CopyToAsync(buf, HttpContext.RequestAborted);
+                    await _syncFileStorageService.WriteAllBytesAsync(relativePath, buf.ToArray(), HttpContext.RequestAborted);
+                    doc.FileUrl = relativePath;
+                    doc.UpdatedAt = DateTime.UtcNow;
+                    _context.EmploymentDocuments.Update(doc);
+                    await _context.SaveChangesAsync();
+                    await _syncOutbox.BroadcastAsync("employment_document", documentId.ToString(), SyncActionType.UPDATE, doc);
+                    break;
+                }
+                case "health":
+                {
+                    var doc = await _context.HealthDocuments.AsTracking()
+                        .FirstOrDefaultAsync(d => d.Id == documentId && d.CrewMemberId == crewId);
+                    if (doc == null) return NotFound(new { error = "Document not found" });
+                    oldFileUrl = doc.FileUrl;
+                    relativePath = $"/uploads/crew/documents/{fileName}";
+                    if (!string.IsNullOrEmpty(oldFileUrl))
+                        await _syncFileStorageService.DeleteIfExistsAsync(oldFileUrl, HttpContext.RequestAborted);
+                    await using var buf = new MemoryStream();
+                    await file.CopyToAsync(buf, HttpContext.RequestAborted);
+                    await _syncFileStorageService.WriteAllBytesAsync(relativePath, buf.ToArray(), HttpContext.RequestAborted);
+                    doc.FileUrl = relativePath;
+                    doc.UpdatedAt = DateTime.UtcNow;
+                    _context.HealthDocuments.Update(doc);
+                    await _context.SaveChangesAsync();
+                    await _syncOutbox.BroadcastAsync("health_document", documentId.ToString(), SyncActionType.UPDATE, doc);
+                    break;
+                }
+                default:
+                    return BadRequest(new { error = $"Unknown document category: {category}" });
+            }
+
+            _logger.LogInformation("Uploaded document file for crew {CrewId}, category {Category}, doc {DocId}", crewId, category, documentId);
+            return Ok(new { message = "Document file uploaded successfully", fileUrl = $"/uploads/crew/documents/{fileName}" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading document file for crew {CrewId}", crewId);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
     // ============================================================
     // SERVICE RECORDS ENDPOINTS
     // ============================================================
@@ -473,25 +590,18 @@ public class CrewController : ControllerBase
             var crew = await _context.CrewMembers.FindAsync(id);
             if (crew == null) return NotFound(new { error = "Crew member not found" });
 
-            var uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "crew", "avatars");
-            Directory.CreateDirectory(uploadsRoot);
-
             var fileName = $"avatar_{id}_{DateTime.UtcNow:yyyyMMddHHmmss}{extension}";
-            var filePath = Path.Combine(uploadsRoot, fileName);
+            var relativePath = $"/uploads/crew/avatars/{fileName}";
 
             // Delete old avatar file if stored locally
             if (!string.IsNullOrEmpty(crew.PhotoUrl) && crew.PhotoUrl.StartsWith("/uploads/"))
-            {
-                var oldPath = Path.Combine(Directory.GetCurrentDirectory(),
-                    crew.PhotoUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-                if (System.IO.File.Exists(oldPath))
-                    System.IO.File.Delete(oldPath);
-            }
+                await _syncFileStorageService.DeleteIfExistsAsync(crew.PhotoUrl, HttpContext.RequestAborted);
 
-            await using var stream = new FileStream(filePath, FileMode.Create);
-            await file.CopyToAsync(stream);
+            await using var buffer = new MemoryStream();
+            await file.CopyToAsync(buffer, HttpContext.RequestAborted);
+            await _syncFileStorageService.WriteAllBytesAsync(relativePath, buffer.ToArray(), HttpContext.RequestAborted);
 
-            crew.PhotoUrl = $"/uploads/crew/avatars/{fileName}";
+            crew.PhotoUrl = relativePath;
             crew.UpdatedAt = DateTime.UtcNow;
             _context.CrewMembers.Update(crew);
             await _context.SaveChangesAsync();

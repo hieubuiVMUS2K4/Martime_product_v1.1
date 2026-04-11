@@ -15,10 +15,11 @@ import { useToast } from '../../components/common/Toast';
 import { useConfirmDialog } from '../../components/common/ConfirmDialog';
 import { CrewFormModal } from './CrewFormModal';
 import { AssignShipModal } from './AssignShipModal';
+import ProtectedImage from '../../components/common/ProtectedImage';
 import type { CrewMember, CreateCrewRequest, CrewCertificate } from '../../types/crew.types';
 import './CrewListPage.css';
 
-const AVATAR_COLORS = ['#1e40af','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#4f46e5','#15803d','#b45309','#9333ea'];
+const AVATAR_COLORS = ['#0a7068','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#4f46e5','#15803d','#b45309','#9333ea'];
 function hashColor(id: string) {
   let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
@@ -330,7 +331,7 @@ export const CrewListPage: React.FC = () => {
       <div className="cl-table-card" style={{ position: 'relative' }}>
         {loading && (
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.5)', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Loader2 size={24} className="spin" style={{ color: '#1e40af' }} />
+            <Loader2 size={24} className="spin" style={{ color: '#0a7068' }} />
           </div>
         )}
         <table className="cl-table">
@@ -388,7 +389,7 @@ export const CrewListPage: React.FC = () => {
                   <td>
                     <button className="cl-name-link" onClick={() => navigate(`/crew/${m.id}`)}>
                       <span className="cl-av" style={{ background: hashColor(m.id) }}>
-                        {m.avatarUrl ? <img src={m.avatarUrl} alt="" /> : getInitials(m.fullName)}
+                        {m.avatarUrl ? <ProtectedImage src={m.avatarUrl} alt="" /> : getInitials(m.fullName)}
                       </span>
                       <div>
                         <div className="cl-name">{m.fullName}</div>

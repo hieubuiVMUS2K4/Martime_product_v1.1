@@ -39,6 +39,7 @@ public class SyncOutboxService : ISyncOutboxService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<SyncOutboxService> _logger;
+    private readonly ISyncFileStorageService _syncFileStorageService;
     private static readonly HashSet<string> _fileTableNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "crew_member", "crew_certificate", "travel_document", "seafarer_document",
@@ -54,10 +55,11 @@ public class SyncOutboxService : ISyncOutboxService
         ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
     };
 
-    public SyncOutboxService(AppDbContext context, ILogger<SyncOutboxService> logger)
+    public SyncOutboxService(AppDbContext context, ILogger<SyncOutboxService> logger, ISyncFileStorageService syncFileStorageService)
     {
         _context = context;
         _logger = logger;
+        _syncFileStorageService = syncFileStorageService;
     }
 
     public async Task EnqueueAsync(string targetNode, string tableName, string recordKey,
@@ -207,16 +209,17 @@ public class SyncOutboxService : ISyncOutboxService
                 HasMore = hasMore
             };
 
-            // Attach file data for document-related items
+            // Attach metadata-only file references for document-related items.
             foreach (var dto in response.Items)
             {
                 try
                 {
-                    await PopulateFileAttachmentAsync(dto, "SHORE");
+                    dto.FileRefs = await BuildOutgoingFileReferencesAsync(dto, "SHORE");
+                    dto.Payload = StripFileReferenceProperties(dto.Payload);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to attach file for pull item {Table}/{Key}", dto.TableName, dto.RecordKey);
+                    _logger.LogWarning(ex, "Failed to build file refs for pull item {Table}/{Key}", dto.TableName, dto.RecordKey);
                 }
             }
 
@@ -232,59 +235,125 @@ public class SyncOutboxService : ISyncOutboxService
         }
     }
 
-    private async Task PopulateFileAttachmentAsync(SyncQueueItemDto dto, string sourceNodeId)
+    private async Task<List<SyncFileReferenceDto>> BuildOutgoingFileReferencesAsync(SyncQueueItemDto dto, string sourceNodeId)
     {
+        var refs = new List<SyncFileReferenceDto>();
+
         if (!_fileTableNames.Contains(dto.TableName))
-            return;
+            return refs;
 
-        var filePath = ExtractSyncFilePath(dto.Payload);
-        if (string.IsNullOrWhiteSpace(filePath))
-            return;
+        foreach (var (role, filePath) in ExtractSyncFilePaths(dto.Payload))
+        {
+            if (!_syncFileStorageService.Exists(filePath))
+            {
+                _logger.LogWarning("Sync file path not found for {Table}/{Key}: {Path}", dto.TableName, dto.RecordKey, filePath);
+                continue;
+            }
 
-        var absPath = ResolveSyncFilePath(filePath);
-        if (!System.IO.File.Exists(absPath))
-            return;
+            var absPath = _syncFileStorageService.ResolveLocalPath(filePath);
+            var fileInfo = new FileInfo(absPath);
+            var checksum = await _syncFileStorageService.ComputeSha256HexAsync(filePath, CancellationToken.None);
+            refs.Add(new SyncFileReferenceDto
+            {
+                FileId = CreateDeterministicFileId(sourceNodeId, dto.TableName, dto.RecordKey, role, checksum),
+                FileRole = role,
+                FileName = Path.GetFileName(filePath),
+                ContentType = GuessContentType(filePath),
+                SizeBytes = _syncFileStorageService.GetFileSize(filePath),
+                Sha256 = checksum,
+                SourcePath = filePath,
+                CapturedAtUtc = fileInfo.LastWriteTimeUtc,
+                TransferPriority = GetFileTransferPriority(dto.TableName)
+            });
+        }
 
-        var fileInfo = new FileInfo(absPath);
-        if (fileInfo.Length > 10 * 1024 * 1024)
-            return;
-
-        var bytes = await System.IO.File.ReadAllBytesAsync(absPath);
-        dto.FileData = Convert.ToBase64String(bytes);
-        dto.FileName = Path.GetFileName(absPath);
-        dto.FileChecksumSha256 = ComputeSha256Hex(bytes);
-        dto.FileSourceNodeId = sourceNodeId;
-        dto.FileSourcePath = filePath;
-        dto.FileCapturedAtUtc = fileInfo.LastWriteTimeUtc;
+        return refs;
     }
 
-    private static string? ExtractSyncFilePath(string payload)
+    private static List<(string Role, string FilePath)> ExtractSyncFilePaths(string payload)
     {
+        var refs = new List<(string Role, string FilePath)>();
         using var doc = JsonDocument.Parse(payload);
-        foreach (var propName in new[] { "documentFilePath", "DocumentFilePath", "filePath", "FilePath", "fileUrl", "FileUrl", "photoUrl", "PhotoUrl" })
+        foreach (var (propName, role) in new[]
+        {
+            ("documentFilePath", "attachment"),
+            ("DocumentFilePath", "attachment"),
+            ("filePath", "attachment"),
+            ("FilePath", "attachment"),
+            ("fileUrl", "attachment"),
+            ("FileUrl", "attachment"),
+            ("photoUrl", "avatar"),
+            ("PhotoUrl", "avatar")
+        })
         {
             if (doc.RootElement.TryGetProperty(propName, out var val))
             {
                 var filePath = val.GetString();
                 if (!string.IsNullOrWhiteSpace(filePath))
-                    return filePath;
+                    refs.Add((role, filePath));
             }
         }
 
-        return null;
+        return refs;
     }
 
-    private static string ResolveSyncFilePath(string filePath)
+    private static string StripFileReferenceProperties(string payload)
     {
-        return filePath.StartsWith("/", StringComparison.Ordinal)
-            ? Path.Combine(Directory.GetCurrentDirectory(), filePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar))
-            : filePath;
+        using var doc = JsonDocument.Parse(payload);
+        var root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+            return payload;
+
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartObject();
+            foreach (var property in root.EnumerateObject())
+            {
+                if (property.NameEquals("DocumentFilePath") || property.NameEquals("documentFilePath")
+                    || property.NameEquals("FilePath") || property.NameEquals("filePath")
+                    || property.NameEquals("FileUrl") || property.NameEquals("fileUrl")
+                    || property.NameEquals("PhotoUrl") || property.NameEquals("photoUrl"))
+                {
+                    continue;
+                }
+
+                property.WriteTo(writer);
+            }
+            writer.WriteEndObject();
+        }
+
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    private static string ComputeSha256Hex(byte[] content)
+    private static Guid CreateDeterministicFileId(string sourceNodeId, string tableName, string recordKey, string role, string checksum)
     {
-        var hash = SHA256.HashData(content);
-        return Convert.ToHexString(hash).ToLowerInvariant();
+        var bytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{sourceNodeId}:{tableName}:{recordKey}:{role}:{checksum}"));
+        var guidBytes = new byte[16];
+        Array.Copy(bytes, guidBytes, 16);
+        return new Guid(guidBytes);
+    }
+
+    private static string GuessContentType(string filePath)
+    {
+        return Path.GetExtension(filePath).ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".pdf" => "application/pdf",
+            _ => "application/octet-stream"
+        };
+    }
+
+    private static SyncPriority GetFileTransferPriority(string tableName)
+    {
+        return tableName switch
+        {
+            "crew_member" => SyncPriority.Operational,
+            "crew_certificate" => SyncPriority.Operational,
+            _ => SyncPriority.Low
+        };
     }
 
     public async Task AcknowledgeDeliveryAsync(string nodeId, List<long> itemIds)

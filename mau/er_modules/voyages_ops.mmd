@@ -1,0 +1,67 @@
+erDiagram
+    VOYAGE_RECORDS {
+        string id PK
+        string voyage_number
+        string departure_port
+        datetime departure_time
+        string arrival_port
+        datetime arrival_time
+        string voyage_status
+        float total_distance
+        float fuel_consumed
+        datetime created_at
+    }
+    VOYAGE_PLAN_LEGS {
+        string id PK
+        string voyage_id FK
+        int sequence
+        string leg_type
+        string from_port_code
+        string to_port_code
+        datetime planned_departure_time
+        datetime planned_arrival_time
+    }
+    PORT_CALLS {
+        string id PK
+        string voyage_id FK
+        string port_name
+        datetime arrival_time
+        datetime departure_time
+        string port_code
+    }
+    DECK_LOG_BOOKS {
+        string id PK
+        datetime log_date_time
+        string watch_period
+        string officer_on_watch
+        string description
+    }
+    ENGINE_LOG_BOOKS {
+        string id PK
+        datetime log_date_time
+        string engineer_on_watch
+        float main_engine_running_hours
+        string remarks
+    }
+    NOON_REPORTS {
+        string id PK
+        string voyage_id FK
+        datetime report_date
+        float position_lat
+        float position_lon
+        string remarks
+    }
+    BUNKER_REPORTS {
+        string id PK
+        string voyage_id FK
+        datetime bunker_date
+        string supplier_name
+        float quantity_received
+    }
+
+    VOYAGE_RECORDS ||--o{ VOYAGE_PLAN_LEGS : "has"
+    VOYAGE_RECORDS ||--o{ PORT_CALLS : "calls"
+    VOYAGE_RECORDS ||--o{ NOON_REPORTS : "reports"
+    VOYAGE_RECORDS ||--o{ BUNKER_REPORTS : "bunkers"
+    VOYAGE_RECORDS ||--o{ DECK_LOG_BOOKS : "logs"
+    VOYAGE_RECORDS ||--o{ ENGINE_LOG_BOOKS : "logs"

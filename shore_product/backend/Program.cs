@@ -37,7 +37,7 @@ var conn = configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(conn))
     throw new InvalidOperationException("ConnectionStrings:DefaultConnection must be configured.");
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContext<AppDbContext>((sp, options) =>
     options.UseNpgsql(conn)
            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 
@@ -112,6 +112,7 @@ builder.Services.AddAuthorizationBuilder()
         policy.Requirements.Add(new InternalAccessRequirement()));
 
 builder.Services.AddSingleton<IAuthorizationHandler, InternalAccessHandler>();
+builder.Services.AddSingleton<IDataEncryptionService, DataEncryptionService>();
 builder.Services.AddScoped<ProductApi.Security.SyncRequestVerificationMiddleware>();
 
 builder.Services.AddRateLimiter(options =>
@@ -195,26 +196,44 @@ builder.Services.AddScoped<ProductApi.Services.CrewManagement.IOnboardEventServi
 // Register sync services (Phase 3)
 builder.Services.AddScoped<ProductApi.Services.Sync.ISyncInboxService, ProductApi.Services.Sync.SyncInboxService>();
 builder.Services.AddScoped<ProductApi.Services.Sync.ISyncOutboxService, ProductApi.Services.Sync.SyncOutboxService>();
+builder.Services.AddScoped<ProductApi.Services.Sync.ISyncFileStorageService, ProductApi.Services.Sync.LocalSyncFileStorageService>();
+builder.Services.AddScoped<ProductApi.Services.Sync.ISyncFileTransferService, ProductApi.Services.Sync.SyncFileTransferService>();
 builder.Services.AddScoped<ProductApi.Services.Sync.IConflictResolverService, ProductApi.Services.Sync.ConflictResolverService>();
 builder.Services.AddScoped<ProductApi.Services.INotificationService, ProductApi.Services.NotificationService>();
 builder.Services.AddScoped<ProductApi.Services.Sync.ICrewSyncOrchestrator, ProductApi.Services.Sync.CrewSyncOrchestrator>();
 
 // Register voyage management service
 builder.Services.AddScoped<ProductApi.Services.Voyage.IVoyageService, ProductApi.Services.Voyage.VoyageService>();
+builder.Services.AddScoped<ProductApi.Services.Voyage.IVoyagePlanningService, ProductApi.Services.Voyage.VoyagePlanningService>();
+
+// Register network detection service (Phase 2.2)
+builder.Services.AddScoped<ProductApi.Services.Network.INetworkDetectionService, ProductApi.Services.Network.NetworkDetectionService>();
+
+// Register replay protection service (Phase 2.3)
+builder.Services.AddScoped<ProductApi.Services.Sync.ISyncNonceRegistryService, ProductApi.Services.Sync.SyncNonceRegistryService>();
+
+// Register DLQ and retry policy services (Phase 2.4)
+builder.Services.AddScoped<ProductApi.Services.Sync.ISyncDlqService, ProductApi.Services.Sync.SyncDlqService>();
+builder.Services.AddScoped<ProductApi.Services.Sync.ISyncRetryPolicy, ProductApi.Services.Sync.SyncRetryPolicy>();
 
 // Background services
 builder.Services.AddHostedService<AlertBackgroundService>();
 builder.Services.AddHostedService<ProductApi.Services.Sync.CertificateExpiryMonitorService>();
 builder.Services.AddHostedService<ProductApi.Services.Sync.SyncHealthMonitorService>();
-builder.Services.AddHostedService<ProductApi.Services.Sync.SyncNodeAutoProvisionService>();
+builder.Services.AddHostedService<ProductApi.Services.Background.NetworkAwareSyncBackgroundService>();
+// Phase 2.3: Nonce registry cleanup service
+builder.Services.AddHostedService<ProductApi.Services.Sync.SyncNonceRegistryCleanupService>();
 
 var app = builder.Build();
 
 // Migrate DB using EF Core Migrations
-using (var scope = app.Services.CreateScope())
+var autoMigrateDatabase = builder.Configuration.GetValue("Database:AutoMigrate", true);
+if (autoMigrateDatabase)
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    db.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
     var retryCount = 0;
     while (retryCount < 5)
     {
@@ -342,6 +361,22 @@ using (var scope = app.Services.CreateScope())
                     ON shore_notifications (""IsRead"");
             ");
 
+            // ── Seed default admin user (idempotent) ──
+            await db.Database.ExecuteSqlRawAsync(@"
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Users_Username""
+                    ON ""Users"" (""Username"");
+
+                INSERT INTO ""Users"" (""Id"", ""Username"", ""PasswordHash"", ""Role"")
+                VALUES (
+                    'a0000000-0000-0000-0000-000000000001',
+                    'admin',
+                    'Admin@123',
+                    'admin'
+                )
+                ON CONFLICT (""Username"") DO NOTHING;
+            ");
+            logger.LogInformation("Default admin user seed completed.");
+
             logger.LogInformation("Database migration/verification completed successfully.");
             break;
         }
@@ -353,6 +388,11 @@ using (var scope = app.Services.CreateScope())
             await Task.Delay(5000); // Wait 5 seconds before retry
         }
     }
+}
+else
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("Database auto-migration disabled by configuration.");
 }
 
 if (app.Environment.IsDevelopment())
@@ -413,6 +453,8 @@ Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "travel
 Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "seafarer_documents"));
 Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "employment_documents"));
 Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "health_documents"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "sync-content"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "sync-staging"));
 
 app.UseCors("AllowWebMobile");
 app.UseRouting();
@@ -420,13 +462,6 @@ app.UseRateLimiter();
 app.UseWhen(
     context => ProductApi.Security.SyncRequestVerificationMiddleware.IsProtectedSyncRequest(context.Request),
     branch => branch.UseMiddleware<ProductApi.Security.SyncRequestVerificationMiddleware>());
-
-// Serve uploaded files
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(uploadsPath),
-    RequestPath = "/uploads"
-});
 
 app.UseAuthentication();
 app.UseAuthorization();

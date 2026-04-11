@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ProductApi.Models;
 using Maritime.Shared.Models.CrewManagement;
+using Maritime.Shared.Models.Sync;
 
 namespace ProductApi.Data
 {
@@ -84,6 +85,15 @@ namespace ProductApi.Data
         public DbSet<SyncNodeTracker> SyncNodeTrackers { get; set; } = null!;
         public DbSet<SyncIdempotencyRecord> SyncIdempotencyRecords { get; set; } = null!;
         public DbSet<SyncTableStats> SyncTableStats { get; set; } = null!;
+        public DbSet<SyncFileManifest> SyncFileManifests { get; set; } = null!;
+        public DbSet<SyncFileTransferRequest> SyncFileTransferRequests { get; set; } = null!;
+        public DbSet<SyncFileChunkSession> SyncFileChunkSessions { get; set; } = null!;
+        
+        // Phase 2.3: Replay Protection (Nonce Registry)
+        public DbSet<SyncNonceRegistryEntry> SyncNonceRegistry { get; set; } = null!;
+        
+        // Phase 2.4: Batch Failure & Dead-Letter Queue
+        public DbSet<SyncDlqEntry> SyncDlqItems { get; set; } = null!;
 
         // ============================================================
         // CREW MANAGEMENT WORKFLOW (Phase 1A)
@@ -212,6 +222,14 @@ namespace ProductApi.Data
                 entity.ToTable("ports");
                 entity.HasKey(e => e.Id);
 
+                // ════ CRITICAL: Enforce UTC ════
+                entity.Property(e => e.CreatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.UpdatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
                 entity.HasIndex(e => e.PortCode).IsUnique();
                 entity.HasIndex(e => e.CountryCode);
                 entity.HasIndex(e => e.PortName);
@@ -222,6 +240,26 @@ namespace ProductApi.Data
             modelBuilder.Entity<PortCall>(entity =>
             {
                 entity.ToTable("PortCalls");
+
+                // ════ CRITICAL: Enforce UTC ════
+                entity.Property(e => e.ArrivalTime)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.DepartureTime)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.PilotOnBoard)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.PilotOffBoard)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.CreatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.UpdatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
                 entity.HasOne(pc => pc.Vessel)
                     .WithMany(v => v.PortCalls)
@@ -280,6 +318,43 @@ namespace ProductApi.Data
                 entity.Property(e => e.DistanceTraveled).HasPrecision(10, 2);
                 entity.Property(e => e.FuelConsumed).HasPrecision(10, 3);
                 entity.Property(e => e.AverageSpeed).HasPrecision(5, 2);
+
+                // ════ CRITICAL: Enforce UTC for all DateTime fields ════
+                // Npgsql rejects DateTime.Kind=Local. Always convert to UTC on write,
+                // and ensure read values are marked as UTC.
+                entity.Property(e => e.DepartureTime)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.ArrivalTime)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.ApprovedAt)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.ReadyAt)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.CommencedAt)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.ArrivedAt)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.CompletedAt)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.CancelledAt)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.FinancialClosedAt)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.CreatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.UpdatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
                 entity.HasIndex(e => e.VoyageNumber).IsUnique();
                 entity.HasIndex(e => e.VoyageStatus);
@@ -373,6 +448,20 @@ namespace ProductApi.Data
                 entity.Property(e => e.PlannedAverageSpeed).HasPrecision(5, 2);
                 entity.Property(e => e.PlannedFuelConsumption).HasPrecision(10, 3);
 
+                // ════ CRITICAL: Enforce UTC for datetime fields ════
+                entity.Property(e => e.PlannedDepartureTime)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.PlannedArrivalTime)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.CreatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.UpdatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
                 entity.HasIndex(e => new { e.VoyageId, e.Sequence }).IsUnique();
                 entity.HasIndex(e => e.LegType);
                 entity.HasIndex(e => e.IsSynced);
@@ -383,6 +472,17 @@ namespace ProductApi.Data
                 entity.ToTable("voyage_status_history");
                 entity.HasKey(e => e.Id);
 
+                // ════ CRITICAL: Enforce UTC ════
+                entity.Property(e => e.ChangedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.CreatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.UpdatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
                 entity.HasIndex(e => new { e.VoyageId, e.ChangedAt });
                 entity.HasIndex(e => e.ToStatus);
                 entity.HasIndex(e => e.IsSynced);
@@ -392,6 +492,20 @@ namespace ProductApi.Data
             {
                 entity.ToTable("voyage_crew_assignments");
                 entity.HasKey(e => e.Id);
+
+                // ════ CRITICAL: Enforce UTC ════
+                entity.Property(e => e.EmbarkDate)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.DisembarkDate)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.CreatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.UpdatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
                 entity.HasIndex(e => new { e.VoyageId, e.CrewMemberId }).IsUnique();
                 entity.HasIndex(e => e.CrewMemberId);
@@ -416,6 +530,20 @@ namespace ProductApi.Data
 
                 entity.Property(e => e.Quantity).HasPrecision(15, 3);
 
+                // ════ CRITICAL: Enforce UTC ════
+                entity.Property(e => e.LoadedAt)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.DischargedAt)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.CreatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.UpdatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
                 entity.HasIndex(e => e.OperationId).IsUnique();
                 entity.HasIndex(e => e.VoyageId);
                 entity.HasIndex(e => e.Status);
@@ -429,6 +557,23 @@ namespace ProductApi.Data
                 entity.ToTable("voyage_log_entries");
                 entity.HasKey(e => e.Id);
 
+                // ════ CRITICAL: Enforce UTC ════
+                entity.Property(e => e.EventDateTime)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.EventDateTimeLocal)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.SignedAt)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.CreatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.UpdatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
                 entity.HasIndex(e => e.EventType);
                 entity.HasIndex(e => e.EventDateTime);
                 entity.HasIndex(e => e.VoyageId);
@@ -440,6 +585,14 @@ namespace ProductApi.Data
             {
                 entity.ToTable("voyage_cargo_plans");
                 entity.HasKey(e => e.Id);
+
+                // ════ CRITICAL: Enforce UTC ════
+                entity.Property(e => e.CreatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.UpdatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
                 entity.HasIndex(e => new { e.VoyageId, e.Sequence }).IsUnique();
                 entity.HasIndex(e => e.PlanLegId);
@@ -945,6 +1098,37 @@ namespace ProductApi.Data
                 entity.ToTable("sync_table_stats");
                 entity.HasKey(e => e.Id);
                 entity.HasIndex(e => new { e.NodeId, e.TableName });
+            });
+
+            modelBuilder.Entity<SyncFileManifest>(entity =>
+            {
+                entity.ToTable("sync_file_manifests");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.OwnerNodeId, e.TableName, e.RecordKey });
+                entity.HasIndex(e => new { e.ReceiverNodeId, e.TransferStatus });
+                entity.HasIndex(e => e.Sha256);
+            });
+
+            modelBuilder.Entity<SyncFileTransferRequest>(entity =>
+            {
+                entity.ToTable("sync_file_transfer_requests");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.RequesterNodeId, e.Status });
+                entity.HasIndex(e => new { e.SupplierNodeId, e.Status });
+                entity.HasOne(e => e.Manifest)
+                    .WithMany()
+                    .HasForeignKey(e => e.ManifestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<SyncFileChunkSession>(entity =>
+            {
+                entity.ToTable("sync_file_chunk_sessions");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.RequesterNodeId, e.SupplierNodeId, e.Direction, e.Status });
+                entity.HasIndex(e => new { e.ManifestId, e.Direction, e.Status });
+                entity.HasIndex(e => e.ExpiresAtUtc);
+                entity.HasIndex(e => e.ResumeToken).IsUnique();
             });
 
             // ============================================================
@@ -1593,6 +1777,43 @@ namespace ProductApi.Data
                 entity.HasIndex(e => new { e.MaterialItemId, e.StoreLocationId }).IsUnique();
                 entity.Property(e => e.Quantity).HasPrecision(18, 4);
                 entity.Property(e => e.UnitCost).HasPrecision(18, 4);
+            });
+
+            // ============================================================
+            // PHASE 2.3: SYNC NONCE REGISTRY (Replay Protection)
+            // ============================================================
+            modelBuilder.Entity<SyncNonceRegistryEntry>(entity =>
+            {
+                entity.ToTable("sync_nonce_registry");
+                entity.HasKey(e => e.Id);
+
+                // Unique constraint on nonce to detect replays
+                entity.HasIndex(e => e.Nonce).IsUnique();
+
+                // Index on ExpiresAtUtc for cleanup queries
+                entity.HasIndex(e => e.ExpiresAtUtc);
+
+                // Index for debugging
+                entity.HasIndex(e => new { e.OriginNode, e.RegisteredAtUtc });
+            });
+
+            // ============================================================
+            // PHASE 2.4: SYNC DEAD-LETTER QUEUE (Batch Failure Handling)
+            // ============================================================
+            modelBuilder.Entity<SyncDlqEntry>(entity =>
+            {
+                entity.ToTable("sync_dlq_items");
+                entity.HasKey(e => e.Id);
+
+                // Index for querying pending items
+                entity.HasIndex(e => new { e.IsApprovedForManualReplay, e.MovedToDlqAtUtc });
+
+                // Index for statistics
+                entity.HasIndex(e => e.Priority);
+                entity.HasIndex(e => e.MovedToDlqAtUtc);
+
+                // Index for finding items by origin
+                entity.HasIndex(e => e.OriginEdgeNode);
             });
         }
     }

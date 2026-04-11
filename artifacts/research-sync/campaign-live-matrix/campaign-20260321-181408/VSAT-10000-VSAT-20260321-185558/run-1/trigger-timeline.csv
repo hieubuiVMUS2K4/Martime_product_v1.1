@@ -1,0 +1,3 @@
+﻿"scenario","repetition","iteration","timestamp_utc","pending_before","pending_after","trigger_latency_ms","response_json"
+"VSAT-10000","1","1","2026-03-21T18:57:20.7961673Z","10000","2","76555.085","{""message"":""Đồng bộ hoàn tất"",""totalSynced"":10000,""pendingRecords"":0}"
+"VSAT-10000","1","2","2026-03-21T18:57:22.9349192Z","2","0","104.008","{""message"":""Đồng bộ hoàn tất"",""totalSynced"":2,""pendingRecords"":0}"

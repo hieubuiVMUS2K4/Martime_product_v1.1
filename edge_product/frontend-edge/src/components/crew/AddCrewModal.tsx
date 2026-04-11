@@ -16,7 +16,7 @@ export function AddCrewModal({ isOpen, onClose, onSave }: AddCrewModalProps) {
     fullName: '',
     rankId: undefined,
     department: '',
-    nationality: '',
+    countryId: 1,
     dateOfBirth: '',
     embarkDate: new Date().toISOString().split('T')[0],
     isOnboard: true,

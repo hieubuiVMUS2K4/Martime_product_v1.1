@@ -255,6 +255,34 @@ public class MaterialRequestController : ControllerBase
         return Ok(new { request.Id, request.Status });
     }
 
+    /// <summary>PUT approve request (Submitted -> Approved)</summary>
+    [HttpPut("{id}/approve")]
+    public async Task<ActionResult> Approve(int id)
+    {
+        var request = await _context.MaterialRequests.FindAsync(id);
+        if (request == null || !request.IsActive) return NotFound();
+        if (request.Status != "Submitted") return BadRequest("Only submitted requests can be approved.");
+
+        request.Status = "Approved";
+        request.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return Ok(new { request.Id, request.Status });
+    }
+
+    /// <summary>PUT reject request (Submitted -> Rejected)</summary>
+    [HttpPut("{id}/reject")]
+    public async Task<ActionResult> Reject(int id)
+    {
+        var request = await _context.MaterialRequests.FindAsync(id);
+        if (request == null || !request.IsActive) return NotFound();
+        if (request.Status != "Submitted") return BadRequest("Only submitted requests can be rejected.");
+
+        request.Status = "Rejected";
+        request.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return Ok(new { request.Id, request.Status });
+    }
+
     /// <summary>DELETE soft-delete</summary>
     [HttpDelete("{id}")]
     public async Task<ActionResult> Delete(int id)

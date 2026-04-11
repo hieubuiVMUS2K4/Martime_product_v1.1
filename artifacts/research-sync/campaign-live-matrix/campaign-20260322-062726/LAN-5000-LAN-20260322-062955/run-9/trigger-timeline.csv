@@ -1,0 +1,2 @@
+﻿"scenario","repetition","iteration","timestamp_utc","pending_before","pending_after","benchmark_synced_before","benchmark_synced_after","global_pending_before","global_pending_after","progress_detected","trigger_latency_ms","response_json"
+"LAN-5000","9","1","2026-03-22T06:31:22.1611368Z","5000","5000","0","0","5000","5000","False","1506.363","{""message"":""Đồng bộ hoàn tất"",""totalSynced"":0,""pendingRecords"":5000}"

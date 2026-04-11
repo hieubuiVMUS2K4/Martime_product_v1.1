@@ -46,7 +46,7 @@
 
 .confirm-icon--danger  { background: #fee2e2; color: #dc2626; }
 .confirm-icon--warning { background: #fef3c7; color: #d97706; }
-.confirm-icon--info    { background: #dbeafe; color: #2563eb; }
+.confirm-icon--info    { background: #ccfbf1; color: #0d9488; }
 .confirm-icon--default { background: #f1f5f9; color: #475569; }
 
 /* === Text === */
@@ -90,8 +90,8 @@
 }
 
 .confirm-input:focus {
-  border-color: var(--color-accent, #0ea5e9);
-  box-shadow: 0 0 0 3px rgba(14,165,233,0.1);
+  border-color: var(--color-accent, #14b8a6);
+  box-shadow: 0 0 0 3px rgba(20,184,166,0.1);
 }
 
 /* === Actions === */
@@ -147,21 +147,22 @@
 }
 
 .confirm-btn--info {
-  background: var(--color-accent, #0ea5e9);
+  background: var(--color-accent, #14b8a6);
   color: #fff;
-  border-color: var(--color-accent, #0ea5e9);
+  border-color: var(--color-accent, #14b8a6);
 }
 
 .confirm-btn--info:hover:not(:disabled) {
-  background: var(--color-accent-hover, #0284c7);
+  background: var(--color-accent-hover, #0d9488);
 }
 
 .confirm-btn--default {
-  background: var(--color-primary, #1e3a5f);
+  background: var(--color-primary, #134e4a);
   color: #fff;
-  border-color: var(--color-primary, #1e3a5f);
+  border-color: var(--color-primary, #134e4a);
 }
 
 .confirm-btn--default:hover:not(:disabled) {
-  background: var(--color-primary-hover, #16304f);
+  background: var(--color-primary-hover, #0d3d3a);
 }
+

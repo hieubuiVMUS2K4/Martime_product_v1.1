@@ -717,6 +717,26 @@ public class CrewController : ControllerBase
 
             await _context.SaveChangesAsync();
 
+            // Enqueue crew_member update to SyncQueue so changes sync to Shore
+            var syncPayload = System.Text.Json.JsonSerializer.Serialize(existing, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = false,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+            });
+            _context.SyncQueue.Add(new SyncQueue
+            {
+                TableName = "crew_member",
+                RecordKey = id.ToString(),
+                ActionType = SyncActionType.UPDATE,
+                Payload = syncPayload,
+                Priority = SyncPriority.Operational,
+                CreatedAt = DateTime.UtcNow,
+                RetryCount = 0,
+                MaxRetries = 5
+            });
+            await _context.SaveChangesAsync();
+
             // Reload with Rank navigation property for complete response
             await _context.Entry(existing).Reference(c => c.Rank).LoadAsync();
 
@@ -832,10 +852,31 @@ public class CrewController : ControllerBase
 
             // Update database
             crewMember.PhotoUrl = $"/uploads/crew/avatars/{fileName}";
+            crewMember.UpdatedAt = DateTime.UtcNow;
             crewMember.IsSynced = false;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Uploaded avatar for crew member: {Id} - {FullName}", id, crewMember.FullName);
+            // Enqueue crew_member update to SyncQueue so avatar syncs to Shore
+            var syncPayload = System.Text.Json.JsonSerializer.Serialize(crewMember, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = false,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+            });
+            _context.SyncQueue.Add(new SyncQueue
+            {
+                TableName = "crew_member",
+                RecordKey = id.ToString(),
+                ActionType = SyncActionType.UPDATE,
+                Payload = syncPayload,
+                Priority = SyncPriority.Operational,
+                CreatedAt = DateTime.UtcNow,
+                RetryCount = 0,
+                MaxRetries = 5
+            });
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Uploaded avatar for crew member: {Id} - {FullName}, enqueued sync", id, crewMember.FullName);
 
             return Ok(new { 
                 message = "Avatar uploaded successfully", 
@@ -1035,6 +1076,7 @@ public class CrewController : ControllerBase
 
                     _context.TravelDocuments.Add(entity);
                     await _context.SaveChangesAsync();
+                    await EnqueueIdentityDocumentSyncAsync("travel_document", entity.Id.ToString(), SyncActionType.CREATE, entity);
                     return Ok(entity);
                 }
 
@@ -1056,6 +1098,7 @@ public class CrewController : ControllerBase
 
                     _context.SeafarerDocuments.Add(entity);
                     await _context.SaveChangesAsync();
+                    await EnqueueIdentityDocumentSyncAsync("seafarer_document", entity.Id.ToString(), SyncActionType.CREATE, entity);
                     return Ok(entity);
                 }
 
@@ -1077,6 +1120,7 @@ public class CrewController : ControllerBase
 
                     _context.EmploymentDocuments.Add(entity);
                     await _context.SaveChangesAsync();
+                    await EnqueueIdentityDocumentSyncAsync("employment_document", entity.Id.ToString(), SyncActionType.CREATE, entity);
                     return Ok(entity);
                 }
 
@@ -1097,6 +1141,7 @@ public class CrewController : ControllerBase
 
                     _context.HealthDocuments.Add(entity);
                     await _context.SaveChangesAsync();
+                    await EnqueueIdentityDocumentSyncAsync("health_document", entity.Id.ToString(), SyncActionType.CREATE, entity);
                     return Ok(entity);
                 }
 
@@ -1202,6 +1247,20 @@ public class CrewController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
+
+            var syncTableName = normalizedTarget switch
+            {
+                "travel_documents" => "travel_document",
+                "seafarer_documents" => "seafarer_document",
+                "employment_documents" => "employment_document",
+                "health_documents" => "health_document",
+                _ => string.Empty
+            };
+
+            if (!string.IsNullOrWhiteSpace(syncTableName) && document != null)
+            {
+                await EnqueueIdentityDocumentSyncAsync(syncTableName, documentId.ToString(), SyncActionType.UPDATE, document);
+            }
 
             // Delete old file if exists
             if (!string.IsNullOrWhiteSpace(oldFileUrl))
@@ -1326,6 +1385,99 @@ public class CrewController : ControllerBase
             _logger.LogError(ex, "Error getting health documents for crew {CrewId}", id);
             return StatusCode(500, new { error = "Internal server error" });
         }
+    }
+
+    private async Task EnqueueIdentityDocumentSyncAsync(string tableName, string recordKey, SyncActionType actionType, object payload)
+    {
+        var serializedPayload = System.Text.Json.JsonSerializer.Serialize(BuildIdentityDocumentSyncPayload(payload), new System.Text.Json.JsonSerializerOptions
+        {
+            WriteIndented = false,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+            ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+        });
+
+        _context.SyncQueue.Add(new SyncQueue
+        {
+            TableName = tableName,
+            RecordKey = recordKey,
+            ActionType = actionType,
+            Payload = serializedPayload,
+            Priority = SyncPriority.Operational,
+            CreatedAt = DateTime.UtcNow,
+            RetryCount = 0,
+            MaxRetries = 5
+        });
+
+        await _context.SaveChangesAsync();
+    }
+
+    private static Dictionary<string, object?> BuildIdentityDocumentSyncPayload(object payload)
+    {
+        var result = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var property in payload.GetType().GetProperties())
+        {
+            if (!property.CanRead || property.GetIndexParameters().Length > 0)
+            {
+                continue;
+            }
+
+            if (string.Equals(property.Name, "CrewMember", StringComparison.OrdinalIgnoreCase))
+            {
+                var crewMember = property.GetValue(payload);
+                if (crewMember == null)
+                {
+                    continue;
+                }
+
+                var crewId = crewMember.GetType().GetProperty("CrewId")?.GetValue(crewMember) as string;
+                if (!string.IsNullOrWhiteSpace(crewId))
+                {
+                    result["CrewId"] = crewId;
+                }
+
+                var crewFullName = crewMember.GetType().GetProperty("FullName")?.GetValue(crewMember) as string;
+                if (!string.IsNullOrWhiteSpace(crewFullName))
+                {
+                    result["CrewFullName"] = crewFullName;
+                }
+
+                var crewIdCardNumber = crewMember.GetType().GetProperty("IdCardNumber")?.GetValue(crewMember) as string;
+                if (!string.IsNullOrWhiteSpace(crewIdCardNumber))
+                {
+                    result["CrewIdCardNumber"] = crewIdCardNumber;
+                }
+
+                var crewDateOfBirth = crewMember.GetType().GetProperty("DateOfBirth")?.GetValue(crewMember);
+                if (crewDateOfBirth != null)
+                {
+                    result["CrewDateOfBirth"] = crewDateOfBirth;
+                }
+
+                var crewMemberId = crewMember.GetType().GetProperty("Id")?.GetValue(crewMember);
+                if (crewMemberId != null && !result.ContainsKey("CrewMemberId"))
+                {
+                    result["CrewMemberId"] = crewMemberId;
+                }
+
+                continue;
+            }
+
+            var value = property.GetValue(payload);
+            if (value == null)
+            {
+                continue;
+            }
+
+            if (property.PropertyType != typeof(string) && !property.PropertyType.IsValueType)
+            {
+                continue;
+            }
+
+            result[property.Name] = value;
+        }
+
+        return result;
     }
 
     private async Task<string> SaveIdentityDocumentFileAsync(Guid crewMemberId, string documentType, IFormFile file, string targetTable)

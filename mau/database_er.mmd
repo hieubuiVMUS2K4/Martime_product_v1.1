@@ -1,0 +1,452 @@
+erDiagram
+    MATERIAL_RECEIPTS {
+        int id PK
+        string receipt_code
+        timestamp receipt_date
+    }
+
+    MATERIAL_RECEIPT_ITEMS {
+        int id PK
+        int receipt_id FK
+        uuid material_item_id FK
+        numeric quantity
+    }
+
+    MATERIAL_REQUESTS {
+        int id PK
+        string request_code
+        string status
+    }
+
+    MATERIAL_REQUEST_ITEMS {
+        int id PK
+        int request_id FK
+        uuid material_item_id FK
+    }
+
+    MATERIAL_ITEMS {
+        uuid id PK
+        string item_code
+        string name
+        bigint category_id FK
+    }
+
+    MATERIAL_CATEGORIES {
+        bigint id PK
+        string category_code
+        string name
+    }
+
+    STOCK_RECEIPTS {
+        int id PK
+        string receipt_code
+        uuid voyage_id FK
+    }
+
+    STOCK_RECEIPT_ITEMS {
+        int id PK
+        int receipt_id FK
+        uuid material_item_id FK
+    }
+
+    INVENTORY_STOCK {
+        int id PK
+        uuid material_item_id FK
+        uuid store_location_id FK
+        numeric quantity
+    }
+
+    STORE_LOCATIONS {
+        uuid id PK
+        string location_code
+        string name
+    }
+
+    CREW_MEMBERS {
+        uuid id PK
+        string crew_id
+        string full_name
+        integer rank_id FK
+        integer country_id FK
+    }
+
+    CREW_CERTIFICATES {
+        int id PK
+        uuid crew_member_id FK
+        int certificate_id FK
+    }
+
+    CERTIFICATES {
+        int id PK
+        string certificate_code
+    }
+
+    RANKS {
+        int id PK
+        string rank_code
+    }
+
+    COUNTRIES {
+        int id PK
+        string country_code
+    }
+
+    EMPLOYMENT_DOCUMENTS {
+        uuid id PK
+        uuid crew_member_id FK
+        int country_id FK
+    }
+
+    HEALTH_DOCUMENTS {
+        uuid id PK
+        uuid crew_member_id FK
+    }
+
+    SEAFARER_DOCUMENTS {
+        uuid id PK
+        uuid crew_member_id FK
+    }
+
+    SERVICE_RECORDS {
+        uuid id PK
+        uuid crew_member_id FK
+    }
+
+    MARITIME_REPORTS {
+        uuid id PK
+        string report_number
+        int report_type_id FK
+        uuid voyage_id FK
+    }
+
+    REPORT_TYPES {
+        int id PK
+        string type_code
+    }
+
+    REPORT_ATTACHMENTS {
+        uuid id PK
+        uuid maritime_report_id FK
+    }
+
+    REPORT_TRANSMISSION_LOGS {
+        uuid id PK
+        uuid maritime_report_id FK
+    }
+
+    ARRIVAL_REPORTS {
+        uuid id PK
+        uuid maritime_report_id FK
+    }
+
+    DEPARTURE_REPORTS {
+        uuid id PK
+        uuid maritime_report_id FK
+    }
+
+    NOON_REPORTS {
+        uuid id PK
+        uuid maritime_report_id FK
+    }
+
+    POSITION_REPORTS {
+        uuid id PK
+        uuid maritime_report_id FK
+    }
+
+    POSITION_DATA {
+        uuid id PK
+    }
+
+    AIS_DATA {
+        uuid id PK
+    }
+
+    VOYAGE_RECORDS {
+        uuid id PK
+        string voyage_number
+    }
+
+    VOYAGE_PLAN_LEGS {
+        uuid id PK
+        uuid voyage_id FK
+    }
+
+    VOYAGE_LOG_ENTRIES {
+        uuid id PK
+        uuid voyage_id FK
+        uuid voyage_plan_leg_id FK
+    }
+
+    PORTS {
+        int id PK
+        string port_code
+    }
+
+    PORT_CALLS {
+        uuid id PK
+        uuid voyage_id FK
+        int port_id FK
+        uuid voyage_plan_leg_id FK
+    }
+
+    WATCHKEEPING_LOGS {
+        uuid id PK
+        uuid voyage_id FK
+        uuid voyage_plan_leg_id FK
+    }
+
+    VOYAGE_CREW_ASSIGNMENTS {
+        uuid id PK
+        uuid voyage_id FK
+        uuid crew_member_id FK
+        integer rank_id FK
+    }
+
+    VOYAGE_CREW_CHANGE_PLANS {
+        uuid id PK
+        uuid voyage_id FK
+        uuid plan_leg_id FK
+        uuid crew_member_id FK
+    }
+
+    VOYAGE_BUNKER_PLANS {
+        uuid id PK
+        uuid voyage_id FK
+        uuid plan_leg_id FK
+    }
+
+    VOYAGE_CARGO_PLANS {
+        uuid id PK
+        uuid voyage_id FK
+        uuid plan_leg_id FK
+    }
+
+    VOYAGE_EXPENSE_REQUESTS {
+        uuid id PK
+        uuid voyage_id FK
+    }
+
+    VOYAGE_DISBURSEMENTS {
+        uuid id PK
+        uuid voyage_id FK
+        uuid expense_request_id FK
+        uuid advance_payment_id FK
+    }
+
+    VOYAGE_ADVANCE_PAYMENTS {
+        uuid id PK
+        uuid voyage_id FK
+    }
+
+    VOYAGE_ACTUAL_REVENUES {
+        uuid id PK
+        uuid voyage_id FK
+    }
+
+    VOYAGE_REVENUE_ESTIMATES {
+        uuid id PK
+        uuid voyage_id FK
+    }
+
+    VOYAGE_SETTLEMENTS {
+        uuid id PK
+        uuid voyage_id FK
+    }
+
+    MAINTENANCE_TASKS {
+        uuid id PK
+        string task_id
+        uuid equipment_asset_id FK
+        uuid equipment_group_id FK
+    }
+
+    MAINTENANCE_TASK_DETAILS {
+        uuid id PK
+        uuid maintenance_task_id FK
+    }
+
+    MAINTENANCE_SCHEDULES {
+        uuid id PK
+        uuid equipment_asset_id FK
+        uuid equipment_group_id FK
+    }
+
+    SCHEDULE_CHECKLIST_TEMPLATES {
+        uuid id PK
+        uuid schedule_id FK
+    }
+
+    SCHEDULE_SPARE_PARTS {
+        uuid id PK
+        uuid schedule_id FK
+        uuid material_item_id FK
+    }
+
+    EQUIPMENT_ASSETS {
+        uuid id PK
+        uuid parent_id FK
+    }
+
+    EQUIPMENT_GROUPS {
+        uuid id PK
+    }
+
+    EQUIPMENT_GROUP_MEMBERS {
+        uuid id PK
+        uuid group_id FK
+        uuid asset_id FK
+    }
+
+    TASK_CHECKLIST_ITEMS {
+        uuid id PK
+        string task_id FK
+        uuid asset_id FK
+    }
+
+    TASK_DEFERRAL_REQUESTS {
+        uuid id PK
+        uuid task_id FK
+    }
+
+    TASK_STATUS_HISTORY {
+        uuid id PK
+        uuid task_id FK
+    }
+
+    TANK_LEVELS {
+        uuid id PK
+    }
+
+    FUEL_CONSUMPTION {
+        uuid id PK
+        uuid voyage_id FK
+        uuid voyage_plan_leg_id FK
+    }
+
+    FUEL_ANALYTICS_SUMMARIES {
+        bigint id PK
+    }
+
+    GARBAGE_RECORD_BOOKS {
+        uuid id PK
+        uuid voyage_id FK
+        uuid voyage_plan_leg_id FK
+    }
+
+    GARBAGE_RECORD_PART_I {
+        uuid id PK
+        uuid voyage_id FK
+        uuid voyage_plan_leg_id FK
+    }
+
+    GARBAGE_RECORD_PART_II {
+        uuid id PK
+        uuid voyage_id FK
+        uuid voyage_plan_leg_id FK
+    }
+
+    SAFETY_ALARMS {
+        uuid id PK
+        uuid voyage_id FK
+        uuid voyage_plan_leg_id FK
+    }
+
+    SYSTEM_LOGS {
+        bigint id PK
+    }
+
+    USERS {
+        bigint id PK
+        integer role_id FK
+        string crew_id FK
+    }
+
+    USER_SESSIONS {
+        uuid id PK
+        bigint user_id FK
+    }
+
+    ROLES {
+        int id PK
+    }
+
+    NMEA_RAW_DATA {
+        bigint id PK
+    }
+
+    GENERATOR_DATA {
+        uuid id PK
+    }
+
+    ENGINE_DATA {
+        uuid id PK
+    }
+
+    ENGINE_LOG_BOOKS {
+        uuid id PK
+        uuid voyage_id FK
+        uuid voyage_plan_leg_id FK
+    }
+
+    WATCHKEEPING_LOGS ||--o{ VOYAGE_PLAN_LEGS : "for"
+    WATCHKEEPING_LOGS ||--o{ VOYAGE_RECORDS : "on"
+
+    VOYAGE_RECORDS ||--o{ VOYAGE_PLAN_LEGS : "has"
+    VOYAGE_PLAN_LEGS ||--o{ VOYAGE_BUNKER_PLANS : "plans"
+    VOYAGE_PLAN_LEGS ||--o{ VOYAGE_CARGO_PLANS : "plans"
+    VOYAGE_PLAN_LEGS ||--o{ VOYAGE_LOG_ENTRIES : "leg_entries"
+    VOYAGE_RECORDS ||--o{ MARITIME_REPORTS : "reported"
+    MARITIME_REPORTS ||--o{ REPORT_ATTACHMENTS : "has"
+    MARITIME_REPORTS ||--o{ REPORT_TRANSMISSION_LOGS : "sent"
+    MARITIME_REPORTS ||--o{ ARRIVAL_REPORTS : "arrival"
+    MARITIME_REPORTS ||--o{ DEPARTURE_REPORTS : "departure"
+    MARITIME_REPORTS ||--o{ NOON_REPORTS : "noon"
+    MARITIME_REPORTS ||--o{ POSITION_REPORTS : "position"
+
+    CREW_MEMBERS ||--o{ CREW_CERTIFICATES : "has"
+    CERTIFICATES ||--o{ CREW_CERTIFICATES : "issued_as"
+    COUNTRIES ||--o{ CREW_CERTIFICATES : "applies_to"
+    CREW_MEMBERS ||--o{ EMPLOYMENT_DOCUMENTS : "has"
+    CREW_MEMBERS ||--o{ HEALTH_DOCUMENTS : "has"
+    CREW_MEMBERS ||--o{ SEAFARER_DOCUMENTS : "has"
+    CREW_MEMBERS ||--o{ SERVICE_RECORDS : "has"
+
+    MATERIAL_RECEIPTS ||--o{ MATERIAL_RECEIPT_ITEMS : "contains"
+    MATERIAL_ITEMS ||--o{ MATERIAL_RECEIPT_ITEMS : "references"
+    MATERIAL_REQUESTS ||--o{ MATERIAL_REQUEST_ITEMS : "contains"
+    MATERIAL_ITEMS ||--o{ MATERIAL_REQUEST_ITEMS : "references"
+
+    STOCK_RECEIPTS ||--o{ STOCK_RECEIPT_ITEMS : "contains"
+    STOCK_RECEIPTS ||--o{ MATERIAL_REQUESTS : "from_request"
+    STOCK_RECEIPT_ITEMS ||--o{ MATERIAL_ITEMS : "references"
+    INVENTORY_STOCK ||--o{ MATERIAL_ITEMS : "tracks"
+
+    EQUIPMENT_GROUPS ||--o{ EQUIPMENT_GROUP_MEMBERS : "has"
+    EQUIPMENT_ASSETS ||--o{ EQUIPMENT_GROUP_MEMBERS : "member"
+    EQUIPMENT_ASSETS ||--o{ MAINTENANCE_TASKS : "asset_tasks"
+    MAINTENANCE_TASKS ||--o{ MAINTENANCE_TASK_DETAILS : "details"
+    MAINTENANCE_SCHEDULES ||--o{ SCHEDULE_CHECKLIST_TEMPLATES : "checkpoints"
+    MAINTENANCE_SCHEDULES ||--o{ SCHEDULE_SPARE_PARTS : "spares"
+
+    USERS ||--o{ USER_SESSIONS : "sessions"
+    ROLES ||--o{ USERS : "role"
+
+    PORTS ||--o{ PORT_CALLS : "used_by"
+    VOYAGE_RECORDS ||--o{ PORT_CALLS : "calls"
+
+    note for VOYAGE_RECORDS "Voyage-centric tables and their dependents"
+    note for CREW_MEMBERS "Crew & documents & certifications"
+    note for MATERIAL_ITEMS "Inventory / receipts / requests"
+
+## Modular ER diagrams
+Below are module files (simplified) generated from the full schema. Each module is rút gọn (<= ~15 attributes per table).
+
+- Core system: `mau/er_modules/core.mmd`
+- Catalogs & reference data: `mau/er_modules/catalogs.mmd`
+- PMS + Inventory: `mau/er_modules/pms_inventory.mmd`
+- Crew & HR: `mau/er_modules/crew.mmd`
+- Voyages & Operations: `mau/er_modules/voyages_ops.mmd`
+- Reports & Logs: `mau/er_modules/reports_logs.mmd`
+
+You can open those files for human-friendly, focused ER diagrams.

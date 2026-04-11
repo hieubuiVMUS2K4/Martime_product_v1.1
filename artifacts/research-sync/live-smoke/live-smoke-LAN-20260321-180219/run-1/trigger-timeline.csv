@@ -1,0 +1,2 @@
+﻿"scenario","repetition","iteration","timestamp_utc","pending_before","pending_after","trigger_latency_ms","response_json"
+"live-smoke","1","1","2026-03-21T18:02:22.4525968Z","10","0","173.59","{""message"":""Đồng bộ hoàn tất"",""totalSynced"":10,""pendingRecords"":0}"

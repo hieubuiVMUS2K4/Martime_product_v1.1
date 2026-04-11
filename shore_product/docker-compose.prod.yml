@@ -48,13 +48,9 @@ services:
       Security__EnforceHttps: "${SECURITY_ENFORCE_HTTPS:-true}"
       Security__RequireInternalAccess: "${SECURITY_REQUIRE_INTERNAL_ACCESS:-true}"
       InternalAccess__ApiKey: "${INTERNAL_API_KEY:?INTERNAL_API_KEY must be set}"
+      DataProtection__EncryptionKey: "${DATA_PROTECTION__ENCRYPTION_KEY:?DATA_PROTECTION__ENCRYPTION_KEY must be set}"
       SyncSecurity__RequireSignedRequests: "${SYNC_REQUIRE_SIGNED_REQUESTS:-true}"
       SyncSecurity__ProtocolVersion: "${SYNC_PROTOCOL_VERSION:-2}"
-      # Auto-provisioned edge nodes (can override signing keys via env vars)
-      SyncSecurity__Nodes__8765432__SigningKey: "${NODE_8765432_SIGNING_KEY:-MekongSpirit_SyncKey_Node8765432_HMAC_SHA256_Maritime_NCKH_2026_Prod}"
-      SyncSecurity__Nodes__8765432__ShipName: "${NODE_8765432_SHIP_NAME:-MV MEKONG SPIRIT}"
-      SyncSecurity__Nodes__8765432__ImoNumber: "8765432"
-      SyncSecurity__Nodes__8765432__KeyVersion: "${NODE_8765432_KEY_VERSION:-1}"
     volumes:
       - backend-uploads:/app/uploads
     depends_on:

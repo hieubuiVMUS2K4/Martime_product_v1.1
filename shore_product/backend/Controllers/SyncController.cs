@@ -23,6 +23,7 @@ public class SyncController : ControllerBase
     private readonly AppDbContext _context;
     private readonly ISyncInboxService _syncInbox;
     private readonly ISyncOutboxService _syncOutbox;
+    private readonly ISyncFileTransferService _syncFileTransfer;
     private readonly ICrewSyncOrchestrator _crewSync;
     private readonly ILogger<SyncController> _logger;
 
@@ -30,12 +31,14 @@ public class SyncController : ControllerBase
         AppDbContext context,
         ISyncInboxService syncInbox,
         ISyncOutboxService syncOutbox,
+        ISyncFileTransferService syncFileTransfer,
         ICrewSyncOrchestrator crewSync,
         ILogger<SyncController> logger)
     {
         _context = context;
         _syncInbox = syncInbox;
         _syncOutbox = syncOutbox;
+        _syncFileTransfer = syncFileTransfer;
         _crewSync = crewSync;
         _logger = logger;
     }
@@ -87,7 +90,7 @@ public class SyncController : ControllerBase
         try
         {
             // Use batch processing with idempotency (each item saved individually)
-            var (succeeded, failed) = await _syncInbox.ProcessBatchAsync(items);
+            var batchResult = await _syncInbox.ProcessBatchAsync(items);
 
             await transaction.CommitAsync();
 
@@ -103,14 +106,15 @@ public class SyncController : ControllerBase
             }
 
             _logger.LogInformation("Sync batch from {Node}: {Success}/{Total} succeeded",
-                originNode, succeeded, items.Count);
+                originNode, batchResult.Succeeded, items.Count);
 
             return Ok(new
             {
                 message = "Sync complete",
-                succeeded,
-                failed,
+                succeeded = batchResult.Succeeded,
+                failed = batchResult.Failed,
                 total = items.Count,
+                failedItems = batchResult.FailedItems,
                 serverTime = DateTime.UtcNow
             });
         }
@@ -264,6 +268,328 @@ public class SyncController : ControllerBase
         {
             _logger.LogError(ex, "Error acknowledging items for node {NodeId}", ack.NodeId);
             return StatusCode(500, new { error = "Acknowledge failed" });
+        }
+    }
+
+    /// <summary>
+    /// GET /api/sync/file-requests — supplier polls pending file requests created by the receiver.
+    /// </summary>
+    [HttpGet("file-requests")]
+    public async Task<IActionResult> GetFileRequests([FromQuery] string supplierNodeId)
+    {
+        var verifiedNodeId = HttpContext.Items[VerifiedNodeIdItemKey] as string;
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId) &&
+            !string.Equals(verifiedNodeId, supplierNodeId, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "Signed node identity does not match supplier node." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId))
+        {
+            supplierNodeId = verifiedNodeId;
+        }
+
+        if (string.IsNullOrWhiteSpace(supplierNodeId))
+            return BadRequest(new { error = "supplierNodeId is required" });
+
+        try
+        {
+            var requests = await _syncFileTransfer.GetPendingRequestsForSupplierAsync(supplierNodeId, HttpContext.RequestAborted);
+            return Ok(requests);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting file requests for supplier {SupplierNodeId}", supplierNodeId);
+            return StatusCode(500, new { error = "File request lookup failed" });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/sync/file-request — receiver registers a request for a supplier-owned file.
+    /// </summary>
+    [HttpPost("file-request")]
+    public async Task<IActionResult> RegisterFileRequest([FromBody] Maritime.Shared.DTOs.Sync.SyncFileTransferRequestDto request)
+    {
+        var verifiedNodeId = HttpContext.Items[VerifiedNodeIdItemKey] as string;
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId) &&
+            !string.Equals(verifiedNodeId, request.RequesterNodeId, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "Signed node identity does not match requester node." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId))
+        {
+            request.RequesterNodeId = verifiedNodeId;
+        }
+
+        try
+        {
+            var result = await _syncFileTransfer.RegisterRequestAsync(request, HttpContext.RequestAborted);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error registering file request {ManifestId} from {RequesterNodeId}", request.ManifestId, request.RequesterNodeId);
+            return StatusCode(500, new { error = "File request registration failed" });
+        }
+    }
+
+    /// <summary>
+    /// GET /api/sync/file-download — receiver downloads a supplier-owned file after registering a request.
+    /// </summary>
+    [HttpGet("file-download")]
+    public async Task<IActionResult> DownloadFile([FromQuery] Guid manifestId, [FromQuery] string requesterNodeId)
+    {
+        var verifiedNodeId = HttpContext.Items[VerifiedNodeIdItemKey] as string;
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId) &&
+            !string.Equals(verifiedNodeId, requesterNodeId, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "Signed node identity does not match requester node." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId))
+        {
+            requesterNodeId = verifiedNodeId;
+        }
+
+        try
+        {
+            var content = await _syncFileTransfer.GetFileContentAsync(manifestId, requesterNodeId, HttpContext.RequestAborted);
+            if (content == null)
+                return NotFound(new { error = "Requested file is not available" });
+
+            return Ok(content);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error downloading file {ManifestId} for requester {RequesterNodeId}", manifestId, requesterNodeId);
+            return StatusCode(500, new { error = "File download failed" });
+        }
+    }
+
+    /// <summary>
+    /// GET /api/sync/file-download-session — requester opens or resumes a chunked download session.
+    /// </summary>
+    [HttpGet("file-download-session")]
+    public async Task<IActionResult> CreateDownloadSession([FromQuery] Guid manifestId, [FromQuery] string requesterNodeId)
+    {
+        var verifiedNodeId = HttpContext.Items[VerifiedNodeIdItemKey] as string;
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId) &&
+            !string.Equals(verifiedNodeId, requesterNodeId, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "Signed node identity does not match requester node." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId))
+        {
+            requesterNodeId = verifiedNodeId;
+        }
+
+        try
+        {
+            var session = await _syncFileTransfer.CreateDownloadSessionAsync(manifestId, requesterNodeId, HttpContext.RequestAborted);
+            if (session == null)
+                return NotFound(new { error = "Requested file is not available for chunk transfer" });
+
+            return Ok(session);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating download session for file {ManifestId} and requester {RequesterNodeId}", manifestId, requesterNodeId);
+            return StatusCode(500, new { error = "File download session failed" });
+        }
+    }
+
+    /// <summary>
+    /// GET /api/sync/file-download-chunk — requester fetches one chunk from an open download session.
+    /// </summary>
+    [HttpGet("file-download-chunk")]
+    public async Task<IActionResult> DownloadFileChunk(
+        [FromQuery] Guid sessionId,
+        [FromQuery] string requesterNodeId,
+        [FromQuery] int chunkIndex,
+        [FromQuery] string resumeToken)
+    {
+        var verifiedNodeId = HttpContext.Items[VerifiedNodeIdItemKey] as string;
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId) &&
+            !string.Equals(verifiedNodeId, requesterNodeId, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "Signed node identity does not match requester node." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId))
+        {
+            requesterNodeId = verifiedNodeId;
+        }
+
+        try
+        {
+            var chunk = await _syncFileTransfer.GetDownloadChunkAsync(sessionId, requesterNodeId, chunkIndex, resumeToken, HttpContext.RequestAborted);
+            if (chunk == null)
+                return NotFound(new { error = "Requested chunk is not available" });
+
+            return Ok(chunk);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error downloading chunk {ChunkIndex} for session {SessionId}", chunkIndex, sessionId);
+            return StatusCode(500, new { error = "File chunk download failed" });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/sync/file-upload — supplier uploads file bytes to the receiver after a pending request was found.
+    /// </summary>
+    [HttpPost("file-upload")]
+    public async Task<IActionResult> UploadFile([FromBody] Maritime.Shared.DTOs.Sync.SyncFileContentDto content)
+    {
+        var verifiedNodeId = HttpContext.Items[VerifiedNodeIdItemKey] as string;
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId) &&
+            !string.Equals(verifiedNodeId, content.SupplierNodeId, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "Signed node identity does not match supplier node." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId))
+        {
+            content.SupplierNodeId = verifiedNodeId;
+        }
+
+        try
+        {
+            var result = await _syncFileTransfer.AcceptUploadedFileAsync(content, HttpContext.RequestAborted);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error accepting uploaded file {ManifestId} from supplier {SupplierNodeId}", content.ManifestId, content.SupplierNodeId);
+            return StatusCode(500, new { error = "File upload failed" });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/sync/file-upload-bundle — supplier uploads a zip bundle of small files.
+    /// </summary>
+    [HttpPost("file-upload-bundle")]
+    public async Task<IActionResult> UploadFileBundle([FromBody] Maritime.Shared.DTOs.Sync.SyncFileBundleUploadDto bundle)
+    {
+        var verifiedNodeId = HttpContext.Items[VerifiedNodeIdItemKey] as string;
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId) &&
+            !string.Equals(verifiedNodeId, bundle.SupplierNodeId, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "Signed node identity does not match supplier node." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId))
+        {
+            bundle.SupplierNodeId = verifiedNodeId;
+        }
+
+        try
+        {
+            var result = await _syncFileTransfer.AcceptUploadedBundleAsync(bundle, HttpContext.RequestAborted);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error accepting uploaded file bundle {BundleId} from supplier {SupplierNodeId}", bundle.BundleId, bundle.SupplierNodeId);
+            return StatusCode(500, new { error = "File bundle upload failed" });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/sync/file-upload-session — supplier opens or resumes a chunked upload session.
+    /// </summary>
+    [HttpPost("file-upload-session")]
+    public async Task<IActionResult> RegisterUploadSession([FromBody] Maritime.Shared.DTOs.Sync.SyncFileChunkSessionDto session)
+    {
+        var verifiedNodeId = HttpContext.Items[VerifiedNodeIdItemKey] as string;
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId) &&
+            !string.Equals(verifiedNodeId, session.SupplierNodeId, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "Signed node identity does not match supplier node." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId))
+        {
+            session.SupplierNodeId = verifiedNodeId;
+        }
+
+        try
+        {
+            var result = await _syncFileTransfer.RegisterUploadSessionAsync(session, HttpContext.RequestAborted);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error registering upload session for manifest {ManifestId} from supplier {SupplierNodeId}", session.ManifestId, session.SupplierNodeId);
+            return StatusCode(500, new { error = "File upload session failed" });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/sync/file-upload-chunk — supplier uploads one chunk into an open upload session.
+    /// </summary>
+    [HttpPost("file-upload-chunk")]
+    public async Task<IActionResult> UploadFileChunk([FromBody] Maritime.Shared.DTOs.Sync.SyncFileChunkDto chunk)
+    {
+        var verifiedNodeId = HttpContext.Items[VerifiedNodeIdItemKey] as string;
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId) &&
+            !string.Equals(verifiedNodeId, chunk.SupplierNodeId, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "Signed node identity does not match supplier node." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId))
+        {
+            chunk.SupplierNodeId = verifiedNodeId;
+        }
+
+        try
+        {
+            var result = await _syncFileTransfer.AcceptUploadedChunkAsync(chunk, HttpContext.RequestAborted);
+            if (!result.Success)
+                return BadRequest(result);
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error accepting uploaded chunk {ChunkIndex} for session {SessionId}", chunk.ChunkIndex, chunk.SessionId);
+            return StatusCode(500, new { error = "File chunk upload failed" });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/sync/file-ack — requester confirms the downloaded file is persisted and verified.
+    /// </summary>
+    [HttpPost("file-ack")]
+    public async Task<IActionResult> AcknowledgeFile([FromBody] Maritime.Shared.DTOs.Sync.SyncFileTransferAckDto ack)
+    {
+        var verifiedNodeId = HttpContext.Items[VerifiedNodeIdItemKey] as string;
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId) &&
+            !string.Equals(verifiedNodeId, ack.RequesterNodeId, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "Signed node identity does not match requester node." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId))
+        {
+            ack.RequesterNodeId = verifiedNodeId;
+        }
+
+        try
+        {
+            var result = await _syncFileTransfer.AcknowledgeReceiptAsync(ack, HttpContext.RequestAborted);
+            if (!result.Success)
+                return NotFound(new { error = result.Message });
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error acknowledging file {ManifestId} from requester {RequesterNodeId}", ack.ManifestId, ack.RequesterNodeId);
+            return StatusCode(500, new { error = "File acknowledgment failed" });
         }
     }
 

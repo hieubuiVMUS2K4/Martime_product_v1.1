@@ -7,7 +7,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  background: #eef1f5;
+  background: #e5f3ee;
 }
 
 /* === Header === */
@@ -16,7 +16,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 24px;
-  border-bottom: 1px solid #C5D9EC;
+  border-bottom: 1px solid #b5e3da;
   background: #fff;
   gap: 16px;
 }
@@ -49,7 +49,7 @@
 }
 
 .vd-ship-icon {
-  color: #0054a6;
+  color: #0d7377;
 }
 
 .vd-title-new {
@@ -84,7 +84,7 @@
   font-size: 14px;
   font-weight: 500;
   color: #fff;
-  background: #0054a6;
+  background: #0d7377;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -92,7 +92,7 @@
 }
 
 .vd-save-btn:hover:not(:disabled) {
-  background: #003d7a;
+  background: #09554f;
 }
 
 .vd-save-btn:disabled {
@@ -102,7 +102,7 @@
 
 /* === Tab Navigation === */
 .vd-tabs-new {
-  border-bottom: 1px solid #C5D9EC;
+  border-bottom: 1px solid #b5e3da;
   background: #fff;
   padding: 0 24px;
 }
@@ -141,9 +141,9 @@
 }
 
 .vd-tab-btn--active {
-  color: #0054a6;
-  border-bottom-color: #0054a6;
-  background: #f0f6ff;
+  color: #0d7377;
+  border-bottom-color: #0d7377;
+  background: #effefa;
 }
 
 .vd-tab-chevron {
@@ -162,7 +162,7 @@
   z-index: 50;
   min-width: 180px;
   background: #fff;
-  border: 1px solid #dde3ea;
+  border: 1px solid #d1ebe5;
   border-radius: 8px;
   box-shadow: 0 6px 20px rgba(0,0,0,0.10);
   padding: 4px 0;
@@ -191,13 +191,13 @@
 }
 
 .vd-tab-dropdown-item:hover {
-  background: #f0f6ff;
-  color: #0054a6;
+  background: #effefa;
+  color: #0d7377;
 }
 
 .vd-tab-dropdown-item--active {
-  background: #e8f0fe;
-  color: #0054a6;
+  background: #e0f5ef;
+  color: #0d7377;
   font-weight: 600;
 }
 
@@ -213,8 +213,8 @@
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 500;
-  color: #0054a6;
-  background: #e8f0fe;
+  color: #0d7377;
+  background: #e0f5ef;
   border-radius: 20px;
   display: inline-flex;
   align-items: center;
@@ -227,7 +227,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 24px;
-  background: #eef1f5;
+  background: #e5f3ee;
 }
 
 /* === Form Grid === */
@@ -240,7 +240,7 @@
   background: #fff;
   padding: 24px;
   border-radius: 6px;
-  border: 1px solid #C5D9EC;
+  border: 1px solid #b5e3da;
 }
 
 .vd-form-field {
@@ -263,9 +263,9 @@
 .vd-form-field select {
   padding: 6px 10px;
   font-size: 13px;
-  color: #1e2d3d;
+  color: #132d2b;
   background: #fff;
-  border: 1px solid #b8d4ee;
+  border: 1px solid #a8ddd4;
   border-radius: 3px;
   transition: border-color 0.15s;
 }
@@ -273,8 +273,8 @@
 .vd-form-field input:focus,
 .vd-form-field select:focus {
   outline: none;
-  border-color: #0054a6;
-  box-shadow: 0 0 0 2px rgba(0, 84, 166, 0.1);
+  border-color: #0d7377;
+  box-shadow: 0 0 0 2px rgba(13, 115, 119, 0.1);
 }
 
 .vd-form-field input:disabled {
@@ -311,7 +311,7 @@
   font-size: 14px;
   background: #fff;
   border-radius: 6px;
-  border: 1px solid #C5D9EC;
+  border: 1px solid #b5e3da;
 }
 
 /* === Loading & Error Screens === */
@@ -356,7 +356,7 @@
   font-size: 14px;
   font-weight: 500;
   color: #fff;
-  background: #0054a6;
+  background: #0d7377;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -364,7 +364,7 @@
 }
 
 .vd-save-btn-new:hover:not(:disabled) {
-  background: #003d7a;
+  background: #09554f;
 }
 
 .vd-save-btn-new:disabled {
@@ -374,10 +374,10 @@
 
 /* === Read Only Fields === */
 .vd-read-only {
-  background: #f9fbfd !important;
+  background: #f5fefc !important;
   color: #6b7280 !important;
   cursor: not-allowed !important;
-  border-color: #b8d4ee !important;
+  border-color: #a8ddd4 !important;
 }
 
 .vd-read-only:focus {
@@ -394,9 +394,9 @@
   margin-bottom: 16px;
   font-size: 13px;
   font-weight: 500;
-  color: #1e40af;
-  background: #dbeafe;
-  border: 1px solid #93c5fd;
+  color: #0a7068;
+  background: #ccfbf1;
+  border: 1px solid #5eead4;
   border-radius: 8px;
 }
 
@@ -405,7 +405,7 @@
 }
 
 .vd-sync-time {
-  color: #60a5fa;
+  color: #2dd4bf;
   font-weight: 400;
   font-size: 12px;
 }
@@ -417,7 +417,7 @@
   gap: 4px;
   padding: 12px 16px;
   margin-bottom: 16px;
-  background: #f0fdf4;
+  background: #f0fdfa;
   border: 1px solid #86efac;
   border-radius: 8px;
 }
@@ -438,7 +438,7 @@
 .vd-edge-indicator {
   margin-left: 4px;
   font-size: 12px;
-  color: #3b82f6;
+  color: #14b8a6;
 }
 
 /* === Section Title === */
@@ -686,7 +686,7 @@
 }
 
 .focus\:border-blue-500:focus {
-  border-color: #3b82f6;
+  border-color: #14b8a6;
 }
 
 /* === Responsive Grid (md breakpoint: 768px) === */
@@ -739,3 +739,6 @@ input[type="checkbox"]:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
+
+
+
