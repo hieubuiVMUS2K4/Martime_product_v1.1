@@ -1,5 +1,5 @@
-/* ============================================================
-   VesselsPage — Maritime Open Connect style (Clean ERP)
+ï»¿/* ============================================================
+   VesselsPage â€” Maritime Open Connect style (Clean ERP)
    Matches MOC reference: clean white, #c5f0ea header, search filters
    ============================================================ */
 
@@ -138,11 +138,11 @@
   letter-spacing: 0.04em;
 }
 .vp-tr-labels th:last-child { border-right: none; }
-.vp-tr-labels th:nth-child(1) { width: 35%; } /* Tên tàu */
-.vp-tr-labels th:nth-child(2) { width: 18%; } /* Lo?i tàu */
-.vp-tr-labels th:nth-child(3) { width: 15%; } /* C? tàu */
+.vp-tr-labels th:nth-child(1) { width: 35%; } /* TÃªn tÃ u */
+.vp-tr-labels th:nth-child(2) { width: 18%; } /* Lo?i tÃ u */
+.vp-tr-labels th:nth-child(3) { width: 15%; } /* C? tÃ u */
 .vp-tr-labels th:nth-child(4) { width: 17%; } /* S? IMO */
-.vp-tr-labels th:nth-child(5) { width: 15%; } /* Tr?ng thái k?t n?i */
+.vp-tr-labels th:nth-child(5) { width: 15%; } /* Tr?ng thÃ¡i k?t n?i */
 
 /* Column filter row */
 .vp-tr-filters th {
@@ -153,7 +153,7 @@
 }
 .vp-tr-filters th:last-child { border-right: none; }
 
-/* Search input wrapper — provides search icon via CSS */
+/* Search input wrapper â€” provides search icon via CSS */
 .vp-search-wrap {
   position: relative;
   display: flex;
