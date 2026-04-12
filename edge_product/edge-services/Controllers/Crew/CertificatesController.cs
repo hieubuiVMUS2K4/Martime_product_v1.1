@@ -639,11 +639,11 @@ public class CertificatesController : ControllerBase
             var fileName = $"cert_{id}_{DateTime.UtcNow:yyyyMMddHHmmss}{extension}";
             var filePath = Path.Combine(uploadsRoot, fileName);
 
-            // Delete old file if exists
+            // Delete old file if exists — validate path stays within uploads root
             if (!string.IsNullOrEmpty(crewCertificate.DocumentFilePath))
             {
-                var oldFilePath = Path.Combine(Directory.GetCurrentDirectory(), crewCertificate.DocumentFilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-                if (System.IO.File.Exists(oldFilePath))
+                var oldFilePath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), crewCertificate.DocumentFilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)));
+                if (oldFilePath.StartsWith(uploadsRoot, StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(oldFilePath))
                 {
                     System.IO.File.Delete(oldFilePath);
                 }
@@ -656,9 +656,30 @@ public class CertificatesController : ControllerBase
             // Update database
             crewCertificate.DocumentFilePath = $"/uploads/crew/certificates/{fileName}";
             crewCertificate.UpdatedAt = DateTime.UtcNow;
+            crewCertificate.IsSynced = false;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Uploaded certificate file for crew certificate: {Id}", id);
+            // Enqueue to SyncQueue so file syncs to shore
+            var syncPayload = System.Text.Json.JsonSerializer.Serialize(crewCertificate, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = false,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+            });
+            _context.SyncQueue.Add(new SyncQueue
+            {
+                TableName = "crew_certificate",
+                RecordKey = id.ToString(),
+                ActionType = SyncActionType.UPDATE,
+                Payload = syncPayload,
+                Priority = SyncPriority.Operational,
+                CreatedAt = DateTime.UtcNow,
+                RetryCount = 0,
+                MaxRetries = 5
+            });
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Uploaded certificate file for crew certificate: {Id}, enqueued sync", id);
 
             return Ok(new
             {

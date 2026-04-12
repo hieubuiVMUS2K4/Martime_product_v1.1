@@ -118,7 +118,7 @@ const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
         <div style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb', minHeight: 400 }}>
           {uploading ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-              <div className="animate-spin" style={{ width: 48, height: 48, borderRadius: '50%', border: '4px solid #3b82f6', borderTopColor: 'transparent' }} />
+              <div className="animate-spin" style={{ width: 48, height: 48, borderRadius: '50%', border: '4px solid #14b8a6', borderTopColor: 'transparent' }} />
               <p style={{ color: '#4b5563', fontWeight: 500 }}>Đang tải lên...</p>
             </div>
           ) : isCurrentPdf ? (
@@ -144,7 +144,7 @@ const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {documentId && customUploadHandler && !previewFile && (
               <button onClick={handleSelectFile} disabled={uploading}
-                style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 500 }}>
+                style={{ padding: '8px 16px', background: '#0d9488', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 500 }}>
                 <Upload style={{ width: 16, height: 16 }} /> Thay đổi file
               </button>
             )}
@@ -172,3 +172,4 @@ const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
 };
 
 export default ImageViewerModal;
+

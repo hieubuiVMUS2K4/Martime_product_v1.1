@@ -1,4 +1,4 @@
-using Maritime.Shared.Interfaces;
+﻿using Maritime.Shared.Interfaces;
 using System.Text.Json;
 
 namespace ProductApi.Services.Sync;
@@ -76,7 +76,8 @@ public class ConflictResolverService : IConflictResolverService
     private static readonly HashSet<string> _shoreAuthoritative = new(StringComparer.OrdinalIgnoreCase)
     {
         "certificate", "country", "rank",
-        "rank_certificate", "country_certificate"
+        "rank_certificate", "country_certificate",
+        "report_type"
     };
 
     // Tables where Edge always wins
@@ -328,9 +329,15 @@ public class ConflictResolverService : IConflictResolverService
 
     private ConflictResolution ResolveDocumentConflict(object existing, object incoming, string originNode)
     {
-        // Shore wins: metadata (DocumentNumber, IssueDate, ExpiryDate, etc.)
-        // Edge wins: file path (DocumentFilePath, FileUrl)
-        var fileProps = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        // Shore wins: DocumentNumber, DocumentType, IssueDate, ExpiryDate, CountryId, Notes
+        //   (metadata entered/corrected by shore admin must not be overwritten by edge image update)
+        // Edge wins: FileUrl, DocumentFilePath, FilePath, FileName
+        //   (files are scanned/captured on board)
+        var shoreFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "DocumentType", "DocumentNumber", "IssueDate", "ExpiryDate", "CountryId", "Notes"
+        };
+        var edgeFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "DocumentFilePath", "FilePath", "FileUrl", "FileName"
         };
@@ -339,23 +346,23 @@ public class ConflictResolverService : IConflictResolverService
         foreach (var prop in existingType.GetProperties())
         {
             if (prop.GetSetMethod() == null) continue;
-            
-            // Skip primary key
             if (prop.Name == "Id") continue;
-            
+
             var incomingValue = prop.GetValue(incoming);
             if (incomingValue == null) continue;
+            if (incomingValue is string s && s.Length == 0) continue;
 
             bool shouldApply;
             if (originNode == "SHORE")
-                shouldApply = !fileProps.Contains(prop.Name);
+                shouldApply = !edgeFields.Contains(prop.Name);
             else
-                shouldApply = fileProps.Contains(prop.Name) ||
-                              // Edge can set operational fields too
-                              prop.Name == "Remarks";
+                shouldApply = !shoreFields.Contains(prop.Name);
 
             if (shouldApply)
-                prop.SetValue(existing, incomingValue);
+            {
+                try { prop.SetValue(existing, incomingValue); }
+                catch { /* skip incompatible types */ }
+            }
         }
 
         return ConflictResolution.Apply(existing);
@@ -518,6 +525,7 @@ public class ConflictResolverService : IConflictResolverService
 
         return ConflictResolution.Apply(existing);
     }
+
 
     private ConflictResolution ResolveByTimestamp(object existing, object incoming)
     {

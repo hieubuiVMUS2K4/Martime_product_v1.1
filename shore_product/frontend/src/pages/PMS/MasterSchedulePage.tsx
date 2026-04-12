@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Filter, Download, RefreshCw, Settings, AlertCircle } from 'lucide-react';
 import { pmsService } from '../../services/pms.service';
 import type { MaintenanceSchedule } from '../../types/pms.types';
@@ -114,7 +114,7 @@ export const MasterSchedulePage: React.FC = () => {
       case 'MEDIUM':
         return 'bg-yellow-500';
       case 'LOW':
-        return 'bg-blue-500';
+        return 'bg-teal-500';
       default:
         return 'bg-gray-500';
     }
@@ -123,7 +123,7 @@ export const MasterSchedulePage: React.FC = () => {
   const getMaintenanceTypeColor = (type: string) => {
     switch (type) {
       case 'INSPECTION':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-teal-100 text-blue-800';
       case 'SERVICE':
         return 'bg-green-100 text-green-800';
       case 'OVERHAUL':
@@ -195,7 +195,7 @@ export const MasterSchedulePage: React.FC = () => {
             Export
           </button>
           
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">
             <Settings className="w-4 h-4" />
             Settings
           </button>
@@ -212,7 +212,7 @@ export const MasterSchedulePage: React.FC = () => {
               <select
                 value={selectedDepartment}
                 onChange={(e) => setSelectedDepartment(e.target.value as Department)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
               >
                 <option value="ALL">All Departments</option>
                 <option value="ENGINE">Engine</option>
@@ -229,7 +229,7 @@ export const MasterSchedulePage: React.FC = () => {
               <select
                 value={viewMode}
                 onChange={(e) => setViewMode(e.target.value as ViewMode)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
               >
                 <option value="month">Monthly View</option>
                 <option value="quarter">Quarterly View</option>
@@ -244,7 +244,7 @@ export const MasterSchedulePage: React.FC = () => {
               onClick={() => navigateMonth('prev')}
               className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
             >
-              â†
+              ←
             </button>
             <span className="text-lg font-semibold min-w-[200px] text-center">
               {formatDate(currentDate, 'MMMM yyyy')}
@@ -253,11 +253,11 @@ export const MasterSchedulePage: React.FC = () => {
               onClick={() => navigateMonth('next')}
               className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
             >
-              â†’
+              →
             </button>
             <button
               onClick={() => setCurrentDate(new Date())}
-              className="px-3 py-2 text-sm text-blue-600 hover:underline"
+              className="px-3 py-2 text-sm text-teal-600 hover:underline"
             >
               Today
             </button>
@@ -273,7 +273,7 @@ export const MasterSchedulePage: React.FC = () => {
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="text-sm text-gray-600">Due This Period</div>
-          <div className="text-2xl font-bold text-blue-600 mt-1">{filteredSchedules.length}</div>
+          <div className="text-2xl font-bold text-teal-600 mt-1">{filteredSchedules.length}</div>
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="text-sm text-gray-600">Total Man Hours</div>
@@ -411,7 +411,7 @@ export const MasterSchedulePage: React.FC = () => {
             <span className="text-sm text-gray-700">Medium Priority</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500" />
+            <div className="w-3 h-3 rounded-full bg-teal-500" />
             <span className="text-sm text-gray-700">Low Priority</span>
           </div>
         </div>
@@ -419,3 +419,4 @@ export const MasterSchedulePage: React.FC = () => {
     </div>
   );
 };
+

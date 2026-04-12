@@ -139,6 +139,21 @@ export const crewApi = {
   deleteDocument: (crewId: string, docId: string, category: string): Promise<void> =>
     request(`${BASE}/crew/${crewId}/documents/${category}/${docId}`, { method: 'DELETE' }),
 
+  /** Upload or replace a document file (identity / health) */
+  uploadDocumentFile: async (crewId: string, category: string, docId: string, formData: FormData): Promise<{ message: string; fileUrl: string }> => {
+    const res = await fetch(`${BASE}/crew/${crewId}/documents/${category}/${docId}/file`, {
+      method: 'PUT',
+      body: formData,
+      headers: buildAuthHeaders(),
+    });
+    if (!res.ok) {
+      let message = res.statusText;
+      try { const b = await res.json(); message = b.error || b.message || message; } catch { /* ignore */ }
+      throw new Error(message);
+    }
+    return res.json();
+  },
+
   // --- Service Records ---
 
   /** Get service records */

@@ -1,20 +1,20 @@
 ﻿/* ============================================================
    VesselsPage — Maritime Open Connect style (Clean ERP)
-   Matches MOC reference: clean white, #D5E8FF header, search filters
+   Matches MOC reference: clean white, #c5f0ea header, search filters
    ============================================================ */
 
 /* === CSS Variables === */
 :root {
-  --moc-blue:       #0054a6;
-  --moc-blue-light: #EBF4FF;
-  --moc-blue-mid:   #b8d8f0;
-  --moc-head-bg:    #D5E8FF;
-  --moc-head-text:  #1a3a5c;
-  --moc-filter-bg:  #D5E8FF;
-  --moc-row-alt:    #f9fbfd;
-  --moc-border:     #C5D9EC;
-  --moc-text:       #1e2d3d;
-  --moc-muted:      #6b7c8f;
+  --moc-blue:       #0d7377;
+  --moc-blue-light: #e6f5f3;
+  --moc-blue-mid:   #a8ddd4;
+  --moc-head-bg:    #c5f0ea;
+  --moc-head-text:  #133d38;
+  --moc-filter-bg:  #c5f0ea;
+  --moc-row-alt:    #f5fefc;
+  --moc-border:     #b5e3da;
+  --moc-text:       #132d2b;
+  --moc-muted:      #4f847a;
   --moc-green:      #16a34a;
   --moc-yellow:     #ca8a04;
   --moc-red:        #dc2626;
@@ -27,7 +27,7 @@
   gap: 6px;
   padding: 8px 10px;
   min-height: 100%;
-  background: #eef1f5;
+  background: #e5f3ee;
   color: var(--moc-text);
   font-size: 13px;
   font-family: inherit;
@@ -78,11 +78,11 @@
 }
 .vp-btn:hover { background: #f1f5f9; }
 .vp-btn--ghost { border-color: transparent; background: transparent; color: var(--moc-muted); }
-.vp-btn--ghost:hover { background: #e6f0fb; color: var(--moc-blue); }
+.vp-btn--ghost:hover { background: #ddf5ef; color: var(--moc-blue); }
 .vp-btn--outline { border-color: var(--moc-blue); color: var(--moc-blue); }
 .vp-btn--outline:hover { background: var(--moc-blue-light); }
 .vp-btn--primary { background: var(--moc-blue); border-color: var(--moc-blue); color: #fff; }
-.vp-btn--primary:hover { background: #003d80; }
+.vp-btn--primary:hover { background: #09554f; }
 .vp-btn--danger { background: var(--moc-red); border-color: var(--moc-red); color: #fff; }
 .vp-btn--danger:hover { background: #b91c1c; }
 
@@ -132,24 +132,24 @@
   padding: 7px 10px;
   text-align: left;
   border-bottom: 1px solid var(--moc-border);
-  border-right: 1px solid rgba(0,84,166,0.12);
+  border-right: 1px solid rgba(13, 115, 119,0.12);
   white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 .vp-tr-labels th:last-child { border-right: none; }
 .vp-tr-labels th:nth-child(1) { width: 35%; } /* Tên tàu */
-.vp-tr-labels th:nth-child(2) { width: 18%; } /* Loại tàu */
-.vp-tr-labels th:nth-child(3) { width: 15%; } /* Cờ tàu */
-.vp-tr-labels th:nth-child(4) { width: 17%; } /* Số IMO */
-.vp-tr-labels th:nth-child(5) { width: 15%; } /* Trạng thái kết nối */
+.vp-tr-labels th:nth-child(2) { width: 18%; } /* Lo?i tàu */
+.vp-tr-labels th:nth-child(3) { width: 15%; } /* C? tàu */
+.vp-tr-labels th:nth-child(4) { width: 17%; } /* S? IMO */
+.vp-tr-labels th:nth-child(5) { width: 15%; } /* Tr?ng thái k?t n?i */
 
 /* Column filter row */
 .vp-tr-filters th {
   background: var(--moc-filter-bg);
   padding: 3px 6px;
   border-bottom: 2px solid var(--moc-blue-mid);
-  border-right: 1px solid rgba(0,84,166,0.12);
+  border-right: 1px solid rgba(13, 115, 119,0.12);
 }
 .vp-tr-filters th:last-child { border-right: none; }
 
@@ -175,7 +175,7 @@
 .vp-cf {
   width: 100%;
   padding: 3px 7px 3px 22px;
-  border: 1px solid #b8d4ee;
+  border: 1px solid #a8ddd4;
   border-radius: 3px;
   font-size: 11.5px;
   background: #fff;
@@ -183,20 +183,20 @@
   outline: none;
   box-sizing: border-box;
 }
-.vp-cf::placeholder { color: #9fb3c8; }
-.vp-cf:focus { border-color: var(--moc-blue); box-shadow: 0 0 0 2px rgba(0,84,166,0.1); }
+.vp-cf::placeholder { color: #86c2b5; }
+.vp-cf:focus { border-color: var(--moc-blue); box-shadow: 0 0 0 2px rgba(13, 115, 119,0.1); }
 
 /* === Data rows === */
 .vp-tr {
-  border-bottom: 1px solid #e6edf5;
+  border-bottom: 1px solid #ddf0eb;
   cursor: context-menu;
 }
-.vp-tr:hover > td { background: #f0f7ff; }
+.vp-tr:hover > td { background: #effefa; }
 .vp-tr td {
   padding: 5px 10px;
   vertical-align: middle;
   line-height: 1.35;
-  border-right: 1px solid #edf2f8;
+  border-right: 1px solid #e5f3ee;
 }
 .vp-tr td:last-child { border-right: none; }
 .vp-tr--alt td { background: var(--moc-row-alt); }
@@ -325,7 +325,7 @@
 
 /* === Selected row highlight === */
 .vp-tr--selected > td {
-  background: #dbeafe !important;
+  background: #ccfbf1 !important;
 }
 
 /* === Context Menu === */
@@ -432,7 +432,7 @@
 }
 .vp-field input:focus, .vp-field select:focus {
   border-color: var(--moc-blue);
-  box-shadow: 0 0 0 2px rgba(0,84,166,0.1);
+  box-shadow: 0 0 0 2px rgba(13, 115, 119,0.1);
 }
 .vp-field input:disabled { background: #f8fafc; color: var(--moc-muted); cursor: not-allowed; }
 .vp-field--full { grid-column: 1 / -1; }
@@ -453,4 +453,6 @@
   .vp-page { padding: 8px; }
   .vp-form-grid { grid-template-columns: 1fr; }
 }
+
+
 

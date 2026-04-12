@@ -13,7 +13,7 @@ interface Props {
   saving: boolean;
 }
 
-const COLORS = ['#1e40af','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#4f46e5','#15803d','#b45309','#9333ea'];
+const COLORS = ['#0a7068','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#4f46e5','#15803d','#b45309','#9333ea'];
 function hashColor(id: string) {
   let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
   return COLORS[Math.abs(h) % COLORS.length];

@@ -226,6 +226,12 @@ public class SubmitTaskDto
     /// </summary>
     [JsonPropertyName("photoUrls")]
     public List<string>? PhotoUrls { get; set; }
+
+    /// <summary>
+    /// Actual duration in minutes (optional — if not provided, backend auto-calculates from StartedAt)
+    /// </summary>
+    [JsonPropertyName("actualDurationMinutes")]
+    public int? ActualDurationMinutes { get; set; }
 }
 
 /// <summary>

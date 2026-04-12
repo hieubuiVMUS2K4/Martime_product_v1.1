@@ -658,6 +658,24 @@ public class MaintenanceSchedulerService : BackgroundService
 
             string initialStatus = DetermineTaskStatus(assignedTo, hasChecklistTemplates, schedule.Priority);
 
+            // Parse META flags from schedule Instructions (<!--META:{...}-->)
+            bool reqRisk = false, reqInspect = false;
+            if (!string.IsNullOrEmpty(schedule.Instructions))
+            {
+                var metaMatch = System.Text.RegularExpressions.Regex.Match(
+                    schedule.Instructions, @"<!--META:(\{.*?\})-->");
+                if (metaMatch.Success)
+                {
+                    try
+                    {
+                        var meta = System.Text.Json.JsonDocument.Parse(metaMatch.Groups[1].Value).RootElement;
+                        reqRisk    = meta.TryGetProperty("reqRisk",       out var rv) && rv.GetBoolean();
+                        reqInspect = meta.TryGetProperty("reqInspection", out var iv) && iv.GetBoolean();
+                    }
+                    catch { /* ignore malformed META */ }
+                }
+            }
+
             // Create maintenance task
             var task = new MaintenanceTask
             {
@@ -689,6 +707,8 @@ public class MaintenanceSchedulerService : BackgroundService
                 AssignedTo = assignedTo,
                 RequiredSpareParts = sparePartsJson,
                 SparePartsUsed = null,
+                RequireRiskAssessment = reqRisk,
+                RequireInspectionReport = reqInspect,
                 Notes = isPerAsset
                     ? $"Auto-generated from schedule: {schedule.ScheduleCode} (Asset: {singleAsset!.AssetName})"
                     : $"Auto-generated from schedule: {schedule.ScheduleCode} (Group: {group!.GroupName})",

@@ -130,7 +130,7 @@
 }
 
 .cfl-item--on:hover {
-  background: #dbeafe;
+  background: #ccfbf1;
 }
 
 /* Custom checkbox */
@@ -216,3 +216,4 @@
     grid-template-columns: 1fr;
   }
 }
+

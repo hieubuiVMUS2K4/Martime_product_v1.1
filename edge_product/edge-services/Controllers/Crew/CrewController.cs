@@ -717,6 +717,26 @@ public class CrewController : ControllerBase
 
             await _context.SaveChangesAsync();
 
+            // Enqueue crew_member update to SyncQueue so changes sync to Shore
+            var syncPayload = System.Text.Json.JsonSerializer.Serialize(existing, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = false,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+            });
+            _context.SyncQueue.Add(new SyncQueue
+            {
+                TableName = "crew_member",
+                RecordKey = id.ToString(),
+                ActionType = SyncActionType.UPDATE,
+                Payload = syncPayload,
+                Priority = SyncPriority.Operational,
+                CreatedAt = DateTime.UtcNow,
+                RetryCount = 0,
+                MaxRetries = 5
+            });
+            await _context.SaveChangesAsync();
+
             // Reload with Rank navigation property for complete response
             await _context.Entry(existing).Reference(c => c.Rank).LoadAsync();
 
@@ -832,10 +852,31 @@ public class CrewController : ControllerBase
 
             // Update database
             crewMember.PhotoUrl = $"/uploads/crew/avatars/{fileName}";
+            crewMember.UpdatedAt = DateTime.UtcNow;
             crewMember.IsSynced = false;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Uploaded avatar for crew member: {Id} - {FullName}", id, crewMember.FullName);
+            // Enqueue crew_member update to SyncQueue so avatar syncs to Shore
+            var syncPayload = System.Text.Json.JsonSerializer.Serialize(crewMember, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = false,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+            });
+            _context.SyncQueue.Add(new SyncQueue
+            {
+                TableName = "crew_member",
+                RecordKey = id.ToString(),
+                ActionType = SyncActionType.UPDATE,
+                Payload = syncPayload,
+                Priority = SyncPriority.Operational,
+                CreatedAt = DateTime.UtcNow,
+                RetryCount = 0,
+                MaxRetries = 5
+            });
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Uploaded avatar for crew member: {Id} - {FullName}, enqueued sync", id, crewMember.FullName);
 
             return Ok(new { 
                 message = "Avatar uploaded successfully", 

@@ -27,8 +27,8 @@
 
 .loading-state, .empty-state { text-align: center; padding: 48px; color: var(--text-secondary, #6b7280); }
 
-.btn-primary { display: inline-flex; align-items: center; gap: 6px; background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.875rem; cursor: pointer; }
-.btn-primary:hover { background: #1d4ed8; }
+.btn-primary { display: inline-flex; align-items: center; gap: 6px; background: #0d9488; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.875rem; cursor: pointer; }
+.btn-primary:hover { background: #0b8578; }
 .btn-secondary { background: var(--bg-surface, #fff); border: 1px solid var(--border, #e5e7eb); padding: 8px 16px; border-radius: 6px; font-size: 0.875rem; cursor: pointer; }
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
@@ -40,3 +40,4 @@
 .form-group label { font-size: 0.75rem; font-weight: 600; color: var(--text-secondary, #6b7280); }
 .form-group input, .form-group textarea, .form-group select { border: 1px solid var(--border, #e5e7eb); border-radius: 6px; padding: 8px 12px; font-size: 0.875rem; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+

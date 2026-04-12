@@ -34,7 +34,7 @@
   padding: 0;
   font-size: 12px;
   font-weight: 500;
-  color: #2563eb;
+  color: #0d9488;
   cursor: pointer;
   margin-bottom: 16px;
 }
@@ -50,8 +50,8 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: #eff6ff;
-  color: #2563eb;
+  background: #f0fdfa;
+  color: #0d9488;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -80,7 +80,7 @@
   border-radius: 999px;
 }
 .rd-status--DRAFT       { background: #f1f5f9; color: #475569; }
-.rd-status--SUBMITTED   { background: #dbeafe; color: #1d4ed8; }
+.rd-status--SUBMITTED   { background: #ccfbf1; color: #0b8578; }
 .rd-status--APPROVED    { background: #dcfce7; color: #15803d; }
 .rd-status--REJECTED    { background: #fee2e2; color: #be123c; }
 .rd-status--TRANSMITTED { background: #d1fae5; color: #065f46; }
@@ -265,3 +265,4 @@
     grid-template-columns: 1fr;
   }
 }
+

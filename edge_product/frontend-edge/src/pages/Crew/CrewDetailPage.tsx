@@ -345,8 +345,11 @@ export function CrewDetailPage() {
 
       const response = await maritimeService.crew.uploadAvatar(id, formData)
       
-      // Update crew member with new photo URL
+      // Update crew member with new photo URL + cache-busting timestamp
       if (response.crewMember) {
+        const bustCache = (url: string | undefined) =>
+          url ? `${url.split('?')[0]}?t=${Date.now()}` : url
+        response.crewMember.photoUrl = bustCache(response.crewMember.photoUrl)
         setCrew(response.crewMember)
         setEditedCrew(response.crewMember)
       }

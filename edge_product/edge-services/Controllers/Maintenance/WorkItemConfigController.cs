@@ -953,18 +953,23 @@ public class WorkItemConfigController : ControllerBase
                 }
 
                 // UPDATE TASK STATUS based on new validation
+                // Only change status for tasks still in configuration/setup states.
+                // Tasks in operational states (DUE, OVERDUE, PENDING_APPROVAL, RECTIFY) must not be overwritten.
                 var hasPIC = !string.IsNullOrWhiteSpace(task.AssignedTo);
                 var hasChecklist = newTemplates.Any();
                 var oldStatus = task.Status;
-                var newStatus = DetermineTaskStatus(task.AssignedTo, hasChecklist, task.Priority);
-
-                if (oldStatus != newStatus)
+                var configurableStatuses = new[] { "MISSING_BOTH", "MISSING_PIC", "MISSING_CHECKLIST", "SCHEDULED" };
+                if (Array.IndexOf(configurableStatuses, oldStatus) >= 0)
                 {
-                    task.Status = newStatus;
-                    task.UpdatedAt = DateTime.UtcNow;
-                    _logger.LogInformation(
-                        "Task {TaskId} status updated: {OldStatus} → {NewStatus} (PIC: {HasPIC}, Checklist: {HasChecklist})",
-                        task.TaskId, oldStatus, newStatus, hasPIC, hasChecklist);
+                    var newStatus = DetermineTaskStatus(task.AssignedTo, hasChecklist, task.Priority);
+                    if (oldStatus != newStatus)
+                    {
+                        task.Status = newStatus;
+                        task.UpdatedAt = DateTime.UtcNow;
+                        _logger.LogInformation(
+                            "Task {TaskId} status updated: {OldStatus} → {NewStatus} (PIC: {HasPIC}, Checklist: {HasChecklist})",
+                            task.TaskId, oldStatus, newStatus, hasPIC, hasChecklist);
+                    }
                 }
 
                 tasksUpdated++;
@@ -994,7 +999,8 @@ public class WorkItemConfigController : ControllerBase
         if (!hasPIC) return "MISSING_PIC";
         if (!hasChecklist) return "MISSING_CHECKLIST";
 
-        return (priority == "HIGH" || priority == "CRITICAL") ? "PENDING_APPROVAL" : "PENDING";
+        // Task is ready for scheduling — actual progression to DUE/OVERDUE is handled by counter/scheduler
+        return "SCHEDULED";
     }
 
     /// <summary>
@@ -1076,6 +1082,9 @@ public class WorkItemConfigController : ControllerBase
             // Parse crew config for PIC assignment
             var (picName, _) = await ParseCrewFromInstructions(dto.Instructions);
 
+            // Parse META for form requirement flags
+            var (requireRisk, requireInspection) = ParseMetaFromInstructions(dto.Instructions);
+
             // Strip META/CREW HTML comments from instructions for clean task description
             var cleanInstructions = StripMetaTags(dto.Instructions);
 
@@ -1098,6 +1107,8 @@ public class WorkItemConfigController : ControllerBase
                 task.EquipmentAssetName = isPerAsset ? firstAsset.AssetName : null;
                 task.EquipmentId = isPerAsset ? firstAsset.AssetCode : null;
                 task.EquipmentName = isPerAsset ? firstAsset.AssetName : group?.GroupName;
+                task.RequireRiskAssessment = requireRisk;
+                task.RequireInspectionReport = requireInspection;
                 if (!string.IsNullOrWhiteSpace(picName))
                     task.AssignedTo = picName;
                 if (schedule.NextDueDate.HasValue)
@@ -1136,9 +1147,14 @@ public class WorkItemConfigController : ControllerBase
                 }
 
                 // Update task status
+                // Only touch status for tasks still in configuration/setup states.
                 var hasChecklist = checklistTemplates.Any();
-                var newStatus = DetermineTaskStatus(task.AssignedTo, hasChecklist, task.Priority);
-                task.Status = newStatus;
+                var configurableStatuses = new[] { "MISSING_BOTH", "MISSING_PIC", "MISSING_CHECKLIST", "SCHEDULED" };
+                if (Array.IndexOf(configurableStatuses, task.Status) >= 0)
+                {
+                    var newStatus = DetermineTaskStatus(task.AssignedTo, hasChecklist, task.Priority);
+                    task.Status = newStatus;
+                }
                 task.UpdatedAt = DateTime.UtcNow;
                 tasksUpdated++;
             }
@@ -1258,6 +1274,11 @@ public class WorkItemConfigController : ControllerBase
             if (!string.IsNullOrWhiteSpace(picName))
                 task.AssignedTo = picName;
 
+            // Copy form requirement flags from META
+            var (requireRisk, requireInspection) = ParseMetaFromInstructions(dto.Instructions);
+            task.RequireRiskAssessment = requireRisk;
+            task.RequireInspectionReport = requireInspection;
+
             _context.MaintenanceTasks.Add(task);
 
             // Create checklist items from templates
@@ -1310,6 +1331,26 @@ public class WorkItemConfigController : ControllerBase
         if (string.IsNullOrWhiteSpace(text)) return null;
         var cleaned = System.Text.RegularExpressions.Regex.Replace(text, @"<!--(META|CREW):.*?-->", "", System.Text.RegularExpressions.RegexOptions.Singleline).Trim();
         return string.IsNullOrWhiteSpace(cleaned) ? null : cleaned;
+    }
+
+    /// <summary>
+    /// Parse META JSON from instructions.
+    /// Format: <!--META:{"cbm":true,"reqRisk":true,"reqInspection":true}-->
+    /// </summary>
+    private static (bool requireRisk, bool requireInspection) ParseMetaFromInstructions(string? instructions)
+    {
+        if (string.IsNullOrWhiteSpace(instructions)) return (false, false);
+        var match = System.Text.RegularExpressions.Regex.Match(instructions, @"<!--META:(.*?)-->", System.Text.RegularExpressions.RegexOptions.Singleline);
+        if (!match.Success) return (false, false);
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(match.Groups[1].Value);
+            var root = doc.RootElement;
+            var reqRisk = root.TryGetProperty("reqRisk", out var rr) && rr.GetBoolean();
+            var reqInspection = root.TryGetProperty("reqInspection", out var ri) && ri.GetBoolean();
+            return (reqRisk, reqInspection);
+        }
+        catch { return (false, false); }
     }
 
     /// <summary>

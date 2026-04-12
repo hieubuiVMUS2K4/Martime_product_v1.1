@@ -405,6 +405,22 @@ if (autoMigrateDatabase)
                     ON shore_notifications (""IsRead"");
             ");
 
+            // ── Seed default admin user (idempotent) ──
+            await db.Database.ExecuteSqlRawAsync(@"
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Users_Username""
+                    ON ""Users"" (""Username"");
+
+                INSERT INTO ""Users"" (""Id"", ""Username"", ""PasswordHash"", ""Role"")
+                VALUES (
+                    'a0000000-0000-0000-0000-000000000001',
+                    'admin',
+                    'Admin@123',
+                    'admin'
+                )
+                ON CONFLICT (""Username"") DO NOTHING;
+            ");
+            logger.LogInformation("Default admin user seed completed.");
+
             logger.LogInformation("Database migration/verification completed successfully.");
             break;
         }
@@ -481,6 +497,8 @@ Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "travel
 Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "seafarer_documents"));
 Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "employment_documents"));
 Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "health_documents"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "sync-content"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "sync-staging"));
 
 app.UseCors("AllowWebMobile");
 app.UseRouting();

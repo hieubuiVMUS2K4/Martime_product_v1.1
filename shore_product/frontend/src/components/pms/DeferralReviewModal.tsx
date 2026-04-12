@@ -133,7 +133,7 @@ export default function DeferralReviewModal({ open, onClose, taskId, onReviewed 
                       {d.priority}
                     </span>
                     {d.isCmsItem && (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 rounded">
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium bg-teal-100 text-teal-700 rounded">
                         <Shield className="w-3 h-3" /> CMS
                       </span>
                     )}
@@ -201,7 +201,7 @@ export default function DeferralReviewModal({ open, onClose, taskId, onReviewed 
                   </p>
                 </div>
                 {selected.isCmsItem && (
-                  <div className="pt-1.5 border-t border-gray-200 flex items-center gap-1 text-blue-700 font-medium">
+                  <div className="pt-1.5 border-t border-gray-200 flex items-center gap-1 text-teal-700 font-medium">
                     <Shield className="w-4 h-4" /> Hạng mục CMS — cần xem xét kỹ
                   </div>
                 )}
@@ -261,3 +261,4 @@ export default function DeferralReviewModal({ open, onClose, taskId, onReviewed 
     </div>
   );
 }
+

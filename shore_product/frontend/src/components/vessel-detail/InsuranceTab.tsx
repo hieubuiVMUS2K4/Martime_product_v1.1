@@ -30,7 +30,7 @@ const ShoreMasterBadge: React.FC = () => {
         padding: '8px 12px',
         fontSize: '13px',
         fontWeight: 500,
-        color: '#0369a1',
+        color: '#0b7a72',
         backgroundColor: '#e0f2fe',
         borderRadius: '6px',
         width: 'fit-content',
@@ -89,3 +89,4 @@ export function InsuranceTab({ formData = {}, onChange }: InsuranceTabProps) {
     </div>
   );
 }
+

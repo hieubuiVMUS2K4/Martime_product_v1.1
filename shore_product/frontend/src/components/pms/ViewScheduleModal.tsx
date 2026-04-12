@@ -17,7 +17,7 @@ const PRIORITY_COLORS = {
   CRITICAL: 'bg-red-100 text-red-800 border-red-200',
   HIGH: 'bg-orange-100 text-orange-800 border-orange-200',
   MEDIUM: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  LOW: 'bg-blue-100 text-blue-800 border-blue-200'
+  LOW: 'bg-teal-100 text-blue-800 border-teal-200'
 };
 
 export function ViewScheduleModal({ isOpen, schedule, onClose }: ViewScheduleModalProps) {
@@ -79,11 +79,11 @@ export function ViewScheduleModal({ isOpen, schedule, onClose }: ViewScheduleMod
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center justify-center w-5 h-5 bg-indigo-100 text-indigo-700 rounded text-[10px] font-bold">G</span>
+                    <span className="inline-flex items-center justify-center w-5 h-5 bg-teal-100 text-teal-700 rounded text-[10px] font-bold">G</span>
                     <p className="text-sm text-gray-900">
                       {schedule.groupName || schedule.groupCode}
                       {schedule.assetCount !== undefined && schedule.assetCount > 0 && (
-                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-blue-800">
                           {schedule.assetCount} thiết bị
                         </span>
                       )}
@@ -277,7 +277,7 @@ export function ViewScheduleModal({ isOpen, schedule, onClose }: ViewScheduleMod
                         <td className="px-4 py-3 text-sm text-gray-900">{item.checkpointDescription}</td>
                         <td className="px-4 py-3 text-sm">
                           {item.requiresReading ? (
-                            <span className="text-blue-600 font-medium">✓ Required</span>
+                            <span className="text-teal-600 font-medium">✓ Required</span>
                           ) : (
                             <span className="text-gray-500">✗ No</span>
                           )}
@@ -314,3 +314,4 @@ export function ViewScheduleModal({ isOpen, schedule, onClose }: ViewScheduleMod
     </div>
   );
 }
+

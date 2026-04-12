@@ -189,6 +189,7 @@ namespace MaritimeEdge
 
             // Add PMS Services
             builder.Services.AddScoped<MaintenanceCompletionService>();
+            builder.Services.AddScoped<PmsPdfService>();
 
             // Add Ship Data Services
             builder.Services.AddScoped<IShipDataRepository, ShipDataRepository>();
@@ -305,6 +306,17 @@ namespace MaritimeEdge
                             QueueLimit = 0
                         }));
             });
+
+            // QuestPDF Community License (free for internal/open use)
+            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
+            // Register bundled Lato font (Arial not available on Linux containers)
+            var latoDir = Path.Combine(AppContext.BaseDirectory, "LatoFont");
+            if (Directory.Exists(latoDir))
+            {
+                foreach (var ttf in Directory.GetFiles(latoDir, "*.ttf"))
+                    QuestPDF.Drawing.FontManager.RegisterFont(File.OpenRead(ttf));
+            }
 
             var app = builder.Build();
 

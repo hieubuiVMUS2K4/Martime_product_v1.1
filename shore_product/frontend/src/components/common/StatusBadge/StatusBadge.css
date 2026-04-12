@@ -35,14 +35,14 @@
 
 .status-approved {
   background-color: #d1ecf1;
-  color: #0c5460;
+  color: #0a5049;
   border: 1px solid #bee5eb;
 }
 
 .status-in-progress {
-  background-color: #cfe2ff;
-  color: #084298;
-  border: 1px solid #b6d4fe;
+  background-color: #ccfbf1;
+  color: #0a6b5e;
+  border: 1px solid #a7f3d0;
 }
 
 .status-completed {
@@ -56,3 +56,4 @@
   color: #842029;
   border: 1px solid #f5c2c7;
 }
+

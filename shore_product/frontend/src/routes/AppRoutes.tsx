@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { TopNavLayout } from '../components/layout';
 import { CategoryManagementPage, CrewListPage, CrewDetailPage, CertificateMonitorPage, MasterSchedulePage, VesselsPage, ReportPage, VesselReportDetailPage, ReportDetailPage, VoyageListPage, VoyageDetailPage, VoyageFormPage } from '../pages';
 import { VesselDetailPage } from '../pages/VesselManagement';
@@ -20,6 +20,30 @@ import StoreLocationPage from '../pages/Materials/StoreLocationPage';
 import MaterialRequestPage from '../pages/Materials/MaterialRequestPage';
 import StockReceiptPage from '../pages/Materials/StockReceiptPage';
 import InventoryPage from '../pages/Materials/InventoryPage';
+import LoginPage from '../pages/Auth/LoginPage';
+import { useAuth } from '../contexts/AuthContext';
+
+/**
+ * Auth guard — redirects to /login if not authenticated
+ */
+function RequireAuth() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0f172a' }}>
+        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return <Outlet />;
+}
 
 /**
  * Main application routes
@@ -32,9 +56,14 @@ import InventoryPage from '../pages/Materials/InventoryPage';
 export const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/report" replace />} />
-      
-      <Route element={<TopNavLayout />}>
+      {/* Public route */}
+      <Route path="/login" element={<LoginPage />} />
+
+      {/* Protected routes */}
+      <Route element={<RequireAuth />}>
+        <Route path="/" element={<Navigate to="/report" replace />} />
+        
+        <Route element={<TopNavLayout />}>
         <Route path="/report" element={<ReportPage />} />
         <Route path="/report/vessel/:vesselId" element={<VesselReportDetailPage />} />
         <Route path="/report/:reportId" element={<ReportDetailPage />} />
@@ -74,6 +103,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/voyages/new" element={<VoyageFormPage />} />
         <Route path="/voyages/:id/edit" element={<VoyageFormPage />} />
         <Route path="/voyages/:id" element={<VoyageDetailPage />} />
+        </Route>
       </Route>
       
       {/* 404 */}

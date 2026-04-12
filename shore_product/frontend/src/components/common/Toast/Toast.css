@@ -35,12 +35,12 @@
 .toast--success { border-left: 4px solid var(--color-success, #10b981); }
 .toast--error   { border-left: 4px solid var(--color-danger, #ef4444); }
 .toast--warning { border-left: 4px solid var(--color-warning, #f59e0b); }
-.toast--info    { border-left: 4px solid var(--color-accent, #0ea5e9); }
+.toast--info    { border-left: 4px solid var(--color-accent, #14b8a6); }
 
 .toast--success .toast-icon { color: var(--color-success, #10b981); }
 .toast--error .toast-icon   { color: var(--color-danger, #ef4444); }
 .toast--warning .toast-icon { color: var(--color-warning, #f59e0b); }
-.toast--info .toast-icon    { color: var(--color-accent, #0ea5e9); }
+.toast--info .toast-icon    { color: var(--color-accent, #14b8a6); }
 
 /* Parts */
 .toast-icon {

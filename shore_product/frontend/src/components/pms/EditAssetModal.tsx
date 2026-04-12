@@ -170,7 +170,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case 'ACTIVE': return 'bg-green-100 text-green-800 border-green-300';
-      case 'STANDBY': return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'STANDBY': return 'bg-teal-100 text-blue-800 border-blue-300';
       case 'UNDER_MAINTENANCE': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       case 'DECOMMISSIONED': return 'bg-gray-100 text-gray-800 border-gray-300';
       case 'IN_STORAGE': return 'bg-purple-100 text-purple-800 border-purple-300';
@@ -215,7 +215,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
                     value={formData.assetName}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
                 </div>
 
@@ -228,7 +228,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
                     value={formData.category}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                   >
                     <option value="">Select Category</option>
                     {CATEGORIES.map(cat => (
@@ -246,7 +246,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
                     name="manufacturer"
                     value={formData.manufacturer}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                   />
                 </div>
 
@@ -259,7 +259,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
                     name="model"
                     value={formData.model}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                   />
                 </div>
 
@@ -272,7 +272,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
                     name="serialNumber"
                     value={formData.serialNumber}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                   />
                 </div>
 
@@ -286,7 +286,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
                     value={formData.location}
                     onChange={handleChange}
                     placeholder="e.g., Engine Room, Deck"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                   />
                 </div>
               </div>
@@ -306,7 +306,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
                     value={formData.status}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                   >
                     {STATUS_OPTIONS.map(option => (
                       <option key={option.value} value={option.value}>
@@ -330,7 +330,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
                     value={formData.criticality}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                   >
                     {CRITICALITY_LEVELS.map(level => (
                       <option key={level} value={level}>{level}</option>
@@ -354,7 +354,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
                   onChange={handleChange}
                   rows={3}
                   placeholder="Enter technical specifications (e.g., power rating, capacity, etc.)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                 />
               </div>
 
@@ -368,7 +368,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
                   onChange={handleChange}
                   rows={3}
                   placeholder="Additional notes or remarks"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                 />
               </div>
             </div>
@@ -390,7 +390,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
                       onChange={handleChange}
                       min="0"
                       step="0.01"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">hrs</span>
                   </div>
@@ -435,7 +435,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
                   <button
                     type="button"
                     onClick={() => setShowAddGroups(true)}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                    className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -459,7 +459,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
                         <p className="text-xs text-gray-500">{group.groupCode}</p>
                       </div>
                       {group.category && (
-                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                        <span className="text-xs px-2 py-1 bg-teal-100 text-blue-800 rounded">
                           {group.category}
                         </span>
                       )}
@@ -474,7 +474,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
 
               {/* Add to Groups UI */}
               {showAddGroups && (
-                <div className="p-4 border border-blue-200 bg-blue-50 rounded-lg">
+                <div className="p-4 border border-teal-200 bg-teal-50 rounded-lg">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-medium text-gray-900">Select Groups</h4>
                     <button
@@ -497,13 +497,13 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
                         {availableGroups.map(group => (
                           <label
                             key={group.id}
-                            className="flex items-center gap-2 p-2 hover:bg-blue-100 rounded cursor-pointer"
+                            className="flex items-center gap-2 p-2 hover:bg-teal-100 rounded cursor-pointer"
                           >
                             <input
                               type="checkbox"
                               checked={selectedGroupIds.includes(group.id)}
                               onChange={() => toggleGroupSelection(group.id)}
-                              className="rounded text-blue-600"
+                              className="rounded text-teal-600"
                             />
                             <div className="flex-1">
                               <p className="text-sm font-medium text-gray-900">{group.groupName}</p>
@@ -521,7 +521,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
                         type="button"
                         onClick={handleAddToGroups}
                         disabled={selectedGroupIds.length === 0 || loadingGroups}
-                        className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        className="w-full px-3 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                       >
                         {loadingGroups ? 'Adding...' : `Add to ${selectedGroupIds.length} Group(s)`}
                       </button>
@@ -544,7 +544,7 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Save className="w-4 h-4" />
               {saving ? 'Saving...' : 'Save Changes'}
@@ -555,3 +555,4 @@ export function EditAssetModal({ isOpen, asset, onClose, onSuccess }: EditAssetM
     </div>
   );
 }
+

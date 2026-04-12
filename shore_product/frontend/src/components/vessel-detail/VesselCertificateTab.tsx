@@ -55,7 +55,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_COLORS: Record<string, { bg: string; color: string }> = {
-  COMPETENCY: { bg: '#dbeafe', color: '#1e40af' },
+  COMPETENCY: { bg: '#ccfbf1', color: '#0a7068' },
   MEDICAL: { bg: '#d1fae5', color: '#065f46' },
   PROFICIENCY: { bg: '#fef3c7', color: '#92400e' },
   SAFETY: { bg: '#fee2e2', color: '#991b1b' },
@@ -192,13 +192,13 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
           onClick={() => setActiveTab('assignments')}
           style={{
             padding: '8px 18px', fontSize: '13px', fontWeight: 600, border: 'none', background: 'none', cursor: 'pointer',
-            borderBottom: activeTab === 'assignments' ? '2px solid #0054a6' : '2px solid transparent',
-            color: activeTab === 'assignments' ? '#0054a6' : '#6b7c8f',
+            borderBottom: activeTab === 'assignments' ? '2px solid #0d7377' : '2px solid transparent',
+            color: activeTab === 'assignments' ? '#0d7377' : '#6b7c8f',
             marginBottom: '-2px', display: 'flex', alignItems: 'center', gap: '6px',
           }}
         >
           <ShieldCheck size={14} /> Loại chứng chỉ yêu cầu
-          <span style={{ background: activeTab === 'assignments' ? '#0054a6' : '#e2eaf2', color: activeTab === 'assignments' ? '#fff' : '#6b7c8f', borderRadius: '10px', padding: '0 7px', fontSize: '11px' }}>
+          <span style={{ background: activeTab === 'assignments' ? '#0d7377' : '#e2eaf2', color: activeTab === 'assignments' ? '#fff' : '#6b7c8f', borderRadius: '10px', padding: '0 7px', fontSize: '11px' }}>
             {assignments.length}
           </span>
         </button>
@@ -206,13 +206,13 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
           onClick={() => setActiveTab('crew')}
           style={{
             padding: '8px 18px', fontSize: '13px', fontWeight: 600, border: 'none', background: 'none', cursor: 'pointer',
-            borderBottom: activeTab === 'crew' ? '2px solid #0054a6' : '2px solid transparent',
-            color: activeTab === 'crew' ? '#0054a6' : '#6b7c8f',
+            borderBottom: activeTab === 'crew' ? '2px solid #0d7377' : '2px solid transparent',
+            color: activeTab === 'crew' ? '#0d7377' : '#6b7c8f',
             marginBottom: '-2px', display: 'flex', alignItems: 'center', gap: '6px',
           }}
         >
           <Users size={14} /> Chứng chỉ thuyền viên
-          <span style={{ background: activeTab === 'crew' ? '#0054a6' : '#e2eaf2', color: activeTab === 'crew' ? '#fff' : '#6b7c8f', borderRadius: '10px', padding: '0 7px', fontSize: '11px' }}>
+          <span style={{ background: activeTab === 'crew' ? '#0d7377' : '#e2eaf2', color: activeTab === 'crew' ? '#fff' : '#6b7c8f', borderRadius: '10px', padding: '0 7px', fontSize: '11px' }}>
             {crewCerts.length}
           </span>
         </button>
@@ -227,7 +227,7 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
                 <input className="vp-cf" placeholder="Tìm theo tên / mã chứng chỉ" value={filterName} onChange={e => setFilterName(e.target.value)} style={{ paddingLeft: '24px' }} />
               </div>
               <select className="vp-cf" value={filterCat} onChange={e => setFilterCat(e.target.value)}
-                style={{ width: '160px', padding: '4px 8px', border: '1px solid #C5D9EC', borderRadius: '4px', fontSize: '11.5px', background: '#fff' }}>
+                style={{ width: '160px', padding: '4px 8px', border: '1px solid #b5e3da', borderRadius: '4px', fontSize: '11.5px', background: '#fff' }}>
                 <option value="">Tất cả loại</option>
                 {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
@@ -296,10 +296,10 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
             <div style={{ position: 'relative', flex: 1, maxWidth: '300px' }}>
               <Search size={13} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: '#99aab8', pointerEvents: 'none' }} />
               <input placeholder="Tìm thuyền viên, tên / mã chứng chỉ..." value={crewCertSearch} onChange={e => setCrewCertSearch(e.target.value)}
-                style={{ width: '100%', padding: '5px 8px 5px 28px', border: '1px solid #C5D9EC', borderRadius: '4px', fontSize: '12px', outline: 'none' }} />
+                style={{ width: '100%', padding: '5px 8px 5px 28px', border: '1px solid #b5e3da', borderRadius: '4px', fontSize: '12px', outline: 'none' }} />
             </div>
             <select value={crewCertCat} onChange={e => setCrewCertCat(e.target.value)}
-              style={{ padding: '5px 8px', border: '1px solid #C5D9EC', borderRadius: '4px', fontSize: '12px', background: '#fff' }}>
+              style={{ padding: '5px 8px', border: '1px solid #b5e3da', borderRadius: '4px', fontSize: '12px', background: '#fff' }}>
               <option value="">Tất cả loại</option>
               {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
@@ -387,7 +387,7 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
               <div style={{ position: 'relative' }}>
                 <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#99aab8', pointerEvents: 'none' }} />
                 <input type="text" placeholder="Tìm chứng chỉ..." value={pickerSearch} onChange={e => setPickerSearch(e.target.value)}
-                  style={{ width: '100%', padding: '7px 10px 7px 32px', border: '1px solid #C5D9EC', borderRadius: '5px', fontSize: '12.5px', outline: 'none' }} />
+                  style={{ width: '100%', padding: '7px 10px 7px 32px', border: '1px solid #b5e3da', borderRadius: '5px', fontSize: '12.5px', outline: 'none' }} />
               </div>
             </div>
             <div style={{ maxHeight: '380px', overflowY: 'auto', padding: '0 16px 8px' }}>
@@ -449,3 +449,5 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
     </div>
   );
 }
+
+

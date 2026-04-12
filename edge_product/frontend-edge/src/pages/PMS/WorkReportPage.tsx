@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { materialService } from '../../services/materialService'
 import { MaintenanceTask, CrewMember, TaskStatusHistory, TaskChecklistItem, MaterialItem } from '../../types/maritime.types'
+import type { TaskRiskAssessment, TaskInspectionReport, InspectionJobItem } from '../../types/pms.types'
 import { maritimeService } from '../../services/maritime.service'
 import { maintenanceScheduleService } from '../../services/maintenance-schedule.service'
 import { verifyTask, submitTask, startTask, type VerifyTaskDto, type SubmitTaskDto } from '../../services/maintenance.service'
@@ -65,6 +66,7 @@ export default function WorkReportPage() {
   const [reportReceiver, setReportReceiver] = useState('')
   const [hasRiskAssessment, setHasRiskAssessment] = useState(false)
 
+  const [equipmentDescription, setEquipmentDescription] = useState('')
   const [equipmentRunningHours, setEquipmentRunningHours] = useState<number>(0)
   const [currentEquipmentHours, setCurrentEquipmentHours] = useState<number>(0)
   const [completionDate, setCompletionDate] = useState('')
@@ -73,12 +75,22 @@ export default function WorkReportPage() {
 
   const [sparePartsUsed, setSparePartsUsed] = useState('')
 
-  const [riskDescription, setRiskDescription] = useState('')
-  const [riskLevel, setRiskLevel] = useState('LOW')
-  const [mitigationMeasures, setMitigationMeasures] = useState('')
+  // ── ĐGRR (Risk Assessment) form state ──
+  const [riskForm, setRiskForm] = useState<Partial<TaskRiskAssessment>>({
+    hazardMechanical: false, hazardElectrical: false, hazardChemical: false, hazardEnvironmental: false,
+    controlLOTO: false, controlPTW: false, controlPPE: false, controlVentilation: false,
+    isApprovedToProceed: true,
+  })
+  const [riskFilled, setRiskFilled] = useState(false)
+  const [savingRisk, setSavingRisk] = useState(false)
+  const [riskPdfLoading, setRiskPdfLoading] = useState(false)
 
-  const [inspectionNotes, setInspectionNotes] = useState('')
-  const [inspectionResult, setInspectionResult] = useState<'PASS' | 'FAIL' | ''>('')
+  // ── BBKT (Inspection Report) form state ──
+  const [bbktForm, setBbktForm] = useState<Partial<TaskInspectionReport>>({})
+  const [bbktJobItems, setBbktJobItems] = useState<InspectionJobItem[]>([])
+  const [bbktFilled, setBbktFilled] = useState(false)
+  const [savingBbkt, setSavingBbkt] = useState(false)
+  const [bbktPdfLoading, setBbktPdfLoading] = useState(false)
   const [showDeferralModal, setShowDeferralModal] = useState(false)
 
   // Comment state
@@ -111,6 +123,8 @@ export default function WorkReportPage() {
       loadCrew()
       loadChecklist()
       loadMaterials()
+      loadRiskAssessment()
+      loadInspectionReport()
     }
   }, [id])
 
@@ -148,13 +162,18 @@ export default function WorkReportPage() {
       setIsCbm(data.taskType === 'CONDITION')
       setEquipmentRunningHours(data.actualRunningHours || 0)
 
-      // Auto-fill "Thời gian hiện tại của thiết bị" từ counter thực tế
-      if (data.equipmentAssetId && !data.runningHoursAtLastDone) {
+      // Auto-fill "Thời gian hiện tại của thiết bị" và "Mô tả thiết bị" từ equipment asset
+      if (data.equipmentAssetId) {
         try {
           const asset = await equipmentAssetService.getById(data.equipmentAssetId)
-          setCurrentEquipmentHours(asset.currentRunningHours ?? 0)
+          if (!data.runningHoursAtLastDone) {
+            setCurrentEquipmentHours(asset.currentRunningHours ?? 0)
+          }
+          setEquipmentDescription(asset.notes || '')
         } catch {
-          setCurrentEquipmentHours(0)
+          if (!data.runningHoursAtLastDone) {
+            setCurrentEquipmentHours(0)
+          }
         }
       } else {
         setCurrentEquipmentHours(data.runningHoursAtLastDone || 0)
@@ -185,6 +204,32 @@ export default function WorkReportPage() {
       // Checklist may not exist for this task
       setChecklistItems([])
     }
+  }
+
+  const loadRiskAssessment = async () => {
+    if (!id) return
+    try {
+      // id here is the UUID of the task record; the API expects taskId (string code)
+      // We call after task is loaded but ID is the route param UUID
+      const data = await maritimeService.maintenance.getRiskAssessment(id)
+      setRiskFilled(data.isFilled)
+      setRiskForm(data)
+    } catch { /* no-op */ }
+  }
+
+  const loadInspectionReport = async () => {
+    if (!id) return
+    try {
+      const data = await maritimeService.maintenance.getInspectionReport(id)
+      setBbktFilled(data.isFilled)
+      setBbktForm(data)
+      if (data.jobItemsJson) {
+        try {
+          const parsed: InspectionJobItem[] = JSON.parse(data.jobItemsJson)
+          setBbktJobItems(Array.isArray(parsed) ? parsed : [])
+        } catch { setBbktJobItems([]) }
+      }
+    } catch { /* no-op */ }
   }
 
   const loadCrew = async () => {
@@ -341,8 +386,87 @@ export default function WorkReportPage() {
     }
   }
 
+  const handleSaveRisk = async () => {
+    if (!task) return
+    try {
+      setSavingRisk(true)
+      await maritimeService.maintenance.saveRiskAssessment(task.taskId || id!, riskForm)
+      setRiskFilled(true)
+      toast.success('Đã lưu biểu mẫu ĐGRR')
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Lưu ĐGRR thất bại')
+    } finally {
+      setSavingRisk(false)
+    }
+  }
+
+  const handleSaveBbkt = async () => {
+    if (!task) return
+    try {
+      setSavingBbkt(true)
+      const payload: Partial<TaskInspectionReport> = {
+        ...bbktForm,
+        jobItemsJson: JSON.stringify(bbktJobItems),
+      }
+      await maritimeService.maintenance.saveInspectionReport(task.taskId || id!, payload)
+      setBbktFilled(true)
+      toast.success('Đã lưu biên bản BBKT')
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Lưu BBKT thất bại')
+    } finally {
+      setSavingBbkt(false)
+    }
+  }
+
+  const handleOpenRiskPdf = async () => {
+    if (!task) return
+    try {
+      setRiskPdfLoading(true)
+      const blobUrl = await maritimeService.maintenance.downloadRiskAssessmentPdf(task.taskId || id!)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.target = '_blank'
+      a.rel = 'noopener noreferrer'
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
+    } catch {
+      toast.error('Không thể tạo PDF ĐGRR. Vui lòng lưu biểu mẫu trước.')
+    } finally {
+      setRiskPdfLoading(false)
+    }
+  }
+
+  const handleOpenBbktPdf = async () => {
+    if (!task) return
+    try {
+      setBbktPdfLoading(true)
+      const blobUrl = await maritimeService.maintenance.downloadInspectionReportPdf(task.taskId || id!)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.target = '_blank'
+      a.rel = 'noopener noreferrer'
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
+    } catch {
+      toast.error('Không thể tạo PDF BBKT. Vui lòng lưu biểu mẫu trước.')
+    } finally {
+      setBbktPdfLoading(false)
+    }
+  }
+
   const handleComplete = async () => {
     if (!task) return
+    // Validate required forms before submitting
+    if (task.requireRiskAssessment && !riskFilled) {
+      toast.error('Công việc này yêu cầu điền biểu mẫu ĐGRR trước khi hoàn thành')
+      setActiveTab('risk')
+      return
+    }
+    if (task.requireInspectionReport && !bbktFilled) {
+      toast.error('Công việc này yêu cầu điền biên bản BBKT trước khi hoàn thành')
+      setActiveTab('inspection')
+      return
+    }
     try {
       setSaving(true)
       const dto: SubmitTaskDto = {
@@ -383,6 +507,17 @@ export default function WorkReportPage() {
 
   const handleApprove = async () => {
     if (!task) return
+    // Kiểm tra biểu mẫu bắt buộc trước khi phê duyệt
+    if (task.requireRiskAssessment && !riskFilled) {
+      toast.error('Không thể phê duyệt: Biểu mẫu ĐGRR chưa được điền')
+      setActiveTab('risk')
+      return
+    }
+    if (task.requireInspectionReport && !bbktFilled) {
+      toast.error('Không thể phê duyệt: Biên bản kiểm tra BBKT chưa được điền')
+      setActiveTab('inspection')
+      return
+    }
     try {
       setVerifying(true)
       const dto: VerifyTaskDto = { action: 'APPROVE', notes: reportText || undefined }
@@ -570,22 +705,48 @@ export default function WorkReportPage() {
               {/* Row 5: Mô tả thiết bị */}
               <div className="flex items-start">
                 <label className={`${lbl} pt-1.5`} style={{ width: 110 }}>Mô tả thiết bị:</label>
-                <textarea rows={2} readOnly value="" className={`${inpRo} resize-none`} />
+                <textarea rows={2} readOnly value={equipmentDescription} className={`${inpRo} resize-none`} />
               </div>
               {/* Row 6: Đánh giá rủi ro + Biên bản kiểm tra */}
               <div className="flex gap-4">
                 <div className="flex items-center flex-1">
                   <label className={lbl} style={{ width: 110 }}>Đánh giá rủi ro:</label>
                   <div className="flex items-center gap-1 flex-1">
-                    <input type="text" readOnly value="" placeholder="" className={inpRo} />
-                    <button className="p-1.5 text-gray-400 hover:text-blue-600 shrink-0"><FileText size={14} /></button>
+                    <input
+                      type="text"
+                      readOnly
+                      value={riskFilled ? `DGRR-${task.taskId}.pdf` : ''}
+                      placeholder={riskFilled ? '' : 'Chưa có biểu mẫu'}
+                      className={inpRo}
+                    />
+                    <button
+                      onClick={handleOpenRiskPdf}
+                      disabled={!riskFilled || riskPdfLoading}
+                      title={riskFilled ? 'Xem PDF ĐGRR' : 'Chưa có dữ liệu'}
+                      className={`p-1.5 shrink-0 transition-colors ${riskFilled ? 'text-red-600 hover:text-red-800' : 'text-gray-300 cursor-not-allowed'}`}
+                    >
+                      <FileText size={14} />
+                    </button>
                   </div>
                 </div>
                 <div className="flex items-center flex-1">
                   <label className={lbl} style={{ width: 110 }}>Biên bản kiểm tra:</label>
                   <div className="flex items-center gap-1 flex-1">
-                    <input type="text" readOnly value="" placeholder="" className={inpRo} />
-                    <button className="p-1.5 text-gray-400 hover:text-blue-600 shrink-0"><FileText size={14} /></button>
+                    <input
+                      type="text"
+                      readOnly
+                      value={bbktFilled ? `BBKT-${task.taskId}.pdf` : ''}
+                      placeholder={bbktFilled ? '' : 'Chưa có biên bản'}
+                      className={inpRo}
+                    />
+                    <button
+                      onClick={handleOpenBbktPdf}
+                      disabled={!bbktFilled || bbktPdfLoading}
+                      title={bbktFilled ? 'Xem PDF BBKT' : 'Chưa có dữ liệu'}
+                      className={`p-1.5 shrink-0 transition-colors ${bbktFilled ? 'text-red-600 hover:text-red-800' : 'text-gray-300 cursor-not-allowed'}`}
+                    >
+                      <FileText size={14} />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -897,45 +1058,298 @@ export default function WorkReportPage() {
 
               {/* Biểu mẫu ĐGRR tab */}
               {activeTab === 'risk' && (
-                <div className="space-y-2.5">
-                  <div className="flex items-center">
-                    <label className={lbl} style={{ width: 120 }}>Mức độ rủi ro:</label>
-                    <select value={riskLevel} onChange={e => setRiskLevel(e.target.value)} className={inp}>
-                      <option value="LOW">Thấp</option>
-                      <option value="MEDIUM">Trung bình</option>
-                      <option value="HIGH">Cao</option>
-                      <option value="CRITICAL">Nghiêm trọng</option>
-                    </select>
+                <div className="space-y-4 text-sm">
+                  {/* Header bar */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle size={14} className="text-orange-500" />
+                      <span className="font-semibold text-orange-700">Đánh giá Rủi ro (ĐGRR)</span>
+                      {riskFilled && <span className="px-1.5 py-0.5 text-[10px] bg-green-100 text-green-700 rounded-full font-medium">Đã điền</span>}
+                      {!riskFilled && task?.requireRiskAssessment && <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-600 rounded-full font-medium">Bắt buộc</span>}
+                    </div>
+                    <button onClick={handleSaveRisk} disabled={savingRisk} className="flex items-center gap-1 px-3 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50">
+                      <Save size={12} /> {savingRisk ? 'Đang lưu...' : 'Lưu ĐGRR'}
+                    </button>
                   </div>
-                  <div className="flex items-start">
-                    <label className={`${lbl} pt-1.5`} style={{ width: 120 }}>Mô tả rủi ro:</label>
-                    <textarea rows={3} value={riskDescription} onChange={e => setRiskDescription(e.target.value)} placeholder="Mô tả các rủi ro tiềm ẩn..." className={`${inp} resize-y`} />
+
+                  {/* I. Thông tin chung */}
+                  <div className="border border-gray-200 rounded">
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">I. Thông tin chung</div>
+                    <div className="p-3 grid grid-cols-2 gap-2">
+                      {[
+                        { label: 'Tên công việc', key: 'jobName' },
+                        { label: 'Thiết bị / Hệ thống', key: 'equipmentName' },
+                        { label: 'Vị trí', key: 'location' },
+                        { label: 'Nhân sự', key: 'personnel' },
+                      ].map(({ label, key }) => (
+                        <div key={key}>
+                          <label className="text-xs text-gray-500 block mb-0.5">{label}</label>
+                          <input type="text" value={(riskForm as any)[key] || ''} onChange={e => setRiskForm(f => ({ ...f, [key]: e.target.value }))} className={inp} />
+                        </div>
+                      ))}
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-0.5">Ngày thực hiện</label>
+                        <input type="date" value={riskForm.assessmentDate ? riskForm.assessmentDate.substring(0, 10) : ''} onChange={e => setRiskForm(f => ({ ...f, assessmentDate: e.target.value }))} className={inp} />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-0.5">Số biểu mẫu</label>
+                        <input type="text" value={riskForm.raNumber || ''} onChange={e => setRiskForm(f => ({ ...f, raNumber: e.target.value }))} placeholder="VD: 001/RA/PMS" className={inp} />
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-start">
-                    <label className={`${lbl} pt-1.5`} style={{ width: 120 }}>Biện pháp giảm thiểu:</label>
-                    <textarea rows={3} value={mitigationMeasures} onChange={e => setMitigationMeasures(e.target.value)} placeholder="Các biện pháp..." className={`${inp} resize-y`} />
+
+                  {/* II. Nhận diện mối nguy */}
+                  <div className="border border-gray-200 rounded">
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">II. Nhận diện mối nguy</div>
+                    <div className="p-3 space-y-2">
+                      {[
+                        { key: 'hazardMechanical', label: 'Cơ học (kẹt, va đập, rung động)' },
+                        { key: 'hazardElectrical', label: 'Điện (điện giật, ngắn mạch)' },
+                        { key: 'hazardChemical', label: 'Hóa chất (dầu, nhiên liệu, axit)' },
+                        { key: 'hazardEnvironmental', label: 'Môi trường (nhiệt cao, không gian kín, làm việc trên cao)' },
+                      ].map(({ key, label }) => (
+                        <label key={key} className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={!!(riskForm as any)[key]} onChange={e => setRiskForm(f => ({ ...f, [key]: e.target.checked }))} className="w-3.5 h-3.5 rounded text-orange-600" />
+                          <span className="text-xs text-gray-700">{label}</span>
+                        </label>
+                      ))}
+                      <div>
+                        <label className="text-xs text-gray-500">Ghi chú mối nguy khác</label>
+                        <textarea rows={2} value={riskForm.hazardNotes || ''} onChange={e => setRiskForm(f => ({ ...f, hazardNotes: e.target.value }))} className={`${inp} resize-none mt-0.5`} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* III. Đánh giá rủi ro trước biện pháp */}
+                  <div className="border border-gray-200 rounded">
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">III. Đánh giá rủi ro trước biện pháp (S × L)</div>
+                    <div className="p-3 grid grid-cols-3 gap-2">
+                      {[
+                        { label: 'Hậu quả (S)', key: 'initialSeverity', opts: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
+                        { label: 'Khả năng (L)', key: 'initialLikelihood', opts: ['LOW', 'MEDIUM', 'HIGH'] },
+                        { label: 'Mức độ rủi ro', key: 'initialRiskLevel', opts: ['LOW', 'MEDIUM', 'HIGH'] },
+                      ].map(({ label, key, opts }) => (
+                        <div key={key}>
+                          <label className="text-xs text-gray-500 block mb-0.5">{label}</label>
+                          <select value={(riskForm as any)[key] || ''} onChange={e => setRiskForm(f => ({ ...f, [key]: e.target.value }))} className={inp}>
+                            <option value="">--</option>
+                            {opts.map(o => <option key={o} value={o}>{o === 'LOW' ? 'Thấp' : o === 'MEDIUM' ? 'Trung bình' : o === 'HIGH' ? 'Cao' : 'Nghiêm trọng'}</option>)}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* IV. Biện pháp kiểm soát */}
+                  <div className="border border-gray-200 rounded">
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">IV. Biện pháp kiểm soát</div>
+                    <div className="p-3 space-y-2">
+                      {[
+                        { key: 'controlLOTO', label: 'Cô lập thiết bị (LOTO - Lockout/Tagout)' },
+                        { key: 'controlPTW', label: 'Xin giấy phép làm việc (Permit to Work - PTW)' },
+                        { key: 'controlPPE', label: 'Trang thiết bị bảo hộ cá nhân (PPE)' },
+                        { key: 'controlVentilation', label: 'Thông gió, chiếu sáng' },
+                      ].map(({ key, label }) => (
+                        <label key={key} className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={!!(riskForm as any)[key]} onChange={e => setRiskForm(f => ({ ...f, [key]: e.target.checked }))} className="w-3.5 h-3.5 rounded text-blue-600" />
+                          <span className="text-xs text-gray-700">{label}</span>
+                        </label>
+                      ))}
+                      <div>
+                        <label className="text-xs text-gray-500">Biện pháp khác</label>
+                        <textarea rows={2} value={riskForm.controlNotes || ''} onChange={e => setRiskForm(f => ({ ...f, controlNotes: e.target.value }))} className={`${inp} resize-none mt-0.5`} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* V. Rủi ro dư thừa */}
+                  <div className="border border-gray-200 rounded">
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">V. Rủi ro dư thừa (sau biện pháp)</div>
+                    <div className="p-3 grid grid-cols-3 gap-2">
+                      {[
+                        { label: 'Hậu quả còn lại (S)', key: 'residualSeverity', opts: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
+                        { label: 'Khả năng còn lại (L)', key: 'residualLikelihood', opts: ['LOW', 'MEDIUM', 'HIGH'] },
+                        { label: 'Mức rủi ro dư', key: 'residualRiskLevel', opts: ['LOW', 'MEDIUM', 'HIGH'] },
+                      ].map(({ label, key, opts }) => (
+                        <div key={key}>
+                          <label className="text-xs text-gray-500 block mb-0.5">{label}</label>
+                          <select value={(riskForm as any)[key] || ''} onChange={e => setRiskForm(f => ({ ...f, [key]: e.target.value }))} className={inp}>
+                            <option value="">--</option>
+                            {opts.map(o => <option key={o} value={o}>{o === 'LOW' ? 'Thấp' : o === 'MEDIUM' ? 'Trung bình' : o === 'HIGH' ? 'Cao' : 'Nghiêm trọng'}</option>)}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="px-3 pb-3 space-y-2">
+                      <textarea rows={2} value={riskForm.residualRiskNotes || ''} onChange={e => setRiskForm(f => ({ ...f, residualRiskNotes: e.target.value }))} placeholder="Ghi chú rủi ro dư thừa..." className={`${inp} resize-none`} />
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={riskForm.isApprovedToProceed ?? true} onChange={e => setRiskForm(f => ({ ...f, isApprovedToProceed: e.target.checked }))} className="w-3.5 h-3.5 rounded text-green-600" />
+                        <span className="text-xs font-medium text-gray-700">Rủi ro chấp nhận được — Cho phép tiến hành công việc</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* VI. Phê duyệt */}
+                  <div className="border border-gray-200 rounded">
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">VI. Phê duyệt và Chữ ký</div>
+                    <div className="p-3 grid grid-cols-3 gap-2">
+                      {[
+                        { label: 'Người thực hiện (Worker)', key: 'workerSignature' },
+                        { label: 'Người giám sát (Supervisor)', key: 'supervisorSignature' },
+                        { label: 'Máy trưởng / SQ an toàn', key: 'chiefEngineerApproval' },
+                      ].map(({ label, key }) => (
+                        <div key={key}>
+                          <label className="text-xs text-gray-500 block mb-0.5">{label}</label>
+                          <input type="text" value={(riskForm as any)[key] || ''} onChange={e => setRiskForm(f => ({ ...f, [key]: e.target.value }))} placeholder="Họ và tên" className={inp} />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
 
               {/* Biểu mẫu BBKT tab */}
               {activeTab === 'inspection' && (
-                <div className="space-y-2.5">
-                  <div className="flex items-center">
-                    <label className={lbl} style={{ width: 120 }}>Kết quả kiểm tra:</label>
-                    <select value={inspectionResult} onChange={e => setInspectionResult(e.target.value as 'PASS' | 'FAIL' | '')} className={inp}>
-                      <option value="">-- Chọn kết quả --</option>
-                      <option value="PASS">Đạt</option>
-                      <option value="FAIL">Không đạt</option>
-                    </select>
+                <div className="space-y-4 text-sm">
+                  {/* Header bar */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileText size={14} className="text-blue-500" />
+                      <span className="font-semibold text-blue-700">Biên bản Bảo trì (BBKT)</span>
+                      {bbktFilled && <span className="px-1.5 py-0.5 text-[10px] bg-green-100 text-green-700 rounded-full font-medium">Đã điền</span>}
+                      {!bbktFilled && task?.requireInspectionReport && <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-600 rounded-full font-medium">Bắt buộc</span>}
+                    </div>
+                    <button onClick={handleSaveBbkt} disabled={savingBbkt} className="flex items-center gap-1 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+                      <Save size={12} /> {savingBbkt ? 'Đang lưu...' : 'Lưu BBKT'}
+                    </button>
                   </div>
-                  <div className="flex items-start">
-                    <label className={`${lbl} pt-1.5`} style={{ width: 120 }}>Ghi chú:</label>
-                    <textarea rows={4} value={inspectionNotes} onChange={e => setInspectionNotes(e.target.value)} placeholder="Nhập ghi chú kiểm tra..." className={`${inp} resize-y`} />
+
+                  {/* I. Thông tin chung */}
+                  <div className="border border-gray-200 rounded">
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">I. Thông tin chung</div>
+                    <div className="p-3 grid grid-cols-2 gap-2">
+                      {[
+                        { label: 'Tên tàu', key: 'shipName' },
+                        { label: 'Thiết bị / Hệ thống', key: 'equipmentName' },
+                        { label: 'Mã thiết bị (PMS Job No.)', key: 'equipmentCode' },
+                      ].map(({ label, key }) => (
+                        <div key={key}>
+                          <label className="text-xs text-gray-500 block mb-0.5">{label}</label>
+                          <input type="text" value={(bbktForm as any)[key] || ''} onChange={e => setBbktForm(f => ({ ...f, [key]: e.target.value }))} className={inp} />
+                        </div>
+                      ))}
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-0.5">Ngày thực hiện</label>
+                        <input type="date" value={bbktForm.maintenanceDate ? bbktForm.maintenanceDate.substring(0, 10) : ''} onChange={e => setBbktForm(f => ({ ...f, maintenanceDate: e.target.value }))} className={inp} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-xs text-gray-500 block mb-0.5">Loại bảo trì</label>
+                        <div className="flex flex-wrap gap-3 mt-1">
+                          {[['DAILY', 'Hàng ngày'], ['WEEKLY', 'Hàng tuần'], ['MONTHLY', 'Hàng tháng'], ['ANNUAL', 'Hàng năm'], ['RUNNING_HOURS', 'Theo giờ chạy']].map(([val, lbl]) => (
+                            <label key={val} className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-700">
+                              <input type="radio" name="maintenanceType" value={val} checked={bbktForm.maintenanceType === val} onChange={() => setBbktForm(f => ({ ...f, maintenanceType: val }))} className="w-3 h-3" />
+                              {lbl}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 pl-[120px]">
-                    <Paperclip size={14} className="text-gray-400" />
-                    <button className="text-sm text-blue-600 hover:underline">Đính kèm biên bản</button>
+
+                  {/* II. Nội dung công việc */}
+                  <div className="border border-gray-200 rounded">
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600 flex items-center justify-between">
+                      <span>II. Nội dung công việc (Checklist)</span>
+                      <button type="button" onClick={() => setBbktJobItems(f => [...f, { seq: f.length + 1, description: '', status: '', notes: '' }])} className="text-xs text-blue-600 hover:underline">+ Thêm dòng</button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-gray-50 border-b">
+                            <th className="px-2 py-1.5 text-left w-8">STT</th>
+                            <th className="px-2 py-1.5 text-left">Nội dung công việc</th>
+                            <th className="px-2 py-1.5 text-left w-28">Tình trạng</th>
+                            <th className="px-2 py-1.5 text-left">Ghi chú</th>
+                            <th className="w-6"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bbktJobItems.map((item, i) => (
+                            <tr key={i} className="border-b border-gray-100">
+                              <td className="px-2 py-1 text-gray-500">{item.seq}</td>
+                              <td className="px-2 py-1">
+                                <input type="text" value={item.description} onChange={e => setBbktJobItems(arr => arr.map((it, j) => j === i ? { ...it, description: e.target.value } : it))} className="w-full border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-300 rounded px-1" />
+                              </td>
+                              <td className="px-2 py-1">
+                                <select value={item.status} onChange={e => setBbktJobItems(arr => arr.map((it, j) => j === i ? { ...it, status: e.target.value as InspectionJobItem['status'] } : it))} className="w-full border border-gray-200 rounded text-xs px-1 py-0.5 bg-white">
+                                  <option value="">--</option>
+                                  <option value="GOOD">Tốt</option>
+                                  <option value="BAD">Xấu</option>
+                                  <option value="REPLACED">Thay thế</option>
+                                </select>
+                              </td>
+                              <td className="px-2 py-1">
+                                <input type="text" value={item.notes} onChange={e => setBbktJobItems(arr => arr.map((it, j) => j === i ? { ...it, notes: e.target.value } : it))} className="w-full border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-300 rounded px-1" />
+                              </td>
+                              <td className="px-1">
+                                <button type="button" onClick={() => setBbktJobItems(arr => arr.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600"><X size={12} /></button>
+                              </td>
+                            </tr>
+                          ))}
+                          {bbktJobItems.length === 0 && (
+                            <tr><td colSpan={5} className="px-3 py-3 text-center text-gray-400 italic">Chưa có nội dung — nhấn "+ Thêm dòng" hoặc dữ liệu từ checklist</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* III. Kết luận */}
+                  <div className="border border-gray-200 rounded">
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">III. Kết luận và kiến nghị</div>
+                    <div className="p-3 space-y-2">
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-1">Tình trạng sau bảo trì</label>
+                        <div className="flex gap-4">
+                          {[['NORMAL', 'Hoạt động bình thường'], ['MONITOR', 'Cần theo dõi'], ['NEEDS_REPAIR', 'Cần sửa chữa thêm']].map(([val, lbl]) => (
+                            <label key={val} className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-700">
+                              <input type="radio" name="postStatus" value={val} checked={bbktForm.postMaintenanceStatus === val} onChange={() => setBbktForm(f => ({ ...f, postMaintenanceStatus: val }))} className="w-3 h-3" />
+                              {lbl}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-0.5">Kiến nghị</label>
+                        <textarea rows={2} value={bbktForm.recommendations || ''} onChange={e => setBbktForm(f => ({ ...f, recommendations: e.target.value }))} className={`${inp} resize-none`} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* IV. Xác nhận */}
+                  <div className="border border-gray-200 rounded">
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">IV. Xác nhận</div>
+                    <div className="p-3 grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-0.5">Người thực hiện (Operator)</label>
+                        <input type="text" value={bbktForm.operatorSignature || ''} onChange={e => setBbktForm(f => ({ ...f, operatorSignature: e.target.value }))} placeholder="Ký và ghi rõ họ tên" className={inp} />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-0.5">Máy trưởng / Sĩ quan kỹ thuật</label>
+                        <input type="text" value={bbktForm.chiefEngineerSignature || ''} onChange={e => setBbktForm(f => ({ ...f, chiefEngineerSignature: e.target.value }))} placeholder="Ký và ghi rõ họ tên" className={inp} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-xs text-gray-500 block mb-1">Kết quả tổng thể</label>
+                        <div className="flex gap-4">
+                          {[['PASS', 'Đạt ✓'], ['FAIL', 'Không đạt ✗']].map(([val, lbl]) => (
+                            <label key={val} className={`flex items-center gap-1.5 px-3 py-1 rounded border cursor-pointer text-xs font-medium ${bbktForm.overallResult === val ? (val === 'PASS' ? 'bg-green-100 border-green-400 text-green-700' : 'bg-red-100 border-red-400 text-red-700') : 'border-gray-200 text-gray-600'}`}>
+                              <input type="radio" name="overallResult" value={val} checked={bbktForm.overallResult === val} onChange={() => setBbktForm(f => ({ ...f, overallResult: val }))} className="hidden" />
+                              {lbl}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

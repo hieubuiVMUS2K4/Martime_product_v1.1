@@ -20,7 +20,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   COMPETENCY: 'Năng lực', MEDICAL: 'Y tế', PROFICIENCY: 'Thành thạo', SAFETY: 'An toàn',
 };
 const CATEGORY_COLORS: Record<string, { bg: string; color: string }> = {
-  COMPETENCY: { bg: '#dbeafe', color: '#1e40af' },
+  COMPETENCY: { bg: '#ccfbf1', color: '#0a7068' },
   MEDICAL:    { bg: '#d1fae5', color: '#065f46' },
   PROFICIENCY:{ bg: '#fef3c7', color: '#92400e' },
   SAFETY:     { bg: '#fee2e2', color: '#991b1b' },
@@ -265,3 +265,4 @@ export const CertificateTypesTab: React.FC = () => {
     </div>
   );
 };
+

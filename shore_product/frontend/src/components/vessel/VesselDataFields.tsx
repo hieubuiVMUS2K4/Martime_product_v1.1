@@ -11,9 +11,9 @@ interface SectionCardProps {
 
 export function SectionCard({ title, children, className = '' }: SectionCardProps) {
   return (
-    <div className={className} style={{ background: '#fff', border: '1px solid #C5D9EC', borderRadius: 6, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,60,120,0.05)' }}>
-      <div style={{ background: '#D5E8FF', borderBottom: '1px solid #b8d4ee', padding: '7px 14px' }}>
-        <h3 style={{ fontSize: 11.5, fontWeight: 700, color: '#1a3a5c', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>{title}</h3>
+    <div className={className} style={{ background: '#fff', border: '1px solid #b5e3da', borderRadius: 6, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,60,120,0.05)' }}>
+      <div style={{ background: '#c5f0ea', borderBottom: '1px solid #a8ddd4', padding: '7px 14px' }}>
+        <h3 style={{ fontSize: 11.5, fontWeight: 700, color: '#133d38', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>{title}</h3>
       </div>
       <div style={{ padding: '14px' }}>{children}</div>
     </div>
@@ -34,13 +34,13 @@ export function ReadOnlyField({ label, value, suffix, className = '' }: ReadOnly
   const displayValue = value != null ? value.toString() : '-';
   return (
     <div className={className}>
-      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#1a3a5c', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</label>
+      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#133d38', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</label>
       <div style={{ position: 'relative' }}>
         <input
           type="text"
           value={displayValue}
           disabled
-          style={{ width: '100%', padding: '4px 8px', fontSize: 12.5, color: '#1e2d3d', background: '#f9fbfd', border: '1px solid #b8d4ee', borderRadius: 3, boxSizing: 'border-box', cursor: 'default' }}
+          style={{ width: '100%', padding: '4px 8px', fontSize: 12.5, color: '#132d2b', background: '#f9fbfd', border: '1px solid #a8ddd4', borderRadius: 3, boxSizing: 'border-box', cursor: 'default' }}
         />
         {suffix && (
           <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#6b7c8f' }}>{suffix}</span>
@@ -75,14 +75,14 @@ export function MetricFieldReadOnly({ label, valueM, suffix = 'm', className = '
 
   return (
     <div className={className}>
-      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#1a3a5c', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</label>
+      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#133d38', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</label>
       <div className="flex gap-1">
         <div className="flex-1 relative">
           <input
             type="text"
             value={meterDisplay}
             disabled
-            style={{ width: '100%', padding: '4px 8px', fontSize: 12.5, color: '#1e2d3d', background: '#f9fbfd', border: '1px solid #b8d4ee', borderRadius: 3, boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '4px 8px', fontSize: 12.5, color: '#132d2b', background: '#f9fbfd', border: '1px solid #a8ddd4', borderRadius: 3, boxSizing: 'border-box' }}
           />
           <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#6b7c8f' }}>{suffix}</span>
         </div>
@@ -91,7 +91,7 @@ export function MetricFieldReadOnly({ label, valueM, suffix = 'm', className = '
             type="text"
             value={ftIn}
             disabled
-            style={{ width: '100%', padding: '4px 8px', fontSize: 11.5, color: '#6b7c8f', background: '#f9fbfd', border: '1px solid #b8d4ee', borderRadius: 3, textAlign: 'center', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '4px 8px', fontSize: 11.5, color: '#6b7c8f', background: '#f9fbfd', border: '1px solid #a8ddd4', borderRadius: 3, textAlign: 'center', boxSizing: 'border-box' }}
           />
         </div>
       </div>
@@ -116,14 +116,14 @@ export function PowerFieldReadOnly({ label, valueKW, className = '' }: PowerFiel
 
   return (
     <div className={className}>
-      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#1a3a5c', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</label>
+      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#133d38', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</label>
       <div className="flex gap-1">
         <div className="flex-1 relative">
           <input
             type="text"
             value={kwDisplay}
             disabled
-            style={{ width: '100%', padding: '4px 8px', fontSize: 12.5, color: '#1e2d3d', background: '#f9fbfd', border: '1px solid #b8d4ee', borderRadius: 3, boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '4px 8px', fontSize: 12.5, color: '#132d2b', background: '#f9fbfd', border: '1px solid #a8ddd4', borderRadius: 3, boxSizing: 'border-box' }}
           />
           <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#6b7c8f' }}>kW</span>
         </div>
@@ -132,7 +132,7 @@ export function PowerFieldReadOnly({ label, valueKW, className = '' }: PowerFiel
             type="text"
             value={hpDisplay}
             disabled
-            style={{ width: '100%', padding: '4px 8px', fontSize: 12.5, color: '#6b7c8f', background: '#f9fbfd', border: '1px solid #b8d4ee', borderRadius: 3, boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '4px 8px', fontSize: 12.5, color: '#6b7c8f', background: '#f9fbfd', border: '1px solid #a8ddd4', borderRadius: 3, boxSizing: 'border-box' }}
           />
           <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#6b7c8f' }}>HP</span>
         </div>
@@ -183,16 +183,18 @@ export function EditableField({
 }: EditableFieldProps) {
   return (
     <div className={className}>
-      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#1a3a5c', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</label>
+      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#133d38', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</label>
       <input
         type={type}
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        style={{ width: '100%', padding: '4px 8px', fontSize: 12.5, color: '#1e2d3d', background: '#fff', border: '1px solid #b8d4ee', borderRadius: 3, boxSizing: 'border-box', outline: 'none' }}
-        onFocus={e => e.currentTarget.style.borderColor = '#0054a6'}
-        onBlur={e => e.currentTarget.style.borderColor = '#b8d4ee'}
+        style={{ width: '100%', padding: '4px 8px', fontSize: 12.5, color: '#132d2b', background: '#fff', border: '1px solid #a8ddd4', borderRadius: 3, boxSizing: 'border-box', outline: 'none' }}
+        onFocus={e => e.currentTarget.style.borderColor = '#0d7377'}
+        onBlur={e => e.currentTarget.style.borderColor = '#a8ddd4'}
       />
     </div>
   );
 }
+
+

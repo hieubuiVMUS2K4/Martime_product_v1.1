@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Upload, X, Trash2 } from 'lucide-react';
 import { crewApi, referenceApi } from '../../services/crew.service';
 import { useToast } from '../../components/common/Toast';
 import type { Country } from '../../types/crew.types';
@@ -60,11 +60,16 @@ export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClos
   const [submitting, setSubmitting] = useState(false);
   const [countries, setCountries] = useState<Country[]>([]);
   const [form, setForm] = useState<FormState>(initialForm);
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docFilePreview, setDocFilePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       referenceApi.getCountries().then(setCountries).catch(() => {});
       setForm(initialForm);
+      setDocFile(null);
+      setDocFilePreview(null);
     }
   }, [isOpen]);
 
@@ -77,6 +82,19 @@ export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClos
 
   const currentTypeOptions = DOCUMENT_TYPE_OPTIONS[form.category] || [];
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDocFile(file);
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onloadend = () => setDocFilePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      setDocFilePreview(null);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.documentType.trim() || !form.documentNumber.trim()) {
@@ -85,7 +103,7 @@ export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClos
     }
     try {
       setSubmitting(true);
-      await crewApi.addDocument(crewMemberId, form.category, {
+      const created = await crewApi.addDocument(crewMemberId, form.category, {
         documentType: form.documentType.trim(),
         documentNumber: form.documentNumber.trim(),
         issueDate: form.issueDate || undefined,
@@ -93,6 +111,11 @@ export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClos
         countryId: form.countryId ? Number(form.countryId) : undefined,
         notes: form.notes || undefined,
       });
+      if (docFile && created.id) {
+        const fd = new FormData();
+        fd.append('file', docFile);
+        await crewApi.uploadDocumentFile(crewMemberId, form.category, created.id, fd);
+      }
       toast.success('Thêm tài liệu thành công!');
       onSuccess?.();
       onClose();
@@ -103,14 +126,14 @@ export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClos
     }
   };
 
-  const inputCls = 'w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none';
+  const inputCls = 'w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none';
   const labelCls = 'mb-1 block text-xs font-medium uppercase text-gray-500';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.4)' }}>
       <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl mx-4">
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3" style={{ background: '#D5E8FF' }}>
-          <h2 className="text-base font-semibold" style={{ color: '#0054a6' }}>Thêm tài liệu định danh</h2>
+        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3" style={{ background: '#c5f0ea' }}>
+          <h2 className="text-base font-semibold" style={{ color: '#0d7377' }}>Thêm tài liệu định danh</h2>
           <button onClick={onClose} className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700">
             <X className="h-5 w-5" />
           </button>
@@ -160,13 +183,40 @@ export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClos
               <label className={labelCls}>Notes</label>
               <input type="text" value={form.notes} onChange={e => set('notes', e.target.value)} className={inputCls} placeholder="Ghi chú..." />
             </div>
+
+            <div className="md:col-span-2">
+              <label className={labelCls}>Ảnh / File tài liệu</label>
+              <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.gif,.pdf" onChange={handleFileSelect} style={{ display: 'none' }} />
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-3">
+                {docFilePreview ? (
+                  <div className="relative inline-block">
+                    <img src={docFilePreview} alt="Preview" className="h-28 rounded object-contain" />
+                    <button type="button" onClick={() => { setDocFile(null); setDocFilePreview(null); }}
+                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center">
+                      <Trash2 size={10} />
+                    </button>
+                  </div>
+                ) : docFile ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-700">📄 {docFile.name}</span>
+                    <button type="button" onClick={() => { setDocFile(null); setDocFilePreview(null); }}
+                      className="text-red-500 hover:text-red-700"><Trash2 size={14} /></button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2 text-sm text-teal-600 hover:text-teal-800">
+                    <Upload size={16} /> Chọn ảnh / file (JPG, PNG, PDF, tối đa 10MB)
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
             <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 text-sm">
               Hủy
             </button>
-            <button type="submit" disabled={submitting} className="px-4 py-2 rounded text-white text-sm font-medium disabled:opacity-50" style={{ background: '#0054a6' }}>
+            <button type="submit" disabled={submitting} className="px-4 py-2 rounded text-white text-sm font-medium disabled:opacity-50" style={{ background: '#0d7377' }}>
               {submitting ? 'Đang lưu...' : 'Thêm tài liệu'}
             </button>
           </div>
@@ -175,3 +225,6 @@ export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClos
     </div>
   );
 };
+
+
+

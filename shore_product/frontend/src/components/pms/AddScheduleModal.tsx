@@ -240,7 +240,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                   type="text"
                   value={formData.scheduleCode}
                   onChange={(e) => setFormData({ ...formData, scheduleCode: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                   placeholder="SCH-ME-001"
                   required
                 />
@@ -252,7 +252,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                 </label>
                 {/* Toggle Switch */}
                 <div className="flex items-center gap-3 mb-3 p-2 bg-gray-50 rounded-lg border border-gray-200">
-                  <span className={`text-sm font-medium ${!isAssetMode ? 'text-blue-700' : 'text-gray-400'}`}>Nhóm thiết bị</span>
+                  <span className={`text-sm font-medium ${!isAssetMode ? 'text-teal-700' : 'text-gray-400'}`}>Nhóm thiết bị</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -261,7 +261,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                       setAssetSearch('');
                       setShowAssetDropdown(false);
                     }}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${isAssetMode ? 'bg-teal-600' : 'bg-blue-600'}`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 ${isAssetMode ? 'bg-teal-600' : 'bg-teal-600'}`}
                   >
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isAssetMode ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
@@ -274,7 +274,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                     <select
                       value={formData.equipmentGroupId || ''}
                       onChange={(e) => setFormData({ ...formData, equipmentGroupId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                       required={!isAssetMode}
                     >
                       <option value="">Chọn nhóm thiết bị</option>
@@ -371,7 +371,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                   type="text"
                   value={formData.scheduleName}
                   onChange={(e) => setFormData({ ...formData, scheduleName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                   placeholder="Monthly Oil Filter Replacement"
                   required
                 />
@@ -390,7 +390,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                 <select
                   value={formData.intervalType}
                   onChange={(e) => setFormData({ ...formData, intervalType: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                 >
                   {INTERVAL_TYPES.map(type => (
                     <option key={type} value={type}>{type}</option>
@@ -407,7 +407,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                     type="number"
                     value={formData.intervalDays || ''}
                     onChange={(e) => setFormData({ ...formData, intervalDays: e.target.value ? parseInt(e.target.value) : undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                     placeholder="30"
                     min="1"
                   />
@@ -423,7 +423,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                     type="number"
                     value={formData.intervalHours || ''}
                     onChange={(e) => setFormData({ ...formData, intervalHours: e.target.value ? parseInt(e.target.value) : undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                     placeholder="500"
                     min="1"
                   />
@@ -438,7 +438,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                   type="number"
                   value={formData.daysBeforeDue}
                   onChange={(e) => setFormData({ ...formData, daysBeforeDue: e.target.value ? parseInt(e.target.value) : 7 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                   min="1"
                 />
               </div>
@@ -450,7 +450,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                 <select
                   value={formData.priority}
                   onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                 >
                   {PRIORITY_LEVELS.map(level => (
                     <option key={level} value={level}>{level}</option>
@@ -463,7 +463,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                   type="checkbox"
                   checked={formData.autoGenerate}
                   onChange={(e) => setFormData({ ...formData, autoGenerate: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
                 />
                 <label className="ml-2 text-sm text-gray-700">
                   Auto-generate tasks
@@ -479,7 +479,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
               <button
                 type="button"
                 onClick={handleAddSparePart}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700"
               >
                 <Plus className="w-4 h-4" />
                 Add Part
@@ -503,7 +503,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                             <select
                               value={part.materialItemId}
                               onChange={(e) => handleSparePartChange(index, 'materialItemId', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
                               required
                             >
                               <option value="">Select Material</option>
@@ -525,7 +525,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                               placeholder="Quantity"
                               min="0.001"
                               step="0.001"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
                               required
                             />
                           </div>
@@ -599,7 +599,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
               <div className="space-y-3">
                 {formData.checklistItemTemplates.map((item, index) => (
                   <div key={index} className="flex gap-3 items-start p-4 border border-gray-200 rounded-lg bg-gray-50">
-                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-sm">
+                    <div className="flex-shrink-0 w-8 h-8 bg-teal-600 text-white rounded-full flex items-center justify-center font-semibold text-sm">
                       {item.sequenceOrder}
                     </div>
                     
@@ -613,7 +613,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                           value={item.checkpointDescription}
                           onChange={(e) => handleChecklistItemChange(index, 'checkpointDescription', e.target.value)}
                           placeholder="E.g., Check oil level, Inspect filter condition, Measure temperature"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
                           required
                         />
                       </div>
@@ -624,7 +624,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                             type="checkbox"
                             checked={item.requiresReading || false}
                             onChange={(e) => handleChecklistItemChange(index, 'requiresReading', e.target.checked)}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
                           />
                           <label className="ml-2 text-sm text-gray-700">
                             Requires Reading Value
@@ -633,7 +633,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                       </div>
 
                       {item.requiresReading && (
-                        <div className="grid grid-cols-3 gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="grid grid-cols-3 gap-3 p-3 bg-teal-50 border border-teal-200 rounded-lg">
                           <div>
                             <label className="block text-xs font-medium text-gray-700 mb-1">
                               Min Value (Normal Range)
@@ -644,7 +644,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                               onChange={(e) => handleChecklistItemChange(index, 'normalRangeMin', e.target.value ? parseFloat(e.target.value) : undefined)}
                               placeholder="0"
                               step="0.01"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
                             />
                           </div>
                           <div>
@@ -657,7 +657,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                               onChange={(e) => handleChecklistItemChange(index, 'normalRangeMax', e.target.value ? parseFloat(e.target.value) : undefined)}
                               placeholder="100"
                               step="0.01"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
                             />
                           </div>
                           <div>
@@ -669,7 +669,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
                               value={item.unit ?? ''}
                               onChange={(e) => handleChecklistItemChange(index, 'unit', e.target.value)}
                               placeholder="°C, bar, rpm"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
                             />
                           </div>
                         </div>
@@ -710,7 +710,7 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
               disabled={loading}
             >
               {loading ? 'Creating...' : 'Create Schedule'}
@@ -721,3 +721,4 @@ export function AddScheduleModal({ isOpen, onClose, onSuccess }: AddScheduleModa
     </div>
   );
 }
+

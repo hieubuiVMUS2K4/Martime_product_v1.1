@@ -207,6 +207,17 @@ public class SyncInboxService : ISyncInboxService
         // PMS — Maintenance Tasks (synced from Edge, read-only on Shore)
         ["maintenance_task"]       = typeof(ProductApi.Models.MaintenanceTask),
         ["maintenance_history"]    = typeof(ProductApi.Models.MaintenanceHistory),
+        ["maintenance_schedule"]   = typeof(ProductApi.Models.MaintenanceSchedule),
+
+        // Telemetry — additional sensor data from Edge
+        ["ais_data"]               = typeof(ProductApi.Models.AisData),
+        ["fuel_consumption"]       = typeof(ProductApi.Models.FuelConsumptionData),
+        ["tank_level"]             = typeof(ProductApi.Models.TankLevel),
+        ["generator_data"]         = typeof(ProductApi.Models.GeneratorData),
+        ["safety_alarm"]           = typeof(ProductApi.Models.SafetyAlarm),
+
+        // Reporting — master data from Edge
+        ["report_type"]            = typeof(ProductApi.Models.ReportType),
     };
 
     // Some sync producers emit plural table names while Shore expects singular.
@@ -236,6 +247,22 @@ public class SyncInboxService : ISyncInboxService
         ["arrival_reports"] = "arrival_report",
         ["bunker_reports"] = "bunker_report",
         ["position_reports"] = "position_report",
+    };
+
+    // Tables that edge auto-syncs but shore intentionally does not store.
+    // These are silently skipped (not logged as failures) to avoid noise.
+    private static readonly HashSet<string> _ignoredTables = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "nmea_raw_data",             // Raw NMEA — only needed for edge debugging
+        "task_deferral_request",     // PMS workflow — edge-only
+        "watchkeeping_log",          // Logbook — no shore model
+        "oil_record_book",           // Logbook — no shore model
+        "deck_log_book",             // Logbook — no shore model
+        "engine_log_book",           // Logbook — no shore model
+        "garbage_record_book",       // Logbook — no shore model
+        "garbage_record_part_i",     // Logbook — no shore model
+        "garbage_record_part_ii",    // Logbook — no shore model
+        "ballast_water_record_book", // Logbook — no shore model
     };
 
     private static string CanonicalizeTableName(string? tableName)
@@ -271,6 +298,12 @@ public class SyncInboxService : ISyncInboxService
         "voyage_disbursement",
         "voyage_actual_revenue",
         "voyage_settlement",
+        // Document tables — edge creates documents locally; if not yet on shore, create them.
+        "travel_document",
+        "seafarer_document",
+        "employment_document",
+        "health_document",
+        "crew_certificate",
     };
 
     // Tables where entities are scoped per-vessel (have VesselId).
@@ -407,6 +440,13 @@ public class SyncInboxService : ISyncInboxService
 
             if (!_tableEntityMap.TryGetValue(canonicalTable, out var entityType))
             {
+                if (_ignoredTables.Contains(canonicalTable))
+                {
+                    _logger.LogDebug("Ignoring edge-only table: {Table}, {Count} items skipped", canonicalTable, group.Count());
+                    result.Succeeded += group.Count();
+                    continue;
+                }
+
                 _logger.LogWarning("Unknown table in batch: {Table} (canonical: {Canonical}), skipping {Count} items", group.Key, canonicalTable, group.Count());
                 foreach (var item in group)
                 {
@@ -459,7 +499,15 @@ public class SyncInboxService : ISyncInboxService
                         catch { /* parse error — continue normal processing */ }
                     }
 
-                    item.Payload = StripFileReferenceProperties(item.Payload);
+                    // For document tables: keep FileUrl so ConflictResolver can apply edge's file path.
+                    // For crew_certificate: keep DocumentFilePath (edge scans certs on board).
+                    // For other tables (crew_member, etc.): strip all file properties — files
+                    // arrive via the separate file-transfer pipeline.
+                    var isDocumentTable = canonicalTable.EndsWith("_document", StringComparison.OrdinalIgnoreCase);
+                    var isCrewCertificate = string.Equals(canonicalTable, "crew_certificate", StringComparison.OrdinalIgnoreCase);
+                    item.Payload = (isDocumentTable || isCrewCertificate)
+                        ? StripFileReferencePropertiesExceptFileUrl(item.Payload)
+                        : StripFileReferenceProperties(item.Payload);
 
                     await ProcessIncomingAsync(item);
                     await UpsertIncomingFileReferencesAsync(item);
@@ -935,6 +983,41 @@ public class SyncInboxService : ISyncInboxService
         return System.Text.Encoding.UTF8.GetString(stream.ToArray());
     }
 
+    /// <summary>
+    /// Strip file reference properties EXCEPT FileUrl.
+    /// Used for document tables where ConflictResolver needs FileUrl
+    /// to apply it from edge (edge wins for file properties on documents).
+    /// </summary>
+    private static string StripFileReferencePropertiesExceptFileUrl(string payload)
+    {
+        using var doc = JsonDocument.Parse(payload);
+        var root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+            return payload;
+
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartObject();
+            foreach (var property in root.EnumerateObject())
+            {
+                // Strip PhotoUrl — always server by file transfer, never in metadata payload.
+                // Keep FileUrl and DocumentFilePath — edge uploads files to these properties
+                // directly, and the conflict resolver needs them to update the entity.
+                if (property.NameEquals("PhotoUrl") || property.NameEquals("photoUrl")
+                    || property.NameEquals("FilePath") || property.NameEquals("filePath"))
+                {
+                    continue;
+                }
+
+                property.WriteTo(writer);
+            }
+            writer.WriteEndObject();
+        }
+
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+    }
+
     private static string ResolveLocalFilePath(string path)
     {
         return path.StartsWith("/", StringComparison.Ordinal)
@@ -970,6 +1053,9 @@ public class SyncInboxService : ISyncInboxService
 
         if (!_tableEntityMap.TryGetValue(item.TableName, out var entityType))
         {
+            if (_ignoredTables.Contains(item.TableName))
+                return; // silently skip edge-only tables
+
             _logger.LogWarning("Unknown sync table: {Table}", item.TableName);
             await LogSyncOperation(item, "FAILED", $"Unknown table: {item.TableName}");
             return;
@@ -1437,12 +1523,23 @@ public class SyncInboxService : ISyncInboxService
 
     private async Task<object?> FindEntityByKeyAsync(Type entityType, string recordKey)
     {
-        // crew_certificate uses CertificateNumber (string) as sync key — lookup by natural key
+        // crew_certificate: edge sends int Id as recordKey, but some older paths
+        // may send CertificateNumber. Try Id first, then fall back to CertificateNumber.
         if (entityType == typeof(CrewCertificate))
         {
-            return await _context.CrewCertificates
+            if (int.TryParse(recordKey, out var certId))
+            {
+                var byId = await _context.CrewCertificates
+                    .AsTracking()
+                    .FirstOrDefaultAsync(c => c.Id == certId);
+                if (byId != null) return byId;
+            }
+            // Fallback: lookup by CertificateNumber (natural key)
+            var byNumber = await _context.CrewCertificates
                 .AsTracking()
                 .FirstOrDefaultAsync(c => c.CertificateNumber == recordKey);
+            if (byNumber != null) return byNumber;
+            return null;
         }
 
         // Try Guid first (most crew entities), then int, then long

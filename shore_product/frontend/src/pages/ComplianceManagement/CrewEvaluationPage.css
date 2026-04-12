@@ -77,7 +77,7 @@
 
 .btn-primary {
   padding: 7px 14px;
-  background: #3b82f6;
+  background: #14b8a6;
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -86,7 +86,7 @@
   cursor: pointer;
 }
 
-.btn-primary:hover { background: #2563eb; }
+.btn-primary:hover { background: #0d9488; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-sm { padding: 5px 10px; font-size: 12px; }
@@ -103,10 +103,10 @@
   background: #f8fafc;
 }
 
-.eval-summary.eligible { border-left: 4px solid #22c55e; background: #f0fdf4; }
+.eval-summary.eligible { border-left: 4px solid #22c55e; background: #f0fdfa; }
 .eval-summary.eligiblewithwarnings { border-left: 4px solid #f59e0b; background: #fffbeb; }
 .eval-summary.noteligible { border-left: 4px solid #ef4444; background: #fef2f2; }
-.eval-summary.eligiblebywaiver { border-left: 4px solid #6366f1; background: #eef2ff; }
+.eval-summary.eligiblebywaiver { border-left: 4px solid #0d9488; background: #e6faf6; }
 
 .icon-eligible { color: #22c55e; }
 .icon-warnings { color: #f59e0b; }
@@ -145,7 +145,7 @@
 .count.met { background: #dcfce7; color: #166534; }
 .count.not-met { background: #fee2e2; color: #991b1b; }
 .count.warning { background: #fef3c7; color: #92400e; }
-.count.waived { background: #e0e7ff; color: #3730a3; }
+.count.waived { background: #ccfbf1; color: #096b5e; }
 
 /* Simulation bar */
 .sim-bar {
@@ -215,7 +215,7 @@
 
 .sev-blocker { color: #ef4444; }
 .sev-warning { color: #f59e0b; }
-.sev-info { color: #3b82f6; }
+.sev-info { color: #14b8a6; }
 
 .item-badge {
   display: inline-block;
@@ -228,7 +228,7 @@
 .item-badge.met { background: #dcfce7; color: #166534; }
 .item-badge.expiring { background: #fef3c7; color: #92400e; }
 .item-badge.not-met { background: #fee2e2; color: #991b1b; }
-.item-badge.waived { background: #e0e7ff; color: #3730a3; }
+.item-badge.waived { background: #ccfbf1; color: #096b5e; }
 .item-badge.na { background: #f1f5f9; color: #94a3b8; }
 
 .days-urgent {
@@ -261,3 +261,5 @@
   min-height: 30vh;
   color: #94a3b8;
 }
+
+

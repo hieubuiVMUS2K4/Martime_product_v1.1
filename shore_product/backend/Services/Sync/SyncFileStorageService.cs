@@ -86,10 +86,18 @@ public sealed class LocalSyncFileStorageService : ISyncFileStorageService
 
     public long GetFileSize(string relativeOrAbsolutePath)
     {
-        if (!ShouldProtect(relativeOrAbsolutePath))
-            return new FileInfo(ResolveLocalPath(relativeOrAbsolutePath)).Length;
+        var physicalPath = ResolveLocalPath(relativeOrAbsolutePath);
+        var fileLength = new FileInfo(physicalPath).Length;
 
-        return ReadAllBytesAsync(relativeOrAbsolutePath, CancellationToken.None).GetAwaiter().GetResult().LongLength;
+        if (!ShouldProtect(relativeOrAbsolutePath) || !_dataEncryptionService.IsConfigured)
+            return fileLength;
+
+        // For encrypted files, read raw bytes and strip envelope to get plaintext size.
+        // Use synchronous File.ReadAllBytes to avoid sync-over-async deadlock.
+        var raw = File.ReadAllBytes(physicalPath);
+        return _dataEncryptionService.IsEncryptedPayload(raw)
+            ? _dataEncryptionService.DecryptBytes(raw).LongLength
+            : fileLength;
     }
 
     public async Task<byte[]> ReadAllBytesAsync(string relativeOrAbsolutePath, CancellationToken cancellationToken)
@@ -128,7 +136,8 @@ public sealed class LocalSyncFileStorageService : ISyncFileStorageService
     {
         var physicalPath = ResolveLocalPath(relativeOrAbsolutePath);
         Directory.CreateDirectory(Path.GetDirectoryName(physicalPath)!);
-        var payload = ShouldProtect(relativeOrAbsolutePath) ? _dataEncryptionService.EncryptBytes(content) : content;
+        var shouldEncrypt = ShouldProtect(relativeOrAbsolutePath) && _dataEncryptionService.IsConfigured;
+        var payload = shouldEncrypt ? _dataEncryptionService.EncryptBytes(content) : content;
         await File.WriteAllBytesAsync(physicalPath, payload, cancellationToken);
     }
 

@@ -925,7 +925,7 @@ public class CrewService : ICrewService
             CertificateNumber = baseDto.CertificateNumber, CertificateIssue = baseDto.CertificateIssue,
             CertificateExpiry = baseDto.CertificateExpiry, MedicalIssue = baseDto.MedicalIssue,
             MedicalExpiry = baseDto.MedicalExpiry, DateOfBirth = baseDto.DateOfBirth,
-            PhotoUrl = baseDto.PhotoUrl, PlaceOfBirth = baseDto.PlaceOfBirth,
+            PhotoUrl = baseDto.PhotoUrl, AvatarUrl = baseDto.AvatarUrl, PlaceOfBirth = baseDto.PlaceOfBirth,
             IdCardNumber = baseDto.IdCardNumber, MaritalStatus = baseDto.MaritalStatus,
             Height = baseDto.Height, Weight = baseDto.Weight, BloodGroup = baseDto.BloodGroup,
             ClothingSize = baseDto.ClothingSize, ShoeSize = baseDto.ShoeSize,

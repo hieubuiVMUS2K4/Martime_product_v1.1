@@ -136,13 +136,13 @@
   flex-shrink: 0;
 }
 
-.s-stat__icon--blue    { background: #dbeafe; color: #2563eb; }
+.s-stat__icon--blue    { background: #ccfbf1; color: #0d9488; }
 .s-stat__icon--green   { background: #d1fae5; color: #059669; }
 .s-stat__icon--yellow  { background: #fef3c7; color: #d97706; }
 .s-stat__icon--red     { background: #fee2e2; color: #dc2626; }
 .s-stat__icon--purple  { background: #ede9fe; color: #7c3aed; }
 .s-stat__icon--cyan    { background: #cffafe; color: #0891b2; }
-.s-stat__icon--indigo  { background: #e0e7ff; color: #4f46e5; }
+.s-stat__icon--indigo  { background: #ccfbf1; color: #4f46e5; }
 .s-stat__icon--default { background: #f1f5f9; color: #64748b; }
 
 .s-stat__info { display: flex; flex-direction: column; }
@@ -319,13 +319,13 @@
 .s-badge--success  { background: #d1fae5; color: #065f46; }
 .s-badge--warning  { background: #fef3c7; color: #92400e; }
 .s-badge--danger   { background: #fee2e2; color: #991b1b; }
-.s-badge--info     { background: #dbeafe; color: #1e40af; }
+.s-badge--info     { background: #ccfbf1; color: #0a7068; }
 .s-badge--purple   { background: #ede9fe; color: #5b21b6; }
 .s-badge--pink     { background: #fce7f3; color: #9d174d; }
 .s-badge--cyan     { background: #cffafe; color: #155e75; }
 .s-badge--muted    { background: #f1f5f9; color: #64748b; }
 .s-badge--dark     { background: #1e293b; color: #e2e8f0; }
-.s-badge--solid-blue { background: #3b82f6; color: #fff; }
+.s-badge--solid-blue { background: #14b8a6; color: #fff; }
 .s-badge--solid-green { background: #10b981; color: #fff; }
 .s-badge--solid-red { background: #ef4444; color: #fff; }
 .s-badge--solid-gray { background: #6b7280; color: #fff; }
@@ -526,3 +526,5 @@
 @media (max-width: 480px) {
   .s-stats { grid-template-columns: 1fr; }
 }
+
+

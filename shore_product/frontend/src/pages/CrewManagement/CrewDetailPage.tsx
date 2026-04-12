@@ -20,7 +20,7 @@ import { openProtectedMediaInNewTab } from '../../services/protectedMedia';
 
 type TabType = 'basic-data' | 'documents' | 'voyage-history' | 'onboarding' | 'doc-workflow' | 'status-history' | 'audit';
 
-const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : '—';
+const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : '�';
 
 const calcAge = (dob?: string) => {
   if (!dob) return '';
@@ -83,7 +83,7 @@ export const CrewDetailPage: React.FC = () => {
     } catch { /* ignore */ }
   };
 
-  // Helper: inline style for changed fields (dùng inline style để chắc chắn hiện đỏ)
+  // Helper: inline style for changed fields (d�ng inline style d? ch?c ch?n hi?n d?)
   const fieldHighlight = (fieldName: string) =>
     changedFields.has(fieldName) ? ' cd-field--changed' : '';
 
@@ -100,7 +100,7 @@ export const CrewDetailPage: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
         <span style={{ fontSize: 11, color: '#dc2626' }}>
-          Tàu đã sửa: <s style={{ color: '#9ca3af' }}>{c.oldValue || '(trống)'}</s> → <strong style={{ color: '#b91c1c' }}>{c.newValue}</strong>
+          T�u d� s?a: <s style={{ color: '#9ca3af' }}>{c.oldValue || '(tr?ng)'}</s> ? <strong style={{ color: '#b91c1c' }}>{c.newValue}</strong>
         </span>
       </div>
     );
@@ -113,6 +113,7 @@ export const CrewDetailPage: React.FC = () => {
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [imageViewerUrl, setImageViewerUrl] = useState<string | null>(null);
   const [imageViewerCertId, setImageViewerCertId] = useState<number | null>(null);
+  const [imageViewerDocTarget, setImageViewerDocTarget] = useState<{ docId: string; category: string } | null>(null);
 
   // Avatar upload
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
@@ -127,12 +128,15 @@ export const CrewDetailPage: React.FC = () => {
   const [docsLoading, setDocsLoading] = useState(false);
   const [isAddDocModalOpen, setIsAddDocModalOpen] = useState(false);
   const [isAddHealthDocModalOpen, setIsAddHealthDocModalOpen] = useState(false);
+  const [docFileUploadTarget, setDocFileUploadTarget] = useState<{ docId: string; category: string } | null>(null);
+  const [uploadingDocFile, setUploadingDocFile] = useState(false);
+  const docFileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Service records
   const [serviceRecords, setServiceRecords] = useState<ServiceRecord[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
 
-  // Crew management workflow hooks (lazy — only fetch when tab is active)
+  // Crew management workflow hooks (lazy � only fetch when tab is active)
   const { data: onboardingCase, loading: onbLoading } = useCrewOnboarding(
     activeTab === 'onboarding' ? id : undefined
   );
@@ -192,9 +196,9 @@ export const CrewDetailPage: React.FC = () => {
     try {
       await crewApi.update(id, edited);
       await refetch();
-      toast.success('Lưu thành công!');
+      toast.success('Luu th�nh c�ng!');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Không thể lưu dữ liệu');
+      toast.error(e instanceof Error ? e.message : 'Kh�ng th? luu d? li?u');
     } finally { setSaving(false); }
   };
 
@@ -206,7 +210,7 @@ export const CrewDetailPage: React.FC = () => {
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      if (file.size > 5 * 1024 * 1024) { toast.error('Ảnh không được vượt quá 5MB'); return; }
+      if (file.size > 5 * 1024 * 1024) { toast.error('?nh kh�ng du?c vu?t qu� 5MB'); return; }
       setPendingAvatarFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setPendingAvatarPreview(reader.result as string);
@@ -225,9 +229,9 @@ export const CrewDetailPage: React.FC = () => {
       if (res.crewMember) await refetch();
       setPendingAvatarFile(null);
       setPendingAvatarPreview(null);
-      toast.success('Cập nhật ảnh thành công!');
+      toast.success('C?p nh?t ?nh th�nh c�ng!');
     } catch (err: any) {
-      toast.error(err.message || 'Upload thất bại');
+      toast.error(err.message || 'Upload th?t b?i');
     } finally {
       setUploadingAvatar(false);
     }
@@ -254,9 +258,9 @@ export const CrewDetailPage: React.FC = () => {
         setCertificates(prev => prev.map(c =>
           c.id === certId ? { ...c, documentFilePath: result.documentFilePath } : c
         ));
-        toast.success('Upload file thành công!');
+        toast.success('Upload file th�nh c�ng!');
       } catch (err: any) {
-        toast.error(err.message || 'Upload thất bại');
+        toast.error(err.message || 'Upload th?t b?i');
       } finally {
         setUploadingCertId(null);
       }
@@ -283,13 +287,13 @@ export const CrewDetailPage: React.FC = () => {
   };
 
   const handleDeleteCertificate = async (certId: number) => {
-    if (!window.confirm('Bạn có chắc muốn xóa chứng chỉ này?')) return;
+    if (!window.confirm('B?n c� ch?c mu?n x�a ch?ng ch? n�y?')) return;
     try {
       await certificateApi.deleteCrewCertificate(certId);
       await refetchCerts();
-      toast.success('Đã xóa chứng chỉ');
+      toast.success('�� x�a ch?ng ch?');
     } catch (err: any) {
-      toast.error(err.message || 'Không thể xóa chứng chỉ');
+      toast.error(err.message || 'Kh�ng th? x�a ch?ng ch?');
     }
   };
 
@@ -321,17 +325,42 @@ export const CrewDetailPage: React.FC = () => {
   const fieldCls = 'cd-field';
   const labelCls = 'cd-label';
 
+  const handleDocFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!docFileUploadTarget || !id) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setUploadingDocFile(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      await crewApi.uploadDocumentFile(id, docFileUploadTarget.category, docFileUploadTarget.docId, fd);
+      toast.success('Tai anh/file tai lieu thanh cong!');
+      await loadDocuments(true);
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : null) || 'Khong the tai file');
+    } finally {
+      setUploadingDocFile(false);
+      setDocFileUploadTarget(null);
+    }
+  };
+
+  const triggerDocFileUpload = (docId: string, category: string) => {
+    setDocFileUploadTarget({ docId, category });
+    docFileInputRef.current?.click();
+  };
+
   const DocTable = ({ docs, emoji }: { docs: CrewDocument[]; emoji: string }) => (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm" style={{ tableLayout: 'fixed' }}>
         <thead className="cd-table-thead">
           <tr>
-            <th style={{ width: '25%' }}>Name</th>
+            <th style={{ width: '22%' }}>Name</th>
             <th style={{ width: '18%' }}>Number</th>
-            <th style={{ width: '15%' }}>Issue Date</th>
-            <th style={{ width: '15%' }}>Expiry Date</th>
-            <th style={{ width: '15%' }}>Country</th>
-            <th style={{ width: '12%', textAlign: 'center' }}>File</th>
+            <th style={{ width: '14%' }}>Issue Date</th>
+            <th style={{ width: '14%' }}>Expiry Date</th>
+            <th style={{ width: '14%' }}>Country</th>
+            <th style={{ width: '18%', textAlign: 'center' }}>File</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
@@ -342,23 +371,37 @@ export const CrewDetailPage: React.FC = () => {
               <td className="px-4 py-2 font-medium text-gray-800 truncate">
                 <span className="mr-2">{emoji}</span>{doc.documentType}
               </td>
-              <td className="px-4 py-2 text-gray-600 truncate">{doc.documentNumber || '—'}</td>
+              <td className="px-4 py-2 text-gray-600 truncate">{doc.documentNumber || '--'}</td>
               <td className="px-4 py-2 text-gray-600">{fmt(doc.issueDate)}</td>
               <td className="px-4 py-2 text-gray-600">{fmt(doc.expiryDate)}</td>
-              <td className="px-4 py-2 text-gray-600 truncate">{doc.countryName || '—'}</td>
+              <td className="px-4 py-2 text-gray-600 truncate">{doc.countryName || '--'}</td>
               <td className="px-4 py-2 text-center">
-                {doc.fileUrl ? (
-                  <button
-                    onClick={() => { void openProtectedMediaInNewTab(doc.fileUrl!); }}
-                    className="inline-flex items-center justify-center w-7 h-7 rounded bg-blue-500 hover:bg-blue-600 text-white"
-                    style={{ border: 'none', cursor: 'pointer' }}>
-                    <Eye className="w-3.5 h-3.5" />
-                  </button>
-                ) : (
-                  <span className="inline-flex items-center justify-center w-7 h-7 rounded bg-gray-200 text-gray-400">
-                    <Upload className="w-3.5 h-3.5" />
-                  </span>
-                )}
+                <div className="inline-flex items-center gap-1 justify-center">
+                  {doc.fileUrl && (
+                    <button
+                      onClick={() => {
+                        setImageViewerUrl(doc.fileUrl!);
+                        setImageViewerCertId(null);
+                        setImageViewerDocTarget({ docId: doc.id, category: doc.category });
+                        setIsImageViewerOpen(true);
+                      }}
+                      title="Xem file"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded bg-teal-500 hover:bg-teal-600 text-white"
+                      style={{ border: 'none', cursor: 'pointer' }}>
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {!doc.fileUrl && (
+                    <button
+                      onClick={() => triggerDocFileUpload(doc.id, doc.category)}
+                      disabled={uploadingDocFile}
+                      title="Tải ảnh/file lên"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded text-white bg-gray-400 hover:bg-gray-500"
+                      style={{ border: 'none', cursor: 'pointer' }}>
+                      <Upload className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
@@ -367,9 +410,11 @@ export const CrewDetailPage: React.FC = () => {
     </div>
   );
 
+
+
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* â”€â”€ Header â”€â”€ */}
+      {/* ── Header ── */}
       <div className="bg-white border-b border-gray-200 px-6 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -377,7 +422,7 @@ export const CrewDetailPage: React.FC = () => {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <h1 className="text-lg font-semibold text-gray-800 uppercase">
-              EDIT {crew.fullName} — {crew.rankName || 'CREW'}
+              EDIT {crew.fullName} � {crew.rankName || 'CREW'}
             </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -385,7 +430,7 @@ export const CrewDetailPage: React.FC = () => {
               onClick={handleSave}
               disabled={saving}
               className="px-6 py-2 text-white rounded font-medium disabled:opacity-50 text-sm"
-              style={{ background: '#0054a6' }}
+              style={{ background: '#0d7377' }}
             >
               {saving ? 'Saving...' : 'Save'}
             </button>
@@ -401,17 +446,17 @@ export const CrewDetailPage: React.FC = () => {
           <AlertTriangle className="h-5 w-5 flex-shrink-0" style={{ color: '#ea580c', marginTop: 2 }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#c2410c', marginBottom: 4 }}>
-              Tàu yêu cầu bổ sung hồ sơ cho thuyền viên này
+              T�u y�u c?u b? sung h? so cho thuy?n vi�n n�y
             </div>
             {crew.reviewNotes && (
               <div style={{ fontSize: 13, color: '#9a3412', background: '#ffedd5', borderRadius: 6, padding: '8px 12px', marginTop: 4 }}>
-                <strong>Ghi chú từ tàu:</strong> {crew.reviewNotes}
+                <strong>Ghi ch� t? t�u:</strong> {crew.reviewNotes}
               </div>
             )}
             {crew.onboardStatusChangedBy && (
               <div style={{ fontSize: 12, color: '#a0aec0', marginTop: 6 }}>
-                Bởi: {crew.onboardStatusChangedBy}
-                {crew.onboardStatusChangedAt && ` — ${new Date(crew.onboardStatusChangedAt).toLocaleString('vi-VN')}`}
+                B?i: {crew.onboardStatusChangedBy}
+                {crew.onboardStatusChangedAt && ` � ${new Date(crew.onboardStatusChangedAt).toLocaleString('vi-VN')}`}
               </div>
             )}
           </div>
@@ -422,13 +467,13 @@ export const CrewDetailPage: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 24px', background: '#fef2f2', borderBottom: '2px solid #fca5a5' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#991b1b' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 22, height: 22, padding: '0 6px', background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 700, borderRadius: 11 }}>{edgeChanges.length}</span>
-            <span>Tàu đã thay đổi <strong>{edgeChanges.length}</strong> thông tin. Các trường thay đổi được đánh dấu <span style={{ color: '#ef4444', fontWeight: 700 }}>MÀU ĐỎ</span> bên dưới.</span>
+            <span>T�u d� thay d?i <strong>{edgeChanges.length}</strong> th�ng tin. C�c tru?ng thay d?i du?c d�nh d?u <span style={{ color: '#ef4444', fontWeight: 700 }}>M�U �?</span> b�n du?i.</span>
           </div>
-          <button onClick={handleMarkViewed} style={{ padding: '5px 14px', fontSize: 12, fontWeight: 600, color: '#fff', background: '#0054a6', border: 'none', borderRadius: 4, cursor: 'pointer' }}>✓ Đã xem</button>
+          <button onClick={handleMarkViewed} style={{ padding: '5px 14px', fontSize: 12, fontWeight: 600, color: '#fff', background: '#0d7377', border: 'none', borderRadius: 4, cursor: 'pointer' }}>? �� xem</button>
         </div>
       )}
       {/* Tabs */}
-      <div className="bg-white" style={{ borderBottom: '1px solid #C5D9EC' }}>
+      <div className="bg-white" style={{ borderBottom: '1px solid #b5e3da' }}>
         <div className="px-6 flex gap-1">
           {([
             { key: 'basic-data', label: 'Basic Data' },
@@ -445,7 +490,7 @@ export const CrewDetailPage: React.FC = () => {
               className={`flex items-center gap-1.5 px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.key ? '' : 'border-transparent text-gray-600 hover:text-gray-800'
               }`}
-              style={activeTab === tab.key ? { borderBottomColor: '#0054a6', color: '#0054a6', background: '#EBF4FF' } : {}}
+              style={activeTab === tab.key ? { borderBottomColor: '#0d7377', color: '#0d7377', background: '#e6f5f3' } : {}}
             >
               {tab.icon}{tab.label}
               {(() => {
@@ -467,10 +512,10 @@ export const CrewDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* â”€â”€ Content â”€â”€ */}
+      {/* ── Content ── */}
       <div className="p-3 space-y-3">
 
-        {/* â•â•â•â•â•â•â•â• BASIC DATA â•â•â•â•â•â•â•â• */}
+        {/* ════════ BASIC DATA ════════ */}
         {activeTab === 'basic-data' && (
           <>
             {/* Main form card */}
@@ -595,30 +640,30 @@ export const CrewDetailPage: React.FC = () => {
                           disabled={uploadingAvatar}
                           className={`px-3 py-1.5 text-white text-xs rounded flex items-center gap-1 ${uploadingAvatar ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
                         >
-                          <Upload className="w-3 h-3" /> {uploadingAvatar ? 'Đang lưu...' : 'Lưu'}
+                          <Upload className="w-3 h-3" /> {uploadingAvatar ? '�ang luu...' : 'Luu'}
                         </button>
                         <button
                           onClick={handleAvatarCancel}
                           disabled={uploadingAvatar}
                           className="px-3 py-1.5 text-white text-xs rounded bg-gray-500 hover:bg-gray-600"
                         >
-                          Huỷ
+                          Hu?
                         </button>
                       </>
                     ) : (
                       <button
                         onClick={handleAvatarChoose}
-                        className="px-3 py-1.5 text-white text-xs rounded bg-blue-600 hover:bg-blue-700 flex items-center gap-1"
+                        className="px-3 py-1.5 text-white text-xs rounded bg-teal-600 hover:bg-teal-700 flex items-center gap-1"
                       >
-                        <Upload className="w-3 h-3" /> Thay ảnh
+                        <Upload className="w-3 h-3" /> Thay ?nh
                       </button>
                     )}
                   </div>
                   <p className="text-xs text-gray-400 mt-1 text-center">
-                    {pendingAvatarFile ? 'Nhấn Lưu để xác nhận' : 'JPG/PNG, tối đa 5MB'}
+                    {pendingAvatarFile ? 'Nh?n Luu d? x�c nh?n' : 'JPG/PNG, t?i da 5MB'}
                   </p>
                   <div className="mt-3 flex items-center gap-2">
-                    <input type="checkbox" checked={edited.isOnboard ?? false} onChange={e => set('isOnboard', e.target.checked)} className="w-4 h-4 text-blue-600" />
+                    <input type="checkbox" checked={edited.isOnboard ?? false} onChange={e => set('isOnboard', e.target.checked)} className="w-4 h-4 text-teal-600" />
                     <label className="text-sm font-medium text-gray-700">On Board</label>
                   </div>
                 </div>
@@ -762,7 +807,7 @@ export const CrewDetailPage: React.FC = () => {
           </>
         )}
 
-        {/* â•â•â•â•â•â•â•â• DOCUMENTS â•â•â•â•â•â•â•â• */}
+        {/* ════════ DOCUMENTS ════════ */}
         {activeTab === 'documents' && (
           <>
             {docsLoading ? (
@@ -779,12 +824,12 @@ export const CrewDetailPage: React.FC = () => {
                     </h3>
                     <button
                       onClick={() => setIsAddDocModalOpen(true)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0054a6', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
                     >
-                      <Plus className="w-4 h-4" /> Thêm tài liệu
+                      <Plus className="w-4 h-4" /> Th�m t�i li?u
                     </button>
                   </div>
-                  <DocTable docs={[...travelDocs, ...seafarerDocs, ...employmentDocs]} emoji="📄" />
+                  <DocTable docs={[...travelDocs, ...seafarerDocs, ...employmentDocs]} emoji="??" />
                 </div>
 
                 {/* Health Documents */}
@@ -795,12 +840,12 @@ export const CrewDetailPage: React.FC = () => {
                     </h3>
                     <button
                       onClick={() => setIsAddHealthDocModalOpen(true)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0054a6', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
                     >
-                      <Plus className="w-4 h-4" /> Thêm tài liệu sức khỏe
+                      <Plus className="w-4 h-4" /> Th�m t�i li?u s?c kh?e
                     </button>
                   </div>
-                  <DocTable docs={healthDocs} emoji="🏥" />
+                  <DocTable docs={healthDocs} emoji="??" />
                 </div>
 
                 {/* Certificates */}
@@ -811,9 +856,9 @@ export const CrewDetailPage: React.FC = () => {
                     </h3>
                     <button
                       onClick={() => { setEditingCert(null); setShowAddCertModal(true); }}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0054a6', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
                     >
-                      <Plus className="w-4 h-4" /> Thêm chứng chỉ
+                      <Plus className="w-4 h-4" /> Th�m ch?ng ch?
                     </button>
                   </div>
                   {certsLoading ? (
@@ -822,12 +867,12 @@ export const CrewDetailPage: React.FC = () => {
                     </div>
                   ) : !certificates || certificates.length === 0 ? (
                     <div className="text-center py-10 text-gray-400">
-                      <p>Chưa có chứng chỉ nào</p>
+                      <p>Chua c� ch?ng ch? n�o</p>
                       <button
                         onClick={() => { setEditingCert(null); setShowAddCertModal(true); }}
-                        style={{ marginTop: 8, padding: '6px 16px', background: '#0054a6', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}
+                        style={{ marginTop: 8, padding: '6px 16px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}
                       >
-                        + Thêm chứng chỉ đầu tiên
+                        + Th�m ch?ng ch? d?u ti�n
                       </button>
                     </div>
                   ) : (
@@ -855,13 +900,13 @@ export const CrewDetailPage: React.FC = () => {
                                   <div className="font-medium text-gray-900 truncate">{cert.certificateName || cert.certificateCode}</div>
                                   {cert.category && <div className="text-xs text-gray-400">{cert.category}</div>}
                                 </td>
-                                <td className="px-4 py-2 font-mono text-xs text-gray-700 truncate">{cert.certificateNumber || '—'}</td>
+                                <td className="px-4 py-2 font-mono text-xs text-gray-700 truncate">{cert.certificateNumber || '�'}</td>
                                 <td className="px-4 py-2 text-gray-600">{fmt(cert.issueDate)}</td>
                                 <td className="px-4 py-2 text-gray-700">
                                   <div className="font-medium">{fmt(cert.expiryDate)}</div>
                                   {s.days !== undefined && <div className={`text-xs ${s.color}`}>{s.days} days</div>}
                                 </td>
-                                <td className="px-4 py-2 text-gray-600 truncate">{cert.issuingAuthority || '—'}</td>
+                                <td className="px-4 py-2 text-gray-600 truncate">{cert.issuingAuthority || '�'}</td>
                                 <td className="px-4 py-2">
                                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${s.bg} ${s.color}`}>
                                     <s.Icon className="w-3 h-3" />
@@ -878,9 +923,9 @@ export const CrewDetailPage: React.FC = () => {
                                     title={fileUrl ? 'Xem file' : 'Upload file'}
                                   >
                                     {uploadingCertId === cert.id ? (
-                                      <div className="animate-spin" style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid #3b82f6', borderTopColor: 'transparent', display: 'inline-block' }} />
+                                      <div className="animate-spin" style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid #14b8a6', borderTopColor: 'transparent', display: 'inline-block' }} />
                                     ) : fileUrl ? (
-                                      <span className="inline-flex items-center justify-center w-7 h-7 rounded bg-blue-500 hover:bg-blue-600 text-white">
+                                      <span className="inline-flex items-center justify-center w-7 h-7 rounded bg-teal-500 hover:bg-teal-600 text-white">
                                         <Eye className="w-3.5 h-3.5" />
                                       </span>
                                     ) : (
@@ -894,14 +939,14 @@ export const CrewDetailPage: React.FC = () => {
                                   <div style={{ display: 'flex', justifyContent: 'center', gap: 4 }}>
                                     <button
                                       onClick={() => { setEditingCert(cert); setShowAddCertModal(true); }}
-                                      title="Sửa"
+                                      title="S?a"
                                       style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                                     >
                                       <Pencil className="w-3.5 h-3.5" style={{ color: '#4b5563' }} />
                                     </button>
                                     <button
                                       onClick={() => handleDeleteCertificate(cert.id)}
-                                      title="Xóa"
+                                      title="X�a"
                                       style={{ background: 'none', border: '1px solid #fecaca', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                                     >
                                       <Trash2 className="w-3.5 h-3.5" style={{ color: '#dc2626' }} />
@@ -921,12 +966,12 @@ export const CrewDetailPage: React.FC = () => {
           </>
         )}
 
-        {/* â•â•â•â•â•â•â•â• VOYAGE HISTORY â•â•â•â•â•â•â•â• */}
+        {/* ════════ VOYAGE HISTORY ════════ */}
         {activeTab === 'voyage-history' && (
           <div className="cd-section">
             <div className="cd-section-header">
               <div className="flex items-center gap-2">
-                <Ship className="w-4 h-4" style={{ color: '#0054a6' }} />
+                <Ship className="w-4 h-4" style={{ color: '#0d7377' }} />
                 <h3 className="cd-section-title">Service Records</h3>
               </div>
               <span style={{ fontSize: 12, color: '#6b7280' }}>{serviceRecords.length} record(s)</span>
@@ -973,10 +1018,10 @@ export const CrewDetailPage: React.FC = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-gray-500 font-mono text-xs">{rec.vesselIMO || '—'}</td>
+                          <td className="px-4 py-3 text-gray-500 font-mono text-xs">{rec.vesselIMO || '�'}</td>
                           <td className="px-4 py-3">
-                            <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                              {rec.rankDuringService || '—'}
+                            <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-700">
+                              {rec.rankDuringService || '�'}
                             </span>
                           </td>
                           <td className="px-4 py-3">
@@ -997,8 +1042,8 @@ export const CrewDetailPage: React.FC = () => {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-gray-600">{rec.tradingArea || '—'}</td>
-                          <td className="px-4 py-3 text-gray-500 text-xs">{rec.remarks || '—'}</td>
+                          <td className="px-4 py-3 text-gray-600">{rec.tradingArea || '�'}</td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">{rec.remarks || '�'}</td>
                         </tr>
                       );
                     })}
@@ -1009,7 +1054,7 @@ export const CrewDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* ── Onboarding Tab ── */}
+        {/* -- Onboarding Tab -- */}
         {activeTab === 'onboarding' && (
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">Onboarding</h2>
@@ -1021,7 +1066,7 @@ export const CrewDetailPage: React.FC = () => {
                 <p>No onboarding case found for this crew member</p>
                 <button
                   onClick={() => navigate(`/onboarding/new?crewId=${id}`)}
-                  className="mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="mt-3 px-4 py-2 text-sm bg-teal-600 text-white rounded hover:bg-teal-700"
                 >
                   Create Onboarding Case
                 </button>
@@ -1067,7 +1112,7 @@ export const CrewDetailPage: React.FC = () => {
                 </div>
                 <button
                   onClick={() => navigate(`/onboarding/${onboardingCase.id}`)}
-                  className="mt-4 px-4 py-2 text-sm border border-blue-300 text-blue-600 rounded hover:bg-blue-50"
+                  className="mt-4 px-4 py-2 text-sm border border-blue-300 text-teal-600 rounded hover:bg-teal-50"
                 >
                   View Full Details
                 </button>
@@ -1076,7 +1121,7 @@ export const CrewDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* ── Document Workflow Tab ── */}
+        {/* -- Document Workflow Tab -- */}
         {activeTab === 'doc-workflow' && (
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">Document Submissions</h2>
@@ -1106,18 +1151,18 @@ export const CrewDetailPage: React.FC = () => {
                         <td className="px-4 py-2 font-medium text-gray-800">
                           {doc.documentTitle || doc.documentType}
                         </td>
-                        <td className="px-4 py-2 text-gray-600">{doc.documentNumber || '—'}</td>
+                        <td className="px-4 py-2 text-gray-600">{doc.documentNumber || '�'}</td>
                         <td className="px-4 py-2">
                           <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
                             doc.status === 'Verified' ? 'bg-green-100 text-green-700' :
                             doc.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                            doc.status === 'Submitted' || doc.status === 'SentForVerification' ? 'bg-blue-100 text-blue-700' :
+                            doc.status === 'Submitted' || doc.status === 'SentForVerification' ? 'bg-teal-100 text-teal-700' :
                             'bg-gray-100 text-gray-600'
                           }`}>{doc.status}</span>
                         </td>
                         <td className="px-4 py-2 text-gray-600">{fmt(doc.submittedAt)}</td>
                         <td className="px-4 py-2 text-gray-600">{fmt(doc.expiryDate)}</td>
-                        <td className="px-4 py-2 text-gray-500 text-xs">{doc.verificationStatus || '—'}</td>
+                        <td className="px-4 py-2 text-gray-500 text-xs">{doc.verificationStatus || '�'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1127,7 +1172,7 @@ export const CrewDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* ── Status History Tab ── */}
+        {/* -- Status History Tab -- */}
         {activeTab === 'status-history' && (
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">Status History</h2>
@@ -1148,11 +1193,11 @@ export const CrewDetailPage: React.FC = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 text-sm">
                         <span className="px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600">{entry.fromStatus}</span>
-                        <span className="text-gray-400">→</span>
-                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700">{entry.toStatus}</span>
+                        <span className="text-gray-400">?</span>
+                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-teal-100 text-teal-700">{entry.toStatus}</span>
                       </div>
                       {entry.reason && <p className="text-sm text-gray-600 mt-1">{entry.reason}</p>}
-                      <p className="text-xs text-gray-400 mt-1">by {entry.changedBy} · {fmt(entry.changedAt)}</p>
+                      <p className="text-xs text-gray-400 mt-1">by {entry.changedBy} � {fmt(entry.changedAt)}</p>
                     </div>
                   </div>
                 ))}
@@ -1161,7 +1206,7 @@ export const CrewDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* ── Audit Tab ── */}
+        {/* -- Audit Tab -- */}
         {activeTab === 'audit' && (
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">Audit Trail</h2>
@@ -1192,7 +1237,7 @@ export const CrewDetailPage: React.FC = () => {
                         </td>
                         <td className="px-4 py-2 text-gray-600 text-xs">{log.entityType}</td>
                         <td className="px-4 py-2 text-gray-700">{log.actor}</td>
-                        <td className="px-4 py-2 text-gray-500 text-xs truncate" style={{ maxWidth: 300 }}>{log.details || '—'}</td>
+                        <td className="px-4 py-2 text-gray-500 text-xs truncate" style={{ maxWidth: 300 }}>{log.details || '�'}</td>
                         <td className="px-4 py-2 text-gray-500 text-xs">{fmt(log.timestamp)}</td>
                       </tr>
                     ))}
@@ -1233,18 +1278,48 @@ export const CrewDetailPage: React.FC = () => {
         </>
       )}
 
-      <ImageViewerModal
+      {/* Hidden file input for document file upload */}
+      <input
+        ref={docFileInputRef}
+        type="file"
+        accept=".jpg,.jpeg,.png,.gif,.pdf"
+        style={{ display: 'none' }}
+        onChange={handleDocFileUpload}
+      />
+
+<ImageViewerModal
         isOpen={isImageViewerOpen}
         imageUrl={imageViewerUrl}
-        documentId={imageViewerCertId != null ? String(imageViewerCertId) : undefined}
-        customUploadHandler={imageViewerCertId != null ? handleCertificateUploadHandler : undefined}
+        documentId={
+          imageViewerCertId != null
+            ? String(imageViewerCertId)
+            : imageViewerDocTarget != null
+              ? imageViewerDocTarget.docId
+              : undefined
+        }
+        customUploadHandler={
+          imageViewerCertId != null
+            ? handleCertificateUploadHandler
+            : imageViewerDocTarget != null && id
+              ? async (_docId: string, formData: FormData) => {
+                  const result = await crewApi.uploadDocumentFile(id, imageViewerDocTarget.category, imageViewerDocTarget.docId, formData);
+                  setImageViewerUrl(result.fileUrl);
+                  await loadDocuments(true);
+                  return result;
+                }
+              : undefined
+        }
         onClose={() => {
           setIsImageViewerOpen(false);
           setImageViewerUrl(null);
           setImageViewerCertId(null);
+          setImageViewerDocTarget(null);
         }}
         onFileChanged={() => {}}
       />
     </div>
   );
 };
+
+
+

@@ -3,11 +3,11 @@ using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using Maritime.Shared.Models.Sync;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-
 namespace MaritimeEdge.Services.Core;
 
 public interface ISyncService
@@ -50,6 +50,11 @@ public class SyncService : ISyncService
         "employment_document", "health_document"
     };
     
+    // Tracks upload cooldowns to prevent rapid retry of failed uploads (in-memory, per instance).
+    // Key = ManifestId, Value = earliest next retry time (UTC).
+    private static readonly ConcurrentDictionary<Guid, DateTime> _uploadCooldowns = new();
+    private static readonly TimeSpan _uploadFailureCooldown = TimeSpan.FromMinutes(5);
+
     // Network type: read from config (Sync:NetworkType). In production this would be detected from router API.
     // Supported values: None, Satellite_Iridium, Satellite_VSAT, Cellular_4G, Shore_WiFi
     private NetworkType _currentNetwork;
@@ -530,8 +535,9 @@ public class SyncService : ISyncService
         if (!_fileTableNames.Contains(dto.TableName))
             return refs;
 
-        foreach (var (role, filePath) in ExtractSyncFilePaths(dto.Payload))
+        foreach (var (role, rawPath) in ExtractSyncFilePaths(dto.Payload))
         {
+            var filePath = StripQueryString(rawPath) ?? rawPath;
             if (!_syncFileStorageService.Exists(filePath))
             {
                 _logger.LogWarning("Sync file path not found for {Table}/{Key}: {Path}", dto.TableName, dto.RecordKey, filePath);
@@ -625,6 +631,10 @@ public class SyncService : ISyncService
                 continue;
             }
 
+            // SHA256 duplicate check above is sufficient — if shore sends a genuinely
+            // new file (different hash), edge should download it even for avatars/documents.
+            // The old IsEdgeOwnedFileProperty guard prevented shore files from ever reaching edge.
+
             manifest.TransferStatus = SyncFileTransferStatus.Requested;
             manifest.LastRequestedAtUtc = DateTime.UtcNow;
             manifest.LastError = null;
@@ -692,7 +702,7 @@ public class SyncService : ISyncService
         Maritime.Shared.DTOs.Sync.SyncFileReferenceDto fileRef,
         CancellationToken cancellationToken)
     {
-        var existingPath = await FindEntityFilePathAsync(context, item.TableName, item.RecordKey);
+        var existingPath = StripQueryString(await FindEntityFilePathAsync(context, item.TableName, item.RecordKey));
         if (string.IsNullOrWhiteSpace(existingPath))
             return null;
 
@@ -703,6 +713,31 @@ public class SyncService : ISyncService
         return string.Equals(checksum, fileRef.Sha256, StringComparison.OrdinalIgnoreCase)
             ? existingPath
             : null;
+    }
+
+    /// <summary>
+    /// Check if a file property is edge-owned for the given table (consistent with SyncConflictHandler).
+    /// Edge-owned files should not be overwritten by shore-to-edge file transfers.
+    /// </summary>
+    private static bool IsEdgeOwnedFileProperty(string tableName, string fileRole)
+    {
+        if (tableName == "crew_member" && string.Equals(fileRole, "avatar", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (tableName == "crew_certificate" && string.Equals(fileRole, "attachment", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (tableName.EndsWith("_document") && string.Equals(fileRole, "attachment", StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    /// <summary>
+    /// Strip query string (e.g. ?t=xxx cache-buster) from file paths before filesystem operations.
+    /// </summary>
+    private static string? StripQueryString(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return path;
+        var idx = path.IndexOf('?');
+        return idx >= 0 ? path[..idx] : path;
     }
 
     private int GetDeltaBlockSizeBytes()
@@ -734,8 +769,14 @@ public class SyncService : ISyncService
         if (tableName == "crew_member" && Guid.TryParse(recordKey, out var crewGuid))
             return (await context.CrewMembers.FindAsync(crewGuid))?.PhotoUrl;
 
-        if (tableName == "crew_certificate" && int.TryParse(recordKey, out var certId))
-            return (await context.CrewCertificates.FindAsync(certId))?.DocumentFilePath;
+        if (tableName == "crew_certificate")
+        {
+            if (int.TryParse(recordKey, out var certId))
+                return (await context.CrewCertificates.FindAsync(certId))?.DocumentFilePath;
+            var cert = await context.CrewCertificates.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.CertificateNumber == recordKey);
+            return cert?.DocumentFilePath;
+        }
 
         object? entity = null;
         if (Guid.TryParse(recordKey, out var guidKey))
@@ -866,6 +907,10 @@ public class SyncService : ISyncService
         {
             "crew_member" => SyncPriority.Operational,
             "crew_certificate" => SyncPriority.Operational,
+            "travel_document" => SyncPriority.Operational,
+            "seafarer_document" => SyncPriority.Operational,
+            "employment_document" => SyncPriority.Operational,
+            "health_document" => SyncPriority.Operational,
             _ => SyncPriority.Low
         };
     }
@@ -1147,6 +1192,15 @@ public class SyncService : ISyncService
                 if (bundledManifestIds.Contains(preparedRequest.Request.ManifestId))
                     continue;
 
+                // Skip if this manifest is in a cooldown window from a previous failed upload.
+                if (_uploadCooldowns.TryGetValue(preparedRequest.Request.ManifestId, out var retryAfter) &&
+                    DateTime.UtcNow < retryAfter)
+                {
+                    _logger.LogDebug("Skipping upload for manifest {ManifestId} — in cooldown until {RetryAfter:u}",
+                        preparedRequest.Request.ManifestId, retryAfter);
+                    continue;
+                }
+
                 if (preparedRequest.PreparedFile.SizeBytes >= chunkThresholdBytes)
                 {
                     await UploadFileInChunksAsync(client, baseUrl, nodeId, preparedRequest.Request, preparedRequest.PreparedFile, cancellationToken);
@@ -1183,7 +1237,25 @@ public class SyncService : ISyncService
                     cancellationToken);
                 var uploadResponse = await client.SendAsync(uploadRequest, cancellationToken);
                 if (!uploadResponse.IsSuccessStatusCode)
-                    _logger.LogWarning("Shore rejected file upload for manifest {ManifestId}: {Status}", preparedRequest.Request.ManifestId, uploadResponse.StatusCode);
+                {
+                    var statusCode = (int)uploadResponse.StatusCode;
+                    _logger.LogWarning(
+                        "Shore rejected file upload for manifest {ManifestId} ({Table}/{RecordKey}): HTTP {Status}. " +
+                        "File size: {SizeKB:F0} KB (prepared), {OrigKB:F0} KB (original). Applying {CooldownMin}m cooldown.",
+                        preparedRequest.Request.ManifestId,
+                        preparedRequest.Request.TableName,
+                        preparedRequest.Request.RecordKey,
+                        statusCode,
+                        preparedRequest.PreparedFile.SizeBytes / 1024.0,
+                        preparedRequest.PreparedFile.OriginalSizeBytes / 1024.0,
+                        (int)_uploadFailureCooldown.TotalMinutes);
+
+                    // Apply cooldown — longer backoff for 4xx (configuration/infra error) vs 5xx (transient).
+                    var cooldown = statusCode is >= 400 and < 500
+                        ? _uploadFailureCooldown * 3
+                        : _uploadFailureCooldown;
+                    _uploadCooldowns[preparedRequest.Request.ManifestId] = DateTime.UtcNow.Add(cooldown);
+                }
             }
         }
         catch (Exception ex)
@@ -1368,8 +1440,9 @@ public class SyncService : ISyncService
         Maritime.Shared.DTOs.Sync.SyncFileTransferRequestDto request,
         CancellationToken cancellationToken)
     {
-        foreach (var candidate in new[] { request.SourcePath, await FindEntityFilePathAsync(context, request.TableName, request.RecordKey) })
+        foreach (var raw in new[] { request.SourcePath, await FindEntityFilePathAsync(context, request.TableName, request.RecordKey) })
         {
+            var candidate = StripQueryString(raw);
             if (string.IsNullOrWhiteSpace(candidate))
                 continue;
 
@@ -1926,6 +1999,9 @@ public class SyncService : ISyncService
             if (property?.CanWrite == true && property.PropertyType == typeof(string))
             {
                 property.SetValue(entity, relativePath);
+                // Reflection SetValue does not trigger EF Core change detection,
+                // so we must explicitly mark the entity as modified.
+                context.Entry(entity).State = EntityState.Modified;
                 return;
             }
         }

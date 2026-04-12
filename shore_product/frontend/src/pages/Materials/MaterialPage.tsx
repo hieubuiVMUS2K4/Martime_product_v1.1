@@ -196,7 +196,7 @@ export function MaterialPage() {
           <span className="text-sm font-semibold text-gray-700">
             ≡ {t('materials.page.materialList')}
           </span>
-          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
+          <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold">
             {filteredItems.length}
           </span>
         </div>
@@ -223,7 +223,7 @@ export function MaterialPage() {
           </button>
           <button
             onClick={() => { setEditingItem(null); setItemModalOpen(true); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-teal-600 text-white rounded hover:bg-teal-700"
           >
             <Plus className="w-3.5 h-3.5" />
             {t('materials.page.addNew')}
@@ -244,14 +244,14 @@ export function MaterialPage() {
           <thead className="sticky top-0 z-10">
 
             {/* Row 1: Column headers */}
-            <tr className="bg-blue-50">
+            <tr className="bg-teal-50">
               <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">TT</th>
               <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">
                 <input
                   type="checkbox"
                   checked={selectedRows.size === paginatedItems.length && paginatedItems.length > 0}
                   onChange={toggleAllRows}
-                  className="rounded text-blue-600"
+                  className="rounded text-teal-600"
                 />
               </th>
               <th className="w-32 px-3 py-2 text-left border-b border-r border-gray-200">
@@ -374,8 +374,8 @@ export function MaterialPage() {
                 return (
                   <tr
                     key={item.id}
-                    className={`hover:bg-blue-50 ${
-                      selectedRows.has(item.id) ? 'bg-blue-50' : idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'
+                    className={`hover:bg-teal-50 ${
+                      selectedRows.has(item.id) ? 'bg-teal-50' : idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'
                     }`}
                   >
                     {/* TT */}
@@ -388,7 +388,7 @@ export function MaterialPage() {
                         type="checkbox"
                         checked={selectedRows.has(item.id)}
                         onChange={() => toggleRow(item.id)}
-                        className="rounded text-blue-600"
+                        className="rounded text-teal-600"
                       />
                     </td>
                     {/* Mã vật tư */}
@@ -399,7 +399,7 @@ export function MaterialPage() {
                     <td className="px-3 py-2 border-r border-gray-100">
                       <button
                         onClick={() => { setEditingItem(item); setItemModalOpen(true); }}
-                        className="text-blue-600 hover:underline font-medium text-xs text-left w-full"
+                        className="text-teal-600 hover:underline font-medium text-xs text-left w-full"
                       >
                         <span className="marquee-cell flex-1 min-w-0">
                           <span className="marquee-text">{item.name}</span>
@@ -411,7 +411,7 @@ export function MaterialPage() {
                     </td>
                     {/* Loại vật tư */}
                     <td className="px-3 py-2 text-xs border-r border-gray-100">
-                      <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 whitespace-nowrap">
+                      <span className="px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 whitespace-nowrap">
                         {categoryMap.get(item.categoryId) || '—'}
                       </span>
                     </td>
@@ -454,14 +454,14 @@ export function MaterialPage() {
                       <div className="flex items-center justify-center gap-0.5">
                         <button
                           onClick={() => setViewingItem(item)}
-                          className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                          className="p-1 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded"
                           title="Xem chi tiết"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => { setEditingItem(item); setItemModalOpen(true); }}
-                          className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                          className="p-1 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded"
                           title={t('materials.page.edit')}
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -520,7 +520,7 @@ export function MaterialPage() {
                 onClick={() => setCurrentPage(page)}
                 className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${
                   currentPage === page
-                    ? 'bg-blue-600 text-white border-blue-600'
+                    ? 'bg-teal-600 text-white border-blue-600'
                     : 'border-gray-300 hover:bg-gray-50'
                 }`}
               >
@@ -602,3 +602,4 @@ export function MaterialPage() {
     </div>
   );
 }
+

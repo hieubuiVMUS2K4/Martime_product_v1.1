@@ -17,7 +17,7 @@ const ACTIVE_EXTERNAL_REQUEST_STATUSES = [
 
 const STATUS_COLORS: Record<string, string> = {
   Draft: '#6b7280',
-  Sent: '#3b82f6',
+  Sent: '#14b8a6',
   Viewed: '#8b5cf6',
   InProgress: '#f59e0b',
   CandidateSubmitted: '#10b981',
@@ -252,3 +252,4 @@ export default function ExternalRequestListPage() {
     </div>
   );
 }
+

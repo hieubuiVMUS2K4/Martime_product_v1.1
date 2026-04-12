@@ -31,6 +31,7 @@
 }
 .form-group input:focus,
 .form-group select:focus,
-.form-group textarea:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+.form-group textarea:focus { border-color: #14b8a6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
 
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+

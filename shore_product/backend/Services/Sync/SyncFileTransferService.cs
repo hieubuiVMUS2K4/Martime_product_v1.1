@@ -390,14 +390,21 @@ public class SyncFileTransferService : ISyncFileTransferService
 
     public async Task<SyncFileTransferResultDto> AcceptUploadedFileAsync(SyncFileContentDto content, CancellationToken cancellationToken)
     {
+        _logger.LogInformation("[AcceptUploadedFile] START: manifest={ManifestId}, table={Table}, record={RecordKey}, role={FileRole}, supplier={Supplier}",
+            content.ManifestId, content.TableName, content.RecordKey, content.FileRole, content.SupplierNodeId);
+
         var request = await EnsureIncomingRequestAsync(content.RequestId, content.ManifestId, content.RequesterNodeId, content.SupplierNodeId, cancellationToken);
         var manifest = request.Manifest!;
+
+        _logger.LogInformation("[AcceptUploadedFile] After EnsureIncoming: requestStatus={Status}, manifestSha={ManifestSha}, contentSha={ContentSha}, storagePath={StoragePath}",
+            request.Status, manifest.Sha256, content.Sha256, manifest.StoragePath);
 
         if (request.Status == SyncFileRequestStatus.Completed &&
             string.Equals(manifest.Sha256, content.Sha256, StringComparison.OrdinalIgnoreCase) &&
             !string.IsNullOrWhiteSpace(manifest.StoragePath) &&
             _syncFileStorageService.Exists(manifest.StoragePath))
         {
+            _logger.LogInformation("[AcceptUploadedFile] EARLY RETURN - already processed. ManifestId={ManifestId}", content.ManifestId);
             return new SyncFileTransferResultDto
             {
                 Success = true,
@@ -434,9 +441,15 @@ public class SyncFileTransferService : ISyncFileTransferService
             content.SizeBytes,
             fileBytes,
             cancellationToken);
+
+        _logger.LogInformation("[AcceptUploadedFile] File stored at: {RelativePath}. Calling UpdateEntityFilePathAsync...", relativePath);
         await UpdateEntityFilePathAsync(content.TableName, content.RecordKey, content.FileRole, relativePath, cancellationToken);
+
         MarkRequestCompleted(request, manifest, relativePath);
+
+        _logger.LogInformation("[AcceptUploadedFile] Calling SaveChangesAsync...");
         await _context.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("[AcceptUploadedFile] SaveChangesAsync COMPLETED for manifest={ManifestId}", content.ManifestId);
 
         return new SyncFileTransferResultDto
         {
@@ -848,8 +861,13 @@ public class SyncFileTransferService : ISyncFileTransferService
 
         if (tableName == "crew_member" && Guid.TryParse(recordKey, out var crewId))
             entity = await _context.CrewMembers.FindAsync(new object[] { crewId }, cancellationToken);
-        else if (tableName == "crew_certificate" && int.TryParse(recordKey, out var crewCertificateId))
-            entity = await _context.CrewCertificates.FindAsync(new object[] { crewCertificateId }, cancellationToken);
+        else if (tableName == "crew_certificate")
+        {
+            if (int.TryParse(recordKey, out var crewCertificateId))
+                entity = await _context.CrewCertificates.FindAsync(new object[] { crewCertificateId }, cancellationToken);
+            else
+                entity = await _context.CrewCertificates.FirstOrDefaultAsync(c => c.CertificateNumber == recordKey, cancellationToken);
+        }
         else if (Guid.TryParse(recordKey, out var documentId))
             entity = tableName switch
             {
@@ -879,12 +897,20 @@ public class SyncFileTransferService : ISyncFileTransferService
 
     private async Task UpdateEntityFilePathAsync(string tableName, string recordKey, string fileRole, string relativePath, CancellationToken cancellationToken)
     {
+        _logger.LogInformation("[UpdateEntityFilePath] START: table={Table}, recordKey={RecordKey}, fileRole={FileRole}, relativePath={RelativePath}",
+            tableName, recordKey, fileRole, relativePath);
+
         object? entity = null;
 
         if (tableName == "crew_member" && Guid.TryParse(recordKey, out var crewId))
             entity = await _context.CrewMembers.FindAsync(new object[] { crewId }, cancellationToken);
-        else if (tableName == "crew_certificate" && int.TryParse(recordKey, out var crewCertificateId))
-            entity = await _context.CrewCertificates.FindAsync(new object[] { crewCertificateId }, cancellationToken);
+        else if (tableName == "crew_certificate")
+        {
+            if (int.TryParse(recordKey, out var crewCertificateId))
+                entity = await _context.CrewCertificates.FindAsync(new object[] { crewCertificateId }, cancellationToken);
+            else
+                entity = await _context.CrewCertificates.FirstOrDefaultAsync(c => c.CertificateNumber == recordKey, cancellationToken);
+        }
         else if (Guid.TryParse(recordKey, out var documentId))
             entity = tableName switch
             {
@@ -896,17 +922,31 @@ public class SyncFileTransferService : ISyncFileTransferService
             };
 
         if (entity == null)
+        {
+            _logger.LogWarning("[UpdateEntityFilePath] Entity NOT FOUND: table={Table}, recordKey={RecordKey}", tableName, recordKey);
             return;
+        }
+
+        _logger.LogInformation("[UpdateEntityFilePath] Entity found: type={EntityType}", entity.GetType().Name);
 
         foreach (var propertyName in GetFilePathPropertyCandidates(fileRole))
         {
             var property = entity.GetType().GetProperty(propertyName);
             if (property?.CanWrite == true && property.PropertyType == typeof(string))
             {
+                var oldValue = property.GetValue(entity) as string;
                 property.SetValue(entity, relativePath);
+                // Reflection SetValue does not trigger EF Core change detection,
+                // so we must explicitly mark the entity as modified.
+                _context.Entry(entity).State = EntityState.Modified;
+                _logger.LogInformation("[UpdateEntityFilePath] SET {Property}: '{OldValue}' → '{NewValue}' (entity marked Modified)",
+                    propertyName, oldValue, relativePath);
                 return;
             }
         }
+
+        _logger.LogWarning("[UpdateEntityFilePath] No writable property found for fileRole={FileRole}, candidates={Candidates}",
+            fileRole, string.Join(",", GetFilePathPropertyCandidates(fileRole)));
     }
 
     private async Task ValidateStoredFileAsync(string relativePath, string expectedSha256, long expectedSizeBytes, CancellationToken cancellationToken)

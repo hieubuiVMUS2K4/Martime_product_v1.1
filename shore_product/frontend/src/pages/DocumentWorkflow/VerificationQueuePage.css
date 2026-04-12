@@ -48,7 +48,7 @@
 }
 
 .verification-card:hover {
-  border-color: #93c5fd;
+  border-color: #5eead4;
   box-shadow: 0 1px 4px rgba(37, 99, 235, 0.08);
 }
 
@@ -61,7 +61,7 @@
 }
 
 .verification-card.priority-normal {
-  border-left: 4px solid #3b82f6;
+  border-left: 4px solid #14b8a6;
 }
 
 .verification-card-content {
@@ -108,8 +108,8 @@
 }
 
 .priority-badge.normal {
-  background: #dbeafe;
-  color: #1e40af;
+  background: #ccfbf1;
+  color: #0a7068;
 }
 
 .due-info {
@@ -163,3 +163,4 @@
 .verification-card-actions button.reject-btn:hover {
   background: #fecaca;
 }
+

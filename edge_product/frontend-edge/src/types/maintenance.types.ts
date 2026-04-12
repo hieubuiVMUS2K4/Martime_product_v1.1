@@ -59,6 +59,10 @@ export interface MaintenanceTask {
   hasPendingDeferral?: boolean;
   deferralCount?: number;
   
+  // ĐGRR / BBKT requirements
+  requireRiskAssessment?: boolean;
+  requireInspectionReport?: boolean;
+  
   isSynced: boolean;
   createdAt: string;
 }

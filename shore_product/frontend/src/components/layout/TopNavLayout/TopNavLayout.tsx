@@ -1,19 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Anchor, Bell, Menu, X, ChevronDown, Ship, Check, RefreshCw, LogIn, LogOut } from 'lucide-react';
+import { Anchor, Bell, Menu, X, ChevronDown, RefreshCw, Ship } from 'lucide-react';
+import { crewApi } from '../../../services/crew.service';
+import type { HoldNotification } from '../../../services/crew.service';
 import { notificationApi } from '../../../services/notification.service';
 import type { ShoreNotification } from '../../../services/notification.service';
-import { useVessel } from '../../../contexts/VesselContext';
+import { UserMenu } from '../UserMenu';
 import './TopNavLayout.css';
 
-const LAST_SEEN_KEY = 'shore_notifications_last_seen';
+const LAST_SEEN_KEY = 'hold_notifications_last_seen';
 
 function getLastSeenDate(): Date {
   const stored = localStorage.getItem(LAST_SEEN_KEY);
   return stored ? new Date(stored) : new Date(0);
 }
 
-function markAllSeenLocally() {
+function markAllSeen() {
   localStorage.setItem(LAST_SEEN_KEY, new Date().toISOString());
 }
 
@@ -51,7 +53,7 @@ const navItems: NavItemDef[] = [
       },
       {
         title: 'ĐIỀU PHỐI',
-        items: [
+        items: [   
           { path: '/assignments', label: 'Phân công' },
           { path: '/external-requests', label: 'Tuyển ngoài' },
           { path: '/travel', label: 'Di chuyển' },
@@ -60,7 +62,6 @@ const navItems: NavItemDef[] = [
       }
     ]
   },
-  { type: 'link', path: '/voyages', label: 'Hải trình' },
   { type: 'link', path: '/report', label: 'Báo cáo' },
   { type: 'link', path: '/sync',   label: 'Đồng bộ' },
 ];
@@ -68,30 +69,36 @@ const navItems: NavItemDef[] = [
 export const TopNavLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { vessels, selectedVessel, selectVessel, isLoading } = useVessel();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [notifications, setNotifications] = useState<ShoreNotification[]>([]);
+  const [holdNotifications, setHoldNotifications] = useState<HoldNotification[]>([]);
+  const [syncNotifications, setSyncNotifications] = useState<ShoreNotification[]>([]);
   const [bellOpen, setBellOpen] = useState(false);
   const [openDropdownIdx, setOpenDropdownIdx] = useState<number | null>(null);
-  const [vesselDropdownOpen, setVesselDropdownOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
   const navLinksRef = useRef<HTMLDivElement>(null);
-  const vesselDropdownRef = useRef<HTMLDivElement>(null);
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const holdUnread = holdNotifications.filter(
+    n => new Date(n.onboardStatusChangedAt) > getLastSeenDate()
+  ).length;
+  const syncUnread = syncNotifications.filter(n => !n.isRead).length;
+  const unreadCount = holdUnread + syncUnread;
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      const [holds, syncs] = await Promise.all([
+        crewApi.holdNotifications().catch(() => [] as HoldNotification[]),
+        notificationApi.getRecent(30).catch(() => [] as ShoreNotification[]),
+      ]);
+      setHoldNotifications(holds);
+      setSyncNotifications(syncs);
+    } catch { /* silent */ }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const data = await notificationApi.getRecent(50);
-        if (!cancelled) setNotifications(data);
-      } catch { /* silent */ }
-    };
-    load();
-    const interval = setInterval(load, 60_000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, []);
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 30_000);
+    return () => clearInterval(interval);
+  }, [loadNotifications]);
 
   // Close bell dropdown when clicking outside
   useEffect(() => {
@@ -110,33 +117,33 @@ export const TopNavLayout: React.FC = () => {
       if (navLinksRef.current && !navLinksRef.current.contains(e.target as Node)) {
         setOpenDropdownIdx(null);
       }
-      if (vesselDropdownRef.current && !vesselDropdownRef.current.contains(e.target as Node)) {
-        setVesselDropdownOpen(false);
-      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  useEffect(() => {
-    setOpenDropdownIdx(null);
-    setMobileMenuOpen(false);
-    setVesselDropdownOpen(false);
-  }, [location.pathname]);
-
   const handleBellClick = () => {
     setBellOpen(prev => !prev);
     if (!bellOpen) {
-      markAllSeenLocally();
+      markAllSeen();
       notificationApi.markAllRead().catch(() => {});
-      // Optimistically mark all as read in local state
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setSyncNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setHoldNotifications(prev => [...prev]); // force re-render to clear badge
     }
   };
 
-  const handleNotificationClick = (n: ShoreNotification) => {
+  const handleHoldClick = (n: HoldNotification) => {
     setBellOpen(false);
-    if (n.vesselId) navigate(`/vessels/${n.vesselId}`);
+    navigate(`/vessels/${n.vesselId}`);
+  };
+
+  const handleSyncClick = (n: ShoreNotification) => {
+    setBellOpen(false);
+    if (n.vesselId) {
+      navigate(`/vessels/${n.vesselId}`);
+    } else {
+      navigate('/sync');
+    }
   };
 
   const isDropdownActive = (item: NavDropdown) =>
@@ -262,7 +269,7 @@ export const TopNavLayout: React.FC = () => {
               {bellOpen && (
                 <div style={{
                   position: 'absolute', right: 0, top: 'calc(100% + 8px)',
-                  width: 340, background: '#fff',
+                  width: 370, background: '#fff',
                   border: '1px solid #e5e7eb', borderRadius: 10,
                   boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 200,
                   overflow: 'hidden',
@@ -272,85 +279,139 @@ export const TopNavLayout: React.FC = () => {
                     fontWeight: 700, fontSize: 13, color: '#1e293b',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                   }}>
-                    <span>Thông báo tàu</span>
-                    {notifications.length > 0 && (
+                    <span>Thông báo</span>
+                    {(syncUnread + holdUnread) > 0 && (
                       <span style={{ fontSize: 11, color: '#64748b', fontWeight: 400 }}>
-                        {notifications.length} thông báo
+                        {syncUnread + holdUnread} chưa đọc
                       </span>
                     )}
                   </div>
-                  {notifications.length === 0 ? (
+
+                  {syncNotifications.length === 0 && holdNotifications.length === 0 ? (
                     <div style={{ padding: '20px 14px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
                       Không có thông báo mới
                     </div>
                   ) : (
-                    <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-                      {notifications.map(n => {
-                        const isNew = !n.isRead;
-                        const icon = n.type === 'sign_on'
-                          ? <LogIn size={13} style={{ color: '#16a34a', flexShrink: 0 }} />
-                          : n.type === 'sign_off'
-                          ? <LogOut size={13} style={{ color: '#dc2626', flexShrink: 0 }} />
-                          : <RefreshCw size={13} style={{ color: '#2563eb', flexShrink: 0 }} />;
-
-                        const badgeColor = n.type === 'sign_on'
-                          ? { bg: '#dcfce7', text: '#166534' }
-                          : n.type === 'sign_off'
-                          ? { bg: '#fee2e2', text: '#991b1b' }
-                          : { bg: '#dbeafe', text: '#1e40af' };
-
-                        const badgeLabel = n.type === 'sign_on'
-                          ? 'Lên tàu'
-                          : n.type === 'sign_off'
-                          ? 'Xuống tàu'
-                          : 'Đồng bộ';
-
-                        return (
-                          <button
-                            key={n.id}
-                            onClick={() => handleNotificationClick(n)}
-                            style={{
-                              display: 'block', width: '100%', textAlign: 'left',
-                              padding: '10px 14px', border: 'none', cursor: n.vesselId ? 'pointer' : 'default',
-                              background: isNew ? '#f0f9ff' : '#fff',
-                              borderBottom: '1px solid #f3f4f6',
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                              <div style={{ paddingTop: 2 }}>{icon}</div>
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                  {n.title}
+                    <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+                      {/* === Sync Notifications === */}
+                      {syncNotifications.length > 0 && (
+                        <>
+                          <div style={{
+                            padding: '6px 14px', background: '#f8fafc',
+                            fontSize: 11, fontWeight: 700, color: '#64748b',
+                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                            borderBottom: '1px solid #f3f4f6',
+                          }}>
+                            Đồng bộ
+                          </div>
+                          {syncNotifications.map(n => (
+                            <button
+                              key={`sync-${n.id}`}
+                              onClick={() => handleSyncClick(n)}
+                              style={{
+                                display: 'block', width: '100%', textAlign: 'left',
+                                padding: '10px 14px', border: 'none', cursor: 'pointer',
+                                background: !n.isRead ? '#eff6ff' : '#fff',
+                                borderBottom: '1px solid #f3f4f6',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                <RefreshCw size={14} style={{
+                                  color: '#0d7377', flexShrink: 0, marginTop: 2
+                                }} />
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>
+                                    {n.title}
+                                  </div>
+                                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                                    {n.message}
+                                  </div>
+                                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
+                                    {new Date(n.createdAt).toLocaleString('vi-VN', {
+                                      day: '2-digit', month: '2-digit', year: 'numeric',
+                                      hour: '2-digit', minute: '2-digit'
+                                    })}
+                                  </div>
+                                </div>
+                                {!n.isRead && (
                                   <span style={{
-                                    background: badgeColor.bg, color: badgeColor.text,
-                                    fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 6
-                                  }}>{badgeLabel}</span>
+                                    width: 8, height: 8, borderRadius: '50%',
+                                    background: '#3b82f6', flexShrink: 0, marginTop: 4
+                                  }} />
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </>
+                      )}
+
+                      {/* === Hold Notifications === */}
+                      {holdNotifications.length > 0 && (
+                        <>
+                          <div style={{
+                            padding: '6px 14px', background: '#f8fafc',
+                            fontSize: 11, fontWeight: 700, color: '#64748b',
+                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                            borderBottom: '1px solid #f3f4f6',
+                          }}>
+                            Tạm giữ thuyền viên
+                          </div>
+                          {holdNotifications.map(n => {
+                            const isNew = new Date(n.onboardStatusChangedAt) > getLastSeenDate();
+                            return (
+                              <button
+                                key={`hold-${n.id}`}
+                                onClick={() => handleHoldClick(n)}
+                                style={{
+                                  display: 'block', width: '100%', textAlign: 'left',
+                                  padding: '10px 14px', border: 'none', cursor: 'pointer',
+                                  background: isNew ? '#fff7ed' : '#fff',
+                                  borderBottom: '1px solid #f3f4f6',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                  <Ship size={14} style={{
+                                    color: '#c2410c', flexShrink: 0, marginTop: 2
+                                  }} />
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>
+                                      {n.fullName}
+                                      <span style={{
+                                        marginLeft: 6, background: '#fed7aa', color: '#c2410c',
+                                        fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 6
+                                      }}>Tạm giữ</span>
+                                    </div>
+                                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                                      Tàu: <strong>{n.vesselName}</strong>
+                                      {n.onboardStatusChangedBy && ` • Bởi: ${n.onboardStatusChangedBy}`}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                                      {new Date(n.onboardStatusChangedAt).toLocaleString('vi-VN', {
+                                        day: '2-digit', month: '2-digit', year: 'numeric',
+                                        hour: '2-digit', minute: '2-digit'
+                                      })}
+                                    </div>
+                                  </div>
                                   {isNew && (
                                     <span style={{
-                                      width: 7, height: 7, borderRadius: '50%',
-                                      background: '#ef4444', display: 'inline-block', flexShrink: 0
+                                      width: 8, height: 8, borderRadius: '50%',
+                                      background: '#ef4444', flexShrink: 0, marginTop: 4
                                     }} />
                                   )}
                                 </div>
-                                <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>{n.message}</div>
-                                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                                  {new Date(n.createdAt).toLocaleString('vi-VN', {
-                                    day: '2-digit', month: '2-digit', year: 'numeric',
-                                    hour: '2-digit', minute: '2-digit'
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
+                              </button>
+                            );
+                          })}
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
               )}
             </div>
 
-            <div className="topnav-avatar">A</div>
+            {/* User Menu */}
+            <UserMenu />
 
             {/* Mobile menu toggle */}
             <button

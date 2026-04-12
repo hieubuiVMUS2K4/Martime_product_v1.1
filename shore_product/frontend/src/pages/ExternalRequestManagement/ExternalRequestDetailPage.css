@@ -22,7 +22,7 @@
 .section-header h2 { margin: 0; }
 .empty-text { color: var(--text-secondary, #6b7280); font-size: 0.875rem; }
 
-.btn-sm-primary { padding: 6px 12px; border: none; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; font-size: 0.8rem; }
+.btn-sm-primary { padding: 6px 12px; border: none; border-radius: 6px; background: #0d9488; color: #fff; cursor: pointer; font-size: 0.8rem; }
 
 .candidate-list { display: flex; flex-direction: column; gap: 8px; }
 .candidate-card { display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid var(--border, #e5e7eb); border-radius: 6px; }
@@ -46,7 +46,7 @@
 .message-item p { margin: 0; font-size: 0.875rem; }
 .message-input { display: flex; gap: 8px; }
 .message-input input { flex: 1; border: 1px solid var(--border, #e5e7eb); border-radius: 6px; padding: 8px 12px; font-size: 0.875rem; }
-.message-input button { padding: 8px 12px; border: none; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; }
+.message-input button { padding: 8px 12px; border: none; border-radius: 6px; background: #0d9488; color: #fff; cursor: pointer; }
 .message-input button:disabled { opacity: 0.5; }
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
@@ -58,6 +58,7 @@
 .form-group label { font-size: 0.75rem; font-weight: 600; color: var(--text-secondary, #6b7280); }
 .form-group input, .form-group textarea { border: 1px solid var(--border, #e5e7eb); border-radius: 6px; padding: 8px 12px; font-size: 0.875rem; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.btn-primary { display: inline-flex; align-items: center; gap: 6px; background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.875rem; cursor: pointer; }
+.btn-primary { display: inline-flex; align-items: center; gap: 6px; background: #0d9488; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.875rem; cursor: pointer; }
 .btn-secondary { background: var(--bg-surface, #fff); border: 1px solid var(--border, #e5e7eb); padding: 8px 16px; border-radius: 6px; font-size: 0.875rem; cursor: pointer; }
 .loading-state { text-align: center; padding: 48px; color: var(--text-secondary, #6b7280); }
+

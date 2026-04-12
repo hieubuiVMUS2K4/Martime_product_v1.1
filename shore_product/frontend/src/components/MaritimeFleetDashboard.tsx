@@ -85,7 +85,7 @@ const MaritimeFleetDashboard: React.FC = () => {
     switch (severity.toLowerCase()) {
       case 'critical': return 'bg-red-100 text-red-800 border-red-300';
       case 'warning': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'info': return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'info': return 'bg-teal-100 text-blue-800 border-blue-300';
       default: return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
@@ -103,7 +103,7 @@ const MaritimeFleetDashboard: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Ship className="mx-auto h-12 w-12 text-blue-500 animate-pulse" />
+          <Ship className="mx-auto h-12 w-12 text-teal-500 animate-pulse" />
           <p className="mt-2 text-gray-600">Loading Maritime Fleet Data...</p>
         </div>
       </div>
@@ -116,7 +116,7 @@ const MaritimeFleetDashboard: React.FC = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <Ship className="h-8 w-8 text-blue-600" />
+            <Ship className="h-8 w-8 text-teal-600" />
             Maritime Fleet Management
           </h1>
           <p className="text-gray-600">Real-time vessel tracking and fleet operations</p>
@@ -127,7 +127,7 @@ const MaritimeFleetDashboard: React.FC = () => {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
-                <Ship className="h-8 w-8 text-blue-500" />
+                <Ship className="h-8 w-8 text-teal-500" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Vessels</p>
                   <p className="text-2xl font-bold text-gray-900">{vessels.length}</p>
@@ -191,7 +191,7 @@ const MaritimeFleetDashboard: React.FC = () => {
             <select
               value={selectedSeverity}
               onChange={(e) => setSelectedSeverity(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
               <option value="">All Alert Severities</option>
               <option value="critical">Critical</option>

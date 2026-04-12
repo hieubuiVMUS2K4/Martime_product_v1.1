@@ -284,12 +284,9 @@ public class SyncConflictHandler : ISyncConflictHandler
             }
             else if (tableName.EndsWith("_document"))
             {
-                // Shore wins metadata, edge keeps files
-                var edgeOwnedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    "DocumentFilePath", "FilePath", "FileUrl", "FileName"
-                };
-                shouldApply = !edgeOwnedFields.Contains(prop.Name);
+                // Shore is authoritative for documents — accept everything from shore
+                // (metadata + files). Edge sends file changes to shore via its own sync.
+                shouldApply = true;
             }
 
             if (shouldApply)

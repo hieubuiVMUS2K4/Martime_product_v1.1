@@ -175,7 +175,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
     return (
       <div className="absolute top-1/2 right-2 -translate-y-1/2 z-10">
         <button
-          className="text-gray-400 hover:text-blue-600 text-xs p-1 leading-none"
+          className="text-gray-400 hover:text-teal-600 text-xs p-1 leading-none"
           onClick={e => { e.stopPropagation(); setSortMenu(sortMenu === col ? null : col); }}
         >
           ▼
@@ -185,9 +185,9 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
             {options.map(opt => (
               <button
                 key={opt.label}
-                className={`block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${
+                className={`block w-full text-left px-3 py-2 text-sm hover:bg-teal-50 ${
                   sortType?.col === col && sortType?.dir === opt.dir 
-                    ? 'text-blue-600 font-bold' 
+                    ? 'text-teal-600 font-bold' 
                     : 'text-gray-700'
                 }`}
                 onClick={e => { 
@@ -289,7 +289,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
                       key={crewMember.id}
                       onContextMenu={(e) => handleContextMenu(e, crewMember)}
                       className={`vp-tr ${idx % 2 === 1 ? 'vp-tr--alt' : ''}`}
-                      style={selectedCrew === crewMember.id ? { background: '#dbeafe' } : undefined}
+                      style={selectedCrew === crewMember.id ? { background: '#ccfbf1' } : undefined}
                     >
                       <td style={{ borderRight: '1px solid #edf2f8' }}>
                         <span style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--moc-muted)' }}>{crewMember.crewId}</span>
@@ -394,7 +394,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
               handleViewCrew(contextMenu.crew);
               setContextMenu(null);
             }}
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50"
+            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-teal-50"
           >
             View Details
           </button>
@@ -415,3 +415,5 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
     </div>
   );
 }
+
+

@@ -572,21 +572,21 @@ export function LoginPage() {
                     <Mail className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-white/80 font-medium text-sm">Email</p>
-                      <p className="text-blue-200/50 text-sm">maritime-edge@university.edu.vn</p>
+                      <p className="text-blue-200/50 text-sm">tinhvdth@gmail.com</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.04] border border-white/[0.06]">
                     <Phone className="w-5 h-5 text-cyan-400 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-white/80 font-medium text-sm">Phone</p>
-                      <p className="text-blue-200/50 text-sm">+84 (0) 123 456 789</p>
+                      <p className="text-blue-200/50 text-sm">+84 0225 3735 138</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.04] border border-white/[0.06]">
                     <MapPin className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-white/80 font-medium text-sm">Address</p>
-                      <p className="text-blue-200/50 text-sm">Ho Chi Minh City University of Transport</p>
+                      <p className="text-blue-200/50 text-sm">Vietnam Maritime University</p>
                     </div>
                   </div>
                 </div>

@@ -52,7 +52,7 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-blue-100">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-600 rounded-lg">
+              <div className="p-2 bg-teal-600 rounded-lg">
                 <FileText className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -87,7 +87,7 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
                 <p className="text-red-600 font-medium">{error}</p>
                 <button
                   onClick={loadReceiptDetail}
-                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="mt-4 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
                 >
                   {t('materials.receipt.retry')}
                 </button>
@@ -97,7 +97,7 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
                 {/* Receipt Info Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <InfoCard
-                    icon={<Calendar className="w-5 h-5 text-blue-600" />}
+                    icon={<Calendar className="w-5 h-5 text-teal-600" />}
                     label="Receipt Date"
                     value={new Date(receipt.receiptDate).toLocaleDateString('vi-VN')}
                   />
@@ -244,7 +244,7 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
                               )}
                             </td>
                             <td className="px-4 py-3 text-sm border-r border-gray-300">
-                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                              <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded-full text-xs">
                                 {item.categoryName}
                               </span>
                             </td>
@@ -310,3 +310,4 @@ function InfoCard({ icon, label, value }: { icon: React.ReactNode; label: string
     </div>
   );
 }
+

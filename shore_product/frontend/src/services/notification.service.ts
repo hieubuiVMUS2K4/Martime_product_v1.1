@@ -1,4 +1,5 @@
 import { ENV } from '../config/env';
+import { buildAuthHeaders } from './api.client';
 
 const BASE = ENV.API_BASE_URL;
 
@@ -17,7 +18,7 @@ export interface ShoreNotification {
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: buildAuthHeaders({ 'Content-Type': 'application/json', ...options?.headers }),
     ...options,
   });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
