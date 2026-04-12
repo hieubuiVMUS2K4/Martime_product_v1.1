@@ -248,7 +248,7 @@ public class SyncConflictHandler : ISyncConflictHandler
                 var edgeOwnedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
                     "IsOnboard", "EmbarkDate", "DisembarkDate",
-                    "EmbarkPort", "DisembarkPort",
+                    "EmbarkPort", "DisembarkPort", "AvatarUrl", "PhotoUrl",
                     "OnboardStatusChangedAt", "OnboardStatusChangedBy",
                     "EdgeChanges", "EdgeChangesViewed"
                 };

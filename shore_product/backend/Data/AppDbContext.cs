@@ -174,6 +174,8 @@ namespace ProductApi.Data
         // ============================================================
         public DbSet<ShoreNotification> ShoreNotifications { get; set; } = null!;
 
+        public DbSet<ReportEvaluation> ReportEvaluations { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -1815,6 +1817,13 @@ namespace ProductApi.Data
                 // Index for finding items by origin
                 entity.HasIndex(e => e.OriginEdgeNode);
             });
+
+            // ============================================================
+            // AI REPORT EVALUATIONS
+            // ============================================================
+            modelBuilder.Entity<ReportEvaluation>()
+                .HasIndex(e => e.ReportId)
+                .IsUnique();
         }
     }
 }

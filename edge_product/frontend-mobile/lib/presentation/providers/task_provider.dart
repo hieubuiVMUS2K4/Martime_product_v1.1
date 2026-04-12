@@ -201,6 +201,7 @@ class TaskProvider with ChangeNotifier {
     double? runningHours,
     String? sparePartsUsed,
     String? notes,
+    int? actualDurationMinutes,
   }) async {
     _isLoading = true;
     _error = null;
@@ -212,6 +213,7 @@ class TaskProvider with ChangeNotifier {
         completedRunningHours: runningHours,
         sparePartsUsed: sparePartsUsed,
         notes: notes,
+        actualDurationMinutes: actualDurationMinutes,
       );
       // Refresh tasks after completing
       await fetchMyTasks(forceRefresh: true);

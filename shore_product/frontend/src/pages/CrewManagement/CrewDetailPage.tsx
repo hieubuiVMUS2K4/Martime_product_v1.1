@@ -16,6 +16,7 @@ import { AddDocumentModal } from './AddDocumentModal';
 import { AddHealthDocumentModal } from './AddHealthDocumentModal';
 import ImageViewerModal from '../../components/common/ImageViewerModal';
 import ProtectedImage from '../../components/common/ProtectedImage';
+import { openProtectedMediaInNewTab } from '../../services/protectedMedia';
 
 type TabType = 'basic-data' | 'documents' | 'voyage-history' | 'onboarding' | 'doc-workflow' | 'status-history' | 'audit';
 

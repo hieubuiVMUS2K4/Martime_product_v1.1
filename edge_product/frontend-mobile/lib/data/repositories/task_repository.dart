@@ -168,12 +168,14 @@ class TaskRepository {
     String? notes,
     String? sparePartsUsed,
     double? completedRunningHours,
+    int? actualDurationMinutes,
   }) async {
     final dto = SubmitTaskDto(
       taskId: taskId,
       notes: notes,
       sparePartsUsed: sparePartsUsed,
       completedRunningHours: completedRunningHours,
+      actualDurationMinutes: actualDurationMinutes,
     );
 
     try {

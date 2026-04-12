@@ -480,6 +480,10 @@ export interface MaintenanceTask {
   cancelledBy?: string
   cancellationReason?: string
   
+  // ============ ĐGRR / BBKT ============
+  requireRiskAssessment?: boolean
+  requireInspectionReport?: boolean
+
   // ============ CMS ============
   isCms: boolean
   

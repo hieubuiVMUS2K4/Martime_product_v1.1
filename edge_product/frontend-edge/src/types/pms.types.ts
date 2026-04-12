@@ -228,6 +228,70 @@ export interface MaterialRequestItem {
   note?: string | null;
 }
 
+// ── Task Risk Assessment Form (Biểu mẫu ĐGRR) ──
+export interface TaskRiskAssessment {
+  taskId: string;
+  isFilled: boolean;
+  jobName?: string;
+  equipmentName?: string;
+  location?: string;
+  assessmentDate?: string;
+  personnel?: string;
+  raNumber?: string;
+  hazardMechanical: boolean;
+  hazardElectrical: boolean;
+  hazardChemical: boolean;
+  hazardEnvironmental: boolean;
+  hazardNotes?: string;
+  initialSeverity?: string;
+  initialLikelihood?: string;
+  initialRiskLevel?: string;
+  controlLOTO: boolean;
+  controlPTW: boolean;
+  controlPPE: boolean;
+  controlVentilation: boolean;
+  controlNotes?: string;
+  residualSeverity?: string;
+  residualLikelihood?: string;
+  residualRiskLevel?: string;
+  residualRiskNotes?: string;
+  isApprovedToProceed: boolean;
+  workerSignature?: string;
+  supervisorSignature?: string;
+  chiefEngineerApproval?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  createdBy?: string;
+}
+
+// ── Task Inspection Report Form (BBKT) ──
+export interface InspectionJobItem {
+  seq: number;
+  description: string;
+  status: 'GOOD' | 'BAD' | 'REPLACED' | '';
+  notes: string;
+}
+
+export interface TaskInspectionReport {
+  taskId: string;
+  isFilled: boolean;
+  shipName?: string;
+  equipmentName?: string;
+  equipmentCode?: string;
+  maintenanceType?: string;
+  maintenanceDate?: string;
+  jobItemsJson?: string;
+  postMaintenanceStatus?: string;
+  recommendations?: string;
+  operatorSignature?: string;
+  chiefEngineerSignature?: string;
+  overallResult?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  createdBy?: string;
+}
+
+
 export interface CreateMaterialRequestDto {
   vesselName?: string;
   voyageId?: string;

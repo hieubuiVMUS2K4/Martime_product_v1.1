@@ -33,6 +33,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
   final _runningHoursController = TextEditingController();
   final _sparePartsController = TextEditingController();
   final _notesController = TextEditingController();
+  final _actualDurationController = TextEditingController();
   final _startDateController = TextEditingController();
   final _endDateController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -68,7 +69,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
     }
     // Pre-fill description
     _descriptionController.text = widget.task.taskDescription;
-    
+
     // Initialize local checklist state from task
     _checklistItems = List.from(widget.task.checklistItems);
     
@@ -297,6 +298,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
     _runningHoursController.dispose();
     _sparePartsController.dispose();
     _notesController.dispose();
+    _actualDurationController.dispose();
     _startDateController.dispose();
     _endDateController.dispose();
     _descriptionController.dispose();
@@ -369,6 +371,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
+        actualDurationMinutes: int.tryParse(_actualDurationController.text),
       );
 
       // Trigger sync if online
@@ -497,6 +500,29 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
                 // Task Info Header (always visible)
                 _buildTaskInfoHeader(context, l10n),
                 
+                // ĐGRR / BBKT required warning
+                if (widget.task.requireRiskAssessment || widget.task.requireInspectionReport)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    color: Colors.amber.shade50,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.amber.shade800, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Công việc này yêu cầu điền '
+                            '${[if (widget.task.requireRiskAssessment) 'ĐGRR', if (widget.task.requireInspectionReport) 'BBKT'].join(' và ')} '
+                            'trên giao diện web trước khi hoàn thành.',
+                            style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 // Offline Warning
                 if (!syncProvider.isOnline)
                   Container(
@@ -745,6 +771,29 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
               }
               return null;
             },
+          ),
+
+          const SizedBox(height: 20),
+
+          // Actual Duration Field
+          Text(
+            'Thời gian thực hiện',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _actualDurationController,
+            decoration: const InputDecoration(
+              hintText: 'Nhập thời gian thực hiện',
+              prefixIcon: Icon(Icons.timer_outlined, size: 20),
+              suffixText: 'phút',
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            ),
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+            ],
           ),
 
           const SizedBox(height: 20),

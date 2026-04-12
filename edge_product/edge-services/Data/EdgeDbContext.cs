@@ -138,6 +138,8 @@ public class EdgeDbContext : DbContext
     // PMS Workflow v2.0 - Deferral & Status History
     public DbSet<TaskDeferralRequest> TaskDeferralRequests { get; set; } = null!;
     public DbSet<TaskStatusHistory> TaskStatusHistories { get; set; } = null!;
+    public DbSet<TaskRiskAssessment> TaskRiskAssessments { get; set; } = null!;
+    public DbSet<TaskInspectionReport> TaskInspectionReports { get; set; } = null!;
 
     // Voyage Log - Nhật ký Hành trình (SOLAS Chapter V)
     public DbSet<VoyageLogEntry> VoyageLogEntries { get; set; } = null!;
@@ -211,10 +213,17 @@ public class EdgeDbContext : DbContext
             // Convert table names to snake_case
             entity.SetTableName(ToSnakeCase(entity.GetTableName() ?? entity.ClrType.Name));
 
-            // Convert column names to snake_case
+            // Convert column names to snake_case (respect explicit [Column] attribute)
             foreach (var property in entity.GetProperties())
             {
-                property.SetColumnName(ToSnakeCase(property.Name));
+                var member = property.PropertyInfo ?? (System.Reflection.MemberInfo?)property.FieldInfo;
+                var colAttr = member?.GetCustomAttributes(typeof(System.ComponentModel.DataAnnotations.Schema.ColumnAttribute), true)
+                                    .OfType<System.ComponentModel.DataAnnotations.Schema.ColumnAttribute>()
+                                    .FirstOrDefault();
+                if (colAttr?.Name != null)
+                    property.SetColumnName(colAttr.Name);
+                else
+                    property.SetColumnName(ToSnakeCase(property.Name));
             }
 
             // Convert keys to snake_case

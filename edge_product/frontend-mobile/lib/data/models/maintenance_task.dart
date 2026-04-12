@@ -79,6 +79,10 @@ class MaintenanceTask extends Equatable {
 
   // Crew role for this user on this task (PIC, SUPPORT, RECEIVER)
   final String crewRole;
+
+  // Form requirements (set from schedule config)
+  final bool requireRiskAssessment;
+  final bool requireInspectionReport;
   
   const MaintenanceTask({
     required this.id,
@@ -134,6 +138,8 @@ class MaintenanceTask extends Equatable {
     this.checklistItemsCount = 0,
     this.checklistCompletedCount = 0,
     this.crewRole = 'PIC',
+    this.requireRiskAssessment = false,
+    this.requireInspectionReport = false,
   });
   
   factory MaintenanceTask.fromJson(Map<String, dynamic> json) {
@@ -198,6 +204,8 @@ class MaintenanceTask extends Equatable {
       checklistItemsCount: json['checklistItemsCount'] ?? (json['checklistItems'] as List?)?.length ?? 0,
       checklistCompletedCount: json['checklistCompletedCount'] ?? (json['checklistItems'] as List?)?.where((i) => i['isCompleted'] == true).length ?? 0,
       crewRole: json['crewRole']?.toString() ?? 'PIC',
+      requireRiskAssessment: json['requireRiskAssessment'] ?? false,
+      requireInspectionReport: json['requireInspectionReport'] ?? false,
     );
   }
   
@@ -256,6 +264,8 @@ class MaintenanceTask extends Equatable {
       'checklistItemsCount': checklistItemsCount,
       'checklistCompletedCount': checklistCompletedCount,
       'crewRole': crewRole,
+      'requireRiskAssessment': requireRiskAssessment,
+      'requireInspectionReport': requireInspectionReport,
     };
   }
   
@@ -402,6 +412,6 @@ class MaintenanceTask extends Equatable {
     assignedTo, assignedDepartment,
     requiredSpareParts, sparePartsUsed,
     checklistItemsCount, checklistCompletedCount,
-    crewRole,
+    crewRole, requireRiskAssessment, requireInspectionReport,
   ];
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Ship, Anchor, Waves, Fuel, MapPin, FileText, Wrench, Bell } from 'lucide-react';
 import { ENV } from '../../config/env';
+import { AIInsights } from '../../components/Reports/AIInsights';
 import './ReportDetailPage.css';
 
 // ─────────────────────────────────────────────────────────────
@@ -386,6 +387,10 @@ export const ReportDetailPage: React.FC = () => {
           </span>
         </div>
       </div>
+
+      {report.typeCode === 'NOON' && Boolean(report.childReport?.id) ? (
+        <AIInsights reportId={report.childReport!.id as string} />
+      ) : null}
 
       {/* Report meta */}
       <div className="rd-meta-card">
