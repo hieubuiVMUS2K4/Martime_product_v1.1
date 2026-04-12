@@ -3,6 +3,7 @@ using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using Maritime.Shared.Models.Sync;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
@@ -49,6 +50,11 @@ public class SyncService : ISyncService
         "employment_document", "health_document"
     };
     
+    // Tracks upload cooldowns to prevent rapid retry of failed uploads (in-memory, per instance).
+    // Key = ManifestId, Value = earliest next retry time (UTC).
+    private static readonly ConcurrentDictionary<Guid, DateTime> _uploadCooldowns = new();
+    private static readonly TimeSpan _uploadFailureCooldown = TimeSpan.FromMinutes(5);
+
     // Network type: read from config (Sync:NetworkType). In production this would be detected from router API.
     // Supported values: None, Satellite_Iridium, Satellite_VSAT, Cellular_4G, Shore_WiFi
     private NetworkType _currentNetwork;
@@ -1174,6 +1180,15 @@ public class SyncService : ISyncService
                 if (bundledManifestIds.Contains(preparedRequest.Request.ManifestId))
                     continue;
 
+                // Skip if this manifest is in a cooldown window from a previous failed upload.
+                if (_uploadCooldowns.TryGetValue(preparedRequest.Request.ManifestId, out var retryAfter) &&
+                    DateTime.UtcNow < retryAfter)
+                {
+                    _logger.LogDebug("Skipping upload for manifest {ManifestId} — in cooldown until {RetryAfter:u}",
+                        preparedRequest.Request.ManifestId, retryAfter);
+                    continue;
+                }
+
                 if (preparedRequest.PreparedFile.SizeBytes >= chunkThresholdBytes)
                 {
                     await UploadFileInChunksAsync(client, baseUrl, nodeId, preparedRequest.Request, preparedRequest.PreparedFile, cancellationToken);
@@ -1210,7 +1225,25 @@ public class SyncService : ISyncService
                     cancellationToken);
                 var uploadResponse = await client.SendAsync(uploadRequest, cancellationToken);
                 if (!uploadResponse.IsSuccessStatusCode)
-                    _logger.LogWarning("Shore rejected file upload for manifest {ManifestId}: {Status}", preparedRequest.Request.ManifestId, uploadResponse.StatusCode);
+                {
+                    var statusCode = (int)uploadResponse.StatusCode;
+                    _logger.LogWarning(
+                        "Shore rejected file upload for manifest {ManifestId} ({Table}/{RecordKey}): HTTP {Status}. " +
+                        "File size: {SizeKB:F0} KB (prepared), {OrigKB:F0} KB (original). Applying {CooldownMin}m cooldown.",
+                        preparedRequest.Request.ManifestId,
+                        preparedRequest.Request.TableName,
+                        preparedRequest.Request.RecordKey,
+                        statusCode,
+                        preparedRequest.PreparedFile.SizeBytes / 1024.0,
+                        preparedRequest.PreparedFile.OriginalSizeBytes / 1024.0,
+                        (int)_uploadFailureCooldown.TotalMinutes);
+
+                    // Apply cooldown — longer backoff for 4xx (configuration/infra error) vs 5xx (transient).
+                    var cooldown = statusCode is >= 400 and < 500
+                        ? _uploadFailureCooldown * 3
+                        : _uploadFailureCooldown;
+                    _uploadCooldowns[preparedRequest.Request.ManifestId] = DateTime.UtcNow.Add(cooldown);
+                }
             }
         }
         catch (Exception ex)

@@ -72,6 +72,24 @@ public sealed class SyncRequestVerificationMiddleware : IMiddleware
         if (request.Method.Equals(HttpMethods.Post, StringComparison.OrdinalIgnoreCase) && remaining.Equals("/file-upload", StringComparison.OrdinalIgnoreCase))
             return true;
 
+        if (request.Method.Equals(HttpMethods.Post, StringComparison.OrdinalIgnoreCase) && remaining.Equals("/file-upload-bundle", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (request.Method.Equals(HttpMethods.Post, StringComparison.OrdinalIgnoreCase) && remaining.Equals("/file-upload-session", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (request.Method.Equals(HttpMethods.Post, StringComparison.OrdinalIgnoreCase) && remaining.Equals("/file-upload-chunk", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (request.Method.Equals(HttpMethods.Get, StringComparison.OrdinalIgnoreCase) && remaining.Equals("/file-download-session", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (request.Method.Equals(HttpMethods.Get, StringComparison.OrdinalIgnoreCase) && remaining.Equals("/file-download-chunk", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (request.Method.Equals(HttpMethods.Post, StringComparison.OrdinalIgnoreCase) && remaining.Equals("/file-ack", StringComparison.OrdinalIgnoreCase))
+            return true;
+
         return false;
     }
 
