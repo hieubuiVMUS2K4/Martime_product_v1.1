@@ -14,6 +14,70 @@ namespace ProductApi.Controllers
     [Route("api/reports")]
     public class ReportEvaluationsController : ControllerBase
     {
+        [HttpGet("debug/status")]
+        public async Task<IActionResult> GetDebugStatus()
+        {
+            var noonCount = await _context.NoonReports.CountAsync();
+            var evalCount = await _context.ReportEvaluations.CountAsync();
+            
+            var latestNoonReports = await _context.NoonReports
+                .OrderByDescending(r => r.ReportDate)
+                .Take(5)
+                .Select(r => new { r.Id, r.ReportDate, r.MaritimeReportId })
+                .ToListAsync();
+            
+            var latestEvaluations = await _context.ReportEvaluations
+                .OrderByDescending(r => r.Id)
+                .Take(5)
+                .Select(r => new { r.ReportId, r.Status })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                noonReportsTotal = noonCount,
+                evaluationsTotal = evalCount,
+                latestNoonReports,
+                latestEvaluations,
+                timestamp = DateTime.UtcNow
+            });
+        }
+
+        [HttpPost("debug/enqueue-missing")]
+        public async Task<IActionResult> EnqueueMissingReports([FromServices] ProductApi.Services.Background.ReportEvaluationQueue queue)
+        {
+            // Find all NoonReports without evaluations
+            var missingEvals = await _context.NoonReports
+                .Where(nr => !_context.ReportEvaluations.Any(e => e.ReportId == nr.Id))
+                .Select(nr => nr.Id)
+                .ToListAsync();
+
+            _logger.LogInformation($"Enqueueing {missingEvals.Count} reports for evaluation");
+
+            var ct = new CancellationTokenSource(TimeSpan.FromSeconds(30)).Token;
+            int enqueued = 0;
+            
+            foreach (var reportId in missingEvals)
+            {
+                try
+                {
+                    await queue.EnqueueAsync(reportId, ct);
+                    enqueued++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Failed to enqueue report {reportId}");
+                }
+            }
+
+            return Ok(new
+            {
+                message = $"Enqueued {enqueued} reports for evaluation",
+                totalMissing = missingEvals.Count,
+                enqueued,
+                timestamp = DateTime.UtcNow
+            });
+        }
+
         [HttpPost("seed-noon/{shipName}")]
         public async Task<IActionResult> SeedNoonReports(string shipName)
         {

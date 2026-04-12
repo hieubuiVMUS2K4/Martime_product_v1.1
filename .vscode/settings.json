@@ -1,3 +1,9 @@
 {
-    "cmake.sourceDirectory": "D:/PROJECT/Martime_product_v1.1/edge_product/frontend-mobile/windows"
+    "cmake.sourceDirectory": "D:/PROJECT/Martime_product_v1.1/edge_product/frontend-mobile/windows",
+    "chat.tools.terminal.autoApprove": {
+        "/^powershell -c \"Get-Content shore_product/backend/Controllers/ReportsController\\.cs \\| Select-String -Pattern 'vessel/\\\\\\{' -Context 0,30\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
 }

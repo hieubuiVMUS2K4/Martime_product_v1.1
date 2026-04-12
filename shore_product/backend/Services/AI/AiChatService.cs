@@ -13,22 +13,57 @@ namespace ProductApi.Services.AI
         private readonly IGeminiEvaluationService _geminiService;
         private readonly ILogger<AiChatService> _logger;
 
-        // System prompt template - cố định, tái sử dụng
-        private const string SYSTEM_PROMPT_TEMPLATE = @"Bạn là một chuyên gia phân tích dữ liệu hàng hải chuyên nghiệp.
+        // System prompt template - cấu trúc Container Framework với Chain of Thought và Prompt Constraints
+        private const string SYSTEM_PROMPT_TEMPLATE = @"[ROLE]
+You are a Senior Systems Analyst and Chief Engineer. You possess deep expertise in telemetry data analysis, anomaly detection, and operational performance evaluation.
 
-THÔNG TIN NGỮ CẢNH:
-- Báo cáo ngày hôm nay: {TODAY_DATA}
-- Dữ liệu tóm tắt 7 ngày qua: {LAST_7DAYS_SUMMARY}
+[CONTEXT]
+You are operating as the core analytical engine within a Shore-Edge synchronization system. You will receive raw JSON data containing today's operational metrics and the historical data from the past several days. Your primary consumer is the shore-based management team who needs actionable insights.
+- Today data: {TODAY_DATA}
+- Historical summary: {LAST_7DAYS_SUMMARY}
+- User Question: {QUESTION}
 
-YÊUẦU CÔNG VIỆC:
-Người dùng hỏi: {QUESTION}
+[TASK]
+1. Parse the provided historical JSON data to establish a baseline (e.g., calculate averages, identify min/max thresholds).
+2. Compare today's metrics against this established baseline.
+3. Identify strictly anomalous behaviors (e.g., efficiency drops, unexpected spikes in consumption or temperature).
+4. Provide a clear, actionable evaluation answering the user's question.
+KHÔNG đưa ra các lời khuyên chung chung như 'Cần theo dõi thêm' hoặc 'Kiểm tra lại hệ thống'. Lời khuyên phải đi thẳng vào linh kiện hoặc quy trình cụ thể.
 
-Hãy:
-1. Trả lời câu hỏi dựa trên phân tích số liệu kỹ thuật sâu
-2. So sánh đa chiều với xu hướng 7 ngày cùng giải thích các nguyên nhân khách/chủ quan (thời tiết, tải máy...)
-3. Đưa ra nhận xét chuyên gia, rủi ro dự báo và các lời khuyên dài hạn (trung bình 400 từ)
+[CHAIN OF THOUGHT]
+Before generating the final JSON output, you MUST process the data using the following logical steps:
+- Step 1: Calculate the average for all numerical metrics in the historical summary.
+- Step 2: Compare today's data against the averages. Calculate the percentage difference.
+- Step 3: Determine if the difference exceeds normal operational variance (e.g., > 5% deviation).
+- Step 4: Formulate the final conclusion based on the most critical deviations.
+(You will output this thought process in the ""reasoning_log"" field).
 
-Format: Trả lời bằng Tiếng Việt, có tính học thuật chuyên ngành, cung cấp dẫn chứng dài và chi tiết giúp ban quản lý bờ nắm rõ tình hình tàu.";
+[OUTPUT FORMAT]
+You must respond ONLY with a valid, well-formed JSON object. No Markdown blocks, no conversational text.
+{
+  ""reasoning_log"": ""String: Explain your step-by-step mathematical comparison and logic here."",
+  ""severity_level"": ""Normal"" | ""Warning"" | ""Critical"",
+  ""identified_anomalies"": [
+    ""String: Detailed description of anomaly 1 with exact numbers."",
+    ""String: Detailed description of anomaly 2 with exact numbers.""
+  ],
+  ""actionable_recommendation_vi"": ""String: A precise, highly technical recommendation in Vietnamese for the management team, directly addressing the user question.""
+}";
+
+        private class AiAnalysisResult
+        {
+            [JsonPropertyName("reasoning_log")]
+            public string ReasoningLog { get; set; }
+
+            [JsonPropertyName("severity_level")]
+            public string SeverityLevel { get; set; }
+
+            [JsonPropertyName("identified_anomalies")]
+            public List<string> IdentifiedAnomalies { get; set; }
+
+            [JsonPropertyName("actionable_recommendation_vi")]
+            public string ActionableRecommendationVi { get; set; }
+        }
 
         public AiChatService(AppDbContext context, IGeminiEvaluationService geminiService, ILogger<AiChatService> logger)
         {
@@ -127,9 +162,50 @@ Format: Trả lời bằng Tiếng Việt, có tính học thuật chuyên ngàn
                 // Lưu kết quả vào DB
                 SaveAiEvaluation(request.VesselId, request.Question, geminiResult.Content);
 
+                string finalAnswer = geminiResult.Content;
+                try
+                {
+                    var resultContent = geminiResult.Content.Trim();
+                    if (resultContent.StartsWith("```json"))
+                    {
+                        resultContent = resultContent.Substring(7);
+                        if (resultContent.EndsWith("```")) resultContent = resultContent.Substring(0, resultContent.Length - 3);
+                        resultContent = resultContent.Trim();
+                    }
+                    
+                    var analysis = JsonSerializer.Deserialize<AiAnalysisResult>(resultContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    
+                    if (analysis != null)
+                    {
+                        var answerLines = new List<string>
+                        {
+                            $"**Mức độ nghiêm trọng:** {analysis.SeverityLevel}\n"
+                        };
+
+                        if (analysis.IdentifiedAnomalies != null && analysis.IdentifiedAnomalies.Count > 0)
+                        {
+                            answerLines.Add("**Các bất thường phát hiện:**");
+                            foreach(var anomaly in analysis.IdentifiedAnomalies)
+                            {
+                                answerLines.Add($"- {anomaly}");
+                            }
+                            answerLines.Add("\n");
+                        }
+
+                        answerLines.Add("**Khuyến nghị hành động:**");
+                        answerLines.Add(analysis.ActionableRecommendationVi);
+                        
+                        finalAnswer = string.Join("\n", answerLines);
+                    }
+                }
+                catch (Exception parseEx)
+                {
+                    _logger.LogWarning(parseEx, "Failed to parse AI JSON response, returning raw content.");
+                }
+
                 return new AiChatResponse
                 {
-                    Answer = geminiResult.Content,
+                    Answer = finalAnswer,
                     Sources = $"Phân tích dựa trên {reports.Count} báo cáo từ {reports.Last().ReportDate:dd/MM/yyyy} đến {reports.First().ReportDate:dd/MM/yyyy}",
                     Success = true
                 };
