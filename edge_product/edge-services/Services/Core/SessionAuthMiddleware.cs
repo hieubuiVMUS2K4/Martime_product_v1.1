@@ -30,7 +30,7 @@ public class SessionAuthMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<SessionAuthMiddleware> _logger;
 
-    // Skip auth for these path prefixes (public endpoints)
+    // Skip auth entirely for these path prefixes (no token required, no user resolution)
     private static readonly string[] SkipPaths = new[]
     {
         "/api/auth/login",
@@ -41,6 +41,13 @@ public class SessionAuthMiddleware
         "/uploads",
     };
 
+    // For these paths, resolve Bearer token if present (to allow authenticated users),
+    // but do NOT enforce 401 when no token is found — the InternalAccess policy handles authz.
+    private static readonly string[] OptionalAuthPaths = new[]
+    {
+        "/api/sync",   // Protected by InternalAccess policy; also accessible by authenticated users
+    };
+
     public SessionAuthMiddleware(RequestDelegate next, ILogger<SessionAuthMiddleware> logger)
     {
         _next = next;
@@ -49,8 +56,9 @@ public class SessionAuthMiddleware
 
     public async Task InvokeAsync(HttpContext context, EdgeDbContext dbContext, IMemoryCache cache)
     {
-        // Skip for public endpoints
         var path = context.Request.Path.Value ?? "";
+
+        // Skip entirely for public endpoints (no auth needed)
         if (SkipPaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
         {
             await _next(context);
@@ -63,6 +71,9 @@ public class SessionAuthMiddleware
             await _next(context);
             return;
         }
+
+        // For optional-auth paths: resolve token if present, but let InternalAccess policy decide authz
+        bool isOptionalAuthPath = OptionalAuthPaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase));
 
         // Extract Bearer token
         var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
@@ -80,7 +91,14 @@ public class SessionAuthMiddleware
             }
         }
 
-        // No valid token found — reject with 401
+        // No valid token — allow optional-auth paths to proceed (InternalAccess policy handles authz)
+        if (isOptionalAuthPath)
+        {
+            await _next(context);
+            return;
+        }
+
+        // All other endpoints require a valid Bearer token
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
         context.Response.ContentType = "application/json";
         await context.Response.WriteAsync("{\"success\":false,\"message\":\"Authentication required. Please provide a valid Bearer token.\"}");

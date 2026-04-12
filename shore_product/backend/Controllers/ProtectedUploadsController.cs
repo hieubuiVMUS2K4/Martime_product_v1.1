@@ -34,7 +34,7 @@ public class ProtectedUploadsController : ControllerBase
         // stays within the uploads root directory.
         var uploadsRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "uploads"));
         var resolvedPhysical = Path.GetFullPath(_syncFileStorageService.ResolveLocalPath(normalizedPath));
-        if (!resolvedPhysical.StartsWith(uploadsRoot, StringComparer.OrdinalIgnoreCase))
+        if (!resolvedPhysical.StartsWith(uploadsRoot, StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogWarning("Path traversal attempt blocked: {Path}", relativePath);
             return BadRequest(new { error = "Invalid path" });
