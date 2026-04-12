@@ -398,7 +398,7 @@ public class SyncInboxService : ISyncInboxService
                         await PersistFailureLogAsync(item, ex.Message);
                         _context.ChangeTracker.Clear();
                         result.Failed++;
-                        result.FailedItems.Add(CreateFailure(item, ex.Message));
+                        result.FailedItems.Add(CreateFailure(item, ex));
                     }
                 }
                 continue;
@@ -429,7 +429,7 @@ public class SyncInboxService : ISyncInboxService
                         await PersistFailureLogAsync(item, ex.Message);
                         _context.ChangeTracker.Clear();
                         result.Failed++;
-                        result.FailedItems.Add(CreateFailure(item, ex.Message));
+                        result.FailedItems.Add(CreateFailure(item, ex));
                     }
                 }
                 continue;
@@ -534,7 +534,7 @@ public class SyncInboxService : ISyncInboxService
                     // Clear any partially-tracked state so the next item starts clean.
                     _context.ChangeTracker.Clear();
                     result.Failed++;
-                    result.FailedItems.Add(CreateFailure(item, ex.Message));
+                    result.FailedItems.Add(CreateFailure(item, ex));
                 }
             }
         }
@@ -561,6 +561,29 @@ public class SyncInboxService : ISyncInboxService
         }
 
         return result;
+    }
+
+    private static SyncBatchItemFailure CreateFailure(SyncQueueItemDto item, Exception ex)
+    {
+        // Walk inner exceptions to expose the deepest (most specific) error, e.g. PostgresException
+        var messages = new List<string>();
+        var current = ex;
+        while (current != null)
+        {
+            if (!string.IsNullOrWhiteSpace(current.Message))
+                messages.Add(current.Message);
+            current = current.InnerException;
+        }
+        var detail = messages.Count > 1
+            ? string.Join(" → ", messages)
+            : messages.FirstOrDefault() ?? ex.Message;
+        return new SyncBatchItemFailure
+        {
+            TableName = item.TableName,
+            RecordKey = item.RecordKey,
+            ActionType = item.ActionType,
+            Error = detail
+        };
     }
 
     private static SyncBatchItemFailure CreateFailure(SyncQueueItemDto item, string error)
@@ -1633,23 +1656,28 @@ public class SyncInboxService : ISyncInboxService
 
         Vessel? vessel = null;
 
+        // Always remap VesselId to shore's vessel GUID based on IMO.
+        // Do NOT skip when VesselId is already set — ConflictResolver may have copied
+        // the edge vessel GUID (different from shore's GUID) into the entity, causing an
+        // FK violation. Overwriting with shore's lookup ensures correct FK every time.
+        // If the vessel is not found on shore yet, null out VesselId to prevent the FK violation.
         switch (entity)
         {
-            case CrewMember crew when !crew.VesselId.HasValue:
+            case CrewMember crew:
                 vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
-                if (vessel != null) crew.VesselId = vessel.Id;
+                crew.VesselId = vessel?.Id;
                 break;
-            case ProductApi.Models.EquipmentAsset asset when !asset.VesselId.HasValue:
+            case ProductApi.Models.EquipmentAsset asset:
                 vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
-                if (vessel != null) asset.VesselId = vessel.Id;
+                asset.VesselId = vessel?.Id;
                 break;
-            case ProductApi.Models.MaterialItem mat when !mat.VesselId.HasValue:
+            case ProductApi.Models.MaterialItem mat:
                 vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
-                if (vessel != null) mat.VesselId = vessel.Id;
+                mat.VesselId = vessel?.Id;
                 break;
-            case ProductApi.Models.MaintenanceTask task when !task.VesselId.HasValue:
+            case ProductApi.Models.MaintenanceTask task:
                 vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
-                if (vessel != null) task.VesselId = vessel.Id;
+                task.VesselId = vessel?.Id;
                 break;
         }
     }
@@ -1779,17 +1807,17 @@ public class SyncInboxService : ISyncInboxService
                 }
             }
 
-            // Auto-set VesselId from OriginNode (IMO) if not already set
-            if (!crew.VesselId.HasValue && !string.IsNullOrWhiteSpace(crew.OriginNode) && crew.OriginNode != "SHORE")
+            // Always remap VesselId to shore's vessel GUID.
+            // Same pattern as ResolveCrewVesselIdAsync: ConflictResolver may have copied
+            // edge vessel GUID before this runs, so always overwrite with shore's lookup.
+            if (!string.IsNullOrWhiteSpace(crew.OriginNode) && crew.OriginNode != "SHORE")
             {
                 var vessel = await _context.Vessels.AsNoTracking()
                     .FirstOrDefaultAsync(v => v.IMO == crew.OriginNode);
+                crew.VesselId = vessel?.Id;
                 if (vessel != null)
-                {
-                    crew.VesselId = vessel.Id;
-                    _logger.LogDebug("CrewMember {CrewId}: Auto-set VesselId from OriginNode {IMO}",
+                    _logger.LogDebug("CrewMember {CrewId}: Remapped VesselId to shore vessel for IMO {IMO}",
                         crew.CrewId, crew.OriginNode);
-                }
             }
         }
         // CrewCertificate → Certificate + Country: resolve FK IDs by code
