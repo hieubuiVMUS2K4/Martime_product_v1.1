@@ -1392,7 +1392,11 @@ export default function WorkPlanningPage() {
                               </span>
                             </td>
                             <td className="px-3 py-2 text-center border-r border-gray-100">
-                              <CheckCircle className="w-4 h-4 text-green-500 mx-auto" />
+                              {task.requireRiskAssessment ? (
+                                <CheckCircle className="w-4 h-4 text-green-500 mx-auto" />
+                              ) : (
+                                <span className="text-gray-300">-</span>
+                              )}
                             </td>
                             <td className="px-3 py-2 text-center border-r border-gray-100">
                               <span className={`px-2 py-0.5 text-xs font-medium rounded whitespace-nowrap ${pri.bg} ${pri.text}`}>
