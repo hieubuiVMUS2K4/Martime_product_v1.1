@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { toast } from 'sonner';
 import { Search, ChevronRight, ChevronDown, Package, DollarSign, AlertTriangle, ChevronsUpDown, Download, Clock, ClipboardList, X, Plus } from 'lucide-react';
 import { inventoryService } from '@/services/inventory.service';
 import { storeLocationService } from '@/services/store-location.service';
@@ -116,7 +117,7 @@ export default function InventoryPage() {
       a.download = `inventory-export-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (e) { console.error(e); alert('Export failed'); }
+    } catch (e) { console.error(e); toast.error('Export failed'); }
   };
 
   // ── History ──
@@ -152,12 +153,12 @@ export default function InventoryPage() {
 
   const handleDeclare = async () => {
     const valid = declareItems.filter(i => i.materialItemId && i.storeLocationId && i.quantity > 0);
-    if (valid.length === 0) { alert('Vui lòng nhập ít nhất 1 dòng hợp lệ'); return; }
+    if (valid.length === 0) { toast.warning('Vui lòng nhập ít nhất 1 dòng hợp lệ'); return; }
     try {
       await inventoryService.declare(valid);
       setShowDeclare(false);
       loadData();
-    } catch (e: any) { alert(e?.response?.data?.error || 'Khai báo thất bại'); }
+    } catch (e: any) { toast.error(e?.response?.data?.error || 'Khai báo thất bại'); }
   };
 
 

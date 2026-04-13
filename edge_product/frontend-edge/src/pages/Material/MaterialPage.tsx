@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { toast } from 'sonner';
 import { Plus, Search, Package, Eye, Edit2, Trash2, ChevronsUpDown, Upload, Link2 } from 'lucide-react';
 import { materialService } from '@/services/materialService';
 import type { CreateMaterialItemDto, UpdateMaterialItemDto } from '@/services/materialService';
@@ -75,32 +76,50 @@ export function MaterialPage() {
     await loadData();
   };
 
-  const handleDeleteItem = async (item: MaterialItem) => {
-    if (!confirm(t('materials.page.confirmDelete', { name: item.name }))) return;
-    try {
-      await materialService.deleteItem(item.id);
-      await loadData();
-    } catch (error: any) {
-      alert(error.message || 'Failed to delete item');
-    }
+  const handleDeleteItem = (item: MaterialItem) => {
+    toast(t('materials.page.confirmDelete', { name: item.name }), {
+      action: {
+        label: t('materials.page.delete') || 'Xóa',
+        onClick: async () => {
+          try {
+            await materialService.deleteItem(item.id);
+            await loadData();
+            toast.success(t('materials.page.deleteSuccess', { defaultValue: 'Xóa thành công' }));
+          } catch (error: any) {
+            toast.error(error.message || 'Failed to delete item');
+          }
+        }
+      },
+      cancel: { label: t('materials.page.cancel') || 'Hủy', onClick: () => {} },
+      duration: 8000,
+    });
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedRows.size === 0) return;
-    if (!confirm(`Bạn có chắc muốn xóa ${selectedRows.size} vật tư đã chọn?`)) return;
-    try {
-      const ids = Array.from(selectedRows);
-      await Promise.all(ids.map(id => materialService.deleteItem(id)));
-      setSelectedRows(new Set());
-      await loadData();
-    } catch (error: any) {
-      alert(error.message || 'Xóa thất bại');
-    }
+    toast(`Bạn có chắc muốn xóa ${selectedRows.size} vật tư đã chọn?`, {
+      action: {
+        label: 'Xóa',
+        onClick: async () => {
+          try {
+            const ids = Array.from(selectedRows);
+            await Promise.all(ids.map(id => materialService.deleteItem(id)));
+            setSelectedRows(new Set());
+            await loadData();
+            toast.success('Xóa hàng loạt thành công');
+          } catch (error: any) {
+            toast.error(error.message || 'Xóa thất bại');
+          }
+        }
+      },
+      cancel: { label: 'Hủy', onClick: () => {} },
+      duration: 8000,
+    });
   };
 
   const handleAssignEquipment = () => {
     if (selectedRows.size === 0) {
-      alert('Vui lòng chọn ít nhất 1 vật tư để gán thiết bị');
+      toast.warning('Vui lòng chọn ít nhất 1 vật tư để gán thiết bị');
       return;
     }
     setAssignEquipmentModalOpen(true);

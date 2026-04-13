@@ -323,17 +323,25 @@ export default function WorkPlanningPage() {
     }
   }, []);
 
-  const handleScheduleDelete = async (schedule: MaintenanceSchedule) => {
-    if (!confirm(`${t('pms.workPlanning.toast.confirmDeleteConfig')} "${schedule.scheduleName}"?`)) return;
-    try {
-      await maintenanceScheduleService.delete(schedule.id);
-      await loadSchedules();
-      if (cfgEditingId === schedule.id) cfgReset();
-      toast.success(t('pms.workPlanning.toast.configDeleted'));
-    } catch (error) {
-      console.error('Error deleting schedule:', error);
-      toast.error(t('pms.workPlanning.toast.configDeleteFailed'));
-    }
+  const handleScheduleDelete = (schedule: MaintenanceSchedule) => {
+    toast(`${t('pms.workPlanning.toast.confirmDeleteConfig')} "${schedule.scheduleName}"?`, {
+      action: {
+        label: t('pms.workPlanning.table.delete') || 'Xóa',
+        onClick: async () => {
+          try {
+            await maintenanceScheduleService.delete(schedule.id);
+            await loadSchedules();
+            if (cfgEditingId === schedule.id) cfgReset();
+            toast.success(t('pms.workPlanning.toast.configDeleted'));
+          } catch (error) {
+            console.error('Error deleting schedule:', error);
+            toast.error(t('pms.workPlanning.toast.configDeleteFailed'));
+          }
+        }
+      },
+      cancel: { label: t('pms.workPlanning.config.cancel') || 'Hủy', onClick: () => {} },
+      duration: 8000,
+    });
   };
 
   // Config inline form helpers
@@ -759,16 +767,24 @@ export default function WorkPlanningPage() {
     setActiveTab('config');
   };
 
-  const handleTaskDelete = async (taskId: string) => {
-    if (!confirm(t('pms.workPlanning.toast.confirmDeleteTask'))) return;
-    try {
-      await maritimeService.maintenance.delete(taskId);
-      toast.success(t('pms.workPlanning.toast.deleteTaskSuccess'));
-      loadData(false);
-    } catch (error) {
-      console.error('Error deleting task:', error);
-      toast.error(t('pms.workPlanning.toast.deleteTaskFailed'));
-    }
+  const handleTaskDelete = (taskId: string) => {
+    toast(t('pms.workPlanning.toast.confirmDeleteTask'), {
+      action: {
+        label: t('pms.workPlanning.table.delete') || 'Xóa',
+        onClick: async () => {
+          try {
+            await maritimeService.maintenance.delete(taskId);
+            toast.success(t('pms.workPlanning.toast.deleteTaskSuccess'));
+            loadData(false);
+          } catch (error) {
+            console.error('Error deleting task:', error);
+            toast.error(t('pms.workPlanning.toast.deleteTaskFailed'));
+          }
+        }
+      },
+      cancel: { label: t('pms.workPlanning.config.cancel') || 'Hủy', onClick: () => {} },
+      duration: 8000,
+    });
   };
 
   const handleCounterSave = async (assetId: string) => {
@@ -1884,7 +1900,7 @@ export default function WorkPlanningPage() {
                       <button onClick={() => { const sch = schedules.find(s => s.id === cfgEditingId); if (sch) viewScheduleTasks(sch.scheduleCode); }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
                         <ExternalLink className="w-3.5 h-3.5" /> {t('pms.workPlanning.config.viewTasks')}
                       </button>
-                      <button onClick={() => { if (cfgEditingId && confirm(t('pms.workPlanning.config.confirmDelete'))) { handleScheduleDelete(schedules.find(s => s.id === cfgEditingId)!); } }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-red-300 rounded text-red-600 hover:bg-red-50">
+                      <button onClick={() => { if (cfgEditingId) { handleScheduleDelete(schedules.find(s => s.id === cfgEditingId)!); } }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-red-300 rounded text-red-600 hover:bg-red-50">
                         <Trash2 className="w-3.5 h-3.5" /> {t('pms.workPlanning.config.deleteConfig')}
                       </button>
                     </>
@@ -1936,7 +1952,7 @@ export default function WorkPlanningPage() {
                                     <td className="px-2 py-1.5 text-center text-gray-500">{sch.intervalHours || '—'}</td>
                                     <td className="px-2 py-1.5 text-center flex items-center gap-1">
                                       <button title={t('pms.workPlanning.config.copyAsTemplate')} onClick={e => { e.stopPropagation(); cfgCopyAsTemplate(sch); setCfgShowHistory(false); }} className="text-gray-400 hover:text-blue-600"><Copy size={12} /></button>
-                                      <button title={t('pms.workPlanning.config.deleteConfig')} onClick={e => { e.stopPropagation(); if (confirm(t('pms.workPlanning.config.confirmDelete'))) handleScheduleDelete(sch); }} className="text-gray-400 hover:text-red-600"><Trash2 size={12} /></button>
+                                      <button title={t('pms.workPlanning.config.deleteConfig')} onClick={e => { e.stopPropagation(); handleScheduleDelete(sch); }} className="text-gray-400 hover:text-red-600"><Trash2 size={12} /></button>
                                     </td>
                                   </tr>
                                 ))}

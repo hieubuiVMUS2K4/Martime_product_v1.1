@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { toast } from 'sonner';
 import { Plus, Upload, Download, Search, Package, Trash2, ChevronDown, ChevronRight, FolderOpen, Save, ChevronsUpDown, Edit2, Copy } from 'lucide-react';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { ImportAssetsModal } from '@/components/pms/ImportAssetsModal';
@@ -153,14 +154,25 @@ export default function AssetsPage() {
     if (selectedRows.size === paginatedAssets.length) setSelectedRows(new Set());
     else setSelectedRows(new Set(paginatedAssets.map(a => a.id)));
   };
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedRows.size === 0) return;
-    if (!confirm(t('pms.assets.confirmBulkDelete', { count: selectedRows.size }))) return;
-    try {
-      await Promise.all([...selectedRows].map(id => equipmentAssetService.delete(id)));
-      setSelectedRows(new Set());
-      await loadAssets();
-    } catch (err: any) { alert(err?.response?.data?.error || 'Delete failed'); }
+    toast(t('pms.assets.confirmBulkDelete', { count: selectedRows.size }), {
+      action: {
+        label: t('pms.assets.delete') || 'Xóa',
+        onClick: async () => {
+          try {
+            await Promise.all([...selectedRows].map(id => equipmentAssetService.delete(id)));
+            setSelectedRows(new Set());
+            await loadAssets();
+            toast.success(t('pms.assets.deleteSuccess', { defaultValue: 'Xóa thành công' }));
+          } catch (err: any) {
+            toast.error(err?.response?.data?.error || 'Delete failed');
+          }
+        }
+      },
+      cancel: { label: t('pms.assets.cancel') || 'Hủy', onClick: () => {} },
+      duration: 8000,
+    });
   };
 
   const getStatusBadgeColor = (status: string) => {
@@ -209,15 +221,24 @@ export default function AssetsPage() {
     return () => document.removeEventListener('mousedown', handler);
   }, [contextMenu]);
 
-  const handleDelete = async (asset: EquipmentAsset) => {
-    if (!confirm(t('pms.assets.confirmDelete', { name: asset.assetName }))) return;
-    try {
-      await equipmentAssetService.delete(asset.id);
-      if (selectedNodeId === asset.id) setSelectedNodeId(null);
-      await loadAssets();
-    } catch (err: any) {
-      alert(err?.response?.data?.error || 'Delete failed');
-    }
+  const handleDelete = (asset: EquipmentAsset) => {
+    toast(t('pms.assets.confirmDelete', { name: asset.assetName }), {
+      action: {
+        label: t('pms.assets.delete') || 'Xóa',
+        onClick: async () => {
+          try {
+            await equipmentAssetService.delete(asset.id);
+            if (selectedNodeId === asset.id) setSelectedNodeId(null);
+            await loadAssets();
+            toast.success(t('pms.assets.deleteSuccess', { defaultValue: 'Xóa thành công' }));
+          } catch (err: any) {
+            toast.error(err?.response?.data?.error || 'Delete failed');
+          }
+        }
+      },
+      cancel: { label: t('pms.assets.cancel') || 'Hủy', onClick: () => {} },
+      duration: 8000,
+    });
   };
 
   const startInlineNew = (parentId: string | null) => {
@@ -245,7 +266,7 @@ export default function AssetsPage() {
         await loadAssets();
         setSelectedNodeId(created.id);
       } catch (err: any) {
-        alert(err?.response?.data?.error || 'Create failed');
+        toast.error(err?.response?.data?.error || 'Create failed');
       }
     }
   };
@@ -261,7 +282,7 @@ export default function AssetsPage() {
       await equipmentAssetService.update(detailAsset.id, detailForm);
       await loadAssets();
     } catch (err: any) {
-      alert(err?.response?.data?.error || 'Save failed');
+      toast.error(err?.response?.data?.error || 'Save failed');
     } finally {
       setSaving(false);
     }
