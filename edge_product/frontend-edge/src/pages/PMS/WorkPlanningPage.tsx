@@ -817,6 +817,7 @@ export default function WorkPlanningPage() {
     if (selectedAssetIds.size > 0) {
       f = f.filter(task => {
         if (task.equipmentId && selectedAssetIds.has(task.equipmentId)) return true;
+        if (task.equipmentAssetId && selectedAssetIds.has(task.equipmentAssetId)) return true;
         if (task.equipmentGroupId) {
           const groupAssets = assets.filter(a => a.equipmentGroupId === task.equipmentGroupId);
           return groupAssets.some(a => selectedAssetIds.has(a.id));

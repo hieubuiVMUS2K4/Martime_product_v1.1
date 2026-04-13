@@ -38,7 +38,8 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [searchQ, setSearchQ] = useState('');
+  const [searchCode, setSearchCode] = useState('');
+  const [searchName, setSearchName] = useState('');
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [locations, setLocations] = useState<StoreLocation[]>([]);
   const [locationStats, setLocationStats] = useState<Map<string, { itemCount: number; totalValue: number }>>(new Map());
@@ -63,14 +64,14 @@ export default function InventoryPage() {
       const res = await inventoryService.getAll({
         page: currentPage, pageSize,
         storeLocationId: selectedLocationId || undefined,
-        q: searchQ || undefined,
+        q: [searchCode, searchName].filter(Boolean).join(' ') || undefined,
       });
       setItems(res.items);
       setTotal(res.total);
       setTotalValue(res.totalValue);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, [currentPage, pageSize, searchQ, selectedLocationId]);
+  }, [currentPage, pageSize, searchCode, searchName, selectedLocationId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -321,14 +322,14 @@ export default function InventoryPage() {
                   <th className="px-2 py-1 border-r border-gray-200">
                     <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
                       <span className="text-gray-400 text-xs select-none">→</span>
-                      <input type="text" placeholder={t('common.search')} value={searchQ} onChange={e => { setSearchQ(e.target.value); setCurrentPage(1); }} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                      <input type="text" placeholder={t('common.search')} value={searchCode} onChange={e => { setSearchCode(e.target.value); setCurrentPage(1); }} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
                       <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
                     </div>
                   </th>
                   <th className="px-2 py-1 border-r border-gray-200">
                     <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
                       <span className="text-gray-400 text-xs select-none">→</span>
-                      <input type="text" placeholder={t('common.search')} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                      <input type="text" placeholder={t('common.search')} value={searchName} onChange={e => { setSearchName(e.target.value); setCurrentPage(1); }} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
                       <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
                     </div>
                   </th>
