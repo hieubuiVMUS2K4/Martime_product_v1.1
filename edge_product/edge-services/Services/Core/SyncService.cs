@@ -329,6 +329,10 @@ public class SyncService : ISyncService
             {
                 item.SyncedAt = DateTime.UtcNow;
                 item.LastError = "DEV_MODE: Shore API not configured";
+                if (Guid.TryParse(item.RecordKey, out var id) && item.TableName == "maritime_report")
+                {
+                    try { await context.Database.ExecuteSqlRawAsync($"UPDATE maritime_reports SET is_synced = true WHERE id = '{id}'"); } catch { }
+                }
             }
             await context.SaveChangesAsync(cancellationToken);
             return;
@@ -430,6 +434,10 @@ public class SyncService : ISyncService
                         {
                             item.SyncedAt = now;
                             item.LastError = null;
+                            if (Guid.TryParse(item.RecordKey, out var id) && item.TableName == "maritime_report")
+                            {
+                                try { await context.Database.ExecuteSqlRawAsync($"UPDATE maritime_reports SET is_synced = true WHERE id = '{id}'"); } catch { }
+                            }
                             continue;
                         }
 
@@ -449,6 +457,10 @@ public class SyncService : ISyncService
                     {
                         item.SyncedAt = now;
                         item.LastError = null;
+                        if (Guid.TryParse(item.RecordKey, out var id) && item.TableName == "maritime_report")
+                        {
+                            try { await context.Database.ExecuteSqlRawAsync($"UPDATE maritime_reports SET is_synced = true WHERE id = '{id}'"); } catch { }
+                        }
                     }
                     _logger.LogInformation("Shore accepted batch: {Count} items synced", items.Count);
                 }

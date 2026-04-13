@@ -129,13 +129,17 @@ export function MaterialPage() {
 
   const filteredItems = useMemo(() => {
     let data = [...items];
+    const removeAccents = (str: string) => str ? str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D') : '';
     if (searchName) {
-      const q = searchName.toLowerCase();
-      data = data.filter(i => i.name.toLowerCase().includes(q) || i.manufacturer?.toLowerCase().includes(q));
+      const q = removeAccents(searchName).toLowerCase();
+      data = data.filter(i => 
+        removeAccents(i.name || '').toLowerCase().includes(q) || 
+        removeAccents(i.manufacturer || '').toLowerCase().includes(q)
+      );
     }
     if (searchCode) {
-      const q = searchCode.toLowerCase();
-      data = data.filter(i => i.itemCode.toLowerCase().includes(q));
+      const q = removeAccents(searchCode).toLowerCase();
+      data = data.filter(i => removeAccents(i.itemCode || '').toLowerCase().includes(q));
     }
     if (filterCategory) {
       data = data.filter(i => String(i.categoryId) === filterCategory);

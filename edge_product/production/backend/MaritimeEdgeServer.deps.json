@@ -19,7 +19,7 @@
           "Microsoft.EntityFrameworkCore.Tools": "8.0.0",
           "NModbus": "3.0.80",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "8.0.0",
-          "QuestPDF": "2024.10.3",
+          "QuestPDF": "2024.3.2",
           "SixLabors.ImageSharp": "3.1.12",
           "Swashbuckle.AspNetCore": "6.5.0",
           "System.IO.Ports": "8.0.0",
@@ -602,11 +602,11 @@
           }
         }
       },
-      "QuestPDF/2024.10.3": {
+      "QuestPDF/2024.3.2": {
         "runtime": {
           "lib/net8.0/QuestPDF.dll": {
-            "assemblyVersion": "2024.10.3.0",
-            "fileVersion": "2024.10.3.0"
+            "assemblyVersion": "2024.3.2.0",
+            "fileVersion": "2024.3.2.0"
           }
         },
         "runtimeTargets": {
@@ -637,11 +637,6 @@
           },
           "runtimes/win-x64/native/QuestPdfSkia.dll": {
             "rid": "win-x64",
-            "assetType": "native",
-            "fileVersion": "0.0.0.0"
-          },
-          "runtimes/win-x86/native/QuestPdfSkia.dll": {
-            "rid": "win-x86",
             "assetType": "native",
             "fileVersion": "0.0.0.0"
           }
@@ -1824,12 +1819,12 @@
       "path": "npgsql.entityframeworkcore.postgresql/8.0.0",
       "hashPath": "npgsql.entityframeworkcore.postgresql.8.0.0.nupkg.sha512"
     },
-    "QuestPDF/2024.10.3": {
+    "QuestPDF/2024.3.2": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-pYqotWAm9XncO0c63zGXf2yPKnghP7uTiO6OJFX7jEHZrlApBFzViXSvWPAC5Yjark4MVztiq+4l5nZjYWIIUg==",
-      "path": "questpdf/2024.10.3",
-      "hashPath": "questpdf.2024.10.3.nupkg.sha512"
+      "sha512": "sha512-dYdoKyYyKWyWFYjw18puHNjFVJ4clEnDNQufC5Ia01Jyduy4XYKc7LMnggpLHWk1xhmcSCGk35ViZQHA2/DFGw==",
+      "path": "questpdf/2024.3.2",
+      "hashPath": "questpdf.2024.3.2.nupkg.sha512"
     },
     "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl/4.3.2": {
       "type": "package",

@@ -354,6 +354,9 @@ public class SyncInboxService : ISyncInboxService
     public async Task<SyncBatchProcessResult> ProcessBatchAsync(List<SyncQueueItemDto> items)
     {
         var result = new SyncBatchProcessResult();
+        
+        // Track all NoonReport IDs processed successfully for auto-enqueue
+        var noonReportIdsForEvaluation = new HashSet<Guid>();
 
         // Auto-register any vessel whose IMO is not yet in the Vessels table.
         // This happens the first time a new ship pushes data to shore.
@@ -516,13 +519,12 @@ public class SyncInboxService : ISyncInboxService
                     // does NOT roll back the entire batch.
                     await _context.SaveChangesAsync();
 
-                    // TRÍCH XUẤT ID ĐỂ EVALUATE (AI)
+                    // COLLECT ID ĐỂ AUTO-EVALUATE (sẽ batch-enqueue sau)
                     if ((item.TableName.Equals("noon_report", StringComparison.OrdinalIgnoreCase) || 
                          item.TableName.Equals("noon_reports", StringComparison.OrdinalIgnoreCase)) &&
                         Guid.TryParse(item.RecordKey, out var reportId))
                     {
-                        var ct = new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token;
-                        await _reportEvaluationQueue.EnqueueAsync(reportId, ct);
+                        noonReportIdsForEvaluation.Add(reportId);
                     }
 
                     result.Succeeded++;
@@ -557,6 +559,37 @@ public class SyncInboxService : ISyncInboxService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Auto-create VesselCertificateAssignments failed (non-critical)");
+            }
+        }
+
+        // ── AUTO-ENQUEUE all NoonReports for AI evaluation ──
+        if (noonReportIdsForEvaluation.Count > 0)
+        {
+            try
+            {
+                _logger.LogInformation("[AUTO-EVAL] Batch-enqueueing {Count} NoonReports for AI evaluation", 
+                    noonReportIdsForEvaluation.Count);
+                
+                var enqueueTasks = noonReportIdsForEvaluation
+                    .Select(async reportId =>
+                    {
+                        try
+                        {
+                            var ct = new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token;
+                            await _reportEvaluationQueue.EnqueueAsync(reportId, ct);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to enqueue NoonReport {ReportId} for evaluation", reportId);
+                        }
+                    });
+
+                await Task.WhenAll(enqueueTasks);
+                _logger.LogInformation("[AUTO-EVAL] Batch-enqueue completed successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Auto-enqueue batch failed (non-critical, evaluations will be missed)");
             }
         }
 

@@ -45,28 +45,30 @@ namespace ProductApi.Services.AI
         // Structured prompt with anti-repetition rules and explicit anomaly-day output.
         private const string ENHANCED_SYSTEM_PROMPT = @"Bạn là chuyên gia phân tích dữ liệu vận hành tàu biển.
 
-    NGUYÊN TẮC BẮT BUỘC:
-    1. Chỉ dùng số liệu trong dữ liệu đã cấp; thiếu dữ liệu phải nói rõ.
-    2. Không lặp lại nguyên văn các đoạn đã trả lời trước đó.
-    3. Tránh các câu mở đầu giống nhau giữa các lượt chat; ưu tiên đi thẳng vào điểm mới.
-    4. Luôn nêu rõ liên hệ nhân quả giữa tốc độ, RPM, thời tiết và tiêu hao nhiên liệu.
-    5. Nếu người dùng hỏi về ngày bất thường, phải liệt kê từng ngày theo định dạng dd/MM và lý do.
+    NGUYÊN TẮC BẮT BUỘC & KỸ NĂNG PHÂN TÍCH CHUYÊN SÂU:
+    1. QUAN TRỌNG NHẤT: Bắt buộc tận dụng dữ liệu Bảo trì (PMS), Cảnh báo (Alerts) và Chứng chỉ (Certificates) trong mọi lượt chat. KHÔNG CHỈ nhìn vào tốc độ/nhiên liệu.
+    2. NẾU THÔNG SỐ HOẠT ĐỘNG = 0 (tàu đang neo/nằm bờ): Lập tức chuyển trọng tâm phân tích sang rủi ro an toàn từ Cảnh báo đang Active, số lượng công việc Bảo trì đang tồn đọng (thời gian nằm bờ là lúc lý tưởng đề xuất bảo trì).
+    3. TÍNH LIÊN KẾT NHÂN QUẢ (Correlation): 
+       - Nếu có cảnh báo động cơ (VD: High temperature), hãy liên hệ với mức tiêu hao nhiên liệu/RPM cao bất thường.
+       - Cảnh báo hoặc bảo trì quá hạn tiềm ẩn nguy cơ chậm trễ ETA như thế nào?
+    4. Tính minh bạch: Chỉ dùng số liệu có; thiếu dữ liệu hệ thống thì phải nêu rõ. Không lặp đoạn văn trước.
+    5. Phát hiện ngày bất thường (nếu hỏi): Liệt kê chi tiết ngày (dd/MM), biến động số liệu và dự đoán nguyên nhân kết hợp với Cảnh báo trong ngày đó.
 
     NGỮ CẢNH DỮ LIỆU:
-    - Báo cáo gần nhất: {TODAY_DATA}
-    - Tổng hợp 30 ngày: {TREND_DATA}
+    - Hôm nay (Noon Report + Dashboard PMS, Alerts, Chứng chỉ): {TODAY_DATA}
+    - Tổng quan 30 ngày: {TREND_DATA}
     - Nhóm câu hỏi người dùng hay hỏi: {COMMON_QUESTION_PATTERNS}
     - Ngữ cảnh hội thoại: {CONVERSATION_CONTEXT}
 
     LOẠI PHÂN TÍCH: {ANALYSIS_TYPE}
     CÂU HỎI: {QUESTION}
 
-    ĐỊNH DẠNG TRẢ LỜI:
-    1) Tóm tắt nhanh 30 ngày
-    2) Phân tích số liệu chính
-    3) Xu hướng và độ lệch
-    4) Ngày có số liệu lạ (nếu có)
-    5) Khuyến nghị hành động
+    ĐỊNH DẠNG TRẢ LỜI BẮT BUỘC:
+    1) Tóm tắt Tình hình Hiện tại (Hải trình, Bảo trì, Cảnh báo nổi cộm)
+    2) Phân tích sức khỏe Động cơ & Cảnh báo song song
+    3) Đánh giá Tuân thủ (Chứng chỉ sắp hết hạn) & Kế hoạch bảo trì
+    4) Rủi ro tiềm ẩn (ETA, Vật tư, Thời tiết) & Nguyên nhân nhân quả
+    5) Khuyến nghị Hành động cấp bách
 
     DANH SÁCH NGÀY BẤT THƯỜNG ƯU TIÊN:
     {ANOMALY_DAY_BRIEF}
@@ -130,7 +132,7 @@ namespace ProductApi.Services.AI
                 var (normalizedFromDate, normalizedToDate) = NormalizeDateRange(request.FromDate, request.ToDate);
 
                 var dbStopwatch = Stopwatch.StartNew();
-                var (reports, todayData) = await FetchOptimizedReportsAsync(request, token);
+                var (reports, todayData, extraContext) = await FetchOptimizedReportsAsync(request, token);
                 dbStopwatch.Stop();
                 metrics.DatabaseQueryMs = dbStopwatch.ElapsedMilliseconds;
 
@@ -270,7 +272,7 @@ namespace ProductApi.Services.AI
         /// <summary>
         /// Fetch reports with optimized query - only necessary fields
         /// </summary>
-        private async Task<(List<dynamic> reports, dynamic? todayData)> FetchOptimizedReportsAsync(AiChatRequest request, CancellationToken token)
+        private async Task<(List<dynamic> reports, dynamic? todayData, dynamic? extraContext)> FetchOptimizedReportsAsync(AiChatRequest request, CancellationToken token)
         {
             var toDate = request.ToDate ?? DateTime.UtcNow;
             var maxDaysBack = 30;
@@ -285,6 +287,8 @@ namespace ProductApi.Services.AI
                 .AsNoTracking()
                 .AsQueryable();
 
+            dynamic? extraContext = null;
+
             if (request.VesselId.HasValue)
             {
                 var vessel = await _context.Vessels
@@ -295,7 +299,7 @@ namespace ProductApi.Services.AI
 
                 if (vessel == null || string.IsNullOrWhiteSpace(vessel.IMO))
                 {
-                    return (new List<dynamic>(), null);
+                    return (new List<dynamic>(), null, null);
                 }
 
                 var vesselMaritimeReportIds = _context.Set<MaritimeReport>()
@@ -307,6 +311,25 @@ namespace ProductApi.Services.AI
                     .Select(mr => mr.Id);
 
                 query = query.Where(nr => vesselMaritimeReportIds.Contains(nr.MaritimeReportId));
+
+                // Fetch extra dashboard context
+                var now = DateTime.UtcNow;
+                var thirtyDaysFromNow = now.AddDays(30);
+                
+                var overduePms = await _context.MaintenanceTasks.CountAsync(t => t.VesselId == request.VesselId && t.Status == "OVERDUE", token);
+                var inProgressPms = await _context.MaintenanceTasks.CountAsync(t => t.VesselId == request.VesselId && t.Status == "IN_PROGRESS", token);
+                var criticalDuePms = await _context.MaintenanceTasks.CountAsync(t => t.VesselId == request.VesselId && t.Priority == "CRITICAL" && t.NextDueAt <= thirtyDaysFromNow && t.Status == "SCHEDULED", token);
+                
+                var activeAlertsCount = await _context.VesselAlerts.CountAsync(a => a.VesselId == request.VesselId && !a.IsAcknowledged, token);
+                var activeAlertsDetails = await _context.VesselAlerts.Where(a => a.VesselId == request.VesselId && !a.IsAcknowledged).Select(a => a.Message).Take(5).ToListAsync(token);
+                
+                var expiringCertificatesCount = await _context.VesselCertificates.CountAsync(c => c.VesselId == request.VesselId && c.ExpiryDate <= thirtyDaysFromNow && c.ExpiryDate > now, token);
+                
+                extraContext = new {
+                    PmsSummary = new { Overdue = overduePms, InProgress = inProgressPms, CriticalDueSoon = criticalDuePms },
+                    Alerts = new { ActiveCount = activeAlertsCount, Details = activeAlertsDetails },
+                    Certificates = new { ExpiringIn30Days = expiringCertificatesCount }
+                };
             }
 
             // Select only necessary fields to reduce memory usage
@@ -336,7 +359,13 @@ namespace ProductApi.Services.AI
 
             var todayData = reports.FirstOrDefault();
 
-            return (reports.Cast<dynamic>().ToList(), todayData);
+            var combinedTodayData = new
+            {
+                NoonReport = todayData,
+                DashboardAlertsAndMaintenance = extraContext
+            };
+
+            return (reports.Cast<dynamic>().ToList(), combinedTodayData, extraContext);
         }
 
         /// <summary>

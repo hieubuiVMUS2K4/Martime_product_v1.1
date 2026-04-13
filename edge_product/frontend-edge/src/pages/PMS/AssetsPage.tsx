@@ -73,6 +73,8 @@ export default function AssetsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchCode, setSearchCode] = useState('');
   const [searchLocation, setSearchLocation] = useState('');
+  const [searchManufacturer, setSearchManufacturer] = useState('');
+  const [searchSpecs, setSearchSpecs] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -119,6 +121,8 @@ export default function AssetsPage() {
   /** Filtered + paginated assets for table (view mode) */
   const filteredAssets = useMemo(() => {
     let data = assets;
+    const removeAccents = (str: string) => str ? str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D') : '';
+    
     if (selectedNodeId) {
       const buildFromFlat = (id: string): EquipmentAsset => {
         const node = { ...assetMap.get(id)!, children: [] as EquipmentAsset[] };
@@ -128,17 +132,21 @@ export default function AssetsPage() {
       const ids = getDescendantIds(buildFromFlat(selectedNodeId));
       data = data.filter(a => ids.has(a.id));
     }
-    if (searchTerm) { const q = searchTerm.toLowerCase(); data = data.filter(a => a.assetName.toLowerCase().includes(q) || a.manufacturer?.toLowerCase().includes(q)); }
-    if (searchCode) { const q = searchCode.toLowerCase(); data = data.filter(a => a.assetCode.toLowerCase().includes(q)); }
-    if (searchLocation) { const q = searchLocation.toLowerCase(); data = data.filter(a => a.location?.toLowerCase().includes(q)); }
+    
+    if (searchTerm) { const q = removeAccents(searchTerm).toLowerCase(); data = data.filter(a => removeAccents(a.assetName || '').toLowerCase().includes(q)); }
+    if (searchCode) { const q = removeAccents(searchCode).toLowerCase(); data = data.filter(a => removeAccents(a.assetCode || '').toLowerCase().includes(q)); }
+    if (searchLocation) { const q = removeAccents(searchLocation).toLowerCase(); data = data.filter(a => removeAccents(a.location || '').toLowerCase().includes(q)); }
+    if (searchManufacturer) { const q = removeAccents(searchManufacturer).toLowerCase(); data = data.filter(a => removeAccents(a.manufacturer || '').toLowerCase().includes(q)); }
+    if (searchSpecs) { const q = removeAccents(searchSpecs).toLowerCase(); data = data.filter(a => removeAccents(a.technicalSpecs || '').toLowerCase().includes(q)); }
     if (selectedStatus) data = data.filter(a => a.status === selectedStatus);
+    
     return data;
-  }, [assets, selectedNodeId, searchTerm, searchCode, searchLocation, selectedStatus, assetMap]);
+  }, [assets, selectedNodeId, searchTerm, searchCode, searchLocation, searchManufacturer, searchSpecs, selectedStatus, assetMap]);
 
   const totalPages = Math.ceil(filteredAssets.length / itemsPerPage);
   const paginatedAssets = useMemo(() => filteredAssets.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [filteredAssets, currentPage, itemsPerPage]);
 
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, searchCode, searchLocation, selectedStatus, selectedNodeId]);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, searchCode, searchLocation, searchManufacturer, searchSpecs, selectedStatus, selectedNodeId]);
 
   const toggleRow = (id: string) => setSelectedRows(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleAllRows = () => {
@@ -560,14 +568,14 @@ export default function AssetsPage() {
                       <th className="px-2 py-1 border-r border-gray-200">
                         <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
                           <span className="text-gray-400 text-xs select-none">→</span>
-                          <input type="text" placeholder={t('common.search')} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                          <input type="text" placeholder={t('common.search')} value={searchManufacturer} onChange={e => setSearchManufacturer(e.target.value)} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
                           <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="px-2 py-1 border-r border-gray-200">
                         <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
                           <span className="text-gray-400 text-xs select-none">→</span>
-                          <input type="text" placeholder={t('common.search')} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
+                          <input type="text" placeholder={t('common.search')} value={searchSpecs} onChange={e => setSearchSpecs(e.target.value)} className="flex-1 text-xs outline-none min-w-0 bg-transparent" />
                           <Search className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
