@@ -93,7 +93,9 @@
     "safety": "An toàn & Diễn tập",
     "drillTraining": "Diễn tập",
     "shipData": "Dữ liệu tàu",
-    "auditLog": "Nhật ký kiểm toán"
+    "auditLog": "Nhật ký kiểm toán",
+    "crewMembers": "Danh sách thuyền viên",
+    "certificate": "Chứng chỉ"
   },
   "header": {
     "title": "Vận hành tàu",
@@ -298,6 +300,9 @@
     "loading": "Đang tải dữ liệu thuyền viên...",
     "searchPlaceholder": "Tìm theo tên, chức vụ hoặc mã thuyền viên...",
     "allRanks": "Tất cả chức danh",
+    "allNationalities": "Tất cả quốc tịch",
+    "onboardSection": "Thuyền viên trên tàu",
+    "pendingSection": "Duyệt thuyền viên",
     "noCrewFound": "Không tìm thấy thuyền viên",
     "stats": {
       "crewOnboard": "Thuyền viên trên tàu",
@@ -322,6 +327,7 @@
       "contract": "Hợp đồng"
     },
     "table": {
+      "no": "TT",
       "crewId": "Mã TV",
       "name": "Họ tên",
       "position": "Chức vụ",
@@ -343,7 +349,28 @@
       "exportCrewList": "Xuất DS thuyền viên (PDF)",
       "exportCertReport": "Xuất BC chứng chỉ (Excel)",
       "renewStcw": "Gia hạn CC STCW",
-      "requestShoreLeave": "Xin phép lên bờ"
+      "requestShoreLeave": "Xin phép lên bờ",
+      "exportExcel": "Xuất Excel",
+      "exportPdf": "Xuất PDF"
+    },
+    "monitor": {
+      "title": "Giám sát Chứng chỉ Thuyền viên",
+      "crewCertificates": "Chứng chỉ thuyền viên",
+      "certificateTypes": "Loại chứng chỉ",
+      "otherCountries": "Chứng chỉ từ quốc gia khác",
+      "rankCertificates": "Chứng chỉ theo chức danh",
+      "totalCerts": "Tổng CC",
+      "totalCrew": "Tổng TV",
+      "certName": "Tên chứng chỉ",
+      "code": "Mã",
+      "category": "Loại",
+      "validity": "Hiệu lực",
+      "rankCode": "Mã chức danh",
+      "rankName": "Tên chức danh",
+      "requiredCerts": "CC bắt buộc",
+      "crewCount": "Số TV",
+      "compliance": "Tuân thủ",
+      "addCertShort": "Thêm CC"
     },
     "report": {
       "totalCrew": "Tổng số",

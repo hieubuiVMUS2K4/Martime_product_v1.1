@@ -93,7 +93,9 @@
     "safety": "Safety & Drills",
     "drillTraining": "Drill Training",
     "shipData": "Ship Data",
-    "auditLog": "Audit Log"
+    "auditLog": "Audit Log",
+    "crewMembers": "Crew Members",
+    "certificate": "Certificate"
   },
   "header": {
     "title": "Vessel Operations",
@@ -298,6 +300,9 @@
     "loading": "Loading crew data...",
     "searchPlaceholder": "Search by name, position, or crew ID...",
     "allRanks": "All Ranks",
+    "allNationalities": "All Nationalities",
+    "onboardSection": "Crew on Board",
+    "pendingSection": "Pending Crew Review",
     "noCrewFound": "No crew members found",
     "stats": {
       "crewOnboard": "Crew Onboard",
@@ -322,6 +327,7 @@
       "contract": "Contract"
     },
     "table": {
+      "no": "No.",
       "crewId": "Crew ID",
       "name": "Name",
       "position": "Position",
@@ -343,7 +349,28 @@
       "exportCrewList": "Export Crew List (PDF)",
       "exportCertReport": "Export Certificate Report (Excel)",
       "renewStcw": "Renew STCW Certificate",
-      "requestShoreLeave": "Request Shore Leave"
+      "requestShoreLeave": "Request Shore Leave",
+      "exportExcel": "Export Excel",
+      "exportPdf": "Export PDF"
+    },
+    "monitor": {
+      "title": "Crew Certificate Monitoring",
+      "crewCertificates": "Crew Certificates",
+      "certificateTypes": "Certificate Types",
+      "otherCountries": "Certificates from Other Countries",
+      "rankCertificates": "Certificates for Ranks",
+      "totalCerts": "Total Certs",
+      "totalCrew": "Total Crew",
+      "certName": "Certificate Name",
+      "code": "Code",
+      "category": "Category",
+      "validity": "Validity",
+      "rankCode": "Rank Code",
+      "rankName": "Rank Name",
+      "requiredCerts": "Required Certs",
+      "crewCount": "Crew Count",
+      "compliance": "Compliance",
+      "addCertShort": "Add Cert"
     },
     "report": {
       "totalCrew": "Total Crew",
