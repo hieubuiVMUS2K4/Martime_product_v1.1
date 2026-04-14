@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Plus, Search, Trash2, Copy, Edit2, Save, X, ChevronDown, ChevronRight, FolderOpen, ChevronsUpDown, Warehouse } from 'lucide-react';
+import { toast } from 'sonner';
 import { storeLocationService } from '@/services/store-location.service';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { StoreLocation } from '@/types/pms.types';
@@ -169,26 +170,44 @@ export default function StoreLocationPage() {
 
   const handleBulkDelete = async () => {
     if (selectedRows.size === 0) return;
-    if (!confirm(t('storeLocations.confirmBulkDelete', { count: selectedRows.size }))) return;
-    try {
-      await Promise.all([...selectedRows].map(id => storeLocationService.delete(id)));
-      setSelectedRows(new Set());
-      await loadData();
-    } catch (err: any) {
-      alert(err?.response?.data?.error || 'Delete failed');
-    }
+    toast(t('storeLocations.confirmBulkDelete', { count: selectedRows.size }), {
+      action: {
+        label: t('storeLocations.delete') || 'Xóa',
+        onClick: async () => {
+          try {
+            await Promise.all([...selectedRows].map(id => storeLocationService.delete(id)));
+            setSelectedRows(new Set());
+            await loadData();
+            toast.success('Xóa các vị trí kho thành công');
+          } catch (err: any) {
+            toast.error(err?.response?.data?.error || 'Delete failed');
+          }
+        }
+      },
+      cancel: { label: 'Hủy', onClick: () => {} },
+      duration: 8000,
+    });
   };
 
   const handleDelete = async (item: StoreLocation) => {
-    if (!confirm(t('storeLocations.confirmDelete', { name: item.name }))) return;
-    try {
-      await storeLocationService.delete(item.id);
-      if (selectedNodeId === item.id) setSelectedNodeId(null);
-      if (selectedEditLocation?.id === item.id) setSelectedEditLocation(null);
-      await loadData();
-    } catch (err: any) {
-      alert(err?.response?.data?.error || 'Delete failed');
-    }
+    toast(t('storeLocations.confirmDelete', { name: item.name }), {
+      action: {
+        label: t('storeLocations.delete') || 'Xóa',
+        onClick: async () => {
+          try {
+            await storeLocationService.delete(item.id);
+            if (selectedNodeId === item.id) setSelectedNodeId(null);
+            if (selectedEditLocation?.id === item.id) setSelectedEditLocation(null);
+            await loadData();
+            toast.success('Xóa vị trí kho thành công');
+          } catch (err: any) {
+            toast.error(err?.response?.data?.error || 'Delete failed');
+          }
+        }
+      },
+      cancel: { label: 'Hủy', onClick: () => {} },
+      duration: 8000,
+    });
   };
 
   const selectEditLocation = (item: StoreLocation) => {
@@ -208,7 +227,7 @@ export default function StoreLocationPage() {
   const handleSaveLocation = async () => {
     if (!selectedEditLocation) return;
     if (!editLocForm.locationCode.trim() || !editLocForm.name.trim()) {
-      alert('Vui lòng nhập mã kho và tên kho');
+      toast.warning('Vui lòng nhập mã kho và tên kho');
       return;
     }
     setEditLocSaving(true);
@@ -224,8 +243,9 @@ export default function StoreLocationPage() {
         email: editLocForm.email || null,
       });
       await loadData();
+      toast.success('Lưu vị trí kho thành công');
     } catch (err: any) {
-      alert(err?.response?.data?.error || 'Save failed');
+      toast.error(err?.response?.data?.error || 'Save failed');
     } finally {
       setEditLocSaving(false);
     }
@@ -262,8 +282,9 @@ export default function StoreLocationPage() {
       setInlineNew(null);
       setInlineNewName('');
       await loadData();
+      toast.success('Tạo vị trí kho thành công');
     } catch (err: any) {
-      alert(err?.response?.data?.error || 'Create failed');
+      toast.error(err?.response?.data?.error || 'Create failed');
     }
   };
 

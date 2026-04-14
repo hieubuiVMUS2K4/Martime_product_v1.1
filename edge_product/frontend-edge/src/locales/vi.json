@@ -845,7 +845,8 @@
       "colCreatedBy": "Người tạo",
       "edit": "Sửa",
       "delete": "Xóa",
-      "confirmDelete": "Bạn có chắc muốn xóa \"{name}\"?"
+      "confirmDelete": "Bạn có chắc muốn xóa \"{name}\"?",
+      "cancel": "Hủy"
     }
   },
   "storeLocations": {
@@ -858,7 +859,7 @@
     "addNew": "Thêm mới",
     "edit": "Sửa",
     "delete": "Xóa",
-    "confirmDelete": "Bạn có chắc muốn xóa vị trí \"{name}\"?",
+    "confirmDelete": "Bạn có chắc muốn xóa vị trí \"{{name}}\"?",
     "colName": "Tiêu đề",
     "colCode": "Mã vị trí",
     "colDescription": "Mô tả",
@@ -885,7 +886,8 @@
       "required": "Mã và tên là bắt buộc",
       "saving": "Đang lưu...",
       "create": "Tạo mới"
-    }
+    },
+    "confirmBulkDelete": "Xác nhận xóa {{count}} vị trí kho?"
   },
   "materialRequests": {
     "title": "Yêu cầu vật tư",
@@ -989,7 +991,9 @@
       "pageInfo": "Trang số {current} của {total} ({records} bản ghi)",
       "goToPage": "Đi đến trang",
       "view": "Xem",
-      "delete": "Xóa"
+      "delete": "Xóa",
+      "confirmDelete": "Bạn có chắc chắn muốn xóa thiết bị này?",
+      "cancel": "Hủy"
     },
     "groups": {
       "title": "Nhóm thiết bị",
@@ -1305,7 +1309,7 @@
         "scheduleNotFound": "Không tìm thấy cấu hình bảo trì cho công việc này",
         "configDeleted": "Đã xóa cấu hình bảo trì",
         "configDeleteFailed": "Không thể xóa cấu hình",
-        "confirmDeleteConfig": "Bạn có chắc muốn xóa cấu hình",
+        "confirmDeleteConfig": "Xác nhận xóa cấu hình bảo trì",
         "configCopied": "Đã sao chép cấu hình làm mẫu — chỉnh sửa rồi Lưu để tạo mới",
         "fillCodeAndName": "Vui lòng điền mã và tên đầu mục bảo trì",
         "selectEquipment": "Vui lòng chọn thiết bị từ cây bên trái",
@@ -1324,7 +1328,8 @@
         "hoursUpdateTriggered": "Đã cập nhật giờ chạy — {count} công việc chuyển sang ĐẾN HẠN",
         "hoursUpdateFailed": "Không thể cập nhật giờ chạy",
         "exportSuccess": "Đã xuất báo cáo: {filename}",
-        "exportFailed": "Không thể xuất báo cáo"
+        "exportFailed": "Không thể xuất báo cáo",
+        "confirmDeleteTask": "Bạn có muốn xóa công việc này?"
       },
       "export": {
         "taskCode": "Mã công việc",
