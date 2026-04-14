@@ -209,7 +209,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
     return (
       <div className="flex items-center justify-center p-16">
         <Loader2 size={32} className="vd-spin mr-3" />
-        <span className="text-sm text-gray-600">Loading crew members...</span>
+        <span className="text-sm text-gray-600">Đang tải danh sách thuyền viên...</span>
       </div>
     );
   }
@@ -227,7 +227,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700
           }}>{unviewedChangesCount}</span>
           <span style={{ fontSize: 13, color: '#92400e', fontWeight: 600 }}>
-            {unviewedChangesCount} crew member{unviewedChangesCount > 1 ? 's have' : ' has'} been modified by the ship. Click on their name to review changes.
+            {unviewedChangesCount} thuyền viên đã được chỉnh sửa bởi tàu. Nhấn vào tên để xem thay đổi.
           </span>
         </div>
       )}
@@ -240,22 +240,22 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
                 <thead>
                   {/* Label row */}
                   <tr className="vp-tr-labels">
-                    <th style={{ width: '10%', position: 'relative' }}>Crew ID
+                    <th style={{ width: '10%', position: 'relative' }}>Mã TV
                       <SortDropdown col="crewId" options={[{ label: 'A → Z', dir: 'asc' }, { label: 'Z → A', dir: 'desc' }]} />
                     </th>
-                    <th style={{ width: '22%', position: 'relative' }}>Full Name
+                    <th style={{ width: '22%', position: 'relative' }}>Họ và tên
                       <SortDropdown col="fullName" options={[{ label: 'A → Z', dir: 'asc' }, { label: 'Z → A', dir: 'desc' }]} />
                     </th>
-                    <th style={{ width: '20%', position: 'relative' }}>Rank
+                    <th style={{ width: '20%', position: 'relative' }}>Chức danh
                       <SortDropdown col="position" options={[{ label: 'A → Z', dir: 'asc' }, { label: 'Z → A', dir: 'desc' }]} />
                     </th>
-                    <th style={{ width: '14%', position: 'relative' }}>Nationality
+                    <th style={{ width: '14%', position: 'relative' }}>Quốc tịch
                       <SortDropdown col="nationality" options={[{ label: 'A → Z', dir: 'asc' }, { label: 'Z → A', dir: 'desc' }]} />
                     </th>
-                    <th style={{ width: '16%', position: 'relative' }}>Embark Date
+                    <th style={{ width: '16%', position: 'relative' }}>Ngày lên tàu
                       <SortDropdown col="embarkDate" options={[{ label: 'Mới nhất', dir: 'desc' }, { label: 'Cũ nhất', dir: 'asc' }]} />
                     </th>
-                    <th style={{ width: '13%', borderRight: 'none' }}>Status</th>
+                    <th style={{ width: '13%', borderRight: 'none' }}>Trạng thái</th>
                   </tr>
                   {/* Filter row */}
                   <tr className="vp-tr-filters">
@@ -299,7 +299,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
                           onClick={() => handleViewCrew(crewMember)}>
                           {crewMember.fullName}
                           {crewMember.edgeChanges && !crewMember.edgeChangesViewed && (
-                            <span title="Modified by ship — click to review" style={{
+                            <span title="Đã chỉnh sửa bởi tàu — nhấn để xem" style={{
                               background: '#ef4444', borderRadius: '50%', width: 8, height: 8,
                               display: 'inline-block', flexShrink: 0, animation: 'pulse 2s infinite'
                             }} />
@@ -320,7 +320,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
                       <td>
                         {crewMember.isOnboard ? (
                           <span style={{ background: '#dcfce7', color: '#16a34a', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
-                            • Onboard
+                            • Trên tàu
                           </span>
                         ) : crewMember.onboardStatus === 'PendingReview' ? (
                           <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
@@ -336,7 +336,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
                           </span>
                         ) : (
                           <span style={{ background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
-                            Ashore
+                            Trên bờ
                           </span>
                         )}
                       </td>
@@ -350,7 +350,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
             {totalPages > 1 && (
               <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
                 <div className="text-sm text-gray-600">
-                  Showing {startIndex + 1} - {Math.min(endIndex, filteredCrew.length)} of {filteredCrew.length}
+                  Hiển thị {startIndex + 1} - {Math.min(endIndex, filteredCrew.length)} / {filteredCrew.length}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -358,17 +358,17 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
                     disabled={currentPage === 1}
                     className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    ← Previous
+                    ← Trước
                   </button>
                   <span className="text-sm text-gray-600">
-                    Page {currentPage} / {totalPages}
+                    Trang {currentPage} / {totalPages}
                   </span>
                   <button
                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
                     className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Next →
+                    Tiếp →
                   </button>
                 </div>
               </div>
@@ -376,7 +376,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
           </>
         ) : (
           <div className="px-4 py-12 text-center text-gray-500">
-            <p>No crew members onboard this vessel</p>
+            <p>Không có thuyền viên nào trên tàu này</p>
           </div>
         )}
 
@@ -396,7 +396,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
             }}
             className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-teal-50"
           >
-            View Details
+            Xem chi tiết
           </button>
           <div className="border-t border-gray-100" />
           <button
@@ -408,7 +408,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
             }}
             className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
           >
-            Delete
+            Xóa
           </button>
         </div>
       )}

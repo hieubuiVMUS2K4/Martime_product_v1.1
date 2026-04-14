@@ -200,10 +200,10 @@ export const AddCrewCertificateModal: React.FC<Props> = ({
               </div>
 
               <div className="acm-field">
-                <label>CoC Type</label>
+                <label>Loại CoC</label>
                 <select value={form.certificateOfCompetency} onChange={e => setForm(p => ({ ...p, certificateOfCompetency: e.target.value }))}>
-                  <option value="National">National</option>
-                  <option value="Flag State">Flag State</option>
+                  <option value="National">Quốc gia</option>
+                  <option value="Flag State">Cờ quốc tịch</option>
                 </select>
               </div>
 

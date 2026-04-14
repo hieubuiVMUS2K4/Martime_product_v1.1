@@ -44,7 +44,7 @@ const EdgeSyncBadge: React.FC<{ lastSync?: string | Date | null }> = ({ lastSync
         marginBottom: '12px'
       }}
     >
-      🔄 Last synced from Edge: {syncDate.toLocaleString('vi-VN')}
+      🔄 Đồng bộ lần cuối từ Edge: {syncDate.toLocaleString('vi-VN')}
     </div>
   );
 };
@@ -55,50 +55,50 @@ export function DimensionsTab({ vessel }: DimensionsTabProps) {
       <EdgeSyncBadge lastSync={vessel.lastEdgeSyncAt} />
       
       {/* Principal Dimensions */}
-      <SectionCard title="Principal Dimensions">
+      <SectionCard title="Kích thước chính">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <MetricFieldReadOnly label="LOA" valueM={vessel.loa} />
-          <MetricFieldReadOnly label="LBP" valueM={vessel.lbp} />
-          <MetricFieldReadOnly label="Breadth Moulded" valueM={vessel.breadthMoulded} />
-          <MetricFieldReadOnly label="Depth Moulded" valueM={vessel.depthMoulded} />
-          <MetricFieldReadOnly label="Draft Moulded" valueM={vessel.draftMoulded} />
-          <MetricFieldReadOnly label="Draft Scantling" valueM={vessel.draftScantling} />
-          <MetricFieldReadOnly label="Draft Full Ballast" valueM={vessel.draftFullBallast} />
-          <MetricFieldReadOnly label="H Max. Airdraft" valueM={vessel.hMaxAirdraft} />
+          <MetricFieldReadOnly label="Chiều dài thiết kế (LBP)" valueM={vessel.lbp} />
+          <MetricFieldReadOnly label="Chiều rộng theo đường nước" valueM={vessel.breadthMoulded} />
+          <MetricFieldReadOnly label="Chiều cao molo" valueM={vessel.depthMoulded} />
+          <MetricFieldReadOnly label="Mỹp dự kiến" valueM={vessel.draftMoulded} />
+          <MetricFieldReadOnly label="Mỹp tối đa" valueM={vessel.draftScantling} />
+          <MetricFieldReadOnly label="Mỹp dằn bà laỳt" valueM={vessel.draftFullBallast} />
+          <MetricFieldReadOnly label="Chiều cao không cần tữ tối đa" valueM={vessel.hMaxAirdraft} />
         </div>
       </SectionCard>
 
       {/* Displacement & Coefficients */}
-      <SectionCard title="Displacement & Coefficients">
+      <SectionCard title="Lượng chiếm nước & Hệ số">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <ReadOnlyField label="Light Ship" value={vessel.lightShip} suffix="MT" />
-          <ReadOnlyField label="Block Coefficient" value={vessel.blockCoefficient} />
-          <ReadOnlyField label="TPC at Summer Draft" value={vessel.tpcAtSummerDraft} suffix="MT/cm" />
+          <ReadOnlyField label="Tàu không tải" value={vessel.lightShip} suffix="MT" />
+          <ReadOnlyField label="Hệ số khối" value={vessel.blockCoefficient} />
+          <ReadOnlyField label="TPC tại mỹp hè " value={vessel.tpcAtSummerDraft} suffix="MT/cm" />
         </div>
       </SectionCard>
 
       {/* Tonnage */}
-      <SectionCard title="Tonnage">
+      <SectionCard title="Trọng tải">
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <div className="text-xs font-medium text-gray-500 mb-2 text-center">International</div>
+            <div className="text-xs font-medium text-gray-500 mb-2 text-center">Quốc tế</div>
             <div className="space-y-2">
-              <ReadOnlyField label="Gross Tonnage" value={vessel.grossTonnageInternational} />
-              <ReadOnlyField label="Nett Tonnage" value={vessel.nettTonnageInternational} />
+              <ReadOnlyField label="Tổng dung tích" value={vessel.grossTonnageInternational} />
+              <ReadOnlyField label="Dung tích thuần" value={vessel.nettTonnageInternational} />
             </div>
           </div>
           <div>
-            <div className="text-xs font-medium text-gray-500 mb-2 text-center">Suez Canal</div>
+            <div className="text-xs font-medium text-gray-500 mb-2 text-center">Kênh đào Suez</div>
             <div className="space-y-2">
-              <ReadOnlyField label="Gross Tonnage" value={vessel.grossTonnageSuezCanal} />
-              <ReadOnlyField label="Nett Tonnage" value={0} />
+              <ReadOnlyField label="Tổng dung tích" value={vessel.grossTonnageSuezCanal} />
+              <ReadOnlyField label="Dung tích thuần" value={0} />
             </div>
           </div>
           <div>
-            <div className="text-xs font-medium text-gray-500 mb-2 text-center">Panama Canal</div>
+            <div className="text-xs font-medium text-gray-500 mb-2 text-center">Kênh đào Panama</div>
             <div className="space-y-2">
-              <ReadOnlyField label="Gross Tonnage" value={vessel.grossTonnagePanamaCanal} />
-              <ReadOnlyField label="Nett Tonnage" value={0} />
+              <ReadOnlyField label="Tổng dung tích" value={vessel.grossTonnagePanamaCanal} />
+              <ReadOnlyField label="Dung tích thuần" value={0} />
             </div>
           </div>
         </div>

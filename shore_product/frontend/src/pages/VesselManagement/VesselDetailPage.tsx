@@ -189,15 +189,15 @@ interface Vessel {
 type TabId = 'basic-data' | 'dimensions' | 'machinery' | 'shipowner' | 'charterer' | 'class-flag-state' | 'insurance' | 'radio-comm' | 'tanks-cargo' | 'certificates' | 'crew';
 
 const TABS: { id: TabId; label: string; edgeSource: boolean }[] = [
-  { id: 'basic-data',       label: 'Basic Data',        edgeSource: true },
-  { id: 'dimensions',       label: 'Dimensions',         edgeSource: true },
-  { id: 'machinery',        label: 'Machinery',          edgeSource: true },
-  { id: 'shipowner',        label: 'Shipowner',          edgeSource: false },
-  { id: 'charterer',        label: 'Charterer',          edgeSource: false },
-  { id: 'class-flag-state', label: 'Class / Flag State', edgeSource: true },
-  { id: 'insurance',        label: 'Insurance',          edgeSource: false },
-  { id: 'radio-comm',       label: 'Radio Comm.',        edgeSource: true },
-  { id: 'tanks-cargo',      label: 'Tanks & Cargo',      edgeSource: true },
+  { id: 'basic-data',       label: 'Thông tin cơ bản',  edgeSource: true },
+  { id: 'dimensions',       label: 'Kích thước',         edgeSource: true },
+  { id: 'machinery',        label: 'Máy móc',            edgeSource: true },
+  { id: 'shipowner',        label: 'Chủ tàu',           edgeSource: false },
+  { id: 'charterer',        label: 'Người thuê tàu',    edgeSource: false },
+  { id: 'class-flag-state', label: 'Phân cấp / Cờ', edgeSource: true },
+  { id: 'insurance',        label: 'Bảo hiểm',          edgeSource: false },
+  { id: 'radio-comm',       label: 'Viễn thông',         edgeSource: true },
+  { id: 'tanks-cargo',      label: 'Két & Hàng',         edgeSource: true },
   { id: 'certificates',     label: 'Chứng chỉ',          edgeSource: false },
   { id: 'crew',             label: 'Thuyền viên', edgeSource: false },
 ];
@@ -209,7 +209,7 @@ const TAB_GROUPS: { label: string; items: TabId[] }[] = [
     items: ['crew'],
   },
   {
-    label: 'Ship Data',
+    label: 'Dữ liệu tàu',
     items: ['basic-data', 'dimensions', 'class-flag-state', 'machinery', 'radio-comm', 'tanks-cargo', 'shipowner', 'charterer', 'insurance', 'certificates'],
   },
   
@@ -430,7 +430,7 @@ export const VesselDetailPage: React.FC = () => {
     return (
       <div className="vd-loading-screen">
         <Loader2 size={32} className="vd-spin" />
-        <span>Loading vessel data...</span>
+        <span>Loading…</span>
       </div>
     );
   }
@@ -439,9 +439,9 @@ export const VesselDetailPage: React.FC = () => {
     return (
       <div className="vd-error-screen">
         <AlertCircle size={32} />
-        <span>{error ?? 'Vessel not found'}</span>
+        <span>{error ?? 'Không tìm thấy tàu'}</span>
         <button className="vd-btn" onClick={() => navigate('/vessels')}>
-          Back to list
+          Quay lại danh sách
         </button>
       </div>
     );
@@ -467,7 +467,7 @@ export const VesselDetailPage: React.FC = () => {
           </div>
           {isDirty && (
             <span className="vd-unsaved-badge">
-              Unsaved changes
+              Chưa lưu thay đổi
             </span>
           )}
         </div>
@@ -478,14 +478,13 @@ export const VesselDetailPage: React.FC = () => {
             disabled={!isDirty || saving}
           >
             {saving ? (
-              <>
-                <Loader2 size={16} className="vd-spin" />
-                <span>Saving...</span>
+              <>                <Loader2 size={16} className="vd-spin" />
+                <span>Đang lưu...</span>
               </>
             ) : (
               <>
                 <Save size={16} />
-                <span>Save Commercial Data</span>
+                <span>Lưu</span>
               </>
             )}
           </button>
@@ -522,7 +521,7 @@ export const VesselDetailPage: React.FC = () => {
                           onClick={() => { setActiveTab(tabId); setOpenGroup(null); }}
                         >
                           <span>{tab.label}</span>
-                          {tab.edgeSource && <span className="vd-edge-dot" title="Synced from Edge">⚡</span>}
+                          {tab.edgeSource && <span className="vd-edge-dot" title="Đồng bộ từ Edge">⚡</span>}
                         </button>
                       );
                     })}

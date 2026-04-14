@@ -37,7 +37,7 @@ const EdgeSyncBadge: React.FC<{ lastSync?: string | Date | null }> = ({ lastSync
         marginBottom: '12px'
       }}
     >
-      🔄 Last synced from Edge: {syncDate.toLocaleString('vi-VN')}
+      🔄 Đồng bộ lần cuối từ Edge: {syncDate.toLocaleString('vi-VN')}
     </div>
   );
 };
@@ -48,22 +48,22 @@ export function ClassFlagStateTab({ vessel }: ClassFlagStateTabProps) {
       <EdgeSyncBadge lastSync={vessel.lastEdgeSyncAt} />
       
       {/* Classification Society */}
-      <SectionCard title="Classification Society">
+      <SectionCard title="Tổ chức đăng kiểm">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <ReadOnlyField label="Company Name" value={vessel.classSocietyName} />
-          <ReadOnlyField label="Country" value={vessel.classSocietyCountry} />
+          <ReadOnlyField label="Tên công ty" value={vessel.classSocietyName} />
+          <ReadOnlyField label="Quốc gia" value={vessel.classSocietyCountry} />
           <ReadOnlyField label="Email" value={vessel.classSocietyEmail} />
-          <ReadOnlyField label="Contact Person" value={vessel.classSocietyContactPerson} />
+          <ReadOnlyField label="Người liên hệ" value={vessel.classSocietyContactPerson} />
         </div>
       </SectionCard>
 
       {/* Flag State */}
-      <SectionCard title="Flag State">
+      <SectionCard title="Cơ quan quản lý cờ">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <ReadOnlyField label="Authority Name" value={vessel.flagStateName} />
-          <ReadOnlyField label="Country" value={vessel.flagStateCountry} />
+          <ReadOnlyField label="Tên cơ quan" value={vessel.flagStateName} />
+          <ReadOnlyField label="Quốc gia" value={vessel.flagStateCountry} />
           <ReadOnlyField label="Email" value={vessel.flagStateEmail} />
-          <ReadOnlyField label="Contact Person" value={vessel.flagStateContactPerson} />
+          <ReadOnlyField label="Người liên hệ" value={vessel.flagStateContactPerson} />
         </div>
       </SectionCard>
     </div>

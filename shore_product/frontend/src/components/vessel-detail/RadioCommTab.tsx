@@ -43,7 +43,7 @@ const EdgeSyncBadge: React.FC<{ lastSync?: string | Date | null }> = ({ lastSync
         marginBottom: '12px'
       }}
     >
-      🔄 Last synced from Edge: {syncDate.toLocaleString('vi-VN')}
+      🔄 Đồng bộ lần cuối từ Edge: {syncDate.toLocaleString('vi-VN')}
     </div>
   );
 };
@@ -56,27 +56,27 @@ export function RadioCommTab({ vessel }: RadioCommTabProps) {
       {/* INMARSAT */}
       <SectionCard title="INMARSAT">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <ReadOnlyField label="Phone 1" value={vessel.inmarsatPhone1} />
-          <ReadOnlyField label="Phone 2" value={vessel.inmarsatPhone2} />
+          <ReadOnlyField label="Điện thoại 1" value={vessel.inmarsatPhone1} />
+          <ReadOnlyField label="Điện thoại 2" value={vessel.inmarsatPhone2} />
           <ReadOnlyField label="Fax 1" value={vessel.inmarsatFax1} />
           <ReadOnlyField label="Email 1" value={vessel.emailAddress1} />
           <ReadOnlyField label="Email 2" value={vessel.emailAddress2} />
-          <ReadOnlyField label="GSM Phone" value={vessel.gsmPhone} />
+          <ReadOnlyField label="Điện thoại GSM" value={vessel.gsmPhone} />
         </div>
       </SectionCard>
 
       {/* Sea Areas */}
-      <SectionCard title="Sea Areas (Regulation IV/2)">
+      <SectionCard title="Vùng biển (Quy định IV/2)">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <CheckboxDisplay label="Sea Area A1" checked={vessel.seaAreaA1} />
-          <CheckboxDisplay label="Sea Area A2" checked={vessel.seaAreaA2} />
-          <CheckboxDisplay label="Sea Area A3" checked={vessel.seaAreaA3} />
-          <CheckboxDisplay label="Sea Area A4" checked={vessel.seaAreaA4} />
+          <CheckboxDisplay label="Vùng biển A1" checked={vessel.seaAreaA1} />
+          <CheckboxDisplay label="Vùng biển A2" checked={vessel.seaAreaA2} />
+          <CheckboxDisplay label="Vùng biển A3" checked={vessel.seaAreaA3} />
+          <CheckboxDisplay label="Vùng biển A4" checked={vessel.seaAreaA4} />
         </div>
       </SectionCard>
 
       {/* Equipment */}
-      <SectionCard title="Equipment">
+      <SectionCard title="Thiết bị">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <CheckboxDisplay label="AIS" checked={vessel.ais} />
           <CheckboxDisplay label="NAVTEX" checked={vessel.navtex} />
@@ -86,8 +86,8 @@ export function RadioCommTab({ vessel }: RadioCommTabProps) {
       {/* EPIRB */}
       <SectionCard title="EPIRB">
         <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
-          <ReadOnlyField label="EPIRB Number" value={vessel.epirbNumber} />
-          <ReadOnlyField label="Maker" value={vessel.epirbMaker} />
+          <ReadOnlyField label="Số EPIRB" value={vessel.epirbNumber} />
+          <ReadOnlyField label="Hãng sản xuất" value={vessel.epirbMaker} />
         </div>
       </SectionCard>
     </div>
