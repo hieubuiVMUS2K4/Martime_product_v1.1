@@ -79,6 +79,8 @@ export interface CertificateType {
   description?: string;
   isMandatory: boolean;
   isActive: boolean;
+  isRequiredForRank?: boolean;
+  isRequiredForRank?: boolean;
   createdAt?: string;
 }
 

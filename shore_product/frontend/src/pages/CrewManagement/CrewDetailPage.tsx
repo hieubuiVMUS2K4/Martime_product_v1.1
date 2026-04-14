@@ -1227,6 +1227,7 @@ export const CrewDetailPage: React.FC = () => {
           onClose={() => { setShowAddCertModal(false); setEditingCert(null); }}
           onSave={() => { refetchCerts(); }}
           crewMemberId={id}
+          rankId={crew.rankId}
           editingCertificate={editingCert}
         />
       )}

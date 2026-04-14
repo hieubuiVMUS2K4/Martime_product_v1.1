@@ -9,11 +9,12 @@ interface Props {
   onClose: () => void;
   onSave: () => void;
   crewMemberId: string;
+  rankId?: number;
   editingCertificate?: CrewCertificate | null;
 }
 
 export const AddCrewCertificateModal: React.FC<Props> = ({
-  isOpen, onClose, onSave, crewMemberId, editingCertificate,
+  isOpen, onClose, onSave, crewMemberId, rankId, editingCertificate,
 }) => {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
@@ -59,7 +60,7 @@ export const AddCrewCertificateModal: React.FC<Props> = ({
     setLoadingData(true);
     try {
       const [types, ctrs] = await Promise.all([
-        certificateApi.getTypes(),
+        certificateApi.getTypes(rankId ? { rankId } : undefined),
         referenceApi.getCountries(),
       ]);
       setCertTypes(types);

@@ -10,7 +10,8 @@ public enum SyncActionType
     CREATE = 0,
     UPDATE = 1,
     DELETE = 2,
-    SNAPSHOT = 3
+    SNAPSHOT = 3,
+    CLEAR_EDGE_CHANGES = 4
 }
 
 /// <summary>

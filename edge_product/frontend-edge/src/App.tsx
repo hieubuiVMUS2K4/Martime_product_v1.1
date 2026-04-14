@@ -13,6 +13,7 @@ import { NavigationPage } from './pages/Navigation/NavigationPage'
 import { EnginePage } from './pages/Engine/EnginePage'
 import { AlarmsPage } from './pages/Alarms/AlarmsPage'
 import { CrewPage } from './pages/Crew/CrewPage'
+import { CrewCertificatePage } from './pages/Crew/CertificateMonitorView'
 import { CrewDetailPage } from './pages/Crew/CrewDetailPage'
 import { CertificateManagementPage } from './pages/Crew/CertificateManagementPage'
 import { MaintenancePage } from './pages/Maintenance/MaintenancePage'
@@ -89,10 +90,11 @@ function App() {
         <Route path="navigation" element={<NavigationPage />} />
         <Route path="engine" element={<EnginePage />} />
         <Route path="alarms" element={<AlarmsPage />} />
-        <Route path="crew" element={<CrewPage />} />
-        <Route path="crew/:id" element={<CrewDetailPage />} />
-        <Route path="crew/certificates" element={<CertificateManagementPage />} />
+        <Route path="crew" element={<Navigate to="/crew/members" replace />} />
+        <Route path="crew/members" element={<CrewPage />} />
+        <Route path="crew/certificates" element={<CrewCertificatePage />} />
         <Route path="crew/certificates/:certificateId" element={<CertificateManagementPage />} />
+        <Route path="crew/:id" element={<CrewDetailPage />} />
         <Route path="pms/maintenance" element={<MaintenancePage />} />
         <Route path="voyage" element={<VoyagePage />} />
         <Route path="ports" element={<PortManagementPage />} />
