@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 import { voyageMgmtService } from '@/services/voyage.service'
 import type {
   VoyageFinancialOverview,
@@ -87,6 +88,7 @@ export default function FinancialTab({ voyageId }: { voyageId: string }) {
   const [settlements, setSettlements] = useState<VoyageSettlement[]>([])
   const [loading, setLoading] = useState(true)
   const [activeSection, setActiveSection] = useState<string>('overview')
+  const { t } = useTranslationSafe()
 
   // Form states
   const [showExpenseForm, setShowExpenseForm] = useState(false)
@@ -114,7 +116,7 @@ export default function FinancialTab({ voyageId }: { voyageId: string }) {
       setRevenues(rev)
       setSettlements(stl)
     } catch {
-      toast.error('Failed to load financial data')
+      toast.error(t('voyage.financial.title'))
     } finally {
       setLoading(false)
     }
@@ -134,18 +136,18 @@ export default function FinancialTab({ voyageId }: { voyageId: string }) {
     return (
       <div className="text-center py-12 text-gray-500">
         <AlertCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-        <p>Unable to load financial data</p>
+        <p>{t('voyage.financial.title')}</p>
       </div>
     )
   }
 
   const sections = [
-    { key: 'overview', label: 'Overview', icon: BarChart3 },
-    { key: 'expenses', label: 'Expense Requests', icon: FileText, count: expenses.length },
-    { key: 'advances', label: 'Advance Payments', icon: CreditCard, count: advances.length },
-    { key: 'disbursements', label: 'Disbursements', icon: Receipt, count: disbursements.length },
-    { key: 'revenues', label: 'Actual Revenue', icon: DollarSign, count: revenues.length },
-    { key: 'settlements', label: 'Settlements', icon: Lock, count: settlements.length },
+    { key: 'overview', label: t('voyage.financial.tabs.overview'), icon: BarChart3 },
+    { key: 'expenses', label: t('voyage.financial.tabs.expenses'), icon: FileText, count: expenses.length },
+    { key: 'advances', label: t('voyage.financial.tabs.advances'), icon: CreditCard, count: advances.length },
+    { key: 'disbursements', label: t('voyage.financial.tabs.disbursements'), icon: Receipt, count: disbursements.length },
+    { key: 'revenues', label: t('voyage.financial.tabs.revenue'), icon: DollarSign, count: revenues.length },
+    { key: 'settlements', label: t('voyage.financial.tabs.settlements'), icon: Lock, count: settlements.length },
   ]
 
   return (
@@ -156,13 +158,13 @@ export default function FinancialTab({ voyageId }: { voyageId: string }) {
           <div className="flex items-center gap-3">
             <div className={`w-3 h-3 rounded-full ${FINANCIAL_STATUS_COLORS[overview.financialStatus] || 'bg-gray-400'}`} />
             <h2 className="text-lg font-bold text-gray-900">
-              Voyage Financial — {overview.voyageNumber}
+              {t('voyage.financial.title')} — {overview.voyageNumber}
             </h2>
             <StatusBadge status={overview.financialStatus} />
           </div>
           {overview.financialClosedAt && (
             <span className="text-xs text-gray-500">
-              Closed {format(new Date(overview.financialClosedAt), 'dd MMM yyyy')} by {overview.financialClosedBy}
+              {t('voyage.financial.closed')} {format(new Date(overview.financialClosedAt), 'dd MMM yyyy')} by {overview.financialClosedBy}
             </span>
           )}
         </div>
@@ -251,50 +253,51 @@ export default function FinancialTab({ voyageId }: { voyageId: string }) {
 // ============================================================
 
 function OverviewSection({ overview }: { overview: VoyageFinancialOverview }) {
+  const { t } = useTranslationSafe()
   return (
     <div className="space-y-4">
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard label="Estimated Cost" value={overview.totalEstimatedCost} />
-        <KPICard label="Actual Cost" value={overview.totalActualCost} variant={overview.costVariance > 0 ? 'danger' : 'success'} />
-        <KPICard label="Estimated Revenue" value={overview.totalEstimatedRevenue} />
-        <KPICard label="Actual Revenue" value={overview.totalActualRevenue} variant={overview.revenueVariance > 0 ? 'success' : 'danger'} />
+        <KPICard label={t('voyage.financial.estCost')} value={overview.totalEstimatedCost} />
+        <KPICard label={t('voyage.financial.actCost')} value={overview.totalActualCost} variant={overview.costVariance > 0 ? 'danger' : 'success'} />
+        <KPICard label={t('voyage.financial.estRevenue')} value={overview.totalEstimatedRevenue} />
+        <KPICard label={t('voyage.financial.actRevenue')} value={overview.totalActualRevenue} variant={overview.revenueVariance > 0 ? 'success' : 'danger'} />
       </div>
 
       {/* Profit & Cash */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <KPICard label="Actual Profit" value={overview.actualProfitMargin} variant={overview.actualProfitMargin >= 0 ? 'success' : 'danger'} />
-        <KPICard label="Total Advanced" value={overview.totalAdvanced} />
-        <KPICard label="Outstanding Balance" value={overview.outstandingBalance} variant={overview.outstandingBalance > 0 ? 'warning' : 'success'} />
+        <KPICard label={t('voyage.financial.actProfit')} value={overview.actualProfitMargin} variant={overview.actualProfitMargin >= 0 ? 'success' : 'danger'} />
+        <KPICard label={t('voyage.financial.totalAdvanced')} value={overview.totalAdvanced} />
+        <KPICard label={t('voyage.financial.outstandingBalance')} value={overview.outstandingBalance} variant={overview.outstandingBalance > 0 ? 'warning' : 'success'} />
       </div>
 
       {/* Variance Table */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Plan vs Actual Variance</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('voyage.financial.planVsActual')}</h3>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-gray-500">
-              <th className="text-left py-2">Metric</th>
-              <th className="text-right py-2">Estimated</th>
-              <th className="text-right py-2">Actual</th>
-              <th className="text-right py-2">Variance</th>
+              <th className="text-left py-2">{t('voyage.financial.metric')}</th>
+              <th className="text-right py-2">{t('voyage.financial.estimated')}</th>
+              <th className="text-right py-2">{t('voyage.financial.actual')}</th>
+              <th className="text-right py-2">{t('voyage.financial.variance')}</th>
             </tr>
           </thead>
           <tbody>
             <tr className="border-b">
-              <td className="py-2 font-medium">Total Cost</td>
+              <td className="py-2 font-medium">{t('voyage.financial.totalCost')}</td>
               <td className="text-right">{formatCurrency(overview.totalEstimatedCost)}</td>
               <td className="text-right">{formatCurrency(overview.totalActualCost)}</td>
               <td className="text-right"><VarianceCell value={overview.costVariance} /></td>
             </tr>
             <tr className="border-b">
-              <td className="py-2 font-medium">Total Revenue</td>
+              <td className="py-2 font-medium">{t('voyage.financial.totalRevenue')}</td>
               <td className="text-right">{formatCurrency(overview.totalEstimatedRevenue)}</td>
               <td className="text-right">{formatCurrency(overview.totalActualRevenue)}</td>
               <td className="text-right"><VarianceCell value={-overview.revenueVariance} /></td>
             </tr>
             <tr>
-              <td className="py-2 font-bold">Profit Margin</td>
+              <td className="py-2 font-bold">{t('voyage.financial.profitMargin')}</td>
               <td className="text-right font-bold">{formatCurrency(overview.estimatedProfitMargin)}</td>
               <td className="text-right font-bold">{formatCurrency(overview.actualProfitMargin)}</td>
               <td className="text-right font-bold"><VarianceCell value={overview.profitVariance} /></td>
@@ -306,26 +309,26 @@ function OverviewSection({ overview }: { overview: VoyageFinancialOverview }) {
       {/* Breakdowns */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {overview.actualCostBreakdown.length > 0 && (
-          <BreakdownCard title="Cost by Category" items={overview.actualCostBreakdown.map(b => ({ label: b.category, amount: b.amount, pct: b.percentage }))} />
+          <BreakdownCard title={t('voyage.financial.costByCategory')} items={overview.actualCostBreakdown.map(b => ({ label: b.category, amount: b.amount, pct: b.percentage }))} />
         )}
         {overview.actualRevenueBreakdown.length > 0 && (
-          <BreakdownCard title="Revenue by Category" items={overview.actualRevenueBreakdown.map(b => ({ label: b.category, amount: b.amount, pct: b.percentage }))} />
+          <BreakdownCard title={t('voyage.financial.revenueByCategory')} items={overview.actualRevenueBreakdown.map(b => ({ label: b.category, amount: b.amount, pct: b.percentage }))} />
         )}
         {overview.costAllocationBreakdown.length > 0 && (
-          <BreakdownCard title="Cost by Allocation" items={overview.costAllocationBreakdown.map(b => ({ label: b.scope, amount: b.amount, pct: b.percentage }))} />
+          <BreakdownCard title={t('voyage.financial.costByAllocation')} items={overview.costAllocationBreakdown.map(b => ({ label: b.scope, amount: b.amount, pct: b.percentage }))} />
         )}
       </div>
 
       {/* Activity Counts */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Activity Summary</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('voyage.financial.activitySummary')}</h3>
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3 text-center text-sm">
-          <CountStat label="Expenses" count={overview.expenseRequestCount} />
-          <CountStat label="Pending Expenses" count={overview.pendingExpenseCount} highlight />
-          <CountStat label="Advances" count={overview.advancePaymentCount} />
-          <CountStat label="Disbursements" count={overview.disbursementCount} />
-          <CountStat label="Revenue Items" count={overview.revenueCount} />
-          <CountStat label="Settlements" count={overview.settlementCount} />
+          <CountStat label={t('voyage.financial.expenses2')} count={overview.expenseRequestCount} />
+          <CountStat label={t('voyage.financial.pendingExpenses')} count={overview.pendingExpenseCount} highlight />
+          <CountStat label={t('voyage.financial.advances2')} count={overview.advancePaymentCount} />
+          <CountStat label={t('voyage.financial.disbursements2')} count={overview.disbursementCount} />
+          <CountStat label={t('voyage.financial.revenueItems')} count={overview.revenueCount} />
+          <CountStat label={t('voyage.financial.settlements2')} count={overview.settlementCount} />
         </div>
       </div>
     </div>
@@ -423,13 +426,15 @@ function ExpenseSection({ expenses, showForm, setShowForm, voyageId, onRefresh, 
     } catch { toast.error('Failed to delete') }
   }
 
+  const { t } = useTranslationSafe()
+
   return (
     <div className="bg-white rounded-xl border border-gray-200">
       <div className="flex items-center justify-between p-4 border-b">
-        <h3 className="font-semibold text-gray-800">Expense Requests ({expenses.length})</h3>
+        <h3 className="font-semibold text-gray-800">{t('voyage.financial.expenseRequests')} ({expenses.length})</h3>
         {!isClosed && (
           <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            <Plus className="w-4 h-4" /> New Expense
+            <Plus className="w-4 h-4" /> {t('voyage.financial.newExpense')}
           </button>
         )}
       </div>
@@ -460,18 +465,18 @@ function ExpenseSection({ expenses, showForm, setShowForm, voyageId, onRefresh, 
       )}
 
       {expenses.length === 0 ? (
-        <p className="text-center py-8 text-gray-400">No expense requests yet</p>
+        <p className="text-center py-8 text-gray-400">{t('voyage.financial.noExpenses')}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="border-b bg-gray-50 text-gray-500">
-              <th className="text-left px-4 py-2">Number</th>
-              <th className="text-left px-4 py-2">Category</th>
-              <th className="text-left px-4 py-2">Description</th>
-              <th className="text-right px-4 py-2">Amount</th>
-              <th className="text-left px-4 py-2">Vendor</th>
-              <th className="text-left px-4 py-2">Status</th>
-              <th className="text-right px-4 py-2">Actions</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.number')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.category')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.description')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.financial.amount')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.vendor')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.status')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.financial.actions')}</th>
             </tr></thead>
             <tbody>
               {expenses.map(e => (
@@ -550,13 +555,15 @@ function AdvanceSection({ advances, showForm, setShowForm, voyageId, onRefresh, 
     } catch { toast.error('Failed to mark as paid') }
   }
 
+  const { t } = useTranslationSafe()
+
   return (
     <div className="bg-white rounded-xl border border-gray-200">
       <div className="flex items-center justify-between p-4 border-b">
-        <h3 className="font-semibold text-gray-800">Advance Payments ({advances.length})</h3>
+        <h3 className="font-semibold text-gray-800">{t('voyage.financial.advancePayments')} ({advances.length})</h3>
         {!isClosed && (
           <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            <Plus className="w-4 h-4" /> New Advance
+            <Plus className="w-4 h-4" /> {t('voyage.financial.newAdvance')}
           </button>
         )}
       </div>
@@ -580,19 +587,19 @@ function AdvanceSection({ advances, showForm, setShowForm, voyageId, onRefresh, 
       )}
 
       {advances.length === 0 ? (
-        <p className="text-center py-8 text-gray-400">No advance payments yet</p>
+        <p className="text-center py-8 text-gray-400">{t('voyage.financial.noAdvances')}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="border-b bg-gray-50 text-gray-500">
-              <th className="text-left px-4 py-2">Number</th>
-              <th className="text-left px-4 py-2">Type</th>
-              <th className="text-left px-4 py-2">Recipient</th>
-              <th className="text-right px-4 py-2">Amount (USD)</th>
-              <th className="text-right px-4 py-2">Settled</th>
-              <th className="text-right px-4 py-2">Unsettled</th>
-              <th className="text-left px-4 py-2">Status</th>
-              <th className="text-right px-4 py-2">Actions</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.number')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.type')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.recipient')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.financial.amountUsd')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.financial.settled')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.financial.unsettled')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.status')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.financial.actions')}</th>
             </tr></thead>
             <tbody>
               {advances.map(a => (
@@ -656,13 +663,15 @@ function DisbursementSection({ disbursements, showForm, setShowForm, voyageId, o
     } catch { toast.error('Failed to update status') }
   }
 
+  const { t } = useTranslationSafe()
+
   return (
     <div className="bg-white rounded-xl border border-gray-200">
       <div className="flex items-center justify-between p-4 border-b">
-        <h3 className="font-semibold text-gray-800">Disbursements ({disbursements.length})</h3>
+        <h3 className="font-semibold text-gray-800">{t('voyage.financial.disbursementsTitle')} ({disbursements.length})</h3>
         {!isClosed && (
           <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            <Plus className="w-4 h-4" /> New Disbursement
+            <Plus className="w-4 h-4" /> {t('voyage.financial.newDisbursement')}
           </button>
         )}
       </div>
@@ -693,19 +702,19 @@ function DisbursementSection({ disbursements, showForm, setShowForm, voyageId, o
       )}
 
       {disbursements.length === 0 ? (
-        <p className="text-center py-8 text-gray-400">No disbursements yet</p>
+        <p className="text-center py-8 text-gray-400">{t('voyage.financial.noDisbursements')}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="border-b bg-gray-50 text-gray-500">
-              <th className="text-left px-4 py-2">Number</th>
-              <th className="text-left px-4 py-2">Category</th>
-              <th className="text-left px-4 py-2">Vendor</th>
-              <th className="text-left px-4 py-2">Invoice</th>
-              <th className="text-right px-4 py-2">Amount (USD)</th>
-              <th className="text-left px-4 py-2">Scope</th>
-              <th className="text-left px-4 py-2">Status</th>
-              <th className="text-right px-4 py-2">Actions</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.number')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.category')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.vendor')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.invoice')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.financial.amountUsd')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.scope')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.status')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.financial.actions')}</th>
             </tr></thead>
             <tbody>
               {disbursements.map(d => (
@@ -775,13 +784,15 @@ function RevenueSection({ revenues, showForm, setShowForm, voyageId, onRefresh, 
     } catch { toast.error('Failed to update status') }
   }
 
+  const { t } = useTranslationSafe()
+
   return (
     <div className="bg-white rounded-xl border border-gray-200">
       <div className="flex items-center justify-between p-4 border-b">
-        <h3 className="font-semibold text-gray-800">Actual Revenue ({revenues.length})</h3>
+        <h3 className="font-semibold text-gray-800">{t('voyage.financial.actualRevenueTitle')} ({revenues.length})</h3>
         {!isClosed && (
           <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            <Plus className="w-4 h-4" /> New Revenue
+            <Plus className="w-4 h-4" /> {t('voyage.financial.newRevenue')}
           </button>
         )}
       </div>
@@ -805,18 +816,18 @@ function RevenueSection({ revenues, showForm, setShowForm, voyageId, onRefresh, 
       )}
 
       {revenues.length === 0 ? (
-        <p className="text-center py-8 text-gray-400">No revenue recorded yet</p>
+        <p className="text-center py-8 text-gray-400">{t('voyage.financial.noRevenue')}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="border-b bg-gray-50 text-gray-500">
-              <th className="text-left px-4 py-2">Number</th>
-              <th className="text-left px-4 py-2">Category</th>
-              <th className="text-left px-4 py-2">Description</th>
-              <th className="text-right px-4 py-2">Amount (USD)</th>
-              <th className="text-left px-4 py-2">Payer</th>
-              <th className="text-left px-4 py-2">Status</th>
-              <th className="text-right px-4 py-2">Actions</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.number')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.category')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.description')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.financial.amountUsd')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.payer')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.financial.status')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.financial.actions')}</th>
             </tr></thead>
             <tbody>
               {revenues.map(r => (
@@ -882,27 +893,29 @@ function SettlementSection({ settlements, voyageId, overview, onRefresh, isClose
     } catch { toast.error('Failed to close financials') }
   }
 
+  const { t } = useTranslationSafe()
+
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-xl border border-gray-200">
         <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-semibold text-gray-800">Settlements ({settlements.length})</h3>
+          <h3 className="font-semibold text-gray-800">{t('voyage.financial.settlementsTitle')} ({settlements.length})</h3>
           <div className="flex gap-2">
             {!isClosed && (
               <button onClick={handleCreate} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                <Plus className="w-4 h-4" /> Create Settlement
+                <Plus className="w-4 h-4" /> {t('voyage.financial.createSettlement')}
               </button>
             )}
             {!isClosed && overview.financialStatus === 'SETTLED' && (
               <button onClick={handleClose} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">
-                <Lock className="w-4 h-4" /> Close Financials
+                <Lock className="w-4 h-4" /> {t('voyage.financial.closeFinancials')}
               </button>
             )}
           </div>
         </div>
 
         {settlements.length === 0 ? (
-          <p className="text-center py-8 text-gray-400">No settlements yet. Create one to begin the closing process.</p>
+          <p className="text-center py-8 text-gray-400">{t('voyage.financial.noSettlements')}</p>
         ) : (
           <div className="divide-y">
             {settlements.map(s => (
@@ -918,31 +931,31 @@ function SettlementSection({ settlements, voyageId, overview, onRefresh, isClose
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                  <div><span className="text-gray-500">Expenses Approved:</span> <span className="font-medium">{formatCurrency(s.totalExpenseApproved)}</span></div>
-                  <div><span className="text-gray-500">Total Advanced:</span> <span className="font-medium">{formatCurrency(s.totalAdvanced)}</span></div>
-                  <div><span className="text-gray-500">Total Disbursed:</span> <span className="font-medium">{formatCurrency(s.totalDisbursed)}</span></div>
-                  <div><span className="text-gray-500">Total Revenue:</span> <span className="font-medium">{formatCurrency(s.totalRevenue)}</span></div>
+                  <div><span className="text-gray-500">{t('voyage.financial.expensesApproved')}</span> <span className="font-medium">{formatCurrency(s.totalExpenseApproved)}</span></div>
+                  <div><span className="text-gray-500">{t('voyage.financial.totalAdvanced2')}</span> <span className="font-medium">{formatCurrency(s.totalAdvanced)}</span></div>
+                  <div><span className="text-gray-500">{t('voyage.financial.totalDisbursed')}</span> <span className="font-medium">{formatCurrency(s.totalDisbursed)}</span></div>
+                  <div><span className="text-gray-500">{t('voyage.financial.totalRevenue2')}</span> <span className="font-medium">{formatCurrency(s.totalRevenue)}</span></div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm font-semibold bg-gray-50 rounded-lg p-3">
-                  <div>Net Result: <span className={s.netResult >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(s.netResult)}</span></div>
-                  <div>Advance Balance: {formatCurrency(s.advanceBalance)}</div>
-                  {s.finalSettlementAmount != null && <div>Final Settlement: {formatCurrency(s.finalSettlementAmount)}</div>}
+                  <div>{t('voyage.financial.netResult')} <span className={s.netResult >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(s.netResult)}</span></div>
+                  <div>{t('voyage.financial.advanceBalance')} {formatCurrency(s.advanceBalance)}</div>
+                  {s.finalSettlementAmount != null && <div>{t('voyage.financial.finalSettlement')} {formatCurrency(s.finalSettlementAmount)}</div>}
                 </div>
 
                 {!isClosed && (
                   <div className="flex gap-2">
                     {s.status === 'DRAFT' && (
-                      <button onClick={() => handleTransition(s.id, 'SUBMITTED')} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Submit</button>
+                      <button onClick={() => handleTransition(s.id, 'SUBMITTED')} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">{t('voyage.financial.submit')}</button>
                     )}
                     {s.status === 'SUBMITTED' && (
-                      <button onClick={() => handleTransition(s.id, 'REVIEWED')} className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Review</button>
+                      <button onClick={() => handleTransition(s.id, 'REVIEWED')} className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{t('voyage.financial.review')}</button>
                     )}
                     {s.status === 'REVIEWED' && (
-                      <button onClick={() => handleTransition(s.id, 'APPROVED')} className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">Approve</button>
+                      <button onClick={() => handleTransition(s.id, 'APPROVED')} className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">{t('voyage.financial.approve')}</button>
                     )}
                     {(s.status === 'SUBMITTED' || s.status === 'REVIEWED') && (
-                      <button onClick={() => handleTransition(s.id, 'REJECTED')} className="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50">Reject</button>
+                      <button onClick={() => handleTransition(s.id, 'REJECTED')} className="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50">{t('voyage.financial.reject')}</button>
                     )}
                   </div>
                 )}

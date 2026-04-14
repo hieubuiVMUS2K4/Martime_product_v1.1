@@ -9,6 +9,7 @@ import {
 import CockpitTab from './CockpitTab'
 import FinancialTab from './FinancialTab'
 import EfficiencyTab from './EfficiencyTab'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { voyageMgmtService } from '@/services/voyage.service'
@@ -35,31 +36,31 @@ const STATUS_COLORS: Record<string, string> = {
   CANCELLED: 'bg-red-100 text-red-700',
 }
 
-const STATUS_DESCRIPTIONS: Record<string, string> = {
-  PLANNING: 'Commercial and operational plan can still be structured freely.',
-  APPROVED: 'Plan is approved and ready for final pre-execution checks.',
-  READY: 'Voyage is cleared to commence and core planning data should be stable.',
-  UNDERWAY: 'Execution is in progress. Only operational progress and performance updates should change.',
-  ARRIVED: 'Sea passage is completed. Close-out data can still be updated before completion.',
-  COMPLETED: 'Voyage is closed and preserved as a historical record.',
-  CANCELLED: 'Voyage was cancelled. Reopen to PLANNING before editing full data.',
+const STATUS_DESCRIPTION_KEYS: Record<string, string> = {
+  PLANNING: 'voyage.page.statusDesc.PLANNING',
+  APPROVED: 'voyage.page.statusDesc.APPROVED',
+  READY: 'voyage.page.statusDesc.READY',
+  UNDERWAY: 'voyage.page.statusDesc.UNDERWAY',
+  ARRIVED: 'voyage.page.statusDesc.ARRIVED',
+  COMPLETED: 'voyage.page.statusDesc.COMPLETED',
+  CANCELLED: 'voyage.page.statusDesc.CANCELLED',
 }
 
-const CHARTER_TYPE_LABELS: Record<string, string> = {
-  VOYAGE_CHARTER: 'Voyage Charter',
-  TIME_CHARTER: 'Time Charter',
-  TIME_CHARTER_TRIP: 'Time Charter Trip',
-  CONTRACT_OF_AFFREIGHTMENT: 'Contract of Affreightment',
-  OTHER: 'Other',
+const CHARTER_TYPE_LABEL_KEYS: Record<string, string> = {
+  VOYAGE_CHARTER: 'voyage.page.charterTypes.VOYAGE_CHARTER',
+  TIME_CHARTER: 'voyage.page.charterTypes.TIME_CHARTER',
+  TIME_CHARTER_TRIP: 'voyage.page.charterTypes.TIME_CHARTER_TRIP',
+  CONTRACT_OF_AFFREIGHTMENT: 'voyage.page.charterTypes.COA',
+  OTHER: 'voyage.page.charterTypes.OTHER',
 }
 
-const PLAN_LEG_TYPE_LABELS: Record<string, string> = {
-  SEA_PASSAGE: 'Sea Passage',
-  PORT_STAY: 'Port Stay',
-  BUNKERING: 'Bunkering',
-  CANAL_TRANSIT: 'Canal Transit',
-  CREW_CHANGE: 'Crew Change',
-  OTHER: 'Other',
+const PLAN_LEG_TYPE_LABEL_KEYS: Record<string, string> = {
+  SEA_PASSAGE: 'voyage.page.legTypes.SEA_PASSAGE',
+  PORT_STAY: 'voyage.page.legTypes.PORT_STAY',
+  BUNKERING: 'voyage.page.legTypes.BUNKERING',
+  CANAL_TRANSIT: 'voyage.page.legTypes.CANAL_TRANSIT',
+  CREW_CHANGE: 'voyage.page.legTypes.CREW_CHANGE',
+  OTHER: 'voyage.page.legTypes.OTHER',
 }
 
 const CALL_TYPE_COLORS: Record<string, string> = {
@@ -134,9 +135,18 @@ function formatStatusLabel(status?: string | null) {
   return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
 
-function formatCharterType(type?: VoyageCharterType) {
+function formatCharterType(type: VoyageCharterType | undefined, t: (key: string) => string) {
   if (!type) return '-'
-  return CHARTER_TYPE_LABELS[type] || formatStatusLabel(type)
+  return CHARTER_TYPE_LABEL_KEYS[type] ? t(CHARTER_TYPE_LABEL_KEYS[type]) : formatStatusLabel(type)
+}
+
+function formatStatusDescription(status: string, t: (key: string) => string) {
+  return STATUS_DESCRIPTION_KEYS[status] ? t(STATUS_DESCRIPTION_KEYS[status]) : ''
+}
+
+function formatPlanLegType(type: string | undefined, t: (key: string) => string) {
+  if (!type) return '-'
+  return PLAN_LEG_TYPE_LABEL_KEYS[type] ? t(PLAN_LEG_TYPE_LABEL_KEYS[type]) : formatStatusLabel(type)
 }
 
 function formatMetric(value?: number | null, digits = 1, suffix = '') {
@@ -219,7 +229,7 @@ type LifecycleEntry = {
   actor?: string
 }
 
-function buildLifecycleEntries(detail: VoyageDetail): LifecycleEntry[] {
+function buildLifecycleEntries(detail: VoyageDetail, t: (key: string, params?: Record<string, string | number>) => string): LifecycleEntry[] {
   const history = [...(detail.statusHistory || [])]
     .sort((a, b) => new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime())
     .map((entry: VoyageStatusHistory) => ({
@@ -231,7 +241,7 @@ function buildLifecycleEntries(detail: VoyageDetail): LifecycleEntry[] {
     }))
 
   const derived: LifecycleEntry[] = [
-    { key: 'created', status: 'PLANNING', time: detail.createdAt, notes: 'Voyage record created' },
+    { key: 'created', status: 'PLANNING', time: detail.createdAt, notes: t('voyage.page.lifecycleCreated') },
     detail.approvedAt ? { key: 'approved', status: 'APPROVED', time: detail.approvedAt } : null,
     detail.readyAt ? { key: 'ready', status: 'READY', time: detail.readyAt } : null,
     detail.commencedAt ? { key: 'underway', status: 'UNDERWAY', time: detail.commencedAt } : null,
@@ -252,13 +262,14 @@ function buildLifecycleEntries(detail: VoyageDetail): LifecycleEntry[] {
   })
 
   if (!unique.some(entry => entry.status === detail.voyageStatus)) {
-    unique.push({ key: 'current-status', status: detail.voyageStatus, time: detail.updatedAt, notes: 'Current lifecycle state' })
+    unique.push({ key: 'current-status', status: detail.voyageStatus, time: detail.updatedAt, notes: t('voyage.page.lifecycleCurrent') })
   }
 
   return unique.sort((a, b) => new Date(a.time || 0).getTime() - new Date(b.time || 0).getTime())
 }
 
 export function VoyagePage() {
+  const { t } = useTranslationSafe()
   const [searchParams, setSearchParams] = useSearchParams()
   const [voyages, setVoyages] = useState<VoyageRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -275,11 +286,11 @@ export function VoyagePage() {
       const data = await maritimeService.voyage.getAll()
       setVoyages(data)
     } catch (err: any) {
-      toast.error('Failed to load voyages: ' + (err.message || 'Unknown error'))
+      toast.error(t('voyage.page.failedLoadVoyages', { error: err.message || t('voyage.page.unknownError') }))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     if (!selectedVoyageId) {
@@ -324,14 +335,14 @@ export function VoyagePage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">Voyage Management</h1>
+            <h1 className="text-xl font-semibold text-gray-900">{t('voyage.page.title')}</h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              {voyages.length} voyages &mdash;
-              <span className="text-blue-600 ml-1">{activeVoyageCount} active</span>
+              {voyages.length} {t('voyage.page.voyages')} &mdash;
+              <span className="text-blue-600 ml-1">{activeVoyageCount} {t('voyage.page.active')}</span>
               <span className="mx-1 text-gray-300">·</span>
-              <span className="text-amber-600">{planningVoyageCount} planning</span>
+              <span className="text-amber-600">{planningVoyageCount} {t('voyage.page.planning')}</span>
               <span className="mx-1 text-gray-300">·</span>
-              <span className="text-gray-500">{completedVoyageCount} completed</span>
+              <span className="text-gray-500">{completedVoyageCount} {t('voyage.page.completed')}</span>
             </p>
           </div>
           <button
@@ -339,7 +350,7 @@ export function VoyagePage() {
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            New Voyage
+            {t('voyage.page.newVoyage')}
           </button>
         </div>
 
@@ -350,20 +361,20 @@ export function VoyagePage() {
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search by voyage number, vessel, port, cargo, or status..."
+            placeholder={t('voyage.page.searchPlaceholder')}
             className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-700 shadow-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
           />
         </div>
 
         <div className="space-y-2">
           {loading ? (
-            <div className="text-center py-16 text-gray-400">Loading voyages...</div>
+            <div className="text-center py-16 text-gray-400">{t('voyage.page.loadingVoyages')}</div>
           ) : filteredVoyages.length === 0 ? (
             <div className="rounded-xl border border-dashed border-gray-300 bg-white py-16 text-center">
               <Ship className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-gray-600 font-medium">No voyages found</p>
+              <p className="text-gray-600 font-medium">{t('voyage.page.noVoyages')}</p>
               <p className="text-gray-400 text-sm mt-1">
-                {searchQuery ? 'Try a different search term.' : 'Create a new voyage to get started.'}
+                {searchQuery ? t('voyage.page.tryDifferent') : t('voyage.page.createToStart')}
               </p>
             </div>
           ) : (
@@ -389,7 +400,7 @@ export function VoyagePage() {
                     <div className="flex items-center gap-4 mt-0.5 text-sm text-gray-500">
                       <span className="flex items-center gap-1">
                         <MapPin className="w-3.5 h-3.5" />
-                        {v.departurePort || 'TBD'} → {v.arrivalPort || 'TBD'}
+                        {v.departurePort || t('voyage.page.tbd')} → {v.arrivalPort || t('voyage.page.tbd')}
                       </span>
                       {v.departureTime && (
                         <span className="flex items-center gap-1">
@@ -434,6 +445,7 @@ function VoyageDetailView({ voyageId, onBack, initialTab, onTabChange }: {
   initialTab?: DetailTab
   onTabChange?: (tab: DetailTab) => void
 }) {
+  const { t } = useTranslationSafe()
   const [detail, setDetail] = useState<VoyageDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<DetailTab>(initialTab || 'overview')
@@ -450,11 +462,11 @@ function VoyageDetailView({ voyageId, onBack, initialTab, onTabChange }: {
       const data = await voyageMgmtService.voyages.getDetail(voyageId)
       setDetail(data)
     } catch (err: any) {
-      toast.error('Failed to load voyage: ' + (err.message || 'Unknown error'))
+      toast.error(t('voyage.page.failedLoadVoyage', { error: err.message || t('voyage.page.unknownError') }))
     } finally {
       setLoading(false)
     }
-  }, [voyageId])
+  }, [voyageId, t])
 
   useEffect(() => {
     loadDetail()
@@ -463,7 +475,7 @@ function VoyageDetailView({ voyageId, onBack, initialTab, onTabChange }: {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center text-gray-400">
-        Loading voyage details...
+        {t('voyage.page.loadingDetails')}
       </div>
     )
   }
@@ -472,26 +484,26 @@ function VoyageDetailView({ voyageId, onBack, initialTab, onTabChange }: {
     return (
       <div className="h-full flex flex-col items-center justify-center text-gray-400">
         <AlertCircle className="w-12 h-12 mb-3" />
-        <p>Voyage not found</p>
-        <button onClick={onBack} className="mt-4 text-blue-600 hover:underline">Back to list</button>
+        <p>{t('voyage.page.notFound')}</p>
+        <button onClick={onBack} className="mt-4 text-blue-600 hover:underline">{t('voyage.page.backToList')}</button>
       </div>
     )
   }
 
   const tabs: { key: DetailTab; label: string; icon: typeof Ship; count?: number }[] = [
-    { key: 'overview', label: 'Overview', icon: Ship },
-    { key: 'port-calls', label: 'Port Calls', icon: Anchor, count: detail.portCalls.length },
-    { key: 'crew', label: 'Crew Assignments', icon: Users, count: detail.crewAssignments.length },
-    { key: 'cargo', label: 'Cargo Operations', icon: Package, count: detail.cargoOperationCount },
-    { key: 'planning', label: 'Planning', icon: Navigation, count:
+    { key: 'overview', label: t('voyage.page.tabs.overview'), icon: Ship },
+    { key: 'port-calls', label: t('voyage.page.tabs.portCalls'), icon: Anchor, count: detail.portCalls.length },
+    { key: 'crew', label: t('voyage.page.tabs.crewAssignments'), icon: Users, count: detail.crewAssignments.length },
+    { key: 'cargo', label: t('voyage.page.tabs.cargoOperations'), icon: Package, count: detail.cargoOperationCount },
+    { key: 'planning', label: t('voyage.page.tabs.planning'), icon: Navigation, count:
       (detail.cargoPlans?.length || 0) + (detail.bunkerPlans?.length || 0) +
       (detail.crewChangePlans?.length || 0) + (detail.costEstimates?.length || 0) +
       (detail.revenueEstimates?.length || 0) || undefined
     },
-    { key: 'cockpit', label: 'Cockpit', icon: Activity },
-    { key: 'financial', label: 'Financial', icon: DollarSign },
-    { key: 'efficiency', label: 'Efficiency', icon: BarChart3 },
-    { key: 'fal-form5', label: 'FAL Form 5', icon: FileText },
+    { key: 'cockpit', label: t('voyage.page.tabs.cockpit'), icon: Activity },
+    { key: 'financial', label: t('voyage.page.tabs.financial'), icon: DollarSign },
+    { key: 'efficiency', label: t('voyage.page.tabs.efficiency'), icon: BarChart3 },
+    { key: 'fal-form5', label: t('voyage.page.tabs.falForm5'), icon: FileText },
   ]
 
   const onboardCrewCount = detail.crewAssignments.filter(assignment => assignment.status === 'ONBOARD').length
@@ -515,7 +527,7 @@ function VoyageDetailView({ voyageId, onBack, initialTab, onTabChange }: {
               </span>
             </div>
             <p className="mt-1 truncate text-sm text-gray-500">
-              {detail.vesselName || 'Vessel'} {detail.vesselIMO ? `(IMO: ${detail.vesselIMO})` : ''}
+              {detail.vesselName || t('voyage.page.vessel')} {detail.vesselIMO ? `(IMO: ${detail.vesselIMO})` : ''}
               {detail.vesselFlag ? ` — ${detail.vesselFlag}` : ''}
             </p>
           </div>
@@ -525,33 +537,33 @@ function VoyageDetailView({ voyageId, onBack, initialTab, onTabChange }: {
                 onClick={() => setShowEditModal(true)}
                 className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <Edit2 className="w-4 h-4" /> Edit
+                <Edit2 className="w-4 h-4" /> {t('voyage.page.edit')}
               </button>
             )}
             {!isVoyageEditable(detail.voyageStatus) && (
               <button
                 onClick={() => setShowEditModal(true)}
                 className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
-                title="Only status change allowed"
+                title={t('voyage.page.onlyStatusChange')}
               >
-                <Edit2 className="w-4 h-4" /> Change Status
+                <Edit2 className="w-4 h-4" /> {t('voyage.page.changeStatus')}
               </button>
             )}
             {isVoyageDeletable(detail.voyageStatus) && (
               <button
                 onClick={async () => {
-                  if (!confirm(`Delete voyage ${detail.voyageNumber}? This will remove all port calls and crew assignments.`)) return
+                  if (!confirm(t('voyage.page.deleteConfirm', { number: detail.voyageNumber }))) return
                   try {
                     await voyageMgmtService.voyages.delete(voyageId)
-                    toast.success('Voyage deleted')
+                    toast.success(t('voyage.page.deleted'))
                     onBack()
                   } catch (err: any) {
-                    toast.error(err.message || 'Failed to delete voyage')
+                    toast.error(err.message || t('voyage.page.failedDeleteVoyage'))
                   }
                 }}
                 className="flex items-center gap-1.5 px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
               >
-                <Trash2 className="w-4 h-4" /> Delete
+                <Trash2 className="w-4 h-4" /> {t('voyage.page.delete')}
               </button>
             )}
           </div>
@@ -560,19 +572,19 @@ function VoyageDetailView({ voyageId, onBack, initialTab, onTabChange }: {
         {/* Quick stats bar */}
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
-            <div className="text-xs text-gray-500">Departure</div>
+            <div className="text-xs text-gray-500">{t('voyage.page.departureLabel')}</div>
             <div className="mt-0.5 text-sm font-medium text-gray-900">{formatDateTime(detail.departureTime)}</div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
-            <div className="text-xs text-gray-500">Arrival</div>
+            <div className="text-xs text-gray-500">{t('voyage.page.arrivalLabel')}</div>
             <div className="mt-0.5 text-sm font-medium text-gray-900">{formatDateTime(detail.arrivalTime)}</div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
-            <div className="text-xs text-gray-500">Port Calls</div>
-            <div className="mt-0.5 text-sm font-medium text-gray-900">{detail.portCalls.length} calls</div>
+            <div className="text-xs text-gray-500">{t('voyage.page.portCalls')}</div>
+            <div className="mt-0.5 text-sm font-medium text-gray-900">{detail.portCalls.length} {t('voyage.page.calls')}</div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
-            <div className="text-xs text-gray-500">Crew Onboard</div>
+            <div className="text-xs text-gray-500">{t('voyage.page.crewOnboard')}</div>
             <div className="mt-0.5 text-sm font-medium text-gray-900">{onboardCrewCount}/{detail.crewAssignments.length}</div>
           </div>
         </div>
@@ -586,16 +598,16 @@ function VoyageDetailView({ voyageId, onBack, initialTab, onTabChange }: {
           }`}>
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             {detail.voyageStatus === 'COMPLETED'
-              ? 'This voyage is COMPLETED. All data is read-only to preserve historical records.'
-              : 'This voyage is CANCELLED. Reopen it (change status to PLANNING) to make modifications.'}
+              ? t('voyage.page.completedBanner')
+              : t('voyage.page.cancelledBanner')}
           </div>
         )}
         {LIMITED_EDIT_STATUSES.has(detail.voyageStatus) && (
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg mb-4 text-sm font-medium bg-blue-50 text-blue-800 border border-blue-200">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             {detail.voyageStatus === 'ARRIVED'
-              ? 'Voyage is ARRIVED — close-out data is still editable, but planning structure and core identity fields are locked.'
-              : 'Voyage is UNDERWAY — only performance data, port call times, and crew status changes are allowed.'}
+              ? t('voyage.page.arrivedBanner')
+              : t('voyage.page.underwayBanner')}
           </div>
         )}
 
@@ -655,6 +667,7 @@ function VoyageDetailView({ voyageId, onBack, initialTab, onTabChange }: {
 // =============================================
 
 function OverviewTab({ detail }: { detail: VoyageDetail }) {
+  const { t } = useTranslationSafe()
   const Field = ({ label, value }: { label: string; value?: string | null }) => (
     <div>
       <div className="text-xs text-gray-500 mb-0.5">{label}</div>
@@ -663,46 +676,46 @@ function OverviewTab({ detail }: { detail: VoyageDetail }) {
   )
 
   const sortedPlanLegs = [...(detail.planLegs || [])].sort((a, b) => a.sequence - b.sequence)
-  const lifecycleEntries = buildLifecycleEntries(detail)
+  const lifecycleEntries = buildLifecycleEntries(detail, t)
 
   return (
     <div className="space-y-4">
       {/* Vessel + Route */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm divide-y divide-gray-100">
         <div className="px-4 py-3 bg-gray-50 rounded-t-xl">
-          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Vessel &amp; Route</span>
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{t('voyage.page.vesselRoute')}</span>
         </div>
         <div className="px-4 py-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-          <Field label="Vessel Name" value={detail.vesselName} />
-          <Field label="IMO Number" value={detail.vesselIMO} />
-          <Field label="Flag State" value={detail.vesselFlag} />
-          <Field label="Call Sign" value={detail.callSign} />
+          <Field label={t('voyage.page.vesselName')} value={detail.vesselName} />
+          <Field label={t('voyage.page.imoNumber')} value={detail.vesselIMO} />
+          <Field label={t('voyage.page.flagState')} value={detail.vesselFlag} />
+          <Field label={t('voyage.page.callSign')} value={detail.callSign} />
         </div>
         <div className="px-4 py-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <Field label="Departure Port" value={detail.departurePort ? `${detail.departurePort}${detail.departurePortCode ? ` (${detail.departurePortCode})` : ''}` : undefined} />
-          <Field label="Arrival Port" value={detail.arrivalPort ? `${detail.arrivalPort}${detail.arrivalPortCode ? ` (${detail.arrivalPortCode})` : ''}` : undefined} />
-          <Field label="Previous Port" value={detail.previousPortName || detail.previousPortCode} />
-          <Field label="Departure Time" value={formatDateTime(detail.departureTime)} />
-          <Field label="Arrival Time" value={formatDateTime(detail.arrivalTime)} />
-          <Field label="Charter Type" value={formatCharterType(detail.charterType)} />
+          <Field label={t('voyage.page.departurePort')} value={detail.departurePort ? `${detail.departurePort}${detail.departurePortCode ? ` (${detail.departurePortCode})` : ''}` : undefined} />
+          <Field label={t('voyage.page.arrivalPort')} value={detail.arrivalPort ? `${detail.arrivalPort}${detail.arrivalPortCode ? ` (${detail.arrivalPortCode})` : ''}` : undefined} />
+          <Field label={t('voyage.page.previousPort')} value={detail.previousPortName || detail.previousPortCode} />
+          <Field label={t('voyage.page.departureTime')} value={formatDateTime(detail.departureTime)} />
+          <Field label={t('voyage.page.arrivalTime')} value={formatDateTime(detail.arrivalTime)} />
+          <Field label={t('voyage.page.charterType')} value={formatCharterType(detail.charterType, t)} />
         </div>
       </div>
 
       {/* Planning baseline */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm divide-y divide-gray-100">
         <div className="px-4 py-3 bg-gray-50 rounded-t-xl">
-          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Planning Baseline</span>
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{t('voyage.page.planningBaseline')}</span>
         </div>
         <div className="px-4 py-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
-          <Field label="Planned Distance" value={formatMetric(detail.plannedDistance, 1, ' NM')} />
-          <Field label="Planned Duration" value={formatMetric(detail.plannedDurationHours, 1, ' h')} />
-          <Field label="Planned Avg Speed" value={formatMetric(detail.plannedAverageSpeed, 1, ' kn')} />
-          <Field label="Planned Fuel" value={formatMetric(detail.plannedFuelConsumption, 2, ' MT')} />
-          <Field label="Cargo" value={detail.cargoType ? `${detail.cargoType}${detail.cargoWeight ? ` · ${detail.cargoWeight.toFixed(0)} MT` : ''}` : undefined} />
+          <Field label={t('voyage.page.plannedDistance')} value={formatMetric(detail.plannedDistance, 1, ' NM')} />
+          <Field label={t('voyage.page.plannedDuration')} value={formatMetric(detail.plannedDurationHours, 1, ' h')} />
+          <Field label={t('voyage.page.plannedAvgSpeed')} value={formatMetric(detail.plannedAverageSpeed, 1, ' kn')} />
+          <Field label={t('voyage.page.plannedFuel')} value={formatMetric(detail.plannedFuelConsumption, 2, ' MT')} />
+          <Field label={t('voyage.page.cargo')} value={detail.cargoType ? `${detail.cargoType}${detail.cargoWeight ? ` · ${detail.cargoWeight.toFixed(0)} MT` : ''}` : undefined} />
         </div>
         {detail.voyageInstructions && (
           <div className="px-4 py-4">
-            <div className="text-xs text-gray-500 mb-1">Voyage Instructions</div>
+            <div className="text-xs text-gray-500 mb-1">{t('voyage.page.voyageInstructions')}</div>
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{detail.voyageInstructions}</p>
           </div>
         )}
@@ -711,13 +724,13 @@ function OverviewTab({ detail }: { detail: VoyageDetail }) {
       {/* Performance */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm divide-y divide-gray-100">
         <div className="px-4 py-3 bg-gray-50 rounded-t-xl">
-          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Actual Performance</span>
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{t('voyage.page.actualPerformance')}</span>
         </div>
         <div className="px-4 py-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field label="Distance (NM)" value={detail.distanceTraveled?.toFixed(1)} />
-          <Field label="Fuel Consumed (MT)" value={detail.fuelConsumed?.toFixed(2)} />
-          <Field label="Average Speed (kn)" value={detail.averageSpeed?.toFixed(1)} />
-          <Field label="Log Entries" value={String(detail.logEntryCount)} />
+          <Field label={t('voyage.page.distanceNm')} value={detail.distanceTraveled?.toFixed(1)} />
+          <Field label={t('voyage.page.fuelConsumedMt')} value={detail.fuelConsumed?.toFixed(2)} />
+          <Field label={t('voyage.page.avgSpeedKn')} value={detail.averageSpeed?.toFixed(1)} />
+          <Field label={t('voyage.page.logEntries')} value={String(detail.logEntryCount)} />
         </div>
       </div>
 
@@ -725,36 +738,36 @@ function OverviewTab({ detail }: { detail: VoyageDetail }) {
       {sortedPlanLegs.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Planned Legs</span>
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{t('voyage.page.plannedLegs')}</span>
           </div>
           <div className="divide-y divide-gray-100">
             {sortedPlanLegs.map(leg => (
               <div key={leg.id} className="px-4 py-3 grid gap-3 md:grid-cols-[100px_1fr_1fr_1fr] items-start">
                 <div>
-                  <div className="text-xs text-gray-400 mb-1">Leg {leg.sequence}</div>
+                  <div className="text-xs text-gray-400 mb-1">{t('voyage.page.legN', { n: leg.sequence })}</div>
                   <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                    {PLAN_LEG_TYPE_LABELS[leg.legType] || leg.legType}
+                    {formatPlanLegType(leg.legType, t)}
                   </span>
                 </div>
                 <div>
                   <div className="text-sm font-medium text-gray-900">
-                    {leg.fromPortName || leg.fromPortCode || 'TBD'}
+                    {leg.fromPortName || leg.fromPortCode || t('voyage.page.tbd')}
                     <span className="mx-1.5 text-gray-300">→</span>
-                    {leg.toPortName || leg.toPortCode || 'TBD'}
+                    {leg.toPortName || leg.toPortCode || t('voyage.page.tbd')}
                   </div>
                   {leg.cargoActivity && <div className="text-xs text-gray-500 mt-0.5">{leg.cargoActivity}</div>}
                 </div>
                 <div className="text-xs text-gray-600 space-y-0.5">
-                  <div><span className="text-gray-400">ETD: </span>{formatDateTime(leg.plannedDepartureTime)}</div>
-                  <div><span className="text-gray-400">ETA: </span>{formatDateTime(leg.plannedArrivalTime)}</div>
-                  <div><span className="text-gray-400">Dist: </span>{formatMetric(leg.plannedDistance, 1, ' NM')}</div>
+                  <div><span className="text-gray-400">{t('voyage.page.etd')}: </span>{formatDateTime(leg.plannedDepartureTime)}</div>
+                  <div><span className="text-gray-400">{t('voyage.page.eta')}: </span>{formatDateTime(leg.plannedArrivalTime)}</div>
+                  <div><span className="text-gray-400">{t('voyage.page.dist')}: </span>{formatMetric(leg.plannedDistance, 1, ' NM')}</div>
                 </div>
                 <div className="text-xs text-gray-600 space-y-0.5">
-                  <div><span className="text-gray-400">Dur: </span>{formatMetric(leg.plannedDurationHours, 1, ' h')}</div>
-                  <div><span className="text-gray-400">Spd: </span>{formatMetric(leg.plannedAverageSpeed, 1, ' kn')}</div>
+                  <div><span className="text-gray-400">{t('voyage.page.dur')}: </span>{formatMetric(leg.plannedDurationHours, 1, ' h')}</div>
+                  <div><span className="text-gray-400">{t('voyage.page.spd')}: </span>{formatMetric(leg.plannedAverageSpeed, 1, ' kn')}</div>
                   <div className="flex gap-1.5 pt-0.5 flex-wrap">
-                    {leg.crewChangePlanned && <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[11px]">Crew change</span>}
-                    {leg.bunkerSupplyPlanned && <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[11px]">Bunker</span>}
+                    {leg.crewChangePlanned && <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[11px]">{t('voyage.page.crewChange')}</span>}
+                    {leg.bunkerSupplyPlanned && <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[11px]">{t('voyage.page.bunkerSupply')}</span>}
                   </div>
                 </div>
               </div>
@@ -767,7 +780,7 @@ function OverviewTab({ detail }: { detail: VoyageDetail }) {
       {detail.portCalls.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Voyage Timeline</span>
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{t('voyage.page.voyageTimeline')}</span>
           </div>
           <div className="p-4">
             <div className="relative">
@@ -809,22 +822,22 @@ function OverviewTab({ detail }: { detail: VoyageDetail }) {
             {detail.departureTime && detail.arrivalTime && (
               <div className="mt-4 pt-3 border-t border-gray-100 flex items-center gap-6 text-xs text-gray-500">
                 <span>
-                  <span className="font-medium text-gray-700">Total Duration: </span>
+                  <span className="font-medium text-gray-700">{t('voyage.page.totalDuration')} </span>
                   {(() => {
                     const ms = new Date(detail.arrivalTime).getTime() - new Date(detail.departureTime).getTime()
                     const days = Math.floor(ms / 86400000)
                     const hours = Math.floor((ms % 86400000) / 3600000)
-                    return `${days}d ${hours}h`
+                    return t('voyage.page.durationFormat', { days, hours })
                   })()}
                 </span>
                 {detail.distanceTraveled && detail.departureTime && detail.arrivalTime && (
                   <span>
-                    <span className="font-medium text-gray-700">Avg Speed: </span>
+                    <span className="font-medium text-gray-700">{t('voyage.page.avgSpeed')} </span>
                     {detail.averageSpeed?.toFixed(1) || '-'} kn
                   </span>
                 )}
                 <span>
-                  <span className="font-medium text-gray-700">Port Calls: </span>
+                  <span className="font-medium text-gray-700">{t('voyage.page.portCalls')}: </span>
                   {detail.portCalls.length}
                 </span>
               </div>
@@ -837,7 +850,7 @@ function OverviewTab({ detail }: { detail: VoyageDetail }) {
       {lifecycleEntries.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Lifecycle Timeline</span>
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{t('voyage.page.lifecycleTimeline')}</span>
           </div>
           <div className="p-4 space-y-4">
             {lifecycleEntries.map((entry, index) => (
@@ -852,12 +865,12 @@ function OverviewTab({ detail }: { detail: VoyageDetail }) {
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[entry.status] || 'bg-gray-100 text-gray-700'}`}>
                         {formatStatusLabel(entry.status)}
                       </span>
-                      <span className="text-sm text-gray-500">{STATUS_DESCRIPTIONS[entry.status] || ''}</span>
+                      <span className="text-sm text-gray-500">{formatStatusDescription(entry.status, t)}</span>
                     </div>
                     {(entry.notes || entry.actor) && (
                       <div className="mt-1 text-xs text-gray-500">
-                        {entry.notes || 'Status transition recorded'}
-                        {entry.actor ? ` • by ${entry.actor}` : ''}
+                        {entry.notes || t('voyage.page.statusTransitionRecorded')}
+                        {entry.actor ? ` • ${t('voyage.page.by')} ${entry.actor}` : ''}
                       </div>
                     )}
                   </div>
@@ -877,6 +890,7 @@ function OverviewTab({ detail }: { detail: VoyageDetail }) {
 // =============================================
 
 function PortCallsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetail; onRefresh: () => void; voyageStatus: string }) {
+  const { t } = useTranslationSafe()
   const [showModal, setShowModal] = useState(false)
   const [editingCall, setEditingCall] = useState<PortCall | null>(null)
   const [ports, setPorts] = useState<Port[]>([])
@@ -930,7 +944,7 @@ function PortCallsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetai
   }
 
   const handleSave = async () => {
-    if (!form.portName) { toast.error('Port name is required'); return }
+    if (!form.portName) { toast.error(t('voyage.page.portNameRequired')); return }
     try {
       setSaving(true)
       if (editingCall) {
@@ -951,28 +965,28 @@ function PortCallsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetai
           remarks: form.remarks,
         }
         await voyageMgmtService.portCalls.update(editingCall.id, update)
-        toast.success('Port call updated')
+        toast.success(t('voyage.page.portCallUpdated'))
       } else {
         await voyageMgmtService.portCalls.create(detail.id, form)
-        toast.success('Port call added')
+        toast.success(t('voyage.page.portCallAdded'))
       }
       setShowModal(false)
       onRefresh()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to save port call')
+      toast.error(err.message || t('voyage.page.failedSavePortCall'))
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (pc: PortCall) => {
-    if (!confirm(`Remove port call ${pc.portName} (${pc.callType})?`)) return
+    if (!confirm(t('voyage.page.removePortCallConfirm', { port: pc.portName, type: pc.callType }))) return
     try {
       await voyageMgmtService.portCalls.delete(pc.id)
-      toast.success('Port call removed')
+      toast.success(t('voyage.page.portCallRemoved'))
       onRefresh()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to remove port call')
+      toast.error(err.message || t('voyage.page.failedRemovePortCall'))
     }
   }
 
@@ -981,10 +995,10 @@ function PortCallsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetai
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Port Calls ({detail.portCalls.length})</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{t('voyage.page.portCallsTitle')} ({detail.portCalls.length})</h3>
         {canEdit && (
           <button onClick={openCreate} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-            <Plus className="w-4 h-4" /> Add Port Call
+            <Plus className="w-4 h-4" /> {t('voyage.page.addPortCall')}
           </button>
         )}
       </div>
@@ -992,8 +1006,8 @@ function PortCallsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetai
       {sorted.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
           <Anchor className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p className="text-gray-500">No port calls recorded</p>
-          <p className="text-gray-400 text-sm mt-1">Add the sequence of port calls for this voyage</p>
+          <p className="text-gray-500">{t('voyage.page.noPortCalls')}</p>
+          <p className="text-gray-400 text-sm mt-1">{t('voyage.page.addPortCallDesc')}</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -1001,13 +1015,13 @@ function PortCallsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetai
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="text-center px-3 py-3 font-semibold text-gray-700 w-12">#</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-24">Type</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700">Port</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-[160px]">Arrival</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-[160px]">Departure</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-20">Berth</th>
-                <th className="text-center px-3 py-3 font-semibold text-gray-700 w-20">Cargo</th>
-                <th className="text-center px-3 py-3 font-semibold text-gray-700 w-20">Actions</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-24">{t('voyage.page.portCallType')}</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700">{t('voyage.page.port')}</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-[160px]">{t('voyage.page.arrivalLabel')}</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-[160px]">{t('voyage.page.departureLabel')}</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-20">{t('voyage.page.berth')}</th>
+                <th className="text-center px-3 py-3 font-semibold text-gray-700 w-20">{t('voyage.page.cargo')}</th>
+                <th className="text-center px-3 py-3 font-semibold text-gray-700 w-20">{t('voyage.page.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -1037,17 +1051,17 @@ function PortCallsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetai
                   <td className="px-3 py-3">
                     <div className="flex items-center justify-center gap-1">
                       {canEdit && (
-                        <button onClick={(e) => { e.stopPropagation(); openEdit(pc) }} className="p-1 text-gray-400 hover:text-blue-600 rounded" title="Edit">
+                        <button onClick={(e) => { e.stopPropagation(); openEdit(pc) }} className="p-1 text-gray-400 hover:text-blue-600 rounded" title={t('voyage.page.edit')}>
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                       {canDelete && (
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(pc) }} className="p-1 text-gray-400 hover:text-red-600 rounded" title="Delete">
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(pc) }} className="p-1 text-gray-400 hover:text-red-600 rounded" title={t('voyage.page.delete')}>
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                       {!canEdit && (
-                        <span className="text-xs text-gray-400">Locked</span>
+                        <span className="text-xs text-gray-400">{t('voyage.page.locked')}</span>
                       )}
                     </div>
                   </td>
@@ -1063,19 +1077,19 @@ function PortCallsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetai
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold">{editingCall ? 'Edit Port Call' : 'Add Port Call'}</h2>
+              <h2 className="text-lg font-semibold">{editingCall ? t('voyage.page.editPortCall') : t('voyage.page.addPortCall')}</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="px-6 py-4 space-y-4">
               {/* Port Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Port</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.selectPort')}</label>
                 <select
                   value={form.portCode || ''}
                   onChange={e => handlePortSelect(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">-- Select from master data --</option>
+                  <option value="">{t('voyage.page.selectFromMaster')}</option>
                   {ports.map(p => (
                     <option key={p.id} value={p.portCode}>{p.portCode} — {p.portName} ({p.country})</option>
                   ))}
@@ -1083,31 +1097,31 @@ function PortCallsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetai
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Port Name <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.portNameLabel')} <span className="text-red-500">*</span></label>
                   <input type="text" value={form.portName} onChange={e => setForm({ ...form, portName: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Call Type</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.callType')}</label>
                   <select value={form.callType} onChange={e => setForm({ ...form, callType: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                    <option value="DEPARTURE">DEPARTURE</option>
-                    <option value="ARRIVAL">ARRIVAL</option>
-                    <option value="TRANSIT">TRANSIT</option>
-                    <option value="BUNKERING">BUNKERING</option>
-                    <option value="DRYDOCK">DRYDOCK</option>
+                    <option value="DEPARTURE">{t('voyage.page.callTypes.DEPARTURE')}</option>
+                    <option value="ARRIVAL">{t('voyage.page.callTypes.ARRIVAL')}</option>
+                    <option value="TRANSIT">{t('voyage.page.callTypes.TRANSIT')}</option>
+                    <option value="BUNKERING">{t('voyage.page.callTypes.BUNKERING')}</option>
+                    <option value="DRYDOCK">{t('voyage.page.callTypes.DRYDOCK')}</option>
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Arrival Time</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.arrivalTime')}</label>
                   <input type="datetime-local" value={form.arrivalTime?.slice(0, 16) || ''}
                     onChange={e => setForm({ ...form, arrivalTime: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Departure Time</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.departureTime')}</label>
                   <input type="datetime-local" value={form.departureTime?.slice(0, 16) || ''}
                     onChange={e => setForm({ ...form, departureTime: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
@@ -1115,13 +1129,13 @@ function PortCallsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetai
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pilot On Board</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.pilotOnBoard')}</label>
                   <input type="datetime-local" value={form.pilotOnBoard?.slice(0, 16) || ''}
                     onChange={e => setForm({ ...form, pilotOnBoard: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pilot Off Board</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.pilotOffBoard')}</label>
                   <input type="datetime-local" value={form.pilotOffBoard?.slice(0, 16) || ''}
                     onChange={e => setForm({ ...form, pilotOffBoard: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
@@ -1129,36 +1143,36 @@ function PortCallsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetai
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Berth No.</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.berthNo')}</label>
                   <input type="text" value={form.berthNumber || ''} onChange={e => setForm({ ...form, berthNumber: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Draft Fore (m)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.draftFore')}</label>
                   <input type="number" step="0.01" value={form.draftFore ?? ''} onChange={e => setForm({ ...form, draftFore: e.target.value ? parseFloat(e.target.value) : undefined })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Draft Aft (m)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.draftAft')}</label>
                   <input type="number" step="0.01" value={form.draftAft ?? ''} onChange={e => setForm({ ...form, draftAft: e.target.value ? parseFloat(e.target.value) : undefined })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.remarks')}</label>
                 <textarea value={form.remarks || ''} onChange={e => setForm({ ...form, remarks: e.target.value })} rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
               </div>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.cargoOpsCompleted || false} onChange={e => setForm({ ...form, cargoOpsCompleted: e.target.checked })}
                   className="rounded border-gray-300" />
-                Cargo operations completed
+                {t('voyage.page.cargoOpsCompleted')}
               </label>
             </div>
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-xl">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100">Cancel</button>
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100">{t('voyage.page.cancel')}</button>
               <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                <Check className="w-4 h-4" /> {saving ? 'Saving...' : editingCall ? 'Update' : 'Add'}
+                <Check className="w-4 h-4" /> {saving ? t('voyage.page.saving') : editingCall ? t('voyage.page.update') : t('voyage.page.add')}
               </button>
             </div>
           </div>
@@ -1173,6 +1187,7 @@ function PortCallsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetai
 // =============================================
 
 function CrewAssignmentsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetail; onRefresh: () => void; voyageStatus: string }) {
+  const { t } = useTranslationSafe()
   const [showModal, setShowModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [crewList, setCrewList] = useState<CrewMember[]>([])
@@ -1223,7 +1238,7 @@ function CrewAssignmentsTab({ detail, onRefresh, voyageStatus }: { detail: Voyag
 
   const handleSave = async () => {
     if (!editingAssignment && !form.crewMemberId) {
-      toast.error('Please select a crew member')
+      toast.error(t('voyage.page.selectCrewError'))
       return
     }
     try {
@@ -1244,71 +1259,71 @@ function CrewAssignmentsTab({ detail, onRefresh, voyageStatus }: { detail: Voyag
           remarks: f.remarks,
         }
         await voyageMgmtService.crewAssignments.update(editingAssignment.id, update)
-        toast.success('Assignment updated')
+        toast.success(t('voyage.page.assignmentUpdated'))
       } else {
         await voyageMgmtService.crewAssignments.assign(detail.id, form)
-        toast.success('Crew assigned')
+        toast.success(t('voyage.page.crewAssigned'))
       }
       setShowModal(false)
       onRefresh()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to save')
+      toast.error(err.message || t('voyage.page.failedSave'))
     } finally {
       setSaving(false)
     }
   }
 
   const handleBulkAssign = async () => {
-    if (bulkSelectedIds.length === 0) { toast.error('Select crew members'); return }
+    if (bulkSelectedIds.length === 0) { toast.error(t('voyage.page.selectCrewMembers')); return }
     try {
       setSaving(true)
       await voyageMgmtService.crewAssignments.bulkAssign(detail.id, {
         voyageId: detail.id,
         crewMemberIds: bulkSelectedIds,
       })
-      toast.success(`${bulkSelectedIds.length} crew members assigned`)
+      toast.success(t('voyage.page.crewAssignedCount', { count: bulkSelectedIds.length }))
       setShowBulkModal(false)
       setBulkSelectedIds([])
       onRefresh()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to bulk assign')
+      toast.error(err.message || t('voyage.page.failedBulkAssign'))
     } finally {
       setSaving(false)
     }
   }
 
   const handleRemove = async (a: VoyageCrewAssignment) => {
-    if (!confirm(`Remove ${a.crewName || 'this crew member'} from voyage?`)) return
+    if (!confirm(t('voyage.page.removeCrewConfirm', { name: a.crewName || t('voyage.page.thisCrewMember') }))) return
     try {
       await voyageMgmtService.crewAssignments.remove(a.id)
-      toast.success('Crew removed from voyage')
+      toast.success(t('voyage.page.crewRemoved'))
       onRefresh()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to remove')
+      toast.error(err.message || t('voyage.page.failedRemove'))
     }
   }
 
   const handleStatusChange = async (a: VoyageCrewAssignment, newStatus: string) => {
     try {
       await voyageMgmtService.crewAssignments.update(a.id, { status: newStatus })
-      toast.success(`Status changed to ${newStatus}`)
+      toast.success(t('voyage.page.statusChangedTo', { status: newStatus }))
       onRefresh()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update status')
+      toast.error(err.message || t('voyage.page.failedUpdateStatus'))
     }
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Crew Assignments ({detail.crewAssignments.length})</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{t('voyage.page.crewAssignmentsTitle')} ({detail.crewAssignments.length})</h3>
         {canAssignNew && (
           <div className="flex gap-2">
             <button onClick={() => { setBulkSelectedIds([]); setShowBulkModal(true) }} className="flex items-center gap-2 px-3 py-2 border border-blue-600 text-blue-600 rounded-lg text-sm hover:bg-blue-50">
-              <Users className="w-4 h-4" /> Bulk Assign
+              <Users className="w-4 h-4" /> {t('voyage.page.bulkAssign')}
             </button>
             <button onClick={openAssign} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-              <Plus className="w-4 h-4" /> Assign Crew
+              <Plus className="w-4 h-4" /> {t('voyage.page.assignCrew')}
             </button>
           </div>
         )}
@@ -1317,28 +1332,28 @@ function CrewAssignmentsTab({ detail, onRefresh, voyageStatus }: { detail: Voyag
       {detail.crewAssignments.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
           <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p className="text-gray-500">No crew assigned to this voyage</p>
-          <p className="text-gray-400 text-sm mt-1">Assign crew members individually or in bulk</p>
+          <p className="text-gray-500">{t('voyage.page.noCrewAssigned')}</p>
+          <p className="text-gray-400 text-sm mt-1">{t('voyage.page.assignCrewDesc')}</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-3 py-3 font-semibold text-gray-700">Crew Member</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">Rank</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">Role</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-[130px]">Embark</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-[130px]">Disembark</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">Status</th>
-                <th className="text-center px-3 py-3 font-semibold text-gray-700 w-20">Actions</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700">{t('voyage.page.crewMember')}</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">{t('voyage.page.rank')}</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">{t('voyage.page.role')}</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-[130px]">{t('voyage.page.embark')}</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-[130px]">{t('voyage.page.disembark')}</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">{t('voyage.page.status')}</th>
+                <th className="text-center px-3 py-3 font-semibold text-gray-700 w-20">{t('voyage.page.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {detail.crewAssignments.map(a => (
                 <tr key={a.id} className="hover:bg-blue-50/50 transition-colors">
                   <td className="px-3 py-3">
-                    <div className="font-medium text-gray-900">{a.crewName || 'Unknown'}</div>
+                    <div className="font-medium text-gray-900">{a.crewName || t('voyage.page.unknown')}</div>
                     {a.crewId && <div className="text-xs text-gray-400">{a.crewId}</div>}
                   </td>
                   <td className="px-3 py-3 text-gray-600">{a.rankName || '-'}</td>
@@ -1360,31 +1375,31 @@ function CrewAssignmentsTab({ detail, onRefresh, voyageStatus }: { detail: Voyag
                         onChange={e => handleStatusChange(a, e.target.value)}
                         className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer ${ASSIGNMENT_STATUS_COLORS[a.status] || 'bg-gray-100'}`}
                       >
-                        <option value="ASSIGNED">ASSIGNED</option>
-                        <option value="ONBOARD">ONBOARD</option>
-                        <option value="DISEMBARKED">DISEMBARKED</option>
-                        <option value="CANCELLED">CANCELLED</option>
+                        <option value="ASSIGNED">{t('voyage.page.assignmentStatuses.ASSIGNED')}</option>
+                        <option value="ONBOARD">{t('voyage.page.assignmentStatuses.ONBOARD')}</option>
+                        <option value="DISEMBARKED">{t('voyage.page.assignmentStatuses.DISEMBARKED')}</option>
+                        <option value="CANCELLED">{t('voyage.page.assignmentStatuses.CANCELLED')}</option>
                       </select>
                     ) : (
                       <span className={`text-xs font-medium px-2 py-1 rounded-full ${ASSIGNMENT_STATUS_COLORS[a.status] || 'bg-gray-100'}`}>
-                        {a.status}
+                        {t(`voyage.page.assignmentStatuses.${a.status}`)}
                       </span>
                     )}
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex items-center justify-center gap-1">
                       {canEdit && (
-                        <button onClick={() => openEdit(a)} className="p-1 text-gray-400 hover:text-blue-600 rounded" title="Edit">
+                        <button onClick={() => openEdit(a)} className="p-1 text-gray-400 hover:text-blue-600 rounded" title={t('voyage.page.edit')}>
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                       {canRemove && (
-                        <button onClick={() => handleRemove(a)} className="p-1 text-gray-400 hover:text-red-600 rounded" title="Remove">
+                        <button onClick={() => handleRemove(a)} className="p-1 text-gray-400 hover:text-red-600 rounded" title={t('voyage.page.remove')}>
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                       {!canEdit && (
-                        <span className="text-xs text-gray-400">Locked</span>
+                        <span className="text-xs text-gray-400">{t('voyage.page.locked')}</span>
                       )}
                     </div>
                   </td>
@@ -1400,16 +1415,16 @@ function CrewAssignmentsTab({ detail, onRefresh, voyageStatus }: { detail: Voyag
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold">{editingAssignment ? 'Edit Assignment' : 'Assign Crew'}</h2>
+              <h2 className="text-lg font-semibold">{editingAssignment ? t('voyage.page.editAssignment') : t('voyage.page.assignCrew')}</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="px-6 py-4 space-y-4">
               {!editingAssignment && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Crew Member <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.crewMember')} <span className="text-red-500">*</span></label>
                   <select value={form.crewMemberId} onChange={e => setForm({ ...form, crewMemberId: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                    <option value="">-- Select crew member --</option>
+                    <option value="">{t('voyage.page.selectCrewMember')}</option>
                     {crewList.filter(c => !alreadyAssignedIds.has(c.id)).map(c => (
                       <option key={c.id} value={c.id}>{c.fullName} {c.rank ? `(${c.rank.rankName})` : ''}</option>
                     ))}
@@ -1418,32 +1433,32 @@ function CrewAssignmentsTab({ detail, onRefresh, voyageStatus }: { detail: Voyag
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.role')}</label>
                   <select value={form.role || 'REGULAR'} onChange={e => setForm({ ...form, role: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                    <option value="REGULAR">REGULAR</option>
-                    <option value="SUPERNUMERARY">SUPERNUMERARY</option>
-                    <option value="OBSERVER">OBSERVER</option>
-                    <option value="TRAINEE">TRAINEE</option>
-                    <option value="RIDER">RIDER</option>
+                    <option value="REGULAR">{t('voyage.page.roles.REGULAR')}</option>
+                    <option value="SUPERNUMERARY">{t('voyage.page.roles.SUPERNUMERARY')}</option>
+                    <option value="OBSERVER">{t('voyage.page.roles.OBSERVER')}</option>
+                    <option value="TRAINEE">{t('voyage.page.roles.TRAINEE')}</option>
+                    <option value="RIDER">{t('voyage.page.roles.RIDER')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Watch Schedule</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.watchSchedule')}</label>
                   <input type="text" value={form.watchSchedule || ''} onChange={e => setForm({ ...form, watchSchedule: e.target.value })}
-                    placeholder="e.g. 0000-0400"
+                    placeholder={t('voyage.page.watchSchedulePlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Embark Port Code</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.embarkPortCode')}</label>
                   <input type="text" value={(form as any).embarkPortCode || ''} onChange={e => setForm({ ...form, embarkPortCode: e.target.value.toUpperCase() } as any)}
                     placeholder="VNSGN" maxLength={5}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 font-mono" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Embark Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.embarkDate')}</label>
                   <input type="date" value={(form as any).embarkDate?.slice(0, 10) || ''}
                     onChange={e => setForm({ ...form, embarkDate: e.target.value || undefined } as any)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
@@ -1452,44 +1467,44 @@ function CrewAssignmentsTab({ detail, onRefresh, voyageStatus }: { detail: Voyag
               {editingAssignment && (
                 <>
                   <div className="border-t pt-4 mt-2">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Disembarkation</h4>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">{t('voyage.page.disembarkation')}</h4>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Disembark Port Code</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.disembarkPortCode')}</label>
                       <input type="text" value={(form as any).disembarkPortCode || ''} onChange={e => setForm({ ...form, disembarkPortCode: e.target.value.toUpperCase() } as any)}
                         placeholder="SGSIN" maxLength={5}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 font-mono" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Disembark Date</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.disembarkDate')}</label>
                       <input type="date" value={(form as any).disembarkDate?.slice(0, 10) || ''}
                         onChange={e => setForm({ ...form, disembarkDate: e.target.value || undefined } as any)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.status')}</label>
                     <select value={(form as any).status || 'ASSIGNED'} onChange={e => setForm({ ...form, status: e.target.value } as any)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                      <option value="ASSIGNED">ASSIGNED</option>
-                      <option value="ONBOARD">ONBOARD</option>
-                      <option value="DISEMBARKED">DISEMBARKED</option>
-                      <option value="CANCELLED">CANCELLED</option>
+                      <option value="ASSIGNED">{t('voyage.page.assignmentStatuses.ASSIGNED')}</option>
+                      <option value="ONBOARD">{t('voyage.page.assignmentStatuses.ONBOARD')}</option>
+                      <option value="DISEMBARKED">{t('voyage.page.assignmentStatuses.DISEMBARKED')}</option>
+                      <option value="CANCELLED">{t('voyage.page.assignmentStatuses.CANCELLED')}</option>
                     </select>
                   </div>
                 </>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.remarks')}</label>
                 <textarea value={form.remarks || ''} onChange={e => setForm({ ...form, remarks: e.target.value })} rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-xl">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100">Cancel</button>
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100">{t('voyage.page.cancel')}</button>
               <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                <Check className="w-4 h-4" /> {saving ? 'Saving...' : editingAssignment ? 'Update' : 'Assign'}
+                <Check className="w-4 h-4" /> {saving ? t('voyage.page.saving') : editingAssignment ? t('voyage.page.update') : t('voyage.page.assign')}
               </button>
             </div>
           </div>
@@ -1501,14 +1516,14 @@ function CrewAssignmentsTab({ detail, onRefresh, voyageStatus }: { detail: Voyag
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold">Bulk Assign Crew ({bulkSelectedIds.length} selected)</h2>
+              <h2 className="text-lg font-semibold">{t('voyage.page.bulkAssignCrew')} ({bulkSelectedIds.length})</h2>
               <button onClick={() => setShowBulkModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="px-6 py-4">
-              <p className="text-sm text-gray-500 mb-3">Select crew members to assign to this voyage:</p>
+              <p className="text-sm text-gray-500 mb-3">{t('voyage.page.selectCrewBulk')}</p>
               <div className="max-h-[300px] overflow-y-auto space-y-1 border border-gray-200 rounded-lg p-2">
                 {crewList.filter(c => !alreadyAssignedIds.has(c.id)).length === 0 ? (
-                  <p className="text-center text-gray-400 py-4 text-sm">All onboard crew are already assigned</p>
+                  <p className="text-center text-gray-400 py-4 text-sm">{t('voyage.page.allCrewAssigned')}</p>
                 ) : (
                   crewList.filter(c => !alreadyAssignedIds.has(c.id)).map(c => (
                     <label
@@ -1531,7 +1546,7 @@ function CrewAssignmentsTab({ detail, onRefresh, voyageStatus }: { detail: Voyag
                       />
                       <div>
                         <div className="text-sm font-medium text-gray-900">{c.fullName}</div>
-                        <div className="text-xs text-gray-400">{c.rank?.rankName || 'No rank'} — {c.crewId}</div>
+                        <div className="text-xs text-gray-400">{c.rank?.rankName || t('voyage.page.noRank')} — {c.crewId}</div>
                       </div>
                     </label>
                   ))
@@ -1539,10 +1554,10 @@ function CrewAssignmentsTab({ detail, onRefresh, voyageStatus }: { detail: Voyag
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-xl">
-              <button onClick={() => setShowBulkModal(false)} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100">Cancel</button>
+              <button onClick={() => setShowBulkModal(false)} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100">{t('voyage.page.cancel')}</button>
               <button onClick={handleBulkAssign} disabled={saving || bulkSelectedIds.length === 0}
                 className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                <Users className="w-4 h-4" /> {saving ? 'Assigning...' : `Assign ${bulkSelectedIds.length} Crew`}
+                <Users className="w-4 h-4" /> {saving ? t('voyage.page.assigning') : t('voyage.page.assignCount', { count: bulkSelectedIds.length })}
               </button>
             </div>
           </div>
@@ -1557,6 +1572,7 @@ function CrewAssignmentsTab({ detail, onRefresh, voyageStatus }: { detail: Voyag
 // =============================================
 
 function FalForm5Tab({ voyageId }: { voyageId: string }) {
+  const { t } = useTranslationSafe()
   const [fal, setFal] = useState<FalForm5 | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -1567,79 +1583,79 @@ function FalForm5Tab({ voyageId }: { voyageId: string }) {
         const data = await voyageMgmtService.voyages.getFalForm5(voyageId)
         setFal(data)
       } catch (err: any) {
-        toast.error('Failed to generate FAL Form 5: ' + (err.message || ''))
+        toast.error(t('voyage.page.failedGenerateFal', { error: err.message || '' }))
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [voyageId])
+  }, [voyageId, t])
 
-  if (loading) return <div className="text-center py-12 text-gray-400">Generating FAL Form 5...</div>
-  if (!fal) return <div className="text-center py-12 text-gray-400">Failed to load FAL Form 5</div>
+  if (loading) return <div className="text-center py-12 text-gray-400">{t('voyage.page.generatingFal')}</div>
+  if (!fal) return <div className="text-center py-12 text-gray-400">{t('voyage.page.failedLoadFal')}</div>
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
       {/* Header */}
       <div className="text-center mb-6 border-b pb-4">
-        <h2 className="text-xl font-bold text-gray-900">FAL Form 5 — Crew List</h2>
-        <p className="text-sm text-gray-500">IMO FAL Convention — Standardized Crew List</p>
+        <h2 className="text-xl font-bold text-gray-900">{t('voyage.page.falForm5Title')}</h2>
+        <p className="text-sm text-gray-500">{t('voyage.page.falSubtitle')}</p>
       </div>
 
       {/* Vessel Info */}
       <div className="mb-6 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
         <div>
-          <div className="text-gray-500 text-xs font-medium">Vessel Name</div>
+          <div className="text-gray-500 text-xs font-medium">{t('voyage.page.vesselName')}</div>
           <div className="break-words font-semibold">{fal.vesselName || '-'}</div>
         </div>
         <div>
-          <div className="text-gray-500 text-xs font-medium">IMO Number</div>
+          <div className="text-gray-500 text-xs font-medium">{t('voyage.page.imoNumber')}</div>
           <div className="font-semibold font-mono">{fal.vesselIMO || '-'}</div>
         </div>
         <div>
-          <div className="text-gray-500 text-xs font-medium">Flag State</div>
+          <div className="text-gray-500 text-xs font-medium">{t('voyage.page.flagState')}</div>
           <div className="font-semibold">{fal.vesselFlag || '-'}</div>
         </div>
         <div>
-          <div className="text-gray-500 text-xs font-medium">Call Sign</div>
+          <div className="text-gray-500 text-xs font-medium">{t('voyage.page.callSign')}</div>
           <div className="font-semibold font-mono">{fal.callSign || '-'}</div>
         </div>
         <div>
-          <div className="text-gray-500 text-xs font-medium">Voyage Number</div>
+          <div className="text-gray-500 text-xs font-medium">{t('voyage.page.voyageNumber')}</div>
           <div className="font-semibold">{fal.voyageNumber}</div>
         </div>
         <div>
-          <div className="text-gray-500 text-xs font-medium">Port of Arrival</div>
+          <div className="text-gray-500 text-xs font-medium">{t('voyage.page.portOfArrival')}</div>
           <div className="break-words font-semibold">{fal.portOfArrival || '-'} {fal.portOfArrivalCode ? `(${fal.portOfArrivalCode})` : ''}</div>
         </div>
         <div>
-          <div className="text-gray-500 text-xs font-medium">Date of Arrival</div>
+          <div className="text-gray-500 text-xs font-medium">{t('voyage.page.dateOfArrival')}</div>
           <div className="font-semibold">{formatDateShort(fal.dateOfArrival)}</div>
         </div>
         <div>
-          <div className="text-gray-500 text-xs font-medium">Arrived From</div>
+          <div className="text-gray-500 text-xs font-medium">{t('voyage.page.arrivedFrom')}</div>
           <div className="break-words font-semibold">{fal.arrivedFrom || '-'}</div>
         </div>
       </div>
 
       {/* Crew Table */}
-      <div className="text-sm font-semibold text-gray-700 mb-2">Crew List ({fal.crewList.length} persons)</div>
+      <div className="text-sm font-semibold text-gray-700 mb-2">{t('voyage.page.crewListCount', { count: fal.crewList.length })}</div>
       <div className="max-w-full overflow-x-auto">
         <table className="min-w-[760px] w-full text-sm border border-gray-300">
           <thead>
             <tr className="bg-gray-100">
-              <th className="border border-gray-300 px-2 py-2 text-center w-10">No.</th>
-              <th className="border border-gray-300 px-2 py-2 text-left">Full Name</th>
-              <th className="border border-gray-300 px-2 py-2 text-left w-32">Rank</th>
-              <th className="border border-gray-300 px-2 py-2 text-left w-28">Nationality</th>
-              <th className="border border-gray-300 px-2 py-2 text-center w-28">Date of Birth</th>
-              <th className="border border-gray-300 px-2 py-2 text-left w-28">Doc Type</th>
-              <th className="border border-gray-300 px-2 py-2 text-left w-32">Doc Number</th>
+              <th className="border border-gray-300 px-2 py-2 text-center w-10">{t('voyage.page.number')}</th>
+              <th className="border border-gray-300 px-2 py-2 text-left">{t('voyage.page.fullName')}</th>
+              <th className="border border-gray-300 px-2 py-2 text-left w-32">{t('voyage.page.rank')}</th>
+              <th className="border border-gray-300 px-2 py-2 text-left w-28">{t('voyage.page.nationality')}</th>
+              <th className="border border-gray-300 px-2 py-2 text-center w-28">{t('voyage.page.dateOfBirth')}</th>
+              <th className="border border-gray-300 px-2 py-2 text-left w-28">{t('voyage.page.docType')}</th>
+              <th className="border border-gray-300 px-2 py-2 text-left w-32">{t('voyage.page.docNumber')}</th>
             </tr>
           </thead>
           <tbody>
             {fal.crewList.length === 0 ? (
-              <tr><td colSpan={7} className="text-center py-6 text-gray-400 border border-gray-300">No crew assigned</td></tr>
+              <tr><td colSpan={7} className="text-center py-6 text-gray-400 border border-gray-300">{t('voyage.page.noCrewAssigned2')}</td></tr>
             ) : (
               fal.crewList.map(entry => (
                 <tr key={entry.no} className="hover:bg-blue-50/50">
@@ -1665,6 +1681,7 @@ function FalForm5Tab({ voyageId }: { voyageId: string }) {
 // =============================================
 
 function CargoOperationsTab({ voyageId, voyageStatus, onRefresh }: { voyageId: string; voyageStatus: string; onRefresh: () => void }) {
+  const { t } = useTranslationSafe()
   const [cargoList, setCargoList] = useState<VoyageCargoOperation[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -1687,7 +1704,7 @@ function CargoOperationsTab({ voyageId, voyageStatus, onRefresh }: { voyageId: s
       const data = await voyageMgmtService.cargo.getByVoyage(voyageId)
       setCargoList(data || [])
     } catch {
-      toast.error('Failed to load cargo operations')
+      toast.error(t('voyage.page.failedLoadCargoOps'))
     } finally {
       setLoading(false)
     }
@@ -1727,8 +1744,8 @@ function CargoOperationsTab({ voyageId, voyageStatus, onRefresh }: { voyageId: s
   }
 
   const handleSave = async () => {
-    if (!form.cargoType) { toast.error('Cargo type is required'); return }
-    if (form.quantity <= 0) { toast.error('Quantity must be > 0'); return }
+    if (!form.cargoType) { toast.error(t('voyage.page.cargoTypeRequired')); return }
+    if (form.quantity <= 0) { toast.error(t('voyage.page.quantityPositive')); return }
     try {
       setSaving(true)
       if (editingCargo) {
@@ -1746,40 +1763,40 @@ function CargoOperationsTab({ voyageId, voyageStatus, onRefresh }: { voyageId: s
           specialRequirements: form.specialRequirements,
         }
         await voyageMgmtService.cargo.update(editingCargo.id, update)
-        toast.success('Cargo operation updated')
+        toast.success(t('voyage.page.cargoOpUpdated'))
       } else {
         await voyageMgmtService.cargo.create(form)
-        toast.success('Cargo operation added')
+        toast.success(t('voyage.page.cargoOpAdded'))
       }
       setShowModal(false)
       loadCargo()
       onRefresh()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to save cargo operation')
+      toast.error(err.message || t('voyage.page.failedSaveCargoOp'))
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (c: VoyageCargoOperation) => {
-    if (!confirm(`Remove cargo operation ${c.operationId}?`)) return
+    if (!confirm(t('voyage.page.removeCargoOpConfirm', { id: c.operationId }))) return
     try {
       await voyageMgmtService.cargo.delete(c.id)
-      toast.success('Cargo operation removed')
+      toast.success(t('voyage.page.cargoOpRemoved'))
       loadCargo()
       onRefresh()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to remove cargo operation')
+      toast.error(err.message || t('voyage.page.failedRemoveCargoOp'))
     }
   }
 
   const handleStatusChange = async (c: VoyageCargoOperation, newStatus: string) => {
     try {
       await voyageMgmtService.cargo.update(c.id, { status: newStatus })
-      toast.success(`Status updated to ${newStatus}`)
+      toast.success(t('voyage.page.statusUpdatedTo', { status: newStatus }))
       loadCargo()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update status')
+      toast.error(err.message || t('voyage.page.failedUpdateStatus'))
     }
   }
 
@@ -1790,10 +1807,10 @@ function CargoOperationsTab({ voyageId, voyageStatus, onRefresh }: { voyageId: s
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Cargo Operations ({cargoList.length})</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{t('voyage.page.cargoOpsTitle')} ({cargoList.length})</h3>
         {canEdit && (
           <button onClick={openCreate} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-            <Plus className="w-4 h-4" /> Add Cargo Operation
+            <Plus className="w-4 h-4" /> {t('voyage.page.addCargoOp')}
           </button>
         )}
       </div>
@@ -1801,22 +1818,22 @@ function CargoOperationsTab({ voyageId, voyageStatus, onRefresh }: { voyageId: s
       {cargoList.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
           <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p className="text-gray-500">No cargo operations recorded</p>
-          <p className="text-gray-400 text-sm mt-1">Add loading/discharging operations for this voyage</p>
+          <p className="text-gray-500">{t('voyage.page.noCargoOps')}</p>
+          <p className="text-gray-400 text-sm mt-1">{t('voyage.page.addCargoOpsDesc')}</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">Op ID</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">Type</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700">Cargo</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">Quantity</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">B/L</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700">Ports</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">Status</th>
-                <th className="text-center px-3 py-3 font-semibold text-gray-700 w-24">Actions</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">{t('voyage.page.opId')}</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">{t('voyage.page.type')}</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700">{t('voyage.page.cargo')}</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">{t('voyage.page.quantity')}</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">{t('voyage.page.bl')}</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700">{t('voyage.page.ports')}</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-700 w-28">{t('voyage.page.status')}</th>
+                <th className="text-center px-3 py-3 font-semibold text-gray-700 w-24">{t('voyage.page.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -1830,14 +1847,14 @@ function CargoOperationsTab({ voyageId, voyageStatus, onRefresh }: { voyageId: s
                   </td>
                   <td className="px-3 py-3">
                     <div className="font-medium text-gray-900">{c.cargoType}</div>
-                    {c.shipper && <div className="text-xs text-gray-400">Shipper: {c.shipper}</div>}
-                    {c.consignee && <div className="text-xs text-gray-400">Consignee: {c.consignee}</div>}
+                    {c.shipper && <div className="text-xs text-gray-400">{t('voyage.page.shipper')}: {c.shipper}</div>}
+                    {c.consignee && <div className="text-xs text-gray-400">{t('voyage.page.consignee')}: {c.consignee}</div>}
                   </td>
                   <td className="px-3 py-3 text-gray-700">{c.quantity.toLocaleString()} {c.unit}</td>
                   <td className="px-3 py-3 text-xs text-gray-600">{c.billOfLading || '-'}</td>
                   <td className="px-3 py-3 text-xs">
-                    {c.loadingPort && <div className="text-gray-600">Load: {c.loadingPort}</div>}
-                    {c.dischargePort && <div className="text-gray-600">Disch: {c.dischargePort}</div>}
+                    {c.loadingPort && <div className="text-gray-600">{t('voyage.page.load')}: {c.loadingPort}</div>}
+                    {c.dischargePort && <div className="text-gray-600">{t('voyage.page.disch')}: {c.dischargePort}</div>}
                     {!c.loadingPort && !c.dischargePort && <span className="text-gray-300">-</span>}
                   </td>
                   <td className="px-3 py-3">
@@ -1847,31 +1864,31 @@ function CargoOperationsTab({ voyageId, voyageStatus, onRefresh }: { voyageId: s
                         onChange={e => handleStatusChange(c, e.target.value)}
                         className={`px-2 py-0.5 rounded-full text-xs font-medium border-0 cursor-pointer ${CARGO_STATUS_COLORS[c.status] || 'bg-gray-100'}`}
                       >
-                        <option value="PLANNED">PLANNED</option>
-                        <option value="LOADING">LOADING</option>
-                        <option value="LOADED">LOADED</option>
-                        <option value="DISCHARGING">DISCHARGING</option>
-                        <option value="DISCHARGED">DISCHARGED</option>
+                        <option value="PLANNED">{t('voyage.page.cargoStatuses.PLANNED')}</option>
+                        <option value="LOADING">{t('voyage.page.cargoStatuses.LOADING')}</option>
+                        <option value="LOADED">{t('voyage.page.cargoStatuses.LOADED')}</option>
+                        <option value="DISCHARGING">{t('voyage.page.cargoStatuses.DISCHARGING')}</option>
+                        <option value="DISCHARGED">{t('voyage.page.cargoStatuses.DISCHARGED')}</option>
                       </select>
                     ) : (
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${CARGO_STATUS_COLORS[c.status] || 'bg-gray-100'}`}>
-                        {c.status}
+                        {t(`voyage.page.cargoStatuses.${c.status}`)}
                       </span>
                     )}
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex items-center justify-center gap-1">
                       {canEdit && (
-                        <button onClick={() => openEdit(c)} className="p-1 text-gray-400 hover:text-blue-600 rounded" title="Edit">
+                        <button onClick={() => openEdit(c)} className="p-1 text-gray-400 hover:text-blue-600 rounded" title={t('voyage.page.edit')}>
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                       {canDelete && (
-                        <button onClick={() => handleDelete(c)} className="p-1 text-gray-400 hover:text-red-600 rounded" title="Delete">
+                        <button onClick={() => handleDelete(c)} className="p-1 text-gray-400 hover:text-red-600 rounded" title={t('voyage.page.delete')}>
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      {!canEdit && <span className="text-xs text-gray-400">Locked</span>}
+                      {!canEdit && <span className="text-xs text-gray-400">{t('voyage.page.locked')}</span>}
                     </div>
                   </td>
                 </tr>
@@ -1886,56 +1903,56 @@ function CargoOperationsTab({ voyageId, voyageStatus, onRefresh }: { voyageId: s
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold">{editingCargo ? 'Edit Cargo Operation' : 'Add Cargo Operation'}</h2>
+              <h2 className="text-lg font-semibold">{editingCargo ? t('voyage.page.editCargoOp') : t('voyage.page.addCargoOp')}</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="px-6 py-4 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Operation Type <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.operationType')} <span className="text-red-500">*</span></label>
                   <select value={form.operationType} onChange={e => setForm({ ...form, operationType: e.target.value as 'LOADING' | 'DISCHARGING' })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                    <option value="LOADING">LOADING</option>
-                    <option value="DISCHARGING">DISCHARGING</option>
+                    <option value="LOADING">{t('voyage.page.cargoStatuses.LOADING')}</option>
+                    <option value="DISCHARGING">{t('voyage.page.cargoStatuses.DISCHARGING')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cargo Type <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.cargoType')} <span className="text-red-500">*</span></label>
                   <input type="text" value={form.cargoType} onChange={e => setForm({ ...form, cargoType: e.target.value })}
-                    placeholder="e.g. Crude Oil, Container, Bulk Grain"
+                    placeholder={t('voyage.page.cargoTypePlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantity <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.quantity')} <span className="text-red-500">*</span></label>
                   <input type="number" value={form.quantity} onChange={e => setForm({ ...form, quantity: parseFloat(e.target.value) || 0 })}
                     min="0" step="0.01"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.unit')}</label>
                   <select value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                    <option value="MT">MT (Metric Ton)</option>
-                    <option value="CBM">CBM (Cubic Meter)</option>
-                    <option value="TEU">TEU (Container)</option>
-                    <option value="BBL">BBL (Barrel)</option>
-                    <option value="KG">KG (Kilogram)</option>
-                    <option value="LT">LT (Long Ton)</option>
+                    <option value="MT">{t('voyage.page.unitOptions.MT')}</option>
+                    <option value="CBM">{t('voyage.page.unitOptions.CBM')}</option>
+                    <option value="TEU">{t('voyage.page.unitOptions.TEU')}</option>
+                    <option value="BBL">{t('voyage.page.unitOptions.BBL')}</option>
+                    <option value="KG">{t('voyage.page.unitOptions.KG')}</option>
+                    <option value="LT">{t('voyage.page.unitOptions.LT')}</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Loading Port</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.loadingPort')}</label>
                   <input type="text" value={form.loadingPort || ''} onChange={e => setForm({ ...form, loadingPort: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Discharge Port</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.dischargePort')}</label>
                   <input type="text" value={form.dischargePort || ''} onChange={e => setForm({ ...form, dischargePort: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
@@ -1943,12 +1960,12 @@ function CargoOperationsTab({ voyageId, voyageStatus, onRefresh }: { voyageId: s
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Shipper</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.shipper')}</label>
                   <input type="text" value={form.shipper || ''} onChange={e => setForm({ ...form, shipper: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Consignee</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.consignee')}</label>
                   <input type="text" value={form.consignee || ''} onChange={e => setForm({ ...form, consignee: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
@@ -1956,31 +1973,31 @@ function CargoOperationsTab({ voyageId, voyageStatus, onRefresh }: { voyageId: s
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bill of Lading</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.billOfLading')}</label>
                   <input type="text" value={form.billOfLading || ''} onChange={e => setForm({ ...form, billOfLading: e.target.value })}
-                    placeholder="B/L Number"
+                    placeholder={t('voyage.page.billOfLadingPlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Seal Numbers</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.sealNumbers')}</label>
                   <input type="text" value={form.sealNumbers || ''} onChange={e => setForm({ ...form, sealNumbers: e.target.value })}
-                    placeholder="Comma-separated seal numbers"
+                    placeholder={t('voyage.page.sealNumbersPlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Special Requirements / Remarks</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.specialRequirements')}</label>
                 <textarea value={form.specialRequirements || ''} onChange={e => setForm({ ...form, specialRequirements: e.target.value })}
-                  rows={2} placeholder="HAZMAT class, temperature requirements, handling instructions, etc."
+                  rows={2} placeholder={t('voyage.page.specialRequirementsPlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">Cancel</button>
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">{t('voyage.page.cancel')}</button>
               <button onClick={handleSave} disabled={saving}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
-                {saving ? 'Saving...' : (editingCargo ? 'Update' : 'Add')}
+                {saving ? t('voyage.page.saving') : (editingCargo ? t('voyage.page.update') : t('voyage.page.add'))}
               </button>
             </div>
           </div>
@@ -1995,6 +2012,7 @@ function CargoOperationsTab({ voyageId, voyageStatus, onRefresh }: { voyageId: s
 // =============================================
 
 function PlanningTab({ detail }: { detail: VoyageDetail }) {
+  const { t } = useTranslationSafe()
   const cargoPlans = detail.cargoPlans || []
   const bunkerPlans = detail.bunkerPlans || []
   const crewChangePlans = detail.crewChangePlans || []
@@ -2009,15 +2027,15 @@ function PlanningTab({ detail }: { detail: VoyageDetail }) {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
           <DollarSign className="w-5 h-5 text-green-600" />
-          <h2 className="text-base font-semibold text-gray-900">Financial Summary</h2>
+          <h2 className="text-base font-semibold text-gray-900">{t('voyage.page.financialSummary')}</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-5">
           <div className="bg-red-50 rounded-lg p-4 border border-red-100">
-            <div className="text-xs font-medium text-red-600 uppercase tracking-wide">Total Estimated Cost</div>
+            <div className="text-xs font-medium text-red-600 uppercase tracking-wide">{t('voyage.page.totalEstCost')}</div>
             <div className="text-xl font-bold text-red-800 mt-1">{fmtCurrency(detail.totalEstimatedCost)}</div>
           </div>
           <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-            <div className="text-xs font-medium text-green-600 uppercase tracking-wide">Total Estimated Revenue</div>
+            <div className="text-xs font-medium text-green-600 uppercase tracking-wide">{t('voyage.page.totalEstRevenue')}</div>
             <div className="text-xl font-bold text-green-800 mt-1">{fmtCurrency(detail.totalEstimatedRevenue)}</div>
           </div>
           <div className={`rounded-lg p-4 border ${
@@ -2027,7 +2045,7 @@ function PlanningTab({ detail }: { detail: VoyageDetail }) {
             <div className={`text-xs font-medium uppercase tracking-wide ${
               detail.estimatedProfitMargin != null && detail.estimatedProfitMargin >= 0
                 ? 'text-emerald-600' : 'text-orange-600'
-            }`}>Estimated Profit / Loss</div>
+            }`}>{t('voyage.page.estProfitLoss')}</div>
             <div className={`text-xl font-bold mt-1 ${
               detail.estimatedProfitMargin != null && detail.estimatedProfitMargin >= 0
                 ? 'text-emerald-800' : 'text-orange-800'
@@ -2040,22 +2058,22 @@ function PlanningTab({ detail }: { detail: VoyageDetail }) {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
           <Package className="w-5 h-5 text-blue-600" />
-          <h2 className="text-base font-semibold text-gray-900">Cargo Plans</h2>
-          <span className="ml-auto text-xs text-gray-400">{cargoPlans.length} item(s)</span>
+          <h2 className="text-base font-semibold text-gray-900">{t('voyage.page.cargoPlans')}</h2>
+          <span className="ml-auto text-xs text-gray-400">{cargoPlans.length} {t('voyage.page.items')}</span>
         </div>
         {cargoPlans.length === 0 ? (
-          <div className="px-5 py-8 text-sm text-gray-400 text-center">No cargo plans defined.</div>
+          <div className="px-5 py-8 text-sm text-gray-400 text-center">{t('voyage.page.noCargoPlans')}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
                   <th className="px-4 py-2 text-left">#</th>
-                  <th className="px-4 py-2 text-left">Operation</th>
-                  <th className="px-4 py-2 text-left">Cargo</th>
-                  <th className="px-4 py-2 text-right">Quantity</th>
-                  <th className="px-4 py-2 text-left">Port</th>
-                  <th className="px-4 py-2 text-left">Shipper / Consignee</th>
+                  <th className="px-4 py-2 text-left">{t('voyage.page.operation')}</th>
+                  <th className="px-4 py-2 text-left">{t('voyage.page.cargo')}</th>
+                  <th className="px-4 py-2 text-right">{t('voyage.page.quantity')}</th>
+                  <th className="px-4 py-2 text-left">{t('voyage.page.port')}</th>
+                  <th className="px-4 py-2 text-left">{t('voyage.page.shipperConsignee')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -2093,23 +2111,23 @@ function PlanningTab({ detail }: { detail: VoyageDetail }) {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
           <Fuel className="w-5 h-5 text-amber-600" />
-          <h2 className="text-base font-semibold text-gray-900">Bunker Plans</h2>
-          <span className="ml-auto text-xs text-gray-400">{bunkerPlans.length} item(s)</span>
+          <h2 className="text-base font-semibold text-gray-900">{t('voyage.page.bunkerPlans')}</h2>
+          <span className="ml-auto text-xs text-gray-400">{bunkerPlans.length} {t('voyage.page.items')}</span>
         </div>
         {bunkerPlans.length === 0 ? (
-          <div className="px-5 py-8 text-sm text-gray-400 text-center">No bunker plans defined.</div>
+          <div className="px-5 py-8 text-sm text-gray-400 text-center">{t('voyage.page.noBunkerPlans')}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
                   <th className="px-4 py-2 text-left">#</th>
-                  <th className="px-4 py-2 text-left">Fuel Type</th>
-                  <th className="px-4 py-2 text-left">Operation</th>
-                  <th className="px-4 py-2 text-right">Quantity (MT)</th>
-                  <th className="px-4 py-2 text-left">Port</th>
-                  <th className="px-4 py-2 text-right">Est. Cost</th>
-                  <th className="px-4 py-2 text-left">Supplier</th>
+                  <th className="px-4 py-2 text-left">{t('voyage.page.fuelType')}</th>
+                  <th className="px-4 py-2 text-left">{t('voyage.page.operation')}</th>
+                  <th className="px-4 py-2 text-right">{t('voyage.page.quantityMt')}</th>
+                  <th className="px-4 py-2 text-left">{t('voyage.page.port')}</th>
+                  <th className="px-4 py-2 text-right">{t('voyage.page.estCost')}</th>
+                  <th className="px-4 py-2 text-left">{t('voyage.page.supplier')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -2138,22 +2156,22 @@ function PlanningTab({ detail }: { detail: VoyageDetail }) {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
           <UserCheck className="w-5 h-5 text-indigo-600" />
-          <h2 className="text-base font-semibold text-gray-900">Crew Change Plans</h2>
-          <span className="ml-auto text-xs text-gray-400">{crewChangePlans.length} item(s)</span>
+          <h2 className="text-base font-semibold text-gray-900">{t('voyage.page.crewChangePlans')}</h2>
+          <span className="ml-auto text-xs text-gray-400">{crewChangePlans.length} {t('voyage.page.items')}</span>
         </div>
         {crewChangePlans.length === 0 ? (
-          <div className="px-5 py-8 text-sm text-gray-400 text-center">No crew change plans defined.</div>
+          <div className="px-5 py-8 text-sm text-gray-400 text-center">{t('voyage.page.noCrewChangePlans')}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
                   <th className="px-4 py-2 text-left">#</th>
-                  <th className="px-4 py-2 text-left">Change Type</th>
-                  <th className="px-4 py-2 text-left">Crew / Rank</th>
-                  <th className="px-4 py-2 text-left">Port</th>
-                  <th className="px-4 py-2 text-left">Planned Date</th>
-                  <th className="px-4 py-2 text-left">Reason</th>
+                  <th className="px-4 py-2 text-left">{t('voyage.page.changeType')}</th>
+                  <th className="px-4 py-2 text-left">{t('voyage.page.crewRank')}</th>
+                  <th className="px-4 py-2 text-left">{t('voyage.page.port')}</th>
+                  <th className="px-4 py-2 text-left">{t('voyage.page.plannedDate')}</th>
+                  <th className="px-4 py-2 text-left">{t('voyage.page.reason')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -2188,11 +2206,11 @@ function PlanningTab({ detail }: { detail: VoyageDetail }) {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-red-500" />
-            <h2 className="text-base font-semibold text-gray-900">Cost Estimates</h2>
-            <span className="ml-auto text-xs text-gray-400">{costEstimates.length} item(s)</span>
+            <h2 className="text-base font-semibold text-gray-900">{t('voyage.page.costEstimatesTitle')}</h2>
+            <span className="ml-auto text-xs text-gray-400">{costEstimates.length} {t('voyage.page.items')}</span>
           </div>
           {costEstimates.length === 0 ? (
-            <div className="px-5 py-8 text-sm text-gray-400 text-center">No cost estimates.</div>
+            <div className="px-5 py-8 text-sm text-gray-400 text-center">{t('voyage.page.noCostEstimates')}</div>
           ) : (
             <div className="divide-y divide-gray-100">
               {costEstimates.map(ce => (
@@ -2209,7 +2227,7 @@ function PlanningTab({ detail }: { detail: VoyageDetail }) {
                 </div>
               ))}
               <div className="px-5 py-3 flex items-center justify-between bg-red-50">
-                <span className="text-sm font-semibold text-red-800">TOTAL</span>
+                <span className="text-sm font-semibold text-red-800">{t('voyage.page.total')}</span>
                 <span className="text-base font-bold text-red-800">
                   {costEstimates.reduce((s, c) => s + c.estimatedAmount, 0).toLocaleString()} USD
                 </span>
@@ -2222,11 +2240,11 @@ function PlanningTab({ detail }: { detail: VoyageDetail }) {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-green-500" />
-            <h2 className="text-base font-semibold text-gray-900">Revenue Estimates</h2>
-            <span className="ml-auto text-xs text-gray-400">{revenueEstimates.length} item(s)</span>
+            <h2 className="text-base font-semibold text-gray-900">{t('voyage.page.revenueEstimatesTitle')}</h2>
+            <span className="ml-auto text-xs text-gray-400">{revenueEstimates.length} {t('voyage.page.items')}</span>
           </div>
           {revenueEstimates.length === 0 ? (
-            <div className="px-5 py-8 text-sm text-gray-400 text-center">No revenue estimates.</div>
+            <div className="px-5 py-8 text-sm text-gray-400 text-center">{t('voyage.page.noRevenueEstimates')}</div>
           ) : (
             <div className="divide-y divide-gray-100">
               {revenueEstimates.map(re => (
@@ -2243,7 +2261,7 @@ function PlanningTab({ detail }: { detail: VoyageDetail }) {
                 </div>
               ))}
               <div className="px-5 py-3 flex items-center justify-between bg-green-50">
-                <span className="text-sm font-semibold text-green-800">TOTAL</span>
+                <span className="text-sm font-semibold text-green-800">{t('voyage.page.total')}</span>
                 <span className="text-base font-bold text-green-800">
                   {revenueEstimates.reduce((s, r) => s + r.estimatedAmount, 0).toLocaleString()} USD
                 </span>
@@ -2269,6 +2287,8 @@ function PlanLegEditor({
   onChange: (next: UpsertVoyagePlanLegDto[]) => void
   disabled?: boolean
 }) {
+  const { t } = useTranslationSafe()
+
   const updateLeg = (index: number, patch: Partial<UpsertVoyagePlanLegDto>) => {
     onChange(planLegs.map((leg, legIndex) => (legIndex === index ? { ...leg, ...patch } : leg)))
   }
@@ -2285,8 +2305,8 @@ function PlanLegEditor({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-sm font-medium text-gray-700">Planned Legs</div>
-          <div className="text-xs text-gray-500">Define the operational sequence for the voyage plan.</div>
+          <div className="text-sm font-medium text-gray-700">{t('voyage.page.plannedLegs')}</div>
+          <div className="text-xs text-gray-500">{t('voyage.page.definePlanLegs')}</div>
         </div>
         {!disabled && (
           <button
@@ -2294,14 +2314,14 @@ function PlanLegEditor({
             onClick={addLeg}
             className="inline-flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
           >
-            <Plus className="w-4 h-4" /> Add Leg
+            <Plus className="w-4 h-4" /> {t('voyage.page.addLeg')}
           </button>
         )}
       </div>
 
       {planLegs.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500 text-center">
-          No planning legs defined.
+          {t('voyage.page.noPlanLegs')}
         </div>
       ) : (
         <div className="space-y-3">
@@ -2309,9 +2329,9 @@ function PlanLegEditor({
             <div key={`${leg.sequence}-${index}`} className="rounded-lg border border-gray-200 p-4 space-y-3 bg-gray-50/70">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-900">Leg {index + 1}</span>
+                  <span className="text-sm font-semibold text-gray-900">{t('voyage.page.legN', { n: index + 1 })}</span>
                   <span className="px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700">
-                    {PLAN_LEG_TYPE_LABELS[leg.legType || ''] || formatStatusLabel(leg.legType || 'SEA_PASSAGE')}
+                    {formatPlanLegType(leg.legType || 'SEA_PASSAGE', t)}
                   </span>
                 </div>
                 {!disabled && (
@@ -2320,30 +2340,30 @@ function PlanLegEditor({
                     onClick={() => removeLeg(index)}
                     className="text-xs text-red-600 hover:text-red-700"
                   >
-                    Remove
+                    {t('voyage.page.remove')}
                   </button>
                 )}
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Leg Type</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('voyage.page.legType')}</label>
                   <select
                     value={leg.legType || 'SEA_PASSAGE'}
                     onChange={e => updateLeg(index, { legType: e.target.value })}
                     disabled={disabled}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
                   >
-                    <option value="SEA_PASSAGE">Sea Passage</option>
-                    <option value="PORT_STAY">Port Stay</option>
-                    <option value="BUNKERING">Bunkering</option>
-                    <option value="CANAL_TRANSIT">Canal Transit</option>
-                    <option value="CREW_CHANGE">Crew Change</option>
-                    <option value="OTHER">Other</option>
+                    <option value="SEA_PASSAGE">{t('voyage.page.legTypes.SEA_PASSAGE')}</option>
+                    <option value="PORT_STAY">{t('voyage.page.legTypes.PORT_STAY')}</option>
+                    <option value="BUNKERING">{t('voyage.page.legTypes.BUNKERING')}</option>
+                    <option value="CANAL_TRANSIT">{t('voyage.page.legTypes.CANAL_TRANSIT')}</option>
+                    <option value="CREW_CHANGE">{t('voyage.page.legTypes.CREW_CHANGE')}</option>
+                    <option value="OTHER">{t('voyage.page.legTypes.OTHER')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">From Port Code</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('voyage.page.fromPortCode')}</label>
                   <input
                     type="text"
                     value={leg.fromPortCode || ''}
@@ -2353,7 +2373,7 @@ function PlanLegEditor({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">To Port Code</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('voyage.page.toPortCode')}</label>
                   <input
                     type="text"
                     value={leg.toPortCode || ''}
@@ -2363,7 +2383,7 @@ function PlanLegEditor({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Cargo Activity</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('voyage.page.cargoActivity')}</label>
                   <input
                     type="text"
                     value={leg.cargoActivity || ''}
@@ -2376,7 +2396,7 @@ function PlanLegEditor({
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">From Port Name</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('voyage.page.fromPortName')}</label>
                   <input
                     type="text"
                     value={leg.fromPortName || ''}
@@ -2386,7 +2406,7 @@ function PlanLegEditor({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">To Port Name</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('voyage.page.toPortName')}</label>
                   <input
                     type="text"
                     value={leg.toPortName || ''}
@@ -2396,7 +2416,7 @@ function PlanLegEditor({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Planned Departure</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('voyage.page.plannedDeparture')}</label>
                   <input
                     type="datetime-local"
                     value={toDateTimeLocalValue(leg.plannedDepartureTime)}
@@ -2406,7 +2426,7 @@ function PlanLegEditor({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Planned Arrival</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('voyage.page.plannedArrival')}</label>
                   <input
                     type="datetime-local"
                     value={toDateTimeLocalValue(leg.plannedArrivalTime)}
@@ -2419,7 +2439,7 @@ function PlanLegEditor({
 
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Distance (NM)</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('voyage.page.plannedDistanceNm')}</label>
                   <input
                     type="number"
                     step="0.1"
@@ -2430,7 +2450,7 @@ function PlanLegEditor({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Duration (h)</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('voyage.page.durationH')}</label>
                   <input
                     type="number"
                     step="0.1"
@@ -2441,7 +2461,7 @@ function PlanLegEditor({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Avg Speed (kn)</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('voyage.page.avgSpeedKnLabel')}</label>
                   <input
                     type="number"
                     step="0.1"
@@ -2458,7 +2478,7 @@ function PlanLegEditor({
                     onChange={e => updateLeg(index, { crewChangePlanned: e.target.checked })}
                     disabled={disabled}
                   />
-                  Crew change
+                  {t('voyage.page.crewChange')}
                 </label>
                 <label className="flex items-center gap-2 text-sm text-gray-700 mt-6">
                   <input
@@ -2467,12 +2487,12 @@ function PlanLegEditor({
                     onChange={e => updateLeg(index, { bunkerSupplyPlanned: e.target.checked })}
                     disabled={disabled}
                   />
-                  Bunker supply
+                  {t('voyage.page.bunkerSupply')}
                 </label>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">{t('voyage.page.notes')}</label>
                 <textarea
                   rows={2}
                   value={leg.notes || ''}
@@ -2490,6 +2510,7 @@ function PlanLegEditor({
 }
 
 function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; onClose: () => void; onSaved: () => void }) {
+  const { t } = useTranslationSafe()
   const [form, setForm] = useState<UpdateVoyageDto>({
     voyageNumber: detail.voyageNumber,
     departurePort: detail.departurePort,
@@ -2571,10 +2592,10 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
             planLegs: canEditPlanning ? normalizePlanLegs(planLegs) : undefined,
           }
       await voyageMgmtService.voyages.update(detail.id, payload)
-      toast.success('Voyage updated')
+      toast.success(t('voyage.page.voyageUpdated'))
       onSaved()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update voyage')
+      toast.error(err.message || t('voyage.page.failedUpdateVoyage'))
     } finally {
       setSaving(false)
     }
@@ -2584,25 +2605,25 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-lg font-semibold">{isReadOnly ? 'Change Status' : 'Edit Voyage'} — {detail.voyageNumber}</h2>
+          <h2 className="text-lg font-semibold">{isReadOnly ? t('voyage.page.changeStatus') : t('voyage.page.editVoyage')} — {detail.voyageNumber}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-4 space-y-4">
           <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div className="space-y-2">
-                <div className="text-sm font-semibold text-gray-900">Lifecycle Control</div>
+                <div className="text-sm font-semibold text-gray-900">{t('voyage.page.lifecycleControl')}</div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[currentStatus] || 'bg-gray-100 text-gray-700'}`}>
-                    Current: {formatStatusLabel(currentStatus)}
+                    {t('voyage.page.current')} {formatStatusLabel(currentStatus)}
                   </span>
                   {selectedStatus !== currentStatus && (
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[selectedStatus] || 'bg-gray-100 text-gray-700'}`}>
-                      Next: {formatStatusLabel(selectedStatus)}
+                      {t('voyage.page.next')} {formatStatusLabel(selectedStatus)}
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-gray-600 max-w-2xl">{STATUS_DESCRIPTIONS[currentStatus]}</p>
+                <p className="text-sm text-gray-600 max-w-2xl">{formatStatusDescription(currentStatus, t)}</p>
                 <div className="flex flex-wrap gap-2">
                   {validStatuses.map(status => (
                     <span key={status} className={`px-2 py-1 rounded-full text-xs font-medium border ${status === currentStatus ? 'border-gray-300 bg-white text-gray-700' : 'border-blue-200 bg-blue-100 text-blue-800'}`}>
@@ -2612,7 +2633,7 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
                 </div>
               </div>
               <div className="min-w-[240px]">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Voyage Status</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.voyageStatus')}</label>
                 <select value={selectedStatus} onChange={e => setForm({ ...form, voyageStatus: e.target.value as VoyageStatus })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white">
                   {validStatuses.map(s => (
@@ -2620,7 +2641,7 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
                   ))}
                 </select>
                 {isReadOnly && validStatuses.length <= 1 && (
-                  <p className="text-xs text-gray-500 mt-1">This voyage is in a final state. No status transitions available.</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('voyage.page.noTransitions')}</p>
                 )}
               </div>
             </div>
@@ -2632,29 +2653,29 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
           {/* Ports */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Departure Port</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.departurePort')}</label>
               <select value={form.departurePortCode || ''} onChange={e => handlePortChange('departure', e.target.value)}
                 disabled={isLimited}
                 className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${isLimited ? 'bg-gray-100 cursor-not-allowed' : ''}`}>
-                <option value="">-- Select --</option>
+                <option value="">{t('voyage.page.selectOption')}</option>
                 {ports.map(p => <option key={p.id} value={p.portCode}>{p.portCode} — {p.portName}</option>)}
               </select>
-              {isLimited && <p className="text-xs text-gray-400 mt-0.5">Locked once voyage is underway or arrived</p>}
+              {isLimited && <p className="text-xs text-gray-400 mt-0.5">{t('voyage.page.lockedHint')}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Arrival Port</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.arrivalPort')}</label>
               <select value={form.arrivalPortCode || ''} onChange={e => handlePortChange('arrival', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                <option value="">-- Select --</option>
+                <option value="">{t('voyage.page.selectOption')}</option>
                 {ports.map(p => <option key={p.id} value={p.portCode}>{p.portCode} — {p.portName}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Previous Port</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.previousPort')}</label>
             <select value={form.previousPortCode || ''} onChange={e => handlePortChange('previous', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-              <option value="">-- Select --</option>
+              <option value="">{t('voyage.page.selectOption')}</option>
               {ports.map(p => <option key={p.id} value={p.portCode}>{p.portCode} — {p.portName}</option>)}
             </select>
           </div>
@@ -2662,15 +2683,15 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
           {/* Times */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Departure Time</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.departureTime')}</label>
               <input type="datetime-local" value={toDateTimeLocalValue(form.departureTime)}
                 onChange={e => setForm({ ...form, departureTime: e.target.value || undefined })}
                 disabled={isLimited}
                 className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${isLimited ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
-              {isLimited && <p className="text-xs text-gray-400 mt-0.5">Locked once voyage is underway or arrived</p>}
+              {isLimited && <p className="text-xs text-gray-400 mt-0.5">{t('voyage.page.lockedHint')}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Arrival Time</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.arrivalTime')}</label>
               <input type="datetime-local" value={toDateTimeLocalValue(form.arrivalTime)}
                 onChange={e => setForm({ ...form, arrivalTime: e.target.value || undefined })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
@@ -2679,70 +2700,70 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cargo Type</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.cargoType')}</label>
               <input type="text" value={form.cargoType || ''} onChange={e => setForm({ ...form, cargoType: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cargo Weight (MT)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.cargoWeightMT')}</label>
               <input type="number" step="0.01" value={form.cargoWeight ?? ''} onChange={e => setForm({ ...form, cargoWeight: e.target.value ? parseFloat(e.target.value) : undefined })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Charter Type</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.charterType')}</label>
               <select value={form.charterType || ''} onChange={e => setForm({ ...form, charterType: (e.target.value || undefined) as VoyageCharterType | undefined })}
                 disabled={!canEditPlanning}
                 className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${!canEditPlanning ? 'bg-gray-100 cursor-not-allowed' : ''}`}>
-                <option value="">-- Select --</option>
-                <option value="VOYAGE_CHARTER">Voyage Charter</option>
-                <option value="TIME_CHARTER">Time Charter</option>
-                <option value="TIME_CHARTER_TRIP">Time Charter Trip</option>
-                <option value="CONTRACT_OF_AFFREIGHTMENT">Contract of Affreightment</option>
-                <option value="OTHER">Other</option>
+                <option value="">{t('voyage.page.selectOption')}</option>
+                <option value="VOYAGE_CHARTER">{t('voyage.page.charterTypes.VOYAGE_CHARTER')}</option>
+                <option value="TIME_CHARTER">{t('voyage.page.charterTypes.TIME_CHARTER')}</option>
+                <option value="TIME_CHARTER_TRIP">{t('voyage.page.charterTypes.TIME_CHARTER_TRIP')}</option>
+                <option value="CONTRACT_OF_AFFREIGHTMENT">{t('voyage.page.charterTypes.COA')}</option>
+                <option value="OTHER">{t('voyage.page.charterTypes.OTHER')}</option>
               </select>
             </div>
           </div>
 
           <div className="rounded-xl border border-gray-200 p-4 space-y-4">
             <div>
-              <div className="text-sm font-semibold text-gray-900">Planning Metrics</div>
-              <div className="text-xs text-gray-500 mt-1">These values define the approved voyage plan baseline for later comparison.</div>
+              <div className="text-sm font-semibold text-gray-900">{t('voyage.page.planningMetrics')}</div>
+              <div className="text-xs text-gray-500 mt-1">{t('voyage.page.planningMetricsDesc')}</div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Distance (NM)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.plannedDistanceNm')}</label>
                 <input type="number" step="0.1" value={form.plannedDistance ?? ''} onChange={e => setForm({ ...form, plannedDistance: e.target.value ? parseFloat(e.target.value) : undefined })}
                   disabled={!canEditPlanning}
                   className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${!canEditPlanning ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Duration (h)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.plannedDurationH')}</label>
                 <input type="number" step="0.1" value={form.plannedDurationHours ?? ''} onChange={e => setForm({ ...form, plannedDurationHours: e.target.value ? parseFloat(e.target.value) : undefined })}
                   disabled={!canEditPlanning}
                   className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${!canEditPlanning ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Avg Speed (kn)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.plannedAvgSpeedKn')}</label>
                 <input type="number" step="0.1" value={form.plannedAverageSpeed ?? ''} onChange={e => setForm({ ...form, plannedAverageSpeed: e.target.value ? parseFloat(e.target.value) : undefined })}
                   disabled={!canEditPlanning}
                   className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${!canEditPlanning ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Fuel (MT)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.plannedFuelMT')}</label>
                 <input type="number" step="0.01" value={form.plannedFuelConsumption ?? ''} onChange={e => setForm({ ...form, plannedFuelConsumption: e.target.value ? parseFloat(e.target.value) : undefined })}
                   disabled={!canEditPlanning}
                   className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${!canEditPlanning ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Voyage Instructions</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.voyageInstructions')}</label>
               <textarea rows={3} value={form.voyageInstructions || ''} onChange={e => setForm({ ...form, voyageInstructions: e.target.value })}
                 disabled={!canEditPlanning}
                 className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${!canEditPlanning ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
             </div>
             {!canEditPlanning && (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                Planning baseline is locked after READY. Use the lifecycle timeline and plan leg display for reference only.
+                {t('voyage.page.planningLocked')}
               </p>
             )}
             <PlanLegEditor planLegs={planLegs} onChange={setPlanLegs} disabled={!canEditPlanning} />
@@ -2751,17 +2772,17 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
           {/* Performance */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Distance (NM)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.distanceNm')}</label>
               <input type="number" step="0.1" value={form.distanceTraveled ?? ''} onChange={e => setForm({ ...form, distanceTraveled: e.target.value ? parseFloat(e.target.value) : undefined })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fuel (MT)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.plannedFuelMt')}</label>
               <input type="number" step="0.01" value={form.fuelConsumed ?? ''} onChange={e => setForm({ ...form, fuelConsumed: e.target.value ? parseFloat(e.target.value) : undefined })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Avg Speed (kn)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.avgSpeedKnLabel')}</label>
               <input type="number" step="0.1" value={form.averageSpeed ?? ''} onChange={e => setForm({ ...form, averageSpeed: e.target.value ? parseFloat(e.target.value) : undefined })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
             </div>
@@ -2770,9 +2791,9 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
           </>)}
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-xl">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100">{t('voyage.page.cancel')}</button>
           <button onClick={handleSave} disabled={saving || (isReadOnly && selectedStatus === currentStatus)} className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-            <Check className="w-4 h-4" /> {saving ? 'Saving...' : isReadOnly ? 'Change Status' : 'Save Changes'}
+            <Check className="w-4 h-4" /> {saving ? t('voyage.page.saving') : isReadOnly ? t('voyage.page.changeStatus') : t('voyage.page.saveChanges')}
           </button>
         </div>
       </div>
@@ -2785,6 +2806,7 @@ function EditVoyageModal({ detail, onClose, onSaved }: { detail: VoyageDetail; o
 // =============================================
 
 function CreateVoyageModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
+  const { t } = useTranslationSafe()
   const [form, setForm] = useState<CreateVoyageDto>({
     voyageNumber: '',
     voyageStatus: 'PLANNING',
@@ -2816,7 +2838,7 @@ function CreateVoyageModal({ onClose, onCreated }: { onClose: () => void; onCrea
   }
 
   const handleSave = async () => {
-    if (!form.voyageNumber) { toast.error('Voyage number is required'); return }
+    if (!form.voyageNumber) { toast.error(t('voyage.page.voyageNumberRequired')); return }
     try {
       setSaving(true)
       const payload: CreateVoyageDto = {
@@ -2826,10 +2848,10 @@ function CreateVoyageModal({ onClose, onCreated }: { onClose: () => void; onCrea
         planLegs: normalizePlanLegs(planLegs),
       }
       const result = await voyageMgmtService.voyages.create(payload)
-      toast.success(`Voyage ${form.voyageNumber} created`)
+      toast.success(t('voyage.page.voyageCreated', { number: form.voyageNumber }))
       onCreated(result.id)
     } catch (err: any) {
-      toast.error(err.message || 'Failed to create voyage')
+      toast.error(err.message || t('voyage.page.failedCreateVoyage'))
     } finally {
       setSaving(false)
     }
@@ -2839,23 +2861,23 @@ function CreateVoyageModal({ onClose, onCreated }: { onClose: () => void; onCrea
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-lg font-semibold">Create New Voyage</h2>
+          <h2 className="text-lg font-semibold">{t('voyage.page.createNewVoyage')}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-4 space-y-4">
           <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
-            <div className="text-sm font-semibold text-gray-900">Initial Lifecycle State</div>
+            <div className="text-sm font-semibold text-gray-900">{t('voyage.page.initialLifecycle')}</div>
             <div className="mt-2 flex items-center gap-2 flex-wrap">
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS.PLANNING}`}>Planning</span>
-              <span className="text-sm text-gray-600">New voyages should start in PLANNING, then move through APPROVED and READY before commencement.</span>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS.PLANNING}`}>{formatStatusLabel('PLANNING')}</span>
+              <span className="text-sm text-gray-600">{t('voyage.page.initialLifecycleDesc')}</span>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Voyage Number <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.voyageNumberLabel')} <span className="text-red-500">*</span></label>
             <div className="flex gap-2">
               <input type="text" value={form.voyageNumber} onChange={e => setForm({ ...form, voyageNumber: e.target.value })}
-                placeholder={loadingNumber ? 'Generating...' : 'e.g. VN-2026-001'}
+                placeholder={loadingNumber ? t('voyage.page.generating') : t('voyage.page.voyageNumberExample')}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
               <button
                 type="button"
@@ -2863,35 +2885,35 @@ function CreateVoyageModal({ onClose, onCreated }: { onClose: () => void; onCrea
                   setLoadingNumber(true)
                   voyageMgmtService.voyages.getNextNumber()
                     .then(r => setForm(f => ({ ...f, voyageNumber: r.voyageNumber })))
-                    .catch(() => toast.error('Failed to generate number'))
+                    .catch(() => toast.error(t('voyage.page.failedGenerateNumber')))
                     .finally(() => setLoadingNumber(false))
                 }}
                 disabled={loadingNumber}
                 className="px-3 py-2 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 border border-gray-300 whitespace-nowrap disabled:opacity-50"
-                title="Auto-generate next voyage number"
+                title={t('voyage.page.autoGenerateTitle')}
               >
-                {loadingNumber ? '...' : 'Auto'}
+                {loadingNumber ? '...' : t('voyage.page.auto')}
               </button>
             </div>
-            <p className="text-xs text-gray-400 mt-1">Format: VN-YYYY-NNN (auto-generated or custom)</p>
+            <p className="text-xs text-gray-400 mt-1">{t('voyage.page.voyageNumberHint')}</p>
           </div>
 
           {/* Departure Port */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Departure Port</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.departurePort')}</label>
             <select
               value={form.departurePortCode || ''}
               onChange={e => handlePortChange('departure', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">-- Select port --</option>
+              <option value="">{t('voyage.page.selectPort')}</option>
               {ports.map(p => (
                 <option key={p.id} value={p.portCode}>{p.portCode} — {p.portName}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Departure Time</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.departureTime')}</label>
             <input type="datetime-local"
               value={toDateTimeLocalValue(form.departureTime)}
               onChange={e => setForm({ ...form, departureTime: e.target.value || undefined })}
@@ -2900,13 +2922,13 @@ function CreateVoyageModal({ onClose, onCreated }: { onClose: () => void; onCrea
 
           {/* Arrival Port */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Arrival Port</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.arrivalPort')}</label>
             <select
               value={form.arrivalPortCode || ''}
               onChange={e => handlePortChange('arrival', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">-- Select port --</option>
+              <option value="">{t('voyage.page.selectPort')}</option>
               {ports.map(p => (
                 <option key={p.id} value={p.portCode}>{p.portCode} — {p.portName}</option>
               ))}
@@ -2915,30 +2937,30 @@ function CreateVoyageModal({ onClose, onCreated }: { onClose: () => void; onCrea
 
           {/* Previous Port */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Previous Port</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.previousPort')}</label>
             <select
               value={form.previousPortCode || ''}
               onChange={e => handlePortChange('previous', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">-- Select port --</option>
+              <option value="">{t('voyage.page.selectPort')}</option>
               {ports.map(p => (
                 <option key={p.id} value={p.portCode}>{p.portCode} — {p.portName}</option>
               ))}
             </select>
-            <p className="text-xs text-gray-400 mt-1">Last port of call before this voyage (required for FAL/Customs)</p>
+            <p className="text-xs text-gray-400 mt-1">{t('voyage.page.lastPortHint')}</p>
           </div>
 
           {/* Cargo */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cargo Type</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.cargoType')}</label>
               <input type="text" value={form.cargoType || ''} onChange={e => setForm({ ...form, cargoType: e.target.value })}
-                placeholder="e.g. Container"
+                placeholder={t('voyage.page.cargoExample')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cargo Weight (MT)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.cargoWeightMT')}</label>
               <input type="number" step="0.01" value={form.cargoWeight ?? ''} onChange={e => setForm({ ...form, cargoWeight: e.target.value ? parseFloat(e.target.value) : undefined })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
             </div>
@@ -2946,45 +2968,45 @@ function CreateVoyageModal({ onClose, onCreated }: { onClose: () => void; onCrea
 
           <div className="rounded-xl border border-gray-200 p-4 space-y-4">
             <div>
-              <div className="text-sm font-semibold text-gray-900">Planning Baseline</div>
-              <div className="text-xs text-gray-500 mt-1">Capture the commercial and operational plan before execution starts.</div>
+              <div className="text-sm font-semibold text-gray-900">{t('voyage.page.planningBaseline')}</div>
+              <div className="text-xs text-gray-500 mt-1">{t('voyage.page.planningBaselineDesc')}</div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Charter Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.charterType')}</label>
                 <select value={form.charterType || ''} onChange={e => setForm({ ...form, charterType: (e.target.value || undefined) as VoyageCharterType | undefined })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                  <option value="">-- Select --</option>
-                  <option value="VOYAGE_CHARTER">Voyage Charter</option>
-                  <option value="TIME_CHARTER">Time Charter</option>
-                  <option value="TIME_CHARTER_TRIP">Time Charter Trip</option>
-                  <option value="CONTRACT_OF_AFFREIGHTMENT">Contract of Affreightment</option>
-                  <option value="OTHER">Other</option>
+                  <option value="">{t('voyage.page.selectOption')}</option>
+                  <option value="VOYAGE_CHARTER">{t('voyage.page.charterTypes.VOYAGE_CHARTER')}</option>
+                  <option value="TIME_CHARTER">{t('voyage.page.charterTypes.TIME_CHARTER')}</option>
+                  <option value="TIME_CHARTER_TRIP">{t('voyage.page.charterTypes.TIME_CHARTER_TRIP')}</option>
+                  <option value="CONTRACT_OF_AFFREIGHTMENT">{t('voyage.page.charterTypes.COA')}</option>
+                  <option value="OTHER">{t('voyage.page.charterTypes.OTHER')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Distance</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.plannedDistance')}</label>
                 <input type="number" step="0.1" value={form.plannedDistance ?? ''} onChange={e => setForm({ ...form, plannedDistance: e.target.value ? parseFloat(e.target.value) : undefined })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Duration (h)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.plannedDurationH')}</label>
                 <input type="number" step="0.1" value={form.plannedDurationHours ?? ''} onChange={e => setForm({ ...form, plannedDurationHours: e.target.value ? parseFloat(e.target.value) : undefined })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Avg Speed</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.plannedAvgSpeed')}</label>
                 <input type="number" step="0.1" value={form.plannedAverageSpeed ?? ''} onChange={e => setForm({ ...form, plannedAverageSpeed: e.target.value ? parseFloat(e.target.value) : undefined })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Planned Fuel (MT)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.plannedFuelMT')}</label>
                 <input type="number" step="0.01" value={form.plannedFuelConsumption ?? ''} onChange={e => setForm({ ...form, plannedFuelConsumption: e.target.value ? parseFloat(e.target.value) : undefined })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Voyage Instructions</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.page.voyageInstructions')}</label>
               <textarea rows={3} value={form.voyageInstructions || ''} onChange={e => setForm({ ...form, voyageInstructions: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
             </div>
@@ -2992,9 +3014,9 @@ function CreateVoyageModal({ onClose, onCreated }: { onClose: () => void; onCrea
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-xl">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100">{t('voyage.page.cancel')}</button>
           <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-            <Ship className="w-4 h-4" /> {saving ? 'Creating...' : 'Create Voyage'}
+            <Ship className="w-4 h-4" /> {saving ? t('voyage.page.creating') : t('voyage.page.createVoyageBtn')}
           </button>
         </div>
       </div>

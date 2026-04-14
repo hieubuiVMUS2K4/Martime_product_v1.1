@@ -169,7 +169,7 @@ export function ItemFormModal({
       const res = await materialService.uploadItemImage(item.id, file)
       setImageUrl(res.imageUrl)
     } catch {
-      setError('Upload ảnh thất bại')
+      setError(t('materials.item.uploadImageFailed'))
     } finally {
       setImageUploading(false)
     }
@@ -181,14 +181,14 @@ export function ItemFormModal({
       await materialService.deleteItemImage(item.id)
       setImageUrl(null)
     } catch {
-      setError('Xóa ảnh thất bại')
+      setError(t('materials.item.deleteImageFailed'))
     }
   }
 
   const tabs: { key: TabKey; label: string }[] = [
-    { key: 'part', label: 'Vật tư' },
-    { key: 'remarks', label: 'Ghi chú' },
-    { key: 'history', label: 'Lịch sử' },
+    { key: 'part', label: t('materials.item.tabPart') },
+    { key: 'remarks', label: t('materials.item.tabRemarks') },
+    { key: 'history', label: t('materials.item.tabHistory') },
   ]
 
   return (
@@ -232,17 +232,17 @@ export function ItemFormModal({
               <div className="p-5 space-y-5">
                 {/* General Details */}
                 <div>
-                  <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">Thông tin chung</div>
+                  <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">{t('materials.item.basicInfo')}</div>
                   <div className="border border-t-0 border-gray-200 rounded-b p-4">
                     <div className="flex gap-6">
                       {/* Left column */}
                       <div className="flex-1 space-y-2.5">
                         <div className="flex items-center">
-                          <label className={lbl} style={{ width: 120 }}>Tên vật tư <span className="text-red-500">*</span></label>
+                          <label className={lbl} style={{ width: 120 }}>{t('materials.item.name')} <span className="text-red-500">*</span></label>
                           <input type="text" required maxLength={200} value={formData.name} onChange={e => set('name', e.target.value)} className={cls} readOnly={ro} />
                         </div>
                         <div className="flex items-center">
-                          <label className={lbl} style={{ width: 120 }}>Mã vật tư <span className="text-red-500">*</span></label>
+                          <label className={lbl} style={{ width: 120 }}>{t('materials.item.itemCode')} <span className="text-red-500">*</span></label>
                           <input type="text" required maxLength={50} value={formData.itemCode} onChange={e => set('itemCode', e.target.value)} className={cls} readOnly={ro} />
                         </div>
                         <div className="flex items-center">
@@ -250,11 +250,11 @@ export function ItemFormModal({
                           <input type="text" maxLength={100} value={formData.partNumber || ''} onChange={e => set('partNumber', e.target.value)} className={cls} readOnly={ro} />
                         </div>
                         <div className="flex items-center">
-                          <label className={lbl} style={{ width: 120 }}>Nhà sản xuất</label>
+                          <label className={lbl} style={{ width: 120 }}>{t('materials.item.manufacturer')}</label>
                           <input type="text" maxLength={100} value={formData.manufacturer || ''} onChange={e => set('manufacturer', e.target.value)} className={cls} readOnly={ro} />
                         </div>
                         <div className="flex items-center">
-                          <label className={lbl} style={{ width: 120 }}>Kho lưu trữ</label>
+                          <label className={lbl} style={{ width: 120 }}>{t('materials.item.location')}</label>
                           <input type="text" maxLength={100} value={formData.location || ''} onChange={e => set('location', e.target.value)} className={cls} readOnly={ro} />
                         </div>
                         <div className="flex items-center">
@@ -266,30 +266,30 @@ export function ItemFormModal({
                       {/* Right column */}
                       <div className="flex-1 space-y-2.5">
                         <div className="flex items-center">
-                          <label className={lbl} style={{ width: 110 }}>Đơn vị <span className="text-red-500">*</span></label>
+                          <label className={lbl} style={{ width: 110 }}>{t('materials.item.unit')} <span className="text-red-500">*</span></label>
                           <input type="text" required maxLength={20} value={formData.unit} onChange={e => set('unit', e.target.value)} className={cls} readOnly={ro} />
                         </div>
                         <div className="flex items-center">
-                          <label className={lbl} style={{ width: 110 }}>Danh mục <span className="text-red-500">*</span></label>
+                          <label className={lbl} style={{ width: 110 }}>{t('materials.item.category')} <span className="text-red-500">*</span></label>
                           {ro ? (
                             <input type="text" readOnly className={inpRo} value={categories.find(c => c.id === formData.categoryId)?.name || ''} />
                           ) : (
                             <select required value={formData.categoryId} onChange={e => set('categoryId', Number(e.target.value))} className={cls}>
-                              <option value="">Chọn danh mục</option>
+                              <option value="">{t('materials.item.selectCategory')}</option>
                               {categories.map(c => <option key={c.id} value={c.id}>{c.name} ({c.categoryCode})</option>)}
                             </select>
                           )}
                         </div>
                         <div className="flex items-center">
-                          <label className={lbl} style={{ width: 110 }}>Mô tả/Spec</label>
+                          <label className={lbl} style={{ width: 110 }}>{t('materials.item.specification')}</label>
                           <input type="text" maxLength={500} value={formData.specification || ''} onChange={e => set('specification', e.target.value)} className={cls} readOnly={ro} />
                         </div>
                         <div className="flex items-center">
-                          <label className={lbl} style={{ width: 110 }}>Nhà cung cấp</label>
+                          <label className={lbl} style={{ width: 110 }}>{t('materials.item.supplier')}</label>
                           <input type="text" maxLength={200} value={formData.supplier || ''} onChange={e => set('supplier', e.target.value)} className={cls} readOnly={ro} />
                         </div>
                         <div className="flex items-center">
-                          <label className={lbl} style={{ width: 110 }}>Giá</label>
+                          <label className={lbl} style={{ width: 110 }}>{t('materials.item.unitCost')}</label>
                           <input type="number" step="0.01" min="0" value={formData.unitCost ?? ''} onChange={e => set('unitCost', e.target.value ? Number(e.target.value) : null)} className={`${cls} w-28`} readOnly={ro} />
                           <span className="mx-1 text-xs text-gray-500">×</span>
                           {ro ? (
@@ -309,7 +309,7 @@ export function ItemFormModal({
                       {/* ROB + Image */}
                       <div className="w-52 shrink-0 space-y-3">
                         <div className="border border-gray-200 rounded p-3 bg-gray-50">
-                          <div className="text-xs font-semibold text-gray-700 mb-2">ROB (Tồn kho)</div>
+                          <div className="text-xs font-semibold text-gray-700 mb-2">{t('materials.item.robStock')}</div>
                           <div className="flex items-center gap-2 mb-2">
                             <input type="number" step="0.001" min="0" value={formData.onHandQuantity} onChange={e => set('onHandQuantity', Number(e.target.value))} className={`${ro ? inpRo : inp} w-full text-center font-bold text-lg`} readOnly={ro} />
                           </div>
@@ -330,7 +330,7 @@ export function ItemFormModal({
                             {imageUrl ? (
                               <img src={`${serverBase}${imageUrl}`} alt="Material" className="max-h-full max-w-full object-contain" />
                             ) : (
-                              <span className="text-xs text-gray-400">Chưa có ảnh</span>
+                              <span className="text-xs text-gray-400">{t('materials.item.noImage')}</span>
                             )}
                           </div>
                           {!ro && item && (
@@ -341,7 +341,7 @@ export function ItemFormModal({
                                 disabled={imageUploading}
                                 className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs text-blue-600 hover:bg-blue-50"
                               >
-                                <Upload className="w-3 h-3" /> {imageUploading ? 'Đang tải...' : 'Browse'}
+                                <Upload className="w-3 h-3" /> {imageUploading ? t('materials.item.uploading') : 'Browse'}
                               </button>
                               {imageUrl && (
                                 <button
@@ -363,7 +363,7 @@ export function ItemFormModal({
 
                 {/* Stock Status & Activity Summary */}
                 <div>
-                  <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">Tình trạng kho & Hoạt động</div>
+                  <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">{t('materials.item.stockActivity')}</div>
                   <div className="border border-t-0 border-gray-200 rounded-b p-4">
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       {/* Stock Status */}
@@ -373,17 +373,17 @@ export function ItemFormModal({
                         const max = formData.maxStock
                         const isLow = min != null && qty < min
                         const isOver = max != null && qty > max
-                        const statusText = isLow ? 'Thấp' : isOver ? 'Vượt mức' : 'Bình thường'
+                        const statusText = isLow ? t('materials.item.stockLow') : isOver ? t('materials.item.stockOver') : t('materials.item.stockNormal')
                         const statusColor = isLow ? 'text-red-600 bg-red-50 border-red-200' : isOver ? 'text-orange-600 bg-orange-50 border-orange-200' : 'text-green-600 bg-green-50 border-green-200'
                         const Icon = isLow ? TrendingDown : isOver ? AlertTriangle : CheckCircle
                         return (
                           <div className={`border rounded-lg p-3 ${statusColor}`}>
                             <div className="flex items-center gap-1.5 mb-1">
                               <Icon className="w-4 h-4" />
-                              <span className="text-xs font-medium">Trạng thái kho</span>
+                              <span className="text-xs font-medium">{t('materials.item.stockStatus')}</span>
                             </div>
                             <div className="text-lg font-bold">{statusText}</div>
-                            {min != null && <div className="text-xs mt-0.5">Min: {min} | Hiện: {qty}</div>}
+                            {min != null && <div className="text-xs mt-0.5">{t('materials.item.minCurrent', { min, current: qty })}</div>}
                           </div>
                         )
                       })()}
@@ -392,7 +392,7 @@ export function ItemFormModal({
                       <div className="border border-gray-200 rounded-lg p-3 bg-white">
                         <div className="flex items-center gap-1.5 mb-1 text-gray-500">
                           <TrendingUp className="w-4 h-4" />
-                          <span className="text-xs font-medium">Giá trị tồn kho</span>
+                          <span className="text-xs font-medium">{t('materials.item.inventoryValue')}</span>
                         </div>
                         <div className="text-lg font-bold text-gray-800">
                           {formData.unitCost ? `${(formData.unitCost * (formData.onHandQuantity ?? 0)).toLocaleString('vi-VN')}` : '—'}
@@ -404,13 +404,13 @@ export function ItemFormModal({
                       <div className="border border-gray-200 rounded-lg p-3 bg-white">
                         <div className="flex items-center gap-1.5 mb-1 text-gray-500">
                           <ClipboardList className="w-4 h-4" />
-                          <span className="text-xs font-medium">Yêu cầu đang chờ</span>
+                          <span className="text-xs font-medium">{t('materials.item.pendingRequests')}</span>
                         </div>
                         <div className="text-lg font-bold text-gray-800">
                           {activityLoading ? '...' : activity?.summary.pendingRequests ?? 0}
                         </div>
                         <div className="text-xs text-gray-400 mt-0.5">
-                          Tổng đã yêu cầu: {activityLoading ? '...' : activity?.summary.totalRequested?.toLocaleString('vi-VN') ?? 0}
+                          {t('materials.item.totalRequested', { value: activityLoading ? '...' : activity?.summary.totalRequested?.toLocaleString('vi-VN') ?? 0 })}
                         </div>
                       </div>
 
@@ -418,13 +418,13 @@ export function ItemFormModal({
                       <div className="border border-gray-200 rounded-lg p-3 bg-white">
                         <div className="flex items-center gap-1.5 mb-1 text-gray-500">
                           <Package className="w-4 h-4" />
-                          <span className="text-xs font-medium">Tổng đã nhập kho</span>
+                          <span className="text-xs font-medium">{t('materials.item.totalReceived')}</span>
                         </div>
                         <div className="text-lg font-bold text-gray-800">
                           {activityLoading ? '...' : activity?.summary.totalReceived?.toLocaleString('vi-VN') ?? 0}
                         </div>
                         <div className="text-xs text-gray-400 mt-0.5">
-                          {activity?.summary.lastReceiptDate ? `Lần cuối: ${new Date(activity.summary.lastReceiptDate).toLocaleDateString('vi-VN')}` : 'Chưa nhập kho'}
+                          {activity?.summary.lastReceiptDate ? t('materials.item.lastReceipt', { date: new Date(activity.summary.lastReceiptDate).toLocaleDateString('vi-VN') }) : t('materials.item.noReceiptYet')}
                         </div>
                       </div>
                     </div>
@@ -433,7 +433,7 @@ export function ItemFormModal({
                     <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100">
                       <label className="flex items-center gap-2 text-sm">
                         <input type="checkbox" checked={formData.isActive} onChange={e => set('isActive', e.target.checked)} disabled={ro} className="w-4 h-4 text-blue-600 rounded" />
-                        Đang hoạt động
+                        {t('materials.item.isActive')}
                       </label>
                     </div>
                   </div>
@@ -445,7 +445,7 @@ export function ItemFormModal({
             {activeTab === 'remarks' && (
               <div className="p-5">
                 <div>
-                  <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">Ghi chú</div>
+                  <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">{t('materials.item.notes')}</div>
                   <div className="border border-t-0 border-gray-200 rounded-b p-4">
                     <textarea
                       rows={8}
@@ -454,7 +454,7 @@ export function ItemFormModal({
                       onChange={e => set('notes', e.target.value)}
                       className={`${cls} resize-y`}
                       readOnly={ro}
-                      placeholder="Nhập ghi chú cho vật tư..."
+                      placeholder={t('materials.item.notesPlaceholder')}
                     />
                   </div>
                 </div>
@@ -467,12 +467,12 @@ export function ItemFormModal({
                 {/* Item info */}
                 {item && (
                   <div>
-                    <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">Thông tin hệ thống</div>
+                    <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">{t('materials.item.systemInfo')}</div>
                     <div className="border border-t-0 border-gray-200 rounded-b p-4">
                       <div className="grid grid-cols-3 gap-4 text-sm">
                         <div><span className="text-gray-500">ID: </span><span className="font-mono text-xs">{item.id}</span></div>
-                        <div><span className="text-gray-500">Ngày tạo: </span>{new Date(item.createdAt).toLocaleDateString('vi-VN')}</div>
-                        <div><span className="text-gray-500">Đồng bộ: </span><span className={item.isSynced ? 'text-green-600' : 'text-orange-500'}>{item.isSynced ? 'Đã sync' : 'Chưa sync'}</span></div>
+                        <div><span className="text-gray-500">{t('materials.item.createdDate')}</span>{new Date(item.createdAt).toLocaleDateString('vi-VN')}</div>
+                        <div><span className="text-gray-500">{t('materials.item.syncStatus')}</span><span className={item.isSynced ? 'text-green-600' : 'text-orange-500'}>{item.isSynced ? t('materials.item.synced') : t('materials.item.notSynced')}</span></div>
                       </div>
                     </div>
                   </div>
@@ -481,23 +481,23 @@ export function ItemFormModal({
                 {/* Recent Receipts */}
                 <div>
                   <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t flex items-center gap-2">
-                    <Package className="w-4 h-4" /> Phiếu nhập kho gần đây
+                    <Package className="w-4 h-4" /> {t('materials.item.recentReceipts')}
                   </div>
                   <div className="border border-t-0 border-gray-200 rounded-b">
                     {activityLoading ? (
-                      <div className="p-4 text-sm text-gray-400 text-center">Đang tải...</div>
+                      <div className="p-4 text-sm text-gray-400 text-center">{t('common.loading')}</div>
                     ) : !activity?.receipts.length ? (
-                      <div className="p-4 text-sm text-gray-400 text-center">Chưa có phiếu nhập kho nào</div>
+                      <div className="p-4 text-sm text-gray-400 text-center">{t('materials.item.noReceipts')}</div>
                     ) : (
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Mã phiếu</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Ngày nhập</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Nhà cung cấp</th>
-                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">SL nhập</th>
-                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Đơn giá</th>
-                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500">Trạng thái</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.item.receiptCode')}</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.item.receiptDateCol')}</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.item.supplier')}</th>
+                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">{t('materials.item.qtyReceived')}</th>
+                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">{t('materials.item.unitPrice')}</th>
+                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500">{t('materials.item.status')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -526,23 +526,23 @@ export function ItemFormModal({
                 {/* Recent Requests */}
                 <div>
                   <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t flex items-center gap-2">
-                    <ClipboardList className="w-4 h-4" /> Yêu cầu vật tư gần đây
+                    <ClipboardList className="w-4 h-4" /> {t('materials.item.recentRequests')}
                   </div>
                   <div className="border border-t-0 border-gray-200 rounded-b">
                     {activityLoading ? (
-                      <div className="p-4 text-sm text-gray-400 text-center">Đang tải...</div>
+                      <div className="p-4 text-sm text-gray-400 text-center">{t('common.loading')}</div>
                     ) : !activity?.requests.length ? (
-                      <div className="p-4 text-sm text-gray-400 text-center">Chưa có yêu cầu vật tư nào</div>
+                      <div className="p-4 text-sm text-gray-400 text-center">{t('materials.item.noRequests')}</div>
                     ) : (
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Mã yêu cầu</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Ngày YC</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Người YC</th>
-                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Số lượng</th>
-                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500">Ưu tiên</th>
-                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500">Trạng thái</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.item.requestCode')}</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.item.requestDate')}</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.item.requestedBy')}</th>
+                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">{t('materials.item.qty')}</th>
+                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500">{t('materials.item.priority')}</th>
+                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500">{t('materials.item.status')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -576,7 +576,7 @@ export function ItemFormModal({
                   </div>
                 </div>
 
-                {!item && <p className="text-sm text-gray-400 text-center">Lưu vật tư trước để xem lịch sử</p>}
+                {!item && <p className="text-sm text-gray-400 text-center">{t('materials.item.saveToViewHistory')}</p>}
               </div>
             )}
 
@@ -587,7 +587,7 @@ export function ItemFormModal({
                 onClick={onClose}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
               >
-                {ro ? 'Đóng' : t('common.cancel')}
+                {ro ? t('materials.item.close') : t('common.cancel')}
               </button>
               {!ro && (
                 <button

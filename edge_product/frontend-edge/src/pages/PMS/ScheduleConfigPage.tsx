@@ -9,15 +9,16 @@ import type { MaintenanceSchedule } from '@/types/pms.types';
 
 
 
-const PRIORITY_LEVELS = [
-  { value: 'CRITICAL', label: 'Critical', color: 'bg-red-100 text-red-800' },
-  { value: 'HIGH', label: 'High', color: 'bg-orange-100 text-orange-800' },
-  { value: 'MEDIUM', label: 'Medium', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'LOW', label: 'Low', color: 'bg-blue-100 text-blue-800' }
-];
-
 export default function ScheduleConfigPage() {
   const { t } = useTranslationSafe();
+
+  const PRIORITY_LEVELS = [
+    { value: 'CRITICAL', label: t('pms.scheduleConfig.priorityCritical'), color: 'bg-red-100 text-red-800' },
+    { value: 'HIGH', label: t('pms.scheduleConfig.priorityHigh'), color: 'bg-orange-100 text-orange-800' },
+    { value: 'MEDIUM', label: t('pms.scheduleConfig.priorityMedium'), color: 'bg-yellow-100 text-yellow-800' },
+    { value: 'LOW', label: t('pms.scheduleConfig.priorityLow'), color: 'bg-blue-100 text-blue-800' }
+  ];
+
   const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -76,12 +77,12 @@ export default function ScheduleConfigPage() {
   const getIntervalDisplay = (schedule: MaintenanceSchedule) => {
     const parts = [];
     if (schedule.intervalDays) {
-      parts.push(`${schedule.intervalDays} days`);
+      parts.push(t('pms.scheduleConfig.intervalDays', { value: schedule.intervalDays }));
     }
     if (schedule.intervalHours) {
-      parts.push(`${schedule.intervalHours} hrs`);
+      parts.push(t('pms.scheduleConfig.intervalHours', { value: schedule.intervalHours }));
     }
-    return parts.join(' or ');
+    return parts.join(` ${t('pms.scheduleConfig.or')} `);
   };
 
   const handleEdit = (schedule: MaintenanceSchedule) => {

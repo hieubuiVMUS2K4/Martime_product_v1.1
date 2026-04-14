@@ -155,14 +155,14 @@ export function AddCrewCertificateModal({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
-    if (!formData.certificateId) newErrors.certificateId = 'Certificate is required'
-    if (!formData.crewMemberId) newErrors.crewMemberId = 'Crew member is required'
-    if (!formData.certificateNumber) newErrors.certificateNumber = 'Certificate number is required'
-    if (!formData.issueDate) newErrors.issueDate = 'Issue date is required'
-    if (!formData.expiryDate) newErrors.expiryDate = 'Expiry date is required'
+    if (!formData.certificateId) newErrors.certificateId = t('crew.addCrewCert.certRequired')
+    if (!formData.crewMemberId) newErrors.crewMemberId = t('crew.addCrewCert.crewRequired')
+    if (!formData.certificateNumber) newErrors.certificateNumber = t('crew.addCrewCert.certNumRequired')
+    if (!formData.issueDate) newErrors.issueDate = t('crew.addCrewCert.issueDateRequired')
+    if (!formData.expiryDate) newErrors.expiryDate = t('crew.addCrewCert.expiryDateRequired')
     if (formData.issueDate && formData.expiryDate) {
       if (new Date(formData.expiryDate) <= new Date(formData.issueDate)) {
-        newErrors.expiryDate = 'Expiry date must be after issue date'
+        newErrors.expiryDate = t('crew.addCrewCert.expiryAfterIssue')
       }
     }
     setErrors(newErrors)
@@ -204,7 +204,7 @@ export function AddCrewCertificateModal({
       onClose()
     } catch (error: any) {
       console.error(isEditMode ? 'Failed to update certificate:' : 'Failed to add certificate:', error)
-      toast.error(`Failed to ${isEditMode ? 'update' : 'add'} certificate: ${error.message}`)
+      toast.error(`${t('crew.addCrewCert.failedSave')}: ${error.message}`)
     } finally {
       setLoading(false)
     }
@@ -283,12 +283,12 @@ export function AddCrewCertificateModal({
     const file = e.target.files?.[0]
     if (!file) return
     if (file.size > 10 * 1024 * 1024) {
-      toast.warning('File size must not exceed 10MB')
+      toast.warning(t('crew.addCrewCert.fileSizeLimit'))
       return
     }
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf']
     if (!allowedTypes.includes(file.type)) {
-      toast.warning('Only image files (JPG, PNG, GIF) and PDF are allowed')
+      toast.warning(t('crew.addCrewCert.fileTypeLimit'))
       return
     }
     setCertificateFile(file)
@@ -325,17 +325,17 @@ export function AddCrewCertificateModal({
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
                 {isFlagStateCreation
-                  ? 'CREATE FLAG STATE CERTIFICATE'
+                  ? t('crew.addCrewCert.titleFlagState')
                   : isEditMode
-                    ? 'EDIT CERTIFICATE'
-                    : 'ADD CERTIFICATE TO CREW MEMBER'}
+                    ? t('crew.addCrewCert.titleEdit')
+                    : t('crew.addCrewCert.titleAdd')}
               </h2>
               <p className="text-xs text-gray-500">
                 {isFlagStateCreation
-                  ? 'Create a new Flag State certificate based on existing National certificate'
+                  ? t('crew.addCrewCert.subtitleFlagState')
                   : isEditMode
-                    ? 'Update certificate information'
-                    : 'Add new certificate to crew member'}
+                    ? t('crew.addCrewCert.subtitleEdit')
+                    : t('crew.addCrewCert.subtitleAdd')}
               </p>
             </div>
           </div>
@@ -482,7 +482,7 @@ export function AddCrewCertificateModal({
                   {/* Certificate of Competency */}
                   <div className="col-span-4">
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Certificate of Competency (CoC)
+                      {t('crew.addCrewCert.cocType')}
                     </label>
                     <select
                       name="certificateOfCompetency"
@@ -495,14 +495,14 @@ export function AddCrewCertificateModal({
                       <option value="Flag State">Flag State</option>
                     </select>
                     {isFlagStateCreation && (
-                      <p className="mt-1 text-xs text-blue-600">Creating Flag State certificate</p>
+                      <p className="mt-1 text-xs text-blue-600">{t('crew.addCrewCert.creatingFlagState')}</p>
                     )}
                   </div>
 
                   {/* Issuing Country */}
                   <div className="col-span-4">
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Issuing Country
+                      {t('crew.addCrewCert.issuingCountry')}
                     </label>
                     <select
                       name="countryId"
@@ -511,13 +511,13 @@ export function AddCrewCertificateModal({
                       className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                       disabled={loadingCountries}
                     >
-                      <option value="">Select country...</option>
+                      <option value="">{t('crew.addCrewCert.selectCountry')}</option>
                       {countries.map(country => (
                         <option key={country.id} value={country.id}>{country.countryName} - {country.countryCode}</option>
                       ))}
                     </select>
                     {isFlagStateCreation && excludeCountryId && (
-                      <p className="mt-1 text-xs text-gray-500">Original National country excluded</p>
+                      <p className="mt-1 text-xs text-gray-500">{t('crew.addCrewCert.nationalExcluded')}</p>
                     )}
                   </div>
 
@@ -542,7 +542,7 @@ export function AddCrewCertificateModal({
                   {/* Certificate Image Upload */}
                   <div className="col-span-12">
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Certificate Image / Scan
+                      {t('crew.addCrewCert.certImage')}
                     </label>
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
                       <input
@@ -580,14 +580,14 @@ export function AddCrewCertificateModal({
                                 onClick={() => fileInputRef.current?.click()}
                                 className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1"
                               >
-                                <Upload className="w-3 h-3" /> Change
+                                <Upload className="w-3 h-3" /> {t('crew.addCrewCert.change')}
                               </button>
                               <button
                                 type="button"
                                 onClick={handleRemoveFile}
                                 className="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-1"
                               >
-                                <Trash2 className="w-3 h-3" /> Remove
+                                <Trash2 className="w-3 h-3" /> {t('crew.addCrewCert.remove')}
                               </button>
                             </div>
                           </div>
@@ -598,8 +598,8 @@ export function AddCrewCertificateModal({
                           className="text-center cursor-pointer hover:bg-gray-50 rounded py-4 transition-colors"
                         >
                           <Image className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-gray-600">Click to upload certificate image</p>
-                          <p className="text-xs text-gray-400 mt-1">JPG, PNG, GIF or PDF • Max 10MB</p>
+                          <p className="text-sm text-gray-600">{t('crew.addCrewCert.clickUpload')}</p>
+                          <p className="text-xs text-gray-400 mt-1">{t('crew.addCrewCert.fileHint')}</p>
                         </div>
                       )}
                     </div>
@@ -643,12 +643,12 @@ export function AddCrewCertificateModal({
             {loading ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                {isEditMode ? 'Updating...' : 'Saving...'}
+                {isEditMode ? t('crew.addCrewCert.updating') : t('crew.addCrewCert.saving')}
               </>
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                {isEditMode ? 'Update Certificate' : isFlagStateCreation ? 'Create Flag State Certificate' : t('crew.certificateManagement.addCertificate.save')}
+                {isEditMode ? t('crew.addCrewCert.updateCert') : isFlagStateCreation ? t('crew.addCrewCert.createFlagState') : t('crew.certificateManagement.addCertificate.save')}
               </>
             )}
           </button>

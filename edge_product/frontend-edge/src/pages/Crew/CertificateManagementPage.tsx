@@ -76,31 +76,10 @@ export function CertificateManagementPage() {
   const loadCountries = async (certificateId: number) => {
     try {
       console.log('🔵 Loading countries for certificate:', certificateId)
-      
-      // Step 1: Get country-certificate associations
-      const ccResponse = await fetch(`/api/country-certificates/certificate/${certificateId}`)
-      const ccData = await ccResponse.json()
-      console.log('✅ Country-Certificate data:', ccData)
-      
-      // Step 2: Get all countries
-      const countriesResponse = await fetch('/api/countries')
-      const allCountries = await countriesResponse.json()
-      console.log('✅ All countries:', allCountries)
-      
-      // Step 3: Join data by countryId
-      const mapped = ccData.map((cc: any) => {
-        const countryId = cc.countryId || cc.CountryId
-        const country = allCountries.find((c: any) => (c.id || c.Id) === countryId)
-        
-        return {
-          id: countryId,
-          countryCode: country?.countryCode || country?.CountryCode || '',
-          countryName: country?.countryName || country?.CountryName || `Unknown (ID: ${countryId})`
-        }
-      })
-      
-      console.log('✅ Mapped countries with names:', mapped)
-      setCountries(mapped)
+      const data = await maritimeService.certificates.getCertificateCountries(certificateId)
+      console.log('✅ Countries loaded:', data)
+      const countriesArray = Array.isArray(data) ? data : []
+      setCountries(countriesArray)
     } catch (error) {
       console.error('❌ Failed to load countries:', error)
       setCountries([])
@@ -203,7 +182,7 @@ export function CertificateManagementPage() {
     
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[category || ''] || 'bg-gray-100 text-gray-800'}`}>
-        {category || 'OTHER'}
+        {category || t('crew.certMgmt.other')}
       </span>
     )
   }
@@ -212,13 +191,13 @@ export function CertificateManagementPage() {
     const daysLeft = differenceInDays(parseISO(expiryDate), new Date())
     
     if (daysLeft < 0) {
-      return { status: 'EXPIRED', color: 'text-red-600', bgColor: 'bg-red-50', icon: XCircle }
+      return { status: t('crew.certMgmt.expired'), color: 'text-red-600', bgColor: 'bg-red-50', icon: XCircle }
     } else if (daysLeft <= 30) {
-      return { status: 'CRITICAL', color: 'text-red-600', bgColor: 'bg-red-50', icon: AlertTriangle }
+      return { status: t('crew.certMgmt.critical'), color: 'text-red-600', bgColor: 'bg-red-50', icon: AlertTriangle }
     } else if (daysLeft <= 90) {
-      return { status: 'WARNING', color: 'text-yellow-600', bgColor: 'bg-yellow-50', icon: Clock }
+      return { status: t('crew.certMgmt.warning'), color: 'text-yellow-600', bgColor: 'bg-yellow-50', icon: Clock }
     } else {
-      return { status: 'VALID', color: 'text-green-600', bgColor: 'bg-green-50', icon: CheckCircle }
+      return { status: t('crew.certMgmt.valid'), color: 'text-green-600', bgColor: 'bg-green-50', icon: CheckCircle }
     }
   }
 
@@ -278,7 +257,7 @@ export function CertificateManagementPage() {
                 <div>
                   <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.certificateManagement.validityPeriod')}</p>
                   <p className="text-sm font-semibold text-gray-900">
-                    {selectedCertificate.validityPeriodMonths ? `${selectedCertificate.validityPeriodMonths} ${t('crew.certificateManagement.months')}` : 'N/A'}
+                    {selectedCertificate.validityPeriodMonths ? `${selectedCertificate.validityPeriodMonths} ${t('crew.certificateManagement.months')}` : t('crew.certMgmt.na')}
                   </p>
                 </div>
                 <div>
@@ -305,7 +284,7 @@ export function CertificateManagementPage() {
 
               {/* Countries List */}
               <div className="pt-3 border-t border-gray-200">
-                <p className="text-xs text-gray-500 uppercase mb-2">Applicable Countries ({countries.length})</p>
+                <p className="text-xs text-gray-500 uppercase mb-2">{t('crew.certMgmt.applicableCountries', { count: countries.length })}</p>
                 {countries.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5">
                     {countries.map((cc: any, idx: number) => (
@@ -315,7 +294,7 @@ export function CertificateManagementPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500">No countries specified</p>
+                  <p className="text-sm text-gray-500">{t('crew.certMgmt.noCountries')}</p>
                 )}
               </div>
             </div>
@@ -325,7 +304,7 @@ export function CertificateManagementPage() {
               <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-2">
                   <Users className="w-4 h-4" />
-                  Crew With Certificate ({crewWithCertificate.length})
+                  {t('crew.certMgmt.crewWithCert', { count: crewWithCertificate.length })}
                 </h3>
                 <button 
                   onClick={() => {
@@ -336,7 +315,7 @@ export function CertificateManagementPage() {
                   className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  Add Certificate
+                  {t('crew.certMgmt.addCertificate')}
                 </button>
               </div>
 
@@ -354,31 +333,31 @@ export function CertificateManagementPage() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>
-                          Crew Member
+                          {t('crew.certMgmt.crewMember')}
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>
-                          Position
+                          {t('crew.certMgmt.position')}
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>
-                          CoC
+                          {t('crew.certMgmt.coc')}
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>
-                          Country
+                          {t('crew.certMgmt.country')}
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>
-                          Cert. Number
+                          {t('crew.certMgmt.certNumber')}
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>
-                          Issue Date
+                          {t('crew.certMgmt.issueDate')}
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>
-                          Expiry Date
+                          {t('crew.certMgmt.expiryDate')}
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>
-                          Issuing Authority
+                          {t('crew.certMgmt.issuingAuth')}
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10%'}}>
-                          Status
+                          {t('crew.certMgmt.status')}
                         </th>
                       </tr>
                     </thead>
@@ -431,12 +410,12 @@ export function CertificateManagementPage() {
                                 {format(parseISO(crewCert.expiryDate), 'dd MMM yyyy')}
                               </div>
                               <div className={`text-xs ${status.color} truncate`}>
-                                {daysLeft} days left
+                                {t('crew.certMgmt.daysLeft', { days: daysLeft })}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
                               <div className="truncate">
-                                {crewCert.issuingAuthority || 'N/A'}
+                                {crewCert.issuingAuthority || t('crew.certMgmt.na')}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-sm" style={{width: '10%'}}>
@@ -483,7 +462,7 @@ export function CertificateManagementPage() {
             onClick={() => handleEditCertificate(contextMenu.crewCert)}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <Pencil className="w-4 h-4 text-gray-500" /> Edit Certificate
+            <Pencil className="w-4 h-4 text-gray-500" /> {t('crew.certMgmt.editCert')}
           </button>
           <button
             onClick={() => {
@@ -492,20 +471,20 @@ export function CertificateManagementPage() {
             }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <User className="w-4 h-4 text-gray-500" /> View Crew Profile
+            <User className="w-4 h-4 text-gray-500" /> {t('crew.certMgmt.viewProfile')}
           </button>
           <div className="border-t border-gray-200 my-1"></div>
           <button
             onClick={() => handleCreateFlagStateCertificate(contextMenu.crewCert)}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <Flag className="w-4 h-4 text-gray-500" /> Create Flag State Certificate
+            <Flag className="w-4 h-4 text-gray-500" /> {t('crew.certMgmt.createFlagState')}
           </button>
           <div className="border-t border-gray-200 my-1"></div>
           <button
             className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
-            <Trash2 className="w-4 h-4" /> Delete Certificate
+            <Trash2 className="w-4 h-4" /> {t('crew.certMgmt.deleteCert')}
           </button>
         </div>
       )}

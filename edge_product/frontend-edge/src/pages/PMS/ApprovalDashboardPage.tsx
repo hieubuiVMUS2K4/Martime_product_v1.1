@@ -61,7 +61,7 @@ export default function ApprovalDashboardPage() {
       setSummary(summaryData);
     } catch (err) {
       console.error('Error loading data:', err);
-      toast.error('Failed to load approval dashboard');
+      toast.error(t('pms.approval.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -90,7 +90,7 @@ export default function ApprovalDashboardPage() {
       };
       await verifyTask(selectedTask.id, dto);
       
-      toast.success('Task approved and completed');
+      toast.success(t('pms.approval.taskApproved'));
       
       // Remove task from list
       setTasks(prev => prev.filter(t => t.id !== selectedTask.id));
@@ -107,7 +107,7 @@ export default function ApprovalDashboardPage() {
       setApprovalNotes('');
     } catch (err) {
       console.error('Error approving task:', err);
-      toast.error('Failed to approve task');
+      toast.error(t('pms.approval.approveFailed'));
     } finally {
       setActionLoading(false);
     }
@@ -115,7 +115,7 @@ export default function ApprovalDashboardPage() {
 
   const handleRejectConfirm = async () => {
     if (!selectedTask || !rejectionReason.trim() || !currentUserCrewId) {
-      toast.error('Please provide a rejection reason');
+      toast.error(t('pms.approval.rejectionRequired'));
       return;
     }
 
@@ -127,7 +127,7 @@ export default function ApprovalDashboardPage() {
       };
       await verifyTask(selectedTask.id, dto);
       
-      toast.success('Task returned for rectification');
+      toast.success(t('pms.approval.taskRejected'));
       
       // Remove task from list
       setTasks(prev => prev.filter(t => t.id !== selectedTask.id));
@@ -145,7 +145,7 @@ export default function ApprovalDashboardPage() {
       setRejectionReason('');
     } catch (err) {
       console.error('Error rejecting task:', err);
-      toast.error('Failed to reject task');
+      toast.error(t('pms.approval.rejectFailed'));
     } finally {
       setActionLoading(false);
     }

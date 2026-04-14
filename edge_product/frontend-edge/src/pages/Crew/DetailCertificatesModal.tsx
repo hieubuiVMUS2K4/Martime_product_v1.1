@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, Plus } from 'lucide-react'
 import { getAuthToken } from '../../services/api.client'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
 // Helper to inject auth headers into fetch calls
 const authFetch = (url: string, options?: RequestInit): Promise<Response> => {
@@ -36,6 +37,7 @@ interface DetailCertificatesModalProps {
 }
 
 export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertificate }: DetailCertificatesModalProps) {
+  const { t } = useTranslationSafe()
   const [formData, setFormData] = useState({
     certificateCode: '',
     certificateName: '',
@@ -213,7 +215,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
 
   const handleAddCountry = async () => {
     if (!newCountry.countryCode || !newCountry.countryName) {
-      setError('Country code and name are required')
+      setError(t('crew.detailCertModal.countryRequired'))
       return
     }
 
@@ -240,7 +242,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
       setShowAddCountry(false)
       setError('')
     } catch (err) {
-      setError('Failed to add country. Please try again.')
+      setError(t('crew.detailCertModal.failedAddCountry'))
       console.error('Add country error:', err)
     }
   }
@@ -383,7 +385,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
       onSave()
       onClose()
     } catch (err: any) {
-      setError(err.message || 'Failed to save certificate')
+      setError(err.message || t('crew.detailCertModal.failedSave'))
     } finally {
       setLoading(false)
     }
@@ -397,7 +399,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">
-            {editingCertificate ? 'Edit Certificate' : 'Add New Certificate'}
+            {editingCertificate ? t('crew.detailCertModal.editTitle') : t('crew.detailCertModal.addTitle')}
           </h2>
           <button
             onClick={onClose}
@@ -418,7 +420,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
           {/* Certificate Code */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Certificate Code <span className="text-red-500">*</span>
+              {t('crew.detailCertModal.certCode')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -426,14 +428,14 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
               value={formData.certificateCode}
               onChange={(e) => setFormData({ ...formData, certificateCode: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., STCW_BASIC"
+              placeholder={t('crew.detailCertModal.certCodePlaceholder')}
             />
           </div>
 
           {/* Certificate Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Certificate Name <span className="text-red-500">*</span>
+              {t('crew.detailCertModal.certName')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -441,31 +443,31 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
               value={formData.certificateName}
               onChange={(e) => setFormData({ ...formData, certificateName: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., STCW Basic Safety Training"
+              placeholder={t('crew.detailCertModal.certNamePlaceholder')}
             />
           </div>
 
           {/* Category */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category <span className="text-red-500">*</span>
+              {t('crew.detailCertModal.category')} <span className="text-red-500">*</span>
             </label>
             <select
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="COMPETENCY">COMPETENCY</option>
-              <option value="MEDICAL">MEDICAL</option>
-              <option value="PROFICIENCY">PROFICIENCY</option>
-              <option value="SAFETY">SAFETY</option>
+              <option value="COMPETENCY">{t('crew.categories.competency')}</option>
+              <option value="MEDICAL">{t('crew.categories.medical')}</option>
+              <option value="PROFICIENCY">{t('crew.categories.proficiency')}</option>
+              <option value="SAFETY">{t('crew.categories.safety')}</option>
             </select>
           </div>
 
           {/* Validity Period */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Validity Period (Months)
+              {t('crew.detailCertModal.validityPeriod')}
             </label>
             <input
               type="number"
@@ -473,21 +475,21 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
               value={formData.validityPeriodMonths}
               onChange={(e) => setFormData({ ...formData, validityPeriodMonths: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., 60"
+              placeholder={t('crew.detailCertModal.validityPlaceholder')}
             />
           </div>
 
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
+              {t('crew.detailCertModal.description')}
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Certificate description..."
+              placeholder={t('crew.detailCertModal.descPlaceholder')}
             />
           </div>
 
@@ -500,7 +502,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
                 onChange={(e) => setFormData({ ...formData, isMandatory: e.target.checked })}
                 className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
               />
-              <span className="text-sm text-gray-700">Mandatory</span>
+              <span className="text-sm text-gray-700">{t('crew.detailCertModal.mandatory')}</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -509,7 +511,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
                 onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
                 className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
               />
-              <span className="text-sm text-gray-700">Active</span>
+              <span className="text-sm text-gray-700">{t('crew.detailCertModal.active')}</span>
             </label>
           </div>
 
@@ -517,7 +519,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-medium text-gray-700">
-                Recognized in Countries
+                {t('crew.detailCertModal.recognizedCountries')}
               </label>
               <button
                 type="button"
@@ -525,7 +527,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
                 className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                Add Country
+                {t('crew.detailCertModal.addCountry')}
               </button>
             </div>
 
@@ -535,7 +537,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
                 <div className="grid grid-cols-2 gap-2 mb-2">
                   <input
                     type="text"
-                    placeholder="Code (e.g., CAN)"
+                    placeholder={t('crew.detailCertModal.codePlaceholder')}
                     maxLength={3}
                     value={newCountry.countryCode}
                     onChange={(e) => setNewCountry({ ...newCountry, countryCode: e.target.value.toUpperCase() })}
@@ -543,7 +545,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
                   />
                   <input
                     type="text"
-                    placeholder="Country Name"
+                    placeholder={t('crew.detailCertModal.countryNamePlaceholder')}
                     value={newCountry.countryName}
                     onChange={(e) => setNewCountry({ ...newCountry, countryName: e.target.value })}
                     className="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -555,7 +557,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
                     onClick={handleAddCountry}
                     className="flex-1 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                   >
-                    Save
+                    {t('common.save')}
                   </button>
                   <button
                     type="button"
@@ -565,7 +567,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
                     }}
                     className="flex-1 px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
               </div>
@@ -573,7 +575,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
 
             <div className="border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
               {countries.length === 0 ? (
-                <p className="text-sm text-gray-500">Loading countries...</p>
+                <p className="text-sm text-gray-500">{t('crew.detailCertModal.loadingCountries')}</p>
               ) : (
                 <>
                   {/* Select All Checkbox */}
@@ -585,7 +587,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
                       className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                     />
                     <span className="text-sm font-semibold text-blue-700">
-                      Select All Countries ({countries.length})
+                      {t('crew.detailCertModal.selectAllCountries', { count: countries.length })}
                     </span>
                   </label>
 
@@ -616,7 +618,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
             </div>
             {selectedCountries.length > 0 && (
               <p className="text-xs text-gray-500 mt-2">
-                {selectedCountries.length} {selectedCountries.length === 1 ? 'country' : 'countries'} selected
+                {t('crew.detailCertModal.countriesSelected', { count: selectedCountries.length })}
               </p>
             )}
           </div>
@@ -624,12 +626,12 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
           {/* Ranks Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Required for Ranks
+              {t('crew.detailCertModal.requiredForRanks')}
             </label>
 
             <div className="border border-gray-300 rounded-lg p-4 max-h-60 overflow-y-auto">
               {ranks.length === 0 ? (
-                <p className="text-sm text-gray-500">Loading ranks...</p>
+                <p className="text-sm text-gray-500">{t('crew.detailCertModal.loadingRanks')}</p>
               ) : (
                 <>
                   {/* Select All Checkbox */}
@@ -641,7 +643,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
                       className="w-4 h-4 text-green-600 rounded focus:ring-2 focus:ring-green-500"
                     />
                     <span className="text-sm font-semibold text-green-700">
-                      Select All Ranks ({ranks.length})
+                      {t('crew.detailCertModal.selectAllRanks', { count: ranks.length })}
                     </span>
                   </label>
 
@@ -672,7 +674,7 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
             </div>
             {selectedRanks.length > 0 && (
               <p className="text-xs text-gray-500 mt-2">
-                {selectedRanks.length} {selectedRanks.length === 1 ? 'rank' : 'ranks'} selected
+                {t('crew.detailCertModal.ranksSelected', { count: selectedRanks.length })}
               </p>
             )}
           </div>
@@ -684,14 +686,14 @@ export function DetailCertificatesModal({ isOpen, onClose, onSave, editingCertif
               onClick={onClose}
               className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={loading}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? (editingCertificate ? 'Saving...' : 'Creating...') : (editingCertificate ? 'Save Changes' : 'Create Certificate')}
+              {loading ? (editingCertificate ? t('crew.detailCertModal.saving') : t('crew.detailCertModal.creating')) : (editingCertificate ? t('crew.detailCertModal.saveChanges') : t('crew.detailCertModal.createCert'))}
             </button>
           </div>
         </form>

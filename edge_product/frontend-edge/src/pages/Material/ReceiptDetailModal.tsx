@@ -98,18 +98,18 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <InfoCard
                     icon={<Calendar className="w-5 h-5 text-blue-600" />}
-                    label="Receipt Date"
+                    label={t('materials.receipt.receiptDate')}
                     value={new Date(receipt.receiptDate).toLocaleDateString('vi-VN')}
                   />
                   <InfoCard
                     icon={<DollarSign className="w-5 h-5 text-green-600" />}
-                    label="Total Amount"
+                    label={t('materials.receipt.totalAmount')}
                     value={`${receipt.totalAmount ? receipt.totalAmount.toLocaleString('vi-VN') : '0'} ${receipt.currency}`}
                   />
                   <InfoCard
                     icon={<Package className="w-5 h-5 text-purple-600" />}
-                    label="Total Items"
-                    value={`${receipt.itemCount} items`}
+                    label={t('materials.receipt.totalItems')}
+                    value={t('materials.receipt.itemsValue', { count: receipt.itemCount })}
                   />
                 </div>
 
@@ -206,25 +206,25 @@ export function ReceiptDetailModal({ isOpen, onClose, receiptId }: ReceiptDetail
                             #
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase border-r border-gray-300">
-                            Item Code
+                            {t('materials.receipt.colItemCode')}
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase border-r border-gray-300">
-                            Item Name
+                            {t('materials.receipt.colItemName')}
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase border-r border-gray-300">
-                            Category
+                            {t('materials.receipt.colCategory')}
                           </th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300">
-                            Quantity
+                            {t('materials.receipt.colQuantity')}
                           </th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase border-r border-gray-300">
-                            Unit
+                            {t('materials.receipt.colUnit')}
                           </th>
                           <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase border-r border-gray-300">
-                            Unit Cost
+                            {t('materials.receipt.colUnitCost')}
                           </th>
                           <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                            Total Cost
+                            {t('materials.receipt.colTotalCost')}
                           </th>
                         </tr>
                       </thead>

@@ -4,6 +4,7 @@ import { equipmentAssetService } from '@/services/equipment-asset.service'
 import { materialService } from '@/services/materialService'
 import type { AssignEquipmentDto, MaterialItemEquipmentLink } from '@/services/materialService'
 import type { EquipmentAsset } from '@/types/pms.types'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
 interface AssignEquipmentModalProps {
   isOpen: boolean
@@ -44,6 +45,7 @@ export function AssignEquipmentModal({
   selectedMaterialIds,
   selectedMaterialNames,
 }: AssignEquipmentModalProps) {
+  const { t } = useTranslationSafe()
   const [equipmentList, setEquipmentList] = useState<EquipmentAsset[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -82,7 +84,7 @@ export function AssignEquipmentModal({
           setSelectedEquipment(new Set(links.map(l => l.equipmentAssetId)))
         }
       } catch {
-        setError('Không thể tải danh sách thiết bị')
+        setError(t('materials.assignEquip.loadFailed'))
       } finally {
         setLoading(false)
       }
@@ -127,7 +129,7 @@ export function AssignEquipmentModal({
 
   const handleSubmit = async () => {
     if (selectedEquipment.size === 0) {
-      setError('Vui lòng chọn ít nhất 1 thiết bị')
+      setError(t('materials.assignEquip.selectAtLeastOne'))
       return
     }
     setError(null)
@@ -157,7 +159,7 @@ export function AssignEquipmentModal({
       onSuccess()
       onClose()
     } catch (err: any) {
-      setError(err?.response?.data?.error || err.message || 'Gán thiết bị thất bại')
+      setError(err?.response?.data?.error || err.message || t('materials.assignEquip.assignFailed'))
     } finally {
       setSaving(false)
     }
@@ -232,7 +234,7 @@ export function AssignEquipmentModal({
         <div className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl flex flex-col max-h-[85vh]">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 shrink-0">
-            <h2 className="text-xl font-semibold text-gray-900">Gán thiết bị cho vật tư</h2>
+            <h2 className="text-xl font-semibold text-gray-900">{t('materials.assignEquip.title')}</h2>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <X className="w-6 h-6" />
             </button>
@@ -249,7 +251,7 @@ export function AssignEquipmentModal({
             {/* Selected materials info */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-sm font-medium text-blue-800 mb-1">
-                Vật tư đã chọn ({selectedMaterialIds.length}):
+                {t('materials.assignEquip.selectedMaterials', { count: selectedMaterialIds.length })}
               </p>
               <div className="flex flex-wrap gap-1">
                 {selectedMaterialNames.map((name, i) => (
@@ -265,7 +267,7 @@ export function AssignEquipmentModal({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Tìm thiết bị theo mã, tên, loại..."
+                placeholder={t('materials.assignEquip.searchPlaceholder')}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -276,11 +278,11 @@ export function AssignEquipmentModal({
             <div className="border border-gray-200 rounded-lg overflow-y-auto" style={{ maxHeight: 350 }}>
               {loading ? (
                 <div className="flex items-center justify-center py-10 text-gray-500 text-sm">
-                  Đang tải danh sách thiết bị...
+                  {t('materials.assignEquip.loading')}
                 </div>
               ) : tree.length === 0 ? (
                 <div className="flex items-center justify-center py-10 text-gray-400 text-sm">
-                  Không có thiết bị nào
+                  {t('materials.assignEquip.noEquipment')}
                 </div>
               ) : (
                 <div className="py-1">{tree.map(n => renderTreeNode(n))}</div>
@@ -289,17 +291,17 @@ export function AssignEquipmentModal({
 
             {/* Selected count */}
             <p className="text-sm text-gray-500">
-              Đã chọn: <span className="font-semibold text-blue-600">{selectedEquipment.size}</span> thiết bị
+              {t('materials.assignEquip.selectedCount', { count: selectedEquipment.size })}
             </p>
 
             {/* Notes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('materials.assignEquip.notes')}</label>
               <input
                 type="text"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="Ghi chú (không bắt buộc)"
+                placeholder={t('materials.assignEquip.notesPlaceholder')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 maxLength={500}
               />
@@ -313,7 +315,7 @@ export function AssignEquipmentModal({
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              Hủy
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -321,7 +323,7 @@ export function AssignEquipmentModal({
               disabled={saving || selectedEquipment.size === 0}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {saving ? 'Đang lưu...' : 'Gán thiết bị'}
+              {saving ? t('materials.saving') : t('materials.assignEquip.submit')}
             </button>
           </div>
         </div>

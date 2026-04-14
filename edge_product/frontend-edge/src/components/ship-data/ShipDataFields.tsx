@@ -1,4 +1,5 @@
 import type React from 'react';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 
 // ═══════════════════════════════════════
 // Section Card - Wrapper for form sections
@@ -272,6 +273,7 @@ interface ContactCardProps {
 }
 
 export function ContactCard({ title, prefix, data, onChange, showPersonFields = false, show24hPhone = false }: ContactCardProps) {
+  const { t } = useTranslationSafe();
   const get = (field: string) => data[`${prefix}${field}`] ?? '';
   const set = (field: string) => (value: string) => onChange(`${prefix}${field}`, value);
 
@@ -280,27 +282,27 @@ export function ContactCard({ title, prefix, data, onChange, showPersonFields = 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {showPersonFields ? (
           <>
-            <FormField label="Title" value={get('Title')} onChange={set('Title')} />
-            <FormField label="First Name" value={get('FirstName')} onChange={set('FirstName')} />
-            <FormField label="Last Name" value={get('LastName')} onChange={set('LastName')} />
+            <FormField label={t('shipData.contact.titleField')} value={get('Title')} onChange={set('Title')} />
+            <FormField label={t('shipData.contact.firstName')} value={get('FirstName')} onChange={set('FirstName')} />
+            <FormField label={t('shipData.contact.lastName')} value={get('LastName')} onChange={set('LastName')} />
           </>
         ) : (
-          <FormField label="Name" value={get('Name')} onChange={set('Name')} className="col-span-2 md:col-span-3" />
+          <FormField label={t('shipData.contact.name')} value={get('Name')} onChange={set('Name')} className="col-span-2 md:col-span-3" />
         )}
-        <FormField label="Street" value={get('Street')} onChange={set('Street')} className="col-span-2" />
-        <FormField label="Country" value={get('Country')} onChange={set('Country')} />
-        <FormField label="ZIP" value={get('Zip')} onChange={set('Zip')} />
-        <FormField label="City" value={get('City')} onChange={set('City')} />
+        <FormField label={t('shipData.contact.street')} value={get('Street')} onChange={set('Street')} className="col-span-2" />
+        <FormField label={t('shipData.contact.country')} value={get('Country')} onChange={set('Country')} />
+        <FormField label={t('shipData.contact.zip')} value={get('Zip')} onChange={set('Zip')} />
+        <FormField label={t('shipData.contact.city')} value={get('City')} onChange={set('City')} />
         {show24hPhone ? (
-          <FormField label="Phone 24h" value={get('Phone24h')} onChange={set('Phone24h')} />
+          <FormField label={t('shipData.contact.phone24h')} value={get('Phone24h')} onChange={set('Phone24h')} />
         ) : (
-          <FormField label="Phone" value={get('Phone')} onChange={set('Phone')} />
+          <FormField label={t('shipData.contact.phone')} value={get('Phone')} onChange={set('Phone')} />
         )}
-        <FormField label="Fax" value={get('Fax')} onChange={set('Fax')} />
-        <FormField label="TLX" value={get('Tlx')} onChange={set('Tlx')} />
-        <FormField label="Email" value={get('Email')} onChange={set('Email')} />
+        <FormField label={t('shipData.contact.fax')} value={get('Fax')} onChange={set('Fax')} />
+        <FormField label={t('shipData.contact.tlx')} value={get('Tlx')} onChange={set('Tlx')} />
+        <FormField label={t('shipData.contact.email')} value={get('Email')} onChange={set('Email')} />
         {!showPersonFields && (
-          <FormField label="Contact Person" value={get('ContactPerson')} onChange={set('ContactPerson')} />
+          <FormField label={t('shipData.contact.contactPerson')} value={get('ContactPerson')} onChange={set('ContactPerson')} />
         )}
       </div>
     </SectionCard>
@@ -336,13 +338,14 @@ interface DynamicListDeleteProps {
 }
 
 export function DynamicListDelete({ onDelete, disabled }: DynamicListDeleteProps) {
+  const { t } = useTranslationSafe();
   return (
     <button
       type="button"
       onClick={onDelete}
       disabled={disabled}
       className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
-      title="Remove"
+      title={t('shipData.common.remove')}
     >
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
     </button>

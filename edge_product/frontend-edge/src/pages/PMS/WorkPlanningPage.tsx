@@ -564,7 +564,7 @@ export default function WorkPlanningPage() {
     }));
     setCfgForm(f => ({ ...f, checklistItemTemplates: [...(f.checklistItemTemplates || []), ...newItems] }));
     setCfgShowChecklistTemplate(false);
-    toast.success(`Đã thêm ${newItems.length} bước từ mẫu "${tpl.label}"`);
+    toast.success(t('pms.workPlanning.toast.templateApplied', { count: String(newItems.length), name: tpl.label }));
   };
 
   // Config crew helpers
@@ -595,7 +595,7 @@ export default function WorkPlanningPage() {
       }))
     };
     localStorage.setItem('pms_custom_templates', JSON.stringify(saved));
-    toast.success(`Đã lưu mẫu "${cfgTemplateName.trim()}"`);
+    toast.success(t('pms.workPlanning.toast.templateSaved', { name: cfgTemplateName.trim() }));
     setCfgShowCreateTemplate(false);
     setCfgTemplateName('');
   };
@@ -682,7 +682,7 @@ export default function WorkPlanningPage() {
     }
     const groups: Record<string, typeof list> = {};
     list.forEach(c => {
-      const dept = c.department || 'Khác';
+      const dept = c.department || t('pms.workPlanning.config.otherDept');
       if (!groups[dept]) groups[dept] = [];
       groups[dept].push(c);
     });
@@ -1251,7 +1251,7 @@ export default function WorkPlanningPage() {
                   <thead className="sticky top-0 z-10">
                     {/* Row 1: headers */}
                     <tr className="bg-blue-50">
-                      <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">TT</th>
+                      <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">{t('pms.workPlanning.config.index')}</th>
                       <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">
                         <input type="checkbox" className="rounded text-blue-600" />
                       </th>
@@ -1537,7 +1537,7 @@ export default function WorkPlanningPage() {
                                 onClick={() => navigate(`/pms/work-report/${task.id}`)}
                                 className="w-full text-left px-1.5 py-0.5 rounded text-[10px] truncate hover:opacity-80 transition-opacity"
                                 style={{ backgroundColor: colors.bg, color: colors.text }}
-                                title={`${task.taskId} - ${task.taskDescription}${task.status === 'UPCOMING' ? ` ⚠️ ${t('pms.workPlanning.calendar.upcomingTooltip')}` : ''}${isRunningHours ? ' • RH ước tính, cập nhật thực qua Counter' : ''}`}
+                                title={`${task.taskId} - ${task.taskDescription}${task.status === 'UPCOMING' ? ` ⚠️ ${t('pms.workPlanning.calendar.upcomingTooltip')}` : ''}${isRunningHours ? t('pms.workPlanning.calendar.rhTooltip') : ''}`}
                               >
                                 {task.status === 'UPCOMING' ? '⚠️ ' : ''}{isRunningHours ? 'RH ' : ''}{task.taskId}
                               </button>
@@ -1563,7 +1563,7 @@ export default function WorkPlanningPage() {
                 ))}
               </div>
               <div className="mt-2 text-xs text-gray-500">
-                RH: mốc lịch ước tính, trạng thái thực tế được cập nhật theo tab Counter.
+                {t('pms.workPlanning.calendar.rhNote')}
               </div>
             </div>
           )}
@@ -1586,7 +1586,7 @@ export default function WorkPlanningPage() {
                   className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition-colors"
                 >
                   <CalendarDays className="w-3.5 h-3.5" />
-                  Hôm nay
+                  {t('pms.workPlanning.gantt.today')}
                 </button>
               </div>
               {/* Gantt chart — fixed height, split scroll */}
@@ -1642,7 +1642,7 @@ export default function WorkPlanningPage() {
                 {/* Draggable divider */}
                 <div
                   className="w-1 flex-shrink-0 bg-gray-300 hover:bg-blue-400 cursor-col-resize transition-colors relative z-20"
-                  title="Kéo để thay đổi kích thước"
+                  title={t('pms.workPlanning.gantt.dragToResize')}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     ganttDragging.current = true;
@@ -1821,7 +1821,7 @@ export default function WorkPlanningPage() {
                             <span className="truncate block max-w-[200px]" title={asset.assetName}>{asset.assetName}</span>
                           </td>
                           <td className="px-3 py-2 text-center text-xs font-semibold text-gray-900 border-r border-gray-100">
-                            {asset.currentRunningHours?.toLocaleString() || '0'} <span className="text-gray-400 font-normal">hrs</span>
+                            {asset.currentRunningHours?.toLocaleString() || '0'} <span className="text-gray-400 font-normal">{t('pms.workPlanning.counter.hoursAbbrev')}</span>
                           </td>
                           <td className="px-3 py-2 text-center border-r border-gray-100">
                             <input
@@ -1927,7 +1927,7 @@ export default function WorkPlanningPage() {
                                       <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${sch.maintenanceCategory === 'AD_HOC' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>{sch.maintenanceCategory === 'AD_HOC' ? t('pms.workPlanning.config.adhoc') : t('pms.workPlanning.config.periodic')}</span>
                                     </td>
                                     <td className="px-2 py-1.5 text-center">
-                                      <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${sch.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' : sch.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' : sch.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'}`}>{sch.priority}</span>
+                                      <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${sch.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' : sch.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' : sch.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'}`}>{getPriorityLabel(sch.priority)}</span>
                                     </td>
                                     <td className="px-2 py-1.5 text-center text-gray-500">{sch.intervalHours || '—'}</td>
                                     <td className="px-2 py-1.5 text-center flex items-center gap-1">
@@ -2034,7 +2034,7 @@ export default function WorkPlanningPage() {
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input type="checkbox" checked={cfgRequireInspectionReport} onChange={e => setCfgRequireInspectionReport(e.target.checked)} className="w-3.5 h-3.5 rounded text-blue-600 border-gray-300" />
-                          <span className="text-xs text-gray-700">Yêu cầu BBKT</span>
+                          <span className="text-xs text-gray-700">{t('pms.workPlanning.config.requireInspectionReport')}</span>
                         </label>
                       </div>
                     </div>
@@ -2265,9 +2265,9 @@ export default function WorkPlanningPage() {
                           </colgroup>
                           <thead className="bg-blue-50 sticky top-0">
                             <tr>
-                              <th className="px-1 py-1.5 text-left text-xs">TT</th>
+                              <th className="px-1 py-1.5 text-left text-xs">{t('pms.workPlanning.config.index')}</th>
                               <th className="px-1.5 py-1.5 text-left text-xs">{t('pms.workPlanning.config.material')} <span className="text-red-500">*</span></th>
-                              <th className="px-1 py-1.5 text-right text-xs">ROB</th>
+                              <th className="px-1 py-1.5 text-right text-xs">{t('pms.workPlanning.config.rob')}</th>
                               <th className="px-1 py-1.5 text-right text-xs">{t('pms.workPlanning.config.required')} <span className="text-red-500">*</span></th>
                               <th className="px-0.5 py-1.5 text-center text-xs"></th>
                               <th className="px-0.5 py-1.5 text-center text-xs" title={t('pms.workPlanning.config.assignEquipment')}><Link2 size={11} className="inline text-gray-400" /></th>
@@ -2302,7 +2302,7 @@ export default function WorkPlanningPage() {
                                   </td>
                                   <td className="px-0.5 py-1 text-center">
                                     {needsMore ? (
-                                      <span className="text-red-600" title={`Thiếu ${(part.quantityRequired - rob).toFixed(1)} ${mat?.unit || ''}`}><AlertTriangle size={13} /></span>
+                                      <span className="text-red-600" title={t('pms.workPlanning.config.shortage', { amount: (part.quantityRequired - rob).toFixed(1), unit: mat?.unit || '' })}><AlertTriangle size={13} /></span>
                                     ) : mat && isLow ? (
                                       <span className="text-orange-500" title={t('pms.workPlanning.config.lowStock')}><AlertTriangle size={13} /></span>
                                     ) : mat ? (
@@ -2397,7 +2397,7 @@ export default function WorkPlanningPage() {
                         <table className="w-full text-sm">
                           <thead className="bg-blue-50 sticky top-0">
                             <tr>
-                              <th className="px-2 py-2 text-left w-10">TT</th>
+                              <th className="px-2 py-2 text-left w-10">{t('pms.workPlanning.config.index')}</th>
                               <th className="px-2 py-2 text-left">{t('pms.workPlanning.config.stepDescription')} <span className="text-red-500">*</span></th>
                               <th className="px-2 py-2 text-center w-20">{t('pms.workPlanning.config.measureValue')}</th>
                               <th className="px-2 py-2 text-right w-16">Min</th>

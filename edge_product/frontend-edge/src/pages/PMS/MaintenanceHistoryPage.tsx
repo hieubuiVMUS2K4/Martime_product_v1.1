@@ -32,7 +32,7 @@ export function MaintenanceHistoryPage() {
       setTasks(response.data)
     } catch (error) {
       console.error('Failed to load completed tasks:', error)
-      toast.error('Failed to load maintenance history')
+      toast.error(t('pms.history.failedToLoad'))
     } finally {
       setLoading(false)
     }
@@ -80,20 +80,20 @@ export function MaintenanceHistoryPage() {
   ))
 
   const formatDuration = (minutes?: number) => {
-    if (!minutes) return 'N/A'
+    if (!minutes) return t('pms.history.notAvailable')
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
   }
 
   const exportToCSV = () => {
-    const headers = ['Task ID', 'Equipment', 'Description', 'Completed By', 'Completed At', 'Duration', 'Notes']
+    const headers = [t('pms.history.taskId'), t('pms.history.equipment'), t('pms.history.description'), t('pms.history.completedBy'), t('pms.history.completedAt'), t('pms.history.duration'), t('pms.history.notes')]
     const rows = filteredTasks.map(task => [
       task.taskId,
-      task.equipmentGroupName || task.equipmentName || 'N/A',
+      task.equipmentGroupName || task.equipmentName || t('pms.history.notAvailable'),
       task.taskDescription,
-      task.completedBy || 'N/A',
-      task.completedAt ? format(parseISO(task.completedAt), 'yyyy-MM-dd HH:mm') : 'N/A',
+      task.completedBy || t('pms.history.notAvailable'),
+      task.completedAt ? format(parseISO(task.completedAt), 'yyyy-MM-dd HH:mm') : t('pms.history.notAvailable'),
       formatDuration(task.actualDuration),
       task.notes || ''
     ])
@@ -106,7 +106,7 @@ export function MaintenanceHistoryPage() {
     a.download = `maintenance-history-${format(new Date(), 'yyyy-MM-dd')}.csv`
     a.click()
     URL.revokeObjectURL(url)
-    toast.success('Maintenance history exported')
+    toast.success(t('pms.history.exported'))
   }
 
   if (loading) {
@@ -221,21 +221,21 @@ export function MaintenanceHistoryPage() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div className="flex items-center gap-2 text-gray-600">
                         <User className="w-4 h-4" />
-                        <span>{task.completedBy || 'N/A'}</span>
+                        <span>{task.completedBy || t('pms.history.notAvailable')}</span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-600">
                         <Calendar className="w-4 h-4" />
                         <span>
-                          {task.completedAt ? format(parseISO(task.completedAt), 'dd/MM/yyyy HH:mm') : 'N/A'}
+                          {task.completedAt ? format(parseISO(task.completedAt), 'dd/MM/yyyy HH:mm') : t('pms.history.notAvailable')}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-600">
                         <Clock className="w-4 h-4" />
-                        <span>Duration: {formatDuration(task.actualDuration)}</span>
+                        <span>{t('pms.history.duration')}: {formatDuration(task.actualDuration)}</span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-600">
                         <Image className="w-4 h-4" />
-                        <span>{task.photosUploaded || 0} photo(s)</span>
+                        <span>{t('pms.history.photos', { count: task.photosUploaded || 0 })}</span>
                       </div>
                     </div>
 
@@ -253,7 +253,7 @@ export function MaintenanceHistoryPage() {
                         <div className="flex items-start gap-2">
                           <Wrench className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                           <div className="flex-1 break-words">
-                            <span className="text-blue-900 font-medium">Spare Parts: </span>
+                            <span className="text-blue-900 font-medium">{t('pms.history.spareParts')} </span>
                             <span className="text-blue-700">{task.sparePartsUsed}</span>
                           </div>
                         </div>
@@ -273,7 +273,7 @@ export function MaintenanceHistoryPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Task Details</h2>
+                <h2 className="text-xl font-bold text-gray-900">{t('pms.history.taskDetails')}</h2>
                 <button
                   onClick={() => setSelectedTask(null)}
                   className="text-gray-400 hover:text-gray-600"
@@ -285,61 +285,61 @@ export function MaintenanceHistoryPage() {
             
             <div className="p-6 space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-700">Task ID</label>
+                <label className="text-sm font-medium text-gray-700">{t('pms.history.taskId')}</label>
                 <p className="mt-1 text-gray-900">{selectedTask.taskId}</p>
               </div>
               
               <div>
-                <label className="text-sm font-medium text-gray-700">Equipment</label>
+                <label className="text-sm font-medium text-gray-700">{t('pms.history.equipment')}</label>
                 <p className="mt-1 text-gray-900 break-words">{selectedTask.equipmentGroupName || selectedTask.equipmentName}</p>
               </div>
               
               <div>
-                <label className="text-sm font-medium text-gray-700">Description</label>
+                <label className="text-sm font-medium text-gray-700">{t('pms.history.description')}</label>
                 <p className="mt-1 text-gray-900 break-words whitespace-pre-wrap">{selectedTask.taskDescription}</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Completed By</label>
-                  <p className="mt-1 text-gray-900">{selectedTask.completedBy || 'N/A'}</p>
+                  <label className="text-sm font-medium text-gray-700">{t('pms.history.completedBy')}</label>
+                  <p className="mt-1 text-gray-900">{selectedTask.completedBy || t('pms.history.notAvailable')}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Completed At</label>
+                  <label className="text-sm font-medium text-gray-700">{t('pms.history.completedAt')}</label>
                   <p className="mt-1 text-gray-900">
-                    {selectedTask.completedAt ? format(parseISO(selectedTask.completedAt), 'dd/MM/yyyy HH:mm') : 'N/A'}
+                    {selectedTask.completedAt ? format(parseISO(selectedTask.completedAt), 'dd/MM/yyyy HH:mm') : t('pms.history.notAvailable')}
                   </p>
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Duration</label>
+                  <label className="text-sm font-medium text-gray-700">{t('pms.history.duration')}</label>
                   <p className="mt-1 text-gray-900">{formatDuration(selectedTask.actualDuration)}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Photos</label>
-                  <p className="mt-1 text-gray-900">{selectedTask.photosUploaded || 0} photo(s)</p>
+                  <label className="text-sm font-medium text-gray-700">{t('pms.history.photos', { count: selectedTask.photosUploaded || 0 })}</label>
+                  <p className="mt-1 text-gray-900">{selectedTask.photosUploaded || 0}</p>
                 </div>
               </div>
               
               {selectedTask.notes && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Notes</label>
+                  <label className="text-sm font-medium text-gray-700">{t('pms.history.notes')}</label>
                   <p className="mt-1 text-gray-900 bg-gray-50 p-3 rounded break-words whitespace-pre-wrap">{selectedTask.notes}</p>
                 </div>
               )}
               
               {selectedTask.sparePartsUsed && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Spare Parts Used</label>
+                  <label className="text-sm font-medium text-gray-700">{t('pms.history.sparePartsUsed')}</label>
                   <p className="mt-1 text-gray-900 bg-blue-50 p-3 rounded break-words whitespace-pre-wrap">{selectedTask.sparePartsUsed}</p>
                 </div>
               )}
               
               {selectedTask.verificationNotes && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Verification Notes</label>
+                  <label className="text-sm font-medium text-gray-700">{t('pms.history.verificationNotes')}</label>
                   <p className="mt-1 text-gray-900 bg-green-50 p-3 rounded break-words whitespace-pre-wrap">{selectedTask.verificationNotes}</p>
                 </div>
               )}
@@ -350,7 +350,7 @@ export function MaintenanceHistoryPage() {
                 onClick={() => navigate(`/pms/maintenance/${selectedTask.id}`)}
                 className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                View Full Details
+                {t('pms.history.viewFullDetails')}
               </button>
             </div>
           </div>

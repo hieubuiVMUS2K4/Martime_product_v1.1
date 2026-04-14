@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAuthStore } from '@/stores/auth.store'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 import { auditLogService, type AuditLogEntry, type AuditLogStats } from '@/services/maritime.service'
 import {
   Shield,
@@ -60,6 +61,7 @@ const ACTION_LABELS: Record<string, string> = {
 // ─── Page Component ───────────────────────────────────────
 
 export function AuditLogPage() {
+  const { t } = useTranslationSafe()
   const user = useAuthStore(s => s.user)
   const roleCode = user?.roleCode?.toUpperCase()
   const isAuthorized = roleCode === 'ADMIN' || roleCode === 'CAPTAIN'
@@ -173,11 +175,11 @@ export function AuditLogPage() {
       <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
         <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg max-w-md">
           <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Access Denied</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t('auditLog.accessDenied')}</h2>
           <p className="text-gray-600 dark:text-gray-400">
             Audit logs are restricted to <strong>Admin</strong> and <strong>Captain</strong> roles only.
           </p>
-          <p className="text-xs text-gray-400 mt-3">ISM Code Chapter 12 / IMO MSC.428(98)</p>
+          <p className="text-xs text-gray-400 mt-3">{t('auditLog.accessDeniedNote')}</p>
         </div>
       </div>
     )
@@ -194,9 +196,9 @@ export function AuditLogPage() {
           <div className="flex items-center gap-3">
             <Shield className="w-7 h-7 text-blue-600" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Audit Log</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('auditLog.title')}</h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                ISM Code Ch.12 · IMO MSC.428 · System Activity Trail
+                {t('auditLog.subtitle')}
               </p>
             </div>
           </div>
@@ -210,7 +212,7 @@ export function AuditLogPage() {
               }`}
             >
               <BarChart3 className="w-4 h-4" />
-              Statistics
+              {t('auditLog.statistics')}
             </button>
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -221,7 +223,7 @@ export function AuditLogPage() {
               }`}
             >
               <Filter className="w-4 h-4" />
-              Filters
+              {t('auditLog.filters')}
             </button>
             <button
               onClick={handleRefresh}
@@ -236,7 +238,7 @@ export function AuditLogPage() {
         {showStats && stats && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <StatCard label="Total Events" value={stats.totalCount} icon={Database} color="blue" />
+              <StatCard label={t('auditLog.stats.totalEvents')} value={stats.totalCount} icon={Database} color="blue" />
               <StatCard
                 label="Data Changes"
                 value={stats.byCategory.find(c => c.category === 'DATA')?.count || 0}
@@ -261,7 +263,7 @@ export function AuditLogPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {stats.topUsers.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Top Active Users</h4>
+                  <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">{t('auditLog.stats.topActions')}</h4>
                   <div className="space-y-1">
                     {stats.topUsers.slice(0, 5).map(u => (
                       <div key={u.username} className="flex justify-between text-sm">
@@ -274,7 +276,7 @@ export function AuditLogPage() {
               )}
               {stats.topEntities.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Most Modified Entities</h4>
+                  <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">{t('auditLog.entityType')}</h4>
                   <div className="space-y-1">
                     {stats.topEntities.slice(0, 5).map(e => (
                       <div key={e.entityType} className="flex justify-between text-sm">
@@ -294,13 +296,13 @@ export function AuditLogPage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Category</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('auditLog.category')}</label>
                 <select
                   value={filterCategory}
                   onChange={e => setFilterCategory(e.target.value)}
                   className="w-full text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1.5"
                 >
-                  <option value="">All</option>
+                  <option value="">{t('auditLog.all')}</option>
                   <option value="AUTH">Auth</option>
                   <option value="SECURITY">Security</option>
                   <option value="DATA">Data</option>
@@ -310,13 +312,13 @@ export function AuditLogPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Level</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('auditLog.level')}</label>
                 <select
                   value={filterLevel}
                   onChange={e => setFilterLevel(e.target.value)}
                   className="w-full text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1.5"
                 >
-                  <option value="">All</option>
+                  <option value="">{t('auditLog.all')}</option>
                   <option value="DEBUG">Debug</option>
                   <option value="INFO">Info</option>
                   <option value="WARNING">Warning</option>
@@ -325,20 +327,20 @@ export function AuditLogPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Entity Type</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('auditLog.entityType')}</label>
                 <select
                   value={filterEntityType}
                   onChange={e => setFilterEntityType(e.target.value)}
                   className="w-full text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1.5"
                 >
-                  <option value="">All</option>
+                  <option value="">{t('auditLog.all')}</option>
                   {entityTypes.map(t => (
                     <option key={t} value={t}>{t}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Username</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('auditLog.username')}</label>
                 <input
                   type="text"
                   value={filterUsername}
@@ -348,7 +350,7 @@ export function AuditLogPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">From</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('auditLog.from')}</label>
                 <input
                   type="date"
                   value={filterFrom}
@@ -357,7 +359,7 @@ export function AuditLogPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">To</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('auditLog.to')}</label>
                 <input
                   type="date"
                   value={filterTo}
@@ -374,7 +376,7 @@ export function AuditLogPage() {
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                  placeholder="Search messages, entities, IDs..."
+                  placeholder={t('auditLog.search')}
                   className="w-full text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 pl-8 pr-3 py-1.5"
                 />
               </div>
@@ -407,12 +409,12 @@ export function AuditLogPage() {
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
-              <span className="ml-2 text-gray-500">Loading audit logs...</span>
+              <span className="ml-2 text-gray-500">{t('auditLog.title')}...</span>
             </div>
           ) : logs.length === 0 ? (
             <div className="text-center py-16 text-gray-500 dark:text-gray-400">
               <Database className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>No audit log entries found</p>
+              <p>{t('auditLog.noLogs')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -502,7 +504,7 @@ export function AuditLogPage() {
                 className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
-                Previous
+                {t('common.previous')}
               </button>
               <div className="flex items-center gap-1">
                 {generatePageNumbers(currentPage, totalPages).map((page, i) =>
@@ -528,7 +530,7 @@ export function AuditLogPage() {
                 disabled={currentPage >= totalPages}
                 className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                Next
+                {t('common.next')}
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -584,7 +586,7 @@ function LogDetailModal({ log, onClose }: { log: AuditLogEntry; onClose: () => v
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Change Detail</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('auditLog.details')}</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {log.entityType} #{truncateId(log.entityId || '')} · {formatTimestamp(log.timestamp)}
             </p>
@@ -640,7 +642,7 @@ function LogDetailModal({ log, onClose }: { log: AuditLogEntry; onClose: () => v
           {/* Diff table (for updates) */}
           {oldParsed && newParsed && (
             <div>
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Field Changes</h4>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('auditLog.changes')}</h4>
               <table className="w-full text-xs border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                 <thead className="bg-gray-50 dark:bg-gray-700/50">
                   <tr>

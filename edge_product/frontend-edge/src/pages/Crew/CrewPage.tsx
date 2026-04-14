@@ -75,7 +75,7 @@ export function CrewPage() {
       // Invalidate onboard cache since crew moved to onboard
       setCrewOnboardCache(null)
     } catch (error: any) {
-      toast.error(error.message || 'Failed to approve crew')
+      toast.error(error.message || t('crew.page.approveFailed'))
     }
   }
 
@@ -85,7 +85,7 @@ export function CrewPage() {
       toast.success(result.message)
       await loadPendingCrew()
     } catch (error: any) {
-      toast.error(error.message || 'Failed to reject crew')
+      toast.error(error.message || t('crew.page.rejectFailed'))
     }
   }
 
@@ -117,11 +117,11 @@ export function CrewPage() {
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-gray-700">≡ {t('crew.title')}</span>
           <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-blue-100 text-blue-700">
-            {crewMembers.filter(c => c.isOnboard).length} TV
+            {crewMembers.filter(c => c.isOnboard).length} {t('crew.page.crewBadge')}
           </span>
           {pendingCrew.length > 0 && (
             <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700">
-              {pendingCrew.length} Pending
+              {pendingCrew.length} {t('crew.page.pending')}
             </span>
           )}
         </div>
@@ -182,7 +182,7 @@ export function CrewPage() {
         {loading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="text-gray-600 mt-4">Loading crew data...</p>
+            <p className="text-gray-600 mt-4">{t('crew.page.loadingCrew')}</p>
           </div>
         ) : (
           <SectionedCrewView
@@ -352,7 +352,7 @@ function SectionedCrewView({
           crew.seamanBookNumber || '',
           crew.phoneNumber || '',
           crew.emergencyContact || '',
-          crew.isOnboard ? 'Onboard' : 'Ashore'
+          crew.isOnboard ? t('crew.page.onboard') : t('crew.page.ashore')
         ]
         values.forEach((v, i) => {
           const cell = row.getCell(i + 1)
@@ -400,10 +400,10 @@ function SectionedCrewView({
       link.click()
       URL.revokeObjectURL(url)
 
-      toast.success('Crew list exported to Excel!')
+      toast.success(t('crew.page.exportExcelSuccess'))
     } catch (error) {
       console.error('Failed to export crew list:', error)
-      toast.error('Failed to export crew list')
+      toast.error(t('crew.page.exportFailed'))
     }
   }
 
@@ -477,7 +477,7 @@ function SectionedCrewView({
         crew.passportNumber || '',
         crew.passportExpiry ? format(parseISO(crew.passportExpiry), 'dd/MM/yyyy') : '',
         crew.seamanBookNumber || '',
-        crew.isOnboard ? 'Onboard' : 'Ashore'
+        crew.isOnboard ? t('crew.page.onboard') : t('crew.page.ashore')
       ])
 
       doc.autoTable({
@@ -543,10 +543,10 @@ function SectionedCrewView({
       })
 
       doc.save(`Crew_List_${format(new Date(), 'yyyyMMdd_HHmmss')}.pdf`)
-      toast.success('Crew list exported to PDF!')
+      toast.success(t('crew.page.exportPdfSuccess'))
     } catch (error) {
       console.error('Failed to export crew list to PDF:', error)
-      toast.error('Failed to export crew list to PDF')
+      toast.error(t('crew.page.exportPdfFailed'))
     }
   }
 
@@ -725,7 +725,7 @@ function SectionedCrewView({
                 <th className="w-32 px-3 py-2 text-left border-b border-r border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between gap-1">
                     <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{t('crew.table.embarkDate')}</span>
-                    <SortDropdown col="embarkDate" options={[{label:'Mới nhất', dir:'desc'},{label:'Cũ nhất', dir:'asc'}]} />
+                    <SortDropdown col="embarkDate" options={[{label:t('crew.page.newest'), dir:'desc'},{label:t('crew.page.oldest'), dir:'asc'}]} />
                   </div>
                 </th>
                 <th className="w-24 px-3 py-2 text-left border-b border-gray-200 dark:border-gray-700">
@@ -741,7 +741,7 @@ function SectionedCrewView({
                   <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
                     <input
                       type="text"
-                      placeholder="→ Tìm kiếm"
+                      placeholder={t('crew.page.searchPlaceholder')}
                       value={searchCrewId}
                       onChange={e => { setSearchCrewId(e.target.value); setOnboardPage(1) }}
                       className="flex-1 text-xs outline-none min-w-0 bg-transparent"
@@ -754,7 +754,7 @@ function SectionedCrewView({
                   <div className="flex items-center gap-0.5 border border-gray-200 rounded px-1.5 py-0.5 bg-white">
                     <input
                       type="text"
-                      placeholder="→ Tìm kiếm"
+                      placeholder={t('crew.page.searchPlaceholder')}
                       value={searchName}
                       onChange={e => { setSearchName(e.target.value); setOnboardPage(1) }}
                       className="flex-1 text-xs outline-none min-w-0 bg-transparent"
@@ -796,7 +796,7 @@ function SectionedCrewView({
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
                     <Users className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                    <p>Không có thuyền viên nào</p>
+                    <p>{t('crew.page.noCrewMembers')}</p>
                   </td>
                 </tr>
               ) : (
@@ -825,16 +825,16 @@ function SectionedCrewView({
                         <div className="truncate">{crew.rank?.rankName || '-'}</div>
                       </td>
                       <td className="w-36 px-3 py-2 text-xs text-gray-700 border-r border-gray-200">
-                        <div className="truncate">{crew.countryName || 'N/A'}</div>
+                        <div className="truncate">{crew.countryName || t('crew.page.na')}</div>
                       </td>
                       <td className="w-32 px-3 py-2 text-xs text-gray-700 border-r border-gray-200">
                         {crew.embarkDate ? format(parseISO(crew.embarkDate), 'dd/MM/yyyy') : '-'}
                       </td>
                       <td className="w-24 px-3 py-2">
                         {crew.isOnboard ? (
-                          <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-700">Onboard</span>
+                          <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-700">{t('crew.page.onboard')}</span>
                         ) : (
-                          <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">Ashore</span>
+                          <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">{t('crew.page.ashore')}</span>
                         )}
                       </td>
                     </tr>
@@ -848,11 +848,11 @@ function SectionedCrewView({
         {/* â”€â”€ PAGINATION â”€â”€ */}
         <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
           <div>
-            <span className="border border-gray-300 rounded px-2 py-1 text-xs">{ITEMS_PER_PAGE} / trang</span>
+            <span className="border border-gray-300 rounded px-2 py-1 text-xs">{ITEMS_PER_PAGE} / {t('crew.page.perPage')}</span>
           </div>
           <div className="flex items-center gap-1">
             <span className="mr-2">
-              Trang {onboardPage} / {totalPages} ({displayedCrew.length} thuyền viên)
+              {t('crew.page.pageInfo', { current: onboardPage, total: totalPages, count: displayedCrew.length })}
             </span>
             <button
               onClick={() => setOnboardPage(p => Math.max(1, p - 1))}
@@ -884,7 +884,7 @@ function SectionedCrewView({
             >&rsaquo;</button>
           </div>
           <div className="flex items-center gap-2">
-            <span>Phân trang</span>
+            <span>{t('crew.page.pagination')}</span>
             <input
               type="number"
               min={1}
@@ -932,7 +932,7 @@ function SectionedCrewView({
             }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <FileText className="w-4 h-4 text-gray-500" /> Open details
+            <FileText className="w-4 h-4 text-gray-500" /> {t('crew.page.openDetails')}
           </button>
           <button
             onClick={() => {
@@ -941,33 +941,33 @@ function SectionedCrewView({
             }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <ExternalLink className="w-4 h-4 text-gray-500" /> Open details in a new tab
+            <ExternalLink className="w-4 h-4 text-gray-500" /> {t('crew.page.openInNewTab')}
           </button>
           <div className="border-t border-gray-200 my-1"></div>
           <button
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <ArrowDownCircle className="w-4 h-4 text-gray-500" /> Move to Crew Temp.
+            <ArrowDownCircle className="w-4 h-4 text-gray-500" /> {t('crew.page.moveToTemp')}
           </button>
           <button
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <ArrowDownCircle className="w-4 h-4 text-gray-500" /> Move to Crew Signed Off
+            <ArrowDownCircle className="w-4 h-4 text-gray-500" /> {t('crew.page.moveToSignedOff')}
           </button>
           <button
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <ArrowRightCircle className="w-4 h-4 text-gray-500" /> Move to Passengers
+            <ArrowRightCircle className="w-4 h-4 text-gray-500" /> {t('crew.page.moveToPassengers')}
           </button>
           <button
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
-            <ArrowRightCircle className="w-4 h-4 text-gray-500" /> Move to Others
+            <ArrowRightCircle className="w-4 h-4 text-gray-500" /> {t('crew.page.moveToOthers')}
           </button>
           <button
             className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
-            <Trash2 className="w-4 h-4" /> Delete
+            <Trash2 className="w-4 h-4" /> {t('crew.page.delete')}
           </button>
         </div>
       )}
@@ -1009,7 +1009,7 @@ function InlinePendingReviewSection({
       {pendingLoading ? (
         <div className="text-center py-6 bg-white">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600 mx-auto"></div>
-          <p className="text-gray-500 mt-2 text-sm">Loading pending crew...</p>
+          <p className="text-gray-500 mt-2 text-sm">{t('crew.page.loadingPending')}</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -1022,7 +1022,7 @@ function InlinePendingReviewSection({
                 <th className="w-44 px-3 py-2 text-left text-xs font-semibold text-gray-600 border-b border-r border-gray-200">{t('crew.table.rank')}</th>
                 <th className="w-36 px-3 py-2 text-left text-xs font-semibold text-gray-600 border-b border-r border-gray-200">{t('crew.fields.nationality')}</th>
                 <th className="w-24 px-3 py-2 text-left text-xs font-semibold text-gray-600 border-b border-r border-gray-200">{t('crew.table.status')}</th>
-                <th className="w-40 px-3 py-2 text-center text-xs font-semibold text-gray-600 border-b border-gray-200">Actions</th>
+                <th className="w-40 px-3 py-2 text-center text-xs font-semibold text-gray-600 border-b border-gray-200">{t('crew.page.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -1042,13 +1042,13 @@ function InlinePendingReviewSection({
                     <div className="truncate">{crew.rank?.rankName || '-'}</div>
                   </td>
                   <td className="w-36 px-3 py-2 text-xs text-gray-700 border-r border-gray-200">
-                    <div className="truncate">{crew.countryName || 'N/A'}</div>
+                    <div className="truncate">{crew.countryName || t('crew.page.na')}</div>
                   </td>
                   <td className="w-24 px-3 py-2 text-xs border-r border-gray-200">
                     {crew.onboardStatus === 'OnHold' ? (
-                      <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-orange-100 text-orange-700">On Hold</span>
+                      <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-orange-100 text-orange-700">{t('crew.page.onHold')}</span>
                     ) : (
-                      <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-700">Pending</span>
+                      <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-700">{t('crew.page.pending')}</span>
                     )}
                   </td>
                   <td className="w-40 px-3 py-2 text-xs">
@@ -1059,14 +1059,14 @@ function InlinePendingReviewSection({
                         className="flex items-center gap-1 px-2.5 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
                       >
                         <UserCheck className="w-3 h-3" />
-                        Approve
+                        {t('crew.page.approve')}
                       </button>
                       <button
                         onClick={() => onViewCrew(crew.id)}
                         className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-600 text-xs font-medium rounded hover:bg-blue-100 transition-colors"
                       >
                         <ExternalLink className="w-3 h-3" />
-                        Review
+                        {t('crew.page.review')}
                       </button>
                     </div>
                   </td>

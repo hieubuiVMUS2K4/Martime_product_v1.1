@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X, Shield } from 'lucide-react'
 import { maritimeService } from '../../services/maritime.service'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
 interface AddCertificateModalProps {
   isOpen: boolean
@@ -9,6 +10,7 @@ interface AddCertificateModalProps {
 }
 
 export function AddCertificateModal({ isOpen, onClose, onSave }: AddCertificateModalProps) {
+  const { t } = useTranslationSafe()
   const [formData, setFormData] = useState({
     certificateName: '',
     certificateCode: '',
@@ -31,15 +33,15 @@ export function AddCertificateModal({ isOpen, onClose, onSave }: AddCertificateM
     
     // Validation
     if (!formData.certificateName.trim()) {
-      setError('Certificate name is required')
+      setError(t('crew.addCertModal.nameRequired'))
       return
     }
     if (!formData.certificateCode.trim()) {
-      setError('Certificate code is required')
+      setError(t('crew.addCertModal.codeRequired'))
       return
     }
     if (formData.validityPeriodMonths < 1) {
-      setError('Validity period must be at least 1 month')
+      setError(t('crew.addCertModal.validityMin'))
       return
     }
 
@@ -64,7 +66,7 @@ export function AddCertificateModal({ isOpen, onClose, onSave }: AddCertificateM
       onClose()
     } catch (err: any) {
       console.error('Failed to create certificate:', err)
-      setError(err.response?.data?.message || 'Failed to create certificate. Please try again.')
+      setError(err.response?.data?.message || t('crew.addCertModal.createFailed'))
     } finally {
       setLoading(false)
     }
@@ -98,8 +100,8 @@ export function AddCertificateModal({ isOpen, onClose, onSave }: AddCertificateM
               <Shield className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Add Certificate Type</h2>
-              <p className="text-sm text-gray-600">Create a new STCW certificate type</p>
+              <h2 className="text-xl font-semibold text-gray-900">{t('crew.addCertModal.title')}</h2>
+              <p className="text-sm text-gray-600">{t('crew.addCertModal.subtitle')}</p>
             </div>
           </div>
           <button
@@ -122,7 +124,7 @@ export function AddCertificateModal({ isOpen, onClose, onSave }: AddCertificateM
           {/* Certificate Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Certificate Name <span className="text-red-500">*</span>
+              {t('crew.addCertModal.certName')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -130,7 +132,7 @@ export function AddCertificateModal({ isOpen, onClose, onSave }: AddCertificateM
               value={formData.certificateName}
               onChange={(e) => setFormData({ ...formData, certificateName: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., Certificate of Competency"
+              placeholder={t('crew.addCertModal.certNamePlaceholder')}
               disabled={loading}
             />
           </div>
@@ -138,7 +140,7 @@ export function AddCertificateModal({ isOpen, onClose, onSave }: AddCertificateM
           {/* Certificate Code */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Certificate Code <span className="text-red-500">*</span>
+              {t('crew.addCertModal.certCode')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -146,17 +148,17 @@ export function AddCertificateModal({ isOpen, onClose, onSave }: AddCertificateM
               value={formData.certificateCode}
               onChange={(e) => setFormData({ ...formData, certificateCode: e.target.value.toUpperCase() })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
-              placeholder="e.g., COC-II/1"
+              placeholder={t('crew.addCertModal.certCodePlaceholder')}
               disabled={loading}
             />
-            <p className="text-xs text-gray-500 mt-1">Unique code for identification (will be converted to uppercase)</p>
+            <p className="text-xs text-gray-500 mt-1">{t('crew.addCertModal.codeHelp')}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             {/* Category */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category <span className="text-red-500">*</span>
+                {t('crew.addCertModal.category')} <span className="text-red-500">*</span>
               </label>
               <select
                 required
@@ -165,18 +167,18 @@ export function AddCertificateModal({ isOpen, onClose, onSave }: AddCertificateM
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 disabled={loading}
               >
-                <option value="COMPETENCY">Competency</option>
-                <option value="MEDICAL">Medical</option>
-                <option value="PROFICIENCY">Proficiency</option>
-                <option value="SAFETY">Safety</option>
-                <option value="OTHER">Other</option>
+                <option value="COMPETENCY">{t('crew.categories.competency')}</option>
+                <option value="MEDICAL">{t('crew.categories.medical')}</option>
+                <option value="PROFICIENCY">{t('crew.categories.proficiency')}</option>
+                <option value="SAFETY">{t('crew.categories.safety')}</option>
+                <option value="OTHER">{t('crew.categories.other')}</option>
               </select>
             </div>
 
             {/* Validity Period */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Validity Period (Months) <span className="text-red-500">*</span>
+                {t('crew.addCertModal.validityPeriod')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -193,14 +195,14 @@ export function AddCertificateModal({ isOpen, onClose, onSave }: AddCertificateM
           {/* STCW Reference */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              STCW Reference
+              {t('crew.addCertModal.stcwRef')}
             </label>
             <input
               type="text"
               value={formData.stcwReference}
               onChange={(e) => setFormData({ ...formData, stcwReference: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., Regulation II/1"
+              placeholder={t('crew.addCertModal.stcwRefPlaceholder')}
               disabled={loading}
             />
           </div>
@@ -208,14 +210,14 @@ export function AddCertificateModal({ isOpen, onClose, onSave }: AddCertificateM
           {/* Issuing Authority */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Issuing Authority
+              {t('crew.addCertModal.issuingAuth')}
             </label>
             <input
               type="text"
               value={formData.issuingAuthority}
               onChange={(e) => setFormData({ ...formData, issuingAuthority: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., Vietnam Maritime Administration"
+              placeholder={t('crew.addCertModal.issuingAuthPlaceholder')}
               disabled={loading}
             />
           </div>
@@ -223,14 +225,14 @@ export function AddCertificateModal({ isOpen, onClose, onSave }: AddCertificateM
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
+              {t('crew.addCertModal.description')}
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              placeholder="Enter certificate description..."
+              placeholder={t('crew.addCertModal.descPlaceholder')}
               disabled={loading}
             />
           </div>
@@ -246,7 +248,7 @@ export function AddCertificateModal({ isOpen, onClose, onSave }: AddCertificateM
               disabled={loading}
             />
             <label htmlFor="isMandatory" className="text-sm text-gray-700">
-              Mark as mandatory certificate for all crew members
+              {t('crew.addCertModal.mandatoryCheck')}
             </label>
           </div>
 
@@ -258,7 +260,7 @@ export function AddCertificateModal({ isOpen, onClose, onSave }: AddCertificateM
               disabled={loading}
               className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -268,12 +270,12 @@ export function AddCertificateModal({ isOpen, onClose, onSave }: AddCertificateM
               {loading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Creating...
+                  {t('crew.addCertModal.creating')}
                 </>
               ) : (
                 <>
                   <Shield className="w-4 h-4" />
-                  Create Certificate
+                  {t('crew.addCertModal.createCert')}
                 </>
               )}
             </button>

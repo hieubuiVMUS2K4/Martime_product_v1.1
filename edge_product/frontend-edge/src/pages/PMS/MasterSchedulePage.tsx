@@ -327,9 +327,9 @@ export default function MasterSchedulePage() {
 
   const formatInterval = (task: GanttTask): string => {
     if (task.intervalType === 'RUNNING_HOURS' && task.intervalValue) {
-      return `${task.intervalValue}h interval`;
+      return t('pms.masterSchedule.interval', { value: task.intervalValue });
     } else if (task.intervalType === 'CALENDAR' && task.intervalValue) {
-      return `${task.intervalValue}d interval`;
+      return t('pms.masterSchedule.intervalDays', { value: task.intervalValue });
     }
     return '';
   };

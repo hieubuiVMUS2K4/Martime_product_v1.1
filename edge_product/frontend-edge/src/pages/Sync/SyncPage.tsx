@@ -18,33 +18,34 @@ type SyncStatus = {
 }
 
 // ============================================================
-// TABLE → VIETNAMESE LABEL MAP
+// TABLE → I18N KEY MAP
 // ============================================================
-const TABLE_TO_LABEL: Record<string, string> = {
-  crew_member:          'Thuyền viên',
-  crew_certificate:     'Chứng chỉ TV',
-  certificate:          'Loại chứng chỉ',
-  rank:                 'Chức danh',
-  rank_certificate:     'Chứng chỉ chức danh',
-  country:              'Quốc gia',
-  country_certificate:  'Chứng chỉ quốc gia',
-  service_record:       'Lý lịch công tác',
-  travel_document:      'Giấy tờ du lịch',
-  seafarer_document:    'Hồ sơ thuyền viên',
-  employment_document:  'Hợp đồng lao động',
-  health_document:      'Hồ sơ sức khỏe',
-  voyage_record:        'Chuyến đi',
-  noon_report:          'Báo cáo Noon',
-  maritime_report:      'Báo cáo hàng hải',
-  maintenance_task:     'Bảo trì thiết bị',
+const TABLE_TO_KEY: Record<string, string> = {
+  crew_member:          'sync.tables.crewMember',
+  crew_certificate:     'sync.tables.crewCertificate',
+  certificate:          'sync.tables.certificate',
+  rank:                 'sync.tables.rank',
+  rank_certificate:     'sync.tables.rankCertificate',
+  country:              'sync.tables.country',
+  country_certificate:  'sync.tables.countryCertificate',
+  service_record:       'sync.tables.serviceRecord',
+  travel_document:      'sync.tables.travelDocument',
+  seafarer_document:    'sync.tables.seafarerDocument',
+  employment_document:  'sync.tables.employmentDocument',
+  health_document:      'sync.tables.healthDocument',
+  voyage_record:        'sync.tables.voyageRecord',
+  noon_report:          'sync.tables.noonReport',
+  maritime_report:      'sync.tables.maritimeReport',
+  maintenance_task:     'sync.tables.maintenanceTask',
 }
 
 type SyncGroupRow = { label: string; total: number; errors: number }
 
-function buildGroups(queue: SyncQueue[]): SyncGroupRow[] {
+function buildGroups(queue: SyncQueue[], t: (key: string, params?: Record<string, any>) => string): SyncGroupRow[] {
   const map: Record<string, SyncGroupRow> = {}
   for (const item of queue) {
-    const label = TABLE_TO_LABEL[item.tableName] ?? item.tableName
+    const key = TABLE_TO_KEY[item.tableName]
+    const label = key ? t(key) : item.tableName
     if (!map[label]) map[label] = { label, total: 0, errors: 0 }
     map[label].total++
     if (item.retryCount > 0) map[label].errors++
@@ -64,7 +65,8 @@ function SyncConfirmModal({
   onConfirm: () => void
   onClose: () => void
 }) {
-  const groups = buildGroups(queue)
+  const { t } = useTranslationSafe()
+  const groups = buildGroups(queue, t)
   const total  = queue.length
   const isOnline = status?.isOnline ?? false
   const failedInQueue = queue.filter(q => q.retryCount > 0).length
@@ -72,10 +74,10 @@ function SyncConfirmModal({
   const fmtRelative = (d?: string) => {
     if (!d) return '—'
     const mins = Math.floor((Date.now() - new Date(d).getTime()) / 60000)
-    if (mins < 1) return 'Vừa xong'
-    if (mins < 60) return `${mins} phút trước`
+    if (mins < 1) return t('sync.justNow')
+    if (mins < 60) return t('sync.minutesAgo', { mins })
     const h = Math.floor(mins / 60)
-    return h < 24 ? `${h} giờ trước` : `${Math.floor(h / 24)} ngày trước`
+    return h < 24 ? t('sync.hoursAgo', { hours: h }) : t('sync.daysAgo', { days: Math.floor(h / 24) })
   }
 
   return (
@@ -90,10 +92,10 @@ function SyncConfirmModal({
         <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700">
           <div className="flex items-center gap-3 text-white">
             <Send className="w-5 h-5" />
-            <span className="font-semibold text-lg">Xác nhận đồng bộ dữ liệu</span>
+            <span className="font-semibold text-lg">{t('sync.confirmTitle')}</span>
             {total > 0 && (
               <span className="bg-white/20 text-white text-xs px-2.5 py-1 rounded-full">
-                {total} bản ghi
+                {t('sync.confirmRecordCount', { count: total })}
               </span>
             )}
           </div>
@@ -107,7 +109,7 @@ function SyncConfirmModal({
           <div className="flex items-center gap-3 bg-red-50 border-b border-red-200 px-6 py-3">
             <WifiOff className="w-4 h-4 text-red-500 flex-shrink-0" />
             <span className="text-red-700 text-sm">
-              Hệ thống đang offline. Dữ liệu sẽ tự động đồng bộ khi kết nối lại.
+              {t('sync.offlineWarning')}
             </span>
           </div>
         )}
@@ -122,16 +124,16 @@ function SyncConfirmModal({
                 <Database className="w-4 h-4 text-blue-600" />
               </div>
               <div>
-                <div className="text-xs font-bold text-gray-700 tracking-wide">TÀU (LOCAL)</div>
-                <div className="text-xs text-gray-400">Dữ liệu chờ được gửi</div>
+                <div className="text-xs font-bold text-gray-700 tracking-wide">{t('sync.shipLocal')}</div>
+                <div className="text-xs text-gray-400">{t('sync.dataWaiting')}</div>
               </div>
             </div>
 
             {total === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <CheckCircle2 className="w-10 h-10 text-emerald-400 mb-2" />
-                <p className="text-sm text-gray-500 font-medium">Không có dữ liệu mới</p>
-                <p className="text-xs text-gray-400">Tất cả đã được đồng bộ</p>
+                <p className="text-sm text-gray-500 font-medium">{t('sync.noNewData')}</p>
+                <p className="text-xs text-gray-400">{t('sync.allSynced')}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -144,7 +146,7 @@ function SyncConfirmModal({
                         <div className="flex items-center gap-2">
                           {g.errors > 0 && (
                             <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
-                              {g.errors} lỗi
+                              {t('sync.errorsCount', { count: g.errors })}
                             </span>
                           )}
                           <span className="text-xs font-semibold text-gray-600 tabular-nums w-5 text-right">
@@ -169,8 +171,8 @@ function SyncConfirmModal({
                   )
                 })}
                 <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
-                  <span className="text-xs text-gray-400">Tổng cộng</span>
-                  <span className="text-sm font-bold text-blue-700">{total} bản ghi</span>
+                  <span className="text-xs text-gray-400">{t('sync.total')}</span>
+                  <span className="text-sm font-bold text-blue-700">{t('sync.confirmRecordCount', { count: total })}</span>
                 </div>
               </div>
             )}
@@ -208,14 +210,14 @@ function SyncConfirmModal({
                 <Cloud className={`w-4 h-4 ${isOnline ? 'text-emerald-600' : 'text-red-500'}`} />
               </div>
               <div>
-                <div className="text-xs font-bold text-gray-700 tracking-wide">BỜ (SHORE)</div>
-                <div className="text-xs text-gray-400">Trạng thái nhận</div>
+                <div className="text-xs font-bold text-gray-700 tracking-wide">{t('sync.shore')}</div>
+                <div className="text-xs text-gray-400">{t('sync.receiveStatus')}</div>
               </div>
             </div>
 
             <div className="space-y-2.5">
               <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5">
-                <span className="text-xs text-gray-500">Kết nối</span>
+                <span className="text-xs text-gray-500">{t('sync.connectionLabel')}</span>
                 <div className="flex items-center gap-1.5">
                   <div className={`w-2 h-2 rounded-full ${
                     isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'
@@ -223,22 +225,22 @@ function SyncConfirmModal({
                   <span className={`text-xs font-semibold ${
                     isOnline ? 'text-emerald-600' : 'text-red-600'
                   }`}>
-                    {isOnline ? 'Online' : 'Offline'}
+                    {isOnline ? t('sync.online') : t('sync.offline')}
                   </span>
                 </div>
               </div>
 
               <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5">
-                <span className="text-xs text-gray-500">Đồng bộ cuối</span>
+                <span className="text-xs text-gray-500">{t('sync.lastSyncLabel')}</span>
                 <span className="text-xs font-medium text-gray-700">{fmtRelative(status?.lastSyncAt)}</span>
               </div>
 
               <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5">
-                <span className="text-xs text-gray-500">Đang chờ tại Shore</span>
+                <span className="text-xs text-gray-500">{t('sync.waitingAtShore')}</span>
                 <span className={`text-xs font-semibold ${
                   (status?.pendingRecords ?? 0) > 0 ? 'text-amber-600' : 'text-emerald-600'
                 }`}>
-                  {status?.pendingRecords ?? '—'} bản ghi
+                  {status?.pendingRecords != null ? t('sync.confirmRecordCount', { count: status.pendingRecords }) : '—'}
                 </span>
               </div>
 
@@ -246,7 +248,7 @@ function SyncConfirmModal({
                 <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
                   <span className="text-xs text-amber-700">
-                    {failedInQueue} bản ghi trong queue có lỗi — vẫn sẽ được thử gửi lại
+                    {t('sync.queueErrors', { count: failedInQueue })}
                   </span>
                 </div>
               )}
@@ -261,7 +263,7 @@ function SyncConfirmModal({
             disabled={syncing}
             className="px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors"
           >
-            Hủy
+            {t('sync.cancel')}
           </button>
           <button
             onClick={onConfirm}
@@ -273,12 +275,12 @@ function SyncConfirmModal({
               : <Send className="w-4 h-4" />
             }
             {syncing
-              ? 'Đang đồng bộ...'
+              ? t('sync.syncing')
               : !isOnline
-                ? 'Không có kết nối'
+                ? t('sync.noConnection')
                 : total === 0
-                  ? 'Không có dữ liệu'
-                  : `Đồng bộ ngay (${total} bản ghi)`
+                  ? t('sync.noData')
+                  : t('sync.syncNowCount', { count: total })
             }
           </button>
         </div>
@@ -291,11 +293,11 @@ function SyncConfirmModal({
 // SNAPSHOT MODAL — select data groups to queue for Shore sync
 // ============================================================
 const SNAPSHOT_GROUPS = [
-  { id: 'ship_data', label: 'Thông tin tàu',  desc: 'Thông số kỹ thuật & đặc điểm tàu (1 bản ghi)',                    icon: Ship,       dateFilter: false, color: 'blue'    },
-  { id: 'crew',      label: 'Thuyền viên',    desc: 'Crew, chứng chỉ, hồ sơ, danh mục tham chiếu',                   icon: Users,      dateFilter: false, color: 'emerald' },
-  { id: 'pms',       label: 'PMS - Thiết bị / Vật tư / Kho', desc: 'Thiết bị, vật tư, kho, phiếu nhập, yêu cầu vật tư, tồn kho',  icon: Package,    dateFilter: false, color: 'orange'  },
-  { id: 'voyage',    label: 'Chuyến đi',      desc: 'Hành trình, cảng ghé, trạng thái chuyến đi',                    icon: Navigation, dateFilter: true,  color: 'violet'  },
-  { id: 'report',    label: 'Báo cáo',        desc: 'Báo cáo hàng hải, noon report (cần Chuyến đi trước)',           icon: FileText,   dateFilter: true,  color: 'amber'   },
+  { id: 'ship_data', labelKey: 'sync.groups.shipData',  descKey: 'sync.groups.shipDataDesc',  icon: Ship,       dateFilter: false, color: 'blue'    },
+  { id: 'crew',      labelKey: 'sync.groups.crew',      descKey: 'sync.groups.crewDesc',      icon: Users,      dateFilter: false, color: 'emerald' },
+  { id: 'pms',       labelKey: 'sync.groups.pms',       descKey: 'sync.groups.pmsDesc',       icon: Package,    dateFilter: false, color: 'orange'  },
+  { id: 'voyage',    labelKey: 'sync.groups.voyage',    descKey: 'sync.groups.voyageDesc',    icon: Navigation, dateFilter: true,  color: 'violet'  },
+  { id: 'report',    labelKey: 'sync.groups.report',    descKey: 'sync.groups.reportDesc',    icon: FileText,   dateFilter: true,  color: 'amber'   },
 ] as const
 
 type GroupId = typeof SNAPSHOT_GROUPS[number]['id']
@@ -314,6 +316,7 @@ function SnapshotModal({
   onConfirm: (groups: string[], fromDate?: string, toDate?: string) => Promise<void>
   onClose:   () => void
 }) {
+  const { t } = useTranslationSafe()
   const [selected,  setSelected]  = useState<Set<GroupId>>(new Set(['ship_data', 'crew']))
   const [fromDate,  setFromDate]  = useState('')
   const [toDate,    setToDate]    = useState('')
@@ -349,7 +352,7 @@ function SnapshotModal({
         <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-slate-700 to-slate-800">
           <div className="flex items-center gap-3 text-white">
             <Database className="w-5 h-5" />
-            <span className="font-semibold text-lg">Snapshot dữ liệu lên Shore</span>
+            <span className="font-semibold text-lg">{t('sync.snapshotTitle')}</span>
           </div>
           <button onClick={!loading ? onClose : undefined} className="text-white/70 hover:text-white transition-colors">
             <XCircle className="w-5 h-5" />
@@ -360,7 +363,7 @@ function SnapshotModal({
 
           {/* Group selector */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Chọn nhóm dữ liệu</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t('sync.selectGroups')}</p>
             <div className="space-y-2">
               {SNAPSHOT_GROUPS.map(g => {
                 const checked = selected.has(g.id)
@@ -380,12 +383,12 @@ function SnapshotModal({
                     </div>
                     <Icon className={`w-4 h-4 flex-shrink-0 ${checked ? 'text-slate-700' : 'text-gray-400'}`} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-gray-800">{g.label}</div>
-                      <div className="text-xs text-gray-500">{g.desc}</div>
+                      <div className="text-sm font-semibold text-gray-800">{t(g.labelKey)}</div>
+                      <div className="text-xs text-gray-500">{t(g.descKey)}</div>
                     </div>
                     {g.dateFilter && (
                       <span className="text-xs text-gray-400 flex-shrink-0 bg-gray-100 px-2 py-0.5 rounded-full">
-                        Lọc ngày
+                        {t('sync.dateFilter')}
                       </span>
                     )}
                   </div>
@@ -399,11 +402,11 @@ function SnapshotModal({
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Khoảng thời gian (Chuyến đi / Báo cáo)</p>
+                <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">{t('sync.dateRange')}</p>
               </div>
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="text-xs text-gray-500 block mb-1">Từ ngày</label>
+                  <label className="text-xs text-gray-500 block mb-1">{t('sync.fromDate')}</label>
                   <input
                     type="date"
                     value={fromDate}
@@ -413,7 +416,7 @@ function SnapshotModal({
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs text-gray-500 block mb-1">Đến ngày</label>
+                  <label className="text-xs text-gray-500 block mb-1">{t('sync.toDate')}</label>
                   <input
                     type="date"
                     value={toDate}
@@ -423,21 +426,21 @@ function SnapshotModal({
                   />
                 </div>
               </div>
-              <p className="text-xs text-amber-600">💡 Bỏ trống để lấy toàn bộ dữ liệu không giới hạn thời gian</p>
+              <p className="text-xs text-amber-600">💡 {t('sync.dateHint')}</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-t border-gray-100">
-          <span className="text-xs text-gray-500">{selected.size} nhóm được chọn</span>
+          <span className="text-xs text-gray-500">{t('sync.groupsSelected', { count: selected.size })}</span>
           <div className="flex gap-3">
             <button
               onClick={onClose}
               disabled={loading}
               className="px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors"
             >
-              Hủy
+              {t('sync.cancel')}
             </button>
             <button
               onClick={handleConfirm}
@@ -445,7 +448,7 @@ function SnapshotModal({
               className="flex items-center gap-2 px-5 py-2 bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors shadow-sm"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
-              {loading ? 'Đang xử lý...' : `Snapshot (${selected.size} nhóm)`}
+              {loading ? t('sync.processing') : t('sync.snapshotCount', { count: selected.size })}
             </button>
           </div>
         </div>
@@ -540,7 +543,7 @@ export function SyncPage() {
       await fetchData()
       setShowSnapshotModal(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Snapshot thất bại')
+      setError(err instanceof Error ? err.message : t('sync.snapshotFailed'))
       setShowSnapshotModal(false)
     }
   }
@@ -558,23 +561,24 @@ export function SyncPage() {
     if (!dateStr) return t('sync.status.pending')
     const diff = Date.now() - new Date(dateStr).getTime()
     const mins = Math.floor(diff / 60000)
-    if (mins < 1) return 'Vừa xong'
-    if (mins < 60) return `${mins} phút trước`
+    if (mins < 1) return t('sync.justNow')
+    if (mins < 60) return t('sync.minutesAgo', { mins })
     const hours = Math.floor(mins / 60)
-    if (hours < 24) return `${hours} giờ trước`
-    return `${Math.floor(hours / 24)} ngày trước`
+    if (hours < 24) return t('sync.hoursAgo', { hours })
+    return t('sync.daysAgo', { days: Math.floor(hours / 24) })
   }
 
   const getTableDisplayName = (tableName: string) => {
-    const map: Record<string, string> = {
-      'crew_members': 'Thuyền viên',
-      'crew_certificates': 'Chứng chỉ',
-      'voyages': 'Chuyến đi',
-      'service_records': 'Lý lịch công tác',
-      'ranks': 'Chức danh',
-      'certificates': 'Loại chứng chỉ',
+    const keyMap: Record<string, string> = {
+      'crew_members': 'sync.tables.crewMember',
+      'crew_certificates': 'sync.tables.crewCertificate',
+      'voyages': 'sync.tables.voyageRecord',
+      'service_records': 'sync.tables.serviceRecord',
+      'ranks': 'sync.tables.rank',
+      'certificates': 'sync.tables.certificate',
     }
-    return map[tableName?.toLowerCase()] || tableName
+    const key = keyMap[tableName?.toLowerCase()]
+    return key ? t(key) : tableName
   }
 
   const getPriorityColor = (priority: number) => {
@@ -584,9 +588,9 @@ export function SyncPage() {
   }
 
   const getPriorityLabel = (priority: number) => {
-    if (priority <= 1) return 'Cao'
-    if (priority <= 3) return 'Trung bình'
-    return 'Thấp'
+    if (priority <= 1) return t('sync.priorityHigh')
+    if (priority <= 3) return t('sync.priorityMedium')
+    return t('sync.priorityLow')
   }
 
   if (loading) {
@@ -595,7 +599,7 @@ export function SyncPage() {
         <div className="max-w-7xl mx-auto p-6">
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-            <span className="ml-3 text-gray-500 text-lg">Đang tải dữ liệu đồng bộ...</span>
+            <span className="ml-3 text-gray-500 text-lg">{t('sync.loading')}</span>
           </div>
         </div>
       </div>
@@ -618,7 +622,7 @@ export function SyncPage() {
               {t('sync.title')}
             </h1>
             <p className="text-gray-500 mt-1">
-              Quản lý đồng bộ dữ liệu giữa tàu và bờ • Cập nhật: {lastRefresh.toLocaleTimeString('vi-VN')}
+              {t('sync.updatedAt', { time: lastRefresh.toLocaleTimeString('vi-VN') })}
             </p>
           </div>
 
@@ -631,7 +635,7 @@ export function SyncPage() {
                 onChange={(e) => setAutoSync(e.target.checked)}
                 className="w-4 h-4 text-blue-600 rounded"
               />
-              <span className="text-sm text-gray-600">Tự động làm mới</span>
+              <span className="text-sm text-gray-600">{t('sync.autoRefresh')}</span>
             </label>
 
             {/* Refresh button */}
@@ -640,7 +644,7 @@ export function SyncPage() {
               className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm"
             >
               <RefreshCw className="w-4 h-4" />
-              Làm mới
+              {t('sync.refresh')}
             </button>
 
             {/* Reset Errors button - only show when there are failed items */}
@@ -648,11 +652,11 @@ export function SyncPage() {
               <button
                 onClick={handleResetErrors}
                 disabled={resetting}
-                title="Reset retry count để thử lại các bản ghi lỗi"
+                title={t('sync.resetErrorsTitle')}
                 className="flex items-center gap-2 px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors text-sm"
               >
                 {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
-                Reset lỗi ({failedItems.filter(q => q.retryCount >= q.maxRetries).length})
+                {t('sync.resetErrors', { count: failedItems.filter(q => q.retryCount >= q.maxRetries).length })}
               </button>
             )}
 
@@ -660,11 +664,11 @@ export function SyncPage() {
             <button
               onClick={() => setShowSnapshotModal(true)}
               disabled={syncing}
-              title="Chọn nhóm dữ liệu cần snapshot lên Shore"
+              title={t('sync.snapshotDataTitle')}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors text-sm font-medium"
             >
               <Database className="w-4 h-4" />
-              Snapshot dữ liệu
+              {t('sync.snapshotData')}
             </button>
 
             {/* Sync trigger */}
@@ -678,7 +682,7 @@ export function SyncPage() {
               ) : (
                 <Send className="w-4 h-4" />
               )}
-              {syncing ? 'Đang đồng bộ...' : t('sync.syncNow')}
+              {syncing ? t('sync.syncing') : t('sync.syncNow')}
             </button>
           </div>
         </div>
@@ -690,8 +694,8 @@ export function SyncPage() {
             <div className="flex-1">
               <span className="text-teal-700 text-sm font-medium">
                 {snapshotResult.queued > 0
-                  ? `${snapshotResult.queued.toLocaleString()} bản ghi đã vào hàng đợi — nhấn Đồng bộ ngay để gửi lên Shore.`
-                  : 'Tất cả dữ liệu đã có trong hàng đợi rồi.'}
+                  ? t('sync.snapshotQueued', { count: snapshotResult.queued.toLocaleString() })
+                  : t('sync.snapshotAllQueued')}
               </span>
               {snapshotResult.groups?.length > 0 && snapshotResult.queued > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -712,8 +716,7 @@ export function SyncPage() {
           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
             <span className="text-emerald-700 text-sm">
-              Đồng bộ hoàn tất — đã gửi <strong>{syncResult.totalSynced.toLocaleString()}</strong> bản ghi,
-              còn lại <strong>{syncResult.pendingRecords.toLocaleString()}</strong> chờ xử lý
+              {t('sync.syncComplete', { synced: syncResult.totalSynced.toLocaleString(), pending: syncResult.pendingRecords.toLocaleString() })}
             </span>
             <button onClick={() => setSyncResult(null)} className="ml-auto text-emerald-500 hover:text-emerald-700">
               ✕
@@ -727,7 +730,7 @@ export function SyncPage() {
             <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
             <span className="text-red-700 text-sm">{error}</span>
             <button onClick={fetchData} className="ml-auto text-sm text-red-600 underline hover:text-red-800">
-              Thử lại
+              {t('sync.retry')}
             </button>
           </div>
         )}
@@ -737,7 +740,7 @@ export function SyncPage() {
           {/* Connection Status */}
           <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-gray-500 font-medium">Kết nối Shore</span>
+              <span className="text-sm text-gray-500 font-medium">{t('sync.connection')}</span>
               {isOnline ? (
                 <Wifi className="w-5 h-5 text-emerald-500" />
               ) : (
@@ -747,7 +750,7 @@ export function SyncPage() {
             <div className="flex items-center gap-2">
               <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
               <span className={`text-lg font-bold ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
-                {isOnline ? 'Đã kết nối' : 'Mất kết nối'}
+                {isOnline ? t('sync.connected') : t('sync.disconnected')}
               </span>
             </div>
           </div>
@@ -761,7 +764,7 @@ export function SyncPage() {
             <span className={`text-3xl font-bold ${pendingCount > 0 ? 'text-amber-600' : 'text-gray-800'}`}>
               {pendingCount}
             </span>
-            <p className="text-xs text-gray-400 mt-1">bản ghi chờ đồng bộ</p>
+            <p className="text-xs text-gray-400 mt-1">{t('sync.recordsPending')}</p>
           </div>
 
           {/* Last Sync */}
@@ -779,13 +782,13 @@ export function SyncPage() {
           {/* Failed Items */}
           <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-gray-500 font-medium">Lỗi đồng bộ</span>
+              <span className="text-sm text-gray-500 font-medium">{t('sync.syncErrors')}</span>
               <AlertTriangle className={`w-5 h-5 ${failedItems.length > 0 ? 'text-red-500' : 'text-gray-400'}`} />
             </div>
             <span className={`text-3xl font-bold ${failedItems.length > 0 ? 'text-red-600' : 'text-gray-800'}`}>
               {failedItems.length}
             </span>
-            <p className="text-xs text-gray-400 mt-1">bản ghi cần xử lý lại</p>
+            <p className="text-xs text-gray-400 mt-1">{t('sync.recordsNeedRetry')}</p>
           </div>
         </div>
 
@@ -798,10 +801,10 @@ export function SyncPage() {
             <div className="flex items-center gap-3">
               <Database className="w-5 h-5 text-blue-600" />
               <h2 className="text-lg font-semibold text-gray-900">
-                Hàng đợi đồng bộ
+                {t('sync.queue')}
               </h2>
               <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">
-                {queue.length} mục
+                {t('sync.queueItems', { count: queue.length })}
               </span>
             </div>
             {showQueue ? (
@@ -816,20 +819,20 @@ export function SyncPage() {
               {queue.length === 0 ? (
                 <div className="text-center py-12">
                   <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
-                  <p className="text-gray-500 font-medium">Không có bản ghi nào đang chờ đồng bộ</p>
-                  <p className="text-gray-400 text-sm mt-1">Tất cả dữ liệu đã được đồng bộ thành công</p>
+                  <p className="text-gray-500 font-medium">{t('sync.queueEmpty')}</p>
+                  <p className="text-gray-400 text-sm mt-1">{t('sync.queueEmptyDesc')}</p>
                 </div>
               ) : (
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50 text-left">
                       <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
-                      <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Bảng dữ liệu</th>
-                      <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Record ID</th>
-                      <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ưu tiên</th>
-                      <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Thử lại</th>
-                      <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tạo lúc</th>
-                      <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Lỗi</th>
+                      <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('sync.table')}</th>
+                      <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('sync.recordId')}</th>
+                      <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('sync.priority')}</th>
+                      <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('sync.retries')}</th>
+                      <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('sync.createdAt')}</th>
+                      <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('sync.lastError')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -878,24 +881,24 @@ export function SyncPage() {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
           <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
             <Cloud className="w-4 h-4 text-blue-500" />
-            Cấu hình đồng bộ
+            {t('sync.syncConfig')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div className="flex justify-between items-center bg-gray-50 rounded-lg px-4 py-3">
-              <span className="text-gray-500">Đồng bộ tự động</span>
+              <span className="text-gray-500">{t('sync.autoSync')}</span>
               <span className={`font-medium ${SYNC_CONFIG.AUTO_SYNC_ENABLED ? 'text-emerald-600' : 'text-gray-600'}`}>
-                {SYNC_CONFIG.AUTO_SYNC_ENABLED ? 'Bật' : 'Tắt'}
+                {SYNC_CONFIG.AUTO_SYNC_ENABLED ? t('sync.enabled') : t('sync.disabled')}
               </span>
             </div>
             <div className="flex justify-between items-center bg-gray-50 rounded-lg px-4 py-3">
-              <span className="text-gray-500">Chu kỳ đồng bộ</span>
+              <span className="text-gray-500">{t('sync.syncInterval')}</span>
               <span className="font-medium text-gray-800">
-                {Math.floor(SYNC_CONFIG.SYNC_INTERVAL / 60000)} phút
+                {Math.floor(SYNC_CONFIG.SYNC_INTERVAL / 60000)} {t('sync.minutes')}
               </span>
             </div>
             <div className="flex justify-between items-center bg-gray-50 rounded-lg px-4 py-3">
-              <span className="text-gray-500">Batch tối đa</span>
-              <span className="font-medium text-gray-800">{SYNC_CONFIG.MAX_SYNC_BATCH} bản ghi</span>
+              <span className="text-gray-500">{t('sync.maxBatch')}</span>
+              <span className="font-medium text-gray-800">{SYNC_CONFIG.MAX_SYNC_BATCH} {t('sync.records')}</span>
             </div>
           </div>
         </div>
