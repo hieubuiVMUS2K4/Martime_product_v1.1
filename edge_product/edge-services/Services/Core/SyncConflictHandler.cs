@@ -126,6 +126,9 @@ public class SyncConflictHandler : ISyncConflictHandler
                 // SNAPSHOT = full upsert from shore (used by force-push / full resync)
                 await HandleUpdateAsync(context, entityType, item);
                 break;
+            case "CLEAR_EDGE_CHANGES":
+                await HandleClearEdgeChangesAsync(context, entityType, item);
+                break;
         }
     }
 
@@ -223,6 +226,30 @@ public class SyncConflictHandler : ISyncConflictHandler
         }
 
         _logger.LogDebug("Deleted from shore: {Table}/{Key}", item.TableName, item.RecordKey);
+    }
+
+    /// <summary>
+    /// Shore acknowledged edge changes — clear EdgeChanges on edge side.
+    /// This bypasses edge-owned field protection since it's an explicit shore command.
+    /// </summary>
+    private async Task HandleClearEdgeChangesAsync(EdgeDbContext context, Type entityType, SyncQueueItemDto item)
+    {
+        var existing = await FindByKeyAsync(context, entityType, item.RecordKey);
+        if (existing == null)
+        {
+            _logger.LogDebug("CLEAR_EDGE_CHANGES: entity not found {Table}/{Key}", item.TableName, item.RecordKey);
+            return;
+        }
+
+        var edgeChangesProp = existing.GetType().GetProperty("EdgeChanges");
+        var edgeChangesViewedProp = existing.GetType().GetProperty("EdgeChangesViewed");
+
+        if (edgeChangesProp != null)
+            edgeChangesProp.SetValue(existing, null);
+        if (edgeChangesViewedProp != null)
+            edgeChangesViewedProp.SetValue(existing, true);
+
+        _logger.LogInformation("Cleared EdgeChanges from shore ack: {Table}/{Key}", item.TableName, item.RecordKey);
     }
 
     /// <summary>

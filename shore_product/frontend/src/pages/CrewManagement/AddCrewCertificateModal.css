@@ -116,4 +116,40 @@
 .acm-btn-save:hover { background: #0a5e5e; }
 .acm-btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
 
+/* Custom Certificate Dropdown */
+.acm-cert-dropdown { position: relative; }
+.acm-cert-dropdown__trigger {
+  width: 100%; padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+  background: #fff; font-size: 12px; text-align: left; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  transition: border-color 0.15s;
+}
+.acm-cert-dropdown__trigger:hover { border-color: #0d7377; }
+.acm-cert-dropdown__placeholder { color: #9ca3af; }
+.acm-cert-dropdown__arrow { font-size: 11px; color: #6b7280; transition: transform 0.15s; }
+.acm-cert-dropdown__arrow.open { transform: rotate(180deg); }
+.acm-cert-dropdown__menu {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: #fff; border: 1px solid #d1d5db; border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12); z-index: 50;
+  max-height: 260px; overflow-y: auto;
+}
+.acm-cert-dropdown__group-label {
+  padding: 6px 12px; font-size: 11px; font-weight: 700; color: #0d7377;
+  background: #f0fdf4; border-bottom: 1px solid #e5e7eb;
+  text-transform: uppercase; letter-spacing: 0.3px; position: sticky; top: 0;
+}
+.acm-cert-dropdown__item {
+  padding: 8px 12px; font-size: 12px; cursor: pointer;
+  border-bottom: 1px solid #f3f4f6; transition: background 0.1s;
+}
+.acm-cert-dropdown__item:last-child { border-bottom: none; }
+.acm-cert-dropdown__item:hover { background: #f0fdf4; }
+.acm-cert-dropdown__item.selected { background: #e0f2fe; font-weight: 600; }
+.acm-cert-dropdown__item--required {
+  background: #fffbeb; font-weight: 600; color: #92400e;
+  border-left: 3px solid #f59e0b;
+}
+.acm-cert-dropdown__item--required:hover { background: #fef3c7; }
+
 

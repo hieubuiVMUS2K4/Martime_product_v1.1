@@ -560,6 +560,13 @@ public class CrewController : ControllerBase
             _context.CrewMembers.Update(crew);
             await _context.SaveChangesAsync();
 
+            // Sync clear command to edge so it removes stale EdgeChanges
+            await _syncOutbox.BroadcastAsync(
+                "crew_member",
+                id.ToString(),
+                Maritime.Shared.Models.Sync.SyncActionType.CLEAR_EDGE_CHANGES,
+                new { Id = id, EdgeChanges = (string?)null, EdgeChangesViewed = true });
+
             return Ok(new { message = "Edge changes marked as viewed" });
         }
         catch (Exception ex)

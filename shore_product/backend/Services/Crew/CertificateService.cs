@@ -30,7 +30,7 @@ public class CertificateService : ICertificateService
     // CERTIFICATE TYPES (Master Data)
     // ============================================================
 
-    public async Task<List<CertificateDto>> GetAllCertificateTypesAsync(string? category = null)
+    public async Task<List<CertificateDto>> GetAllCertificateTypesAsync(string? category = null, int? rankId = null)
     {
         var query = _context.CrewCertificateTypes.AsNoTracking()
             .Where(c => c.IsActive)
@@ -38,6 +38,31 @@ public class CertificateService : ICertificateService
 
         if (!string.IsNullOrWhiteSpace(category))
             query = query.Where(c => c.Category == category.ToUpper());
+
+        if (rankId.HasValue)
+        {
+            var certIdsForRank = await _context.RankCertificates
+                .AsNoTracking()
+                .Where(rc => rc.RankId == rankId.Value)
+                .Select(rc => rc.CertificateId)
+                .ToListAsync();
+
+            var certIdsForRankSet = new HashSet<int>(certIdsForRank);
+
+            var certs = await query
+                .OrderBy(c => c.Category).ThenBy(c => c.CertificateName)
+                .ToListAsync();
+
+            return certs.Select(c => {
+                var dto = MapToDto(c);
+                dto.IsRequiredForRank = certIdsForRankSet.Contains(c.Id);
+                return dto;
+            })
+            .OrderByDescending(c => c.IsRequiredForRank)
+            .ThenBy(c => c.Category)
+            .ThenBy(c => c.CertificateName)
+            .ToList();
+        }
 
         return await query
             .OrderBy(c => c.Category).ThenBy(c => c.CertificateName)

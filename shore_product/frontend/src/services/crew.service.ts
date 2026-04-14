@@ -217,10 +217,13 @@ export interface HoldNotification {
 // ============================================================
 
 export const certificateApi = {
-  /** Get certificate types (master data) */
-  getTypes: (category?: string): Promise<CertificateType[]> => {
-    const sp = category ? `?category=${category}` : '';
-    return request(`${BASE}/certificates${sp}`);
+  /** Get certificate types (master data), optionally filtered by rank */
+  getTypes: (params?: { category?: string; rankId?: number }): Promise<CertificateType[]> => {
+    const sp = new URLSearchParams();
+    if (params?.category) sp.set('category', params.category);
+    if (params?.rankId) sp.set('rankId', params.rankId.toString());
+    const qs = sp.toString();
+    return request(`${BASE}/certificates${qs ? `?${qs}` : ''}`);
   },
 
   /** Get single certificate type */

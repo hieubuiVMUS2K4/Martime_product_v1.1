@@ -42,7 +42,10 @@ const getNavigation = (t: (key: string) => string) => [
   { name: t('nav.engine'), to: '/engine', icon: Zap },
   { name: t('nav.fuelAnalytics'), to: '/fuel-analytics', icon: Fuel },
   { name: t('nav.alarms'), to: '/alarms', icon: AlertTriangle },
-  { name: t('nav.crew'), to: '/crew', icon: Users },
+  { name: t('nav.crew'), icon: Users, subItems: [
+    { name: t('nav.crewMembers'), to: '/crew/members', icon: Users },
+    { name: t('nav.certificate'), to: '/crew/certificates', icon: Shield },
+  ] },
   { 
     name: t('nav.pms'), 
     icon: Calendar, 
@@ -103,7 +106,11 @@ export function Sidebar() {
     try { return localStorage.getItem('sidebar-collapsed') === 'true'; } catch { return false; }
   })
   const [logbooksOpen, setLogbooksOpen] = useState(location.pathname.startsWith('/logbooks'))
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([t('nav.pms')])
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(() => {
+    const initial: string[] = [t('nav.pms')]
+    if (location.pathname.startsWith('/crew')) initial.push(t('nav.crew'))
+    return initial
+  })
   const userRoleCode = useAuthStore(s => s.user?.roleCode?.toUpperCase())
 
   // Get translated navigation items, filtered by user role
@@ -208,7 +215,7 @@ export function Sidebar() {
                                 key={child.to}
                                 to={child.to}
                                 className={({ isActive }) =>
-                                  `flex items-center px-4 py-2 text-sm rounded-lg transition-colors ${
+                                  `flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                                     isActive
                                       ? 'bg-blue-600 text-white shadow-md'
                                       : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -231,7 +238,7 @@ export function Sidebar() {
                       key={subItem.to}
                       to={subItem.to}
                       className={({ isActive }) =>
-                        `flex items-center px-4 py-2 text-sm rounded-lg transition-colors ${
+                        `flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                           isActive
                             ? 'bg-blue-600 text-white shadow-md'
                             : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'

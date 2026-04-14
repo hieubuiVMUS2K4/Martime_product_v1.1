@@ -1211,7 +1211,7 @@ export function CrewDetailPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate('/crew')}
+              onClick={() => navigate(-1)}
               className="p-2 hover:bg-gray-100 rounded"
             >
               <ArrowLeft className="h-5 w-5" />

@@ -12,8 +12,8 @@ public interface ICertificateService
     // CERTIFICATE TYPES (Master Data)
     // ============================================================
     
-    /// <summary>Get all certificate types with optional category filter.</summary>
-    Task<List<CertificateDto>> GetAllCertificateTypesAsync(string? category = null);
+    /// <summary>Get all certificate types with optional category and rank filter.</summary>
+    Task<List<CertificateDto>> GetAllCertificateTypesAsync(string? category = null, int? rankId = null);
 
     /// <summary>Get a certificate type by ID.</summary>
     Task<CertificateDto?> GetCertificateTypeByIdAsync(int id);

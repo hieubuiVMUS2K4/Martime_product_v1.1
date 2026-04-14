@@ -39,11 +39,11 @@ public class CertificatesController : ControllerBase
 
     /// <summary>GET /api/certificates — Get all certificate types.</summary>
     [HttpGet]
-    public async Task<IActionResult> GetCertificateTypes([FromQuery] string? category = null)
+    public async Task<IActionResult> GetCertificateTypes([FromQuery] string? category = null, [FromQuery] int? rankId = null)
     {
         try
         {
-            var types = await _certService.GetAllCertificateTypesAsync(category);
+            var types = await _certService.GetAllCertificateTypesAsync(category, rankId);
             return Ok(types);
         }
         catch (Exception ex)
