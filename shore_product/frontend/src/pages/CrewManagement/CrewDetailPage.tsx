@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import './CrewDetailPage.css';
 import {
@@ -83,7 +83,7 @@ export const CrewDetailPage: React.FC = () => {
     } catch { /* ignore */ }
   };
 
-  // Helper: inline style for changed fields (d�ng inline style d? ch?c ch?n hi?n d?)
+  // Helper: inline style for changed fields (to ensure visibility)
   const fieldHighlight = (fieldName: string) =>
     changedFields.has(fieldName) ? ' cd-field--changed' : '';
 
@@ -100,7 +100,7 @@ export const CrewDetailPage: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
         <span style={{ fontSize: 11, color: '#dc2626' }}>
-          T�u d� s?a: <s style={{ color: '#9ca3af' }}>{c.oldValue || '(tr?ng)'}</s> ? <strong style={{ color: '#b91c1c' }}>{c.newValue}</strong>
+          Modified from ship: <s style={{ color: '#9ca3af' }}>{c.oldValue || '(empty)'}</s> → <strong style={{ color: '#b91c1c' }}>{c.newValue}</strong>
         </span>
       </div>
     );
@@ -136,7 +136,7 @@ export const CrewDetailPage: React.FC = () => {
   const [serviceRecords, setServiceRecords] = useState<ServiceRecord[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
 
-  // Crew management workflow hooks (lazy � only fetch when tab is active)
+  // Crew management workflow hooks (lazy - only fetch when tab is active)
   const { data: onboardingCase, loading: onbLoading } = useCrewOnboarding(
     activeTab === 'onboarding' ? id : undefined
   );
@@ -196,9 +196,9 @@ export const CrewDetailPage: React.FC = () => {
     try {
       await crewApi.update(id, edited);
       await refetch();
-      toast.success('Luu th�nh c�ng!');
+      toast.success('Saved successfully!');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Kh�ng th? luu d? li?u');
+      toast.error(e instanceof Error ? e.message : 'Failed to save data');
     } finally { setSaving(false); }
   };
 
@@ -210,7 +210,7 @@ export const CrewDetailPage: React.FC = () => {
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      if (file.size > 5 * 1024 * 1024) { toast.error('?nh kh�ng du?c vu?t qu� 5MB'); return; }
+      if (file.size > 5 * 1024 * 1024) { toast.error('Image must not exceed 5MB'); return; }
       setPendingAvatarFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setPendingAvatarPreview(reader.result as string);
@@ -229,9 +229,9 @@ export const CrewDetailPage: React.FC = () => {
       if (res.crewMember) await refetch();
       setPendingAvatarFile(null);
       setPendingAvatarPreview(null);
-      toast.success('C?p nh?t ?nh th�nh c�ng!');
+      toast.success('Avatar updated successfully!');
     } catch (err: any) {
-      toast.error(err.message || 'Upload th?t b?i');
+      toast.error(err.message || 'Upload failed');
     } finally {
       setUploadingAvatar(false);
     }
@@ -258,9 +258,9 @@ export const CrewDetailPage: React.FC = () => {
         setCertificates(prev => prev.map(c =>
           c.id === certId ? { ...c, documentFilePath: result.documentFilePath } : c
         ));
-        toast.success('Upload file th�nh c�ng!');
+        toast.success('File uploaded successfully!');
       } catch (err: any) {
-        toast.error(err.message || 'Upload th?t b?i');
+        toast.error(err.message || 'Upload failed');
       } finally {
         setUploadingCertId(null);
       }
@@ -287,13 +287,13 @@ export const CrewDetailPage: React.FC = () => {
   };
 
   const handleDeleteCertificate = async (certId: number) => {
-    if (!window.confirm('B?n c� ch?c mu?n x�a ch?ng ch? n�y?')) return;
+    if (!window.confirm('Are you sure you want to delete this certificate?')) return;
     try {
       await certificateApi.deleteCrewCertificate(certId);
       await refetchCerts();
-      toast.success('�� x�a ch?ng ch?');
+      toast.success('Certificate deleted');
     } catch (err: any) {
-      toast.error(err.message || 'Kh�ng th? x�a ch?ng ch?');
+      toast.error(err.message || 'Failed to delete certificate');
     }
   };
 
@@ -335,10 +335,10 @@ export const CrewDetailPage: React.FC = () => {
       const fd = new FormData();
       fd.append('file', file);
       await crewApi.uploadDocumentFile(id, docFileUploadTarget.category, docFileUploadTarget.docId, fd);
-      toast.success('Tai anh/file tai lieu thanh cong!');
+      toast.success('Document file uploaded successfully!');
       await loadDocuments(true);
     } catch (err: unknown) {
-      toast.error((err instanceof Error ? err.message : null) || 'Khong the tai file');
+      toast.error((err instanceof Error ? err.message : null) || 'Failed to upload file');
     } finally {
       setUploadingDocFile(false);
       setDocFileUploadTarget(null);
@@ -350,7 +350,7 @@ export const CrewDetailPage: React.FC = () => {
     docFileInputRef.current?.click();
   };
 
-  const DocTable = ({ docs, emoji }: { docs: CrewDocument[]; emoji: string }) => (
+  const DocTable = ({ docs }: { docs: CrewDocument[] }) => (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm" style={{ tableLayout: 'fixed' }}>
         <thead className="cd-table-thead">
@@ -369,7 +369,7 @@ export const CrewDetailPage: React.FC = () => {
           ) : docs.map(doc => (
             <tr key={doc.id} className="hover:bg-gray-50">
               <td className="px-4 py-2 font-medium text-gray-800 truncate">
-                <span className="mr-2">{emoji}</span>{doc.documentType}
+                {doc.documentType}
               </td>
               <td className="px-4 py-2 text-gray-600 truncate">{doc.documentNumber || '--'}</td>
               <td className="px-4 py-2 text-gray-600">{fmt(doc.issueDate)}</td>
@@ -385,7 +385,7 @@ export const CrewDetailPage: React.FC = () => {
                         setImageViewerDocTarget({ docId: doc.id, category: doc.category });
                         setIsImageViewerOpen(true);
                       }}
-                      title="Xem file"
+                      title="View file"
                       className="inline-flex items-center justify-center w-7 h-7 rounded bg-teal-500 hover:bg-teal-600 text-white"
                       style={{ border: 'none', cursor: 'pointer' }}>
                       <Eye className="w-3.5 h-3.5" />
@@ -395,7 +395,7 @@ export const CrewDetailPage: React.FC = () => {
                     <button
                       onClick={() => triggerDocFileUpload(doc.id, doc.category)}
                       disabled={uploadingDocFile}
-                      title="Tải ảnh/file lên"
+                      title="Upload image/file"
                       className="inline-flex items-center justify-center w-7 h-7 rounded text-white bg-gray-400 hover:bg-gray-500"
                       style={{ border: 'none', cursor: 'pointer' }}>
                       <Upload className="w-3.5 h-3.5" />
@@ -422,7 +422,7 @@ export const CrewDetailPage: React.FC = () => {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <h1 className="text-lg font-semibold text-gray-800 uppercase">
-              EDIT {crew.fullName} � {crew.rankName || 'CREW'}
+              EDIT {crew.fullName}
             </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -446,17 +446,17 @@ export const CrewDetailPage: React.FC = () => {
           <AlertTriangle className="h-5 w-5 flex-shrink-0" style={{ color: '#ea580c', marginTop: 2 }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#c2410c', marginBottom: 4 }}>
-              T�u y�u c?u b? sung h? so cho thuy?n vi�n n�y
+              Ship requested additional documents for this crew member
             </div>
             {crew.reviewNotes && (
               <div style={{ fontSize: 13, color: '#9a3412', background: '#ffedd5', borderRadius: 6, padding: '8px 12px', marginTop: 4 }}>
-                <strong>Ghi ch� t? t�u:</strong> {crew.reviewNotes}
+                <strong>Note from ship:</strong> {crew.reviewNotes}
               </div>
             )}
             {crew.onboardStatusChangedBy && (
               <div style={{ fontSize: 12, color: '#a0aec0', marginTop: 6 }}>
-                B?i: {crew.onboardStatusChangedBy}
-                {crew.onboardStatusChangedAt && ` � ${new Date(crew.onboardStatusChangedAt).toLocaleString('vi-VN')}`}
+                By: {crew.onboardStatusChangedBy}
+                {crew.onboardStatusChangedAt && ` • ${new Date(crew.onboardStatusChangedAt).toLocaleString('en-GB')}`}
               </div>
             )}
           </div>
@@ -467,9 +467,9 @@ export const CrewDetailPage: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 24px', background: '#fef2f2', borderBottom: '2px solid #fca5a5' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#991b1b' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 22, height: 22, padding: '0 6px', background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 700, borderRadius: 11 }}>{edgeChanges.length}</span>
-            <span>T�u d� thay d?i <strong>{edgeChanges.length}</strong> th�ng tin. C�c tru?ng thay d?i du?c d�nh d?u <span style={{ color: '#ef4444', fontWeight: 700 }}>M�U �?</span> b�n du?i.</span>
+            <span>Ship has modified <strong>{edgeChanges.length}</strong> field(s). Changed fields are marked in <span style={{ color: '#ef4444', fontWeight: 700 }}>RED</span> below.</span>
           </div>
-          <button onClick={handleMarkViewed} style={{ padding: '5px 14px', fontSize: 12, fontWeight: 600, color: '#fff', background: '#0d7377', border: 'none', borderRadius: 4, cursor: 'pointer' }}>? �� xem</button>
+          <button onClick={handleMarkViewed} style={{ padding: '5px 14px', fontSize: 12, fontWeight: 600, color: '#fff', background: '#0d7377', border: 'none', borderRadius: 4, cursor: 'pointer' }}>✓ Mark as viewed</button>
         </div>
       )}
       {/* Tabs */}
@@ -640,14 +640,14 @@ export const CrewDetailPage: React.FC = () => {
                           disabled={uploadingAvatar}
                           className={`px-3 py-1.5 text-white text-xs rounded flex items-center gap-1 ${uploadingAvatar ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
                         >
-                          <Upload className="w-3 h-3" /> {uploadingAvatar ? '�ang luu...' : 'Luu'}
+                          <Upload className="w-3 h-3" /> {uploadingAvatar ? 'Saving...' : 'Save'}
                         </button>
                         <button
                           onClick={handleAvatarCancel}
                           disabled={uploadingAvatar}
                           className="px-3 py-1.5 text-white text-xs rounded bg-gray-500 hover:bg-gray-600"
                         >
-                          Hu?
+                          Cancel
                         </button>
                       </>
                     ) : (
@@ -655,12 +655,12 @@ export const CrewDetailPage: React.FC = () => {
                         onClick={handleAvatarChoose}
                         className="px-3 py-1.5 text-white text-xs rounded bg-teal-600 hover:bg-teal-700 flex items-center gap-1"
                       >
-                        <Upload className="w-3 h-3" /> Thay ?nh
+                        <Upload className="w-3 h-3" /> Change Photo
                       </button>
                     )}
                   </div>
                   <p className="text-xs text-gray-400 mt-1 text-center">
-                    {pendingAvatarFile ? 'Nh?n Luu d? x�c nh?n' : 'JPG/PNG, t?i da 5MB'}
+                    {pendingAvatarFile ? 'Press Save to confirm' : 'JPG/PNG, max 5MB'}
                   </p>
                   <div className="mt-3 flex items-center gap-2">
                     <input type="checkbox" checked={edited.isOnboard ?? false} onChange={e => set('isOnboard', e.target.checked)} className="w-4 h-4 text-teal-600" />
@@ -826,10 +826,10 @@ export const CrewDetailPage: React.FC = () => {
                       onClick={() => setIsAddDocModalOpen(true)}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
                     >
-                      <Plus className="w-4 h-4" /> Th�m t�i li?u
+                      <Plus className="w-4 h-4" /> Add Document
                     </button>
                   </div>
-                  <DocTable docs={[...travelDocs, ...seafarerDocs, ...employmentDocs]} emoji="??" />
+                  <DocTable docs={[...travelDocs, ...seafarerDocs, ...employmentDocs]} />
                 </div>
 
                 {/* Health Documents */}
@@ -842,10 +842,10 @@ export const CrewDetailPage: React.FC = () => {
                       onClick={() => setIsAddHealthDocModalOpen(true)}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
                     >
-                      <Plus className="w-4 h-4" /> Th�m t�i li?u s?c kh?e
+                      <Plus className="w-4 h-4" /> Add Health Document
                     </button>
                   </div>
-                  <DocTable docs={healthDocs} emoji="??" />
+                  <DocTable docs={healthDocs} />
                 </div>
 
                 {/* Certificates */}
@@ -858,7 +858,7 @@ export const CrewDetailPage: React.FC = () => {
                       onClick={() => { setEditingCert(null); setShowAddCertModal(true); }}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
                     >
-                      <Plus className="w-4 h-4" /> Th�m ch?ng ch?
+                      <Plus className="w-4 h-4" /> Add Certificate
                     </button>
                   </div>
                   {certsLoading ? (
@@ -867,12 +867,12 @@ export const CrewDetailPage: React.FC = () => {
                     </div>
                   ) : !certificates || certificates.length === 0 ? (
                     <div className="text-center py-10 text-gray-400">
-                      <p>Chua c� ch?ng ch? n�o</p>
+                      <p>No certificates yet</p>
                       <button
                         onClick={() => { setEditingCert(null); setShowAddCertModal(true); }}
                         style={{ marginTop: 8, padding: '6px 16px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}
                       >
-                        + Th�m ch?ng ch? d?u ti�n
+                        + Add first certificate
                       </button>
                     </div>
                   ) : (
@@ -920,7 +920,7 @@ export const CrewDetailPage: React.FC = () => {
                                       : handleCertificateFileUpload(cert.id)}
                                     disabled={uploadingCertId === cert.id}
                                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                                    title={fileUrl ? 'Xem file' : 'Upload file'}
+                                    title={fileUrl ? 'View file' : 'Upload file'}
                                   >
                                     {uploadingCertId === cert.id ? (
                                       <div className="animate-spin" style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid #14b8a6', borderTopColor: 'transparent', display: 'inline-block' }} />
@@ -939,14 +939,14 @@ export const CrewDetailPage: React.FC = () => {
                                   <div style={{ display: 'flex', justifyContent: 'center', gap: 4 }}>
                                     <button
                                       onClick={() => { setEditingCert(cert); setShowAddCertModal(true); }}
-                                      title="S?a"
+                                      title="Edit"
                                       style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                                     >
                                       <Pencil className="w-3.5 h-3.5" style={{ color: '#4b5563' }} />
                                     </button>
                                     <button
                                       onClick={() => handleDeleteCertificate(cert.id)}
-                                      title="X�a"
+                                      title="Delete"
                                       style={{ background: 'none', border: '1px solid #fecaca', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                                     >
                                       <Trash2 className="w-3.5 h-3.5" style={{ color: '#dc2626' }} />
@@ -1208,43 +1208,14 @@ export const CrewDetailPage: React.FC = () => {
 
         {/* -- Audit Tab -- */}
         {activeTab === 'audit' && (
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Audit Trail</h2>
-            {auditLoading ? (
-              <div className="text-center py-8 text-gray-400">Loading audit log...</div>
-            ) : auditLogs.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <ScrollText className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                <p>No audit records found</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead className="cd-table-thead">
-                    <tr>
-                      <th>Action</th>
-                      <th>Entity</th>
-                      <th>Actor</th>
-                      <th>Details</th>
-                      <th>Timestamp</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {auditLogs.map(log => (
-                      <tr key={log.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-2">
-                          <span className="px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-700">{log.action}</span>
-                        </td>
-                        <td className="px-4 py-2 text-gray-600 text-xs">{log.entityType}</td>
-                        <td className="px-4 py-2 text-gray-700">{log.actor}</td>
-                        <td className="px-4 py-2 text-gray-500 text-xs truncate" style={{ maxWidth: 300 }}>{log.details || '�'}</td>
-                        <td className="px-4 py-2 text-gray-500 text-xs">{fmt(log.timestamp)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <ScrollText className="w-16 h-16 text-gray-300 mb-4" />
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">Audit Trail</h2>
+              <p className="text-gray-400 mb-1">This feature is under development.</p>
+              <p className="text-gray-400 text-sm">Audit logging will track all changes to crew records, documents, and certificates.</p>
+              <span className="mt-4 px-4 py-1.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">Coming Soon</span>
+            </div>
           </div>
         )}
       </div>

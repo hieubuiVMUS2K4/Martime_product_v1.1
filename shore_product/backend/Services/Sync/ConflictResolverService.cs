@@ -69,7 +69,8 @@ public class ConflictResolverService : IConflictResolverService
         "IsOnboard", "EmbarkDate", "DisembarkDate",
         "EmbarkPort", "DisembarkPort",
         "ShipId", "CurrentShipName",
-        "AvatarUrl"
+        "PhotoUrl",   // Edge owns the avatar file (shore field name)
+        "AvatarUrl",  // Alias in case serialisation uses camelCase variant
     };
 
     // Tables where Shore always wins

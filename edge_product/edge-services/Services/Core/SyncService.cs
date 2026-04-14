@@ -418,18 +418,19 @@ public class SyncService : ISyncService
                         batchResponse.Total,
                         failureSummary);
 
-                    var failedKeys = batchResponse.FailedItems != null && batchResponse.FailedItems.Count == batchResponse.Failed
-                        ? batchResponse.FailedItems
-                            .Select(f => $"{f.TableName}|{f.RecordKey}")
-                            .ToHashSet(StringComparer.OrdinalIgnoreCase)
+                    // Build per-item error lookup: "tableName|recordKey" -> specific error message
+                    var failedErrorMap = batchResponse.FailedItems != null
+                        ? batchResponse.FailedItems.ToDictionary(
+                            f => $"{f.TableName}|{f.RecordKey}",
+                            f => f.Error ?? "Lỗi không xác định",
+                            StringComparer.OrdinalIgnoreCase)
                         : null;
 
                     var now = DateTime.UtcNow;
                     foreach (var item in items)
                     {
                         var itemKey = $"{item.TableName}|{item.RecordKey}";
-                        var shouldRetry = failedKeys == null || failedKeys.Contains(itemKey);
-                        if (!shouldRetry)
+                        if (failedErrorMap != null && !failedErrorMap.ContainsKey(itemKey))
                         {
                             item.SyncedAt = now;
                             item.LastError = null;
@@ -441,7 +442,11 @@ public class SyncService : ISyncService
                         }
 
                         item.RetryCount++;
-                        item.LastError = LimitLastError(failureSummary);
+                        // Store the specific error for this item (falls back to batch summary if map unavailable)
+                        var specificError = failedErrorMap != null && failedErrorMap.TryGetValue(itemKey, out var err)
+                            ? err
+                            : failureSummary;
+                        item.LastError = LimitLastError(specificError);
                         item.NextRetryAt = DateTime.UtcNow.AddMinutes(Math.Pow(item.RetryCount, 2));
                     }
                 }

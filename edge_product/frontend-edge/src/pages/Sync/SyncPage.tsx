@@ -854,11 +854,13 @@ export function SyncPage() {
                           </span>
                         </td>
                         <td className="px-5 py-3 text-sm text-gray-500">{formatTime(item.createdAt)}</td>
-                        <td className="px-5 py-3">
+                        <td className="px-5 py-3 max-w-[360px]">
                           {item.lastError ? (
-                            <span className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded max-w-[200px] truncate block">
-                              {item.lastError}
-                            </span>
+                            <div className="text-xs text-red-600 bg-red-50 border border-red-100 px-2 py-1.5 rounded space-y-0.5">
+                              {item.lastError.split('; ').map((line, i) => (
+                                <p key={i} className="break-words leading-relaxed">{line}</p>
+                              ))}
+                            </div>
                           ) : (
                             <span className="text-xs text-gray-400">—</span>
                           )}
