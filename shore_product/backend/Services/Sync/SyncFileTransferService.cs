@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using ProductApi.Data;
 using Maritime.Shared.DTOs.Sync;
 using Maritime.Shared.Models.Sync;
@@ -903,21 +904,21 @@ public class SyncFileTransferService : ISyncFileTransferService
         object? entity = null;
 
         if (tableName == "crew_member" && Guid.TryParse(recordKey, out var crewId))
-            entity = await _context.CrewMembers.FindAsync(new object[] { crewId }, cancellationToken);
+            entity = await _context.CrewMembers.AsNoTracking().FirstOrDefaultAsync(e => e.Id == crewId, cancellationToken);
         else if (tableName == "crew_certificate")
         {
             if (int.TryParse(recordKey, out var crewCertificateId))
-                entity = await _context.CrewCertificates.FindAsync(new object[] { crewCertificateId }, cancellationToken);
+                entity = await _context.CrewCertificates.AsNoTracking().FirstOrDefaultAsync(e => e.Id == crewCertificateId, cancellationToken);
             else
-                entity = await _context.CrewCertificates.FirstOrDefaultAsync(c => c.CertificateNumber == recordKey, cancellationToken);
+                entity = await _context.CrewCertificates.AsNoTracking().FirstOrDefaultAsync(c => c.CertificateNumber == recordKey, cancellationToken);
         }
         else if (Guid.TryParse(recordKey, out var documentId))
             entity = tableName switch
             {
-                "travel_document" => await _context.TravelDocuments.FindAsync(new object[] { documentId }, cancellationToken),
-                "seafarer_document" => await _context.SeafarerDocuments.FindAsync(new object[] { documentId }, cancellationToken),
-                "employment_document" => await _context.EmploymentDocuments.FindAsync(new object[] { documentId }, cancellationToken),
-                "health_document" => await _context.HealthDocuments.FindAsync(new object[] { documentId }, cancellationToken),
+                "travel_document" => (object?)await _context.TravelDocuments.AsNoTracking().FirstOrDefaultAsync(e => e.Id == documentId, cancellationToken),
+                "seafarer_document" => await _context.SeafarerDocuments.AsNoTracking().FirstOrDefaultAsync(e => e.Id == documentId, cancellationToken),
+                "employment_document" => await _context.EmploymentDocuments.AsNoTracking().FirstOrDefaultAsync(e => e.Id == documentId, cancellationToken),
+                "health_document" => await _context.HealthDocuments.AsNoTracking().FirstOrDefaultAsync(e => e.Id == documentId, cancellationToken),
                 _ => null
             };
 
@@ -935,12 +936,41 @@ public class SyncFileTransferService : ISyncFileTransferService
             if (property?.CanWrite == true && property.PropertyType == typeof(string))
             {
                 var oldValue = property.GetValue(entity) as string;
-                property.SetValue(entity, relativePath);
-                // Reflection SetValue does not trigger EF Core change detection,
-                // so we must explicitly mark the entity as modified.
-                _context.Entry(entity).State = EntityState.Modified;
+
+                // Find if this entity is already tracked by the current DbContext (same type + same PK).
+                // This happens when a bundle contains multiple files for the same record
+                // (e.g. keyed by CertificateNumber "MFA-0001" and by int Id 31 in separate items).
+                // Calling Attach() on a second object instance with the same PK throws
+                // "another instance with the same key value is already being tracked".
+                var clrType = entity.GetType();
+                var pkProps = _context.Model.FindEntityType(clrType)?.FindPrimaryKey()?.Properties;
+                EntityEntry entryToUse;
+
+                var existingTracked = pkProps != null
+                    ? _context.ChangeTracker.Entries()
+                        .Where(e => e.Metadata.ClrType == clrType)
+                        .FirstOrDefault(e => pkProps.All(pk =>
+                            Equals(pk.PropertyInfo?.GetValue(e.Entity),
+                                   pk.PropertyInfo?.GetValue(entity))))
+                    : null;
+
+                if (existingTracked != null)
+                {
+                    // Reuse the already-tracked instance — update its property directly
+                    property.SetValue(existingTracked.Entity, relativePath);
+                    entryToUse = existingTracked;
+                }
+                else
+                {
+                    // Not yet tracked — attach safely
+                    entryToUse = _context.Attach(entity);
+                    property.SetValue(entryToUse.Entity, relativePath);
+                }
+
+                // Mark only this specific property as modified (don't touch other fields)
+                entryToUse.Property(propertyName).IsModified = true;
                 _logger.LogInformation("[UpdateEntityFilePath] SET {Property}: '{OldValue}' → '{NewValue}' (entity marked Modified)",
-                    propertyName, oldValue, relativePath);
+                    propertyName, property.GetValue(entryToUse.Entity) as string, relativePath);
                 return;
             }
         }

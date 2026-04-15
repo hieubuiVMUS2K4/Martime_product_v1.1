@@ -8,6 +8,7 @@ import '../../widgets/common/error_widget.dart';
 import '../../widgets/common/empty_state_widget.dart';
 import '../../widgets/task/task_card.dart';
 import 'task_detail_screen.dart';
+import 'complete_task_screen.dart';
 import '../../../l10n/app_localizations.dart';
 
 class TaskListScreen extends StatefulWidget {
@@ -362,10 +363,39 @@ class _TaskListScreenState extends State<TaskListScreen>
                 child: TaskCard(
                   task: task,
                   onTap: () {
+                    // Block tap for pending approval tasks
+                    if (task.isPendingApproval) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(AppLocalizations.of(context).pendingApproval +
+                              ' – Công việc đang chờ thuyền trưởng phê duyệt'),
+                          duration: const Duration(seconds: 2),
+                          backgroundColor: Colors.amber.shade700,
+                        ),
+                      );
+                      return;
+                    }
+                    // Block tap for completed tasks
+                    if (task.isCompleted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(AppLocalizations.of(context).alreadyCompletedCanUpdate),
+                          duration: const Duration(seconds: 2),
+                          backgroundColor: Colors.green.shade700,
+                        ),
+                      );
+                      return;
+                    }
+                    // Tasks not yet started → TaskDetailScreen (has "Start Task" button)
+                    // Tasks already in progress or further → CompleteTaskScreen directly
+                    final needsStart = task.isDue || task.isOverdueStatus || task.isScheduled ||
+                        task.status == 'NOT_STARTED' || task.status == 'SCHEDULED';
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => TaskDetailScreen(task: task),
+                        builder: (context) => needsStart
+                            ? TaskDetailScreen(task: task)
+                            : CompleteTaskScreen(task: task),
                       ),
                     );
                   },

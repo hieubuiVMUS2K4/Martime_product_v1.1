@@ -17,10 +17,14 @@ import '../../../core/cache/sync_queue.dart';
 
 class CompleteTaskScreen extends StatefulWidget {
   final MaintenanceTask task;
+  /// True khi được push từ TaskDetailScreen (cần pop 2 lần sau submit).
+  /// False khi được push trực tiếp từ TaskListScreen (chỉ pop 1 lần).
+  final bool fromDetail;
 
   const CompleteTaskScreen({
     super.key,
     required this.task,
+    this.fromDetail = false,
   });
 
   @override
@@ -63,9 +67,10 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
     // Initialize tab controller (3 tabs: Report, Checklist, Materials)
     _tabController = TabController(length: 3, vsync: this);
     
-    // Pre-fill running hours if available
-    if (widget.task.runningHoursAtLastDone != null) {
-      _runningHoursController.text = widget.task.runningHoursAtLastDone.toString();
+    // Pre-fill running hours: prefer live currentRunningHours, fallback to last done
+    final prefillRH = widget.task.currentRunningHours ?? widget.task.runningHoursAtLastDone;
+    if (prefillRH != null) {
+      _runningHoursController.text = prefillRH.toString();
     }
     // Pre-fill description
     _descriptionController.text = widget.task.taskDescription;
@@ -406,10 +411,10 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
           ),
         );
 
-        // Pop twice to go back to list
+        // Pop back: 2 lần nếu đến từ TaskDetailScreen, 1 lần nếu đến trực tiếp từ list
         if (mounted) {
           Navigator.pop(context); // Close complete screen
-          if (mounted) {
+          if (mounted && widget.fromDetail) {
             Navigator.pop(context); // Close detail screen
           }
         }
@@ -689,16 +694,22 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
             children: [
               Icon(Icons.event, size: 14, color: Colors.grey.shade500),
               const SizedBox(width: 4),
-              Text(
-                '${l10n.dueDate}: ${_formatDate(task.nextDueAt)}',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              Flexible(
+                child: Text(
+                  '${l10n.dueDate}: ${_formatDate(task.nextDueAt)}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade500),
               const SizedBox(width: 4),
-              Text(
-                'Ngày BĐ: ${_dateFormat.format(DateTime.now())}',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              Flexible(
+                child: Text(
+                  'Ngày BĐ: ${_dateFormat.format(DateTime.now())}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),

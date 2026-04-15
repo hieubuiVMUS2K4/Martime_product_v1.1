@@ -367,6 +367,7 @@ public class MaintenanceController : ControllerBase
                     t.LastDoneAt,
                     t.NextDueAt,
                     t.RunningHoursAtLastDone,
+                    t.EquipmentAssetId,
                     t.Priority,
                     // Compute corrected status based on due date
                     Status = (t.Status == "SCHEDULED" || t.Status == "DUE" || t.Status == "PENDING" || t.Status == "OVERDUE")
@@ -435,6 +436,20 @@ public class MaintenanceController : ControllerBase
                 })
                 .ToListAsync();
 
+            // Batch-load currentRunningHours for all equipment assets referenced by tasks
+            var taskAssetIds = tasks
+                .Where(t => t.EquipmentAssetId.HasValue)
+                .Select(t => t.EquipmentAssetId!.Value)
+                .Distinct()
+                .ToList();
+            var assetRunningHoursMap = taskAssetIds.Count > 0
+                ? await _context.EquipmentAssets
+                    .AsNoTracking()
+                    .Where(a => taskAssetIds.Contains(a.Id))
+                    .Select(a => new { a.Id, a.CurrentRunningHours })
+                    .ToDictionaryAsync(a => a.Id, a => a.CurrentRunningHours)
+                : new Dictionary<Guid, double?>();
+
             // Post-process: Add crewRole field for the requesting crew member
             var crewGuid = matchedCrew?.Id.ToString() ?? "";
             var crewIdStr = matchedCrew?.CrewId ?? assignedTo ?? "";
@@ -469,11 +484,15 @@ public class MaintenanceController : ControllerBase
                         role = ParseCrewRoleFromDescription(instructions, crewGuid);
                     }
                 }
+                var currentRunningHours = t.EquipmentAssetId.HasValue
+                    ? assetRunningHoursMap.GetValueOrDefault(t.EquipmentAssetId.Value)
+                    : (double?)null;
                 return new {
                     t.Id, t.TaskId, t.TaskTypeId, t.EquipmentId, t.EquipmentName,
                     t.EquipmentGroupId, t.EquipmentGroupName, t.ScheduleId,
                     t.TaskType, t.TaskDescription, t.IntervalHours, t.IntervalDays,
-                    t.LastDoneAt, t.NextDueAt, t.RunningHoursAtLastDone, t.Priority,
+                    t.LastDoneAt, t.NextDueAt, t.RunningHoursAtLastDone, t.EquipmentAssetId,
+                    CurrentRunningHours = currentRunningHours, t.Priority,
                     t.Status, t.AssignedTo, t.AssignedDepartment,
                     t.HasPendingDeferral, t.DeferralCount, t.LastDeferredAt, t.LastDeferredBy,
                     t.StartedAt, t.StartedBy, t.ActualRunningHours,

@@ -115,9 +115,9 @@ export default function WorkReportPage() {
   // ============================================================
   useEffect(() => {
     if (id) {
-      loadTask()
+      loadTask()      // also sets checklistItems via getById (includes nav property)
       loadCrew()
-      loadChecklist()
+      // NOTE: loadChecklist() removed – getById in loadTask already loads checklistItems correctly
       loadMaterials()
       loadRiskAssessment()
       loadInspectionReport()
@@ -131,21 +131,17 @@ export default function WorkReportPage() {
 
   const refreshActiveTab = useCallback(async () => {
     if (document.hidden || !id) return
-    if (activeTab === 'checklist') {
-      try {
-        const items = await maritimeService.maintenance.getChecklist(id)
-        setChecklistItems(items || [])
-      } catch { /* silent */ }
-    } else if (activeTab === 'materials') {
-      // Reload task to get latest sparePartsUsed
-      try {
-        const data = await maritimeService.maintenance.getById(id)
-        if (data.sparePartsUsed !== task?.sparePartsUsed) {
-          setTask(data)
-        }
-      } catch { /* silent */ }
-    }
-  }, [id, activeTab, task?.sparePartsUsed])
+    // Use getById for both tabs: checklist items are included via EF navigation
+    // (getChecklist endpoint uses string taskId code, not UUID route param)
+    try {
+      const data = await maritimeService.maintenance.getById(id)
+      if (activeTab === 'checklist') {
+        setChecklistItems(data.checklistItems || [])
+      } else if (activeTab === 'materials') {
+        setTask(data)
+      }
+    } catch { /* silent */ }
+  }, [id, activeTab])
 
   useEffect(() => {
     if (pollingRef.current) clearInterval(pollingRef.current)
@@ -163,6 +159,8 @@ export default function WorkReportPage() {
       setLoading(true)
       const data = await maritimeService.maintenance.getById(id)
       setTask(data)
+      // Populate checklistItems state from initial load so polling updates are reflected
+      setChecklistItems(data.checklistItems || [])
 
       // Populate form from existing task data
       setDescription((data.taskDescription?.split('\n').slice(1).join('\n') || '').replace(/<!--(META|CREW):.*?-->/gs, '').trim())
@@ -849,7 +847,7 @@ export default function WorkReportPage() {
 
               {/* Hạng mục kiểm tra tab */}
               {activeTab === 'checklist' && (() => {
-                const items = checklistItems.length > 0 ? checklistItems : task.checklistItems || []
+                const items = checklistItems.length > 0 ? checklistItems : (task.checklistItems || [])
                 const canEdit = ['IN_PROGRESS', 'RECTIFY'].includes(task.status)
                 return (
                 <div>

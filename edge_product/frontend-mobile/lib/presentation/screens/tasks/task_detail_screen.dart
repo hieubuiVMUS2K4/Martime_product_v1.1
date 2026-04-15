@@ -2182,7 +2182,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => CompleteTaskScreen(task: widget.task),
+              builder: (context) => CompleteTaskScreen(task: widget.task, fromDetail: true),
             ),
           );
         },

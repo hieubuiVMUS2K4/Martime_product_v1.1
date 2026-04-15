@@ -10,6 +10,7 @@ class MaintenanceTask extends Equatable {
   final String taskId;
   final String? equipmentId;
   final String? equipmentName;
+  final String? equipmentAssetId; // UUID — used to fetch currentRunningHours
   final String? equipmentGroupId;
   final String? equipmentGroupName;
   final String taskType;
@@ -19,6 +20,7 @@ class MaintenanceTask extends Equatable {
   final String? lastDoneAt;
   final String? nextDueAt;
   final double? runningHoursAtLastDone;
+  final double? currentRunningHours; // Live value from equipment asset (injected by API)
   final String priority;
   final String status;
   final String? assignedTo;
@@ -89,6 +91,7 @@ class MaintenanceTask extends Equatable {
     required this.taskId,
     this.equipmentId,
     this.equipmentName,
+    this.equipmentAssetId,
     this.equipmentGroupId,
     this.equipmentGroupName,
     required this.taskType,
@@ -98,6 +101,7 @@ class MaintenanceTask extends Equatable {
     this.lastDoneAt,
     this.nextDueAt,
     this.runningHoursAtLastDone,
+    this.currentRunningHours,
     required this.priority,
     required this.status,
     this.assignedTo,
@@ -148,6 +152,7 @@ class MaintenanceTask extends Equatable {
       taskId: json['taskId']?.toString() ?? '',
       equipmentId: json['equipmentId']?.toString(),
       equipmentName: json['equipmentName']?.toString(),
+      equipmentAssetId: json['equipmentAssetId']?.toString(),
       equipmentGroupId: json['equipmentGroupId']?.toString(),
       equipmentGroupName: json['equipmentGroupName']?.toString(),
       taskType: json['taskType']?.toString() ?? 'UNKNOWN',
@@ -157,6 +162,7 @@ class MaintenanceTask extends Equatable {
       lastDoneAt: json['lastDoneAt']?.toString(),
       nextDueAt: json['nextDueAt']?.toString(),
       runningHoursAtLastDone: json['runningHoursAtLastDone']?.toDouble(),
+      currentRunningHours: json['currentRunningHours']?.toDouble(),
       priority: json['priority']?.toString() ?? 'MEDIUM',
       status: json['status']?.toString() ?? 'PENDING',
       assignedTo: json['assignedTo']?.toString(),
@@ -215,6 +221,7 @@ class MaintenanceTask extends Equatable {
       'taskId': taskId,
       'equipmentId': equipmentId,
       'equipmentName': equipmentName,
+      'equipmentAssetId': equipmentAssetId,
       'equipmentGroupId': equipmentGroupId,
       'equipmentGroupName': equipmentGroupName,
       'taskType': taskType,
@@ -224,6 +231,7 @@ class MaintenanceTask extends Equatable {
       'lastDoneAt': lastDoneAt,
       'nextDueAt': nextDueAt,
       'runningHoursAtLastDone': runningHoursAtLastDone,
+      'currentRunningHours': currentRunningHours,
       'priority': priority,
       'status': status,
       'assignedTo': assignedTo,
