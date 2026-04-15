@@ -80,7 +80,6 @@ export interface CertificateType {
   isMandatory: boolean;
   isActive: boolean;
   isRequiredForRank?: boolean;
-  isRequiredForRank?: boolean;
   createdAt?: string;
 }
 
