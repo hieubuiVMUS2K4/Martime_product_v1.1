@@ -996,47 +996,59 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
             
             // Row 2: Measured value + Status + Abnormal flag
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Measured value
+                // Measured value — Flexible so it never overflows
                 if (item.requiresReading)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: item.readingValue != null
-                          ? (item.isAbnormal ? Colors.red.shade50 : Colors.blue.shade50)
-                          : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
                         color: item.readingValue != null
-                            ? (item.isAbnormal ? Colors.red.shade300 : Colors.blue.shade300)
-                            : Colors.grey.shade300,
+                            ? (item.isAbnormal ? Colors.red.shade50 : Colors.blue.shade50)
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: item.readingValue != null
+                              ? (item.isAbnormal ? Colors.red.shade300 : Colors.blue.shade300)
+                              : Colors.grey.shade300,
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.straighten, size: 14,
-                          color: item.isAbnormal ? Colors.red : Colors.blue,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          item.readingValue != null
-                              ? '${item.readingValue} ${item.unit ?? ''}'
-                              : l10n.enterMeasuredValue,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: item.isAbnormal ? Colors.red : Colors.blue.shade700,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.straighten, size: 14,
+                                color: item.isAbnormal ? Colors.red : Colors.blue,
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  item.readingValue != null
+                                      ? '${item.readingValue} ${item.unit ?? ''}'
+                                      : l10n.enterMeasuredValue,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: item.isAbnormal ? Colors.red : Colors.blue.shade700,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        if (item.minValue != null && item.maxValue != null) ...[
-                          const SizedBox(width: 6),
-                          Text(
-                            '(${item.minValue}-${item.maxValue})',
-                            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-                          ),
+                          if (item.minValue != null && item.maxValue != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              '(${item.minValue}-${item.maxValue})',
+                              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 
