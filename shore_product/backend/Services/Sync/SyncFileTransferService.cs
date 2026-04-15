@@ -732,39 +732,70 @@ public class SyncFileTransferService : ISyncFileTransferService
         using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Read, leaveOpen: false);
 
         var acceptedCount = 0;
+        var failedItems = new List<string>();
         foreach (var item in bundle.Items)
         {
-            var entry = archive.GetEntry(item.FileId == Guid.Empty ? item.ManifestId.ToString("N") : item.FileId.ToString("N"));
-            if (entry == null)
-                continue;
+            try
+            {
+                var entry = archive.GetEntry(item.FileId == Guid.Empty ? item.ManifestId.ToString("N") : item.FileId.ToString("N"));
+                if (entry == null)
+                {
+                    _logger.LogWarning("Bundle {BundleId}: no archive entry for manifest {ManifestId} / fileId {FileId}",
+                        bundle.BundleId, item.ManifestId, item.FileId);
+                    continue;
+                }
 
-            await using var entryStream = entry.Open();
-            await using var output = new MemoryStream();
-            await entryStream.CopyToAsync(output, cancellationToken);
+                await using var entryStream = entry.Open();
+                await using var output = new MemoryStream();
+                await entryStream.CopyToAsync(output, cancellationToken);
 
-            var request = await EnsureIncomingRequestAsync(item.RequestId, item.ManifestId, bundle.RequesterNodeId, bundle.SupplierNodeId, cancellationToken);
-            var relativePath = await StoreIncomingFileAsync(
-                item.TableName,
-                item.FileRole,
-                item.RecordKey,
-                item.FileName,
-                item.Sha256,
-                item.SizeBytes,
-                output.ToArray(),
-                cancellationToken);
+                var request = await EnsureIncomingRequestAsync(item.RequestId, item.ManifestId, bundle.RequesterNodeId, bundle.SupplierNodeId, item, cancellationToken);
+                var relativePath = await StoreIncomingFileAsync(
+                    item.TableName,
+                    item.FileRole,
+                    item.RecordKey,
+                    item.FileName,
+                    item.Sha256,
+                    item.SizeBytes,
+                    output.ToArray(),
+                    cancellationToken);
 
-            await UpdateEntityFilePathAsync(item.TableName, item.RecordKey, item.FileRole, relativePath, cancellationToken);
-            MarkRequestCompleted(request, request.Manifest!, relativePath);
-            acceptedCount++;
+                await UpdateEntityFilePathAsync(item.TableName, item.RecordKey, item.FileRole, relativePath, cancellationToken);
+                if (request.Manifest != null)
+                {
+                    MarkRequestCompleted(request, request.Manifest, relativePath);
+                }
+                else
+                {
+                    _logger.LogWarning("Bundle {BundleId}: Manifest not loaded for request {RequestId} (manifestId={ManifestId}), file stored but request not marked completed",
+                        bundle.BundleId, request.Id, item.ManifestId);
+                }
+
+                // Save after each successful item so that a later failure doesn't lose progress
+                await _context.SaveChangesAsync(cancellationToken);
+                acceptedCount++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Bundle {BundleId}: failed to process item {ManifestId} ({Table}/{RecordKey}/{FileRole})",
+                    bundle.BundleId, item.ManifestId, item.TableName, item.RecordKey, item.FileRole);
+                failedItems.Add($"{item.TableName}/{item.RecordKey}/{item.FileRole}: {ex.Message}");
+                // Clear tracked entities for this failed item to start clean for the next one.
+                // Previous items have already been saved above.
+                _context.ChangeTracker.Clear();
+            }
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        var message = failedItems.Count > 0
+            ? $"Bundle partially accepted ({acceptedCount}/{bundle.Items.Count}). Errors: {string.Join("; ", failedItems.Take(5))}"
+            : acceptedCount == bundle.Items.Count ? "Bundle upload accepted" : "Bundle upload partially accepted";
+
         return new SyncFileBundleResultDto
         {
-            Success = acceptedCount == bundle.Items.Count,
+            Success = acceptedCount > 0 && failedItems.Count == 0,
             BundleId = bundle.BundleId,
             AcceptedCount = acceptedCount,
-            Message = acceptedCount == bundle.Items.Count ? "Bundle upload accepted" : "Bundle upload partially accepted",
+            Message = message,
             ProcessedAtUtc = DateTime.UtcNow
         };
     }
@@ -781,6 +812,9 @@ public class SyncFileTransferService : ISyncFileTransferService
     }
 
     private async Task<SyncFileTransferRequest> EnsureIncomingRequestAsync(Guid requestId, Guid manifestId, string requesterNodeId, string supplierNodeId, CancellationToken cancellationToken)
+        => await EnsureIncomingRequestAsync(requestId, manifestId, requesterNodeId, supplierNodeId, null, cancellationToken);
+
+    private async Task<SyncFileTransferRequest> EnsureIncomingRequestAsync(Guid requestId, Guid manifestId, string requesterNodeId, string supplierNodeId, SyncFileBundleItemDto? itemHint, CancellationToken cancellationToken)
     {
         var request = await _context.SyncFileTransferRequests
             .AsTracking()
@@ -805,6 +839,15 @@ public class SyncFileTransferService : ISyncFileTransferService
                     Id = manifestId,
                     OwnerNodeId = supplierNodeId,
                     ReceiverNodeId = requesterNodeId,
+                    TableName = itemHint?.TableName ?? string.Empty,
+                    RecordKey = itemHint?.RecordKey ?? string.Empty,
+                    FileRole = itemHint?.FileRole ?? string.Empty,
+                    FileName = itemHint?.FileName ?? string.Empty,
+                    Sha256 = itemHint?.Sha256 ?? string.Empty,
+                    SizeBytes = itemHint?.SizeBytes ?? 0,
+                    ContentType = itemHint?.ContentType,
+                    IsPreprocessed = itemHint?.IsPreprocessed ?? false,
+                    PreprocessProfile = itemHint?.PreprocessProfile,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };

@@ -833,6 +833,31 @@ public class SyncInboxService : ISyncInboxService
                 await _context.SyncFileManifests.AddAsync(manifest);
             }
 
+            // Clean up orphaned manifests for the same entity+role but different ID.
+            // These were created by the old deterministic-ID algorithm that included the
+            // file checksum, producing a new manifest per file version.
+            var orphanedManifests = await _context.SyncFileManifests
+                .Where(m => m.Id != fileRef.FileId
+                    && m.TableName == item.TableName
+                    && m.RecordKey == item.RecordKey
+                    && m.FileRole == fileRef.FileRole
+                    && m.OwnerNodeId == item.OriginNode
+                    && m.TransferStatus != SyncFileTransferStatus.Verified)
+                .ToListAsync();
+
+            if (orphanedManifests.Count > 0)
+            {
+                var orphanedIds = orphanedManifests.Select(m => m.Id).ToList();
+                var orphanedRequests = await _context.SyncFileTransferRequests
+                    .Where(r => orphanedIds.Contains(r.ManifestId))
+                    .ToListAsync();
+                _context.SyncFileTransferRequests.RemoveRange(orphanedRequests);
+                _context.SyncFileManifests.RemoveRange(orphanedManifests);
+                _logger.LogInformation(
+                    "Cleaned up {ManifestCount} orphaned manifests and {RequestCount} requests for {Table}/{Key}/{Role}",
+                    orphanedManifests.Count, orphanedRequests.Count, item.TableName, item.RecordKey, fileRef.FileRole);
+            }
+
             manifest.OwnerNodeId = item.OriginNode;
             manifest.ReceiverNodeId = _receiverNodeId;
             manifest.TableName = item.TableName;
@@ -880,6 +905,13 @@ public class SyncInboxService : ISyncInboxService
                     RequestedAtUtc = DateTime.UtcNow
                 };
                 await _context.SyncFileTransferRequests.AddAsync(existingRequest);
+            }
+            else
+            {
+                // Reset the request so edge re-evaluates it with the updated manifest SHA256.
+                existingRequest.Status = SyncFileRequestStatus.Pending;
+                existingRequest.RequestedAtUtc = DateTime.UtcNow;
+                existingRequest.NextRetryAt = null;
             }
 
             await ApplyDeltaHintsAsync(item, fileRef, existingRequest);

@@ -328,7 +328,11 @@ public class SyncOutboxService : ISyncOutboxService
 
     private static Guid CreateDeterministicFileId(string sourceNodeId, string tableName, string recordKey, string role, string checksum)
     {
-        var bytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{sourceNodeId}:{tableName}:{recordKey}:{role}:{checksum}"));
+        // NOTE: checksum is intentionally excluded from the ID computation.
+        // Including it caused each file version to create a NEW manifest on edge,
+        // leaving old manifests in Pending state forever. By using only
+        // (node, table, record, role) the manifest ID is stable across file updates.
+        var bytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{sourceNodeId}:{tableName}:{recordKey}:{role}"));
         var guidBytes = new byte[16];
         Array.Copy(bytes, guidBytes, 16);
         return new Guid(guidBytes);

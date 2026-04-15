@@ -608,6 +608,31 @@ public class SyncService : ISyncService
                 };
                 await context.SyncFileManifests.AddAsync(manifest, cancellationToken);
             }
+
+            // Clean up orphaned manifests for the same entity+role but different ID.
+            // These were created by the old deterministic-ID algorithm that included the
+            // file checksum, producing a new manifest per file version.
+            var orphanedManifests = await context.SyncFileManifests
+                .Where(m => m.Id != fileRef.FileId
+                    && m.TableName == item.TableName
+                    && m.RecordKey == item.RecordKey
+                    && m.FileRole == fileRef.FileRole
+                    && m.OwnerNodeId == item.OriginNode
+                    && m.TransferStatus != SyncFileTransferStatus.Verified)
+                .ToListAsync(cancellationToken);
+
+            if (orphanedManifests.Count > 0)
+            {
+                var orphanedIds = orphanedManifests.Select(m => m.Id).ToList();
+                var orphanedRequests = await context.SyncFileTransferRequests
+                    .Where(r => orphanedIds.Contains(r.ManifestId))
+                    .ToListAsync(cancellationToken);
+                context.SyncFileTransferRequests.RemoveRange(orphanedRequests);
+                context.SyncFileManifests.RemoveRange(orphanedManifests);
+                _logger.LogInformation(
+                    "Cleaned up {ManifestCount} orphaned manifests and {RequestCount} requests for {Table}/{Key}/{Role}",
+                    orphanedManifests.Count, orphanedRequests.Count, item.TableName, item.RecordKey, fileRef.FileRole);
+            }
             manifest.OwnerNodeId = item.OriginNode;
             manifest.ReceiverNodeId = receiverNodeId;
             manifest.TableName = item.TableName;
@@ -658,6 +683,13 @@ public class SyncService : ISyncService
                     RequestedAtUtc = DateTime.UtcNow
                 };
                 await context.SyncFileTransferRequests.AddAsync(existingRequest, cancellationToken);
+            }
+            else
+            {
+                // Reset the request so it is re-evaluated with the updated manifest SHA256.
+                existingRequest.Status = SyncFileRequestStatus.Pending;
+                existingRequest.RequestedAtUtc = DateTime.UtcNow;
+                existingRequest.NextRetryAt = null;
             }
 
             await ApplyDeltaHintsAsync(context, item, fileRef, existingRequest, cancellationToken);
@@ -888,7 +920,14 @@ public class SyncService : ISyncService
 
     private static Guid CreateDeterministicFileId(string sourceNodeId, string tableName, string recordKey, string role, string checksum)
     {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{sourceNodeId}:{tableName}:{recordKey}:{role}:{checksum}"));
+        // NOTE: checksum is intentionally excluded from the ID computation.
+        // Including it caused each file version to create a NEW manifest on shore,
+        // leaving old manifests in Pending state forever — the edge would then fail
+        // to upload those stale requests ("checksum no longer matches").
+        // By using only (node, table, record, role) the manifest ID is stable across
+        // file updates, so shore's UpsertIncomingFileReferencesAsync correctly UPDATES
+        // the existing manifest's SHA256 instead of creating a new one.
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{sourceNodeId}:{tableName}:{recordKey}:{role}"));
         var guidBytes = new byte[16];
         Array.Copy(bytes, guidBytes, 16);
         return new Guid(guidBytes);
@@ -1848,7 +1887,13 @@ public class SyncService : ISyncService
             cancellationToken);
         var response = await client.SendAsync(uploadRequest, cancellationToken);
         if (!response.IsSuccessStatusCode)
+        {
+            var responseBody = string.Empty;
+            try { responseBody = await response.Content.ReadAsStringAsync(cancellationToken); } catch { /* ignore */ }
+            _logger.LogWarning("Shore rejected file bundle upload: {StatusCode}, response: {ResponseBody}",
+                (int)response.StatusCode, responseBody);
             throw new InvalidOperationException($"Shore rejected file bundle upload: {(int)response.StatusCode}");
+        }
     }
 
     private async Task<List<int>> BuildRequestedChunkIndexesAsync(
