@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { Plus, Edit2, Trash2, Send, Eye, ArrowLeft, ChevronRight, Search, X, Paperclip, Info, ChevronsUpDown, CheckCircle, XCircle } from 'lucide-react';
 import { materialRequestService } from '@/services/materialRequest.service';
 import { materialService } from '@/services/materialService';
@@ -151,7 +152,7 @@ export default function MaterialRequestPage() {
   };
 
   const handleSave = async (andSubmit = false) => {
-    if (formItems.length === 0) return alert('Vui lòng thêm ít nhất 1 dòng vật tư.');
+    if (formItems.length === 0) { toast.warning('Vui lòng thêm ít nhất 1 dòng vật tư.'); return; }
     try {
       setSaving(true);
       const payload = {
@@ -183,27 +184,43 @@ export default function MaterialRequestPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Xác nhận xóa yêu cầu này?')) return;
-    await materialRequestService.delete(id);
-    loadList();
+    toast('Xác nhận xóa yêu cầu này?', {
+      action: { label: 'Xóa', onClick: async () => { await materialRequestService.delete(id); loadList(); } },
+      cancel: { label: 'Hủy', onClick: () => {} },
+      duration: 8000,
+    });
   };
 
   const handleApprove = async (id: number) => {
-    if (!confirm('Xác nhận duyệt yêu cầu này?')) return;
-    await materialRequestService.approve(id);
-    if (detailData?.id === id) {
-      setDetailData({ ...detailData, status: 'Approved' });
-    }
-    loadList();
+    toast('Xác nhận duyệt yêu cầu này?', {
+      action: {
+        label: 'Duyệt',
+        onClick: async () => {
+          await materialRequestService.approve(id);
+          if (detailData?.id === id) setDetailData({ ...detailData, status: 'Approved' });
+          loadList();
+          toast.success('Đã duyệt yêu cầu vật tư');
+        }
+      },
+      cancel: { label: 'Hủy', onClick: () => {} },
+      duration: 8000,
+    });
   };
 
   const handleReject = async (id: number) => {
-    if (!confirm('Xác nhận từ chối yêu cầu này?')) return;
-    await materialRequestService.reject(id);
-    if (detailData?.id === id) {
-      setDetailData({ ...detailData, status: 'Rejected' });
-    }
-    loadList();
+    toast('Xác nhận từ chối yêu cầu này?', {
+      action: {
+        label: 'Từ chối',
+        onClick: async () => {
+          await materialRequestService.reject(id);
+          if (detailData?.id === id) setDetailData({ ...detailData, status: 'Rejected' });
+          loadList();
+          toast.success('Đã từ chối yêu cầu vật tư');
+        }
+      },
+      cancel: { label: 'Hủy', onClick: () => {} },
+      duration: 8000,
+    });
   };
 
   const addFormItem = () => {

@@ -2076,7 +2076,15 @@
       "required": "Mã và tên là bắt buộc",
       "saving": "Đang lưu...",
       "create": "Tạo mới"
-    }
+    },
+    "toggleEditMode": "Bật/tắt chế độ chỉnh sửa",
+    "exitEdit": "Thoát chỉnh sửa",
+    "editTree": "Chỉnh sửa",
+    "selectToEdit": "Chọn một kho trong cây bên trái để chỉnh sửa",
+    "rightClickHint": "Chuột phải vào cây để thêm / xóa kho",
+    "addChild": "Thêm kho con",
+    "editStore": "Chỉnh sửa kho",
+    "deleteStore": "Xóa kho này"
   },
   "materialRequests": {
     "title": "Yêu cầu vật tư",

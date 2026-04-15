@@ -3,16 +3,12 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
 import {
   LayoutDashboard,
-  Navigation,
-  Zap,
-  AlertTriangle,
   Users,
   Ship,
   FileText,
   RefreshCw,
   Anchor,
   Boxes,
-  Fuel,
   ClipboardList,
   BookOpen,
   Droplets,

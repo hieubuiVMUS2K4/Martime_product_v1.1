@@ -2076,7 +2076,15 @@
       "required": "Code and name are required",
       "saving": "Saving...",
       "create": "Create"
-    }
+    },
+    "toggleEditMode": "Toggle edit mode",
+    "exitEdit": "Exit editing",
+    "editTree": "Edit",
+    "selectToEdit": "Select a location from the tree on the left to edit",
+    "rightClickHint": "Right-click the tree to add / remove locations",
+    "addChild": "Add sub-location",
+    "editStore": "Edit location",
+    "deleteStore": "Delete this location"
   },
   "materialRequests": {
     "title": "Material Requests",

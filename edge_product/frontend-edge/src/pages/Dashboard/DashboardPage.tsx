@@ -109,8 +109,6 @@ export function DashboardPage() {
               <p className="text-sm font-medium">{t('dashboard.criticalAlarms')}</p>
             </div>
             <p className="text-4xl font-bold">{stats?.criticalAlarms ?? 2}</p>
-            <p className="text-xs mt-1 text-white/80">{t('dashboard.pendingAlarmUpdated')}</p>
-            <div className="absolute right-4 top-4 text-6xl font-bold text-white/30">{stats?.totalAlarms ?? 2}</div>
           </div>
 
           <StatCard title={t('dashboard.totalAlarms')} value={stats?.totalAlarms ?? 0} icon={Activity} iconColor="text-orange-500" />
@@ -202,14 +200,12 @@ export function DashboardPage() {
                   <div>RPM</div>
                   <div>20VA</div>
                   <div>N/A</div>
-                  <div>3 N/A</div>
                 </div>
               </div>
 
               {/* Range Info */}
               <div className="self-end">
                 <p className="text-sm text-gray-600">{loadValue}%</p>
-                <p className="text-sm text-gray-600 mt-2">{t('dashboard.estimatedRange')}: 2500 NM</p>
               </div>
             </div>
           </div>

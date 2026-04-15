@@ -14,7 +14,7 @@ public class MaintenanceSchedulerService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<MaintenanceSchedulerService> _logger;
-    private readonly TimeSpan _checkInterval = TimeSpan.FromHours(6); // Check every 6 hours
+    private readonly TimeSpan _checkInterval = TimeSpan.FromMinutes(15); // Check every 15 minutes (daily tasks need prompt DUE transitions)
 
     public MaintenanceSchedulerService(
         IServiceProvider serviceProvider,

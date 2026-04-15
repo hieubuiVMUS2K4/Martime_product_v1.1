@@ -17,8 +17,6 @@ export function ShipownerTab({ data, onChange }: ShipownerTabProps) {
       <ContactCard title={t('shipData.shipownerTab.cso')} prefix="cso" data={data} onChange={onChange} showPersonFields show24hPhone />
       <ContactCard title={t('shipData.shipownerTab.dpa')} prefix="dpa" data={data} onChange={onChange} showPersonFields show24hPhone />
       <ContactCard title={t('shipData.shipownerTab.qiUsa')} prefix="qiUsa" data={data} onChange={onChange} showPersonFields show24hPhone />
-      <ContactCard title={t('shipData.shipownerTab.qiPanama')}fix="dpa" data={data} onChange={onChange} showPersonFields show24hPhone />
-      <ContactCard title={t('shipData.shipownerTab.qiUsa')} prefix="qiUsa" data={data} onChange={onChange} showPersonFields show24hPhone />
       <ContactCard title={t('shipData.shipownerTab.qiPanama')} prefix="qiPanama" data={data} onChange={onChange} showPersonFields show24hPhone />
     </div>
   );

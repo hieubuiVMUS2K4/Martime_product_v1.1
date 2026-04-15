@@ -571,6 +571,7 @@ function StatCard({ label, value, icon: Icon, color }: {
 }
 
 function LogDetailModal({ log, onClose }: { log: AuditLogEntry; onClose: () => void }) {
+  const { t } = useTranslationSafe()
   const [showOld, setShowOld] = useState(true)
   const [showNew, setShowNew] = useState(true)
 

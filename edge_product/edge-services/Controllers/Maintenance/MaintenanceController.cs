@@ -199,6 +199,9 @@ public class MaintenanceController : ControllerBase
                 .Take(pageSize)
                 .ToListAsync();
 
+            // Auto-correct status based on due date (same as GetPendingTasks/GetOverdueTasks)
+            await AutoCorrectTaskStatuses(tasks);
+
             var mappedTasks = tasks.Select(MapTaskWithPendingDeferral).ToList();
 
             return Ok(new

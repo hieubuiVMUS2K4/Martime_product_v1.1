@@ -55,6 +55,18 @@ public class TaskWorkflowController : ControllerBase
             // Validate status - can only start DUE, OVERDUE, RECTIFY or MISSING_* tasks
             // Tasks with MISSING_* status can be started if they are past due date
             var allowedStatuses = new[] { "DUE", "OVERDUE", "RECTIFY", "MISSING_PIC", "MISSING_CHECKLIST", "MISSING_BOTH" };
+
+            // Auto-transition SCHEDULED → DUE if due date has arrived (handles background service delay)
+            if (task.Status == "SCHEDULED" && task.NextDueAt.Date <= DateTime.UtcNow.Date)
+            {
+                _logger.LogInformation(
+                    "Task {TaskId} is SCHEDULED but due date {DueDate} has arrived. Auto-transitioning to DUE.",
+                    task.TaskId, task.NextDueAt.Date);
+                task.Status = "DUE";
+                task.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+
             if (!allowedStatuses.Contains(task.Status))
             {
                 return BadRequest(new { 

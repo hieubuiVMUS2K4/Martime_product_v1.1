@@ -445,10 +445,10 @@ export default function StoreLocationPage() {
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded font-medium ${
                 editMode ? 'bg-amber-50 border-amber-400 text-amber-700 hover:bg-amber-100' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
               }`}
-              title="Bật/tắt chế độ chỉnh sửa"
+              title={t('storeLocations.toggleEditMode')}
             >
               <Edit2 className="w-3.5 h-3.5" />
-              {editMode ? 'Thoát chỉnh sửa' : 'Chỉnh sửa'}
+              {editMode ? t('storeLocations.exitEdit') : t('storeLocations.editTree')}
             </button>
           </div>
         </div>
@@ -494,9 +494,9 @@ export default function StoreLocationPage() {
               <div className="flex-1 flex items-center justify-center text-gray-400">
                 <div className="text-center">
                   <FolderOpen className="w-14 h-14 mx-auto mb-3 opacity-20" />
-                  <p className="text-sm font-medium text-gray-500">Chọn một kho trong cây bên trái để chỉnh sửa</p>
+                  <p className="text-sm font-medium text-gray-500">{t('storeLocations.selectToEdit')}</p>
                   <p className="text-xs mt-2 text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full inline-block">
-                    Chuột phải vào cây để thêm / xóa kho
+                    {t('storeLocations.rightClickHint')}
                   </p>
                 </div>
               </div>
@@ -666,10 +666,10 @@ export default function StoreLocationPage() {
         <div ref={contextMenuRef} className="fixed z-50 bg-white border border-gray-200 rounded shadow-lg py-1 min-w-[180px] text-sm" style={{ top: contextMenu.y, left: contextMenu.x }}>
           {contextMenu.nodeId ? (
             <>
-              <button onClick={() => startInlineNew(contextMenu.nodeId)} className="w-full text-left px-4 py-2 hover:bg-blue-50 text-gray-700 flex items-center gap-2"><Plus size={13} className="text-blue-600" /> Thêm kho con</button>
-              <button onClick={() => { const item = locationMap.get(contextMenu.nodeId!); if (item) { setEditMode(true); selectEditLocation(item); } setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-green-50 text-green-700 flex items-center gap-2"><Edit2 size={13} /> Chỉnh sửa kho</button>
+              <button onClick={() => startInlineNew(contextMenu.nodeId)} className="w-full text-left px-4 py-2 hover:bg-blue-50 text-gray-700 flex items-center gap-2"><Plus size={13} className="text-blue-600" /> {t('storeLocations.addChild')}</button>
+              <button onClick={() => { const item = locationMap.get(contextMenu.nodeId!); if (item) { setEditMode(true); selectEditLocation(item); } setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-green-50 text-green-700 flex items-center gap-2"><Edit2 size={13} /> {t('storeLocations.editStore')}</button>
               <div className="border-t border-gray-100 my-1" />
-              <button onClick={() => { const item = locationMap.get(contextMenu.nodeId!); if (item) handleDelete(item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"><X size={13} /> Xóa kho này</button>
+              <button onClick={() => { const item = locationMap.get(contextMenu.nodeId!); if (item) handleDelete(item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"><X size={13} /> {t('storeLocations.deleteStore')}</button>
             </>
           ) : (
             <button onClick={() => startInlineNew(null)} className="w-full text-left px-4 py-2 hover:bg-blue-50 text-gray-700 flex items-center gap-2"><Plus size={13} className="text-blue-600" /> Thêm kho gốc</button>

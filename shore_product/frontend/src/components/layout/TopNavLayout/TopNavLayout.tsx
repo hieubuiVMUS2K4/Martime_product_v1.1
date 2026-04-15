@@ -39,6 +39,7 @@ const navItems: NavItemDef[] = [
     ]
   },
   { type: 'link', path: '/vessels', label: 'Danh sách tàu' },
+  { type: 'link', path: '/voyages', label: 'Hải trình' },
   /*{
     type: 'dropdown',
     label: 'Thông tin',

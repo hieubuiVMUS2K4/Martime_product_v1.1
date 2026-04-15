@@ -55,8 +55,14 @@ public class MaintenanceCompletionService
                 return CompletionResult.Failure("Task already completed");
 
             // 2. Find related schedule (if task was auto-generated)
+            // Prefer ScheduleId direct lookup over parsing TaskId string
             MaintenanceSchedule? schedule = null;
-            if (task.TaskId.StartsWith("SCHED-"))
+            if (task.ScheduleId.HasValue)
+            {
+                schedule = await _context.MaintenanceSchedules
+                    .FirstOrDefaultAsync(s => s.Id == task.ScheduleId.Value);
+            }
+            else if (task.TaskId.StartsWith("SCHED-"))
             {
                 var scheduleCode = ExtractScheduleCode(task.TaskId);
                 schedule = await _context.MaintenanceSchedules
@@ -299,7 +305,18 @@ public class MaintenanceCompletionService
                 equipmentCode = parts[^2]; // Second to last = equipment code
             }
 
-            var nextTaskId = $"SCHED-{schedule.ScheduleCode}-{equipmentCode}-{schedule.NextDueDate.Value:yyyyMMdd}";
+            // Build unique TaskId:
+            // - RUNNING_HOURS: suffix with RH threshold (e.g. RH200) to avoid collision with same-date task
+            // - CALENDAR: suffix with next due date
+            string nextTaskId;
+            if (schedule.IntervalType == "RUNNING_HOURS" && schedule.NextDueRunningHours.HasValue)
+            {
+                nextTaskId = $"SCHED-{schedule.ScheduleCode}-{equipmentCode}-RH{(int)schedule.NextDueRunningHours.Value}";
+            }
+            else
+            {
+                nextTaskId = $"SCHED-{schedule.ScheduleCode}-{equipmentCode}-{schedule.NextDueDate.Value:yyyyMMdd}";
+            }
 
             // Check for duplicates
             if (await _context.MaintenanceTasks.AnyAsync(t => t.TaskId == nextTaskId && !t.IsDeleted))

@@ -9,9 +9,6 @@ import { LoginPage } from './pages/Auth/LoginPage'
 
 // Pages
 import { DashboardPage } from './pages/Dashboard/DashboardPage'
-import { NavigationPage } from './pages/Navigation/NavigationPage'
-import { EnginePage } from './pages/Engine/EnginePage'
-import { AlarmsPage } from './pages/Alarms/AlarmsPage'
 import { CrewPage } from './pages/Crew/CrewPage'
 import { CrewCertificatePage } from './pages/Crew/CertificateMonitorView'
 import { CrewDetailPage } from './pages/Crew/CrewDetailPage'
@@ -20,10 +17,8 @@ import { MaintenancePage } from './pages/Maintenance/MaintenancePage'
 import { MaintenanceDetailPage } from './pages/Maintenance/MaintenanceDetailPage'
 import { VoyagePage } from './pages/Voyage/VoyagePage'
 import { PortManagementPage } from './pages/Voyage/PortManagementPage'
-import { CompliancePage } from './pages/Compliance/CompliancePage'
 import { SyncPage } from './pages/Sync/SyncPage'
 import { MaterialPage } from './pages/Material/MaterialPage'
-import { FuelAnalyticsPage } from './pages/FuelAnalytics'
 
 // PMS Pages
 import AssetsPage from './pages/PMS/AssetsPage'
