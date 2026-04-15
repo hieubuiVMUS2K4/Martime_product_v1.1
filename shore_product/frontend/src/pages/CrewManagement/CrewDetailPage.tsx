@@ -695,7 +695,7 @@ export const CrewDetailPage: React.FC = () => {
                   {changeIndicator('shoeSize')}
                 </div>
                 <div>
-                  <label className={labelCls}>Cỡ cà mén</label>
+                  <label className={labelCls}>Cỡ bữa ăn</label>
                   <input className={`${fieldCls}${fieldHighlight('cateringSize')}`} style={fieldStyle('cateringSize')} placeholder="VD: M" value={edited.cateringSize ?? ''} onChange={e => set('cateringSize', e.target.value)} />
                   {changeIndicator('cateringSize')}
                 </div>
