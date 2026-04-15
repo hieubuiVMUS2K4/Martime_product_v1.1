@@ -529,6 +529,10 @@ public class TaskWorkflowController : ControllerBase
                     task.TaskId, userId, dto.RejectionReason);
             }
 
+            // On APPROVE: update schedule stats and generate next cycle task for PERIODIC schedules
+            if (action == "APPROVE")
+                await _completionService.PostApprovalScheduleUpdateAsync(task);
+
             await _context.SaveChangesAsync();
 
             // Update equipment status (COMPLETED → ACTIVE if no other maintenance)

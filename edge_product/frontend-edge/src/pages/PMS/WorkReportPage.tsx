@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Save,
@@ -123,6 +123,39 @@ export default function WorkReportPage() {
       loadInspectionReport()
     }
   }, [id])
+
+  // ── Real-time polling: refresh checklist & spare-parts when those tabs are active ──
+  // Polls every 8 seconds so web users see mobile updates without F5.
+  // Only runs while the page is visible (document not hidden).
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const refreshActiveTab = useCallback(async () => {
+    if (document.hidden || !id) return
+    if (activeTab === 'checklist') {
+      try {
+        const items = await maritimeService.maintenance.getChecklist(id)
+        setChecklistItems(items || [])
+      } catch { /* silent */ }
+    } else if (activeTab === 'materials') {
+      // Reload task to get latest sparePartsUsed
+      try {
+        const data = await maritimeService.maintenance.getById(id)
+        if (data.sparePartsUsed !== task?.sparePartsUsed) {
+          setTask(data)
+        }
+      } catch { /* silent */ }
+    }
+  }, [id, activeTab, task?.sparePartsUsed])
+
+  useEffect(() => {
+    if (pollingRef.current) clearInterval(pollingRef.current)
+    if (activeTab === 'checklist' || activeTab === 'materials') {
+      pollingRef.current = setInterval(refreshActiveTab, 5000)
+    }
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current)
+    }
+  }, [activeTab, refreshActiveTab])
 
   const loadTask = async () => {
     if (!id) return
@@ -761,7 +794,12 @@ export default function WorkReportPage() {
               ]).map(tab => (
                 <button
                   key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
+                  onClick={() => {
+                    setActiveTab(tab.key)
+                    // Immediately refresh data when switching to live tabs
+                    if (tab.key === 'checklist') loadChecklist()
+                    else if (tab.key === 'materials') loadTask()
+                  }}
                   className={`px-4 py-2.5 font-medium border-b-2 transition-colors ${
                     activeTab === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}

@@ -3,6 +3,7 @@ using MaritimeEdge.DTOs;
 using MaritimeEdge.Models;
 using MaritimeEdge.Repositories;
 using MaritimeEdge.Data;
+using MaritimeEdge.Services.Maintenance;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,15 +16,18 @@ public class EquipmentAssetController : ControllerBase
     private readonly IEquipmentAssetRepository _assetRepository;
     private readonly EdgeDbContext _context;
     private readonly ILogger<EquipmentAssetController> _logger;
+    private readonly MaintenanceCompletionService _completionService;
 
     public EquipmentAssetController(
         IEquipmentAssetRepository assetRepository,
         EdgeDbContext context,
-        ILogger<EquipmentAssetController> logger)
+        ILogger<EquipmentAssetController> logger,
+        MaintenanceCompletionService completionService)
     {
         _assetRepository = assetRepository;
         _context = context;
         _logger = logger;
+        _completionService = completionService;
     }
 
     /// <summary>
@@ -353,7 +357,14 @@ public class EquipmentAssetController : ControllerBase
                                          t.ScheduleId == schedule.Id &&
                                          (t.Status == "SCHEDULED" || t.Status == "UPCOMING" || t.Status == "DUE"));
 
-            if (task == null) continue;
+            if (task == null)
+            {
+                // No active task — previous recurrence likely failed (old code path).
+                // Attempt recovery: recalculate NextDueRunningHours and generate a new task.
+                if (schedule.AutoGenerate && schedule.MaintenanceCategory == "PERIODIC")
+                    await _completionService.RecoverMissingCycleTaskAsync(schedule, currentRunningHours);
+                continue;
+            }
 
             var hoursUntilDue = nextDueRH - currentRunningHours;
 

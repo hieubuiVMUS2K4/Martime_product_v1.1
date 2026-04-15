@@ -261,6 +261,161 @@ public class MaintenanceCompletionService
         }
     }
 
+    /// <summary>
+    /// Called after PENDING_APPROVAL → COMPLETED (VerifyTask APPROVE).
+    /// Updates schedule stats and generates next cycle task for PERIODIC schedules.
+    /// Changes are tracked in DbContext — caller must call SaveChangesAsync.
+    /// </summary>
+    public async Task PostApprovalScheduleUpdateAsync(MaintenanceTask task)
+    {
+        try
+        {
+            // Find related schedule
+            MaintenanceSchedule? schedule = null;
+            if (task.ScheduleId.HasValue)
+            {
+                schedule = await _context.MaintenanceSchedules
+                    .FirstOrDefaultAsync(s => s.Id == task.ScheduleId.Value);
+            }
+            else if (task.TaskId.StartsWith("SCHED-"))
+            {
+                var scheduleCode = ExtractScheduleCode(task.TaskId);
+                schedule = await _context.MaintenanceSchedules
+                    .FirstOrDefaultAsync(s => s.ScheduleCode == scheduleCode);
+            }
+
+            if (schedule == null)
+            {
+                _logger.LogDebug("PostApprovalScheduleUpdate: no schedule found for task {TaskId}", task.TaskId);
+                return;
+            }
+
+            // Get tracking asset (for running hours)
+            EquipmentAsset? trackingAsset = null;
+            if (schedule.EquipmentAssetId.HasValue)
+            {
+                trackingAsset = await _context.EquipmentAssets
+                    .FirstOrDefaultAsync(a => a.Id == schedule.EquipmentAssetId.Value);
+            }
+            else if (schedule.EquipmentGroupId.HasValue)
+            {
+                trackingAsset = await _context.EquipmentGroupMembers
+                    .Where(egm => egm.GroupId == schedule.EquipmentGroupId.Value)
+                    .Include(egm => egm.Asset)
+                    .Select(egm => egm.Asset)
+                    .FirstOrDefaultAsync();
+            }
+
+            // Update schedule execution stats
+            schedule.LastExecutedAt = task.CompletedAt ?? DateTime.UtcNow;
+            schedule.LastExecutedRunningHours = task.RunningHoursAtLastDone ?? task.ActualRunningHours;
+
+            if (trackingAsset != null)
+                CalculateNextDueDate(schedule, trackingAsset);
+
+            await _scheduleRepository.UpdateAsync(schedule);
+
+            // Add maintenance history record
+            _context.MaintenanceHistories.Add(new MaintenanceHistory
+            {
+                ScheduleId = schedule.Id,
+                TaskId = task.Id,
+                ExecutedAt = task.CompletedAt ?? DateTime.UtcNow,
+                ExecutedRunningHours = schedule.LastExecutedRunningHours,
+                CompletedBy = task.CompletedBy ?? task.VerifiedBy ?? "SYSTEM",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            // Generate next cycle task for PERIODIC schedules
+            if (schedule.MaintenanceCategory == "PERIODIC" && schedule.IsActive && schedule.AutoGenerate)
+                await GenerateNextCycleTask(schedule, task, trackingAsset);
+
+            _logger.LogInformation(
+                "PostApprovalScheduleUpdate: schedule {Code} updated, NextDueRH={NextRH}, NextDueDate={NextDate}",
+                schedule.ScheduleCode, schedule.NextDueRunningHours, schedule.NextDueDate?.ToString("yyyy-MM-dd"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PostApprovalScheduleUpdate failed for task {TaskId}", task.TaskId);
+            // Don't rethrow — don't block the approval if recurrence fails
+        }
+    }
+
+    /// <summary>
+    /// Recovery: called when CheckAndPromoteTasksByRunningHours finds no active task for a PERIODIC
+    /// RUNNING_HOURS schedule. This happens when the previous task completed via old code that did not
+    /// call GenerateNextCycleTask. Recreates the next cycle task and immediately sets it DUE if threshold
+    /// is already reached.
+    /// </summary>
+    public async Task RecoverMissingCycleTaskAsync(MaintenanceSchedule schedule, double currentRunningHours)
+    {
+        try
+        {
+            // Find the last completed task for this schedule to use as template
+            var lastCompletedTask = await _context.MaintenanceTasks
+                .Where(t => t.ScheduleId == schedule.Id && t.Status == "COMPLETED" && !t.IsDeleted)
+                .OrderByDescending(t => t.CompletedAt)
+                .FirstOrDefaultAsync();
+
+            if (lastCompletedTask == null)
+            {
+                _logger.LogDebug("RecoverMissingCycleTask: no completed task found for schedule {Code}", schedule.ScheduleCode);
+                return;
+            }
+
+            // Recalculate NextDueRunningHours
+            // If NextDueRunningHours is stale (already passed), recalc from current RH
+            var intervalHours = schedule.IntervalHours ?? 100;
+            var completedAtRH = lastCompletedTask.RunningHoursAtLastDone
+                                ?? lastCompletedTask.ActualRunningHours
+                                ?? (schedule.LastExecutedRunningHours ?? currentRunningHours);
+
+            var candidateNextRH = completedAtRH + intervalHours;
+            // If that threshold is already behind current RH, use current RH as base
+            if (candidateNextRH <= currentRunningHours)
+                candidateNextRH = currentRunningHours + intervalHours;
+
+            schedule.NextDueRunningHours = candidateNextRH;
+            var hoursRemaining = candidateNextRH - currentRunningHours;
+            var daysRemaining = (int)Math.Max(hoursRemaining / MaintenanceConstants.AVERAGE_HOURS_PER_DAY, 0);
+            schedule.NextDueDate = DateTime.UtcNow.AddDays(Math.Max(daysRemaining, 1));
+
+            // Preserve execution stats if not already set
+            if (!schedule.LastExecutedAt.HasValue)
+                schedule.LastExecutedAt = lastCompletedTask.CompletedAt ?? DateTime.UtcNow;
+            if (!schedule.LastExecutedRunningHours.HasValue)
+                schedule.LastExecutedRunningHours = completedAtRH;
+
+            await _scheduleRepository.UpdateAsync(schedule);
+
+            // Generate next cycle task (SCHEDULED status)
+            await GenerateNextCycleTask(schedule, lastCompletedTask, null);
+
+            // If already past the new threshold, immediately flip to DUE
+            if (currentRunningHours >= candidateNextRH)
+            {
+                var newTask = await _context.MaintenanceTasks
+                    .FirstOrDefaultAsync(t => t.ScheduleId == schedule.Id &&
+                                             t.Status == "SCHEDULED" && !t.IsDeleted);
+                if (newTask != null)
+                {
+                    newTask.Status = "DUE";
+                    newTask.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "RecoverMissingCycleTask: created next task for schedule {Code}, NextDueRH={NextRH}",
+                schedule.ScheduleCode, schedule.NextDueRunningHours);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "RecoverMissingCycleTask failed for schedule {Code}", schedule.ScheduleCode);
+        }
+    }
+
     private async Task<double?> GetCurrentRunningHours(Guid assetId)
     {
         var asset = await _assetRepository.GetByIdAsync(assetId);
@@ -295,15 +450,9 @@ public class MaintenanceCompletionService
                 return;
             }
 
-            // Build new TaskId with next due date
+            // Build new TaskId — use EquipmentId directly (e.g. "MOORING-FP").
+            // Do NOT parse TaskId: equipment codes with dashes (MOORING-FP) break split[^2] logic.
             var equipmentCode = completedTask.EquipmentId ?? completedTask.EquipmentAssetName ?? "GRP";
-            // Extract equipment identifier from completed task's TaskId (format: SCHED-{code}-{equip}-{date})
-            var parts = completedTask.TaskId.Split('-');
-            if (parts.Length >= 4)
-            {
-                // Take the part before the date suffix
-                equipmentCode = parts[^2]; // Second to last = equipment code
-            }
 
             // Build unique TaskId:
             // - RUNNING_HOURS: suffix with RH threshold (e.g. RH200) to avoid collision with same-date task
