@@ -38,10 +38,10 @@ import { useTranslationSafe } from '@/contexts/I18nContext'
 // Navigation items with translation keys
 const getNavigation = (t: (key: string) => string) => [
   { name: t('nav.dashboard'), to: '/dashboard', icon: LayoutDashboard },
-  { name: t('nav.navigation'), to: '/navigation', icon: Navigation },
-  { name: t('nav.engine'), to: '/engine', icon: Zap },
-  { name: t('nav.fuelAnalytics'), to: '/fuel-analytics', icon: Fuel },
-  { name: t('nav.alarms'), to: '/alarms', icon: AlertTriangle },
+  // { name: t('nav.navigation'), to: '/navigation', icon: Navigation }, // Temporarily hidden
+  // { name: t('nav.engine'), to: '/engine', icon: Zap }, // Temporarily hidden
+  // { name: t('nav.fuelAnalytics'), to: '/fuel-analytics', icon: Fuel }, // Temporarily hidden
+  // { name: t('nav.alarms'), to: '/alarms', icon: AlertTriangle }, // Temporarily hidden
   { name: t('nav.crew'), icon: Users, subItems: [
     { name: t('nav.crewMembers'), to: '/crew/members', icon: Users },
     { name: t('nav.certificate'), to: '/crew/certificates', icon: Shield },
@@ -75,7 +75,7 @@ const getNavigation = (t: (key: string) => string) => [
   { name: t('nav.shipData') || 'Ship Data', to: '/ship-data', icon: Anchor },
   { name: t('nav.voyage'), to: '/voyage', icon: Ship },
   { name: t('nav.ports') || 'Ports', to: '/ports', icon: MapPin },
-  { name: t('nav.compliance'), to: '/compliance', icon: FileText },
+  // { name: t('nav.compliance'), to: '/compliance', icon: FileText }, // Temporarily hidden
   { 
     name: t('nav.safety'), 
     icon: Shield, 

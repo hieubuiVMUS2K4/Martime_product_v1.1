@@ -1,5 +1,6 @@
 import type { SaveShipData } from '@/types/ship-data.types';
 import { ContactCard } from './ShipDataFields';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 
 interface ChartererTabProps {
   data: SaveShipData;
@@ -7,10 +8,13 @@ interface ChartererTabProps {
 }
 
 export function ChartererTab({ data, onChange }: ChartererTabProps) {
+  const { t } = useTranslationSafe();
   return (
     <div className="space-y-4">
-      <ContactCard title="Charterer" prefix="charterer" data={data} onChange={onChange} />
-      <ContactCard title="Bareboat Charterer" prefix="bareboatCharterer" data={data} onChange={onChange} />
+      <ContactCard title={t('shipData.chartererTab.charterer')} prefix="charterer" data={data} onChange={onChange} />
+      <ContactCard title={t('shipData.chartererTab.bareboatCharterer')} prefix="bareboatCharterer" data={data} onChange={onChange} />
+      <ContactCard title={t('shipData.chartererTab.charterer')} prefix="charterer" data={data} onChange={onChange} />
+      <ContactCard title={t('shipData.chartererTab.bareboatCharterer')} prefix="bareboatCharterer" data={data} onChange={onChange} />
     </div>
   );
 }

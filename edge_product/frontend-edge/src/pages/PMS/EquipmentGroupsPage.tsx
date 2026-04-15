@@ -24,31 +24,31 @@ interface GroupFormData {
   isActive: boolean;
 }
 
-const DEPARTMENTS = [
-  { value: 'ENGINE', label: 'ENGINE - Bộ phận Máy', color: 'bg-red-100 text-red-800' },
-  { value: 'DECK', label: 'DECK - Bộ phận Boong', color: 'bg-blue-100 text-blue-800' },
-  { value: 'NAVIGATION', label: 'NAVIGATION - Hàng hải', color: 'bg-cyan-100 text-cyan-800' },
-  { value: 'ELECTRICAL', label: 'ELECTRICAL - Điện', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'MANAGEMENT', label: 'MANAGEMENT - Quản lý', color: 'bg-gray-100 text-gray-800' },
-  { value: 'CATERING', label: 'CATERING - Ăn uống', color: 'bg-green-100 text-green-800' },
+const DEPARTMENTS_BASE = [
+  { value: 'ENGINE', labelKey: 'deptEngine', color: 'bg-red-100 text-red-800' },
+  { value: 'DECK', labelKey: 'deptDeck', color: 'bg-blue-100 text-blue-800' },
+  { value: 'NAVIGATION', labelKey: 'deptNavigation', color: 'bg-cyan-100 text-cyan-800' },
+  { value: 'ELECTRICAL', labelKey: 'deptElectrical', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'MANAGEMENT', labelKey: 'deptManagement', color: 'bg-gray-100 text-gray-800' },
+  { value: 'CATERING', labelKey: 'deptCatering', color: 'bg-green-100 text-green-800' },
 ];
 
-const PIC_ROLES = [
-  { value: 'MASTER', label: 'MASTER - Thuyền trưởng', departments: ['MANAGEMENT', 'DECK', 'NAVIGATION'] },
-  { value: 'C/E', label: 'C/E - Máy trưởng', departments: ['ENGINE', 'MANAGEMENT'] },
-  { value: 'C/O', label: 'C/O - Đại phó', departments: ['DECK', 'NAVIGATION', 'MANAGEMENT'] },
-  { value: '2/E', label: '2/E - Máy hai', departments: ['ENGINE'] },
-  { value: '3/E', label: '3/E - Máy ba', departments: ['ENGINE'] },
-  { value: '4/E', label: '4/E - Máy bốn', departments: ['ENGINE'] },
-  { value: 'E/O', label: 'E/O - Sỹ quan điện', departments: ['ENGINE'] }, // Changed: E/O crew is in ENGINE dept
-  { value: '2/O', label: '2/O - Sỹ quan hai', departments: ['DECK', 'NAVIGATION'] },
-  { value: '3/O', label: '3/O - Sỹ quan ba', departments: ['DECK', 'NAVIGATION'] },
-  { value: 'BOSUN', label: 'BOSUN - Thủy thủ trưởng', departments: ['DECK'] },
-  { value: 'FITTER', label: 'FITTER - Thợ cơ khí', departments: ['ENGINE'] },
-  { value: 'OILER', label: 'OILER - Thợ dầu', departments: ['ENGINE'] },
-  { value: 'AB', label: 'AB - Thủy thủ thành thạo', departments: ['DECK'] },
-  { value: 'OS', label: 'OS - Thủy thủ phổ thông', departments: ['DECK'] },
-  { value: 'COOK', label: 'COOK - Đầu bếp', departments: ['CATERING'] },
+const PIC_ROLES_BASE = [
+  { value: 'MASTER', labelKey: 'roleMaster', departments: ['MANAGEMENT', 'DECK', 'NAVIGATION'] },
+  { value: 'C/E', labelKey: 'roleCE', departments: ['ENGINE', 'MANAGEMENT'] },
+  { value: 'C/O', labelKey: 'roleCO', departments: ['DECK', 'NAVIGATION', 'MANAGEMENT'] },
+  { value: '2/E', labelKey: 'role2E', departments: ['ENGINE'] },
+  { value: '3/E', labelKey: 'role3E', departments: ['ENGINE'] },
+  { value: '4/E', labelKey: 'role4E', departments: ['ENGINE'] },
+  { value: 'E/O', labelKey: 'roleEO', departments: ['ENGINE'] },
+  { value: '2/O', labelKey: 'role2O', departments: ['DECK', 'NAVIGATION'] },
+  { value: '3/O', labelKey: 'role3O', departments: ['DECK', 'NAVIGATION'] },
+  { value: 'BOSUN', labelKey: 'roleBosun', departments: ['DECK'] },
+  { value: 'FITTER', labelKey: 'roleFitter', departments: ['ENGINE'] },
+  { value: 'OILER', labelKey: 'roleOiler', departments: ['ENGINE'] },
+  { value: 'AB', labelKey: 'roleAB', departments: ['DECK'] },
+  { value: 'OS', labelKey: 'roleOS', departments: ['DECK'] },
+  { value: 'COOK', labelKey: 'roleCook', departments: ['CATERING'] },
 ];
 
 const CATEGORIES = [
@@ -69,6 +69,10 @@ const CATEGORIES = [
 
 export default function EquipmentGroupsPage() {
   const { t } = useTranslationSafe();
+
+  const DEPARTMENTS = useMemo(() => DEPARTMENTS_BASE.map(d => ({ ...d, label: t(`pms.groups.${d.labelKey}`) })), [t]);
+  const PIC_ROLES = useMemo(() => PIC_ROLES_BASE.map(r => ({ ...r, label: t(`pms.groups.${r.labelKey}`) })), [t]);
+
   const [groups, setGroups] = useState<EquipmentGroup[]>([]);
   const [crewList, setCrewList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,7 +165,7 @@ export default function EquipmentGroupsPage() {
       setAvailableAssets(assetsData);
     } catch (err) {
       console.error('Error loading data:', err);
-      toast.error('Failed to load data');
+      toast.error(t('pms.groups.failedToLoad'));
     } finally {
       setLoading(false);
     }
@@ -216,7 +220,7 @@ export default function EquipmentGroupsPage() {
       setAvailableAssets(allAssets.filter((a: any) => !assignedIds.includes(a.id)));
     } catch (error) {
       console.error('Error loading group assets:', error);
-      toast.error('Failed to load group assets');
+      toast.error(t('pms.groups.failedToLoadAssets'));
     }
   };
 
@@ -241,10 +245,10 @@ export default function EquipmentGroupsPage() {
       // Refresh groups to update memberCount
       await fetchGroups();
       
-      toast.success(`Added ${selectedAvailable.length} asset(s) to group`);
+      toast.success(t('pms.groups.addedAssets', { count: selectedAvailable.length }));
     } catch (error) {
       console.error('Error adding assets:', error);
-      toast.error('Failed to add assets');
+      toast.error(t('pms.groups.saveFailed'));
     }
   };
 
@@ -267,10 +271,10 @@ export default function EquipmentGroupsPage() {
       // Refresh groups to update memberCount
       await fetchGroups();
       
-      toast.success(`Removed ${selectedAssigned.length} asset(s) from group`);
+      toast.success(t('pms.groups.removedAssets', { count: selectedAssigned.length }));
     } catch (error) {
       console.error('Error removing assets:', error);
-      toast.error('Failed to remove assets');
+      toast.error(t('pms.groups.saveFailed'));
     }
   };
 
@@ -283,23 +287,23 @@ export default function EquipmentGroupsPage() {
     e.preventDefault();
     
     if (!formData.groupCode || !formData.groupName) {
-      toast.error('Group Code and Name are required');
+      toast.error(t('pms.groups.codeNameRequired'));
       return;
     }
 
     try {
       if (editingGroup) {
         await equipmentGroupService.update(editingGroup.id, formData);
-        toast.success('Group updated successfully');
+        toast.success(t('pms.groups.updateSuccess'));
       } else {
         await equipmentGroupService.create(formData);
-        toast.success('Group created successfully');
+        toast.success(t('pms.groups.createSuccess'));
       }
       handleCloseModal();
       await loadData();
     } catch (err: any) {
       console.error('Error saving group:', err);
-      toast.error(err.message || 'Failed to save group');
+      toast.error(err.message || t('pms.groups.saveFailed'));
     }
   };
 
@@ -310,11 +314,11 @@ export default function EquipmentGroupsPage() {
 
     try {
       await equipmentGroupService.delete(group.id);
-      toast.success('Group deleted successfully');
+      toast.success(t('pms.groups.deleteSuccess'));
       await loadData();
     } catch (err: any) {
       console.error('Error deleting group:', err);
-      toast.error(err.message || 'Failed to delete group');
+      toast.error(err.message || t('pms.groups.deleteFailed'));
     }
   };
 
@@ -609,14 +613,14 @@ export default function EquipmentGroupsPage() {
               {/* Group Code */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Group Code <span className="text-red-500">*</span>
+                  {t('pms.groups.groupCode')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.groupCode}
                   onChange={(e) => setFormData({ ...formData, groupCode: e.target.value.toUpperCase() })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., ENG-ME, DECK-CARGO"
+                  placeholder={t('pms.groups.groupCodePlaceholder')}
                   required
                 />
               </div>
@@ -624,14 +628,14 @@ export default function EquipmentGroupsPage() {
               {/* Group Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Group Name <span className="text-red-500">*</span>
+                  {t('pms.groups.groupName')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.groupName}
                   onChange={(e) => setFormData({ ...formData, groupName: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., Main Engine, All Generators"
+                  placeholder={t('pms.groups.groupNamePlaceholder')}
                   required
                 />
               </div>
@@ -639,14 +643,14 @@ export default function EquipmentGroupsPage() {
               {/* Category */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category
+                  {t('pms.groups.category')}
                 </label>
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="">Select category...</option>
+                  <option value="">{t('pms.groups.selectCategory')}</option>
                   {CATEGORIES.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
@@ -656,14 +660,14 @@ export default function EquipmentGroupsPage() {
               {/* Department */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Department
+                  {t('pms.groups.department')}
                 </label>
                 <select
                   value={formData.department}
                   onChange={(e) => setFormData({ ...formData, department: e.target.value, picRole: '', picCrewId: '' })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="">Select department...</option>
+                  <option value="">{t('pms.groups.selectDepartment')}</option>
                   {DEPARTMENTS.map(dept => (
                     <option key={dept.value} value={dept.value}>{dept.label}</option>
                   ))}
@@ -673,7 +677,7 @@ export default function EquipmentGroupsPage() {
               {/* PIC Role */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  PIC Role (Person In Charge)
+                  {t('pms.groups.picRole')}
                 </label>
                 <select
                   value={formData.picRole}
@@ -681,7 +685,7 @@ export default function EquipmentGroupsPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={!formData.department}
                 >
-                  <option value="">Select PIC role...</option>
+                  <option value="">{t('pms.groups.selectPicRole')}</option>
                   {filteredPicRoles.map(role => (
                     <option key={role.value} value={role.value}>{role.label}</option>
                   ))}
@@ -694,7 +698,7 @@ export default function EquipmentGroupsPage() {
                       </svg>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-amber-800">
-                          ⚠️ No crew member found
+                          ⚠️ {t('pms.groups.noCrewFound')}
                         </p>
                         <p className="text-xs text-amber-700 mt-1">
                           There is no onboard crew with rank <strong>{formData.picRole}</strong> in department <strong>{formData.department}</strong>.
@@ -710,15 +714,15 @@ export default function EquipmentGroupsPage() {
                 )}
                 <p className="text-xs text-gray-500 mt-1">
                   {formData.department 
-                    ? `Showing roles for ${formData.department} department`
-                    : 'Select a department first to filter roles'}
+                    ? t('pms.groups.showingRoles', { department: formData.department })
+                    : t('pms.groups.selectDeptFirst')}
                 </p>
               </div>
 
               {/* PIC Crew ID */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  PIC Crew (Specific Person)
+                  {t('pms.groups.picCrew')}
                 </label>
                 <select
                   value={formData.picCrewId}
@@ -726,7 +730,7 @@ export default function EquipmentGroupsPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={!formData.department}
                 >
-                  <option value="">Select crew member...</option>
+                  <option value="">{t('pms.groups.selectCrew')}</option>
                   {filteredCrew.map(crew => (
                     <option key={crew.crewId} value={crew.crewId}>
                       {crew.fullName} ({typeof crew.rank === 'object' ? crew.rank?.rankName : crew.rank}) - {crew.crewId}
@@ -735,22 +739,22 @@ export default function EquipmentGroupsPage() {
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
                   {formData.department 
-                    ? `Showing crew from ${formData.department} department`
-                    : 'Select a department first to filter crew'}
+                    ? t('pms.groups.showingCrew', { department: formData.department })
+                    : t('pms.groups.selectDeptForCrew')}
                 </p>
               </div>
 
               {/* Description */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
+                  {t('pms.groups.description')}
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   rows={3}
-                  placeholder="Optional description..."
+                  placeholder={t('pms.groups.descriptionPlaceholder')}
                 />
               </div>
 
@@ -764,14 +768,14 @@ export default function EquipmentGroupsPage() {
                   className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                 />
                 <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
-                  Active
+                  {t('pms.groups.isActiveLabel')}
                 </label>
               </div>
 
               {/* Equipment Assets Management (Only for Edit mode) */}
               {editingGroup && (
                 <div className="pt-4 border-t border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Equipment Assets</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('pms.groups.equipmentAssets')}</h3>
                   
                   <div className="flex gap-6">
                     {/* Available Assets */}
@@ -788,7 +792,7 @@ export default function EquipmentGroupsPage() {
                         <div className="mt-2 flex gap-2">
                           <input
                             type="text"
-                            placeholder="Search..."
+                            placeholder={t('pms.groups.searchAssets')}
                             value={assetSearchAvailable}
                             onChange={(e) => setAssetSearchAvailable(e.target.value)}
                             className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
@@ -798,7 +802,7 @@ export default function EquipmentGroupsPage() {
                             onChange={(e) => setAssetCategoryFilterAvailable(e.target.value)}
                             className="px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 bg-white"
                           >
-                            <option value="">All Categories</option>
+                            <option value="">{t('pms.groups.allCategoriesAssets')}</option>
                             {CATEGORIES.map(cat => (
                               <option key={cat} value={cat}>{cat}</option>
                             ))}
@@ -850,7 +854,7 @@ export default function EquipmentGroupsPage() {
                           return matchesSearch && matchesCategory;
                         }).length === 0 && (
                           <div className="text-center py-8 text-sm text-gray-500">
-                            No assets available
+                            {t('pms.groups.noAssetsAvailable')}
                           </div>
                         )}
                       </div>
@@ -863,7 +867,7 @@ export default function EquipmentGroupsPage() {
                         onClick={handleAddAssets}
                         disabled={selectedAvailable.length === 0}
                         className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-                        title="Add to group"
+                        title={t('pms.groups.addToGroup')}
                       >
                         <MoveRight className="w-5 h-5" />
                       </button>
@@ -872,7 +876,7 @@ export default function EquipmentGroupsPage() {
                         onClick={handleRemoveAssets}
                         disabled={selectedAssigned.length === 0}
                         className="p-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors rotate-180 shadow-sm"
-                        title="Remove from group"
+                        title={t('pms.groups.removeFromGroup')}
                       >
                         <MoveRight className="w-5 h-5" />
                       </button>
@@ -892,7 +896,7 @@ export default function EquipmentGroupsPage() {
                         <div className="mt-2 flex gap-2">
                           <input
                             type="text"
-                            placeholder="Search..."
+                            placeholder={t('pms.groups.searchAssets')}
                             value={assetSearchAssigned}
                             onChange={(e) => setAssetSearchAssigned(e.target.value)}
                             className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500"
@@ -902,7 +906,7 @@ export default function EquipmentGroupsPage() {
                             onChange={(e) => setAssetCategoryFilterAssigned(e.target.value)}
                             className="px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500 bg-white"
                           >
-                            <option value="">All Categories</option>
+                            <option value="">{t('pms.groups.allCategoriesAssets')}</option>
                             {CATEGORIES.map(cat => (
                               <option key={cat} value={cat}>{cat}</option>
                             ))}
@@ -954,7 +958,7 @@ export default function EquipmentGroupsPage() {
                           return matchesSearch && matchesCategory;
                         }).length === 0 && (
                           <div className="text-center py-8 text-sm text-gray-500">
-                            No assets in group
+                            {t('pms.groups.noAssetsInGroup')}
                           </div>
                         )}
                       </div>
@@ -970,13 +974,13 @@ export default function EquipmentGroupsPage() {
                   onClick={handleCloseModal}
                   className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
-                  Cancel
+                  {t('pms.groups.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  {editingGroup ? 'Update' : 'Create'} Group
+                  {editingGroup ? t('pms.groups.updateGroup') : t('pms.groups.createGroup')}
                 </button>
               </div>
             </form>

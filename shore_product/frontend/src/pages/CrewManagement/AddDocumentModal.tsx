@@ -5,26 +5,26 @@ import { useToast } from '../../components/common/Toast';
 import type { Country } from '../../types/crew.types';
 
 const DOCUMENT_TARGET_OPTIONS = [
-  { value: 'travel', label: 'Travel Documents' },
-  { value: 'seafarer', label: 'Seafarer Documents' },
-  { value: 'employment', label: 'Employment Documents' },
+  { value: 'travel', label: 'Giấy tờ đi lại' },
+  { value: 'seafarer', label: 'Giấy tờ thuyền viên' },
+  { value: 'employment', label: 'Giấy tờ hợp đồng' },
 ] as const;
 
 const DOCUMENT_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = {
   travel: [
-    { value: 'passport', label: 'Passport' },
+    { value: 'passport', label: 'Hộ chiếu' },
     { value: 'visa', label: 'Visa' },
-    { value: 'residence_permit', label: 'Residence Permit' },
-    { value: 'seaman_book', label: 'Seaman Book' },
+    { value: 'residence_permit', label: 'Giấy phép cư trú' },
+    { value: 'seaman_book', label: 'Sổ thuyền viên' },
   ],
   seafarer: [
-    { value: 'sid', label: 'SID (Seafarer Identity Document)' },
-    { value: 'coc', label: 'COC (Certificate of Competency)' },
+    { value: 'sid', label: 'SID (Giấy tờ định danh thuyền viên)' },
+    { value: 'coc', label: 'COC (Bằng năng lực chuyên môn)' },
   ],
   employment: [
-    { value: 'contract', label: 'Contract' },
-    { value: 'appraisal', label: 'Appraisal' },
-    { value: 'offer_letter', label: 'Offer Letter' },
+    { value: 'contract', label: 'Hợp đồng' },
+    { value: 'appraisal', label: 'Đánh giá' },
+    { value: 'offer_letter', label: 'Thư mời làm việc' },
   ],
 };
 
@@ -149,7 +149,7 @@ export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClos
             </div>
 
             <div>
-              <label className={labelCls}>Document Type *</label>
+              <label className={labelCls}>Loại tài liệu *</label>
               <select value={form.documentType} onChange={e => set('documentType', e.target.value)} className={inputCls} required>
                 <option value="">Chọn loại tài liệu</option>
                 {currentTypeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -157,22 +157,22 @@ export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClos
             </div>
 
             <div>
-              <label className={labelCls}>Document Number *</label>
+              <label className={labelCls}>Số tài liệu *</label>
               <input type="text" value={form.documentNumber} onChange={e => set('documentNumber', e.target.value)} className={inputCls} required />
             </div>
 
             <div>
-              <label className={labelCls}>Issue Date</label>
+              <label className={labelCls}>Ngày cấp</label>
               <input type="date" value={form.issueDate} onChange={e => set('issueDate', e.target.value)} className={inputCls} />
             </div>
 
             <div>
-              <label className={labelCls}>Expiry Date</label>
+              <label className={labelCls}>Ngày hết hạn</label>
               <input type="date" value={form.expiryDate} onChange={e => set('expiryDate', e.target.value)} className={inputCls} />
             </div>
 
             <div>
-              <label className={labelCls}>Country</label>
+              <label className={labelCls}>Quốc gia cấp</label>
               <select value={form.countryId} onChange={e => set('countryId', e.target.value)} className={inputCls}>
                 <option value="">Chọn quốc gia</option>
                 {countries.map(c => <option key={c.id} value={c.id}>{c.countryName}</option>)}

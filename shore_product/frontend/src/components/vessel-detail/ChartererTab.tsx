@@ -37,7 +37,7 @@ const ShoreMasterBadge: React.FC = () => {
         marginBottom: '12px'
       }}
     >
-      📋 Shore Master — Editable
+      📋 Dữ liệu bờ — Có thể chỉnh sửa
     </div>
   );
 };
@@ -54,35 +54,35 @@ export function ChartererTab({ formData = {}, onChange }: ChartererTabProps) {
       <ShoreMasterBadge />
       
       {/* Charterer */}
-      <SectionCard title="Charterer">
+      <SectionCard title="Người thuê tàu">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <EditableField label="Company Name" value={formData.chartererName}
+          <EditableField label="Tên công ty" value={formData.chartererName}
             onChange={v => handleChange('chartererName', v)} className="col-span-2" />
-          <EditableField label="Street Address" value={formData.chartererStreet}
+          <EditableField label="Địa chỉ" value={formData.chartererStreet}
             onChange={v => handleChange('chartererStreet', v)} className="col-span-2" />
-          <EditableField label="Country" value={formData.chartererCountry}
+          <EditableField label="Quốc gia" value={formData.chartererCountry}
             onChange={v => handleChange('chartererCountry', v)} />
-          <EditableField label="ZIP" value={formData.chartererZip}
+          <EditableField label="Mã bưu chính" value={formData.chartererZip}
             onChange={v => handleChange('chartererZip', v)} />
-          <EditableField label="City" value={formData.chartererCity}
+          <EditableField label="Thành phố" value={formData.chartererCity}
             onChange={v => handleChange('chartererCity', v)} />
-          <EditableField label="Phone" value={formData.chartererPhone} type="tel"
+          <EditableField label="Điện thoại" value={formData.chartererPhone} type="tel"
             onChange={v => handleChange('chartererPhone', v)} />
           <EditableField label="Email" value={formData.chartererEmail} type="email"
             onChange={v => handleChange('chartererEmail', v)} />
-          <EditableField label="Contact Person" value={formData.chartererContactPerson}
+          <EditableField label="Người liên hệ" value={formData.chartererContactPerson}
             onChange={v => handleChange('chartererContactPerson', v)} />
         </div>
       </SectionCard>
 
       {/* Bareboat Charterer */}
-      <SectionCard title="Bareboat Charterer">
+      <SectionCard title="Người thuê tàu trần">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <EditableField label="Company Name" value={formData.bareboatChartererName}
+          <EditableField label="Tên công ty" value={formData.bareboatChartererName}
             onChange={v => handleChange('bareboatChartererName', v)} />
           <EditableField label="Email" value={formData.bareboatChartererEmail} type="email"
             onChange={v => handleChange('bareboatChartererEmail', v)} />
-          <EditableField label="Contact Person" value={formData.bareboatChartererContactPerson}
+          <EditableField label="Người liên hệ" value={formData.bareboatChartererContactPerson}
             onChange={v => handleChange('bareboatChartererContactPerson', v)} />
         </div>
       </SectionCard>

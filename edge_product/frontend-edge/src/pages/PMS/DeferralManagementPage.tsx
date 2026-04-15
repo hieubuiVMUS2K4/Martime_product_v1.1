@@ -61,7 +61,7 @@ export default function DeferralManagementPage() {
       setTotalPages(response.totalPages);
     } catch (err) {
       console.error('Error loading deferrals:', err);
-      toast.error('Failed to load deferral requests');
+      toast.error(t('pms.deferral.failedToLoad'));
     } finally {
       setLoading(false);
     }
@@ -87,8 +87,8 @@ export default function DeferralManagementPage() {
       
       toast.success(
         reviewAction === 'APPROVE' 
-          ? 'Deferral request approved' 
-          : 'Deferral request rejected'
+          ? t('pms.deferral.approvedSuccess') 
+          : t('pms.deferral.rejectedSuccess')
       );
       
       // Remove from list or update status
@@ -108,7 +108,7 @@ export default function DeferralManagementPage() {
       setReviewNotes('');
     } catch (err) {
       console.error('Error reviewing deferral:', err);
-      toast.error('Failed to review deferral request');
+      toast.error(t('pms.deferral.failedToReview'));
     } finally {
       setActionLoading(false);
     }
@@ -251,7 +251,7 @@ export default function DeferralManagementPage() {
                     {deferral.isCmsItem && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium">
                         <Shield className="w-3 h-3" />
-                        CMS Item
+                        {t('pms.deferral.cmsItem')}
                       </span>
                     )}
                   </div>

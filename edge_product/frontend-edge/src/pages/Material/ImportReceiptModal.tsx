@@ -54,7 +54,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
         setError(t('materials.import.noValidItems'));
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to parse Excel file');
+      setError(err.message || t('materials.import.failedToParse'));
       setParsedItems([]);
     }
   };
@@ -67,7 +67,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
         try {
           const data = e.target?.result;
           if (!data) {
-            reject(new Error('Failed to read file'));
+            reject(new Error(t('materials.import.failedToRead')));
             return;
           }
 
@@ -78,7 +78,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
           const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
 
           if (jsonData.length === 0) {
-            reject(new Error('Excel file is empty'));
+            reject(new Error(t('materials.import.emptyFile')));
             return;
           }
 
@@ -209,11 +209,11 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
           resolve(items);
         } catch (error: any) {
           console.error('Excel parse error:', error);
-          reject(new Error('Failed to parse Excel file. Please check the format.'));
+          reject(new Error(t('materials.import.failedToParseFormat')));
         }
       };
 
-      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.onerror = () => reject(new Error(t('materials.import.failedToRead')));
       reader.readAsBinaryString(file);
     });
   };
@@ -224,7 +224,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
       setLoading(true);
 
       if (parsedItems.length === 0) {
-        setError('No items to import. Please select an Excel file.');
+        setError(t('materials.import.noItemsToImport'));
         setLoading(false);
         return;
       }
@@ -242,7 +242,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
       setPreview(previewResult);
       setStep('preview');
     } catch (err: any) {
-      setError(err.message || 'Failed to preview import');
+      setError(err.message || t('materials.import.failedToPreview'));
     } finally {
       setLoading(false);
     }
@@ -268,7 +268,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
       onSuccess();
       handleClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to import receipt');
+      setError(err.message || t('materials.import.failedToImport'));
       setStep('preview');
     }
   };
@@ -471,15 +471,15 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                   <table className="w-full">
                     <thead className="bg-gray-50 sticky top-0">
                       <tr>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">STT</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Action</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Item Code</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Item Name</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Category</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Quantity</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Unit</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Unit Cost</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Stock Change</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.import.colNo')}</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.import.colAction')}</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.import.colItemCode')}</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.import.colItemName')}</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.import.colCategory')}</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">{t('materials.import.colQuantity')}</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.import.colUnit')}</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">{t('materials.import.colUnitCost')}</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.import.colStockChange')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -565,7 +565,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                 ) : (
                   <>
                     <Upload className="w-4 h-4" />
-                    Preview
+                    {t('materials.import.preview')}
                   </>
                 )}
               </button>

@@ -20,7 +20,7 @@ import { openProtectedMediaInNewTab } from '../../services/protectedMedia';
 
 type TabType = 'basic-data' | 'documents' | 'voyage-history' | 'onboarding' | 'doc-workflow' | 'status-history' | 'audit';
 
-const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB') : '�';
+const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 
 const calcAge = (dob?: string) => {
   if (!dob) return '';
@@ -196,9 +196,9 @@ export const CrewDetailPage: React.FC = () => {
     try {
       await crewApi.update(id, edited);
       await refetch();
-      toast.success('Saved successfully!');
+      toast.success('Lưu thành công!');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to save data');
+      toast.error(e instanceof Error ? e.message : 'Không thể lưu dữ liệu');
     } finally { setSaving(false); }
   };
 
@@ -210,7 +210,7 @@ export const CrewDetailPage: React.FC = () => {
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      if (file.size > 5 * 1024 * 1024) { toast.error('Image must not exceed 5MB'); return; }
+      if (file.size > 5 * 1024 * 1024) { toast.error('Hình ảnh không được vượt quá 5MB'); return; }
       setPendingAvatarFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setPendingAvatarPreview(reader.result as string);
@@ -229,9 +229,9 @@ export const CrewDetailPage: React.FC = () => {
       if (res.crewMember) await refetch();
       setPendingAvatarFile(null);
       setPendingAvatarPreview(null);
-      toast.success('Avatar updated successfully!');
+      toast.success('Cập nhật ảnh thành công!');
     } catch (err: any) {
-      toast.error(err.message || 'Upload failed');
+      toast.error(err.message || 'Tải lên thất bại');
     } finally {
       setUploadingAvatar(false);
     }
@@ -258,9 +258,9 @@ export const CrewDetailPage: React.FC = () => {
         setCertificates(prev => prev.map(c =>
           c.id === certId ? { ...c, documentFilePath: result.documentFilePath } : c
         ));
-        toast.success('File uploaded successfully!');
+        toast.success('Tải file thành công!');
       } catch (err: any) {
-        toast.error(err.message || 'Upload failed');
+        toast.error(err.message || 'Tải lên thất bại');
       } finally {
         setUploadingCertId(null);
       }
@@ -287,22 +287,22 @@ export const CrewDetailPage: React.FC = () => {
   };
 
   const handleDeleteCertificate = async (certId: number) => {
-    if (!window.confirm('Are you sure you want to delete this certificate?')) return;
+    if (!window.confirm('Bạn có chắc muốn xóa chứng chỉ này?')) return;
     try {
       await certificateApi.deleteCrewCertificate(certId);
       await refetchCerts();
-      toast.success('Certificate deleted');
+      toast.success('Xóa chứng chỉ thành công');
     } catch (err: any) {
-      toast.error(err.message || 'Failed to delete certificate');
+      toast.error(err.message || 'Không thể xóa chứng chỉ');
     }
   };
 
   const getCertStatus = (expiryDate?: string) => {
-    if (!expiryDate) return { label: 'N/A', color: 'text-gray-500', bg: 'bg-gray-100', Icon: AlertTriangle };
+    if (!expiryDate) return { label: 'Không rõ', color: 'text-gray-500', bg: 'bg-gray-100', Icon: AlertTriangle };
     const days = Math.floor((new Date(expiryDate).getTime() - Date.now()) / 86400000);
-    if (days < 0) return { label: 'Expired', color: 'text-red-600', bg: 'bg-red-100', Icon: XCircle, days };
-    if (days < 90) return { label: 'Expiring', color: 'text-yellow-600', bg: 'bg-yellow-100', Icon: AlertTriangle, days };
-    return { label: 'Valid', color: 'text-green-600', bg: 'bg-green-100', Icon: CheckCircle, days };
+    if (days < 0) return { label: 'Hết hạn', color: 'text-red-600', bg: 'bg-red-100', Icon: XCircle, days };
+    if (days < 90) return { label: 'Sắp hết hạn', color: 'text-yellow-600', bg: 'bg-yellow-100', Icon: AlertTriangle, days };
+    return { label: 'Còn hiệu lực', color: 'text-green-600', bg: 'bg-green-100', Icon: CheckCircle, days };
   };
 
   if (loading) return (
@@ -422,7 +422,7 @@ export const CrewDetailPage: React.FC = () => {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <h1 className="text-lg font-semibold text-gray-800 uppercase">
-              EDIT {crew.fullName}
+              CHỈNH SỬA {crew.fullName}
             </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -432,7 +432,7 @@ export const CrewDetailPage: React.FC = () => {
               className="px-6 py-2 text-white rounded font-medium disabled:opacity-50 text-sm"
               style={{ background: '#0d7377' }}
             >
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? 'Đang lưu...' : 'Lưu'}
             </button>
           </div>
         </div>
@@ -446,11 +446,11 @@ export const CrewDetailPage: React.FC = () => {
           <AlertTriangle className="h-5 w-5 flex-shrink-0" style={{ color: '#ea580c', marginTop: 2 }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#c2410c', marginBottom: 4 }}>
-              Ship requested additional documents for this crew member
+            Tàu yêu cầu bổ sung tài liệu cho thuyền viên này
             </div>
             {crew.reviewNotes && (
               <div style={{ fontSize: 13, color: '#9a3412', background: '#ffedd5', borderRadius: 6, padding: '8px 12px', marginTop: 4 }}>
-                <strong>Note from ship:</strong> {crew.reviewNotes}
+                <strong>Ghi chú từ tàu:</strong> {crew.reviewNotes}
               </div>
             )}
             {crew.onboardStatusChangedBy && (
@@ -467,22 +467,22 @@ export const CrewDetailPage: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 24px', background: '#fef2f2', borderBottom: '2px solid #fca5a5' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#991b1b' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 22, height: 22, padding: '0 6px', background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 700, borderRadius: 11 }}>{edgeChanges.length}</span>
-            <span>Ship has modified <strong>{edgeChanges.length}</strong> field(s). Changed fields are marked in <span style={{ color: '#ef4444', fontWeight: 700 }}>RED</span> below.</span>
+            <span>Tàu đã chỉnh sửa <strong>{edgeChanges.length}</strong> trường. Các trường thay đổi được đánh dấu <span style={{ color: '#ef4444', fontWeight: 700 }}>MÀU Đỏ</span> bên dưới.</span>
           </div>
-          <button onClick={handleMarkViewed} style={{ padding: '5px 14px', fontSize: 12, fontWeight: 600, color: '#fff', background: '#0d7377', border: 'none', borderRadius: 4, cursor: 'pointer' }}>✓ Mark as viewed</button>
+          <button onClick={handleMarkViewed} style={{ padding: '5px 14px', fontSize: 12, fontWeight: 600, color: '#fff', background: '#0d7377', border: 'none', borderRadius: 4, cursor: 'pointer' }}>✓ Đã xem</button>
         </div>
       )}
       {/* Tabs */}
       <div className="bg-white" style={{ borderBottom: '1px solid #b5e3da' }}>
         <div className="px-6 flex gap-1">
           {([
-            { key: 'basic-data', label: 'Basic Data' },
-            { key: 'documents', label: 'Documents' },
-            { key: 'voyage-history', label: 'Voyage History', icon: <Ship className="w-4 h-4" /> },
-            { key: 'onboarding', label: 'Onboarding', icon: <ClipboardList className="w-4 h-4" /> },
-            { key: 'doc-workflow', label: 'Doc Workflow', icon: <FileCheck className="w-4 h-4" /> },
-            { key: 'status-history', label: 'Status', icon: <History className="w-4 h-4" /> },
-            { key: 'audit', label: 'Audit', icon: <ScrollText className="w-4 h-4" /> },
+            { key: 'basic-data', label: 'Thông tin cơ bản' },
+            { key: 'documents', label: 'Tài liệu' },
+            /*{ key: 'voyage-history', label: 'Lịch sử đi tàu', icon: <Ship className="w-4 h-4" /> },
+            { key: 'onboarding', label: 'Tiếp nhận', icon: <ClipboardList className="w-4 h-4" /> },
+            { key: 'doc-workflow', label: 'Hồ sơ', icon: <FileCheck className="w-4 h-4" /> },
+            { key: 'status-history', label: 'Trạng thái', icon: <History className="w-4 h-4" /> },
+            { key: 'audit', label: 'Kiểm toán', icon: <ScrollText className="w-4 h-4" /> },*/
           ] as { key: TabType; label: string; icon?: React.ReactNode }[]).map(tab => (
             <button
               key={tab.key}
@@ -526,25 +526,25 @@ export const CrewDetailPage: React.FC = () => {
                 {/* Col 1: Name + Rank */}
                 <div className="col-span-3 space-y-3">
                   <div>
-                    <label className={labelCls}>Full Name</label>
+                    <label className={labelCls}>Họ và tên</label>
                     <input className={`${fieldCls}${fieldHighlight('fullName')}`} style={fieldStyle('fullName')} value={edited.fullName ?? ''} onChange={e => set('fullName', e.target.value)} />
                     {changeIndicator('fullName')}
                   </div>
                   <div>
-                    <label className={labelCls}>Rank</label>
+                    <label className={labelCls}>Chức danh</label>
                     <select className={`${fieldCls}${fieldHighlight('rankId')}`} style={fieldStyle('rankId')} value={edited.rankId ?? ''} onChange={e => set('rankId', e.target.value ? Number(e.target.value) : undefined)}>
-                      <option value="">Select rank</option>
+                      <option value="">Chọn chức danh</option>
                       {ranks.map(r => <option key={r.id} value={r.id}>{r.rankName} ({r.rankCode})</option>)}
                     </select>
                     {changeIndicator('rankId')}
                   </div>
                   <div>
-                    <label className={labelCls}>Department</label>
+                    <label className={labelCls}>Bộ phận</label>
                     <input className={`${fieldCls}${fieldHighlight('department')}`} style={fieldStyle('department')} value={edited.department ?? ''} onChange={e => set('department', e.target.value)} />
                     {changeIndicator('department')}
                   </div>
                   <div>
-                    <label className={labelCls}>Date of Birth</label>
+                    <label className={labelCls}>Ngày sinh</label>
                     <input type="date" className={`${fieldCls}${fieldHighlight('dateOfBirth')}`} style={fieldStyle('dateOfBirth')} value={(edited.dateOfBirth ?? '').split('T')[0]} onChange={e => set('dateOfBirth', e.target.value)} />
                     {changeIndicator('dateOfBirth')}
                   </div>
@@ -553,24 +553,24 @@ export const CrewDetailPage: React.FC = () => {
                 {/* Col 2: Personal */}
                 <div className="col-span-3 space-y-3">
                   <div>
-                    <label className={labelCls}>Age</label>
+                    <label className={labelCls}>Tuổi</label>
                     <input className={fieldCls} value={age} readOnly />
                   </div>
                   <div>
-                    <label className={labelCls}>Place of Birth</label>
+                    <label className={labelCls}>Nơi sinh</label>
                     <input className={`${fieldCls}${fieldHighlight('placeOfBirth')}`} style={fieldStyle('placeOfBirth')} value={edited.placeOfBirth ?? ''} onChange={e => set('placeOfBirth', e.target.value)} />
                     {changeIndicator('placeOfBirth')}
                   </div>
                   <div>
-                    <label className={labelCls}>Nationality</label>
+                    <label className={labelCls}>Quốc tịch</label>
                     <select className={`${fieldCls}${fieldHighlight('countryId')}`} style={fieldStyle('countryId')} value={edited.countryId ?? ''} onChange={e => set('countryId', e.target.value ? Number(e.target.value) : undefined)}>
-                      <option value="">Select country</option>
+                      <option value="">Chọn quốc gia</option>
                       {countries.map(c => <option key={c.id} value={c.id}>{c.countryName}</option>)}
                     </select>
                     {changeIndicator('countryId')}
                   </div>
                   <div>
-                    <label className={labelCls}>ID Card Number</label>
+                    <label className={labelCls}>Số CMND/CCCD</label>
                     <input className={`${fieldCls}${fieldHighlight('idCardNumber')}`} style={fieldStyle('idCardNumber')} value={edited.idCardNumber ?? ''} onChange={e => set('idCardNumber', e.target.value)} />
                     {changeIndicator('idCardNumber')}
                   </div>
@@ -579,7 +579,7 @@ export const CrewDetailPage: React.FC = () => {
                 {/* Col 3: Contact */}
                 <div className="col-span-3 space-y-3">
                   <div>
-                    <label className={labelCls}>Phone Number</label>
+                    <label className={labelCls}>Số điện thoại</label>
                     <input className={`${fieldCls}${fieldHighlight('phoneNumber')}`} style={fieldStyle('phoneNumber')} value={edited.phoneNumber ?? ''} onChange={e => set('phoneNumber', e.target.value)} />
                     {changeIndicator('phoneNumber')}
                   </div>
@@ -589,21 +589,21 @@ export const CrewDetailPage: React.FC = () => {
                     {changeIndicator('emailAddress')}
                   </div>
                   <div>
-                    <label className={labelCls}>Marital Status</label>
+                    <label className={labelCls}>Tình trạng hôn nhân</label>
                     <select className={`${fieldCls}${fieldHighlight('maritalStatus')}`} style={fieldStyle('maritalStatus')} value={edited.maritalStatus ?? ''} onChange={e => set('maritalStatus', e.target.value)}>
-                      <option value="">Select</option>
+                      <option value="">Chọn</option>
                       <option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option>
                     </select>
                     {changeIndicator('maritalStatus')}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className={labelCls}>Height (cm)</label>
+                      <label className={labelCls}>Chiều cao (cm)</label>
                       <input type="number" className={`${fieldCls}${fieldHighlight('height')}`} style={fieldStyle('height')} value={edited.height ?? ''} onChange={e => set('height', e.target.value ? Number(e.target.value) : undefined)} />
                       {changeIndicator('height')}
                     </div>
                     <div>
-                      <label className={labelCls}>Weight (kg)</label>
+                      <label className={labelCls}>Cân nặng (kg)</label>
                       <input type="number" className={`${fieldCls}${fieldHighlight('weight')}`} style={fieldStyle('weight')} value={edited.weight ?? ''} onChange={e => set('weight', e.target.value ? Number(e.target.value) : undefined)} />
                       {changeIndicator('weight')}
                     </div>
@@ -613,7 +613,7 @@ export const CrewDetailPage: React.FC = () => {
                 {/* Col 4: Avatar + ID */}
                 <div className="col-span-3 flex flex-col items-center">
                   <div className="mb-3">
-                    <label className={`${labelCls}`} style={{ textAlign: 'center' }}>Company ID Number</label>
+                    <label className={`${labelCls}`} style={{ textAlign: 'center' }}>Mã nhân viên</label>
                     <input className={`${fieldCls} text-center w-32`} value={edited.crewId ?? ''} onChange={e => set('crewId', e.target.value)} />
                   </div>
                   <div className="w-40 h-52 rounded-lg overflow-hidden bg-gray-200 shadow-md relative">
@@ -640,14 +640,14 @@ export const CrewDetailPage: React.FC = () => {
                           disabled={uploadingAvatar}
                           className={`px-3 py-1.5 text-white text-xs rounded flex items-center gap-1 ${uploadingAvatar ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
                         >
-                          <Upload className="w-3 h-3" /> {uploadingAvatar ? 'Saving...' : 'Save'}
+                          <Upload className="w-3 h-3" /> {uploadingAvatar ? 'Đang lưu...' : 'Lưu'}
                         </button>
                         <button
                           onClick={handleAvatarCancel}
                           disabled={uploadingAvatar}
                           className="px-3 py-1.5 text-white text-xs rounded bg-gray-500 hover:bg-gray-600"
                         >
-                          Cancel
+                          Hủy
                         </button>
                       </>
                     ) : (
@@ -655,16 +655,16 @@ export const CrewDetailPage: React.FC = () => {
                         onClick={handleAvatarChoose}
                         className="px-3 py-1.5 text-white text-xs rounded bg-teal-600 hover:bg-teal-700 flex items-center gap-1"
                       >
-                        <Upload className="w-3 h-3" /> Change Photo
+                        <Upload className="w-3 h-3" /> Đổi ảnh
                       </button>
                     )}
                   </div>
                   <p className="text-xs text-gray-400 mt-1 text-center">
-                    {pendingAvatarFile ? 'Press Save to confirm' : 'JPG/PNG, max 5MB'}
+                    {pendingAvatarFile ? 'Nhấn Lưu để xác nhận' : 'JPG/PNG, tối đa 5MB'}
                   </p>
                   <div className="mt-3 flex items-center gap-2">
                     <input type="checkbox" checked={edited.isOnboard ?? false} onChange={e => set('isOnboard', e.target.checked)} className="w-4 h-4 text-teal-600" />
-                    <label className="text-sm font-medium text-gray-700">On Board</label>
+                    <label className="text-sm font-medium text-gray-700">Trên tàu</label>
                   </div>
                 </div>
               </div>
@@ -673,41 +673,41 @@ export const CrewDetailPage: React.FC = () => {
 
             {/* Physical Details */}
             <div className="cd-section">
-              <div className="cd-section-header"><h3 className="cd-section-title">Physical Details &amp; Preferences</h3></div>
+              <div className="cd-section-header"><h3 className="cd-section-title">Thể chất &amp; Sở thích</h3></div>
               <div className="cd-section-body">
               <div className="grid grid-cols-4 gap-4">
                 <div>
-                  <label className={labelCls}>Blood Group</label>
+                  <label className={labelCls}>Nhóm máu</label>
                   <select className={`${fieldCls}${fieldHighlight('bloodGroup')}`} style={fieldStyle('bloodGroup')} value={edited.bloodGroup ?? ''} onChange={e => set('bloodGroup', e.target.value)}>
-                    <option value="">Select</option>
+                    <option value="">Chọn</option>
                     {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(g => <option key={g}>{g}</option>)}
                   </select>
                   {changeIndicator('bloodGroup')}
                 </div>
                 <div>
-                  <label className={labelCls}>Clothing Size</label>
-                  <input className={`${fieldCls}${fieldHighlight('clothingSize')}`} style={fieldStyle('clothingSize')} placeholder="e.g., L, XL" value={edited.clothingSize ?? ''} onChange={e => set('clothingSize', e.target.value)} />
+                  <label className={labelCls}>Cỡ quần áo</label>
+                  <input className={`${fieldCls}${fieldHighlight('clothingSize')}`} style={fieldStyle('clothingSize')} placeholder="VD: L, XL" value={edited.clothingSize ?? ''} onChange={e => set('clothingSize', e.target.value)} />
                   {changeIndicator('clothingSize')}
                 </div>
                 <div>
-                  <label className={labelCls}>Shoe Size</label>
-                  <input className={`${fieldCls}${fieldHighlight('shoeSize')}`} style={fieldStyle('shoeSize')} placeholder="e.g., 42" value={edited.shoeSize ?? ''} onChange={e => set('shoeSize', e.target.value)} />
+                  <label className={labelCls}>Cỡ giày</label>
+                  <input className={`${fieldCls}${fieldHighlight('shoeSize')}`} style={fieldStyle('shoeSize')} placeholder="VD: 42" value={edited.shoeSize ?? ''} onChange={e => set('shoeSize', e.target.value)} />
                   {changeIndicator('shoeSize')}
                 </div>
                 <div>
-                  <label className={labelCls}>Catering Size</label>
-                  <input className={`${fieldCls}${fieldHighlight('cateringSize')}`} style={fieldStyle('cateringSize')} placeholder="e.g., M" value={edited.cateringSize ?? ''} onChange={e => set('cateringSize', e.target.value)} />
+                  <label className={labelCls}>Cỡ cà mén</label>
+                  <input className={`${fieldCls}${fieldHighlight('cateringSize')}`} style={fieldStyle('cateringSize')} placeholder="VD: M" value={edited.cateringSize ?? ''} onChange={e => set('cateringSize', e.target.value)} />
                   {changeIndicator('cateringSize')}
                 </div>
               </div>
               <div className="flex gap-6 mt-4">
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={edited.isSmoker ?? false} onChange={e => set('isSmoker', e.target.checked)} className="w-4 h-4" />
-                  Smoker
+                  Hút thuốc
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={edited.isCovidVaccinated ?? false} onChange={e => set('isCovidVaccinated', e.target.checked)} className="w-4 h-4" />
-                  COVID-19 Vaccinated
+                  Đã tiêm COVID-19
                 </label>
               </div>
               </div>
@@ -715,14 +715,14 @@ export const CrewDetailPage: React.FC = () => {
 
             {/* Employment Dates */}
             <div className="cd-section">
-              <div className="cd-section-header"><h3 className="cd-section-title">Employment Dates</h3></div>
+              <div className="cd-section-header"><h3 className="cd-section-title">Ngày làm việc</h3></div>
               <div className="cd-section-body">
               <div className="grid grid-cols-4 gap-4">
                 {([
-                  { label: 'Join Date', key: 'joinDate' },
-                  { label: 'Embark Date', key: 'embarkDate' },
-                  { label: 'Disembark Date', key: 'disembarkDate' },
-                  { label: 'Contract End', key: 'contractEnd' },
+                  { label: 'Ngày gia nhập', key: 'joinDate' },
+                  { label: 'Ngày lên tàu', key: 'embarkDate' },
+                  { label: 'Ngày xuống tàu', key: 'disembarkDate' },
+                  { label: 'Hết hạn hợp đồng', key: 'contractEnd' },
                 ] as { label: string; key: keyof UpdateCrewRequest }[]).map(({ label, key }) => (
                   <div key={key}>
                     <label className={labelCls}>{label}</label>
@@ -738,29 +738,29 @@ export const CrewDetailPage: React.FC = () => {
 
             {/* Next of Kin */}
             <div className="cd-section">
-              <div className="cd-section-header"><h3 className="cd-section-title">Next of Kin / Emergency Contact</h3></div>
+              <div className="cd-section-header"><h3 className="cd-section-title">Thân nhân / Liên hệ khẩn cấp</h3></div>
               <div className="cd-section-body">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelCls}>Full Name</label>
+                  <label className={labelCls}>Họ và tên</label>
                   <input className={`${fieldCls}${fieldHighlight('nextOfKinName')}`} style={fieldStyle('nextOfKinName')} value={edited.nextOfKinName ?? ''} onChange={e => set('nextOfKinName', e.target.value)} />
                   {changeIndicator('nextOfKinName')}
                 </div>
                 <div>
-                  <label className={labelCls}>Relationship</label>
+                  <label className={labelCls}>Mối quan hệ</label>
                   <select className={`${fieldCls}${fieldHighlight('nextOfKinRelation')}`} style={fieldStyle('nextOfKinRelation')} value={edited.nextOfKinRelation ?? ''} onChange={e => set('nextOfKinRelation', e.target.value)}>
-                    <option value="">Select</option>
+                    <option value="">Chọn</option>
                     {['Father','Mother','Spouse','Sibling','Child','Other'].map(r => <option key={r}>{r}</option>)}
                   </select>
                   {changeIndicator('nextOfKinRelation')}
                 </div>
                 <div>
-                  <label className={labelCls}>Phone Number</label>
+                  <label className={labelCls}>Số điện thoại</label>
                   <input className={`${fieldCls}${fieldHighlight('nextOfKinPhone')}`} style={fieldStyle('nextOfKinPhone')} value={edited.nextOfKinPhone ?? ''} onChange={e => set('nextOfKinPhone', e.target.value)} />
                   {changeIndicator('nextOfKinPhone')}
                 </div>
                 <div>
-                  <label className={labelCls}>Address</label>
+                  <label className={labelCls}>Địa chỉ</label>
                   <input className={`${fieldCls}${fieldHighlight('nextOfKinAddress')}`} style={fieldStyle('nextOfKinAddress')} value={edited.nextOfKinAddress ?? ''} onChange={e => set('nextOfKinAddress', e.target.value)} />
                   {changeIndicator('nextOfKinAddress')}
                 </div>
@@ -770,27 +770,27 @@ export const CrewDetailPage: React.FC = () => {
 
             {/* Education */}
             <div className="cd-section">
-              <div className="cd-section-header"><h3 className="cd-section-title">Education Background</h3></div>
+              <div className="cd-section-header"><h3 className="cd-section-title">Học vấn</h3></div>
               <div className="cd-section-body">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelCls}>Institution / University</label>
-                  <input className={`${fieldCls}${fieldHighlight('educationInstitution')}`} style={fieldStyle('educationInstitution')} placeholder="e.g., Vietnam Maritime University" value={edited.educationInstitution ?? ''} onChange={e => set('educationInstitution', e.target.value)} />
+                  <label className={labelCls}>Trường / Cơ sở đào tạo</label>
+                  <input className={`${fieldCls}${fieldHighlight('educationInstitution')}`} style={fieldStyle('educationInstitution')} placeholder="VD: Đại học Hàng hải Việt Nam" value={edited.educationInstitution ?? ''} onChange={e => set('educationInstitution', e.target.value)} />
                   {changeIndicator('educationInstitution')}
                 </div>
                 <div>
-                  <label className={labelCls}>Course / Major</label>
-                  <input className={`${fieldCls}${fieldHighlight('educationCourse')}`} style={fieldStyle('educationCourse')} placeholder="e.g., BSc Nautical Science" value={edited.educationCourse ?? ''} onChange={e => set('educationCourse', e.target.value)} />
+                  <label className={labelCls}>Chuyên ngành</label>
+                  <input className={`${fieldCls}${fieldHighlight('educationCourse')}`} style={fieldStyle('educationCourse')} placeholder="VD: Đại học Hoa tiêu" value={edited.educationCourse ?? ''} onChange={e => set('educationCourse', e.target.value)} />
                   {changeIndicator('educationCourse')}
                 </div>
                 <div>
-                  <label className={labelCls}>Period (Years)</label>
-                  <input type="number" className={`${fieldCls}${fieldHighlight('educationPeriodYears')}`} style={fieldStyle('educationPeriodYears')} placeholder="e.g., 4" value={edited.educationPeriodYears ?? ''} onChange={e => set('educationPeriodYears', e.target.value ? Number(e.target.value) : undefined)} />
+                  <label className={labelCls}>Số năm học</label>
+                  <input type="number" className={`${fieldCls}${fieldHighlight('educationPeriodYears')}`} style={fieldStyle('educationPeriodYears')} placeholder="VD: 4" value={edited.educationPeriodYears ?? ''} onChange={e => set('educationPeriodYears', e.target.value ? Number(e.target.value) : undefined)} />
                   {changeIndicator('educationPeriodYears')}
                 </div>
                 <div>
-                  <label className={labelCls}>Graduation Year</label>
-                  <input type="number" className={`${fieldCls}${fieldHighlight('educationGraduationYear')}`} style={fieldStyle('educationGraduationYear')} placeholder="e.g., 2020" value={edited.educationGraduationYear ?? ''} onChange={e => set('educationGraduationYear', e.target.value ? Number(e.target.value) : undefined)} />
+                  <label className={labelCls}>Năm tốt nghiệp</label>
+                  <input type="number" className={`${fieldCls}${fieldHighlight('educationGraduationYear')}`} style={fieldStyle('educationGraduationYear')} placeholder="VD: 2020" value={edited.educationGraduationYear ?? ''} onChange={e => set('educationGraduationYear', e.target.value ? Number(e.target.value) : undefined)} />
                   {changeIndicator('educationGraduationYear')}
                 </div>
               </div>
@@ -799,7 +799,7 @@ export const CrewDetailPage: React.FC = () => {
 
             {/* Notes */}
             <div className="cd-section">
-              <div className="cd-section-header"><h3 className="cd-section-title">Notes</h3></div>
+              <div className="cd-section-header"><h3 className="cd-section-title">Ghi chú</h3></div>
               <div className="cd-section-body">
               <textarea className={`${fieldCls} resize-none${fieldHighlight('notes')}`} style={fieldStyle('notes')} rows={4} value={edited.notes ?? ''} onChange={e => set('notes', e.target.value)} />
               </div>
@@ -820,13 +820,13 @@ export const CrewDetailPage: React.FC = () => {
                 <div className="cd-section">
                   <div className="cd-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 className="cd-section-title">
-                      Identity Documents ({travelDocs.length + seafarerDocs.length + employmentDocs.length})
+                    Giấy tờ định danh ({travelDocs.length + seafarerDocs.length + employmentDocs.length})
                     </h3>
                     <button
                       onClick={() => setIsAddDocModalOpen(true)}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
                     >
-                      <Plus className="w-4 h-4" /> Add Document
+                      <Plus className="w-4 h-4" /> Thêm tài liệu
                     </button>
                   </div>
                   <DocTable docs={[...travelDocs, ...seafarerDocs, ...employmentDocs]} />
@@ -836,13 +836,13 @@ export const CrewDetailPage: React.FC = () => {
                 <div className="cd-section">
                   <div className="cd-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 className="cd-section-title">
-                      Health Documents ({healthDocs.length})
+                    Tài liệu y tế ({healthDocs.length})
                     </h3>
                     <button
                       onClick={() => setIsAddHealthDocModalOpen(true)}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
                     >
-                      <Plus className="w-4 h-4" /> Add Health Document
+                      <Plus className="w-4 h-4" /> Thêm tài liệu y tế
                     </button>
                   </div>
                   <DocTable docs={healthDocs} />
@@ -852,13 +852,13 @@ export const CrewDetailPage: React.FC = () => {
                 <div className="cd-section">
                   <div className="cd-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 className="cd-section-title">
-                      Certificates ({certificates?.length ?? 0})
+                    Chứng chỉ ({certificates?.length ?? 0})
                     </h3>
                     <button
                       onClick={() => { setEditingCert(null); setShowAddCertModal(true); }}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
                     >
-                      <Plus className="w-4 h-4" /> Add Certificate
+                      <Plus className="w-4 h-4" /> Thêm chứng chỉ
                     </button>
                   </div>
                   {certsLoading ? (
@@ -867,12 +867,12 @@ export const CrewDetailPage: React.FC = () => {
                     </div>
                   ) : !certificates || certificates.length === 0 ? (
                     <div className="text-center py-10 text-gray-400">
-                      <p>No certificates yet</p>
+                      <p>Chưa có chứng chỉ nào</p>
                       <button
                         onClick={() => { setEditingCert(null); setShowAddCertModal(true); }}
                         style={{ marginTop: 8, padding: '6px 16px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}
                       >
-                        + Add first certificate
+                        + Thêm chứng chỉ đầu tiên
                       </button>
                     </div>
                   ) : (
@@ -880,14 +880,14 @@ export const CrewDetailPage: React.FC = () => {
                       <table className="w-full text-sm border-collapse" style={{ tableLayout: 'fixed' }}>
                         <thead className="cd-table-thead">
                           <tr>
-                            <th style={{ width: '20%' }}>Certificate Name</th>
-                            <th style={{ width: '12%' }}>Number</th>
-                            <th style={{ width: '11%' }}>Issue Date</th>
-                            <th style={{ width: '11%' }}>Expiry Date</th>
-                            <th style={{ width: '14%' }}>Issuing Authority</th>
-                            <th style={{ width: '10%' }}>Status</th>
+                            <th style={{ width: '20%' }}>Tên chứng chỉ</th>
+                            <th style={{ width: '12%' }}>Số CC</th>
+                            <th style={{ width: '11%' }}>Ngày cấp</th>
+                            <th style={{ width: '11%' }}>Ngày hết hạn</th>
+                            <th style={{ width: '14%' }}>Cơ quan cấp</th>
+                            <th style={{ width: '10%' }}>Trạng thái</th>
                             <th style={{ width: '8%', textAlign: 'center' }}>File</th>
-                            <th style={{ width: '14%', textAlign: 'center' }}>Actions</th>
+                            <th style={{ width: '14%', textAlign: 'center' }}>Thao tác</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">

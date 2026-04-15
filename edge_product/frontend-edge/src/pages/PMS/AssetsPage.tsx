@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { toast } from 'sonner';
 import { Plus, Upload, Download, Search, Package, Trash2, ChevronDown, ChevronRight, FolderOpen, Save, ChevronsUpDown, Edit2, Copy } from 'lucide-react';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { ImportAssetsModal } from '@/components/pms/ImportAssetsModal';
@@ -154,25 +153,14 @@ export default function AssetsPage() {
     if (selectedRows.size === paginatedAssets.length) setSelectedRows(new Set());
     else setSelectedRows(new Set(paginatedAssets.map(a => a.id)));
   };
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selectedRows.size === 0) return;
-    toast(t('pms.assets.confirmBulkDelete', { count: selectedRows.size }), {
-      action: {
-        label: t('pms.assets.delete') || 'Xóa',
-        onClick: async () => {
-          try {
-            await Promise.all([...selectedRows].map(id => equipmentAssetService.delete(id)));
-            setSelectedRows(new Set());
-            await loadAssets();
-            toast.success(t('pms.assets.deleteSuccess', { defaultValue: 'Xóa thành công' }));
-          } catch (err: any) {
-            toast.error(err?.response?.data?.error || 'Delete failed');
-          }
-        }
-      },
-      cancel: { label: t('pms.assets.cancel') || 'Hủy', onClick: () => {} },
-      duration: 8000,
-    });
+    if (!confirm(t('pms.assets.confirmBulkDelete', { count: selectedRows.size }))) return;
+    try {
+      await Promise.all([...selectedRows].map(id => equipmentAssetService.delete(id)));
+      setSelectedRows(new Set());
+      await loadAssets();
+    } catch (err: any) { alert(err?.response?.data?.error || t('pms.assets.deleteFailed')); }
   };
 
   const getStatusBadgeColor = (status: string) => {
@@ -221,24 +209,15 @@ export default function AssetsPage() {
     return () => document.removeEventListener('mousedown', handler);
   }, [contextMenu]);
 
-  const handleDelete = (asset: EquipmentAsset) => {
-    toast(t('pms.assets.confirmDelete', { name: asset.assetName }), {
-      action: {
-        label: t('pms.assets.delete') || 'Xóa',
-        onClick: async () => {
-          try {
-            await equipmentAssetService.delete(asset.id);
-            if (selectedNodeId === asset.id) setSelectedNodeId(null);
-            await loadAssets();
-            toast.success(t('pms.assets.deleteSuccess', { defaultValue: 'Xóa thành công' }));
-          } catch (err: any) {
-            toast.error(err?.response?.data?.error || 'Delete failed');
-          }
-        }
-      },
-      cancel: { label: t('pms.assets.cancel') || 'Hủy', onClick: () => {} },
-      duration: 8000,
-    });
+  const handleDelete = async (asset: EquipmentAsset) => {
+    if (!confirm(t('pms.assets.confirmDelete', { name: asset.assetName }))) return;
+    try {
+      await equipmentAssetService.delete(asset.id);
+      if (selectedNodeId === asset.id) setSelectedNodeId(null);
+      await loadAssets();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || t('pms.assets.deleteFailed'));
+    }
   };
 
   const startInlineNew = (parentId: string | null) => {
@@ -266,7 +245,7 @@ export default function AssetsPage() {
         await loadAssets();
         setSelectedNodeId(created.id);
       } catch (err: any) {
-        toast.error(err?.response?.data?.error || 'Create failed');
+        alert(err?.response?.data?.error || t('pms.assets.createFailed'));
       }
     }
   };
@@ -282,7 +261,7 @@ export default function AssetsPage() {
       await equipmentAssetService.update(detailAsset.id, detailForm);
       await loadAssets();
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || 'Save failed');
+      alert(err?.response?.data?.error || t('pms.assets.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -357,14 +336,14 @@ export default function AssetsPage() {
             <FolderOpen className="w-3 h-3 flex-shrink-0 text-blue-400" />
             <input
               autoFocus
-              placeholder="Mã"
+              placeholder={t('pms.assets.codePlaceholder')}
               value={inlineCode}
               onChange={e => setInlineCode(e.target.value)}
               onKeyDown={handleInlineKeyDown}
               className="w-16 text-xs border border-blue-300 rounded px-1 py-0.5 outline-none focus:border-blue-500 bg-white"
             />
             <input
-              placeholder="Tên thiết bị..."
+              placeholder={t('pms.assets.namePlaceholder')}
               value={inlineName}
               onChange={e => setInlineName(e.target.value)}
               onKeyDown={handleInlineKeyDown}
@@ -421,7 +400,7 @@ export default function AssetsPage() {
                   ? 'text-blue-200 hover:text-white hover:bg-blue-700'
                   : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
               }`}
-              title="Thêm thiết bị gốc mới"
+              title={t('pms.assets.addRootAsset')}
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -464,10 +443,10 @@ export default function AssetsPage() {
                   ? 'bg-amber-50 border-amber-400 text-amber-700 font-semibold'
                   : 'border-gray-300 text-gray-600 hover:bg-gray-50'
               }`}
-              title="Bật/tắt chế độ chỉnh sửa cây"
+              title={t('pms.assets.toggleEditMode')}
             >
               <Edit2 className="w-3.5 h-3.5" />
-              {editMode ? 'Thoát chỉnh sửa' : 'Chỉnh sửa'}
+              {editMode ? t('pms.assets.exitEdit') : t('pms.assets.editTree')}
             </button>
             <button onClick={handleDownloadTemplate} className="p-1.5 border border-gray-300 rounded text-gray-500 hover:bg-gray-50" title={t('pms.assets.downloadTemplate')}>
               <Download className="w-3.5 h-3.5" />
@@ -495,7 +474,7 @@ export default function AssetsPage() {
         >
           {treeRoots.length === 0 && !inlineNew ? (
             <div className="px-4 py-6 text-xs text-gray-400 text-center">
-              {editMode ? 'Chuột phải để thêm thiết bị' : t('pms.assets.noEquipmentTree')}
+              {editMode ? t('pms.assets.rightClickToAdd') : t('pms.assets.noEquipmentTree')}
             </div>
           ) : (
             treeRoots.map(node => renderTreeNode(node, 0))
@@ -506,14 +485,14 @@ export default function AssetsPage() {
               <FolderOpen className="w-3 h-3 flex-shrink-0 text-blue-400" />
               <input
                 autoFocus
-                placeholder="Mã"
+                placeholder={t('pms.assets.codePlaceholder')}
                 value={inlineCode}
                 onChange={e => setInlineCode(e.target.value)}
                 onKeyDown={handleInlineKeyDown}
                 className="w-16 text-xs border border-blue-300 rounded px-1 py-0.5 outline-none focus:border-blue-500 bg-white"
               />
               <input
-                placeholder="Tên thiết bị..."
+                placeholder={t('pms.assets.namePlaceholder')}
                 value={inlineName}
                 onChange={e => setInlineName(e.target.value)}
                 onKeyDown={handleInlineKeyDown}
@@ -678,9 +657,9 @@ export default function AssetsPage() {
                 <div className="flex-1 flex items-center justify-center text-gray-400">
                   <div className="text-center">
                     <FolderOpen className="w-14 h-14 mx-auto mb-3 opacity-20" />
-                    <p className="text-sm font-medium text-gray-500">Chọn một thiết bị để chỉnh sửa</p>
+                    <p className="text-sm font-medium text-gray-500">{t('pms.assets.selectToEdit')}</p>
                     <p className="text-xs mt-2 text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full inline-block">
-                      Chuột phải vào cây để thêm thiết bị mới
+                      {t('pms.assets.rightClickToAddNew')}
                     </p>
                   </div>
                 </div>
@@ -695,10 +674,10 @@ export default function AssetsPage() {
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button onClick={() => handleDelete(detailAsset)} className="px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded hover:bg-red-50 flex items-center gap-1">
-                        <Trash2 className="w-3 h-3" /> Xóa
+                        <Trash2 className="w-3 h-3" /> {t('pms.assets.deleteBtn')}
                       </button>
                       <button onClick={handleDetailSave} disabled={saving} className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
-                        <Save className="w-3 h-3" /> {saving ? 'Đang lưu...' : 'Lưu'}
+                        <Save className="w-3 h-3" /> {saving ? t('pms.assets.saving') : t('pms.assets.save')}
                       </button>
                     </div>
                   </div>
@@ -706,7 +685,7 @@ export default function AssetsPage() {
                   <div className="flex border-b border-gray-200 bg-white flex-shrink-0">
                     {(['basic', 'tech', 'notes'] as const).map(tab => (
                       <button key={tab} onClick={() => setDetailTab(tab)} className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${detailTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-                        {tab === 'basic' ? 'Cơ bản' : tab === 'tech' ? 'Kỹ thuật' : 'Ghi chú'}
+                        {tab === 'basic' ? t('pms.assets.tabBasic') : tab === 'tech' ? t('pms.assets.tabTech') : t('pms.assets.tabNotes')}
                       </button>
                     ))}
                   </div>
@@ -715,28 +694,28 @@ export default function AssetsPage() {
                     {detailTab === 'basic' && (
                       <div className="grid grid-cols-2 gap-4 max-w-2xl">
                         <div className="col-span-2">
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Tên thiết bị <span className="text-red-400">*</span></label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.assets.assetNameLabel')} <span className="text-red-400">*</span></label>
                           <input name="assetName" value={detailForm.assetName || ''} onChange={handleDetailChange} className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Danh mục <span className="text-red-400">*</span></label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.assets.categoryLabel')} <span className="text-red-400">*</span></label>
                           <select name="category" value={detailForm.category || ''} onChange={handleDetailChange} className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
-                            <option value="">-- Chọn --</option>
+                            <option value="">{t('pms.assets.selectOption')}</option>
                             {['ENGINE','GENERATOR','PUMP','COMPRESSOR','SEPARATOR','BOILER','DECK_MACHINERY','NAVIGATION','SAFETY','ELECTRICAL','HVAC','SYSTEM'].map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Vị trí</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.assets.locationLabel')}</label>
                           <input name="location" value={detailForm.location || ''} onChange={handleDetailChange} placeholder="Engine Room, Deck..." className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Trạng thái</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.assets.statusLabel')}</label>
                           <select name="status" value={detailForm.status || ''} onChange={handleDetailChange} className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
-                            {[{v:'ACTIVE',l:'Hoạt động'},{v:'STANDBY',l:'Dự phòng'},{v:'UNDER_MAINTENANCE',l:'Đang bảo trì'},{v:'DECOMMISSIONED',l:'Ngừng hoạt động'},{v:'IN_STORAGE',l:'Lưu kho'}].map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                            {[{v:'ACTIVE',l:t('pms.assets.active')},{v:'STANDBY',l:t('pms.assets.standby')},{v:'UNDER_MAINTENANCE',l:t('pms.assets.underMaintenance')},{v:'DECOMMISSIONED',l:t('pms.assets.decommissioned')},{v:'IN_STORAGE',l:t('pms.assets.inStorage')}].map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Mức độ ưu tiên</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.assets.criticalityLabel')}</label>
                           <select name="criticality" value={detailForm.criticality || ''} onChange={handleDetailChange} className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
                             {['CRITICAL','HIGH','NORMAL','LOW'].map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
@@ -746,30 +725,30 @@ export default function AssetsPage() {
                     {detailTab === 'tech' && (
                       <div className="grid grid-cols-2 gap-4 max-w-2xl">
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Nhà sản xuất</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.assets.manufacturerLabel')}</label>
                           <input name="manufacturer" value={detailForm.manufacturer || ''} onChange={handleDetailChange} className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Model</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.assets.modelLabel')}</label>
                           <input name="model" value={detailForm.model || ''} onChange={handleDetailChange} className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Số serial</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.assets.serialNumberLabel')}</label>
                           <input name="serialNumber" value={detailForm.serialNumber || ''} onChange={handleDetailChange} className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Giờ chạy hiện tại</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.assets.runningHoursLabel')}</label>
                           <input type="number" name="currentRunningHours" value={detailForm.currentRunningHours ?? 0} onChange={handleDetailChange} className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Thông số kỹ thuật</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.assets.technicalSpecsLabel')}</label>
                           <textarea name="technicalSpecs" value={detailForm.technicalSpecs || ''} onChange={handleDetailChange} rows={4} className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" />
                         </div>
                       </div>
                     )}
                     {detailTab === 'notes' && (
                       <div className="max-w-2xl">
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Ghi chú</label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">{t('pms.assets.notesLabel')}</label>
                         <textarea name="notes" value={detailForm.notes || ''} onChange={handleDetailChange} rows={10} className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" />
                       </div>
                     )}
@@ -802,7 +781,7 @@ export default function AssetsPage() {
                 onClick={() => startInlineNew(contextMenu.nodeId)}
                 className="w-full px-4 py-2 text-left hover:bg-blue-50 text-gray-700 flex items-center gap-2"
               >
-                <Plus className="w-3 h-3 text-blue-500" /> Thêm thiết bị con
+                <Plus className="w-3 h-3 text-blue-500" /> {t('pms.assets.addChildAsset')}
               </button>
               <div className="border-t border-gray-100 my-0.5" />
               <button
@@ -813,7 +792,7 @@ export default function AssetsPage() {
                 }}
                 className="w-full px-4 py-2 text-left hover:bg-red-50 text-red-600 flex items-center gap-2"
               >
-                <Trash2 className="w-3 h-3" /> Xóa thiết bị
+                <Trash2 className="w-3 h-3" /> {t('pms.assets.deleteAsset')}
               </button>
             </>
           ) : (
@@ -821,7 +800,7 @@ export default function AssetsPage() {
               onClick={() => startInlineNew(null)}
               className="w-full px-4 py-2 text-left hover:bg-blue-50 text-gray-700 flex items-center gap-2"
             >
-              <Plus className="w-3 h-3 text-blue-500" /> Thêm thiết bị gốc
+              <Plus className="w-3 h-3 text-blue-500" /> {t('pms.assets.addRootAssetContext')}
             </button>
           )}
         </div>

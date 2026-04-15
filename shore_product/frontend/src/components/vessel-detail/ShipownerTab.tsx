@@ -48,7 +48,7 @@ const ShoreMasterBadge: React.FC = () => {
         marginBottom: '12px'
       }}
     >
-      📋 Shore Master — Editable
+      📋 Dữ liệu bờ — Có thể chỉnh sửa
     </div>
   );
 };
@@ -65,75 +65,75 @@ export function ShipownerTab({ formData = {}, onChange }: ShipownerTabProps) {
       <ShoreMasterBadge />
       
       {/* Shipowner */}
-      <SectionCard title="Ship owner">
+      <SectionCard title="Chủ tàu">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <EditableField label="Company Name" value={formData.shipownerName}
+          <EditableField label="Tên công ty" value={formData.shipownerName}
             onChange={v => handleChange('shipownerName', v)} className="col-span-2" />
-          <EditableField label="Street Address" value={formData.shipownerStreet}
+          <EditableField label="Địa chỉ" value={formData.shipownerStreet}
             onChange={v => handleChange('shipownerStreet', v)} className="col-span-2" />
-          <EditableField label="Country" value={formData.shipownerCountry}
+          <EditableField label="Quốc gia" value={formData.shipownerCountry}
             onChange={v => handleChange('shipownerCountry', v)} />
-          <EditableField label="ZIP" value={formData.shipownerZip}
+          <EditableField label="Mã bưu chính" value={formData.shipownerZip}
             onChange={v => handleChange('shipownerZip', v)} />
-          <EditableField label="City" value={formData.shipownerCity}
+          <EditableField label="Thành phố" value={formData.shipownerCity}
             onChange={v => handleChange('shipownerCity', v)} />
-          <EditableField label="Phone" value={formData.shipownerPhone} type="tel"
+          <EditableField label="Điện thoại" value={formData.shipownerPhone} type="tel"
             onChange={v => handleChange('shipownerPhone', v)} />
           <EditableField label="Email" value={formData.shipownerEmail} type="email"
             onChange={v => handleChange('shipownerEmail', v)} />
-          <EditableField label="Contact Person" value={formData.shipownerContactPerson}
+          <EditableField label="Người liên hệ" value={formData.shipownerContactPerson}
             onChange={v => handleChange('shipownerContactPerson', v)} />
         </div>
       </SectionCard>
 
       {/* Managing Owner */}
-      <SectionCard title="Managing Owner">
+      <SectionCard title="Chủ tàu quản lý">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <EditableField label="Company Name" value={formData.managingOwnerName}
+          <EditableField label="Tên công ty" value={formData.managingOwnerName}
             onChange={v => handleChange('managingOwnerName', v)} />
           <EditableField label="Email" value={formData.managingOwnerEmail} type="email"
             onChange={v => handleChange('managingOwnerEmail', v)} />
-          <EditableField label="Contact Person" value={formData.managingOwnerContactPerson}
+          <EditableField label="Người liên hệ" value={formData.managingOwnerContactPerson}
             onChange={v => handleChange('managingOwnerContactPerson', v)} />
         </div>
       </SectionCard>
 
       {/* Operator */}
-      <SectionCard title="Operator">
+      <SectionCard title="Đơn vị khai thác">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <EditableField label="Company Name" value={formData.operatorName}
+          <EditableField label="Tên công ty" value={formData.operatorName}
             onChange={v => handleChange('operatorName', v)} />
           <EditableField label="Email" value={formData.operatorEmail} type="email"
             onChange={v => handleChange('operatorEmail', v)} />
-          <EditableField label="Contact Person" value={formData.operatorContactPerson}
+          <EditableField label="Người liên hệ" value={formData.operatorContactPerson}
             onChange={v => handleChange('operatorContactPerson', v)} />
         </div>
       </SectionCard>
 
       {/* CSO */}
-      <SectionCard title="Company Security Officer (CSO)">
+      <SectionCard title="Sĩ quan an ninh công ty (CSO)">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <EditableField label="First Name" value={formData.csoFirstName}
+          <EditableField label="Tên" value={formData.csoFirstName}
             onChange={v => handleChange('csoFirstName', v)} />
-          <EditableField label="Last Name" value={formData.csoLastName}
+          <EditableField label="Họ" value={formData.csoLastName}
             onChange={v => handleChange('csoLastName', v)} />
           <EditableField label="Email" value={formData.csoEmail} type="email"
             onChange={v => handleChange('csoEmail', v)} />
-          <EditableField label="Phone (24h)" value={formData.csoPhone24h} type="tel"
+          <EditableField label="Điện thoại (24h)" value={formData.csoPhone24h} type="tel"
             onChange={v => handleChange('csoPhone24h', v)} />
         </div>
       </SectionCard>
 
       {/* DPA */}
-      <SectionCard title="Designated Person Ashore (DPA)">
+      <SectionCard title="Người được chỉ định trên bờ (DPA)">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <EditableField label="First Name" value={formData.dpaFirstName}
+          <EditableField label="Tên" value={formData.dpaFirstName}
             onChange={v => handleChange('dpaFirstName', v)} />
-          <EditableField label="Last Name" value={formData.dpaLastName}
+          <EditableField label="Họ" value={formData.dpaLastName}
             onChange={v => handleChange('dpaLastName', v)} />
           <EditableField label="Email" value={formData.dpaEmail} type="email"
             onChange={v => handleChange('dpaEmail', v)} />
-          <EditableField label="Phone (24h)" value={formData.dpaPhone24h} type="tel"
+          <EditableField label="Điện thoại (24h)" value={formData.dpaPhone24h} type="tel"
             onChange={v => handleChange('dpaPhone24h', v)} />
         </div>
       </SectionCard>

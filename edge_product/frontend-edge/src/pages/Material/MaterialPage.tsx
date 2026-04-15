@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { toast } from 'sonner';
 import { Plus, Search, Package, Eye, Edit2, Trash2, ChevronsUpDown, Upload, Link2 } from 'lucide-react';
 import { materialService } from '@/services/materialService';
 import type { CreateMaterialItemDto, UpdateMaterialItemDto } from '@/services/materialService';
@@ -76,50 +75,32 @@ export function MaterialPage() {
     await loadData();
   };
 
-  const handleDeleteItem = (item: MaterialItem) => {
-    toast(t('materials.page.confirmDelete', { name: item.name }), {
-      action: {
-        label: t('materials.page.delete') || 'Xóa',
-        onClick: async () => {
-          try {
-            await materialService.deleteItem(item.id);
-            await loadData();
-            toast.success(t('materials.page.deleteSuccess', { defaultValue: 'Xóa thành công' }));
-          } catch (error: any) {
-            toast.error(error.message || 'Failed to delete item');
-          }
-        }
-      },
-      cancel: { label: t('materials.page.cancel') || 'Hủy', onClick: () => {} },
-      duration: 8000,
-    });
+  const handleDeleteItem = async (item: MaterialItem) => {
+    if (!confirm(t('materials.page.confirmDelete', { name: item.name }))) return;
+    try {
+      await materialService.deleteItem(item.id);
+      await loadData();
+    } catch (error: any) {
+      alert(error.message || t('materials.page.failedToDelete'));
+    }
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selectedRows.size === 0) return;
-    toast(`Bạn có chắc muốn xóa ${selectedRows.size} vật tư đã chọn?`, {
-      action: {
-        label: 'Xóa',
-        onClick: async () => {
-          try {
-            const ids = Array.from(selectedRows);
-            await Promise.all(ids.map(id => materialService.deleteItem(id)));
-            setSelectedRows(new Set());
-            await loadData();
-            toast.success('Xóa hàng loạt thành công');
-          } catch (error: any) {
-            toast.error(error.message || 'Xóa thất bại');
-          }
-        }
-      },
-      cancel: { label: 'Hủy', onClick: () => {} },
-      duration: 8000,
-    });
+    if (!confirm(t('materials.page.confirmBulkDelete', { count: selectedRows.size }))) return;
+    try {
+      const ids = Array.from(selectedRows);
+      await Promise.all(ids.map(id => materialService.deleteItem(id)));
+      setSelectedRows(new Set());
+      await loadData();
+    } catch (error: any) {
+      alert(error.message || t('materials.page.deleteFailed'));
+    }
   };
 
   const handleAssignEquipment = () => {
     if (selectedRows.size === 0) {
-      toast.warning('Vui lòng chọn ít nhất 1 vật tư để gán thiết bị');
+      alert(t('materials.page.selectAtLeastOne'));
       return;
     }
     setAssignEquipmentModalOpen(true);
@@ -226,14 +207,14 @@ export function MaterialPage() {
             disabled={selectedRows.size === 0}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <Link2 className="w-3.5 h-3.5" /> Gán thiết bị
+            <Link2 className="w-3.5 h-3.5" /> {t('materials.page.assignEquipment')}
           </button>
           <button
             onClick={handleBulkDelete}
             disabled={selectedRows.size === 0}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-red-300 rounded text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <Trash2 className="w-3.5 h-3.5" /> Xóa nhiều
+            <Trash2 className="w-3.5 h-3.5" /> {t('materials.page.bulkDelete')}
           </button>
           <button
             onClick={() => setCategoryModalOpen(true)}
@@ -304,7 +285,7 @@ export function MaterialPage() {
                 </div>
               </th>
               <th className="w-24 px-3 py-2 text-center border-b border-r border-gray-200">
-                <span className="text-xs font-semibold text-gray-600">Thiết bị</span>
+                <span className="text-xs font-semibold text-gray-600">{t('materials.page.colEquipment')}</span>
               </th>
               <th className="w-28 px-3 py-2 text-left border-b border-r border-gray-200">
                 <div className="flex items-center justify-between gap-1">
@@ -457,7 +438,7 @@ export function MaterialPage() {
                                 ? 'bg-green-100 text-green-700 hover:bg-green-200'
                                 : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                             }`}
-                            title={count > 0 ? `${count} thiết bị đã gán — click để xem/sửa` : 'Chưa gán thiết bị — click để gán'}
+                            title={count > 0 ? t('materials.page.equipmentAssigned', { count }) : t('materials.page.noEquipmentAssigned')}
                           >
                             <Link2 className="w-3 h-3" />
                             {count}
@@ -475,7 +456,7 @@ export function MaterialPage() {
                         <button
                           onClick={() => setViewingItem(item)}
                           className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded"
-                          title="Xem chi tiết"
+                          title={t('materials.page.viewDetail')}
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
@@ -589,7 +570,7 @@ export function MaterialPage() {
         onSubmit={async () => {}}
         item={viewingItem}
         categories={categories}
-        title="Chi tiết vật tư"
+        title={t('materials.page.itemDetail')}
         viewMode
       />
 

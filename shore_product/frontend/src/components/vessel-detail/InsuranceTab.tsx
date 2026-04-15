@@ -37,7 +37,7 @@ const ShoreMasterBadge: React.FC = () => {
         marginBottom: '12px'
       }}
     >
-      📋 Shore Master — Editable
+      📋 Dữ liệu bờ — Có thể chỉnh sửa
     </div>
   );
 };
@@ -56,33 +56,33 @@ export function InsuranceTab({ formData = {}, onChange }: InsuranceTabProps) {
       {/* P&I Club */}
       <SectionCard title="P&I Club">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <EditableField label="Club Name" value={formData.piClubName}
-            onChange={v => handleChange('piClubName', v)} placeholder="e.g. UK P&I Club" className="col-span-2" />
-          <EditableField label="Street Address" value={formData.piClubStreet}
+          <EditableField label="Tên hội" value={formData.piClubName}
+            onChange={v => handleChange('piClubName', v)} placeholder="VD: UK P&I Club" className="col-span-2" />
+          <EditableField label="Địa chỉ" value={formData.piClubStreet}
             onChange={v => handleChange('piClubStreet', v)} className="col-span-2" />
-          <EditableField label="Country" value={formData.piClubCountry}
+          <EditableField label="Quốc gia" value={formData.piClubCountry}
             onChange={v => handleChange('piClubCountry', v)} />
-          <EditableField label="ZIP" value={formData.piClubZip}
+          <EditableField label="Mã bưu chính" value={formData.piClubZip}
             onChange={v => handleChange('piClubZip', v)} />
-          <EditableField label="City" value={formData.piClubCity}
+          <EditableField label="Thành phố" value={formData.piClubCity}
             onChange={v => handleChange('piClubCity', v)} />
-          <EditableField label="Phone" value={formData.piClubPhone} type="tel"
+          <EditableField label="Điện thoại" value={formData.piClubPhone} type="tel"
             onChange={v => handleChange('piClubPhone', v)} />
           <EditableField label="Email" value={formData.piClubEmail} type="email"
             onChange={v => handleChange('piClubEmail', v)} />
-          <EditableField label="Contact Person" value={formData.piClubContactPerson}
+          <EditableField label="Người liên hệ" value={formData.piClubContactPerson}
             onChange={v => handleChange('piClubContactPerson', v)} />
         </div>
       </SectionCard>
 
       {/* H&M Club */}
-      <SectionCard title="H&M Club (Hull & Machinery Insurance)">
+      <SectionCard title="Hội H&M (Bảo hiểm thân tàu & máy móc)">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <EditableField label="Club Name" value={formData.hmClubName}
+          <EditableField label="Tên hội" value={formData.hmClubName}
             onChange={v => handleChange('hmClubName', v)} />
           <EditableField label="Email" value={formData.hmClubEmail} type="email"
             onChange={v => handleChange('hmClubEmail', v)} />
-          <EditableField label="Contact Person" value={formData.hmClubContactPerson}
+          <EditableField label="Người liên hệ" value={formData.hmClubContactPerson}
             onChange={v => handleChange('hmClubContactPerson', v)} />
         </div>
       </SectionCard>

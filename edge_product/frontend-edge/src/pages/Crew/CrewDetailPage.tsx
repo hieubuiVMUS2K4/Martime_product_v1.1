@@ -23,12 +23,14 @@ import AddDocumentModal from '../../components/crew/AddDocumentModal'
 import AddHealthDocumentModal from '../../components/crew/AddHealthDocumentModal'
 import ImageViewerModal from '../../components/crew/ImageViewerModal'
 import { AddCrewCertificateModal } from './AddCrewCertificateModal'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 import jsPDF from 'jspdf' 
 import 'jspdf-autotable'
 
 type TabType = 'basic-data' | 'documents' | 'voyage-history'
 
 export function CrewDetailPage() {
+  const { t } = useTranslationSafe()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   
@@ -98,7 +100,7 @@ export function CrewDetailPage() {
       toast.success(result.message)
       await loadCrewDetails()
     } catch (error: any) {
-      toast.error(error.message || 'Failed to approve crew')
+      toast.error(error.message || t('crew.edDetail.messages.approveFailed'))
     } finally {
       setReviewProcessing(false)
     }
@@ -118,7 +120,7 @@ export function CrewDetailPage() {
       setHoldNotes('')
       await loadCrewDetails()
     } catch (error: any) {
-      toast.error(error.message || 'Failed to put crew on hold')
+      toast.error(error.message || t('crew.edDetail.messages.holdFailed'))
     } finally {
       setReviewProcessing(false)
     }
@@ -252,10 +254,10 @@ export function CrewDetailPage() {
           setCertificates(certs)
         }
         
-        toast.success('File uploaded successfully!')
+        toast.success(t('crew.edDetail.messages.fileUploaded'))
       } catch (error: any) {
         console.error('❌ Failed to upload certificate file:', error)
-        toast.error(error.message || 'Failed to upload file')
+        toast.error(error.message || t('crew.edDetail.messages.uploadFailed'))
       } finally {
         setUploadingCertId(null)
       }
@@ -287,10 +289,10 @@ export function CrewDetailPage() {
           await loadDocuments(id)
         }
         
-        toast.success('File uploaded successfully!')
+        toast.success(t('crew.edDetail.messages.fileUploaded'))
       } catch (error: any) {
         console.error('❌ Failed to upload file:', error)
-        toast.error(error.message || 'Failed to upload file')
+        toast.error(error.message || t('crew.edDetail.messages.uploadFailed'))
       } finally {
         setUploadingDocId(null)
       }
@@ -312,14 +314,14 @@ export function CrewDetailPage() {
 
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        toast.warning('File size must not exceed 5MB')
+        toast.warning(t('crew.edDetail.messages.fileSizeLimit'))
         return
       }
 
       // Validate file type
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
       if (!allowedTypes.includes(file.type)) {
-        toast.warning('Only image files (JPG, PNG, GIF) are allowed')
+        toast.warning(t('crew.edDetail.messages.imageOnly'))
         return
       }
 
@@ -358,10 +360,10 @@ export function CrewDetailPage() {
       setPendingAvatarFile(null)
       setPendingAvatarPreview(null)
       
-      toast.success('Avatar uploaded successfully!')
+      toast.success(t('crew.edDetail.messages.avatarUploaded'))
     } catch (error: any) {
       console.error('❌ Failed to upload avatar:', error)
-      toast.error(error.message || 'Failed to upload avatar')
+      toast.error(error.message || t('crew.edDetail.messages.uploadFailed'))
     } finally {
       setUploadingAvatar(false)
     }
@@ -375,7 +377,7 @@ export function CrewDetailPage() {
   const handleDeleteAvatar = async () => {
     if (!id || !crew?.photoUrl) return
 
-    if (!confirm('Are you sure you want to delete the avatar?')) {
+    if (!confirm(t('crew.edDetail.messages.deleteAvatarConfirm'))) {
       return
     }
 
@@ -387,10 +389,10 @@ export function CrewDetailPage() {
       setCrew(updated)
       setEditedCrew(updated)
       
-      toast.success('Avatar deleted successfully!')
+      toast.success(t('crew.edDetail.messages.avatarDeleted'))
     } catch (error: any) {
       console.error('❌ Failed to delete avatar:', error)
-      toast.error(error.message || 'Failed to delete avatar')
+      toast.error(error.message || t('crew.edDetail.messages.uploadFailed'))
     } finally {
       setUploadingAvatar(false)
     }
@@ -771,7 +773,7 @@ export function CrewDetailPage() {
       
       doc.save(`BIO-DATA_${crew.crewId || crew.fullName}_${format(new Date(), 'yyyyMMdd')}.pdf`)
       
-      toast.success('PDF exported successfully!')
+      toast.success(t('crew.edDetail.messages.pdfExported'))
     } catch (error: any) {
       console.error('Failed to export PDF:', error)
       toast.error(error.message || 'Failed to export PDF')
@@ -1127,10 +1129,10 @@ export function CrewDetailPage() {
       link.click()
       URL.revokeObjectURL(url)
       
-      toast.success('Excel exported successfully!')
+      toast.success(t('crew.edDetail.messages.excelExported'))
     } catch (error: any) {
       console.error('Failed to export Excel:', error)
-      toast.error(error.message || 'Failed to export Excel')
+      toast.error(error.message || t('crew.edDetail.messages.uploadFailed'))
     }
   }
 
@@ -1142,10 +1144,10 @@ export function CrewDetailPage() {
       const updated = await maritimeService.crew.update(crew.id, editedCrew)
       setCrew(updated)
       setEditedCrew(updated)
-      toast.success('Crew member updated successfully!')
+      toast.success(t('crew.edDetail.messages.updateSuccess'))
     } catch (error: any) {
       console.error('❌ Failed to save crew:', error)
-      toast.error(error.message || 'Failed to update crew member')
+      toast.error(error.message || t('crew.edDetail.messages.updateFailed'))
     } finally {
       setSaving(false)
     }
@@ -1175,8 +1177,8 @@ export function CrewDetailPage() {
     return (
       <div className="p-8">
         <div className="bg-red-50 text-red-700 px-4 py-3 rounded">
-          <p className="font-semibold">Error loading crew details</p>
-          <p className="text-sm">Crew member not found</p>
+          <p className="font-semibold">{t('crew.edDetail.error.loadingFailed')}</p>
+          <p className="text-sm">{t('crew.edDetail.error.crewNotFound')}</p>
         </div>
       </div>
     )
@@ -1191,7 +1193,7 @@ export function CrewDetailPage() {
       <div className="flex items-center justify-end mt-3 pt-3 border-t border-gray-100">
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <span className={`text-xs font-medium ${sectionChecklist[section] ? 'text-green-600' : 'text-gray-400'}`}>
-            {sectionChecklist[section] ? '✓ Verified' : 'Mark as verified'}
+            {sectionChecklist[section] ? '✓ ' + t('crew.edDetail.review.verified') : t('crew.edDetail.review.markVerified')}
           </span>
           <input
             type="checkbox"
@@ -1217,14 +1219,14 @@ export function CrewDetailPage() {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <h1 className="text-lg font-semibold text-gray-800">
-              EDIT {crew.fullName.toUpperCase()} - {crew.rank?.rankName?.toUpperCase() || 'CREW'}
+              EDIT {crew.fullName.toUpperCase()} - {crew.rank?.rankName?.toUpperCase() || t('crew.edDetail.form.rank').toUpperCase()}
             </h1>
           </div>
           <div className="flex items-center gap-2">
             <button 
               onClick={exportToPDF}
               className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-2 transition-colors"
-              title="Export BIO-DATA to PDF"
+              title={t('crew.edDetail.messages.pdfExported').replace('!','')}
             >
               <FileDown className="w-4 h-4" />
               <span>PDF</span>
@@ -1232,7 +1234,7 @@ export function CrewDetailPage() {
             <button 
               onClick={exportToExcel}
               className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2 transition-colors"
-              title="Export BIO-DATA to Excel"
+              title={t('crew.edDetail.messages.excelExported').replace('!','')}
             >
               <FileDown className="w-4 h-4" />
               <span>Excel</span>
@@ -1242,7 +1244,7 @@ export function CrewDetailPage() {
               disabled={saving}
               className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium disabled:opacity-50"
             >
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? t('crew.edDetail.messages.updateSuccess').replace('!','...') : t('common.save')}
             </button>
           </div>
         </div>
@@ -1254,10 +1256,10 @@ export function CrewDetailPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="px-3 py-1 text-sm font-bold rounded-full bg-amber-200 text-amber-800">
-                {crew.onboardStatus === 'OnHold' ? '⏸ ON HOLD' : '⏳ PENDING REVIEW'}
+                {crew.onboardStatus === 'OnHold' ? t('crew.edDetail.review.onHold') : t('crew.edDetail.review.pendingReview')}
               </span>
               <span className="text-sm text-amber-700">
-                Verify each section below using the checkboxes ({checkedCount}/{totalSections} checked)
+                {t('crew.edDetail.review.verifyHint').replace('{checked}', String(checkedCount)).replace('{total}', String(totalSections))}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -1267,7 +1269,7 @@ export function CrewDetailPage() {
                     type="text"
                     value={holdNotes}
                     onChange={(e) => setHoldNotes(e.target.value)}
-                    placeholder="Additional notes for shore..."
+                    placeholder={t('crew.edDetail.review.notesPlaceholder')}
                     className="px-3 py-1.5 border border-amber-300 rounded text-sm w-72 focus:ring-2 focus:ring-amber-500"
                   />
                   <button
@@ -1275,13 +1277,13 @@ export function CrewDetailPage() {
                     disabled={reviewProcessing}
                     className="px-4 py-1.5 bg-amber-600 text-white text-sm font-medium rounded hover:bg-amber-700 disabled:opacity-50"
                   >
-                    Confirm Hold
+                    {t('crew.edDetail.review.confirmHold')}
                   </button>
                   <button
                     onClick={() => { setShowHoldNotesInput(false); setHoldNotes('') }}
                     className="px-3 py-1.5 text-gray-600 text-sm rounded hover:bg-gray-100"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
               ) : (
@@ -1292,14 +1294,14 @@ export function CrewDetailPage() {
                     className="px-4 py-1.5 bg-amber-500 text-white text-sm font-medium rounded hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     title={allSectionsChecked ? 'All sections verified - no need to hold' : 'Put on hold and notify shore of missing information'}
                   >
-                    ⏸ Hold & Notify Shore
+                    ⏸ {t('crew.edDetail.review.holdNotify')}
                   </button>
                   <button
                     onClick={handleApproveReview}
                     disabled={reviewProcessing}
                     className="px-4 py-1.5 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 disabled:opacity-50"
                   >
-                    ✓ Approve & Onboard
+                    ✓ {t('crew.edDetail.review.approveOnboard')}
                   </button>
                 </>
               )}
@@ -1307,7 +1309,7 @@ export function CrewDetailPage() {
           </div>
           {crew.reviewNotes && (
             <div className="mt-2 text-sm text-amber-700 bg-amber-100 px-3 py-2 rounded">
-              <strong>Previous review notes:</strong> {crew.reviewNotes}
+              <strong>{t('crew.edDetail.review.prevNotes')}</strong> {crew.reviewNotes}
             </div>
           )}
         </div>
@@ -1325,7 +1327,7 @@ export function CrewDetailPage() {
                   : 'border-transparent text-gray-600 hover:text-gray-800'
               }`}
             >
-              Basic Data
+              {t('crew.edDetail.tabs.basicData')}
             </button>
             <button
               onClick={() => setActiveTab('documents')}
@@ -1335,7 +1337,7 @@ export function CrewDetailPage() {
                   : 'border-transparent text-gray-600 hover:text-gray-800'
               }`}
             >
-              Documents
+              {t('crew.edDetail.tabs.documents')}
             </button>
             <button
               onClick={() => {
@@ -1364,7 +1366,7 @@ export function CrewDetailPage() {
               }`}
             >
               <Ship className="w-4 h-4" />
-              Voyage History
+              {t('crew.edDetail.tabs.voyageHistory')}
               {voyageHistory.length > 0 && (
                 <span className="ml-1 px-1.5 py-0.5 rounded-full text-xs bg-gray-200 text-gray-600">{voyageHistory.length}</span>
               )}
@@ -1383,9 +1385,7 @@ export function CrewDetailPage() {
                 {/* Left Column - Name & Position */}
                 <div className="col-span-3 space-y-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Full Name
-                    </label>
+                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.fullName')}</label>
                     <input
                       type="text"
                       value={editedCrew.fullName || ''}
@@ -1394,15 +1394,13 @@ export function CrewDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Rank
-                    </label>
+                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.rank')}</label>
                     <select
                       value={editedCrew.rankId || ''}
                       onChange={(e) => setEditedCrew({ ...editedCrew, rankId: e.target.value ? Number(e.target.value) : undefined })}
                       className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                     >
-                      <option value="">Select rank</option>
+                      <option value="">{t('crew.edDetail.form.selectRank')}</option>
                       {ranks.map(rank => (
                         <option key={rank.id} value={rank.id}>
                           {rank.rankName} ({rank.rankCode})
@@ -1411,9 +1409,7 @@ export function CrewDetailPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Department
-                    </label>
+                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.department')}</label>
                     <input
                       type="text"
                       value={editedCrew.department || ''}
@@ -1422,9 +1418,7 @@ export function CrewDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Date of Birth
-                    </label>
+                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.dateOfBirth')}</label>
                     <input
                       type="date"
                       value={editedCrew.dateOfBirth?.split('T')[0] || ''}
@@ -1437,9 +1431,7 @@ export function CrewDetailPage() {
                 {/* Middle-Left Column - Personal Info */}
                 <div className="col-span-3 space-y-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Age
-                    </label>
+                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.age')}</label>
                     <input
                       type="text"
                       value={age}
@@ -1448,9 +1440,7 @@ export function CrewDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Place of Birth
-                    </label>
+                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.placeOfBirth')}</label>
                     <input
                       type="text"
                       value={editedCrew.placeOfBirth || ''}
@@ -1459,15 +1449,13 @@ export function CrewDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Country
-                    </label>
+                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.country')}</label>
                     <select
                       value={editedCrew.countryId || ''}
                       onChange={(e) => setEditedCrew({ ...editedCrew, countryId: e.target.value ? Number(e.target.value) : undefined })}
                       className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                     >
-                      <option value="">Select country</option>
+                      <option value="">{t('crew.edDetail.form.selectCountry')}</option>
                       {countries.map((country) => (
                         <option key={country.id} value={country.id}>
                           {country.countryName}
@@ -1476,9 +1464,7 @@ export function CrewDetailPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      ID Card Number
-                    </label>
+                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.idCard')}</label>
                     <input
                       type="text"
                       value={editedCrew.idCardNumber || ''}
@@ -1491,9 +1477,7 @@ export function CrewDetailPage() {
                 {/* Middle-Right Column - Contact & Dates */}
                 <div className="col-span-3 space-y-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Phone Number
-                    </label>
+                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.phone')}</label>
                     <input
                       type="text"
                       value={editedCrew.phoneNumber || ''}
@@ -1502,9 +1486,7 @@ export function CrewDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Email
-                    </label>
+                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.email')}</label>
                     <input
                       type="email"
                       value={editedCrew.emailAddress || ''}
@@ -1513,26 +1495,22 @@ export function CrewDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Marital Status
-                    </label>
+                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.maritalStatus')}</label>
                     <select
                       value={editedCrew.maritalStatus || ''}
                       onChange={(e) => setEditedCrew({ ...editedCrew, maritalStatus: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                     >
-                      <option value="">Select status</option>
+                      <option value="">{t('crew.edDetail.form.selectStatus')}</option>
                       <option value="Single">Single</option>
-                      <option value="Married">Married</option>
-                      <option value="Divorced">Divorced</option>
-                      <option value="Widowed">Widowed</option>
+                      <option value="Married">{t('crew.edDetail.form.married')}</option>
+                      <option value="Divorced">{t('crew.edDetail.form.divorced')}</option>
+                      <option value="Widowed">{t('crew.edDetail.form.widowed')}</option>
                     </select>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                        Height (cm)
-                      </label>
+                      <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.heightCm')}</label>
                       <input
                         type="number"
                         value={editedCrew.height || ''}
@@ -1541,9 +1519,7 @@ export function CrewDetailPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                        Weight (kg)
-                      </label>
+                      <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.weightKg')}</label>
                       <input
                         type="number"
                         step="0.1"
@@ -1558,9 +1534,7 @@ export function CrewDetailPage() {
                 {/* Right Column - Avatar */}
                 <div className="col-span-3 flex flex-col items-center">
                   <div className="mb-2">
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1 text-center">
-                      Company ID Number
-                    </label>
+                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1 text-center">{t('crew.edDetail.form.companyId')}</label>
                     <input
                       type="text"
                       value={editedCrew.crewId || ''}
@@ -1622,7 +1596,7 @@ export function CrewDetailPage() {
                             uploadingAvatar ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
                           }`}
                         >
-                          <Upload className="w-4 h-4" /> Choose
+                          <Upload className="w-4 h-4" /> {t('crew.edDetail.avatar.choose')}
                         </button>
                         <button 
                           onClick={handleDeleteAvatar}
@@ -1632,7 +1606,7 @@ export function CrewDetailPage() {
                               ? 'bg-gray-400 cursor-not-allowed' 
                               : 'bg-red-600 hover:bg-red-700'
                           }`}
-                          title="Delete avatar"
+                          title={t('crew.edDetail.messages.deleteAvatarConfirm')}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -1640,7 +1614,7 @@ export function CrewDetailPage() {
                     )}
                   </div>
                   <p className="text-xs text-gray-500 mt-2 text-center">
-                    {uploadingAvatar ? 'Uploading...' : pendingAvatarFile ? 'Click Save to upload avatar' : 'Click Choose to select avatar'}
+                    {uploadingAvatar ? t('crew.edDetail.avatar.uploading') : pendingAvatarFile ? t('crew.edDetail.avatar.clickSave') : t('crew.edDetail.avatar.clickChoose')}
                   </p>
                   <div className="mt-4 flex items-center gap-2">
                     <input
@@ -1649,27 +1623,25 @@ export function CrewDetailPage() {
                       onChange={(e) => setEditedCrew({ ...editedCrew, isOnboard: e.target.checked })}
                       className="w-4 h-4 text-blue-600"
                     />
-                    <label className="text-sm font-medium text-gray-700">On Board</label>
+                    <label className="text-sm font-medium text-gray-700">{t('crew.edDetail.form.onBoard')}</label>
                   </div>
                 </div>
               </div>
               <SectionCheckbox section="personalInfo" label="Personal Information" />
             </div>
 
-            {/* Physical Details & Preferences */}
+            {/* {t('crew.edDetail.sections.physicalDetails')} */}
             <div className="bg-white rounded-lg shadow-sm p-4">
-              <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Physical Details & Preferences</h3>
+              <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">{t('crew.edDetail.sections.physicalDetails')}</h3>
               <div className="grid grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Blood Group
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.bloodGroup')}</label>
                   <select
                     value={editedCrew.bloodGroup || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, bloodGroup: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                   >
-                    <option value="">Select</option>
+                    <option value="">{t('crew.edDetail.form.select')}</option>
                     <option value="A+">A+</option>
                     <option value="A-">A-</option>
                     <option value="B+">B+</option>
@@ -1681,38 +1653,32 @@ export function CrewDetailPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Clothing Size
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.clothingSize')}</label>
                   <input
                     type="text"
                     value={editedCrew.clothingSize || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, clothingSize: e.target.value })}
-                    placeholder="e.g., L, XL"
+                    placeholder={t('crew.edDetail.form.select')}
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Shoe Size
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.shoeSize')}</label>
                   <input
                     type="text"
                     value={editedCrew.shoeSize || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, shoeSize: e.target.value })}
-                    placeholder="e.g., 42"
+                    placeholder={t('crew.edDetail.form.select')}
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Catering Size
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.cateringSize')}</label>
                   <input
                     type="text"
                     value={editedCrew.cateringSize || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, cateringSize: e.target.value })}
-                    placeholder="e.g., M"
+                    placeholder={t('crew.edDetail.form.select')}
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                   />
                 </div>
@@ -1725,7 +1691,7 @@ export function CrewDetailPage() {
                     onChange={(e) => setEditedCrew({ ...editedCrew, isSmoker: e.target.checked })}
                     className="w-4 h-4 text-blue-600"
                   />
-                  <label className="text-sm font-medium text-gray-700">Smoker</label>
+                  <label className="text-sm font-medium text-gray-700">{t('crew.edDetail.form.smoker')}</label>
                 </div>
                 <div className="flex items-center gap-3">
                   <input
@@ -1734,20 +1700,18 @@ export function CrewDetailPage() {
                     onChange={(e) => setEditedCrew({ ...editedCrew, isCovidVaccinated: e.target.checked })}
                     className="w-4 h-4 text-blue-600"
                   />
-                  <label className="text-sm font-medium text-gray-700">COVID-19 Vaccinated</label>
+                  <label className="text-sm font-medium text-gray-700">{t('crew.edDetail.form.covidVaccinated')}</label>
                 </div>
               </div>
               <SectionCheckbox section="physicalDetails" label="Physical Details" />
             </div>
 
-            {/* Employment Dates */}
+            {/* {t('crew.edDetail.sections.employmentDates')} */}
             <div className="bg-white rounded-lg shadow-sm p-4">
-              <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Employment Dates</h3>
+              <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">{t('crew.edDetail.sections.employmentDates')}</h3>
               <div className="grid grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Join Date
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.joinDate')}</label>
                   <input
                     type="date"
                     value={editedCrew.joinDate?.split('T')[0] || ''}
@@ -1756,9 +1720,7 @@ export function CrewDetailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Embark Date
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.embarkDate')}</label>
                   <input
                     type="date"
                     value={editedCrew.embarkDate?.split('T')[0] || ''}
@@ -1767,9 +1729,7 @@ export function CrewDetailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Disembark Date
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.disembarkDate')}</label>
                   <input
                     type="date"
                     value={editedCrew.disembarkDate?.split('T')[0] || ''}
@@ -1778,9 +1738,7 @@ export function CrewDetailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Contract End
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.contractEnd')}</label>
                   <input
                     type="date"
                     value={editedCrew.contractEnd?.split('T')[0] || ''}
@@ -1794,12 +1752,10 @@ export function CrewDetailPage() {
 
             {/* Next of Kin */}
             <div className="bg-white rounded-lg shadow-sm p-4">
-              <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Next of Kin / Emergency Contact</h3>
+              <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">{t('crew.edDetail.sections.nextOfKin')}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Full Name
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.fullName')}</label>
                   <input
                     type="text"
                     value={editedCrew.nextOfKinName || ''}
@@ -1808,27 +1764,23 @@ export function CrewDetailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Relationship
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.relationship')}</label>
                   <select
                     value={editedCrew.nextOfKinRelation || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, nextOfKinRelation: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                   >
-                    <option value="">Select</option>
-                    <option value="Father">Father</option>
-                    <option value="Mother">Mother</option>
-                    <option value="Spouse">Spouse</option>
-                    <option value="Sibling">Sibling</option>
-                    <option value="Child">Child</option>
-                    <option value="Other">Other</option>
+                    <option value="">{t('crew.edDetail.form.select')}</option>
+                    <option value="Father">{t('crew.edDetail.form.father')}</option>
+                    <option value="Mother">{t('crew.edDetail.form.mother')}</option>
+                    <option value="Spouse">{t('crew.edDetail.form.spouse')}</option>
+                    <option value="Sibling">{t('crew.edDetail.form.sibling')}</option>
+                    <option value="Child">{t('crew.edDetail.form.child')}</option>
+                    <option value="Other">{t('crew.edDetail.form.other')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Phone Number
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.phone')}</label>
                   <input
                     type="text"
                     value={editedCrew.nextOfKinPhone || ''}
@@ -1837,9 +1789,7 @@ export function CrewDetailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Address
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.address')}</label>
                   <input
                     type="text"
                     value={editedCrew.nextOfKinAddress || ''}
@@ -1853,53 +1803,45 @@ export function CrewDetailPage() {
 
             {/* Education */}
             <div className="bg-white rounded-lg shadow-sm p-4">
-              <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Education Background</h3>
+              <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">{t('crew.edDetail.sections.education')}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Institution / University
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.institution')}</label>
                   <input
                     type="text"
                     value={editedCrew.educationInstitution || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, educationInstitution: e.target.value })}
-                    placeholder="e.g., Vietnam Maritime University"
+                    placeholder={t('crew.edDetail.form.institution')}
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Course / Major
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.course')}</label>
                   <input
                     type="text"
                     value={editedCrew.educationCourse || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, educationCourse: e.target.value })}
-                    placeholder="e.g., Marine Engineering, Nautical Science"
+                    placeholder={t('crew.edDetail.form.course')}
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Period (Years)
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.periodYears')}</label>
                   <input
                     type="number"
                     value={editedCrew.educationPeriodYears || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, educationPeriodYears: e.target.value ? Number(e.target.value) : undefined })}
-                    placeholder="e.g., 4"
+                    placeholder={t('crew.edDetail.form.select')}
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Graduation Year
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.graduationYear')}</label>
                   <input
                     type="number"
                     value={editedCrew.educationGraduationYear || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, educationGraduationYear: e.target.value ? Number(e.target.value) : undefined })}
-                    placeholder="e.g., 2020"
+                    placeholder={t('crew.edDetail.form.select')}
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                   />
                 </div>
@@ -1907,14 +1849,12 @@ export function CrewDetailPage() {
               <SectionCheckbox section="education" label="Education Background" />
             </div>
 
-            {/* Contact Information */}
+            {/* {t('crew.edDetail.sections.contact')} */}
             <div className="bg-white rounded-lg shadow-sm p-4">
-              <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Contact Information</h3>
+              <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">{t('crew.edDetail.sections.contact')}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Address
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.address')}</label>
                   <textarea
                     value={editedCrew.address || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, address: e.target.value })}
@@ -1923,22 +1863,18 @@ export function CrewDetailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                    Emergency Contact (Legacy)
-                  </label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.emergencyLegacy')}</label>
                   <textarea
                     value={editedCrew.emergencyContact || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, emergencyContact: e.target.value })}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500 bg-gray-50"
-                    placeholder="Use Next of Kin section above"
+                    placeholder={t('crew.edDetail.form.emergencyPlaceholder')}
                   />
                 </div>
               </div>
               <div className="mt-4">
-                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                  Notes
-                </label>
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.notes')}</label>
                 <textarea
                   value={editedCrew.notes || ''}
                   onChange={(e) => setEditedCrew({ ...editedCrew, notes: e.target.value })}
@@ -1953,17 +1889,17 @@ export function CrewDetailPage() {
 
         {activeTab === 'documents' && (
           <div className="space-y-2">
-            {/* IDENTITY DOCUMENTS Section */}
+            {/* {t('crew.edDetail.docs.identityDocs')} Section */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-700 uppercase">
-                  IDENTITY DOCUMENTS ({travelDocuments.length + seafarerDocuments.length + employmentDocuments.length})
+                  {t('crew.edDetail.docs.identityDocs')} ({travelDocuments.length + seafarerDocuments.length + employmentDocuments.length})
                 </h3>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setIsAddDocumentModalOpen(true)}
                     className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
-                    title="Add identity document"
+                    title={t('crew.edDetail.docs.addIdentityDoc')}
                   >
                     +
                   </button>
@@ -1985,13 +1921,13 @@ export function CrewDetailPage() {
                       <thead className="bg-white border-b-2 border-gray-300">
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '3%'}}></th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '20%'}}>Name</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>Files</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Number</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Date of Issue</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Place</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Country</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>Exp. Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '20%'}}>{t('crew.edDetail.docs.name')}</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>{t('crew.edDetail.docs.files')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.number')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.dateOfIssue')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.place')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.country')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>{t('crew.edDetail.docs.expDate')}</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white">
@@ -2018,7 +1954,7 @@ export function CrewDetailPage() {
                                       ? 'bg-blue-500 hover:bg-blue-600' 
                                       : 'bg-green-500 hover:bg-green-600'
                                 }`}
-                                title={doc.fileUrl ? 'View image' : 'Upload image'}
+                                title={doc.fileUrl ? t('crew.edDetail.docs.viewFile') : t('crew.edDetail.docs.uploadFile')}
                               >
                                 {uploadingDocId === doc.id ? (
                                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
@@ -2070,7 +2006,7 @@ export function CrewDetailPage() {
                                       ? 'bg-blue-500 hover:bg-blue-600' 
                                       : 'bg-green-500 hover:bg-green-600'
                                 }`}
-                                title={doc.fileUrl ? 'View image' : 'Upload image'}
+                                title={doc.fileUrl ? t('crew.edDetail.docs.viewFile') : t('crew.edDetail.docs.uploadFile')}
                               >
                                 {uploadingDocId === doc.id ? (
                                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
@@ -2122,7 +2058,7 @@ export function CrewDetailPage() {
                                       ? 'bg-blue-500 hover:bg-blue-600' 
                                       : 'bg-green-500 hover:bg-green-600'
                                 }`}
-                                title={doc.fileUrl ? 'View image' : 'Upload image'}
+                                title={doc.fileUrl ? t('crew.edDetail.docs.viewFile') : t('crew.edDetail.docs.uploadFile')}
                               >
                                 {uploadingDocId === doc.id ? (
                                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
@@ -2154,7 +2090,7 @@ export function CrewDetailPage() {
                         {(travelDocuments.length + seafarerDocuments.length + employmentDocuments.length) === 0 && (
                           <tr className="border-b border-gray-100">
                             <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                              No identity documents available
+                              {t('crew.edDetail.docs.noIdentityDocs')}
                             </td>
                           </tr>
                         )}
@@ -2165,15 +2101,15 @@ export function CrewDetailPage() {
               )}
             </div>
 
-            {/* HEALTH DOCUMENTS Section */}
+            {/* {t('crew.edDetail.docs.healthDocs')} Section */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase">HEALTH DOCUMENTS ({healthDocuments.length})</h3>
+                <h3 className="text-sm font-semibold text-gray-700 uppercase">{t('crew.edDetail.docs.healthDocs')} ({healthDocuments.length})</h3>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setIsAddHealthDocumentModalOpen(true)}
                     className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
-                    title="Add health document"
+                    title={t('crew.edDetail.docs.addHealthDoc')}
                   >
                     +
                   </button>
@@ -2195,13 +2131,13 @@ export function CrewDetailPage() {
                       <thead className="bg-white border-b-2 border-gray-300">
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '3%'}}></th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '20%'}}>Name</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>Files</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Number</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Date of Issue</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Place</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>Country</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>Exp. Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '20%'}}>{t('crew.edDetail.docs.name')}</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>{t('crew.edDetail.docs.files')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.number')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.dateOfIssue')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.place')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.country')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>{t('crew.edDetail.docs.expDate')}</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white">
@@ -2227,7 +2163,7 @@ export function CrewDetailPage() {
                                       ? 'bg-blue-500 hover:bg-blue-600' 
                                       : 'bg-green-500 hover:bg-green-600'
                                 }`}
-                                title={doc.fileUrl ? 'View image' : 'Upload image'}
+                                title={doc.fileUrl ? t('crew.edDetail.docs.viewFile') : t('crew.edDetail.docs.uploadFile')}
                               >
                                 {uploadingDocId === doc.id ? (
                                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
@@ -2259,7 +2195,7 @@ export function CrewDetailPage() {
                         {healthDocuments.length === 0 && (
                           <tr className="border-b border-gray-100">
                             <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                              No health documents available
+                              {t('crew.edDetail.docs.noHealthDocs')}
                             </td>
                           </tr>
                         )}
@@ -2273,12 +2209,12 @@ export function CrewDetailPage() {
             {/* CERTIFICATES Section */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase">CERTIFICATES ({certificates.length})</h3>
+                <h3 className="text-sm font-semibold text-gray-700 uppercase">{t('crew.edDetail.docs.certificates')} ({certificates.length})</h3>
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => setShowAddCertModal(true)}
                     className="w-6 h-6 rounded bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-lg font-bold transition-colors"
-                    title="Add certificate"
+                    title={t('crew.edDetail.docs.addCertificate')}
                   >
                     +
                   </button>
@@ -2299,28 +2235,28 @@ export function CrewDetailPage() {
                     <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
                       <thead className="bg-white border-b-2 border-gray-300">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '15%'}}>Certificate Name</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '6%'}}>Files</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '7%'}}>CoC</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '9%'}}>Country</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '11%'}}>Cert. Number</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '9%'}}>Issue Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '9%'}}>Expiry Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '14%'}}>Issuing Authority</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10%'}}>Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '15%'}}>{t('crew.edDetail.docs.certName')}</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '6%'}}>{t('crew.edDetail.docs.files')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '7%'}}>{t('crew.edDetail.docs.coc')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '9%'}}>{t('crew.edDetail.docs.country')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '11%'}}>{t('crew.edDetail.docs.certNumber')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '9%'}}>{t('crew.edDetail.docs.issueDate')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '9%'}}>{t('crew.edDetail.docs.expiryDate')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '14%'}}>{t('crew.edDetail.docs.issuingAuth')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10%'}}>{t('crew.edDetail.docs.status')}</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white">
                         {certificates.map((cert) => {
                           const getCertStatus = (expiryDate: string) => {
-                            if (!expiryDate) return { icon: AlertTriangle, status: 'N/A', color: 'text-gray-500', bgColor: 'bg-gray-100' }
+                            if (!expiryDate) return { icon: AlertTriangle, status: t('crew.edDetail.docs.na'), color: 'text-gray-500', bgColor: 'bg-gray-100' }
                             const daysLeft = differenceInDays(parseISO(expiryDate), new Date())
                             if (daysLeft < 0) {
-                              return { icon: XCircle, status: 'Expired', color: 'text-red-600', bgColor: 'bg-red-100' }
+                              return { icon: XCircle, status: t('crew.edDetail.docs.expired'), color: 'text-red-600', bgColor: 'bg-red-100' }
                             } else if (daysLeft < 90) {
-                              return { icon: AlertTriangle, status: 'Expiring', color: 'text-yellow-600', bgColor: 'bg-yellow-100' }
+                              return { icon: AlertTriangle, status: t('crew.edDetail.docs.expiring'), color: 'text-yellow-600', bgColor: 'bg-yellow-100' }
                             } else {
-                              return { icon: CheckCircle, status: 'Valid', color: 'text-green-600', bgColor: 'bg-green-100' }
+                              return { icon: CheckCircle, status: t('crew.edDetail.docs.valid'), color: 'text-green-600', bgColor: 'bg-green-100' }
                             }
                           }
                           
@@ -2332,7 +2268,7 @@ export function CrewDetailPage() {
                             <tr key={cert.id} className="border-b border-gray-100 hover:bg-gray-50">
                               <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '15%'}}>
                                 <div className="font-medium text-gray-900 truncate">
-                                  {cert.certificate?.certificateName || cert.certificateName || 'Unknown Certificate'}
+                                  {cert.certificate?.certificateName || cert.certificateName || t('crew.edDetail.docs.unknownCert')}
                                 </div>
                                 <div className="text-xs text-gray-500 truncate">
                                   {cert.certificate?.certificateCode || cert.certificateCode || ''}
@@ -2349,7 +2285,7 @@ export function CrewDetailPage() {
                                         ? 'bg-blue-500 hover:bg-blue-600' 
                                         : 'bg-green-500 hover:bg-green-600'
                                   }`}
-                                  title={cert.documentFilePath ? 'View file' : 'Upload file'}
+                                  title={cert.documentFilePath ? t('crew.edDetail.docs.viewFile') : t('crew.edDetail.docs.uploadFile')}
                                 >
                                   {uploadingCertId === cert.id ? (
                                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
@@ -2390,7 +2326,7 @@ export function CrewDetailPage() {
                                 </div>
                                 {daysLeft !== null && (
                                   <div className={`text-xs ${status.color} truncate`}>
-                                    {daysLeft} days left
+                                    {t('crew.edDetail.docs.daysLeft', { days: daysLeft })}
                                   </div>
                                 )}
                               </td>
@@ -2413,7 +2349,7 @@ export function CrewDetailPage() {
                   </div>
                 ) : (
                   <div className="text-center py-12">
-                    <p className="text-gray-500 mb-4">No certificates found for this crew member</p>
+                    <p className="text-gray-500 mb-4">{t('crew.edDetail.docs.noCertificates')}</p>
                   </div>
                 )
               )}
@@ -2433,33 +2369,33 @@ export function CrewDetailPage() {
               <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Ship className="w-5 h-5 text-blue-600" />
-                  <h3 className="text-lg font-semibold text-gray-800">Current Voyage Assignments</h3>
+                  <h3 className="text-lg font-semibold text-gray-800">{t('crew.edDetail.voyage.currentAssignments')}</h3>
                 </div>
-                <span className="text-sm text-gray-500">{voyageHistory.length} assignment(s)</span>
+                <span className="text-sm text-gray-500">{t('crew.edDetail.voyage.assignments', { count: voyageHistory.length })}</span>
               </div>
 
             {loadingVoyageHistory ? (
               <div className="flex items-center justify-center py-16">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-3 text-gray-500">Loading voyage history...</span>
+                <span className="ml-3 text-gray-500">{t('crew.edDetail.voyage.loading')}</span>
               </div>
             ) : voyageHistory.length === 0 ? (
               <div className="text-center py-16">
                 <Ship className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">No voyage assignments found</p>
-                <p className="text-gray-400 text-sm mt-1">This crew member has not been assigned to any voyages yet.</p>
+                <p className="text-gray-500 font-medium">{t('crew.edDetail.voyage.noAssignments')}</p>
+                <p className="text-gray-400 text-sm mt-1">{t('crew.edDetail.voyage.noAssignmentsDesc')}</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Voyage</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Role / Rank</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Embarkation</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Disembarkation</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Duration</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.voyage.voyage')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.voyage.roleRank')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.voyage.embarkation')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.voyage.disembarkation')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.voyage.duration')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.docs.status')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -2520,7 +2456,7 @@ export function CrewDetailPage() {
                           </td>
                           <td className="px-4 py-3">
                             {days !== null ? (
-                              <span className="text-sm text-gray-700 font-medium">{days} day{days !== 1 ? 's' : ''}</span>
+                              <span className="text-sm text-gray-700 font-medium">{days} {days !== 1 ? t('crew.edDetail.voyage.days') : t('crew.edDetail.voyage.day')}</span>
                             ) : (
                               <span className="text-sm text-gray-400">—</span>
                             )}
@@ -2544,34 +2480,34 @@ export function CrewDetailPage() {
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Ship className="w-5 h-5 text-purple-600" />
-                <h3 className="text-lg font-semibold text-gray-800">Service Records (BIO-DATA)</h3>
+                <h3 className="text-lg font-semibold text-gray-800">{t('crew.edDetail.service.title')}</h3>
               </div>
-              <span className="text-sm text-gray-500">{serviceRecords.length} record(s)</span>
+              <span className="text-sm text-gray-500">{t('crew.edDetail.service.records', { count: serviceRecords.length })}</span>
             </div>
 
             {loadingServiceRecords ? (
               <div className="flex items-center justify-center py-16">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-3 text-gray-500">Loading service records...</span>
+                <span className="ml-3 text-gray-500">{t('crew.edDetail.service.loading')}</span>
               </div>
             ) : serviceRecords.length === 0 ? (
               <div className="text-center py-16">
                 <Ship className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">No service records found</p>
-                <p className="text-gray-400 text-sm mt-1">This crew member's sea service history will appear here.</p>
+                <p className="text-gray-500 font-medium">{t('crew.edDetail.service.noRecords')}</p>
+                <p className="text-gray-400 text-sm mt-1">{t('crew.edDetail.service.noRecordsDesc')}</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Vessel</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type / Flag</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Rank</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Boarding</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Disembark</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Service Days</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">GRT / DWT</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.service.vessel')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.service.typeFlag')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.service.rank')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.service.boarding')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.service.disembark')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.service.serviceDays')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.service.grtDwt')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -2589,7 +2525,7 @@ export function CrewDetailPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                            {record.rankAtTime || 'N/A'}
+                            {record.rankAtTime || t('crew.edDetail.docs.na')}
                           </span>
                         </td>
                         <td className="px-4 py-3">
@@ -2618,16 +2554,16 @@ export function CrewDetailPage() {
                             </>
                           ) : (
                             <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
-                              On Board
+                              {t('crew.edDetail.service.onBoard')}
                             </span>
                           )}
                         </td>
                         <td className="px-4 py-3">
                           {record.totalServiceDays ? (
-                            <span className="text-sm font-medium text-gray-700">{record.totalServiceDays} days</span>
+                            <span className="text-sm font-medium text-gray-700">{record.totalServiceDays} {t('crew.edDetail.voyage.days')}</span>
                           ) : record.boardingDate && !record.disembarkDate ? (
                             <span className="text-sm text-gray-600">
-                              {differenceInDays(new Date(), parseISO(record.boardingDate))} days
+                              {differenceInDays(new Date(), parseISO(record.boardingDate))} {t('crew.edDetail.voyage.days')}
                             </span>
                           ) : (
                             <span className="text-sm text-gray-400">—</span>

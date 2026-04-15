@@ -58,7 +58,7 @@ const EdgeSyncBadge: React.FC<{ lastSync?: string | Date | null }> = ({ lastSync
         marginBottom: '12px'
       }}
     >
-      🔄 Last synced from Edge: {syncDate.toLocaleString('vi-VN')}
+      🔄 Đồng bộ lần cuối từ Edge: {syncDate.toLocaleString('vi-VN')}
     </div>
   );
 };
@@ -69,66 +69,66 @@ export function BasicDataTab({ vessel }: BasicDataTabProps) {
       <EdgeSyncBadge lastSync={vessel.lastEdgeSyncAt} />
       
       {/* Identification */}
-      <SectionCard title="Identification">
+      <SectionCard title="Nhận dạng">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <ReadOnlyField label="IMO Number" value={vessel.imo} />
-          <ReadOnlyField label="Official Number" value={vessel.officialNumber} />
-          <ReadOnlyField label="Call Sign" value={vessel.callSign} />
-          <ReadOnlyField label="MMSI Number" value={vessel.mmsiNumber} />
+          <ReadOnlyField label="Số IMO" value={vessel.imo} />
+          <ReadOnlyField label="Số đăng ký chính thức" value={vessel.officialNumber} />
+          <ReadOnlyField label="Hô hiệu" value={vessel.callSign} />
+          <ReadOnlyField label="Số MMSI" value={vessel.mmsiNumber} />
         </div>
       </SectionCard>
 
       {/* Ship Details */}
-      <SectionCard title="Ship Details">
+      <SectionCard title="Thông tin tàu">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <ReadOnlyField label="Ship Name" value={vessel.name} className="col-span-2" />
-          <ReadOnlyField label="Flag" value={vessel.flag} />
-          <ReadOnlyField label="Port of Registry" value={vessel.portOfRegistry} />
-          <ReadOnlyField label="Previous Name" value={vessel.previousName} />
-          <ReadOnlyField label="Previous Flag" value={vessel.previousFlag} />
-          <ReadOnlyField label="Type of Vessel" value={vessel.vesselType} />
-          <ReadOnlyField label="Service Speed" value={vessel.serviceSpeedKts} suffix="kts" />
+          <ReadOnlyField label="Tên tàu" value={vessel.name} className="col-span-2" />
+          <ReadOnlyField label="Quốc kỳ" value={vessel.flag} />
+          <ReadOnlyField label="Cảng đăng ký" value={vessel.portOfRegistry} />
+          <ReadOnlyField label="Tên cũ" value={vessel.previousName} />
+          <ReadOnlyField label="Quốc kỳ cũ" value={vessel.previousFlag} />
+          <ReadOnlyField label="Loại tàu" value={vessel.vesselType} />
+          <ReadOnlyField label="Tốc độ khai thác" value={vessel.serviceSpeedKts} suffix="kts" />
         </div>
       </SectionCard>
 
       {/* Classification */}
-      <SectionCard title="Classification">
+      <SectionCard title="Phân cấp">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <ReadOnlyField label="Class Notation" value={vessel.classNotation} className="col-span-2" />
-          <ReadOnlyField label="Class Register Number" value={vessel.classRegisterNumber} />
+          <ReadOnlyField label="Ký hiệu phân cấp" value={vessel.classNotation} className="col-span-2" />
+          <ReadOnlyField label="Số đăng bạ phân cấp" value={vessel.classRegisterNumber} />
         </div>
       </SectionCard>
 
       {/* Construction */}
-      <SectionCard title="Construction">
+      <SectionCard title="Đóng tàu">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <ReadOnlyField label="Shipyard Country" value={vessel.shipyardCountry} />
-          <ReadOnlyField label="Shipyard Name" value={vessel.shipyardName} />
-          <ReadOnlyField label="Yard No." value={vessel.yardNo} />
-          <ReadOnlyField label="Year Built" value={vessel.yearBuilt} />
-          <ReadOnlyField label="Keel Laid Date" value={vessel.keelLaidDate?.toString().substring(0, 10)} />
-          <ReadOnlyField label="Date of Registry" value={vessel.dateOfRegistry?.toString().substring(0, 10)} />
+          <ReadOnlyField label="Quốc gia đóng tàu" value={vessel.shipyardCountry} />
+          <ReadOnlyField label="Nhà máy đóng tàu" value={vessel.shipyardName} />
+          <ReadOnlyField label="Số xưởng" value={vessel.yardNo} />
+          <ReadOnlyField label="Năm đóng" value={vessel.yearBuilt} />
+          <ReadOnlyField label="Ngày đặt ky" value={vessel.keelLaidDate?.toString().substring(0, 10)} />
+          <ReadOnlyField label="Ngày đăng ký" value={vessel.dateOfRegistry?.toString().substring(0, 10)} />
         </div>
       </SectionCard>
 
       {/* Company & Registration */}
-      <SectionCard title="Company & Registration">
+      <SectionCard title="Công ty & Đăng ký">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <ReadOnlyField label="Company IMO Number" value={vessel.companyImoNumber} />
-          <ReadOnlyField label="Owner IMO Number" value={vessel.ownerImoNumber} />
-          <ReadOnlyField label="Suez Canal ID Number" value={vessel.suezCanalIdNumber} />
-          <ReadOnlyField label="Panama Canal ID Number" value={vessel.panamaCanalIdNumber} />
-          <ReadOnlyField label="VRP Number" value={vessel.vrpNumber} />
-          <ReadOnlyField label="VRP Type" value={vessel.vrpType} />
+          <ReadOnlyField label="Số IMO công ty" value={vessel.companyImoNumber} />
+          <ReadOnlyField label="Số IMO chủ tàu" value={vessel.ownerImoNumber} />
+          <ReadOnlyField label="Số ID kênh đào Suez" value={vessel.suezCanalIdNumber} />
+          <ReadOnlyField label="Số ID kênh đào Panama" value={vessel.panamaCanalIdNumber} />
+          <ReadOnlyField label="Số VRP" value={vessel.vrpNumber} />
+          <ReadOnlyField label="Loại VRP" value={vessel.vrpType} />
         </div>
       </SectionCard>
 
       {/* Manning */}
-      <SectionCard title="Manning">
+      <SectionCard title="Định biên">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <ReadOnlyField label="Max Persons Allowed O/B" value={vessel.maxPersonsAllowedOB} />
-          <ReadOnlyField label="Max Passengers Allowed O/B" value={vessel.maxPassengersAllowedOB} />
-          <ReadOnlyField label="No. of Crew (Safe Manning)" value={vessel.noOfCrewSafeManning} />
+          <ReadOnlyField label="Số người tối đa trên tàu" value={vessel.maxPersonsAllowedOB} />
+          <ReadOnlyField label="Số hành khách tối đa" value={vessel.maxPassengersAllowedOB} />
+          <ReadOnlyField label="Số thuyền viên (định biên an toàn)" value={vessel.noOfCrewSafeManning} />
         </div>
       </SectionCard>
     </div>

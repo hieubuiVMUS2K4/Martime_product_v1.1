@@ -4,12 +4,12 @@ import { crewApi } from '../../services/crew.service';
 import { useToast } from '../../components/common/Toast';
 
 const HEALTH_DOCUMENT_TYPES = [
-  { value: 'medical_certificate', label: 'Medical Certificate' },
-  { value: 'vaccination_record', label: 'Vaccination Record' },
-  { value: 'yellow_fever', label: 'Yellow Fever Certificate' },
-  { value: 'covid_vaccination', label: 'COVID-19 Vaccination' },
-  { value: 'health_insurance', label: 'Health Insurance' },
-  { value: 'other', label: 'Other' },
+  { value: 'medical_certificate', label: 'Giấy chứng nhận y tế' },
+  { value: 'vaccination_record', label: 'Hồ sơ tiêm chủng' },
+  { value: 'yellow_fever', label: 'Chứng nhận sốt vàng' },
+  { value: 'covid_vaccination', label: 'Tiêm chủng COVID-19' },
+  { value: 'health_insurance', label: 'Bảo hiểm sức khỏe' },
+  { value: 'other', label: 'Khác' },
 ];
 
 type Props = {
@@ -102,7 +102,7 @@ export const AddHealthDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, 
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className={labelCls}>Document Type <span className="text-red-500">*</span></label>
+            <label className={labelCls}>Loại tài liệu <span className="text-red-500">*</span></label>
             <select value={documentType} onChange={e => setDocumentType(e.target.value)} className={inputCls} required>
               <option value="">Chọn loại tài liệu</option>
               {HEALTH_DOCUMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
@@ -110,23 +110,23 @@ export const AddHealthDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, 
           </div>
 
           <div>
-            <label className={labelCls}>Document Number <span className="text-red-500">*</span></label>
+            <label className={labelCls}>Số tài liệu <span className="text-red-500">*</span></label>
             <input type="text" value={documentNumber} onChange={e => setDocumentNumber(e.target.value)} className={inputCls} placeholder="Nhập số tài liệu" required />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>Issue Date</label>
+              <label className={labelCls}>Ngày cấp</label>
               <input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Expiry Date</label>
+              <label className={labelCls}>Ngày hết hạn</label>
               <input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className={inputCls} />
             </div>
           </div>
 
           <div>
-            <label className={labelCls}>Notes</label>
+            <label className={labelCls}>Ghi chú</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className={inputCls} placeholder="Ghi chú thêm..." />
           </div>
 

@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Save, Loader2, Ship, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 import { shipDataService } from '@/services/ship-data.service';
 import type { SaveShipData, ShipDataTabId } from '@/types/ship-data.types';
 import { createEmptyShipData } from '@/types/ship-data.types';
@@ -14,19 +15,21 @@ import { InsuranceTab } from '@/components/ship-data/InsuranceTab';
 import { RadioCommTab } from '@/components/ship-data/RadioCommTab';
 import { TanksCargoTab } from '@/components/ship-data/TanksCargoTab';
 
-const TABS: { id: ShipDataTabId; label: string }[] = [
-  { id: 'basic-data', label: 'Basic Data' },
-  { id: 'dimensions', label: 'Dimensions' },
-  { id: 'machinery', label: 'Machinery' },
-  { id: 'shipowner', label: 'Shipowner' },
-  { id: 'charterer', label: 'Charterer' },
-  { id: 'class-flag-state', label: 'Class / Flag State' },
-  { id: 'insurance', label: 'Insurance' },
-  { id: 'radio-comm', label: 'Radio Comm.' },
-  { id: 'tanks-cargo', label: 'Tanks & Cgo Spaces' },
+const TABS_BASE: { id: ShipDataTabId; labelKey: string }[] = [
+  { id: 'basic-data', labelKey: 'basicData' },
+  { id: 'dimensions', labelKey: 'dimensions' },
+  { id: 'machinery', labelKey: 'machinery' },
+  { id: 'shipowner', labelKey: 'shipowner' },
+  { id: 'charterer', labelKey: 'charterer' },
+  { id: 'class-flag-state', labelKey: 'classFlagState' },
+  { id: 'insurance', labelKey: 'insurance' },
+  { id: 'radio-comm', labelKey: 'radioComm' },
+  { id: 'tanks-cargo', labelKey: 'tanksCargo' },
 ];
 
 export function ShipDataPage() {
+  const { t } = useTranslationSafe();
+  const TABS = useMemo(() => TABS_BASE.map(tab => ({ ...tab, label: t(`shipData.tabs.${tab.labelKey}`) })), [t]);
   const [data, setData] = useState<SaveShipData>(createEmptyShipData());
   const [activeTab, setActiveTab] = useState<ShipDataTabId>('basic-data');
   const [loading, setLoading] = useState(true);
@@ -101,7 +104,7 @@ export function ShipDataPage() {
   const handleSave = async () => {
     // Basic validation
     if (!data.imoNumber?.trim() || !data.shipName?.trim() || !data.flag?.trim() || !data.portOfRegistry?.trim()) {
-      toast.error('Please fill in required fields: IMO Number, Ship Name, Flag, Port of Registry');
+      toast.error(t('shipData.requiredFields'));
       setActiveTab('basic-data');
       return;
     }
@@ -109,12 +112,12 @@ export function ShipDataPage() {
     try {
       setSaving(true);
       await shipDataService.save(data);
-      toast.success('Ship data saved successfully');
+      toast.success(t('shipData.saveSuccess'));
       setIsDirty(false);
       // Reload to get server-generated data
       await loadData();
     } catch (err: any) {
-      toast.error('Failed to save ship data: ' + (err.response?.data?.error || err.message || 'Unknown error'));
+      toast.error(t('shipData.saveFailed') + ': ' + (err.response?.data?.error || err.message || 'Unknown error'));
       console.error('Error saving ship data:', err);
     } finally {
       setSaving(false);
@@ -144,7 +147,7 @@ export function ShipDataPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-        <span className="ml-3 text-gray-500">Loading ship data...</span>
+        <span className="ml-3 text-gray-500">{t('shipData.loading')}</span>
       </div>
     );
   }
@@ -156,14 +159,14 @@ export function ShipDataPage() {
         <div className="flex items-center gap-3">
           <Ship className="w-6 h-6 text-blue-600" />
           <div>
-            <h1 className="text-lg font-semibold text-gray-900">Ship's Data</h1>
+            <h1 className="text-lg font-semibold text-gray-900">{t('shipData.title')}</h1>
             {data.shipName && (
               <p className="text-sm text-gray-500">{data.shipName} {data.imoNumber ? `(IMO: ${data.imoNumber})` : ''}</p>
             )}
           </div>
           {isDirty && (
             <span className="px-2 py-0.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full">
-              Unsaved changes
+              {t('shipData.unsavedChanges')}
             </span>
           )}
         </div>
@@ -173,7 +176,7 @@ export function ShipDataPage() {
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {saving ? 'Saving...' : 'Save All'}
+          {saving ? t('shipData.saving') : t('shipData.saveAll')}
         </button>
       </div>
 

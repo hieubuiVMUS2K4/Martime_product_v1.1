@@ -99,6 +99,7 @@ export const CrewListPage: React.FC = () => {
   // Search/filter
   const handleStatusFilter = useCallback((status: boolean | null) => {
     setFilters(prev => ({ ...prev, isOnboard: status, page: 1 }));
+    setViewMode('crew');
   }, [setFilters]);
   const handlePageChange = useCallback((page: number) => {
     setFilters(prev => ({ ...prev, page }));
@@ -289,17 +290,17 @@ export const CrewListPage: React.FC = () => {
 
       {/* Stats bar */}
       <div className="cl-stats">
-        <button className={`cl-stat${filters.isOnboard == null ? ' cl-stat--active' : ''}`} onClick={() => handleStatusFilter(null)}>
+        <button className={`cl-stat${viewMode === 'crew' && filters.isOnboard == null ? ' cl-stat--active' : ''}`} onClick={() => handleStatusFilter(null)}>
           <Users size={14} />
           <span className="cl-stat-val">{stats.total}</span>
           <span className="cl-stat-lbl">Tổng</span>
         </button>
-        <button className={`cl-stat cl-stat--onboard${filters.isOnboard === true ? ' cl-stat--active' : ''}`} onClick={() => handleStatusFilter(true)}>
+        <button className={`cl-stat cl-stat--onboard${viewMode === 'crew' && filters.isOnboard === true ? ' cl-stat--active' : ''}`} onClick={() => handleStatusFilter(true)}>
           <UserCheck size={14} />
           <span className="cl-stat-val">{stats.onboard}</span>
           <span className="cl-stat-lbl">Trên tàu</span>
         </button>
-        <button className={`cl-stat cl-stat--pool${filters.isOnboard === false ? ' cl-stat--active' : ''}`} onClick={() => handleStatusFilter(false)}>
+        <button className={`cl-stat cl-stat--pool${viewMode === 'crew' && filters.isOnboard === false ? ' cl-stat--active' : ''}`} onClick={() => handleStatusFilter(false)}>
           <UserMinus size={14} />
           <span className="cl-stat-val">{stats.pool}</span>
           <span className="cl-stat-lbl">Bờ</span>
@@ -312,7 +313,7 @@ export const CrewListPage: React.FC = () => {
         <button className={`cl-stat cl-stat--warn${viewMode === 'certificates' ? ' cl-stat--active' : ''}`} onClick={() => setViewMode(viewMode === 'certificates' ? 'crew' : 'certificates')}>
           <ShieldAlert size={14} />
           <span className="cl-stat-val">{stats.expiring}</span>
-          <span className="cl-stat-lbl">CC sắp hạn</span>
+          <span className="cl-stat-lbl">CC sắp hết hạn</span>
         </button>
       </div>
 

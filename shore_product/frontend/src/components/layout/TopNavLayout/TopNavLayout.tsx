@@ -39,7 +39,7 @@ const navItems: NavItemDef[] = [
     ]
   },
   { type: 'link', path: '/vessels', label: 'Danh sách tàu' },
-  {
+  /*{
     type: 'dropdown',
     label: 'Thông tin',
     groups: [
@@ -61,7 +61,7 @@ const navItems: NavItemDef[] = [
         ]
       }
     ]
-  },
+  },*/
   { type: 'link', path: '/report', label: 'Báo cáo' },
   { type: 'link', path: '/sync',   label: 'Đồng bộ' },
 ];

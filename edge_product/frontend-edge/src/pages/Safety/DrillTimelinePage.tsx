@@ -6,6 +6,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { ChevronRight, ChevronDown, Plus, Filter, Calendar, RefreshCw, Download, Trash2, Search, X, FileText } from 'lucide-react';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 import { toast } from 'sonner';
 import type { 
   DrillTimelineGroupDto, 
@@ -23,6 +24,7 @@ import { DocumentPreviewModal } from '@/components/drill/DocumentPreviewModal';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function DrillTimelinePage() {
+  const { t } = useTranslationSafe();
   const [timelineData, setTimelineData] = useState<DrillTimelineGroupDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -92,7 +94,7 @@ export function DrillTimelinePage() {
       
     } catch (error) {
       console.error('Failed to load drill timeline:', error);
-      toast.error('Failed to load drill timeline');
+      toast.error(t('drillTimeline.toast.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -150,7 +152,7 @@ export function DrillTimelinePage() {
       setPreviewSchedule(schedule);
       setShowDocPreview(true);
     } else {
-      toast.info('No documents attached to this drill');
+      toast.info(t('drillTimeline.noDocuments'));
     }
   };
   
@@ -190,7 +192,7 @@ export function DrillTimelinePage() {
       const scheduleIds = Array.from(selectedSchedules);
       const result = await bulkDeleteDrillSchedules(scheduleIds, deleteReason || undefined);
       
-      toast.success(`${result.deletedCount} drill schedule(s) deleted successfully`);
+      toast.success(t('drillTimeline.toast.deleteSuccess', { count: result.deletedCount }));
       
       // Clear selection and refresh
       setSelectedSchedules(new Set());
@@ -199,7 +201,7 @@ export function DrillTimelinePage() {
       await loadTimeline();
       
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete drill schedules');
+      toast.error(error.message || t('drillTimeline.toast.deleteFailed'));
       console.error('Delete error:', error);
     } finally {
       setIsDeleting(false);
@@ -276,8 +278,8 @@ export function DrillTimelinePage() {
         <div className="px-6 py-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Drill Training Schedule</h1>
-              <p className="text-sm text-gray-500 mt-1">SOLAS/ISPS Compliance - ISM Code 10</p>
+              <h1 className="text-2xl font-bold text-gray-900">{t('drillTimeline.title')}</h1>
+              <p className="text-sm text-gray-500 mt-1">{t('drillTimeline.subtitle')}</p>
             </div>
             
             <div className="flex items-center gap-3">
@@ -286,7 +288,7 @@ export function DrillTimelinePage() {
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
               >
                 <RefreshCw className="w-4 h-4" />
-                Refresh
+                {t('drillTimeline.refresh')}
               </button>
               
               <button
@@ -294,7 +296,7 @@ export function DrillTimelinePage() {
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
               >
                 <Plus className="w-4 h-4" />
-                Add Drill
+                {t('drillTimeline.addDrill')}
               </button>
               
               {/* Delete button - only visible when items selected */}
@@ -304,7 +306,7 @@ export function DrillTimelinePage() {
                   className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
                 >
                   <Trash2 className="w-4 h-4" />
-                  Delete ({selectedSchedules.size})
+                  {t('drillTimeline.delete', { count: selectedSchedules.size })}
                 </button>
               )}
               
@@ -312,7 +314,7 @@ export function DrillTimelinePage() {
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
               >
                 <Download className="w-4 h-4" />
-                Export
+                {t('drillTimeline.export')}
               </button>
             </div>
           </div>
@@ -324,7 +326,7 @@ export function DrillTimelinePage() {
               className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
             >
               <Filter className="w-4 h-4" />
-              Filters
+              {t('drillTimeline.filters')}
             </button>
             
             {/* Year selector */}
@@ -345,7 +347,7 @@ export function DrillTimelinePage() {
                   onChange={(e) => setSelectedMonth(e.target.value ? Number(e.target.value) : undefined)}
                   className="px-3 py-2 border rounded-lg bg-white"
                 >
-                  <option value="">All Months</option>
+                  <option value="">{t('drillTimeline.allMonths')}</option>
                   {MONTHS.map((month, idx) => (
                     <option key={month} value={idx + 1}>{month}</option>
                   ))}
@@ -356,7 +358,7 @@ export function DrillTimelinePage() {
                   onChange={(e) => setCategoryFilter(e.target.value as DrillCategory || undefined)}
                   className="px-3 py-2 border rounded-lg bg-white"
                 >
-                  <option value="">All Categories</option>
+                  <option value="">{t('drillTimeline.allCategories')}</option>
                   {Object.entries(DRILL_CATEGORY_NAMES).map(([key, name]) => (
                     <option key={key} value={key}>{name}</option>
                   ))}
@@ -367,18 +369,18 @@ export function DrillTimelinePage() {
                   onChange={(e) => setStatusFilter(e.target.value as DrillScheduleStatus || undefined)}
                   className="px-3 py-2 border rounded-lg bg-white"
                 >
-                  <option value="">All Status</option>
-                  <option value="SCHEDULED">Scheduled</option>
-                  <option value="DUE">Due</option>
-                  <option value="OVERDUE">Overdue</option>
-                  <option value="COMPLETED">Completed</option>
+                  <option value="">{t('drillTimeline.allStatus')}</option>
+                  <option value="SCHEDULED">{t('drillTimeline.status.scheduled')}</option>
+                  <option value="DUE">{t('drillTimeline.status.due')}</option>
+                  <option value="OVERDUE">{t('drillTimeline.status.overdue')}</option>
+                  <option value="COMPLETED">{t('drillTimeline.status.completed')}</option>
                 </select>
                 
                 <button
                   onClick={clearFilters}
                   className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900"
                 >
-                  Clear Filters
+                  {t('drillTimeline.clearFilters')}
                 </button>
               </>
             )}
@@ -392,7 +394,7 @@ export function DrillTimelinePage() {
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
-              <p className="text-gray-600">Loading timeline...</p>
+              <p className="text-gray-600">{t('drillTimeline.loading')}</p>
             </div>
           </div>
         ) : (
@@ -407,7 +409,7 @@ export function DrillTimelinePage() {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search drills..."
+                      placeholder={t('drillTimeline.searchPlaceholder')}
                       autoFocus
                       className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -424,7 +426,7 @@ export function DrillTimelinePage() {
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-gray-500">CATEGORIES</h3>
+                    <h3 className="text-sm font-semibold text-gray-500">{t('drillTimeline.categories')}</h3>
                     <button
                       onClick={() => setSearchMode(true)}
                       className="p-1 hover:bg-gray-100 rounded transition"
@@ -569,7 +571,7 @@ export function DrillTimelinePage() {
                               {/* Overdue indicator */}
                               {schedule.status === 'OVERDUE' && (
                                 <span className="ml-auto bg-white/20 px-1.5 py-0.5 rounded text-[9px] font-bold text-white whitespace-nowrap">
-                                  Overdue
+                                  {t('drillTimeline.overdue')}
                                 </span>
                               )}
                             </div>
@@ -585,7 +587,7 @@ export function DrillTimelinePage() {
                     <div className="text-center">
                       <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-2" />
                       <p className="text-gray-500">
-                        {searchQuery ? `No drills found matching "${searchQuery}"` : 'No drills scheduled for this period'}
+                        {searchQuery ? t('drillTimeline.noResults', { query: searchQuery }) : t('drillTimeline.noDrills')}
                       </p>
                     </div>
                   </div>
@@ -620,29 +622,27 @@ export function DrillTimelinePage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
             <h3 className="text-lg font-semibold text-gray-900 mb-3">
-              Delete {selectedSchedules.size} Drill Schedule(s)?
+              {t('drillTimeline.deleteConfirmTitle', { count: selectedSchedules.size })}
             </h3>
             
             <div className="mb-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-sm">
-              <p className="font-medium text-yellow-900 mb-1">⚠️ SOLAS Compliance Warning</p>
+              <p className="font-medium text-yellow-900 mb-1">⚠️ {t('drillTimeline.solasWarningTitle')}</p>
               <p className="text-yellow-800">
-                Deleting drill records may create gaps in your compliance history. 
-                This action is logged for audit purposes (ISM Code).
+                {t('drillTimeline.solasWarningText')}
               </p>
               <p className="text-yellow-800 mt-2">
-                <strong>Note:</strong> Completed drills with "Secure history" enabled cannot be deleted 
-                and are protected for maritime regulatory compliance.
+                <strong>{t('common.note')}:</strong> {t('drillTimeline.solasWarningNote')}
               </p>
             </div>
             
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Reason for deletion (optional)
+                {t('drillTimeline.reasonLabel')}
               </label>
               <textarea
                 value={deleteReason}
                 onChange={(e) => setDeleteReason(e.target.value)}
-                placeholder="e.g., Created by mistake, Drill cancelled due to emergency..."
+                placeholder={t('drillTimeline.reasonPlaceholder')}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
@@ -654,7 +654,7 @@ export function DrillTimelinePage() {
                 disabled={isDeleting}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition disabled:opacity-50"
               >
-                Cancel
+                {t('drillTimeline.cancel')}
               </button>
               <button
                 onClick={executeDelete}
@@ -664,12 +664,12 @@ export function DrillTimelinePage() {
                 {isDeleting ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Deleting...
+                    {t('drillTimeline.deleting')}
                   </>
                 ) : (
                   <>
                     <Trash2 className="w-4 h-4" />
-                    Confirm Delete
+                    {t('drillTimeline.confirmDelete')}
                   </>
                 )}
               </button>

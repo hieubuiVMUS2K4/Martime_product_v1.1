@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 import { voyageMgmtService } from '@/services/voyage.service'
 import type {
   VoyageCockpitDto,
@@ -22,17 +23,17 @@ import type {
 // Unified timeline + plan-vs-actual dashboard
 // ============================================================
 
-const SOURCE_CONFIG: Record<CockpitEventSource, { label: string; color: string; bg: string }> = {
-  LOG: { label: 'Log', color: 'text-blue-700', bg: 'bg-blue-100' },
-  PORT_CALL: { label: 'Port Call', color: 'text-indigo-700', bg: 'bg-indigo-100' },
-  NOON_REPORT: { label: 'Noon Report', color: 'text-green-700', bg: 'bg-green-100' },
-  DEPARTURE_REPORT: { label: 'Departure', color: 'text-teal-700', bg: 'bg-teal-100' },
-  ARRIVAL_REPORT: { label: 'Arrival', color: 'text-cyan-700', bg: 'bg-cyan-100' },
-  BUNKER_REPORT: { label: 'Bunker', color: 'text-amber-700', bg: 'bg-amber-100' },
-  POSITION_REPORT: { label: 'Position', color: 'text-purple-700', bg: 'bg-purple-100' },
-  CARGO_OP: { label: 'Cargo', color: 'text-orange-700', bg: 'bg-orange-100' },
-  FUEL: { label: 'Fuel', color: 'text-red-700', bg: 'bg-red-100' },
-  STATUS_CHANGE: { label: 'Status', color: 'text-gray-700', bg: 'bg-gray-200' },
+const SOURCE_CONFIG: Record<CockpitEventSource, { labelKey: string; color: string; bg: string }> = {
+  LOG: { labelKey: 'voyage.cockpit.sources.LOG', color: 'text-blue-700', bg: 'bg-blue-100' },
+  PORT_CALL: { labelKey: 'voyage.cockpit.sources.PORT_CALL', color: 'text-indigo-700', bg: 'bg-indigo-100' },
+  NOON_REPORT: { labelKey: 'voyage.cockpit.sources.NOON_REPORT', color: 'text-green-700', bg: 'bg-green-100' },
+  DEPARTURE_REPORT: { labelKey: 'voyage.cockpit.sources.DEPARTURE_REPORT', color: 'text-teal-700', bg: 'bg-teal-100' },
+  ARRIVAL_REPORT: { labelKey: 'voyage.cockpit.sources.ARRIVAL_REPORT', color: 'text-cyan-700', bg: 'bg-cyan-100' },
+  BUNKER_REPORT: { labelKey: 'voyage.cockpit.sources.BUNKER_REPORT', color: 'text-amber-700', bg: 'bg-amber-100' },
+  POSITION_REPORT: { labelKey: 'voyage.cockpit.sources.POSITION_REPORT', color: 'text-purple-700', bg: 'bg-purple-100' },
+  CARGO_OP: { labelKey: 'voyage.cockpit.sources.CARGO_OP', color: 'text-orange-700', bg: 'bg-orange-100' },
+  FUEL: { labelKey: 'voyage.cockpit.sources.FUEL', color: 'text-red-700', bg: 'bg-red-100' },
+  STATUS_CHANGE: { labelKey: 'voyage.cockpit.sources.STATUS_CHANGE', color: 'text-gray-700', bg: 'bg-gray-200' },
 }
 
 function VarianceIndicator({ value, unit, inverse }: { value?: number; unit: string; inverse?: boolean }) {
@@ -56,6 +57,7 @@ function KpiCard({ label, planned, actual, variance, unit, icon: Icon, inverse }
   icon: typeof Activity
   inverse?: boolean
 }) {
+  const { t } = useTranslationSafe()
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
       <div className="flex items-center gap-2 mb-3">
@@ -70,7 +72,7 @@ function KpiCard({ label, planned, actual, variance, unit, icon: Icon, inverse }
           <span className="text-xs text-gray-400">{unit}</span>
         </div>
         <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>Plan: {planned != null ? planned.toFixed(1) : '—'} {unit}</span>
+          <span>{t('voyage.cockpit.plan')} {planned != null ? planned.toFixed(1) : '—'} {unit}</span>
           <VarianceIndicator value={variance} unit={unit} inverse={inverse} />
         </div>
       </div>
@@ -82,28 +84,29 @@ function KpiCard({ label, planned, actual, variance, unit, icon: Icon, inverse }
 // Overview Section
 // ============================================================
 function OverviewSection({ o }: { o: CockpitOverview }) {
+  const { t } = useTranslationSafe()
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-      <KpiCard label="Distance" planned={o.plannedDistanceNm} actual={o.actualDistanceNm}
+      <KpiCard label={t('voyage.cockpit.distance')} planned={o.plannedDistanceNm} actual={o.actualDistanceNm}
         variance={o.distanceVarianceNm} unit="NM" icon={Navigation} />
-      <KpiCard label="Duration" planned={o.plannedDurationHours} actual={o.actualDurationHours}
+      <KpiCard label={t('voyage.cockpit.duration')} planned={o.plannedDurationHours} actual={o.actualDurationHours}
         variance={o.durationVarianceHours} unit="hrs" icon={Clock} />
-      <KpiCard label="Avg Speed" planned={o.plannedSpeedKnots} actual={o.actualSpeedKnots}
+      <KpiCard label={t('voyage.cockpit.avgSpeed')} planned={o.plannedSpeedKnots} actual={o.actualSpeedKnots}
         variance={o.actualSpeedKnots != null && o.plannedSpeedKnots != null
           ? o.actualSpeedKnots - o.plannedSpeedKnots : undefined}
         unit="kn" icon={Activity} inverse />
-      <KpiCard label="Total Fuel" planned={o.plannedFuelMt} actual={o.actualFuelMt}
+      <KpiCard label={t('voyage.cockpit.totalFuel')} planned={o.plannedFuelMt} actual={o.actualFuelMt}
         variance={o.fuelVarianceMt} unit="MT" icon={Fuel} />
       <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
           <div className="p-1.5 rounded-lg bg-blue-50"><BarChart3 className="w-4 h-4 text-blue-600" /></div>
-          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Events / Legs</span>
+          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{t('voyage.cockpit.eventsLegs')}</span>
         </div>
         <div className="flex items-baseline gap-3">
           <span className="text-xl font-bold text-gray-900">{o.totalEvents}</span>
-          <span className="text-xs text-gray-400">events</span>
+          <span className="text-xs text-gray-400">{t('voyage.cockpit.events')}</span>
           <span className="text-xl font-bold text-gray-900">{o.totalLegs}</span>
-          <span className="text-xs text-gray-400">legs</span>
+          <span className="text-xs text-gray-400">{t('voyage.cockpit.legs')}</span>
         </div>
       </div>
     </div>
@@ -115,6 +118,7 @@ function OverviewSection({ o }: { o: CockpitOverview }) {
 // ============================================================
 function LegPerformanceSection({ legs }: { legs: CockpitLegPerformance[] }) {
   const [expanded, setExpanded] = useState<string | null>(null)
+  const { t } = useTranslationSafe()
 
   if (legs.length === 0) return null
 
@@ -122,21 +126,21 @@ function LegPerformanceSection({ legs }: { legs: CockpitLegPerformance[] }) {
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
       <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
         <Navigation className="w-4 h-4 text-blue-600" />
-        <h3 className="text-sm font-semibold text-gray-800">Leg Performance — Plan vs Actual</h3>
+        <h3 className="text-sm font-semibold text-gray-800">{t('voyage.cockpit.legPerformance')}</h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
             <tr>
               <th className="px-4 py-2 text-left">#</th>
-              <th className="px-4 py-2 text-left">Route</th>
-              <th className="px-4 py-2 text-center">Departure</th>
-              <th className="px-4 py-2 text-center">Arrival</th>
-              <th className="px-4 py-2 text-center">Distance (NM)</th>
-              <th className="px-4 py-2 text-center">Duration (hrs)</th>
-              <th className="px-4 py-2 text-center">Speed (kn)</th>
-              <th className="px-4 py-2 text-center">Fuel (MT)</th>
-              <th className="px-4 py-2 text-center">Events</th>
+              <th className="px-4 py-2 text-left">{t('voyage.cockpit.route')}</th>
+              <th className="px-4 py-2 text-center">{t('voyage.cockpit.departure')}</th>
+              <th className="px-4 py-2 text-center">{t('voyage.cockpit.arrival')}</th>
+              <th className="px-4 py-2 text-center">{t('voyage.cockpit.distanceNm')}</th>
+              <th className="px-4 py-2 text-center">{t('voyage.cockpit.durationHrs')}</th>
+              <th className="px-4 py-2 text-center">{t('voyage.cockpit.speedKn')}</th>
+              <th className="px-4 py-2 text-center">{t('voyage.cockpit.fuelMt')}</th>
+              <th className="px-4 py-2 text-center">{t('voyage.cockpit.events')}</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
@@ -232,6 +236,7 @@ function TimelineSection({ events, legs }: { events: CockpitTimelineEvent[]; leg
   const [sourceFilter, setSourceFilter] = useState<Set<CockpitEventSource>>(new Set(ALL_SOURCES))
   const [legFilter, setLegFilter] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
+  const { t } = useTranslationSafe()
 
   const filtered = useMemo(() => {
     return events.filter(ev => {
@@ -254,8 +259,8 @@ function TimelineSection({ events, legs }: { events: CockpitTimelineEvent[]; leg
       <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-blue-600" />
-          <h3 className="text-sm font-semibold text-gray-800">Unified Timeline</h3>
-          <span className="text-xs text-gray-400">({filtered.length} / {events.length} events)</span>
+          <h3 className="text-sm font-semibold text-gray-800">{t('voyage.cockpit.unifiedTimeline')}</h3>
+          <span className="text-xs text-gray-400">({filtered.length} / {events.length} {t('voyage.cockpit.events')})</span>
         </div>
         <button
           onClick={() => setShowFilters(!showFilters)}
@@ -264,7 +269,7 @@ function TimelineSection({ events, legs }: { events: CockpitTimelineEvent[]; leg
           }`}
         >
           <Filter className="w-3.5 h-3.5" />
-          Filters
+          {t('voyage.cockpit.filters')}
         </button>
       </div>
 
@@ -272,7 +277,7 @@ function TimelineSection({ events, legs }: { events: CockpitTimelineEvent[]; leg
         <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 space-y-3">
           {/* Source filters */}
           <div>
-            <span className="text-xs font-medium text-gray-500 uppercase mb-1 block">Source</span>
+            <span className="text-xs font-medium text-gray-500 uppercase mb-1 block">{t('voyage.cockpit.source')}</span>
             <div className="flex flex-wrap gap-1.5">
               {ALL_SOURCES.map(s => {
                 const cfg = SOURCE_CONFIG[s]
@@ -282,7 +287,7 @@ function TimelineSection({ events, legs }: { events: CockpitTimelineEvent[]; leg
                     className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                       active ? `${cfg.bg} ${cfg.color}` : 'bg-gray-100 text-gray-400'
                     }`}>
-                    {cfg.label}
+                    {t(cfg.labelKey)}
                   </button>
                 )
               })}
@@ -291,21 +296,21 @@ function TimelineSection({ events, legs }: { events: CockpitTimelineEvent[]; leg
           {/* Leg filter */}
           {legs.length > 0 && (
             <div>
-              <span className="text-xs font-medium text-gray-500 uppercase mb-1 block">Leg</span>
+              <span className="text-xs font-medium text-gray-500 uppercase mb-1 block">{t('voyage.cockpit.leg')}</span>
               <div className="flex flex-wrap gap-1.5">
                 <button
                   onClick={() => setLegFilter(null)}
                   className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                     !legFilter ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400'
                   }`}>
-                  All
+                  {t('voyage.cockpit.all')}
                 </button>
                 {legs.map(l => (
                   <button key={l.planLegId} onClick={() => setLegFilter(l.planLegId)}
                     className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                       legFilter === l.planLegId ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400'
                     }`}>
-                    Leg {l.sequence}: {l.fromPortCode}→{l.toPortCode}
+                    {t('voyage.cockpit.leg')} {l.sequence}: {l.fromPortCode}→{l.toPortCode}
                   </button>
                 ))}
               </div>
@@ -316,7 +321,7 @@ function TimelineSection({ events, legs }: { events: CockpitTimelineEvent[]; leg
 
       <div className="max-h-[600px] overflow-y-auto divide-y divide-gray-50">
         {filtered.length === 0 ? (
-          <div className="px-5 py-10 text-center text-gray-400 text-sm">No events match the current filters</div>
+          <div className="px-5 py-10 text-center text-gray-400 text-sm">{t('voyage.cockpit.noEventsMatch')}</div>
         ) : (
           filtered.map(ev => <TimelineEventRow key={ev.id} event={ev} />)
         )}
@@ -327,6 +332,7 @@ function TimelineSection({ events, legs }: { events: CockpitTimelineEvent[]; leg
 
 function TimelineEventRow({ event: ev, compact }: { event: CockpitTimelineEvent; compact?: boolean }) {
   const cfg = SOURCE_CONFIG[ev.source] || SOURCE_CONFIG.LOG
+  const { t } = useTranslationSafe()
 
   return (
     <div className={`flex items-start gap-3 ${compact ? 'py-1.5' : 'px-5 py-3 hover:bg-gray-50'}`}>
@@ -340,11 +346,11 @@ function TimelineEventRow({ event: ev, compact }: { event: CockpitTimelineEvent;
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-medium text-gray-900 text-sm">{ev.title}</span>
           <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${cfg.bg} ${cfg.color}`}>
-            {cfg.label}
+            {t(cfg.labelKey)}
           </span>
           {ev.planLegSequence != null && (
             <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">
-              Leg {ev.planLegSequence}
+              {t('voyage.cockpit.leg')} {ev.planLegSequence}
             </span>
           )}
           {ev.reportStatus && (
@@ -377,21 +383,22 @@ function TimelineEventRow({ event: ev, compact }: { event: CockpitTimelineEvent;
 // ============================================================
 function FuelSummarySection({ items }: { items: CockpitFuelSummaryItem[] }) {
   if (items.length === 0) return null
+  const { t } = useTranslationSafe()
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
       <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
         <Fuel className="w-4 h-4 text-red-500" />
-        <h3 className="text-sm font-semibold text-gray-800">Fuel Summary</h3>
+        <h3 className="text-sm font-semibold text-gray-800">{t('voyage.cockpit.fuelSummary')}</h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
             <tr>
-              <th className="px-4 py-2 text-left">Fuel Type</th>
-              <th className="px-4 py-2 text-right">Planned (MT)</th>
-              <th className="px-4 py-2 text-right">Actual (MT)</th>
-              <th className="px-4 py-2 text-right">Variance</th>
+              <th className="px-4 py-2 text-left">{t('voyage.cockpit.fuelType')}</th>
+              <th className="px-4 py-2 text-right">{t('voyage.cockpit.plannedMt')}</th>
+              <th className="px-4 py-2 text-right">{t('voyage.cockpit.actualMt')}</th>
+              <th className="px-4 py-2 text-right">{t('voyage.cockpit.variance')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -419,32 +426,33 @@ function CargoSummarySection({ cargo }: { cargo: CockpitCargoSummary }) {
   const hasData = cargo.totalPlannedLoading > 0 || cargo.totalPlannedDischarging > 0
     || cargo.totalActualLoaded > 0 || cargo.totalActualDischarged > 0
   if (!hasData) return null
+  const { t } = useTranslationSafe()
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
       <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
         <Package className="w-4 h-4 text-orange-500" />
-        <h3 className="text-sm font-semibold text-gray-800">Cargo Summary</h3>
+        <h3 className="text-sm font-semibold text-gray-800">{t('voyage.cockpit.cargoSummary')}</h3>
       </div>
       <div className="grid grid-cols-2 gap-4 p-5">
         <div className="space-y-3">
-          <h4 className="text-xs font-medium text-gray-500 uppercase">Loading</h4>
+          <h4 className="text-xs font-medium text-gray-500 uppercase">{t('voyage.cockpit.loading2')}</h4>
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold text-gray-900">{cargo.totalActualLoaded.toFixed(1)}</span>
-            <span className="text-xs text-gray-400">actual</span>
+            <span className="text-xs text-gray-400">{t('voyage.cockpit.actual')}</span>
           </div>
-          <div className="text-xs text-gray-500">Planned: {cargo.totalPlannedLoading.toFixed(1)}</div>
+          <div className="text-xs text-gray-500">{t('voyage.cockpit.planned')} {cargo.totalPlannedLoading.toFixed(1)}</div>
           <VarianceIndicator
             value={cargo.totalActualLoaded - cargo.totalPlannedLoading}
             unit="" />
         </div>
         <div className="space-y-3">
-          <h4 className="text-xs font-medium text-gray-500 uppercase">Discharging</h4>
+          <h4 className="text-xs font-medium text-gray-500 uppercase">{t('voyage.cockpit.discharging')}</h4>
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold text-gray-900">{cargo.totalActualDischarged.toFixed(1)}</span>
-            <span className="text-xs text-gray-400">actual</span>
+            <span className="text-xs text-gray-400">{t('voyage.cockpit.actual')}</span>
           </div>
-          <div className="text-xs text-gray-500">Planned: {cargo.totalPlannedDischarging.toFixed(1)}</div>
+          <div className="text-xs text-gray-500">{t('voyage.cockpit.planned')} {cargo.totalPlannedDischarging.toFixed(1)}</div>
           <VarianceIndicator
             value={cargo.totalActualDischarged - cargo.totalPlannedDischarging}
             unit="" />
@@ -461,6 +469,7 @@ export default function CockpitTab({ voyageId }: { voyageId: string }) {
   const [data, setData] = useState<VoyageCockpitDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { t } = useTranslationSafe()
 
   useEffect(() => {
     let cancelled = false
@@ -471,8 +480,8 @@ export default function CockpitTab({ voyageId }: { voyageId: string }) {
       .then(d => { if (!cancelled) setData(d) })
       .catch(err => {
         if (!cancelled) {
-          setError(err.message || 'Failed to load cockpit data')
-          toast.error('Failed to load cockpit data')
+          setError(err.message || t('voyage.cockpit.failedLoad'))
+          toast.error(t('voyage.cockpit.failedLoad'))
         }
       })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -485,7 +494,7 @@ export default function CockpitTab({ voyageId }: { voyageId: string }) {
       <div className="flex items-center justify-center py-20">
         <div className="flex items-center gap-3 text-gray-500">
           <div className="w-5 h-5 border-2 border-blue-300 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm">Loading operations cockpit…</span>
+          <span className="text-sm">{t('voyage.cockpit.loading')}</span>
         </div>
       </div>
     )
@@ -495,7 +504,7 @@ export default function CockpitTab({ voyageId }: { voyageId: string }) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-gray-400">
         <AlertCircle className="w-10 h-10 mb-3 text-red-300" />
-        <p className="text-sm">{error || 'No data available'}</p>
+        <p className="text-sm">{error || t('voyage.cockpit.noData')}</p>
       </div>
     )
   }
@@ -508,7 +517,7 @@ export default function CockpitTab({ voyageId }: { voyageId: string }) {
           <Activity className="w-5 h-5 text-blue-600" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-gray-900">Operations Cockpit</h2>
+          <h2 className="text-lg font-bold text-gray-900">{t('voyage.cockpit.title')}</h2>
           <p className="text-xs text-gray-500">
             {data.voyageNumber} — {data.departurePort || '?'} → {data.arrivalPort || '?'}
             {data.vesselName && ` • ${data.vesselName}`}

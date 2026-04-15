@@ -5,6 +5,7 @@ import {
   DollarSign, AlertCircle, Award, Ship,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 import { voyageMgmtService } from '@/services/voyage.service'
 import type {
   VoyageEfficiencyReport,
@@ -47,6 +48,32 @@ const DIMENSION_ICONS: Record<string, typeof Fuel> = {
   'Total Margin': BarChart3,
 }
 
+const DIMENSION_LABEL_KEYS: Record<string, string> = {
+  'Fuel Consumption': 'voyage.efficiency.dimensions.fuelConsumption',
+  'Sea Time': 'voyage.efficiency.dimensions.seaTime',
+  'Port Time': 'voyage.efficiency.dimensions.portTime',
+  'Average Speed': 'voyage.efficiency.dimensions.averageSpeed',
+  'Distance': 'voyage.efficiency.dimensions.distance',
+  'Cargo Productivity': 'voyage.efficiency.dimensions.cargoProductivity',
+  'Bunker Cost': 'voyage.efficiency.dimensions.bunkerCost',
+  'Port Cost': 'voyage.efficiency.dimensions.portCost',
+  'Crew Change Cost': 'voyage.efficiency.dimensions.crewChangeCost',
+  'Total Cost': 'voyage.efficiency.dimensions.totalCost',
+  'Total Revenue': 'voyage.efficiency.dimensions.totalRevenue',
+  'Total Margin': 'voyage.efficiency.dimensions.totalMargin',
+}
+
+const RATING_LABEL_KEYS: Record<string, string> = {
+  BETTER: 'voyage.efficiency.better',
+  ON_TARGET: 'voyage.efficiency.onTarget',
+  WORSE: 'voyage.efficiency.worse',
+  'N/A': 'voyage.efficiency.na',
+  EXCELLENT: 'voyage.efficiency.excellent',
+  GOOD: 'voyage.efficiency.good',
+  FAIR: 'voyage.efficiency.fair',
+  POOR: 'voyage.efficiency.poor',
+}
+
 function formatValue(value: number | undefined, unit: string): string {
   if (value == null) return '—'
   if (unit === 'USD') return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
@@ -61,12 +88,13 @@ function formatPercent(value: number | undefined): string {
 }
 
 function RatingBadge({ rating }: { rating: string }) {
+  const { t } = useTranslationSafe()
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${RATING_COLORS[rating] || RATING_COLORS['N/A']}`}>
       {rating === 'BETTER' && <TrendingDown className="w-3 h-3" />}
       {rating === 'WORSE' && <TrendingUp className="w-3 h-3" />}
       {rating === 'ON_TARGET' && <Minus className="w-3 h-3" />}
-      {rating.replace(/_/g, ' ')}
+      {t(RATING_LABEL_KEYS[rating] || rating)}
     </span>
   )
 }
@@ -78,6 +106,7 @@ function RatingBadge({ rating }: { rating: string }) {
 function DimensionCard({ dim }: { dim: EfficiencyDimension }) {
   const Icon = DIMENSION_ICONS[dim.label] || BarChart3
   const hasData = dim.estimated != null || dim.actual != null
+  const { t } = useTranslationSafe()
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
@@ -86,7 +115,7 @@ function DimensionCard({ dim }: { dim: EfficiencyDimension }) {
           <div className="p-1.5 rounded-lg bg-gray-100">
             <Icon className="w-4 h-4 text-gray-600" />
           </div>
-          <span className="text-sm font-semibold text-gray-700">{dim.label}</span>
+          <span className="text-sm font-semibold text-gray-700">{t(DIMENSION_LABEL_KEYS[dim.label] || dim.label)}</span>
         </div>
         <RatingBadge rating={dim.rating} />
       </div>
@@ -95,18 +124,18 @@ function DimensionCard({ dim }: { dim: EfficiencyDimension }) {
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <div className="text-xs text-gray-500">Estimated</div>
+              <div className="text-xs text-gray-500">{t('voyage.efficiency.estimated')}</div>
               <div className="text-sm font-bold text-gray-900">{formatValue(dim.estimated, dim.unit)}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-500">Actual</div>
+              <div className="text-xs text-gray-500">{t('voyage.efficiency.actual')}</div>
               <div className="text-sm font-bold text-gray-900">{formatValue(dim.actual, dim.unit)}</div>
             </div>
           </div>
 
           {dim.variance != null && (
             <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-              <div className="text-xs text-gray-500">Variance</div>
+              <div className="text-xs text-gray-500">{t('voyage.efficiency.variance')}</div>
               <div className="flex items-center gap-2">
                 <span className={`text-sm font-semibold ${dim.rating === 'BETTER' ? 'text-green-600' : dim.rating === 'WORSE' ? 'text-red-600' : 'text-blue-600'}`}>
                   {dim.unit === 'USD'
@@ -135,7 +164,7 @@ function DimensionCard({ dim }: { dim: EfficiencyDimension }) {
           )}
         </div>
       ) : (
-        <div className="text-sm text-gray-400 text-center py-3">No data available</div>
+        <div className="text-sm text-gray-400 text-center py-3">{t('voyage.efficiency.noData')}</div>
       )}
     </div>
   )
@@ -151,6 +180,7 @@ function BreakdownTable({ title, items, icon: Icon }: {
   icon: typeof DollarSign
 }) {
   if (items.length === 0) return null
+  const { t } = useTranslationSafe()
 
   const totalEst = items.reduce((s, i) => s + i.estimated, 0)
   const totalAct = items.reduce((s, i) => s + i.actual, 0)
@@ -166,10 +196,10 @@ function BreakdownTable({ title, items, icon: Icon }: {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase">
-              <th className="text-left px-4 py-2">Category</th>
-              <th className="text-right px-4 py-2">Estimated</th>
-              <th className="text-right px-4 py-2">Actual</th>
-              <th className="text-right px-4 py-2">Variance</th>
+              <th className="text-left px-4 py-2">{t('voyage.efficiency.category')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.efficiency.estimated')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.efficiency.actual')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.efficiency.variance')}</th>
               <th className="text-right px-4 py-2">%</th>
             </tr>
           </thead>
@@ -189,7 +219,7 @@ function BreakdownTable({ title, items, icon: Icon }: {
             ))}
             {/* Total row */}
             <tr className="bg-gray-50 font-bold text-gray-900">
-              <td className="px-4 py-2">TOTAL</td>
+              <td className="px-4 py-2">{t('voyage.efficiency.total')}</td>
               <td className="px-4 py-2 text-right">{formatValue(totalEst, 'USD')}</td>
               <td className="px-4 py-2 text-right">{formatValue(totalAct, 'USD')}</td>
               <td className={`px-4 py-2 text-right ${totalVar < 0 ? 'text-green-600' : totalVar > 0 ? 'text-red-600' : ''}`}>
@@ -212,26 +242,27 @@ function BreakdownTable({ title, items, icon: Icon }: {
 
 function LegEfficiencyTable({ legs }: { legs: LegEfficiency[] }) {
   if (legs.length === 0) return null
+  const { t } = useTranslationSafe()
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
         <Navigation className="w-4 h-4 text-gray-600" />
-        <h3 className="text-sm font-bold text-gray-700">Leg-by-Leg Efficiency</h3>
+        <h3 className="text-sm font-bold text-gray-700">{t('voyage.efficiency.legEfficiency')}</h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase">
               <th className="text-left px-4 py-2">#</th>
-              <th className="text-left px-4 py-2">Type</th>
-              <th className="text-left px-4 py-2">Route</th>
-              <th className="text-right px-4 py-2">Plan Dist</th>
-              <th className="text-right px-4 py-2">Plan Time</th>
-              <th className="text-right px-4 py-2">Actual Time</th>
-              <th className="text-right px-4 py-2">Time Var</th>
-              <th className="text-right px-4 py-2">Plan Speed</th>
-              <th className="text-right px-4 py-2">Actual Speed</th>
+              <th className="text-left px-4 py-2">{t('voyage.efficiency.type')}</th>
+              <th className="text-left px-4 py-2">{t('voyage.efficiency.route')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.efficiency.planDist')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.efficiency.planTime')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.efficiency.actualTime')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.efficiency.timeVar')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.efficiency.planSpeed')}</th>
+              <th className="text-right px-4 py-2">{t('voyage.efficiency.actualSpeed')}</th>
             </tr>
           </thead>
           <tbody>
@@ -289,6 +320,7 @@ export default function EfficiencyTab({ voyageId }: { voyageId: string }) {
   const [report, setReport] = useState<VoyageEfficiencyReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { t } = useTranslationSafe()
 
   const loadReport = useCallback(async () => {
     try {
@@ -297,8 +329,8 @@ export default function EfficiencyTab({ voyageId }: { voyageId: string }) {
       const data = await voyageMgmtService.efficiency.getReport(voyageId)
       setReport(data)
     } catch (err: any) {
-      setError(err.message || 'Failed to load efficiency report')
-      toast.error('Failed to load efficiency report')
+      setError(err.message || t('voyage.efficiency.failedLoad'))
+      toast.error(t('voyage.efficiency.failedLoad'))
     } finally {
       setLoading(false)
     }
@@ -318,7 +350,7 @@ export default function EfficiencyTab({ voyageId }: { voyageId: string }) {
     return (
       <div className="text-center py-12 text-gray-500">
         <AlertCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-        <p>{error || 'Unable to load efficiency report'}</p>
+        <p>{error || t('voyage.efficiency.unableLoad')}</p>
       </div>
     )
   }
@@ -338,14 +370,14 @@ export default function EfficiencyTab({ voyageId }: { voyageId: string }) {
               <span className={`text-2xl font-black ${ratingStyle.text}`}>{report.overallScore.toFixed(0)}</span>
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Voyage Efficiency — {report.voyageNumber}</h2>
+              <h2 className="text-lg font-bold text-gray-900">{t('voyage.efficiency.title')} — {report.voyageNumber}</h2>
               <div className="flex items-center gap-2 mt-1">
                 <Award className={`w-4 h-4 ${ratingStyle.text}`} />
-                <span className={`text-sm font-bold ${ratingStyle.text}`}>{report.overallRating}</span>
+                <span className={`text-sm font-bold ${ratingStyle.text}`}>{t(RATING_LABEL_KEYS[report.overallRating] || report.overallRating)}</span>
                 {report.actualVoyageDurationHours != null && (
                   <span className="text-xs text-gray-500 ml-2">
-                    Duration: {report.actualVoyageDurationHours.toFixed(1)}h
-                    ({(report.actualVoyageDurationHours / 24).toFixed(1)} days)
+                    {t('voyage.efficiency.duration')} {report.actualVoyageDurationHours.toFixed(1)}h
+                    ({(report.actualVoyageDurationHours / 24).toFixed(1)} {t('voyage.efficiency.days')}
                   </span>
                 )}
               </div>
@@ -353,14 +385,14 @@ export default function EfficiencyTab({ voyageId }: { voyageId: string }) {
           </div>
           <div className="text-right text-xs text-gray-500">
             <div>{report.voyageStatus} / {report.financialStatus}</div>
-            {report.charterType && <div>Charter: {report.charterType}</div>}
+            {report.charterType && <div>{t('voyage.efficiency.charter')} {report.charterType}</div>}
           </div>
         </div>
       </div>
 
       {/* Operational Dimensions */}
       <div>
-        <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-3">Operational Performance</h3>
+        <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-3">{t('voyage.efficiency.operational')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {operationalDimensions.map(d => (
             <DimensionCard key={d.label} dim={d} />
@@ -370,7 +402,7 @@ export default function EfficiencyTab({ voyageId }: { voyageId: string }) {
 
       {/* Financial Dimensions */}
       <div>
-        <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-3">Financial Performance</h3>
+        <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-3">{t('voyage.efficiency.financial')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {financialDimensions.map(d => (
             <DimensionCard key={d.label} dim={d} />
@@ -380,8 +412,8 @@ export default function EfficiencyTab({ voyageId }: { voyageId: string }) {
 
       {/* Breakdowns */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <BreakdownTable title="Cost Breakdown" items={report.costBreakdown} icon={TrendingDown} />
-        <BreakdownTable title="Revenue Breakdown" items={report.revenueBreakdown} icon={TrendingUp} />
+        <BreakdownTable title={t('voyage.efficiency.costBreakdown')} items={report.costBreakdown} icon={TrendingDown} />
+        <BreakdownTable title={t('voyage.efficiency.revenueBreakdown')} items={report.revenueBreakdown} icon={TrendingUp} />
       </div>
 
       {/* Leg Efficiency */}

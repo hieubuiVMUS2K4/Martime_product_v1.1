@@ -3,8 +3,10 @@ import { Search, Plus, Edit2, Trash2, MapPin, Globe, X, Check, ChevronLeft, Chev
 import { toast } from 'sonner'
 import { voyageMgmtService } from '@/services/voyage.service'
 import type { Port, CreatePortDto, UpdatePortDto, PortSearchQuery } from '@/types/voyage.types'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
 export function PortManagementPage() {
+  const { t } = useTranslationSafe()
   const [ports, setPorts] = useState<Port[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -102,12 +104,12 @@ export function PortManagementPage() {
 
   const handleSave = async () => {
     if (!formData.portCode || !formData.portName) {
-      toast.error('Port Code and Port Name are required')
+      toast.error(t('voyage.portMgmt.portCodeRequired'))
       return
     }
 
     if (formData.portCode.length !== 5) {
-      toast.error('Port Code must be exactly 5 characters (UN/LOCODE format)')
+      toast.error(t('voyage.portMgmt.portCodeLength'))
       return
     }
 
@@ -123,28 +125,28 @@ export function PortManagementPage() {
           timeZone: formData.timeZone || undefined,
         }
         await voyageMgmtService.ports.update(editingPort.id, updateData)
-        toast.success(`Port ${editingPort.portCode} updated`)
+        toast.success(t('voyage.portMgmt.portUpdated', { code: editingPort.portCode }))
       } else {
         await voyageMgmtService.ports.create(formData)
-        toast.success(`Port ${formData.portCode} created`)
+        toast.success(t('voyage.portMgmt.portCreated', { code: formData.portCode }))
       }
       setShowModal(false)
       loadPorts()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to save port')
+      toast.error(err.message || t('voyage.portMgmt.failedSave'))
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (port: Port) => {
-    if (!confirm(`Deactivate port ${port.portCode} - ${port.portName}?`)) return
+    if (!confirm(t('voyage.portMgmt.deactivateConfirm', { code: port.portCode, name: port.portName }))) return
     try {
       await voyageMgmtService.ports.delete(port.id)
-      toast.success(`Port ${port.portCode} deactivated`)
+      toast.success(t('voyage.portMgmt.portDeactivated', { code: port.portCode }))
       loadPorts()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to delete port')
+      toast.error(err.message || t('voyage.portMgmt.failedDelete'))
     }
   }
 
@@ -156,10 +158,10 @@ export function PortManagementPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <MapPin className="w-7 h-7 text-blue-600" />
-              Port Management
+              {t('voyage.portMgmt.title')}
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              Manage port master data (UN/LOCODE standard) — {totalCount} ports
+              {t('voyage.portMgmt.subtitle', { count: totalCount })}
             </p>
           </div>
           <button
@@ -167,7 +169,7 @@ export function PortManagementPage() {
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" />
-            Add Port
+            {t('voyage.portMgmt.addPort')}
           </button>
         </div>
 
@@ -177,7 +179,7 @@ export function PortManagementPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by port code, name, or country..."
+              placeholder={t('voyage.portMgmt.searchPlaceholder')}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -188,7 +190,7 @@ export function PortManagementPage() {
             onChange={e => setFilterCountry(e.target.value)}
             className="px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[160px]"
           >
-            <option value="">All Countries</option>
+            <option value="">{t('voyage.portMgmt.allCountries')}</option>
             {countries.map(c => (
               <option key={c} value={c}>{c}</option>
             ))}
@@ -201,28 +203,28 @@ export function PortManagementPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 w-[100px]">Code</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Port Name</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 w-[160px]">Country</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 w-[80px]">Code</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-700 w-[100px]">Lat</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-700 w-[100px]">Lng</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 w-[120px]">TimeZone</th>
-                  <th className="text-center px-4 py-3 font-semibold text-gray-700 w-[90px]">Actions</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 w-[100px]">{t('voyage.portMgmt.code')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700">{t('voyage.portMgmt.portName')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 w-[160px]">{t('voyage.portMgmt.country')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 w-[80px]">{t('voyage.portMgmt.code')}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-700 w-[100px]">{t('voyage.portMgmt.lat')}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-700 w-[100px]">{t('voyage.portMgmt.lng')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 w-[120px]">{t('voyage.portMgmt.timeZone')}</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-700 w-[90px]">{t('voyage.portMgmt.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
                     <td colSpan={8} className="text-center py-12 text-gray-400">
-                      Loading ports...
+                      {t('voyage.portMgmt.loading')}
                     </td>
                   </tr>
                 ) : ports.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="text-center py-12 text-gray-400">
                       <Globe className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      No ports found. Add ports or run `seed_ports.sql` to populate.
+                      {t('voyage.portMgmt.noPortsFound')}
                     </td>
                   </tr>
                 ) : (
@@ -248,14 +250,14 @@ export function PortManagementPage() {
                           <button
                             onClick={() => openEditModal(port)}
                             className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                            title="Edit"
+                            title={t('voyage.portMgmt.edit')}
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(port)}
                             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                            title="Deactivate"
+                            title={t('voyage.portMgmt.deactivate')}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -272,7 +274,7 @@ export function PortManagementPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
               <span className="text-sm text-gray-500">
-                Page {page} of {totalPages} ({totalCount} ports)
+                {t('voyage.portMgmt.page', { page, totalPages, totalCount })}
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -301,7 +303,7 @@ export function PortManagementPage() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h2 className="text-lg font-semibold text-gray-900">
-                {editingPort ? `Edit Port — ${editingPort.portCode}` : 'Add New Port'}
+                {editingPort ? t('voyage.portMgmt.editPort', { code: editingPort.portCode }) : t('voyage.portMgmt.addNewPort')}
               </h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
@@ -312,7 +314,7 @@ export function PortManagementPage() {
               {/* Port Code */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Port Code (UN/LOCODE) <span className="text-red-500">*</span>
+                  {t('voyage.portMgmt.portCodeLabel')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -323,13 +325,13 @@ export function PortManagementPage() {
                   maxLength={5}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 font-mono uppercase"
                 />
-                <p className="text-xs text-gray-400 mt-1">5 characters: 2-letter country code + 3-letter location</p>
+                <p className="text-xs text-gray-400 mt-1">{t('voyage.portMgmt.portCodeHint')}</p>
               </div>
 
               {/* Port Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Port Name <span className="text-red-500">*</span>
+                  {t('voyage.portMgmt.portNameLabel')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -343,7 +345,7 @@ export function PortManagementPage() {
               {/* Country / Code */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.portMgmt.country')}</label>
                   <input
                     type="text"
                     value={formData.country || ''}
@@ -353,7 +355,7 @@ export function PortManagementPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Country Code</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.portMgmt.countryCode')}</label>
                   <input
                     type="text"
                     value={formData.countryCode || ''}
@@ -368,7 +370,7 @@ export function PortManagementPage() {
               {/* Lat / Lng */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.portMgmt.latitude')}</label>
                   <input
                     type="number"
                     step="0.0001"
@@ -379,7 +381,7 @@ export function PortManagementPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.portMgmt.longitude')}</label>
                   <input
                     type="number"
                     step="0.0001"
@@ -393,7 +395,7 @@ export function PortManagementPage() {
 
               {/* TimeZone */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Time Zone</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('voyage.portMgmt.timeZone')}</label>
                 <input
                   type="text"
                   value={formData.timeZone || ''}
@@ -409,7 +411,7 @@ export function PortManagementPage() {
                 onClick={() => setShowModal(false)}
                 className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100"
               >
-                Cancel
+                {t('voyage.portMgmt.cancel')}
               </button>
               <button
                 onClick={handleSave}
@@ -417,7 +419,7 @@ export function PortManagementPage() {
                 className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 <Check className="w-4 h-4" />
-                {saving ? 'Saving...' : editingPort ? 'Update Port' : 'Create Port'}
+                {saving ? t('voyage.portMgmt.saving') : editingPort ? t('voyage.portMgmt.updatePort') : t('voyage.portMgmt.createPort')}
               </button>
             </div>
           </div>

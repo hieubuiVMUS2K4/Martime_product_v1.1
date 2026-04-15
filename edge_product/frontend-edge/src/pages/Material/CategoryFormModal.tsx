@@ -95,20 +95,20 @@ export function CategoryFormModal({
             <div className="p-5 space-y-5">
               {/* General Info */}
               <div>
-                <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">Thông tin danh mục</div>
+                <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">{t('materials.category.sectionInfo')}</div>
                 <div className="border border-t-0 border-gray-200 rounded-b p-4 space-y-2.5">
                   <div className="flex items-center">
-                    <label className={lbl} style={{ width: 120 }}>Mã danh mục <span className="text-red-500">*</span></label>
-                    <input type="text" required maxLength={50} value={formData.categoryCode} onChange={e => setFormData({ ...formData, categoryCode: e.target.value })} className={inp} placeholder="VD: CAT-001" />
+                    <label className={lbl} style={{ width: 120 }}>{t('materials.category.code')} <span className="text-red-500">*</span></label>
+                    <input type="text" required maxLength={50} value={formData.categoryCode} onChange={e => setFormData({ ...formData, categoryCode: e.target.value })} className={inp} placeholder={t('materials.category.codePlaceholder')} />
                   </div>
                   <div className="flex items-center">
-                    <label className={lbl} style={{ width: 120 }}>Tên danh mục <span className="text-red-500">*</span></label>
-                    <input type="text" required maxLength={200} value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={inp} placeholder="Tên danh mục" />
+                    <label className={lbl} style={{ width: 120 }}>{t('materials.category.name')} <span className="text-red-500">*</span></label>
+                    <input type="text" required maxLength={200} value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={inp} placeholder={t('materials.category.namePlaceholder')} />
                   </div>
                   <div className="flex items-center">
-                    <label className={lbl} style={{ width: 120 }}>Danh mục cha</label>
+                    <label className={lbl} style={{ width: 120 }}>{t('materials.category.parentCategory')}</label>
                     <select value={formData.parentCategoryId || ''} onChange={e => setFormData({ ...formData, parentCategoryId: e.target.value ? Number(e.target.value) : null })} className={inp}>
-                      <option value="">Không (Cấp cao nhất)</option>
+                      <option value="">{t('materials.category.noneTopLevel')}</option>
                       {availableParents.map(c => <option key={c.id} value={c.id}>{c.name} ({c.categoryCode})</option>)}
                     </select>
                   </div>
@@ -117,7 +117,7 @@ export function CategoryFormModal({
 
               {/* Description */}
               <div>
-                <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">Mô tả</div>
+                <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">{t('materials.category.description')}</div>
                 <div className="border border-t-0 border-gray-200 rounded-b p-4">
                   <textarea
                     rows={3}
@@ -125,18 +125,18 @@ export function CategoryFormModal({
                     value={formData.description || ''}
                     onChange={e => setFormData({ ...formData, description: e.target.value })}
                     className={`${inp} resize-y`}
-                    placeholder="Mô tả tùy chọn..."
+                    placeholder={t('materials.category.descriptionPlaceholder')}
                   />
                 </div>
               </div>
 
               {/* Options */}
               <div>
-                <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">Tùy chọn</div>
+                <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">{t('materials.category.options')}</div>
                 <div className="border border-t-0 border-gray-200 rounded-b p-4">
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={formData.isActive} onChange={e => setFormData({ ...formData, isActive: e.target.checked })} className="w-4 h-4 text-blue-600 rounded" />
-                    Đang hoạt động
+                    {t('materials.category.isActive')}
                   </label>
                 </div>
               </div>

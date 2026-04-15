@@ -26,23 +26,16 @@ import DeferralReviewModal from '@/components/pms/DeferralReviewModal'
 import { format, parseISO } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import { toast } from 'sonner'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
-const STATUS_LABELS: Record<string, string> = {
-  SCHEDULED: 'Chưa bắt đầu',
-  DUE: 'Đến hạn',
-  OVERDUE: 'Quá hạn',
-  IN_PROGRESS: 'Đang thực hiện',
-  PENDING_APPROVAL: 'Chờ duyệt',
-  RECTIFY: 'Trả hoàn',
-  COMPLETED: 'Hoàn thành',
-  CANCELLED: 'Hủy bỏ',
+const STATUS_KEY_MAP: Record<string, string> = {
+  SCHEDULED: 'scheduled', DUE: 'due', OVERDUE: 'overdue',
+  IN_PROGRESS: 'inProgress', PENDING_APPROVAL: 'pendingApproval',
+  RECTIFY: 'rectify', COMPLETED: 'completed', CANCELLED: 'cancelled',
 }
 
-const PRIORITY_LABELS: Record<string, string> = {
-  CRITICAL: 'Rất cao',
-  HIGH: 'Cao',
-  NORMAL: 'Trung bình',
-  LOW: 'Thấp',
+const PRIORITY_KEY_MAP: Record<string, string> = {
+  CRITICAL: 'critical', HIGH: 'high', NORMAL: 'normal', MEDIUM: 'medium', LOW: 'low',
 }
 
 type BottomTab = 'report' | 'checklist' | 'materials' | 'risk' | 'inspection'
@@ -50,6 +43,9 @@ type BottomTab = 'report' | 'checklist' | 'materials' | 'risk' | 'inspection'
 export default function WorkReportPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { t } = useTranslationSafe()
+  const getStatusLabel = (status: string) => t(`pms.workReport.status.${STATUS_KEY_MAP[status] || 'scheduled'}`)
+  const getPriorityLabel = (priority: string) => t(`pms.workReport.priority.${PRIORITY_KEY_MAP[priority] || 'normal'}`)
 
   const [task, setTask] = useState<MaintenanceTask | null>(null)
   const [loading, setLoading] = useState(true)
@@ -188,7 +184,7 @@ export default function WorkReportPage() {
       }
     } catch (error) {
       console.error('Failed to load task:', error)
-      toast.error('Không thể tải thông tin công việc')
+      toast.error(t('pms.workReport.toast.loadFailed'))
       navigate('/pms/work-planning')
     } finally {
       setLoading(false)
@@ -285,7 +281,7 @@ export default function WorkReportPage() {
       ))
     } catch (err) {
       console.error('Toggle checklist failed:', err)
-      toast.error('Cập nhật hạng mục thất bại')
+      toast.error(t('pms.workReport.toast.checklistUpdateFailed'))
     } finally {
       setTogglingChecklist(null)
     }
@@ -302,14 +298,14 @@ export default function WorkReportPage() {
         ci.id === item.id ? { ...ci, [field]: value } : ci
       ))
     } catch {
-      toast.error('Cập nhật thất bại')
+      toast.error(t('pms.workReport.toast.updateFailed'))
     }
   }
 
   // Spare parts management
   const handleAddSparePart = (mat: MaterialItem) => {
     if (usedSpareParts.find(p => p.materialItemId === mat.id)) {
-      toast.error('Vật tư đã được thêm')
+      toast.error(t('pms.workReport.toast.materialAlreadyAdded'))
       return
     }
     setUsedSpareParts(prev => [...prev, {
@@ -375,11 +371,11 @@ export default function WorkReportPage() {
         actualDuration,
         checklistCompleted: reportCompleted,
       })
-      toast.success('Đã lưu báo cáo công việc')
+      toast.success(t('pms.workReport.toast.savedSuccess'))
       await loadTask()
     } catch (error: any) {
       console.error('Save failed:', error)
-      const msg = error?.response?.data?.error || error?.message || 'Lưu báo cáo thất bại'
+      const msg = error?.response?.data?.error || error?.message || t('pms.workReport.toast.saveFailed')
       toast.error(msg)
     } finally {
       setSaving(false)
@@ -392,9 +388,9 @@ export default function WorkReportPage() {
       setSavingRisk(true)
       await maritimeService.maintenance.saveRiskAssessment(task.taskId || id!, riskForm)
       setRiskFilled(true)
-      toast.success('Đã lưu biểu mẫu ĐGRR')
+      toast.success(t('pms.workReport.toast.riskSaved'))
     } catch (error: any) {
-      toast.error(error?.response?.data?.error || 'Lưu ĐGRR thất bại')
+      toast.error(error?.response?.data?.error || t('pms.workReport.toast.riskSaveFailed'))
     } finally {
       setSavingRisk(false)
     }
@@ -410,9 +406,9 @@ export default function WorkReportPage() {
       }
       await maritimeService.maintenance.saveInspectionReport(task.taskId || id!, payload)
       setBbktFilled(true)
-      toast.success('Đã lưu biên bản BBKT')
+      toast.success(t('pms.workReport.toast.inspectionSaved'))
     } catch (error: any) {
-      toast.error(error?.response?.data?.error || 'Lưu BBKT thất bại')
+      toast.error(error?.response?.data?.error || t('pms.workReport.toast.inspectionSaveFailed'))
     } finally {
       setSavingBbkt(false)
     }
@@ -430,7 +426,7 @@ export default function WorkReportPage() {
       a.click()
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
     } catch {
-      toast.error('Không thể tạo PDF ĐGRR. Vui lòng lưu biểu mẫu trước.')
+      toast.error(t('pms.workReport.toast.riskPdfFailed'))
     } finally {
       setRiskPdfLoading(false)
     }
@@ -448,7 +444,7 @@ export default function WorkReportPage() {
       a.click()
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
     } catch {
-      toast.error('Không thể tạo PDF BBKT. Vui lòng lưu biểu mẫu trước.')
+      toast.error(t('pms.workReport.toast.inspectionPdfFailed'))
     } finally {
       setBbktPdfLoading(false)
     }
@@ -458,12 +454,12 @@ export default function WorkReportPage() {
     if (!task) return
     // Validate required forms before submitting
     if (task.requireRiskAssessment && !riskFilled) {
-      toast.error('Công việc này yêu cầu điền biểu mẫu ĐGRR trước khi hoàn thành')
+      toast.error(t('pms.workReport.toast.requireRisk'))
       setActiveTab('risk')
       return
     }
     if (task.requireInspectionReport && !bbktFilled) {
-      toast.error('Công việc này yêu cầu điền biên bản BBKT trước khi hoàn thành')
+      toast.error(t('pms.workReport.toast.requireInspection'))
       setActiveTab('inspection')
       return
     }
@@ -474,11 +470,11 @@ export default function WorkReportPage() {
         sparePartsUsed: sparePartsUsed || undefined,
       }
       await submitTask(task.id, dto)
-      toast.success('Đã gửi báo cáo chờ phê duyệt')
+      toast.success(t('pms.workReport.toast.submitted'))
       await loadTask()
     } catch (error: any) {
       console.error('Submit failed:', error)
-      const msg = error?.response?.data?.error || 'Gửi báo cáo thất bại'
+      const msg = error?.response?.data?.error || t('pms.workReport.toast.submitFailed')
       toast.error(msg)
     } finally {
       setSaving(false)
@@ -490,11 +486,11 @@ export default function WorkReportPage() {
     try {
       setSaving(true)
       await startTask(task.id)
-      toast.success('Đã bắt đầu công việc')
+      toast.success(t('pms.workReport.toast.started'))
       await loadTask()
     } catch (error: any) {
       console.error('Start failed:', error)
-      const msg = error?.response?.data?.error || 'Bắt đầu thất bại'
+      const msg = error?.response?.data?.error || t('pms.workReport.toast.startFailed')
       toast.error(msg)
     } finally {
       setSaving(false)
@@ -509,12 +505,12 @@ export default function WorkReportPage() {
     if (!task) return
     // Kiểm tra biểu mẫu bắt buộc trước khi phê duyệt
     if (task.requireRiskAssessment && !riskFilled) {
-      toast.error('Không thể phê duyệt: Biểu mẫu ĐGRR chưa được điền')
+      toast.error(t('pms.workReport.toast.cannotApproveRisk'))
       setActiveTab('risk')
       return
     }
     if (task.requireInspectionReport && !bbktFilled) {
-      toast.error('Không thể phê duyệt: Biên bản kiểm tra BBKT chưa được điền')
+      toast.error(t('pms.workReport.toast.cannotApproveInsp'))
       setActiveTab('inspection')
       return
     }
@@ -522,11 +518,11 @@ export default function WorkReportPage() {
       setVerifying(true)
       const dto: VerifyTaskDto = { action: 'APPROVE', notes: reportText || undefined }
       await verifyTask(task.id, dto)
-      toast.success('Đã phê duyệt công việc')
+      toast.success(t('pms.workReport.toast.approved'))
       await loadTask()
     } catch (error) {
       console.error('Approve failed:', error)
-      toast.error('Phê duyệt thất bại')
+      toast.error(t('pms.workReport.toast.approveFailed'))
     } finally {
       setVerifying(false)
     }
@@ -534,20 +530,20 @@ export default function WorkReportPage() {
 
   const handleReject = async () => {
     if (!task || !rejectionReason.trim()) {
-      toast.error('Vui lòng nhập lý do trả hoàn')
+      toast.error(t('pms.workReport.toast.rejectReasonRequired'))
       return
     }
     try {
       setVerifying(true)
       const dto: VerifyTaskDto = { action: 'REJECT', rejectionReason }
       await verifyTask(task.id, dto)
-      toast.success('Đã trả hoàn công việc')
+      toast.success(t('pms.workReport.toast.rejected'))
       setShowRejectModal(false)
       setRejectionReason('')
       await loadTask()
     } catch (error) {
       console.error('Reject failed:', error)
-      toast.error('Trả hoàn thất bại')
+      toast.error(t('pms.workReport.toast.rejectFailed'))
     } finally {
       setVerifying(false)
     }
@@ -557,7 +553,7 @@ export default function WorkReportPage() {
     if (!commentText.trim()) return
     setComments(prev => [
       ...prev,
-      { author: assignedTo || 'Người dùng', text: commentText, date: new Date().toISOString() }
+      { author: assignedTo || t('pms.workReport.userFallback'), text: commentText, date: new Date().toISOString() }
     ])
     setCommentText('')
   }
@@ -570,7 +566,7 @@ export default function WorkReportPage() {
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto" />
-          <p className="mt-3 text-gray-500">Đang tải báo cáo công việc...</p>
+          <p className="mt-3 text-gray-500">{t('pms.workReport.loading')}</p>
         </div>
       </div>
     )
@@ -581,17 +577,17 @@ export default function WorkReportPage() {
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-          <p className="text-gray-600">Không tìm thấy công việc</p>
+          <p className="text-gray-600">{t('pms.workReport.notFound')}</p>
           <button onClick={() => navigate('/pms/work-planning')} className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            Quay lại
+            {t('pms.workReport.goBack')}
           </button>
         </div>
       </div>
     )
   }
 
-  const statusLabel = STATUS_LABELS[task.status] || 'Chưa bắt đầu'
-  const priorityLabel = PRIORITY_LABELS[task.priority] || 'Trung bình'
+  const statusLabel = getStatusLabel(task.status)
+  const priorityLabel = getPriorityLabel(task.priority)
 
   // common input class
   const inp = 'w-full px-3 py-1.5 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
@@ -604,29 +600,29 @@ export default function WorkReportPage() {
       <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2.5">
         <div className="flex items-center gap-1.5 text-sm text-gray-500">
           <button onClick={() => navigate('/pms/work-planning')} className="text-blue-600 hover:underline">
-            Báo cáo
+            {t('pms.workReport.breadcrumbReport')}
           </button>
           <ChevronRight size={14} className="text-gray-300" />
-          <span className="text-gray-700 font-medium">Báo cáo công việc</span>
+          <span className="text-gray-700 font-medium">{t('pms.workReport.breadcrumbWorkReport')}</span>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={handleCancel} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
-            <X className="w-3.5 h-3.5" /> Hủy bỏ
+            <X className="w-3.5 h-3.5" /> {t('pms.workReport.cancelBtn')}
           </button>
           <button onClick={handleStartTask} disabled={!(['SCHEDULED', 'UPCOMING', 'DUE', 'OVERDUE', 'RECTIFY', 'MISSING_PIC', 'MISSING_CHECKLIST', 'MISSING_BOTH'].includes(task.status)) || saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
-            <PlayCircle className="w-3.5 h-3.5" /> Tiếp tục
+            <PlayCircle className="w-3.5 h-3.5" /> {t('pms.workReport.startBtn')}
           </button>
           <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-800 text-white rounded hover:bg-gray-900 disabled:opacity-50">
-            <Save className="w-3.5 h-3.5" /> {saving ? 'Đang lưu...' : 'Lưu lại'}
+            <Save className="w-3.5 h-3.5" /> {saving ? t('pms.workReport.saving') : t('pms.workReport.saveBtn')}
           </button>
           <button onClick={handleComplete} disabled={task.status !== 'IN_PROGRESS' || saving} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
-            <Send className="w-3.5 h-3.5" /> Hoàn thành
+            <Send className="w-3.5 h-3.5" /> {t('pms.workReport.completeBtn')}
           </button>
           <button onClick={() => setShowRejectModal(true)} disabled={task.status !== 'PENDING_APPROVAL' || verifying} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed">
-            <RotateCcw className="w-3.5 h-3.5" /> Trả hoàn
+            <RotateCcw className="w-3.5 h-3.5" /> {t('pms.workReport.rejectBtn')}
           </button>
           <button onClick={handleApprove} disabled={task.status !== 'PENDING_APPROVAL' || verifying} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
-            <ShieldCheck className="w-3.5 h-3.5" /> {verifying ? 'Đang xử lý...' : 'Phê duyệt'}
+            <ShieldCheck className="w-3.5 h-3.5" /> {verifying ? t('pms.workReport.processing') : t('pms.workReport.approveBtn')}
           </button>
         </div>
       </div>
@@ -636,18 +632,18 @@ export default function WorkReportPage() {
         <div className="flex-shrink-0 bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center gap-3">
           <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
           <div className="text-sm text-amber-800 flex-1">
-            <span className="font-semibold">Yêu cầu xin hoãn đang chờ duyệt</span>
+            <span className="font-semibold">{t('pms.workReport.deferralPending')}</span>
             {task.pendingDeferral && (
               <span className="ml-2 text-amber-700">
-                — Lý do: {task.pendingDeferral.reason?.substring(0, 80)}{(task.pendingDeferral.reason?.length || 0) > 80 ? '...' : ''}
+                — {t('pms.workReport.deferralReason', { reason: task.pendingDeferral.reason?.substring(0, 80) })}{(task.pendingDeferral.reason?.length || 0) > 80 ? '...' : ''}
                 {task.pendingDeferral.proposedDueDate && (
-                  <> · Ngày đề xuất: {format(parseISO(task.pendingDeferral.proposedDueDate), 'dd/MM/yyyy')}</>
+                  <> · {t('pms.workReport.deferralProposedDate', { date: format(parseISO(task.pendingDeferral.proposedDueDate), 'dd/MM/yyyy') })}</>
                 )}
               </span>
             )}
           </div>
           <button onClick={() => setShowDeferralModal(true)} className="px-2.5 py-1 text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 rounded whitespace-nowrap">
-            Xem chi tiết
+            {t('pms.workReport.deferralViewDetails')}
           </button>
         </div>
       )}
@@ -661,68 +657,68 @@ export default function WorkReportPage() {
           {/* Thông tin công việc */}
           <div className="flex-shrink-0">
             <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50">
-              <span className="text-sm font-semibold text-gray-700">Thông tin công việc</span>
+              <span className="text-sm font-semibold text-gray-700">{t('pms.workReport.taskInfo')}</span>
             </div>
             <div className="px-4 py-4 space-y-3 text-sm border-b border-gray-200">
               {/* Row 1: Mã CV + Tên CV */}
               <div className="flex gap-4">
                 <div className="flex items-center flex-1">
-                  <label className={lbl} style={{ width: 110 }}>Mã công việc:</label>
+                  <label className={lbl} style={{ width: 110 }}>{t('pms.workReport.taskCode')}</label>
                   <input type="text" readOnly value={task.taskId} className={inpRo} />
                 </div>
                 <div className="flex items-center flex-1">
-                  <label className={lbl} style={{ width: 110 }}>Tên công việc:</label>
+                  <label className={lbl} style={{ width: 110 }}>{t('pms.workReport.taskName')}</label>
                   <input type="text" readOnly value={task.taskDescription?.split('\n')[0] || ''} className={inpRo} />
                 </div>
               </div>
               {/* Row 2: Ngày bắt đầu + Ngày kết thúc */}
               <div className="flex gap-4">
                 <div className="flex items-center flex-1">
-                  <label className={lbl} style={{ width: 110 }}>Ngày bắt đầu:</label>
+                  <label className={lbl} style={{ width: 110 }}>{t('pms.workReport.startDate')}</label>
                   <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} className={inp} />
                 </div>
                 <div className="flex items-center flex-1">
-                  <label className={lbl} style={{ width: 110 }}>Ngày kết thúc:</label>
+                  <label className={lbl} style={{ width: 110 }}>{t('pms.workReport.endDate')}</label>
                   <input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} className={inp} />
                 </div>
               </div>
               {/* Row 3: Mô tả công việc */}
               <div className="flex items-start">
-                <label className={`${lbl} pt-1.5`} style={{ width: 110 }}>Mô tả công việc:</label>
+                <label className={`${lbl} pt-1.5`} style={{ width: 110 }}>{t('pms.workReport.taskDescription')}</label>
                 <textarea rows={4} value={description} onChange={e => setDescription(e.target.value)} className={`${inp} resize-y`} />
               </div>
               {/* Row 4: Mã thiết bị + Tên thiết bị */}
               <div className="flex gap-4">
                 <div className="flex items-center flex-1">
-                  <label className={lbl} style={{ width: 110 }}>Mã thiết bị:</label>
+                  <label className={lbl} style={{ width: 110 }}>{t('pms.workReport.equipmentCode')}</label>
                   <input type="text" readOnly value={task.equipmentId || task.equipmentAssetId || ''} className={inpRo} />
                 </div>
                 <div className="flex items-center flex-1">
-                  <label className={lbl} style={{ width: 110 }}>Tên thiết bị:</label>
+                  <label className={lbl} style={{ width: 110 }}>{t('pms.workReport.equipmentName')}</label>
                   <input type="text" readOnly value={task.equipmentName || task.equipmentAssetName || task.equipmentGroupName || ''} className={inpRo} />
                 </div>
               </div>
               {/* Row 5: Mô tả thiết bị */}
               <div className="flex items-start">
-                <label className={`${lbl} pt-1.5`} style={{ width: 110 }}>Mô tả thiết bị:</label>
+                <label className={`${lbl} pt-1.5`} style={{ width: 110 }}>{t('pms.workReport.equipmentDescription')}</label>
                 <textarea rows={2} readOnly value={equipmentDescription} className={`${inpRo} resize-none`} />
               </div>
               {/* Row 6: Đánh giá rủi ro + Biên bản kiểm tra */}
               <div className="flex gap-4">
                 <div className="flex items-center flex-1">
-                  <label className={lbl} style={{ width: 110 }}>Đánh giá rủi ro:</label>
+                  <label className={lbl} style={{ width: 110 }}>{t('pms.workReport.riskAssessmentLabel')}</label>
                   <div className="flex items-center gap-1 flex-1">
                     <input
                       type="text"
                       readOnly
                       value={riskFilled ? `DGRR-${task.taskId}.pdf` : ''}
-                      placeholder={riskFilled ? '' : 'Chưa có biểu mẫu'}
+                      placeholder={riskFilled ? '' : t('pms.workReport.noRiskForm')}
                       className={inpRo}
                     />
                     <button
                       onClick={handleOpenRiskPdf}
                       disabled={!riskFilled || riskPdfLoading}
-                      title={riskFilled ? 'Xem PDF ĐGRR' : 'Chưa có dữ liệu'}
+                      title={riskFilled ? t('pms.workReport.viewRiskPdf') : t('pms.workReport.noData')}
                       className={`p-1.5 shrink-0 transition-colors ${riskFilled ? 'text-red-600 hover:text-red-800' : 'text-gray-300 cursor-not-allowed'}`}
                     >
                       <FileText size={14} />
@@ -730,19 +726,19 @@ export default function WorkReportPage() {
                   </div>
                 </div>
                 <div className="flex items-center flex-1">
-                  <label className={lbl} style={{ width: 110 }}>Biên bản kiểm tra:</label>
+                  <label className={lbl} style={{ width: 110 }}>{t('pms.workReport.inspectionReportLabel')}</label>
                   <div className="flex items-center gap-1 flex-1">
                     <input
                       type="text"
                       readOnly
                       value={bbktFilled ? `BBKT-${task.taskId}.pdf` : ''}
-                      placeholder={bbktFilled ? '' : 'Chưa có biên bản'}
+                      placeholder={bbktFilled ? '' : t('pms.workReport.noInspectionForm')}
                       className={inpRo}
                     />
                     <button
                       onClick={handleOpenBbktPdf}
                       disabled={!bbktFilled || bbktPdfLoading}
-                      title={bbktFilled ? 'Xem PDF BBKT' : 'Chưa có dữ liệu'}
+                      title={bbktFilled ? t('pms.workReport.viewInspectionPdf') : t('pms.workReport.noData')}
                       className={`p-1.5 shrink-0 transition-colors ${bbktFilled ? 'text-red-600 hover:text-red-800' : 'text-gray-300 cursor-not-allowed'}`}
                     >
                       <FileText size={14} />
@@ -757,11 +753,11 @@ export default function WorkReportPage() {
           <div className="flex-shrink-0">
             <div className="flex border-b border-gray-200 text-sm">
               {([
-                { key: 'report' as BottomTab, label: 'Báo cáo' },
-                { key: 'checklist' as BottomTab, label: 'Hạng mục kiểm tra' },
-                { key: 'materials' as BottomTab, label: 'Vật tư' },
-                { key: 'risk' as BottomTab, label: 'Biểu mẫu ĐGRR' },
-                { key: 'inspection' as BottomTab, label: 'Biểu mẫu BBKT' },
+                { key: 'report' as BottomTab, label: t('pms.workReport.tabReport') },
+                { key: 'checklist' as BottomTab, label: t('pms.workReport.tabChecklist') },
+                { key: 'materials' as BottomTab, label: t('pms.workReport.tabMaterials') },
+                { key: 'risk' as BottomTab, label: t('pms.workReport.tabRisk') },
+                { key: 'inspection' as BottomTab, label: t('pms.workReport.tabInspection') },
               ]).map(tab => (
                 <button
                   key={tab.key}
@@ -781,34 +777,34 @@ export default function WorkReportPage() {
                 <div className="space-y-2.5">
                   <div className="flex gap-4">
                     <div className="flex items-center flex-1">
-                      <label className={lbl} style={{ width: 160 }}>Thời gian chạy của thiết bị:</label>
+                      <label className={lbl} style={{ width: 160 }}>{t('pms.workReport.equipRunningHours')}</label>
                       <input type="number" value={equipmentRunningHours} onChange={e => setEquipmentRunningHours(Number(e.target.value))} className={inp} />
-                      <span className="text-gray-500 text-sm ml-2 shrink-0">Giờ</span>
+                      <span className="text-gray-500 text-sm ml-2 shrink-0">{t('pms.workReport.hoursUnit')}</span>
                     </div>
                     <div className="flex items-center flex-1">
-                      <label className={lbl} style={{ width: 190 }}>Thời gian hiện tại của thiết bị:</label>
+                      <label className={lbl} style={{ width: 190 }}>{t('pms.workReport.currentEquipHours')}</label>
                       <input type="number" value={currentEquipmentHours} onChange={e => setCurrentEquipmentHours(Number(e.target.value))} className={inp} />
-                      <span className="text-gray-500 text-sm ml-2 shrink-0">Giờ</span>
+                      <span className="text-gray-500 text-sm ml-2 shrink-0">{t('pms.workReport.hoursUnit')}</span>
                     </div>
                   </div>
                   <div className="flex gap-4">
                     <div className="flex items-center flex-1">
-                      <label className={lbl} style={{ width: 160 }}>Ngày hoàn thành: <span className="text-red-500">*</span></label>
+                      <label className={lbl} style={{ width: 160 }}>{t('pms.workReport.completionDate')} <span className="text-red-500">*</span></label>
                       <input type="date" value={completionDate} onChange={e => setCompletionDate(e.target.value)} className={inp} />
                     </div>
                     <div className="flex items-center flex-1">
-                      <label className={lbl} style={{ width: 190 }}>Thời gian thực hiện:</label>
+                      <label className={lbl} style={{ width: 190 }}>{t('pms.workReport.actualDuration')}</label>
                       <input type="number" value={actualDuration} onChange={e => setActualDuration(Number(e.target.value))} className={inp} />
-                      <span className="text-gray-500 text-sm ml-2 shrink-0">Giờ</span>
+                      <span className="text-gray-500 text-sm ml-2 shrink-0">{t('pms.workReport.hoursUnit')}</span>
                     </div>
                   </div>
                   <div className="flex items-start">
-                    <label className={`${lbl} pt-1.5`} style={{ width: 160 }}>Báo cáo công việc:</label>
-                    <textarea rows={3} value={reportText} onChange={e => setReportText(e.target.value)} placeholder="Nhập thông tin" className={`${inp} resize-y`} />
+                    <label className={`${lbl} pt-1.5`} style={{ width: 160 }}>{t('pms.workReport.workReport')}</label>
+                    <textarea rows={3} value={reportText} onChange={e => setReportText(e.target.value)} placeholder={t('pms.workReport.enterInfo')} className={`${inp} resize-y`} />
                   </div>
                   <div className="flex items-center gap-2 pl-[160px]">
                     <Paperclip size={14} className="text-gray-400" />
-                    <button className="text-sm text-blue-600 hover:underline">Đính kèm tệp tin</button>
+                    <button className="text-sm text-blue-600 hover:underline">{t('pms.workReport.attachFile')}</button>
                   </div>
                 </div>
               )}
@@ -820,18 +816,18 @@ export default function WorkReportPage() {
                 return (
                 <div>
                   {items.length === 0 ? (
-                    <p className="text-sm text-gray-400 italic">Không có hạng mục kiểm tra cho công việc này</p>
+                    <p className="text-sm text-gray-400 italic">{t('pms.workReport.noChecklistItems')}</p>
                   ) : (
                     <table className="w-full text-xs border border-gray-200 rounded">
                       <thead className="bg-blue-50">
                         <tr>
-                          <th className="w-10 px-2 py-1.5 text-center border-b border-r border-gray-200">TT</th>
-                          <th className="px-2 py-1.5 text-left border-b border-r border-gray-200">Mã thiết bị</th>
-                          <th className="px-2 py-1.5 text-left border-b border-r border-gray-200">Tên thiết bị</th>
-                          <th className="w-24 px-2 py-1.5 text-center border-b border-r border-gray-200">Giá trị đo</th>
-                          <th className="w-20 px-2 py-1.5 text-center border-b border-r border-gray-200">Hoàn thành</th>
-                          <th className="w-20 px-2 py-1.5 text-center border-b border-r border-gray-200">Bất thường</th>
-                          <th className="px-2 py-1.5 text-left border-b border-gray-200">Ghi chú</th>
+                          <th className="w-10 px-2 py-1.5 text-center border-b border-r border-gray-200">{t('pms.workReport.clIndex')}</th>
+                          <th className="px-2 py-1.5 text-left border-b border-r border-gray-200">{t('pms.workReport.clAssetCode')}</th>
+                          <th className="px-2 py-1.5 text-left border-b border-r border-gray-200">{t('pms.workReport.clAssetName')}</th>
+                          <th className="w-24 px-2 py-1.5 text-center border-b border-r border-gray-200">{t('pms.workReport.clReadingValue')}</th>
+                          <th className="w-20 px-2 py-1.5 text-center border-b border-r border-gray-200">{t('pms.workReport.clCompleted')}</th>
+                          <th className="w-20 px-2 py-1.5 text-center border-b border-r border-gray-200">{t('pms.workReport.clAbnormal')}</th>
+                          <th className="px-2 py-1.5 text-left border-b border-gray-200">{t('pms.workReport.clRemarks')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -870,13 +866,13 @@ export default function WorkReportPage() {
                                       : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                                   } ${togglingChecklist === item.id ? 'opacity-50' : ''}`}
                                 >
-                                  <CheckCircle size={12} /> {item.isCompleted ? 'Đạt' : 'Chưa'}
+                                  <CheckCircle size={12} /> {item.isCompleted ? t('pms.workReport.clPass') : t('pms.workReport.clNotYet')}
                                 </button>
                               ) : (
                                 item.isCompleted ? (
-                                  <span className="inline-flex items-center gap-1 text-green-600"><CheckCircle size={12} /> Đạt</span>
+                                  <span className="inline-flex items-center gap-1 text-green-600"><CheckCircle size={12} /> {t('pms.workReport.clPass')}</span>
                                 ) : (
-                                  <span className="text-gray-400">Chưa</span>
+                                  <span className="text-gray-400">{t('pms.workReport.clNotYet')}</span>
                                 )
                               )}
                             </td>
@@ -888,13 +884,13 @@ export default function WorkReportPage() {
                                     item.isAbnormal ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                                   }`}
                                 >
-                                  {item.isAbnormal ? 'Có' : 'Không'}
+                                  {item.isAbnormal ? t('pms.workReport.clYes') : t('pms.workReport.clNo')}
                                 </button>
                               ) : (
                                 item.isAbnormal ? (
-                                  <span className="text-red-600 font-medium">Có</span>
+                                  <span className="text-red-600 font-medium">{t('pms.workReport.clYes')}</span>
                                 ) : item.isCompleted ? (
-                                  <span className="text-green-600">Không</span>
+                                  <span className="text-green-600">{t('pms.workReport.clNo')}</span>
                                 ) : '—'
                               )}
                             </td>
@@ -908,7 +904,7 @@ export default function WorkReportPage() {
                                     setChecklistItems(prev => prev.map(ci => ci.id === item.id ? { ...ci, remarks: e.target.value } : ci))
                                   }}
                                   onBlur={e => handleChecklistFieldUpdate(item, 'remarks', e.target.value)}
-                                  placeholder="Nhập ghi chú..."
+                                  placeholder={t('pms.workReport.clEnterRemarks')}
                                 />
                               ) : (
                                 <span className="text-gray-600">{item.remarks || '—'}</span>
@@ -921,9 +917,9 @@ export default function WorkReportPage() {
                   )}
                   {items.length > 0 && (
                     <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
-                      <span>Đạt: <strong className="text-green-600">{items.filter(i => i.isCompleted).length}</strong></span>
-                      <span>Chưa kiểm tra: <strong className="text-gray-600">{items.filter(i => !i.isCompleted).length}</strong></span>
-                      <span>Bất thường: <strong className="text-red-600">{items.filter(i => i.isAbnormal).length}</strong></span>
+                      <span>{t('pms.workReport.clPassCount')} <strong className="text-green-600">{items.filter(i => i.isCompleted).length}</strong></span>
+                      <span>{t('pms.workReport.clPendingCount')} <strong className="text-gray-600">{items.filter(i => !i.isCompleted).length}</strong></span>
+                      <span>{t('pms.workReport.clAbnormalCount')} <strong className="text-red-600">{items.filter(i => i.isAbnormal).length}</strong></span>
                     </div>
                   )}
                 </div>
@@ -945,14 +941,14 @@ export default function WorkReportPage() {
                     }
                     return parts.length > 0 ? (
                       <div>
-                        <p className="text-xs font-semibold text-gray-500 mb-1">Vật tư yêu cầu (từ lịch bảo trì)</p>
+                        <p className="text-xs font-semibold text-gray-500 mb-1">{t('pms.workReport.requiredMaterials')}</p>
                         <table className="w-full text-xs border border-gray-200 rounded">
                           <thead className="bg-blue-50">
                             <tr>
-                              <th className="px-2 py-1 text-left border-b">Mã vật tư</th>
-                              <th className="px-2 py-1 text-left border-b">Tên vật tư</th>
-                              <th className="px-2 py-1 text-center border-b">SL</th>
-                              <th className="px-2 py-1 text-center border-b">Bắt buộc</th>
+                              <th className="px-2 py-1 text-left border-b">{t('pms.workReport.materialCode')}</th>
+                              <th className="px-2 py-1 text-left border-b">{t('pms.workReport.materialName')}</th>
+                              <th className="px-2 py-1 text-center border-b">{t('pms.workReport.qty')}</th>
+                              <th className="px-2 py-1 text-center border-b">{t('pms.workReport.mandatory')}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -973,13 +969,13 @@ export default function WorkReportPage() {
                   {/* Used spare parts - interactive */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs font-semibold text-gray-500">Vật tư đã sử dụng</p>
+                      <p className="text-xs font-semibold text-gray-500">{t('pms.workReport.usedMaterials')}</p>
                       {canEdit && (
                         <div className="relative">
                           <input
                             type="text"
                             className="w-56 px-2 py-1 text-xs border border-gray-300 rounded"
-                            placeholder="Tìm vật tư để thêm..."
+                            placeholder={t('pms.workReport.searchMaterial')}
                             value={materialSearch}
                             onChange={e => setMaterialSearch(e.target.value)}
                           />
@@ -993,7 +989,7 @@ export default function WorkReportPage() {
                                 >
                                   <span className="font-medium text-gray-700">{mat.itemCode}</span>
                                   <span className="ml-2 text-gray-600">{mat.name}</span>
-                                  <span className="ml-2 text-gray-400">(Tồn: {mat.onHandQuantity} {mat.unit})</span>
+                                  <span className="ml-2 text-gray-400">({t('pms.workReport.stockInfo', { qty: mat.onHandQuantity, unit: mat.unit })})</span>
                                 </button>
                               ))}
                             </div>
@@ -1005,11 +1001,11 @@ export default function WorkReportPage() {
                       <table className="w-full text-xs border border-gray-200 rounded">
                         <thead className="bg-green-50">
                           <tr>
-                            <th className="px-2 py-1 text-left border-b">Mã vật tư</th>
-                            <th className="px-2 py-1 text-left border-b">Tên vật tư</th>
-                            <th className="w-24 px-2 py-1 text-center border-b">SL sử dụng</th>
-                            <th className="px-2 py-1 text-center border-b">Đơn vị</th>
-                            <th className="px-2 py-1 text-center border-b">Tồn kho</th>
+                            <th className="px-2 py-1 text-left border-b">{t('pms.workReport.materialCode')}</th>
+                            <th className="px-2 py-1 text-left border-b">{t('pms.workReport.materialName')}</th>
+                            <th className="w-24 px-2 py-1 text-center border-b">{t('pms.workReport.qtyUsed')}</th>
+                            <th className="px-2 py-1 text-center border-b">{t('pms.workReport.unit')}</th>
+                            <th className="px-2 py-1 text-center border-b">{t('pms.workReport.stock')}</th>
                             {canEdit && <th className="w-16 px-2 py-1 text-center border-b"></th>}
                           </tr>
                         </thead>
@@ -1038,7 +1034,7 @@ export default function WorkReportPage() {
                                   <button
                                     onClick={() => handleRemoveSparePart(sp.materialItemId)}
                                     className="text-red-500 hover:text-red-700"
-                                    title="Xóa"
+                                    title={t('pms.workReport.delete')}
                                   >
                                     <X size={14} />
                                   </button>
@@ -1049,7 +1045,7 @@ export default function WorkReportPage() {
                         </tbody>
                       </table>
                     ) : (
-                      <p className="text-xs text-gray-400 italic">Chưa có dữ liệu vật tư sử dụng</p>
+                      <p className="text-xs text-gray-400 italic">{t('pms.workReport.noUsedMaterials')}</p>
                     )}
                   </div>
                 </div>
@@ -1063,24 +1059,24 @@ export default function WorkReportPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <AlertTriangle size={14} className="text-orange-500" />
-                      <span className="font-semibold text-orange-700">Đánh giá Rủi ro (ĐGRR)</span>
-                      {riskFilled && <span className="px-1.5 py-0.5 text-[10px] bg-green-100 text-green-700 rounded-full font-medium">Đã điền</span>}
-                      {!riskFilled && task?.requireRiskAssessment && <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-600 rounded-full font-medium">Bắt buộc</span>}
+                      <span className="font-semibold text-orange-700">{t('pms.workReport.riskTitle')}</span>
+                      {riskFilled && <span className="px-1.5 py-0.5 text-[10px] bg-green-100 text-green-700 rounded-full font-medium">{t('pms.workReport.riskFilled')}</span>}
+                      {!riskFilled && task?.requireRiskAssessment && <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-600 rounded-full font-medium">{t('pms.workReport.riskRequired')}</span>}
                     </div>
                     <button onClick={handleSaveRisk} disabled={savingRisk} className="flex items-center gap-1 px-3 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50">
-                      <Save size={12} /> {savingRisk ? 'Đang lưu...' : 'Lưu ĐGRR'}
+                      <Save size={12} /> {savingRisk ? t('pms.workReport.savingRisk') : t('pms.workReport.saveRisk')}
                     </button>
                   </div>
 
                   {/* I. Thông tin chung */}
                   <div className="border border-gray-200 rounded">
-                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">I. Thông tin chung</div>
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">{t('pms.workReport.riskSection1')}</div>
                     <div className="p-3 grid grid-cols-2 gap-2">
                       {[
-                        { label: 'Tên công việc', key: 'jobName' },
-                        { label: 'Thiết bị / Hệ thống', key: 'equipmentName' },
-                        { label: 'Vị trí', key: 'location' },
-                        { label: 'Nhân sự', key: 'personnel' },
+                        { label: t('pms.workReport.riskJobName'), key: 'jobName' },
+                        { label: t('pms.workReport.riskEquipment'), key: 'equipmentName' },
+                        { label: t('pms.workReport.riskLocation'), key: 'location' },
+                        { label: t('pms.workReport.riskPersonnel'), key: 'personnel' },
                       ].map(({ label, key }) => (
                         <div key={key}>
                           <label className="text-xs text-gray-500 block mb-0.5">{label}</label>
@@ -1088,25 +1084,25 @@ export default function WorkReportPage() {
                         </div>
                       ))}
                       <div>
-                        <label className="text-xs text-gray-500 block mb-0.5">Ngày thực hiện</label>
+                        <label className="text-xs text-gray-500 block mb-0.5">{t('pms.workReport.riskDate')}</label>
                         <input type="date" value={riskForm.assessmentDate ? riskForm.assessmentDate.substring(0, 10) : ''} onChange={e => setRiskForm(f => ({ ...f, assessmentDate: e.target.value }))} className={inp} />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 block mb-0.5">Số biểu mẫu</label>
-                        <input type="text" value={riskForm.raNumber || ''} onChange={e => setRiskForm(f => ({ ...f, raNumber: e.target.value }))} placeholder="VD: 001/RA/PMS" className={inp} />
+                        <label className="text-xs text-gray-500 block mb-0.5">{t('pms.workReport.riskFormNumber')}</label>
+                        <input type="text" value={riskForm.raNumber || ''} onChange={e => setRiskForm(f => ({ ...f, raNumber: e.target.value }))} placeholder={t('pms.workReport.riskFormPlaceholder')} className={inp} />
                       </div>
                     </div>
                   </div>
 
                   {/* II. Nhận diện mối nguy */}
                   <div className="border border-gray-200 rounded">
-                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">II. Nhận diện mối nguy</div>
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">{t('pms.workReport.riskSection2')}</div>
                     <div className="p-3 space-y-2">
                       {[
-                        { key: 'hazardMechanical', label: 'Cơ học (kẹt, va đập, rung động)' },
-                        { key: 'hazardElectrical', label: 'Điện (điện giật, ngắn mạch)' },
-                        { key: 'hazardChemical', label: 'Hóa chất (dầu, nhiên liệu, axit)' },
-                        { key: 'hazardEnvironmental', label: 'Môi trường (nhiệt cao, không gian kín, làm việc trên cao)' },
+                        { key: 'hazardMechanical', label: t('pms.workReport.riskHazardMechanical') },
+                        { key: 'hazardElectrical', label: t('pms.workReport.riskHazardElectrical') },
+                        { key: 'hazardChemical', label: t('pms.workReport.riskHazardChemical') },
+                        { key: 'hazardEnvironmental', label: t('pms.workReport.riskHazardEnvironmental') },
                       ].map(({ key, label }) => (
                         <label key={key} className="flex items-center gap-2 cursor-pointer">
                           <input type="checkbox" checked={!!(riskForm as any)[key]} onChange={e => setRiskForm(f => ({ ...f, [key]: e.target.checked }))} className="w-3.5 h-3.5 rounded text-orange-600" />
@@ -1114,7 +1110,7 @@ export default function WorkReportPage() {
                         </label>
                       ))}
                       <div>
-                        <label className="text-xs text-gray-500">Ghi chú mối nguy khác</label>
+                        <label className="text-xs text-gray-500">{t('pms.workReport.riskHazardNotes')}</label>
                         <textarea rows={2} value={riskForm.hazardNotes || ''} onChange={e => setRiskForm(f => ({ ...f, hazardNotes: e.target.value }))} className={`${inp} resize-none mt-0.5`} />
                       </div>
                     </div>
@@ -1122,18 +1118,18 @@ export default function WorkReportPage() {
 
                   {/* III. Đánh giá rủi ro trước biện pháp */}
                   <div className="border border-gray-200 rounded">
-                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">III. Đánh giá rủi ro trước biện pháp (S × L)</div>
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">{t('pms.workReport.riskSection3')}</div>
                     <div className="p-3 grid grid-cols-3 gap-2">
                       {[
-                        { label: 'Hậu quả (S)', key: 'initialSeverity', opts: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
-                        { label: 'Khả năng (L)', key: 'initialLikelihood', opts: ['LOW', 'MEDIUM', 'HIGH'] },
-                        { label: 'Mức độ rủi ro', key: 'initialRiskLevel', opts: ['LOW', 'MEDIUM', 'HIGH'] },
+                        { label: t('pms.workReport.riskSeverity'), key: 'initialSeverity', opts: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
+                        { label: t('pms.workReport.riskLikelihood'), key: 'initialLikelihood', opts: ['LOW', 'MEDIUM', 'HIGH'] },
+                        { label: t('pms.workReport.riskLevel'), key: 'initialRiskLevel', opts: ['LOW', 'MEDIUM', 'HIGH'] },
                       ].map(({ label, key, opts }) => (
                         <div key={key}>
                           <label className="text-xs text-gray-500 block mb-0.5">{label}</label>
                           <select value={(riskForm as any)[key] || ''} onChange={e => setRiskForm(f => ({ ...f, [key]: e.target.value }))} className={inp}>
                             <option value="">--</option>
-                            {opts.map(o => <option key={o} value={o}>{o === 'LOW' ? 'Thấp' : o === 'MEDIUM' ? 'Trung bình' : o === 'HIGH' ? 'Cao' : 'Nghiêm trọng'}</option>)}
+                            {opts.map(o => <option key={o} value={o}>{o === 'LOW' ? t('pms.workReport.riskLow') : o === 'MEDIUM' ? t('pms.workReport.riskMedium') : o === 'HIGH' ? t('pms.workReport.riskHigh') : t('pms.workReport.riskCritical')}</option>)}
                           </select>
                         </div>
                       ))}
@@ -1142,13 +1138,13 @@ export default function WorkReportPage() {
 
                   {/* IV. Biện pháp kiểm soát */}
                   <div className="border border-gray-200 rounded">
-                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">IV. Biện pháp kiểm soát</div>
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">{t('pms.workReport.riskSection4')}</div>
                     <div className="p-3 space-y-2">
                       {[
-                        { key: 'controlLOTO', label: 'Cô lập thiết bị (LOTO - Lockout/Tagout)' },
-                        { key: 'controlPTW', label: 'Xin giấy phép làm việc (Permit to Work - PTW)' },
-                        { key: 'controlPPE', label: 'Trang thiết bị bảo hộ cá nhân (PPE)' },
-                        { key: 'controlVentilation', label: 'Thông gió, chiếu sáng' },
+                        { key: 'controlLOTO', label: t('pms.workReport.riskControlLOTO') },
+                        { key: 'controlPTW', label: t('pms.workReport.riskControlPTW') },
+                        { key: 'controlPPE', label: t('pms.workReport.riskControlPPE') },
+                        { key: 'controlVentilation', label: t('pms.workReport.riskControlVentilation') },
                       ].map(({ key, label }) => (
                         <label key={key} className="flex items-center gap-2 cursor-pointer">
                           <input type="checkbox" checked={!!(riskForm as any)[key]} onChange={e => setRiskForm(f => ({ ...f, [key]: e.target.checked }))} className="w-3.5 h-3.5 rounded text-blue-600" />
@@ -1156,7 +1152,7 @@ export default function WorkReportPage() {
                         </label>
                       ))}
                       <div>
-                        <label className="text-xs text-gray-500">Biện pháp khác</label>
+                        <label className="text-xs text-gray-500">{t('pms.workReport.riskControlNotes')}</label>
                         <textarea rows={2} value={riskForm.controlNotes || ''} onChange={e => setRiskForm(f => ({ ...f, controlNotes: e.target.value }))} className={`${inp} resize-none mt-0.5`} />
                       </div>
                     </div>
@@ -1164,43 +1160,43 @@ export default function WorkReportPage() {
 
                   {/* V. Rủi ro dư thừa */}
                   <div className="border border-gray-200 rounded">
-                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">V. Rủi ro dư thừa (sau biện pháp)</div>
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">{t('pms.workReport.riskSection5')}</div>
                     <div className="p-3 grid grid-cols-3 gap-2">
                       {[
-                        { label: 'Hậu quả còn lại (S)', key: 'residualSeverity', opts: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
-                        { label: 'Khả năng còn lại (L)', key: 'residualLikelihood', opts: ['LOW', 'MEDIUM', 'HIGH'] },
-                        { label: 'Mức rủi ro dư', key: 'residualRiskLevel', opts: ['LOW', 'MEDIUM', 'HIGH'] },
+                        { label: t('pms.workReport.riskResidualSeverity'), key: 'residualSeverity', opts: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
+                        { label: t('pms.workReport.riskResidualLikelihood'), key: 'residualLikelihood', opts: ['LOW', 'MEDIUM', 'HIGH'] },
+                        { label: t('pms.workReport.riskResidualLevel'), key: 'residualRiskLevel', opts: ['LOW', 'MEDIUM', 'HIGH'] },
                       ].map(({ label, key, opts }) => (
                         <div key={key}>
                           <label className="text-xs text-gray-500 block mb-0.5">{label}</label>
                           <select value={(riskForm as any)[key] || ''} onChange={e => setRiskForm(f => ({ ...f, [key]: e.target.value }))} className={inp}>
                             <option value="">--</option>
-                            {opts.map(o => <option key={o} value={o}>{o === 'LOW' ? 'Thấp' : o === 'MEDIUM' ? 'Trung bình' : o === 'HIGH' ? 'Cao' : 'Nghiêm trọng'}</option>)}
+                            {opts.map(o => <option key={o} value={o}>{o === 'LOW' ? t('pms.workReport.riskLow') : o === 'MEDIUM' ? t('pms.workReport.riskMedium') : o === 'HIGH' ? t('pms.workReport.riskHigh') : t('pms.workReport.riskCritical')}</option>)}
                           </select>
                         </div>
                       ))}
                     </div>
                     <div className="px-3 pb-3 space-y-2">
-                      <textarea rows={2} value={riskForm.residualRiskNotes || ''} onChange={e => setRiskForm(f => ({ ...f, residualRiskNotes: e.target.value }))} placeholder="Ghi chú rủi ro dư thừa..." className={`${inp} resize-none`} />
+                      <textarea rows={2} value={riskForm.residualRiskNotes || ''} onChange={e => setRiskForm(f => ({ ...f, residualRiskNotes: e.target.value }))} placeholder={t('pms.workReport.riskResidualNotes')} className={`${inp} resize-none`} />
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" checked={riskForm.isApprovedToProceed ?? true} onChange={e => setRiskForm(f => ({ ...f, isApprovedToProceed: e.target.checked }))} className="w-3.5 h-3.5 rounded text-green-600" />
-                        <span className="text-xs font-medium text-gray-700">Rủi ro chấp nhận được — Cho phép tiến hành công việc</span>
+                        <span className="text-xs font-medium text-gray-700">{t('pms.workReport.riskAcceptable')}</span>
                       </label>
                     </div>
                   </div>
 
                   {/* VI. Phê duyệt */}
                   <div className="border border-gray-200 rounded">
-                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">VI. Phê duyệt và Chữ ký</div>
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">{t('pms.workReport.riskSection6')}</div>
                     <div className="p-3 grid grid-cols-3 gap-2">
                       {[
-                        { label: 'Người thực hiện (Worker)', key: 'workerSignature' },
-                        { label: 'Người giám sát (Supervisor)', key: 'supervisorSignature' },
-                        { label: 'Máy trưởng / SQ an toàn', key: 'chiefEngineerApproval' },
+                        { label: t('pms.workReport.riskWorker'), key: 'workerSignature' },
+                        { label: t('pms.workReport.riskSupervisor'), key: 'supervisorSignature' },
+                        { label: t('pms.workReport.riskChiefEngineer'), key: 'chiefEngineerApproval' },
                       ].map(({ label, key }) => (
                         <div key={key}>
                           <label className="text-xs text-gray-500 block mb-0.5">{label}</label>
-                          <input type="text" value={(riskForm as any)[key] || ''} onChange={e => setRiskForm(f => ({ ...f, [key]: e.target.value }))} placeholder="Họ và tên" className={inp} />
+                          <input type="text" value={(riskForm as any)[key] || ''} onChange={e => setRiskForm(f => ({ ...f, [key]: e.target.value }))} placeholder={t('pms.workReport.riskSignPlaceholder')} className={inp} />
                         </div>
                       ))}
                     </div>
@@ -1215,23 +1211,23 @@ export default function WorkReportPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <FileText size={14} className="text-blue-500" />
-                      <span className="font-semibold text-blue-700">Biên bản Bảo trì (BBKT)</span>
-                      {bbktFilled && <span className="px-1.5 py-0.5 text-[10px] bg-green-100 text-green-700 rounded-full font-medium">Đã điền</span>}
-                      {!bbktFilled && task?.requireInspectionReport && <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-600 rounded-full font-medium">Bắt buộc</span>}
+                      <span className="font-semibold text-blue-700">{t('pms.workReport.inspTitle')}</span>
+                      {bbktFilled && <span className="px-1.5 py-0.5 text-[10px] bg-green-100 text-green-700 rounded-full font-medium">{t('pms.workReport.inspFilled')}</span>}
+                      {!bbktFilled && task?.requireInspectionReport && <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-600 rounded-full font-medium">{t('pms.workReport.inspRequired')}</span>}
                     </div>
                     <button onClick={handleSaveBbkt} disabled={savingBbkt} className="flex items-center gap-1 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
-                      <Save size={12} /> {savingBbkt ? 'Đang lưu...' : 'Lưu BBKT'}
+                      <Save size={12} /> {savingBbkt ? t('pms.workReport.savingInsp') : t('pms.workReport.saveInsp')}
                     </button>
                   </div>
 
                   {/* I. Thông tin chung */}
                   <div className="border border-gray-200 rounded">
-                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">I. Thông tin chung</div>
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">{t('pms.workReport.inspSection1')}</div>
                     <div className="p-3 grid grid-cols-2 gap-2">
                       {[
-                        { label: 'Tên tàu', key: 'shipName' },
-                        { label: 'Thiết bị / Hệ thống', key: 'equipmentName' },
-                        { label: 'Mã thiết bị (PMS Job No.)', key: 'equipmentCode' },
+                        { label: t('pms.workReport.inspShipName'), key: 'shipName' },
+                        { label: t('pms.workReport.inspEquipment'), key: 'equipmentName' },
+                        { label: t('pms.workReport.inspEquipmentCode'), key: 'equipmentCode' },
                       ].map(({ label, key }) => (
                         <div key={key}>
                           <label className="text-xs text-gray-500 block mb-0.5">{label}</label>
@@ -1239,13 +1235,13 @@ export default function WorkReportPage() {
                         </div>
                       ))}
                       <div>
-                        <label className="text-xs text-gray-500 block mb-0.5">Ngày thực hiện</label>
+                        <label className="text-xs text-gray-500 block mb-0.5">{t('pms.workReport.inspDate')}</label>
                         <input type="date" value={bbktForm.maintenanceDate ? bbktForm.maintenanceDate.substring(0, 10) : ''} onChange={e => setBbktForm(f => ({ ...f, maintenanceDate: e.target.value }))} className={inp} />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-xs text-gray-500 block mb-0.5">Loại bảo trì</label>
+                        <label className="text-xs text-gray-500 block mb-0.5">{t('pms.workReport.inspMaintenanceType')}</label>
                         <div className="flex flex-wrap gap-3 mt-1">
-                          {[['DAILY', 'Hàng ngày'], ['WEEKLY', 'Hàng tuần'], ['MONTHLY', 'Hàng tháng'], ['ANNUAL', 'Hàng năm'], ['RUNNING_HOURS', 'Theo giờ chạy']].map(([val, lbl]) => (
+                          {[['DAILY', t('pms.workReport.inspDaily')], ['WEEKLY', t('pms.workReport.inspWeekly')], ['MONTHLY', t('pms.workReport.inspMonthly')], ['ANNUAL', t('pms.workReport.inspAnnual')], ['RUNNING_HOURS', t('pms.workReport.inspRunningHours')]].map(([val, lbl]) => (
                             <label key={val} className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-700">
                               <input type="radio" name="maintenanceType" value={val} checked={bbktForm.maintenanceType === val} onChange={() => setBbktForm(f => ({ ...f, maintenanceType: val }))} className="w-3 h-3" />
                               {lbl}
@@ -1259,17 +1255,17 @@ export default function WorkReportPage() {
                   {/* II. Nội dung công việc */}
                   <div className="border border-gray-200 rounded">
                     <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600 flex items-center justify-between">
-                      <span>II. Nội dung công việc (Checklist)</span>
-                      <button type="button" onClick={() => setBbktJobItems(f => [...f, { seq: f.length + 1, description: '', status: '', notes: '' }])} className="text-xs text-blue-600 hover:underline">+ Thêm dòng</button>
+                      <span>{t('pms.workReport.inspSection2')}</span>
+                      <button type="button" onClick={() => setBbktJobItems(f => [...f, { seq: f.length + 1, description: '', status: '', notes: '' }])} className="text-xs text-blue-600 hover:underline">{t('pms.workReport.inspAddRow')}</button>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="bg-gray-50 border-b">
-                            <th className="px-2 py-1.5 text-left w-8">STT</th>
-                            <th className="px-2 py-1.5 text-left">Nội dung công việc</th>
-                            <th className="px-2 py-1.5 text-left w-28">Tình trạng</th>
-                            <th className="px-2 py-1.5 text-left">Ghi chú</th>
+                            <th className="px-2 py-1.5 text-left w-8">{t('pms.workReport.inspSeq')}</th>
+                            <th className="px-2 py-1.5 text-left">{t('pms.workReport.inspJobDescription')}</th>
+                            <th className="px-2 py-1.5 text-left w-28">{t('pms.workReport.inspJobStatus')}</th>
+                            <th className="px-2 py-1.5 text-left">{t('pms.workReport.inspJobNotes')}</th>
                             <th className="w-6"></th>
                           </tr>
                         </thead>
@@ -1283,9 +1279,9 @@ export default function WorkReportPage() {
                               <td className="px-2 py-1">
                                 <select value={item.status} onChange={e => setBbktJobItems(arr => arr.map((it, j) => j === i ? { ...it, status: e.target.value as InspectionJobItem['status'] } : it))} className="w-full border border-gray-200 rounded text-xs px-1 py-0.5 bg-white">
                                   <option value="">--</option>
-                                  <option value="GOOD">Tốt</option>
-                                  <option value="BAD">Xấu</option>
-                                  <option value="REPLACED">Thay thế</option>
+                                  <option value="GOOD">{t('pms.workReport.inspGood')}</option>
+                                  <option value="BAD">{t('pms.workReport.inspBad')}</option>
+                                  <option value="REPLACED">{t('pms.workReport.inspReplaced')}</option>
                                 </select>
                               </td>
                               <td className="px-2 py-1">
@@ -1297,7 +1293,7 @@ export default function WorkReportPage() {
                             </tr>
                           ))}
                           {bbktJobItems.length === 0 && (
-                            <tr><td colSpan={5} className="px-3 py-3 text-center text-gray-400 italic">Chưa có nội dung — nhấn "+ Thêm dòng" hoặc dữ liệu từ checklist</td></tr>
+                            <tr><td colSpan={5} className="px-3 py-3 text-center text-gray-400 italic">{t('pms.workReport.inspNoItems')}</td></tr>
                           )}
                         </tbody>
                       </table>
@@ -1306,12 +1302,12 @@ export default function WorkReportPage() {
 
                   {/* III. Kết luận */}
                   <div className="border border-gray-200 rounded">
-                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">III. Kết luận và kiến nghị</div>
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">{t('pms.workReport.inspSection3')}</div>
                     <div className="p-3 space-y-2">
                       <div>
-                        <label className="text-xs text-gray-500 block mb-1">Tình trạng sau bảo trì</label>
+                        <label className="text-xs text-gray-500 block mb-1">{t('pms.workReport.inspPostStatus')}</label>
                         <div className="flex gap-4">
-                          {[['NORMAL', 'Hoạt động bình thường'], ['MONITOR', 'Cần theo dõi'], ['NEEDS_REPAIR', 'Cần sửa chữa thêm']].map(([val, lbl]) => (
+                          {[['NORMAL', t('pms.workReport.inspNormal')], ['MONITOR', t('pms.workReport.inspMonitor')], ['NEEDS_REPAIR', t('pms.workReport.inspNeedsRepair')]].map(([val, lbl]) => (
                             <label key={val} className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-700">
                               <input type="radio" name="postStatus" value={val} checked={bbktForm.postMaintenanceStatus === val} onChange={() => setBbktForm(f => ({ ...f, postMaintenanceStatus: val }))} className="w-3 h-3" />
                               {lbl}
@@ -1320,7 +1316,7 @@ export default function WorkReportPage() {
                         </div>
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 block mb-0.5">Kiến nghị</label>
+                        <label className="text-xs text-gray-500 block mb-0.5">{t('pms.workReport.inspRecommendations')}</label>
                         <textarea rows={2} value={bbktForm.recommendations || ''} onChange={e => setBbktForm(f => ({ ...f, recommendations: e.target.value }))} className={`${inp} resize-none`} />
                       </div>
                     </div>
@@ -1328,20 +1324,20 @@ export default function WorkReportPage() {
 
                   {/* IV. Xác nhận */}
                   <div className="border border-gray-200 rounded">
-                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">IV. Xác nhận</div>
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-600">{t('pms.workReport.inspSection4')}</div>
                     <div className="p-3 grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-xs text-gray-500 block mb-0.5">Người thực hiện (Operator)</label>
-                        <input type="text" value={bbktForm.operatorSignature || ''} onChange={e => setBbktForm(f => ({ ...f, operatorSignature: e.target.value }))} placeholder="Ký và ghi rõ họ tên" className={inp} />
+                        <label className="text-xs text-gray-500 block mb-0.5">{t('pms.workReport.inspOperator')}</label>
+                        <input type="text" value={bbktForm.operatorSignature || ''} onChange={e => setBbktForm(f => ({ ...f, operatorSignature: e.target.value }))} placeholder={t('pms.workReport.inspSignPlaceholder')} className={inp} />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 block mb-0.5">Máy trưởng / Sĩ quan kỹ thuật</label>
-                        <input type="text" value={bbktForm.chiefEngineerSignature || ''} onChange={e => setBbktForm(f => ({ ...f, chiefEngineerSignature: e.target.value }))} placeholder="Ký và ghi rõ họ tên" className={inp} />
+                        <label className="text-xs text-gray-500 block mb-0.5">{t('pms.workReport.inspChiefEngineer')}</label>
+                        <input type="text" value={bbktForm.chiefEngineerSignature || ''} onChange={e => setBbktForm(f => ({ ...f, chiefEngineerSignature: e.target.value }))} placeholder={t('pms.workReport.inspSignPlaceholder')} className={inp} />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-xs text-gray-500 block mb-1">Kết quả tổng thể</label>
+                        <label className="text-xs text-gray-500 block mb-1">{t('pms.workReport.inspOverallResult')}</label>
                         <div className="flex gap-4">
-                          {[['PASS', 'Đạt ✓'], ['FAIL', 'Không đạt ✗']].map(([val, lbl]) => (
+                          {[['PASS', t('pms.workReport.inspPass')], ['FAIL', t('pms.workReport.inspFail')]].map(([val, lbl]) => (
                             <label key={val} className={`flex items-center gap-1.5 px-3 py-1 rounded border cursor-pointer text-xs font-medium ${bbktForm.overallResult === val ? (val === 'PASS' ? 'bg-green-100 border-green-400 text-green-700' : 'bg-red-100 border-red-400 text-red-700') : 'border-gray-200 text-gray-600'}`}>
                               <input type="radio" name="overallResult" value={val} checked={bbktForm.overallResult === val} onChange={() => setBbktForm(f => ({ ...f, overallResult: val }))} className="hidden" />
                               {lbl}
@@ -1362,59 +1358,59 @@ export default function WorkReportPage() {
 
           {/* Thông tin chung */}
           <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50">
-            <span className="text-sm font-semibold text-gray-700">Thông tin chung</span>
+            <span className="text-sm font-semibold text-gray-700">{t('pms.workReport.generalInfo')}</span>
           </div>
           <div className="px-4 py-3 space-y-3 text-sm border-b border-gray-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={reportCompleted} onChange={e => setReportCompleted(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
-              <span className="text-gray-700">Xác nhận hoàn thành báo cáo</span>
+              <span className="text-gray-700">{t('pms.workReport.confirmComplete')}</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={isCbm} onChange={e => setIsCbm(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
               <span className="text-gray-700">CBM</span>
             </label>
             <div className="flex items-center">
-              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">Ngày báo cáo:</label>
+              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">{t('pms.workReport.reportDate')}</label>
               <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className={inp} />
             </div>
             <div className="flex items-center">
-              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">Trạng thái:</label>
+              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">{t('pms.workReport.statusLabel')}</label>
               <input type="text" readOnly value={statusLabel} className={inpRo} />
               {task.hasPendingDeferral && (
-                <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-700 whitespace-nowrap">⏳ Xin hoãn</span>
+                <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-700 whitespace-nowrap">{t('pms.workReport.deferralTag')}</span>
               )}
             </div>
             <div className="flex items-center">
-              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">Ngày đến hạn:</label>
+              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">{t('pms.workReport.dueDateLabel')}</label>
               <input type="date" readOnly value={task.nextDueAt ? task.nextDueAt.substring(0, 10) : ''} className={inpRo} />
             </div>
             <div className="flex items-center">
-              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">Độ ưu tiên:</label>
+              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">{t('pms.workReport.priorityLabel')}</label>
               <input type="text" readOnly value={priorityLabel} className={inpRo} />
             </div>
             <div className="flex items-center">
-              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">Người thực hiện:</label>
+              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">{t('pms.workReport.assigneeLabel')}</label>
               <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} className={inp}>
-                <option value="">-- Chọn --</option>
+                <option value="">{t('pms.workReport.selectOption')}</option>
                 {crewMembers.map(c => <option key={c.id} value={c.fullName}>{c.fullName} - {c.rank?.rankName || ''}</option>)}
               </select>
             </div>
             <div className="flex items-center">
-              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">Người nhận BC:</label>
+              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">{t('pms.workReport.receiverLabel')}</label>
               <select value={reportReceiver} onChange={e => setReportReceiver(e.target.value)} className={inp}>
-                <option value="">-- Chọn --</option>
+                <option value="">{t('pms.workReport.selectOption')}</option>
                 {crewMembers.map(c => <option key={c.id} value={c.fullName}>{c.fullName} - {c.rank?.rankName || ''}</option>)}
               </select>
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={hasRiskAssessment} onChange={e => setHasRiskAssessment(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
-              <span className="text-gray-700">Đánh giá rủi ro công việc</span>
+              <span className="text-gray-700">{t('pms.workReport.riskAssessmentCheck')}</span>
             </label>
           </div>
 
           {/* Bình luận */}
           <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50">
-            <span className="text-sm font-semibold text-gray-700">Bình luận</span>
+            <span className="text-sm font-semibold text-gray-700">{t('pms.workReport.commentsSection')}</span>
           </div>
           <div className="px-4 py-3 border-b border-gray-200">
             {comments.length > 0 && (
@@ -1437,22 +1433,22 @@ export default function WorkReportPage() {
                 value={commentText}
                 onChange={e => setCommentText(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAddComment()}
-                placeholder="Nhập bình luận tại đây (Shift + enter: Xuống dòng)"
+                placeholder={t('pms.workReport.commentPlaceholder')}
                     className="flex-1 px-2 py-1.5 text-sm border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <button onClick={handleAddComment} className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
-                <Send size={12} /> Bình luận
+                <Send size={12} /> {t('pms.workReport.commentBtn')}
               </button>
             </div>
           </div>
 
           {/* Lịch sử công việc */}
           <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50">
-            <span className="text-sm font-semibold text-gray-700">Lịch sử công việc</span>
+            <span className="text-sm font-semibold text-gray-700">{t('pms.workReport.historySection')}</span>
           </div>
           <div className="px-4 py-3">
             {statusHistory.length === 0 ? (
-              <p className="text-sm text-gray-400 italic">Chưa có lịch sử</p>
+              <p className="text-sm text-gray-400 italic">{t('pms.workReport.noHistory')}</p>
             ) : (
               <div className="space-y-2.5 relative pl-4">
                 <div className="absolute left-[5px] top-1 bottom-1 w-px bg-gray-200" />
@@ -1479,27 +1475,27 @@ export default function WorkReportPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-              <h3 className="text-sm font-semibold text-gray-800">Trả hoàn công việc</h3>
+              <h3 className="text-sm font-semibold text-gray-800">{t('pms.workReport.rejectModalTitle')}</h3>
               <button onClick={() => setShowRejectModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={16} />
               </button>
             </div>
             <div className="px-4 py-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Lý do trả hoàn <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('pms.workReport.rejectReasonLabel')} <span className="text-red-500">*</span></label>
               <textarea
                 value={rejectionReason}
                 onChange={e => setRejectionReason(e.target.value)}
-                placeholder="Nhập lý do trả hoàn..."
+                placeholder={t('pms.workReport.rejectPlaceholder')}
                 rows={4}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
               />
             </div>
             <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg">
               <button onClick={() => setShowRejectModal(false)} className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-100">
-                Hủy
+                {t('pms.workReport.rejectCancel')}
               </button>
               <button onClick={handleReject} disabled={verifying || !rejectionReason.trim()} className="px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50">
-                {verifying ? 'Đang xử lý...' : 'Xác nhận trả hoàn'}
+                {verifying ? t('pms.workReport.processing') : t('pms.workReport.rejectConfirm')}
               </button>
             </div>
           </div>

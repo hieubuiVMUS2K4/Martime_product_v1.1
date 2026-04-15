@@ -42,7 +42,7 @@ const EdgeSyncBadge: React.FC<{ lastSync?: string | Date | null }> = ({ lastSync
         marginBottom: '12px'
       }}
     >
-      🔄 Last synced from Edge: {syncDate.toLocaleString('vi-VN')}
+      🔄 Đồng bộ lần cuối từ Edge: {syncDate.toLocaleString('vi-VN')}
     </div>
   );
 };
@@ -53,27 +53,27 @@ export function TanksCargoTab({ vessel }: TanksCargoTabProps) {
       <EdgeSyncBadge lastSync={vessel.lastEdgeSyncAt} />
       
       {/* Tanks Capacity */}
-      <SectionCard title="Tanks Capacity (100%)">
+      <SectionCard title="Sức chứa két (100%)">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <ReadOnlyField label="HFO" value={vessel.hfoCbm} suffix="cbm" />
-          <ReadOnlyField label="MDO" value={vessel.mdoCbm} suffix="cbm" />
-          <ReadOnlyField label="Lub. Oil" value={vessel.lubOilCbm} suffix="cbm" />
-          <ReadOnlyField label="Fresh Water" value={vessel.freshWaterCbm} suffix="cbm" />
-          <ReadOnlyField label="Ballast Water" value={vessel.ballastWaterCbm} suffix="cbm" />
-          <ReadOnlyField label="No. of Ballast Tanks" value={vessel.noOfBallastTanks} />
+          <ReadOnlyField label="Dầu nhiên liệu HFO" value={vessel.hfoCbm} suffix="cbm" />
+          <ReadOnlyField label="Dầu MDO" value={vessel.mdoCbm} suffix="cbm" />
+          <ReadOnlyField label="Dầu bôi trơn" value={vessel.lubOilCbm} suffix="cbm" />
+          <ReadOnlyField label="Nước ngọt" value={vessel.freshWaterCbm} suffix="cbm" />
+          <ReadOnlyField label="Nước dằn bàlaỳt" value={vessel.ballastWaterCbm} suffix="cbm" />
+          <ReadOnlyField label="Số két bálát" value={vessel.noOfBallastTanks} />
         </div>
       </SectionCard>
 
       {/* Cargo Capacity */}
-      <SectionCard title="Cargo Capacity">
+      <SectionCard title="Sức chứa hàng">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <ReadOnlyField label="TEU Total" value={vessel.teuTotal} />
-          <ReadOnlyField label="TEU on Deck" value={vessel.teuOnDeck} />
-          <ReadOnlyField label="TEU Under Deck" value={vessel.teuUnderDeck} />
-          <ReadOnlyField label="Grain" value={vessel.grainCbm} suffix="cbm" />
-          <ReadOnlyField label="Bales" value={vessel.balesCbm} suffix="cbm" />
-          <ReadOnlyField label="No. of Cargo Holds" value={vessel.noOfCargoHolds} />
-          <ReadOnlyField label="No. of Hatches" value={vessel.noOfHatches} />
+          <ReadOnlyField label="Tổng TEU" value={vessel.teuTotal} />
+          <ReadOnlyField label="TEU trên boong" value={vessel.teuOnDeck} />
+          <ReadOnlyField label="TEU dưới boong" value={vessel.teuUnderDeck} />
+          <ReadOnlyField label="Lúa mì" value={vessel.grainCbm} suffix="cbm" />
+          <ReadOnlyField label="Kiện hàng" value={vessel.balesCbm} suffix="cbm" />
+          <ReadOnlyField label="Số hầm hàng" value={vessel.noOfCargoHolds} />
+          <ReadOnlyField label="Số nắp hầm" value={vessel.noOfHatches} />
         </div>
       </SectionCard>
     </div>

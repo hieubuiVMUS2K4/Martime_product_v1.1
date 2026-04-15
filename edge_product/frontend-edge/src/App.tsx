@@ -87,9 +87,9 @@ function App() {
       <Route path="/" element={<AuthGuard><MainLayout /></AuthGuard>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="navigation" element={<NavigationPage />} />
-        <Route path="engine" element={<EnginePage />} />
-        <Route path="alarms" element={<AlarmsPage />} />
+        {/* <Route path="navigation" element={<NavigationPage />} /> */} {/* Temporarily hidden */}
+        {/* <Route path="engine" element={<EnginePage />} /> */} {/* Temporarily hidden */}
+        {/* <Route path="alarms" element={<AlarmsPage />} /> */} {/* Temporarily hidden */}
         <Route path="crew" element={<Navigate to="/crew/members" replace />} />
         <Route path="crew/members" element={<CrewPage />} />
         <Route path="crew/certificates" element={<CrewCertificatePage />} />
@@ -99,10 +99,10 @@ function App() {
         <Route path="voyage" element={<VoyagePage />} />
         <Route path="ports" element={<PortManagementPage />} />
         <Route path="ship-data" element={<ShipDataPage />} />
-        <Route path="compliance" element={<CompliancePage />} />
+        {/* <Route path="compliance" element={<CompliancePage />} /> */} {/* Temporarily hidden */}
         <Route path="sync" element={<SyncPage />} />
 
-        <Route path="fuel-analytics" element={<FuelAnalyticsPage />} />
+        {/* <Route path="fuel-analytics" element={<FuelAnalyticsPage />} /> */} {/* Temporarily hidden */}
         
         {/* Logbook Routes */}
         <Route path="logbooks/deck" element={<DeckLogPage />} />
