@@ -368,6 +368,12 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
             ? json.encode(_actuallyUsedSpareParts)
             : _sparePartsController.text.trim().isEmpty ? null : _sparePartsController.text.trim();
 
+        // RECTIFY tasks are still in RECTIFY status – must start first (→ IN_PROGRESS)
+        // before submitting, otherwise backend rejects with 400.
+        if (widget.task.isRectify) {
+          await taskProvider.startTask(widget.task.id);
+        }
+
         // Backend uses headers for user identity; body carries workflow fields only.
         await taskProvider.submitTask(
         taskId: widget.task.id,

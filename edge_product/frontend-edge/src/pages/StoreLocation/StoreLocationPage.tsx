@@ -377,37 +377,6 @@ export default function StoreLocationPage() {
   return (
     <div className="h-full w-full flex flex-col overflow-hidden bg-white">
       <div className="flex flex-shrink-0 border-b border-gray-200">
-        <div
-          className={`w-64 flex-shrink-0 flex items-center border-r border-gray-200 ${
-            selectedNodeId === null && !editMode
-              ? 'bg-blue-800 text-white'
-              : 'text-gray-700 bg-white'
-          }`}
-        >
-          <button
-            onClick={() => setSelectedNodeId(null)}
-            className="flex-1 flex items-center gap-1.5 px-3 py-3 text-sm font-semibold text-left min-w-0 hover:opacity-90"
-          >
-            <FolderOpen className="w-4 h-4 flex-shrink-0" />
-            <span className="flex-1 text-left truncate">
-              {t('storeLocations.allLocations')} (SL:{locations.length})
-            </span>
-          </button>
-          {editMode && (
-            <button
-              onClick={() => startInlineNew(null)}
-              className={`flex-shrink-0 mr-2 p-1 rounded transition-colors ${
-                selectedNodeId === null
-                  ? 'text-blue-200 hover:text-white hover:bg-blue-700'
-                  : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
-              }`}
-              title="Thêm kho gốc mới"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-
         <div className="flex-1 flex items-center justify-between px-4 py-3 bg-white">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-gray-700">
@@ -455,39 +424,6 @@ export default function StoreLocationPage() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div
-          className="w-64 flex-shrink-0 border-r border-gray-200 overflow-y-auto bg-white"
-          onContextMenu={editMode ? (e) => {
-            if ((e.target as HTMLElement).closest('button')) return;
-            e.preventDefault();
-            setContextMenu({ x: e.clientX, y: e.clientY, nodeId: null });
-          } : undefined}
-        >
-          <div className="p-1">
-            {treeRoots.length === 0 && !inlineNew ? (
-              <div className="px-4 py-6 text-xs text-gray-400 text-center">
-                {editMode ? 'Chuột phải để thêm kho' : t('storeLocations.noTree')}
-              </div>
-            ) : (
-              treeRoots.map(node => renderTreeNode(node, 0))
-            )}
-            {inlineNew?.parentId === null && (
-              <div className="flex items-center gap-1 px-3 py-1 bg-blue-50 border-l-2 border-blue-400 mx-1 mt-1 rounded">
-                <FolderOpen className="w-3 h-3 flex-shrink-0 text-blue-400" />
-                <input
-                  autoFocus
-                  placeholder="Tên kho mới..."
-                  value={inlineNewName}
-                  onChange={e => setInlineNewName(e.target.value)}
-                  onKeyDown={handleInlineNewKeyDown}
-                  className="flex-1 min-w-0 text-xs border border-blue-300 rounded px-1 py-0.5 outline-none focus:border-blue-500 bg-white"
-                />
-                <button onClick={() => { setInlineNew(null); setInlineNewName(''); }} className="text-gray-400 hover:text-gray-600 text-xs px-1 flex-shrink-0">✕</button>
-              </div>
-            )}
-          </div>
-        </div>
-
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
           {editMode ? (
             !selectedEditLocation ? (
