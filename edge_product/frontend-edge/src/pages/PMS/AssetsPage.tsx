@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Plus, Upload, Download, Search, Package, Trash2, ChevronDown, ChevronRight, FolderOpen, Save, ChevronsUpDown, Edit2, Copy } from 'lucide-react';
+import { Plus, Upload, Download, Search, Package, Trash2, ChevronDown, ChevronRight, FolderOpen, Save, ChevronsUpDown, Edit2 } from 'lucide-react';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { ImportAssetsModal } from '@/components/pms/ImportAssetsModal';
 import { useTranslationSafe } from '@/contexts/I18nContext';
@@ -429,10 +429,7 @@ export default function AssetsPage() {
                   <Trash2 className="w-3.5 h-3.5" />
                   {t('pms.assets.deleteMany')}{selectedRows.size > 0 ? ` (${selectedRows.size})` : ''}
                 </button>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
-                  <Copy className="w-3.5 h-3.5" />
-                  {t('pms.assets.copy')}
-                </button>
+
               </>
             )}
             {/* Toggle edit mode */}

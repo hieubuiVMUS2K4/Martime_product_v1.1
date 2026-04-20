@@ -2126,47 +2126,6 @@ export default function WorkPlanningPage() {
                           </div>
                         )}
                       </div>
-                      {/* Receiver */}
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded">RECEIVER</span>
-                          <span className="text-xs text-gray-500">{t('pms.workPlanning.config.receiverRole')}</span>
-                        </div>
-                        {(() => {
-                          const recvAssign = cfgCrewAssignments.find(a => a.role === 'RECEIVER');
-                          const recvCrew = recvAssign ? crewList.find(c => c.id === recvAssign.crewId) : null;
-                          if (recvAssign && recvCrew) {
-                            return (
-                              <div className="flex items-center gap-2 p-2 border border-amber-200 bg-amber-50/50 rounded text-sm">
-                                <div className="flex-1 min-w-0">
-                                  <span className="font-medium text-gray-900">{recvCrew.fullName}</span>
-                                  <span className="text-gray-400 ml-1.5 text-xs">{typeof recvCrew.rank === 'string' ? recvCrew.rank : recvCrew.rank?.rankCode || ''}</span>
-                                  {recvCrew.department && <span className="text-gray-400 ml-1.5 text-xs">• {recvCrew.department}</span>}
-                                </div>
-                                <button type="button" onClick={() => { const idx = cfgCrewAssignments.findIndex(a => a.role === 'RECEIVER'); if (idx >= 0) cfgRemoveCrew(idx); }} className="text-red-400 hover:text-red-600 shrink-0">
-                                  <XIcon size={14} />
-                                </button>
-                              </div>
-                            );
-                          }
-                          return (
-                            <div className="relative">
-                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                              <input type="text" value={cfgActiveCrewDrop === 'RECEIVER' ? cfgCrewSearch : ''} onChange={e => { setCfgCrewSearch(e.target.value); setCfgActiveCrewDrop('RECEIVER'); }} onFocus={() => { setCfgActiveCrewDrop('RECEIVER'); setCfgCrewSearch(''); }} onBlur={() => setTimeout(() => setCfgActiveCrewDrop(null), 200)} placeholder={t('pms.workPlanning.config.searchReceiver')} className="w-full pl-8 border border-gray-300 py-2 text-sm rounded" />
-                              {cfgActiveCrewDrop === 'RECEIVER' && cfgFilteredCrew.length > 0 && (
-                                <div className="absolute z-30 mt-1 w-full max-h-36 overflow-auto bg-white border border-gray-200 shadow-lg rounded">
-                                  {cfgFilteredCrew.map(c => (
-                                    <button key={c.id} type="button" onMouseDown={() => { cfgAddCrew(c.id, 'RECEIVER'); setCfgActiveCrewDrop(null); }} className="w-full text-left px-3 py-2 hover:bg-amber-50 text-sm border-b border-gray-50">
-                                      <span className="font-medium text-gray-900">{c.fullName}</span>
-                                      <span className="text-gray-400 text-xs ml-1.5">{typeof c.rank === 'string' ? c.rank : c.rank?.rankCode || ''} • {c.department || ''}</span>
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
                     </div>
 
                     {/* ── Vật tư tiêu dùng ── */}
