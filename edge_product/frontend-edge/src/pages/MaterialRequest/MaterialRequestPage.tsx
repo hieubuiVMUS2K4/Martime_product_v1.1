@@ -11,7 +11,7 @@ import type { MaterialRequest, MaterialRequestItem } from '@/types/pms.types';
 import type { MaterialItem, VoyageRecord } from '@/types/maritime.types';
 import type { EquipmentAsset } from '@/types/pms.types';
 
-type ViewMode = 'list' | 'create' | 'edit' | 'detail';
+type ViewMode = 'list' | 'detail';
 
 const URGENCY_OPTIONS = [
   { value: 'Normal', label: 'Không khẩn cấp', color: 'bg-gray-100 text-gray-700' },
@@ -48,6 +48,7 @@ export default function MaterialRequestPage() {
   const [searchQ, setSearchQ] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [showFormModal, setShowFormModal] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -118,7 +119,7 @@ export default function MaterialRequestPage() {
     setFormItems([]);
     setEditingId(null);
     await loadFormOptions();
-    setView('create');
+    setShowFormModal(true);
   };
 
   const openEdit = async (id: number) => {
@@ -139,7 +140,7 @@ export default function MaterialRequestPage() {
       setFormItems(data.items || []);
       setEditingId(id);
       await loadFormOptions();
-      setView('edit');
+      setShowFormModal(true);
     } catch { /* ignore */ }
   };
 
@@ -174,7 +175,7 @@ export default function MaterialRequestPage() {
         const res = await materialRequestService.create(payload);
         if (andSubmit) await materialRequestService.submit(res.id);
       }
-      setView('list');
+      setShowFormModal(false);
       loadList();
     } catch (e) {
       console.error('Save failed', e);
@@ -267,11 +268,153 @@ export default function MaterialRequestPage() {
 
   const totalPages = Math.ceil(total / pageSize);
 
-  // ─────── LIST VIEW ───────
-  if (view === 'list') {
-    return (
-      <div className="h-full w-full flex flex-col overflow-hidden bg-white">
-        {/* ── HEADER ROW ── */}
+  // ─────── FORM MODAL (Create / Edit) ───────
+  const formModal = showFormModal && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={e => { if (e.target === e.currentTarget) setShowFormModal(false); }}>
+      <div className="bg-white flex flex-col rounded-lg shadow-2xl" style={{ width: '90vw', height: '90vh', maxWidth: 1200 }}>
+        {/* Modal header */}
+        <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2.5">
+          <span className="text-sm font-semibold text-gray-700">
+            {editingId ? 'Chỉnh sửa yêu cầu vật tư' : 'Thêm mới yêu cầu vật tư'}
+          </span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowFormModal(false)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
+              <X className="w-3.5 h-3.5" /> Hủy bỏ
+            </button>
+            <button disabled={saving} onClick={() => handleSave(false)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+              Lưu nháp
+            </button>
+            <button disabled={saving} onClick={() => handleSave(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">
+              <Send className="w-3.5 h-3.5" /> Lưu và gửi duyệt
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto">
+          {/* Thông tin yêu cầu */}
+          <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50">
+            <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Info size={14} /> Thông tin yêu cầu</span>
+          </div>
+          <div className="px-4 py-4 space-y-3 text-sm border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-base">YÊU CẦU VẬT TƯ</h3>
+              <span className="text-xs text-gray-400">{formItems.length}/255</span>
+            </div>
+            <div className="grid grid-cols-3 gap-x-6 gap-y-3">
+              <div className="flex items-center">
+                <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 140 }}>Tàu</label>
+                <select value={formData.vesselName} onChange={e => setFormData(p => ({ ...p, vesselName: e.target.value }))} className="flex-1 border border-gray-300 px-3 py-1.5 bg-white text-sm">
+                  <option value={VESSEL_CONFIG.VESSEL_NAME}>{VESSEL_CONFIG.VESSEL_NAME}</option>
+                </select>
+              </div>
+              <div className="flex items-center">
+                <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 100 }}>Voyage</label>
+                <select value={formData.voyageId} onChange={e => selectVoyage(e.target.value)} className="flex-1 border border-gray-300 px-3 py-1.5 bg-white text-sm">
+                  <option value="">Lựa chọn</option>
+                  {voyageOptions.map(v => <option key={v.id} value={v.id}>{v.voyageNumber} ({v.departurePort} → {v.arrivalPort})</option>)}
+                </select>
+              </div>
+              <div className="flex items-center">
+                <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 110 }}>Mã yêu cầu</label>
+                <input type="text" value={formData.requestCode || '(Tự sinh)'} readOnly className="flex-1 border border-gray-300 px-3 py-1.5 bg-gray-50 text-gray-400 text-sm" />
+              </div>
+              <div className="flex items-center">
+                <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 140 }}>Trạng thái khẩn cấp <span className="text-red-500">*</span></label>
+                <select value={formData.urgency} onChange={e => setFormData(p => ({ ...p, urgency: e.target.value }))} className="flex-1 border border-gray-300 px-3 py-1.5 bg-white text-sm">
+                  {URGENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center">
+                <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 100 }}>Ngày cần vật tư</label>
+                <input type="date" value={formData.neededDate} onChange={e => setFormData(p => ({ ...p, neededDate: e.target.value }))} className="flex-1 border border-gray-300 px-3 py-1.5 text-sm" />
+              </div>
+              <div className="flex items-center">
+                <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 110 }}>Ngày yêu cầu <span className="text-red-500">*</span></label>
+                <input type="date" value={formData.requestDate} onChange={e => setFormData(p => ({ ...p, requestDate: e.target.value }))} className="flex-1 border border-gray-300 px-3 py-1.5 text-sm" />
+              </div>
+              <div className="flex items-center col-span-3">
+                <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 140 }}>Người yêu cầu <span className="text-red-500">*</span></label>
+                <input type="text" value={formData.requestedBy} onChange={e => setFormData(p => ({ ...p, requestedBy: e.target.value }))} className="flex-1 border border-gray-300 px-3 py-1.5 text-sm" placeholder="Nhập thông tin" />
+              </div>
+              <div className="flex items-start col-span-3">
+                <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap pt-1.5" style={{ width: 140 }}>Ghi chú</label>
+                <textarea value={formData.notes} onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))} className="flex-1 border border-gray-300 px-3 py-1.5 min-h-[36px] resize-y text-sm" placeholder="Nhập thông tin" rows={1} />
+              </div>
+              <div className="flex items-center col-span-3">
+                <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 140 }}>Đính kèm tệp tin</label>
+                <div className="flex-1">
+                  <label className="flex items-center gap-1.5 text-blue-600 text-sm cursor-pointer hover:text-blue-800">
+                    <Paperclip size={14} /> Đính kèm tệp tin
+                    <input type="file" className="hidden" onChange={e => { const file = e.target.files?.[0]; if (file) setFormData(p => ({ ...p, attachments: file.name })); }} />
+                  </label>
+                  {formData.attachments && <span className="text-xs text-gray-500 ml-2">{formData.attachments}</span>}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Danh sách vật tư */}
+          <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50">
+            <span className="text-sm font-semibold text-gray-700">Danh sách vật tư</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[1000px]">
+              <thead className="bg-blue-50">
+                <tr>
+                  <th className="px-2 py-2 text-left w-10">TT</th>
+                  <th className="px-2 py-2 text-left w-44">Tên thiết bị</th>
+                  <th className="px-2 py-2 text-left">Tên vật tư <span className="text-red-500">*</span></th>
+                  <th className="px-2 py-2 text-left w-32">Mô tả</th>
+                  <th className="px-2 py-2 text-left w-20">Đơn vị tính</th>
+                  <th className="px-2 py-2 text-right w-24">Số lượng còn</th>
+                  <th className="px-2 py-2 text-right w-28">Số lượng yêu cầu <span className="text-red-500">*</span></th>
+                  <th className="px-2 py-2 text-left w-28">Ghi chú</th>
+                  <th className="px-2 py-2 w-8"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {formItems.length === 0 ? (
+                  <tr><td colSpan={9} className="text-center py-8 text-gray-400">Không có dữ liệu</td></tr>
+                ) : formItems.map((item, idx) => (
+                  <tr key={idx} className="border-b">
+                    <td className="px-2 py-1.5 text-gray-500">{idx + 1}</td>
+                    <td className="px-2 py-1.5">
+                      <select value={item.equipmentAssetId || ''} onChange={e => updateFormItem(idx, 'equipmentAssetId', e.target.value || null)} className="w-full border border-gray-300 px-1.5 py-1 text-sm">
+                        <option value="">-- Chọn thiết bị --</option>
+                        {assetOptions.map(a => <option key={a.id} value={a.id}>{a.assetCode} - {a.assetName}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <select value={item.materialItemId || ''} onChange={e => { if (e.target.value) selectMaterial(idx, e.target.value); else updateFormItem(idx, 'materialItemId', null); }} className="w-full border border-gray-300 px-1.5 py-1 text-sm">
+                        <option value="">-- Chọn vật tư --</option>
+                        {materialOptions.map(m => <option key={m.id} value={m.id}>{m.itemCode} - {m.name}</option>)}
+                      </select>
+                      {!item.materialItemId && <input type="text" value={item.itemName} onChange={e => updateFormItem(idx, 'itemName', e.target.value)} className="w-full border border-gray-300 px-1.5 py-1 text-sm mt-1" placeholder="Hoặc nhập tên thủ công..." />}
+                    </td>
+                    <td className="px-2 py-1.5"><input type="text" value={item.description || ''} onChange={e => updateFormItem(idx, 'description', e.target.value)} className="w-full border border-gray-300 px-1.5 py-1 text-sm" /></td>
+                    <td className="px-2 py-1.5"><input type="text" value={item.unit} onChange={e => updateFormItem(idx, 'unit', e.target.value)} className="w-full border border-gray-300 px-1.5 py-1 text-sm" /></td>
+                    <td className="px-2 py-1.5 text-right text-gray-500">{item.quantityOnHand}</td>
+                    <td className="px-2 py-1.5"><input type="number" min={0} step={1} value={item.quantityRequested} onChange={e => updateFormItem(idx, 'quantityRequested', Number(e.target.value))} className="w-full border border-gray-300 px-1.5 py-1 text-sm text-right" /></td>
+                    <td className="px-2 py-1.5"><input type="text" value={item.note || ''} onChange={e => updateFormItem(idx, 'note', e.target.value)} className="w-full border border-gray-300 px-1.5 py-1 text-sm" /></td>
+                    <td className="px-2 py-1.5 text-center"><button onClick={() => removeFormItem(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 py-2 border-t border-gray-200">
+            <button onClick={addFormItem} className="flex items-center gap-1 text-blue-600 text-sm hover:text-blue-800">
+              <Plus size={14} /> Thêm dòng
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const listView = (
+    <div className="h-full w-full flex flex-col overflow-hidden bg-white">
+      {/* ── HEADER ROW ── */}
         <div className="flex flex-shrink-0 border-b border-gray-200">
           <div className="flex-1 flex items-center justify-between px-4 py-3 bg-white">
             <div className="flex items-center gap-2">
@@ -445,14 +588,14 @@ export default function MaterialRequestPage() {
             <input type="number" min={1} max={totalPages} value={currentPage} onChange={e => { const v = Number(e.target.value); if (v >= 1 && v <= totalPages) setCurrentPage(v); }} className="w-12 border border-gray-300 rounded px-1 py-1 text-center text-xs" />
           </div>
         </div>
-      </div>
-    );
-  }
+    </div>
+  );
 
   // ─────── DETAIL VIEW ───────
   if (view === 'detail' && detailData) {
     return (
-      <div className="h-full w-full flex flex-col overflow-hidden bg-white">
+      <>
+        <div className="h-full w-full flex flex-col overflow-hidden bg-white">
         <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2.5">
           <div className="flex items-center gap-1.5 text-sm text-gray-500">
             <button onClick={() => setView('list')} className="text-gray-500 hover:text-gray-700"><ArrowLeft size={18} /></button>
@@ -613,267 +756,11 @@ export default function MaterialRequestPage() {
           </table>
         </div>
       </div>
-    );
+      {formModal}
+    </>
+  );
   }
 
-  // ─────── CREATE / EDIT FORM ───────
-  return (
-    <div className="h-full w-full flex flex-col overflow-hidden bg-white">
-      {/* Breadcrumb header */}
-      <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2.5">
-        <div className="flex items-center gap-1.5 text-sm text-gray-500">
-          <button onClick={() => setView('list')} className="text-gray-500 hover:text-gray-700"><ArrowLeft size={18} /></button>
-          <button onClick={() => setView('list')} className="text-blue-600 hover:underline">Vật tư</button>
-          <ChevronRight size={14} className="text-gray-300" />
-          <button onClick={() => setView('list')} className="text-blue-600 hover:underline">{t('materialRequests.title')}</button>
-          <ChevronRight size={14} className="text-gray-300" />
-          <span className="text-gray-700 font-medium">{editingId ? 'Chỉnh sửa yêu cầu vật tư' : 'Thêm mới yêu cầu vật tư'}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setView('list')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
-            <X className="w-3.5 h-3.5" /> Hủy bỏ
-          </button>
-          <button
-            disabled={saving}
-            onClick={() => handleSave(false)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-          >
-            Lưu nháp
-          </button>
-          <button
-            disabled={saving}
-            onClick={() => handleSave(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-          >
-            <Send className="w-3.5 h-3.5" /> Lưu và gửi duyệt
-          </button>
-        </div>
-      </div>
 
-      <div className="flex-1 overflow-auto">
-        {/* ── Thông tin yêu cầu ── */}
-        <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50">
-          <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Info size={14} /> Thông tin yêu cầu</span>
-        </div>
-        <div className="px-4 py-4 space-y-3 text-sm border-b border-gray-200">
-          {/* Title + counter badge */}
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-base">YÊU CẦU VẬT TƯ</h3>
-            <span className="text-xs text-gray-400">{formItems.length}/{255}</span>
-          </div>
-
-          {/* Row 1: Tàu / Voyage / Mã yêu cầu */}
-          <div className="grid grid-cols-3 gap-x-6 gap-y-3">
-            <div className="flex items-center">
-              <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 140 }}>Tàu</label>
-              <select
-                value={formData.vesselName}
-                onChange={e => setFormData(p => ({ ...p, vesselName: e.target.value }))}
-                className="flex-1 border border-gray-300 px-3 py-1.5 bg-white text-sm"
-              >
-                <option value={VESSEL_CONFIG.VESSEL_NAME}>{VESSEL_CONFIG.VESSEL_NAME}</option>
-              </select>
-            </div>
-            <div className="flex items-center">
-              <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 100 }}>Voyage</label>
-              <select
-                value={formData.voyageId}
-                onChange={e => selectVoyage(e.target.value)}
-                className="flex-1 border border-gray-300 px-3 py-1.5 bg-white text-sm"
-              >
-                <option value="">Lựa chọn</option>
-                {voyageOptions.map(v => (
-                  <option key={v.id} value={v.id}>{v.voyageNumber} ({v.departurePort} → {v.arrivalPort})</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center">
-              <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 110 }}>Mã yêu cầu</label>
-              <input
-                type="text"
-                value={formData.requestCode || '(Tự sinh)'}
-                readOnly
-                className="flex-1 border border-gray-300 px-3 py-1.5 bg-gray-50 text-gray-400 text-sm"
-              />
-            </div>
-
-            {/* Row 2: Trạng thái khẩn cấp / Ngày cần vật tư / Ngày yêu cầu */}
-            <div className="flex items-center">
-              <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 140 }}>Trạng thái khẩn cấp <span className="text-red-500">*</span></label>
-              <select
-                value={formData.urgency}
-                onChange={e => setFormData(p => ({ ...p, urgency: e.target.value }))}
-                className="flex-1 border border-gray-300 px-3 py-1.5 bg-white text-sm"
-              >
-                {URGENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-            <div className="flex items-center">
-              <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 100 }}>Ngày cần vật tư</label>
-              <input
-                type="date"
-                value={formData.neededDate}
-                onChange={e => setFormData(p => ({ ...p, neededDate: e.target.value }))}
-                className="flex-1 border border-gray-300 px-3 py-1.5 text-sm"
-              />
-            </div>
-            <div className="flex items-center">
-              <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 110 }}>Ngày yêu cầu <span className="text-red-500">*</span></label>
-              <input
-                type="date"
-                value={formData.requestDate}
-                onChange={e => setFormData(p => ({ ...p, requestDate: e.target.value }))}
-                className="flex-1 border border-gray-300 px-3 py-1.5 text-sm"
-              />
-            </div>
-
-            {/* Row 3: Người yêu cầu */}
-            <div className="flex items-center col-span-3">
-              <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 140 }}>Người yêu cầu <span className="text-red-500">*</span></label>
-              <input
-                type="text"
-                value={formData.requestedBy}
-                onChange={e => setFormData(p => ({ ...p, requestedBy: e.target.value }))}
-                className="flex-1 border border-gray-300 px-3 py-1.5 text-sm"
-                placeholder="Nhập thông tin"
-              />
-            </div>
-
-            {/* Row 4: Ghi chú */}
-            <div className="flex items-start col-span-3">
-              <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap pt-1.5" style={{ width: 140 }}>Ghi chú</label>
-              <textarea
-                value={formData.notes}
-                onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))}
-                className="flex-1 border border-gray-300 px-3 py-1.5 min-h-[36px] resize-y text-sm"
-                placeholder="Nhập thông tin"
-                rows={1}
-              />
-            </div>
-
-            {/* Row 5: Đính kèm tệp tin */}
-            <div className="flex items-center col-span-3">
-              <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 140 }}>Đính kèm tệp tin</label>
-              <div className="flex-1">
-                <label className="flex items-center gap-1.5 text-blue-600 text-sm cursor-pointer hover:text-blue-800">
-                  <Paperclip size={14} /> Đính kèm tệp tin
-                  <input
-                    type="file"
-                    className="hidden"
-                    onChange={e => {
-                      const file = e.target.files?.[0];
-                      if (file) setFormData(p => ({ ...p, attachments: file.name }));
-                    }}
-                  />
-                </label>
-                {formData.attachments && (
-                  <span className="text-xs text-gray-500 ml-2">{formData.attachments}</span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Danh sách vật tư ── */}
-        <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50">
-          <span className="text-sm font-semibold text-gray-700">Danh sách vật tư</span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[1000px]">
-            <thead className="bg-blue-50">
-              <tr>
-                <th className="px-2 py-2 text-left w-10">TT</th>
-                <th className="px-2 py-2 text-left w-44">Tên thiết bị</th>
-                <th className="px-2 py-2 text-left">Tên vật tư <span className="text-red-500">*</span></th>
-                <th className="px-2 py-2 text-left w-32">Mô tả</th>
-                <th className="px-2 py-2 text-left w-20">Đơn vị tính</th>
-                <th className="px-2 py-2 text-right w-24">Số lượng còn</th>
-                <th className="px-2 py-2 text-right w-28">Số lượng yêu cầu <span className="text-red-500">*</span></th>
-                <th className="px-2 py-2 text-left w-28">Ghi chú</th>
-                <th className="px-2 py-2 w-8"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {formItems.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="text-center py-8 text-gray-400">
-                    Không có dữ liệu
-                  </td>
-                </tr>
-              ) : formItems.map((item, idx) => (
-                <tr key={idx} className="border-b">
-                  <td className="px-2 py-1.5 text-gray-500">{idx + 1}</td>
-                  {/* Tên thiết bị */}
-                  <td className="px-2 py-1.5">
-                    <select
-                      value={item.equipmentAssetId || ''}
-                      onChange={e => updateFormItem(idx, 'equipmentAssetId', e.target.value || null)}
-                      className="w-full border border-gray-300 px-1.5 py-1 text-sm"
-                    >
-                      <option value="">-- Chọn thiết bị --</option>
-                      {assetOptions.map(a => (
-                        <option key={a.id} value={a.id}>{a.assetCode} - {a.assetName}</option>
-                      ))}
-                    </select>
-                  </td>
-                  {/* Tên vật tư */}
-                  <td className="px-2 py-1.5">
-                    <select
-                      value={item.materialItemId || ''}
-                      onChange={e => {
-                        if (e.target.value) selectMaterial(idx, e.target.value);
-                        else updateFormItem(idx, 'materialItemId', null);
-                      }}
-                      className="w-full border border-gray-300 px-1.5 py-1 text-sm"
-                    >
-                      <option value="">-- Chọn vật tư --</option>
-                      {materialOptions.map(m => (
-                        <option key={m.id} value={m.id}>{m.itemCode} - {m.name}</option>
-                      ))}
-                    </select>
-                    {!item.materialItemId && (
-                      <input
-                        type="text"
-                        value={item.itemName}
-                        onChange={e => updateFormItem(idx, 'itemName', e.target.value)}
-                        className="w-full border border-gray-300 px-1.5 py-1 text-sm mt-1"
-                        placeholder="Hoặc nhập tên thủ công..."
-                      />
-                    )}
-                  </td>
-                  {/* Mô tả */}
-                  <td className="px-2 py-1.5">
-                    <input type="text" value={item.description || ''} onChange={e => updateFormItem(idx, 'description', e.target.value)} className="w-full border border-gray-300 px-1.5 py-1 text-sm" />
-                  </td>
-                  {/* Đơn vị tính */}
-                  <td className="px-2 py-1.5">
-                    <input type="text" value={item.unit} onChange={e => updateFormItem(idx, 'unit', e.target.value)} className="w-full border border-gray-300 px-1.5 py-1 text-sm" />
-                  </td>
-                  {/* Số lượng còn */}
-                  <td className="px-2 py-1.5 text-right text-gray-500">{item.quantityOnHand}</td>
-                  {/* Số lượng yêu cầu */}
-                  <td className="px-2 py-1.5">
-                    <input type="number" min={0} step={1} value={item.quantityRequested} onChange={e => updateFormItem(idx, 'quantityRequested', Number(e.target.value))} className="w-full border border-gray-300 px-1.5 py-1 text-sm text-right" />
-                  </td>
-                  {/* Ghi chú */}
-                  <td className="px-2 py-1.5">
-                    <input type="text" value={item.note || ''} onChange={e => updateFormItem(idx, 'note', e.target.value)} className="w-full border border-gray-300 px-1.5 py-1 text-sm" />
-                  </td>
-                  {/* Xóa */}
-                  <td className="px-2 py-1.5 text-center">
-                    <button onClick={() => removeFormItem(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="px-4 py-2 border-t border-gray-200">
-          <button onClick={addFormItem} className="flex items-center gap-1 text-blue-600 text-sm hover:text-blue-800">
-            <Plus size={14} /> Thêm dòng
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  return <>{listView}{formModal}</>;
 }

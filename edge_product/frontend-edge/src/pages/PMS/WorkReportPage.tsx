@@ -1401,10 +1401,6 @@ export default function WorkReportPage() {
               <input type="checkbox" checked={reportCompleted} onChange={e => setReportCompleted(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
               <span className="text-gray-700">{t('pms.workReport.confirmComplete')}</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={isCbm} onChange={e => setIsCbm(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
-              <span className="text-gray-700">CBM</span>
-            </label>
             <div className="flex items-center">
               <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">{t('pms.workReport.reportDate')}</label>
               <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className={inp} />
@@ -1437,44 +1433,6 @@ export default function WorkReportPage() {
                 <option value="">{t('pms.workReport.selectOption')}</option>
                 {crewMembers.map(c => <option key={c.id} value={c.fullName}>{c.fullName} - {c.rank?.rankName || ''}</option>)}
               </select>
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={hasRiskAssessment} onChange={e => setHasRiskAssessment(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
-              <span className="text-gray-700">{t('pms.workReport.riskAssessmentCheck')}</span>
-            </label>
-          </div>
-
-          {/* Bình luận */}
-          <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50">
-            <span className="text-sm font-semibold text-gray-700">{t('pms.workReport.commentsSection')}</span>
-          </div>
-          <div className="px-4 py-3 border-b border-gray-200">
-            {comments.length > 0 && (
-              <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
-                {comments.map((c, i) => (
-                  <div key={i} className="border-b border-gray-100 pb-2">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <User size={12} className="text-gray-400" />
-                      <span className="text-xs font-medium text-gray-700">{c.author}</span>
-                      <span className="text-xs text-gray-400">{format(parseISO(c.date), 'dd/MM/yyyy HH:mm', { locale: vi })}</span>
-                    </div>
-                    <p className="text-sm text-gray-600">{c.text}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={commentText}
-                onChange={e => setCommentText(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAddComment()}
-                placeholder={t('pms.workReport.commentPlaceholder')}
-                    className="flex-1 px-2 py-1.5 text-sm border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <button onClick={handleAddComment} className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
-                <Send size={12} /> {t('pms.workReport.commentBtn')}
-              </button>
             </div>
           </div>
 
