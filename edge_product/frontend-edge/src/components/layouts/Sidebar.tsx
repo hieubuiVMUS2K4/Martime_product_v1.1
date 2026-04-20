@@ -351,15 +351,7 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Vessel Info */}
-      {!isCollapsed && (
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            <p className="font-semibold text-gray-700 dark:text-gray-300">{t('nav.localVessel')}</p>
-            <p className="mt-1">EDGE_LOCAL</p>
-          </div>
-        </div>
-      )}
+
     </div>
   )
 }
