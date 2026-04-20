@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Plus, Edit2, Trash2, Eye, Search, X, CheckCircle, Paperclip, Info, Package, ChevronsUpDown } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, Search, X, CheckCircle, Paperclip, Info, ChevronsUpDown } from 'lucide-react';
 import { stockReceiptService } from '@/services/stockReceipt.service';
 import { materialService } from '@/services/materialService';
 import { storeLocationService } from '@/services/store-location.service';
@@ -24,7 +24,7 @@ const STATUS_LABELS: Record<string, string> = {
   Completed: 'Hoàn thành',
 };
 
-const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50];
+
 
 export default function StockReceiptPage() {
   const { t } = useTranslationSafe();
@@ -33,7 +33,7 @@ export default function StockReceiptPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize] = useState(25);
   const [searchQ, setSearchQ] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -397,15 +397,9 @@ export default function StockReceiptPage() {
           </table>
         </div>
 
-        {/* ── PAGINATION ── */}
-        <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
-          <div>
-            <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className="border border-gray-300 rounded px-2 py-1 text-xs">
-              {ITEMS_PER_PAGE_OPTIONS.map(n => <option key={n} value={n}>{n} / trang</option>)}
-            </select>
-          </div>
+        {/* PAGINATION */}
+        <div className="flex items-center justify-center px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
           <div className="flex items-center gap-1">
-            <span className="mr-2">Trang {currentPage} / {totalPages} ({total} bản ghi)</span>
             <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">‹</button>
             {[...Array(Math.min(5, totalPages))].map((_, i) => {
               let page: number;
@@ -420,10 +414,6 @@ export default function StockReceiptPage() {
               );
             })}
             <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">›</button>
-          </div>
-          <div className="flex items-center gap-2">
-            <span>Đến trang</span>
-            <input type="number" min={1} max={totalPages} value={currentPage} onChange={e => { const v = Number(e.target.value); if (v >= 1 && v <= totalPages) setCurrentPage(v); }} className="w-12 border border-gray-300 rounded px-1 py-1 text-center text-xs" />
           </div>
         </div>
       </div>

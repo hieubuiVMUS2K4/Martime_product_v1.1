@@ -7,7 +7,6 @@ import type { EquipmentAsset } from '@/types/pms.types';
 
 const STATUS_VALUES = ['', 'ACTIVE', 'STANDBY', 'UNDER_MAINTENANCE', 'DECOMMISSIONED', 'IN_STORAGE'] as const;
 
-const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50];
 
 /** Build tree từ flat list có parentId */
 function buildTree(items: EquipmentAsset[]): EquipmentAsset[] {
@@ -77,7 +76,7 @@ export default function AssetsPage() {
   const [searchSpecs, setSearchSpecs] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(25);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
   useEffect(() => { loadData(); }, []);
@@ -620,14 +619,8 @@ export default function AssetsPage() {
                 </table>
               </div>
               {/* Pagination */}
-              <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
-                <div>
-                  <select value={itemsPerPage} onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} className="border border-gray-300 rounded px-2 py-1 text-xs">
-                    {ITEMS_PER_PAGE_OPTIONS.map(n => <option key={n} value={n}>{t('pms.assets.perPage', { n })}</option>)}
-                  </select>
-                </div>
+              <div className="flex items-center justify-center px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
                 <div className="flex items-center gap-1">
-                  <span className="mr-2">{t('pms.assets.pageInfo', { current: currentPage, total: totalPages, records: filteredAssets.length })}</span>
                   <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">‹</button>
                   {[...Array(Math.min(5, totalPages))].map((_, i) => {
                     let page: number;
@@ -640,10 +633,6 @@ export default function AssetsPage() {
                     );
                   })}
                   <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">›</button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span>{t('pms.assets.goToPage')}</span>
-                  <input type="number" min={1} max={totalPages} value={currentPage} onChange={e => { const v = Number(e.target.value); if (v >= 1 && v <= totalPages) setCurrentPage(v); }} className="w-12 border border-gray-300 rounded px-1 py-1 text-center text-xs" />
                 </div>
               </div>
             </>

@@ -212,7 +212,7 @@ export default function WorkPlanningPage() {
   // === Table state ===
   const [searchQuery] = useState('');
   const [tablePage, setTablePage] = useState(1);
-  const [tablePageSize, setTablePageSize] = useState(10);
+  const [tablePageSize] = useState(25);
   const [sortField, setSortField] = useState<string>('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
@@ -1356,16 +1356,8 @@ export default function WorkPlanningPage() {
               </div>
 
               {/* Pagination (matches AssetsPage) */}
-              <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
-                <div>
-                  <select value={tablePageSize} onChange={e => { setTablePageSize(Number(e.target.value)); setTablePage(1); }} className="border border-gray-300 rounded px-2 py-1 text-xs">
-                    <option value={10}>{t('pms.workPlanning.pagination.perPage', { count: '10' })}</option>
-                    <option value={20}>{t('pms.workPlanning.pagination.perPage', { count: '20' })}</option>
-                    <option value={50}>{t('pms.workPlanning.pagination.perPage', { count: '50' })}</option>
-                  </select>
-                </div>
+              <div className="flex items-center justify-center px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
                 <div className="flex items-center gap-1">
-                  <span className="mr-2">{t('pms.workPlanning.pagination.page', { current: String(tablePage), total: String(totalPages), records: String(sortedFilteredTasks.length) })}</span>
                   <button disabled={tablePage <= 1} onClick={() => setTablePage(p => p - 1)} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">‹</button>
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let page: number;
@@ -1381,16 +1373,6 @@ export default function WorkPlanningPage() {
                     );
                   })}
                   <button disabled={tablePage >= totalPages} onClick={() => setTablePage(p => p + 1)} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">›</button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span>{t('pms.workPlanning.pagination.goToPage')}</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={totalPages}
-                    className="w-12 border border-gray-300 rounded px-1 py-1 text-center text-xs"
-                    onKeyDown={e => { if (e.key === 'Enter') { const v = Number((e.target as HTMLInputElement).value); if (v >= 1 && v <= totalPages) setTablePage(v); }}}
-                  />
                 </div>
               </div>
             </div>

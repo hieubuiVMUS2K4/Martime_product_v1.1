@@ -9,7 +9,6 @@ import { AssignEquipmentModal } from './AssignEquipmentModal';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { MaterialItem, MaterialCategory } from '@/types/maritime.types';
 
-const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50];
 
 export function MaterialPage() {
   const { t } = useTranslationSafe();
@@ -26,7 +25,7 @@ export function MaterialPage() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(25);
 
   // Row selection
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -485,30 +484,9 @@ export function MaterialPage() {
       </div>
 
       {/* ── PAGINATION ── */}
-      <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
-        {/* Left: per-page selector */}
-        <div>
-          <select
-            value={itemsPerPage}
-            onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-            className="border border-gray-300 rounded px-2 py-1 text-xs"
-          >
-            {ITEMS_PER_PAGE_OPTIONS.map(n => (
-              <option key={n} value={n}>{t('pms.assets.perPage', { n })}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Middle: page buttons */}
+      <div className="flex items-center justify-center px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
         <div className="flex items-center gap-1">
-          <span className="mr-2">
-            {t('pms.assets.pageInfo', { current: currentPage, total: totalPages, records: filteredItems.length })}
-          </span>
-          <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40"
-          >‹</button>
+          <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">‹</button>
           {[...Array(Math.min(5, totalPages))].map((_, i) => {
             let page: number;
             if (totalPages <= 5) page = i + 1;
@@ -516,40 +494,10 @@ export function MaterialPage() {
             else if (currentPage >= totalPages - 2) page = totalPages - 4 + i;
             else page = currentPage - 2 + i;
             return (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${
-                  currentPage === page
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                {page}
-              </button>
+              <button key={page} onClick={() => setCurrentPage(page)} className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${currentPage === page ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}>{page}</button>
             );
           })}
-          <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40"
-          >›</button>
-        </div>
-
-        {/* Right: go to page */}
-        <div className="flex items-center gap-2">
-          <span>{t('pms.assets.goToPage')}</span>
-          <input
-            type="number"
-            min={1}
-            max={totalPages}
-            value={currentPage}
-            onChange={e => {
-              const v = Number(e.target.value);
-              if (v >= 1 && v <= totalPages) setCurrentPage(v);
-            }}
-            className="w-12 border border-gray-300 rounded px-1 py-1 text-center text-xs"
-          />
+          <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">›</button>
         </div>
       </div>
 

@@ -8,7 +8,6 @@ import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { InventoryStockItem, InventorySummary, StoreLocation } from '@/types/pms.types';
 import type { MaterialItem } from '@/types/maritime.types';
 
-const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50];
 
 interface TreeNode extends StoreLocation {
   children: TreeNode[];
@@ -38,7 +37,7 @@ export default function InventoryPage() {
   const [summary, setSummary] = useState<InventorySummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize] = useState(25);
   const [searchCode, setSearchCode] = useState('');
   const [searchName, setSearchName] = useState('');
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
@@ -392,14 +391,8 @@ export default function InventoryPage() {
           </div>
 
           {/* ── PAGINATION ── */}
-          <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
-            <div>
-              <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className="border border-gray-300 rounded px-2 py-1 text-xs">
-                {ITEMS_PER_PAGE_OPTIONS.map(n => <option key={n} value={n}>{n} / trang</option>)}
-              </select>
-            </div>
+          <div className="flex items-center justify-center px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
             <div className="flex items-center gap-1">
-              <span className="mr-2">Trang {currentPage} / {totalPages || 1} ({total} bản ghi)</span>
               <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">‹</button>
               {[...Array(Math.min(5, totalPages || 1))].map((_, i) => {
                 const tp = totalPages || 1;
@@ -415,10 +408,6 @@ export default function InventoryPage() {
                 );
               })}
               <button onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))} disabled={currentPage >= (totalPages || 1)} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">›</button>
-            </div>
-            <div className="flex items-center gap-2">
-              <span>Đến trang</span>
-              <input type="number" min={1} max={totalPages || 1} value={currentPage} onChange={e => { const v = Number(e.target.value); if (v >= 1 && v <= (totalPages || 1)) setCurrentPage(v); }} className="w-12 border border-gray-300 rounded px-1 py-1 text-center text-xs" />
             </div>
           </div>
             </>

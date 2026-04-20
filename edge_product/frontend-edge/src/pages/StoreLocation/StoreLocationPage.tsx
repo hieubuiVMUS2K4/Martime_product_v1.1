@@ -5,7 +5,6 @@ import { storeLocationService } from '@/services/store-location.service';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { StoreLocation } from '@/types/pms.types';
 
-const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50];
 
 export default function StoreLocationPage() {
   const { t } = useTranslationSafe();
@@ -22,7 +21,7 @@ export default function StoreLocationPage() {
   const [searchEmail, setSearchEmail] = useState('');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(25);
 
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
@@ -341,14 +340,8 @@ export default function StoreLocationPage() {
                 </table>
               </div>
 
-              <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
-                <div>
-                  <select value={itemsPerPage} onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} className="border border-gray-300 rounded px-2 py-1 text-xs">
-                    {ITEMS_PER_PAGE_OPTIONS.map(n => <option key={n} value={n}>{t('storeLocations.perPage', { n })}</option>)}
-                  </select>
-                </div>
+              <div className="flex items-center justify-center px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
                 <div className="flex items-center gap-1">
-                  <span className="mr-2">{t('storeLocations.pageInfo', { current: currentPage, total: totalPages, records: filteredLocations.length })}</span>
                   <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">‹</button>
                   {[...Array(Math.min(5, totalPages))].map((_, i) => {
                     let page: number;
@@ -359,10 +352,6 @@ export default function StoreLocationPage() {
                     return <button key={page} onClick={() => setCurrentPage(page)} className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${currentPage === page ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}>{page}</button>;
                   })}
                   <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">›</button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span>{t('storeLocations.goToPage')}</span>
-                  <input type="number" min={1} max={totalPages} value={currentPage} onChange={e => { const v = Number(e.target.value); if (v >= 1 && v <= totalPages) setCurrentPage(v); }} className="w-12 border border-gray-300 rounded px-1 py-1 text-center text-xs" />
                 </div>
               </div>
             </>
