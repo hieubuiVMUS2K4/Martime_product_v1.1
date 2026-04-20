@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { Search, ChevronRight, ChevronDown, Package, DollarSign, AlertTriangle, ChevronsUpDown, Download, Clock, ClipboardList, X, Plus } from 'lucide-react';
+import { Search, ChevronRight, ChevronDown, Package, DollarSign, AlertTriangle, ChevronsUpDown, Download, Clock, X, Plus, Pencil } from 'lucide-react';
 import { inventoryService } from '@/services/inventory.service';
 import { storeLocationService } from '@/services/store-location.service';
 import { materialService } from '@/services/materialService';
@@ -57,7 +57,13 @@ export default function InventoryPage() {
   const [declareItems, setDeclareItems] = useState<{ materialItemId: string; storeLocationId: string; quantity: number; unitCost: number; itemName?: string }[]>([]);
   const [allMaterials, setAllMaterials] = useState<MaterialItem[]>([]);
 
-  const tree = useMemo(() => buildTree(locations), [locations]);
+  // Edit modal
+  const [editItem, setEditItem] = useState<InventoryStockItem | null>(null);
+  const [editQuantity, setEditQuantity] = useState<number>(0);
+  const [editNote, setEditNote] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
+  useMemo(() => buildTree(locations), [locations]);
 
   const loadData = useCallback(async () => {
     try {
@@ -78,13 +84,15 @@ export default function InventoryPage() {
 
   useEffect(() => {
     const loadMeta = async () => {
-      const [locs, sum, byLoc] = await Promise.all([
+      const [locs, sum, byLoc, mats] = await Promise.all([
         storeLocationService.getAll(),
         inventoryService.getSummary(),
         inventoryService.getByLocation(),
+        materialService.getItems(),
       ]);
       setLocations(locs);
       setSummary(sum);
+      setAllMaterials(mats || []);
       const statsMap = new Map<string, { itemCount: number; totalValue: number }>();
       byLoc.forEach((b: { locationId: string; itemCount: number; totalValue: number }) => statsMap.set(b.locationId, { itemCount: b.itemCount, totalValue: b.totalValue }));
       setLocationStats(statsMap);
@@ -142,15 +150,6 @@ export default function InventoryPage() {
   };
 
   // ── Declare ──
-  const openDeclare = async () => {
-    try {
-      const mats = await materialService.getItems();
-      setAllMaterials(mats);
-    } catch { setAllMaterials([]); }
-    setDeclareItems([{ materialItemId: '', storeLocationId: locations[0]?.id || '', quantity: 0, unitCost: 0 }]);
-    setShowDeclare(true);
-  };
-
   const handleDeclare = async () => {
     const valid = declareItems.filter(i => i.materialItemId && i.storeLocationId && i.quantity > 0);
     if (valid.length === 0) { toast.warning('Vui lòng nhập ít nhất 1 dòng hợp lệ'); return; }
@@ -159,6 +158,30 @@ export default function InventoryPage() {
       setShowDeclare(false);
       loadData();
     } catch (e: any) { toast.error(e?.response?.data?.error || 'Khai báo thất bại'); }
+  };
+
+  const openEdit = (item: InventoryStockItem) => {
+    setEditItem(item);
+    setEditQuantity(item.quantity);
+    setEditNote('');
+  };
+
+  const handleEdit = async () => {
+    if (!editItem) return;
+    setEditSaving(true);
+    try {
+      const adjustQuantity = editQuantity - editItem.quantity;
+      await inventoryService.adjust({
+        materialItemId: editItem.materialItemId,
+        storeLocationId: editItem.storeLocationId,
+        adjustQuantity,
+        reason: editNote || undefined,
+      });
+      toast.success('Cập nhật tồn kho thành công');
+      setEditItem(null);
+      loadData();
+    } catch (e: any) { toast.error(e?.response?.data?.error || 'Cập nhật thất bại'); }
+    finally { setEditSaving(false); }
   };
 
 
@@ -241,9 +264,6 @@ export default function InventoryPage() {
                 <button onClick={openHistory} className="flex items-center gap-1 px-2.5 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 text-gray-600">
                   <Clock size={13} /> Lịch sử tồn kho
                 </button>
-                <button onClick={openDeclare} className="flex items-center gap-1 px-2.5 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 text-gray-600">
-                  <ClipboardList size={13} /> Khai báo tồn kho
-                </button>
               </div>
             </div>
           )}
@@ -251,13 +271,6 @@ export default function InventoryPage() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Panel - Location Tree */}
-        <div className="w-56 border-r border-gray-200 bg-white overflow-y-auto flex-shrink-0">
-          <div className="p-1">
-            {tree.map(node => renderTreeNode(node))}
-          </div>
-        </div>
-
         {/* Right Panel - table */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <>
@@ -316,6 +329,9 @@ export default function InventoryPage() {
                   <th className="w-24 px-3 py-2 border-b border-r border-gray-200">
                     <span className="text-xs font-semibold text-gray-600">Cập nhật</span>
                   </th>
+                  <th className="w-24 px-3 py-2 border-b border-gray-200 text-center">
+                    <span className="text-xs font-semibold text-gray-600">Thao tác</span>
+                  </th>
                 </tr>
                 {/* Row 2: Column filters */}
                 <tr className="bg-white border-b border-gray-200">
@@ -341,7 +357,6 @@ export default function InventoryPage() {
                   <th className="border-r border-gray-200"></th>
                   <th className="border-r border-gray-200"></th>
                   <th className="border-gray-200"></th>
-                  <th className="border-gray-200"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -350,7 +365,7 @@ export default function InventoryPage() {
                 ) : items.length === 0 ? (
                   <tr><td colSpan={11} className="text-center py-8 text-gray-400">Không có dữ liệu tồn kho</td></tr>
                 ) : items.map((row, idx) => (
-                  <tr key={row.id} className={`hover:bg-blue-50 cursor-pointer ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
+                  <tr key={row.id} className={`hover:bg-blue-50 ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
                     <td className="px-2 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{(currentPage - 1) * pageSize + idx + 1}</td>
                     <td className="px-3 py-2 text-xs font-medium border-r border-gray-100">{row.itemCode}</td>
                     <td className="px-3 py-2 text-xs border-r border-gray-100">{row.itemName}</td>
@@ -361,7 +376,15 @@ export default function InventoryPage() {
                     <td className="px-3 py-2 text-xs text-right font-semibold text-green-700 border-r border-gray-100">{fmt(row.totalValue)}</td>
                     <td className="px-3 py-2 text-xs border-r border-gray-100">{row.unit}</td>
                     <td className="px-3 py-2 text-gray-400 text-xs border-r border-gray-100">{row.updatedAt?.slice(0, 10)}</td>
-                    <td className="px-2 py-2 text-center text-xs text-gray-300">—</td>
+                    <td className="px-2 py-2 text-center">
+                      <button
+                        onClick={() => openEdit(row)}
+                        title="Cập nhật kho"
+                        className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -401,6 +424,52 @@ export default function InventoryPage() {
             </>
         </div>
       </div>
+
+      {/* ── EDIT MODAL ── */}
+      {editItem && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-[440px] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-3 border-b bg-slate-700 rounded-t-lg">
+              <h3 className="text-sm font-semibold text-white">Cập nhật tồn kho</h3>
+              <button onClick={() => setEditItem(null)} className="text-gray-300 hover:text-white"><X size={18} /></button>
+            </div>
+            <div className="p-5 space-y-3 text-sm">
+              <div>
+                <span className="text-xs text-gray-500">Vật tư</span>
+                <p className="font-medium text-gray-800">{editItem.itemCode} – {editItem.itemName}</p>
+              </div>
+              <div>
+                <span className="text-xs text-gray-500">Vị trí kho</span>
+                <p className="text-gray-700">{editItem.locationName}</p>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Số lượng tồn mới</label>
+                <input
+                  type="number" min={0} value={editQuantity}
+                  onChange={e => setEditQuantity(Number(e.target.value))}
+                  className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
+                />
+                <p className="text-xs text-gray-400 mt-0.5">Hiện tại: {fmt(editItem.quantity)} {editItem.unit}</p>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Ghi chú / Lý do</label>
+                <input
+                  type="text" value={editNote}
+                  onChange={e => setEditNote(e.target.value)}
+                  placeholder="Nhập lý do điều chỉnh..."
+                  className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-3 border-t">
+              <button onClick={() => setEditItem(null)} className="px-4 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50">Hủy</button>
+              <button onClick={handleEdit} disabled={editSaving} className="px-4 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+                {editSaving ? 'Đang lưu...' : 'Xác nhận'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── HISTORY MODAL ── */}
       {showHistory && (

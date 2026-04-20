@@ -200,13 +200,6 @@ export default function WorkPlanningPage() {
   const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set());
   const [treeSearch, setTreeSearch] = useState('');
 
-  // === Filters (left panel) ===
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [crewFilter, setCrwFilter] = useState('');
-  const [taskTypeFilter, setTaskTypeFilter] = useState<Set<string>>(new Set(['adhoc', 'periodic']));
-  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
-
   // === Column filters ===
   const [colFilterCode, setColFilterCode] = useState('');
   const [colFilterEquip, setColFilterEquip] = useState('');
@@ -843,32 +836,7 @@ export default function WorkPlanningPage() {
     }
 
     // Date filter
-    if (dateFrom) {
-      f = f.filter(task => task.nextDueAt >= dateFrom);
-    }
-    if (dateTo) {
-      f = f.filter(task => task.nextDueAt <= dateTo);
-    }
-
-    // Crew filter
-    if (crewFilter) {
-      f = f.filter(task => task.assignedTo === crewFilter);
-    }
-
-    // Task type filter
-    if (taskTypeFilter.size > 0 && taskTypeFilter.size < 2) {
-      if (taskTypeFilter.has('adhoc') && !taskTypeFilter.has('periodic')) {
-        f = f.filter(task => task.taskType === 'AD_HOC' || task.taskType === 'CORRECTIVE');
-      }
-      if (taskTypeFilter.has('periodic') && !taskTypeFilter.has('adhoc')) {
-        f = f.filter(task => task.taskType !== 'AD_HOC' && task.taskType !== 'CORRECTIVE');
-      }
-    }
-
-    // Status filter
-    if (statusFilter.size > 0) {
-      f = f.filter(task => statusFilter.has(task.status));
-    }
+    // (date/crew/type/status filters removed — UI controls removed)
 
     // Search
     if (searchQuery) {
@@ -894,7 +862,7 @@ export default function WorkPlanningPage() {
     }
 
     return f;
-  }, [showHistory, activeTasks, historyTasks, selectedAssetIds, dateFrom, dateTo, crewFilter, taskTypeFilter, statusFilter, searchQuery, assets, colFilterCode, colFilterEquip, colFilterName, colFilterDesc, colFilterPriority, colFilterStatus, colFilterType]);
+  }, [showHistory, activeTasks, historyTasks, selectedAssetIds, searchQuery, assets, colFilterCode, colFilterEquip, colFilterName, colFilterDesc, colFilterPriority, colFilterStatus, colFilterType]);
 
   // Gantt data — derived from filteredTasks (same source as Bảng/Lịch/Kanban)
   const ganttTasksFromFiltered = useMemo((): GanttTask[] => {

@@ -7,8 +7,6 @@ import {
   X,
   FileText,
   Send,
-  Paperclip,
-  User,
   AlertTriangle,
   PlayCircle,
   ShieldCheck,
@@ -16,10 +14,9 @@ import {
   Clock,
 } from 'lucide-react'
 import { materialService } from '../../services/materialService'
-import { MaintenanceTask, CrewMember, TaskStatusHistory, TaskChecklistItem, MaterialItem } from '../../types/maritime.types'
+import { MaintenanceTask, TaskStatusHistory, TaskChecklistItem, MaterialItem } from '../../types/maritime.types'
 import type { TaskRiskAssessment, TaskInspectionReport, InspectionJobItem } from '../../types/pms.types'
 import { maritimeService } from '../../services/maritime.service'
-import { maintenanceScheduleService } from '../../services/maintenance-schedule.service'
 import { verifyTask, submitTask, startTask, type VerifyTaskDto, type SubmitTaskDto } from '../../services/maintenance.service'
 import { equipmentAssetService } from '../../services/equipment-asset.service'
 import DeferralReviewModal from '@/components/pms/DeferralReviewModal'
@@ -38,7 +35,7 @@ const PRIORITY_KEY_MAP: Record<string, string> = {
   CRITICAL: 'critical', HIGH: 'high', NORMAL: 'normal', MEDIUM: 'medium', LOW: 'low',
 }
 
-type BottomTab = 'report' | 'checklist' | 'materials' | 'risk' | 'inspection'
+type BottomTab = 'checklist' | 'materials' | 'risk' | 'inspection'
 
 export default function WorkReportPage() {
   const { id } = useParams<{ id: string }>()
@@ -50,22 +47,16 @@ export default function WorkReportPage() {
   const [task, setTask] = useState<MaintenanceTask | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [crewMembers, setCrewMembers] = useState<CrewMember[]>([])
 
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [description, setDescription] = useState('')
   const [reportCompleted, setReportCompleted] = useState(false)
-  const [isCbm, setIsCbm] = useState(false)
-  const [reportDate, setReportDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [assignedTo, setAssignedTo] = useState('')
-  const [reportReceiver, setReportReceiver] = useState('')
-  const [hasRiskAssessment, setHasRiskAssessment] = useState(false)
 
   const [equipmentDescription, setEquipmentDescription] = useState('')
   const [equipmentRunningHours, setEquipmentRunningHours] = useState<number>(0)
   const [currentEquipmentHours, setCurrentEquipmentHours] = useState<number>(0)
-  const [completionDate, setCompletionDate] = useState('')
   const [actualDuration, setActualDuration] = useState<number>(0)
   const [reportText, setReportText] = useState('')
 
@@ -90,11 +81,9 @@ export default function WorkReportPage() {
   const [showDeferralModal, setShowDeferralModal] = useState(false)
 
   // Comment state
-  const [commentText, setCommentText] = useState('')
-  const [comments, setComments] = useState<Array<{ author: string; text: string; date: string }>>([])
 
   // Bottom tab
-  const [activeTab, setActiveTab] = useState<BottomTab>('report')
+  const [activeTab, setActiveTab] = useState<BottomTab>('checklist')
 
   // Checklist items (mapped from config, status pushed from mobile)
   const [checklistItems, setChecklistItems] = useState<TaskChecklistItem[]>([])
@@ -169,24 +158,8 @@ export default function WorkReportPage() {
       setAssignedTo(data.assignedTo || '')
       setReportText(data.notes || '')
 
-      // Load receiver from schedule's crew config
-      if (data.scheduleId) {
-        try {
-          const schedule = await maintenanceScheduleService.getById(data.scheduleId)
-          const crewMatch = schedule.instructions?.match(/<!--CREW:(.*?)-->/s)
-          if (crewMatch) {
-            const parsed = JSON.parse(crewMatch[1])
-            const receiverAssignment = (parsed.a || []).find((a: any) => a.role === 'RECEIVER')
-            if (receiverAssignment) {
-              const crewRes = await maritimeService.crew.getAll({ isOnboard: true })
-              const receiverCrew = (crewRes.data || []).find((c: any) => c.id === receiverAssignment.crewId)
-              if (receiverCrew) setReportReceiver(receiverCrew.fullName)
-            }
-          }
-        } catch {}
-      }
+      // Load receiver from schedule's crew config (no-op, field removed)
       setSparePartsUsed(data.sparePartsUsed || '')
-      setIsCbm(data.taskType === 'CONDITION')
       setEquipmentRunningHours(data.actualRunningHours || 0)
 
       // Auto-fill "Thời gian hiện tại của thiết bị" và "Mô tả thiết bị" từ equipment asset
@@ -206,7 +179,6 @@ export default function WorkReportPage() {
         setCurrentEquipmentHours(data.runningHoursAtLastDone || 0)
       }
       setActualDuration(data.actualDuration || 0)
-      setCompletionDate(data.completedAt ? data.completedAt.substring(0, 10) : '')
       setReportCompleted(data.checklistCompleted || false)
 
       // Load status history
@@ -261,8 +233,7 @@ export default function WorkReportPage() {
 
   const loadCrew = async () => {
     try {
-      const response = await maritimeService.crew.getAll({ isOnboard: true })
-      setCrewMembers(response.data || [])
+      await maritimeService.crew.getAll({ isOnboard: true })
     } catch (error) {
       console.error('Failed to load crew:', error)
     }
@@ -580,15 +551,6 @@ export default function WorkReportPage() {
     }
   }
 
-  const handleAddComment = () => {
-    if (!commentText.trim()) return
-    setComments(prev => [
-      ...prev,
-      { author: assignedTo || t('pms.workReport.userFallback'), text: commentText, date: new Date().toISOString() }
-    ])
-    setCommentText('')
-  }
-
   // ============================================================
   // RENDER
   // ============================================================
@@ -631,7 +593,7 @@ export default function WorkReportPage() {
       <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2.5">
         <div className="flex items-center gap-1.5 text-sm text-gray-500">
           <button onClick={() => navigate('/pms/work-planning')} className="text-blue-600 hover:underline">
-            {t('pms.workReport.breadcrumbReport')}
+            {task?.taskDescription?.split('\n')[0] || t('pms.workReport.breadcrumbReport')}
           </button>
           <ChevronRight size={14} className="text-gray-300" />
           <span className="text-gray-700 font-medium">{t('pms.workReport.breadcrumbWorkReport')}</span>
@@ -698,25 +660,14 @@ export default function WorkReportPage() {
                   <input type="text" readOnly value={task.taskId} className={inpRo} />
                 </div>
                 <div className="flex items-center flex-1">
-                  <label className={lbl} style={{ width: 110 }}>{t('pms.workReport.taskName')}</label>
+                  <label className={lbl} style={{ width: 110 }}>{task?.taskDescription?.split('\n')[0] || t('pms.workReport.taskName')}</label>
                   <input type="text" readOnly value={task.taskDescription?.split('\n')[0] || ''} className={inpRo} />
-                </div>
-              </div>
-              {/* Row 2: Ngày bắt đầu + Ngày kết thúc */}
-              <div className="flex gap-4">
-                <div className="flex items-center flex-1">
-                  <label className={lbl} style={{ width: 110 }}>{t('pms.workReport.startDate')}</label>
-                  <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} className={inp} />
-                </div>
-                <div className="flex items-center flex-1">
-                  <label className={lbl} style={{ width: 110 }}>{t('pms.workReport.endDate')}</label>
-                  <input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} className={inp} />
                 </div>
               </div>
               {/* Row 3: Mô tả công việc */}
               <div className="flex items-start">
                 <label className={`${lbl} pt-1.5`} style={{ width: 110 }}>{t('pms.workReport.taskDescription')}</label>
-                <textarea rows={4} value={description} onChange={e => setDescription(e.target.value)} className={`${inp} resize-y`} />
+                <textarea rows={4} readOnly value={description} className={`${inpRo} resize-none`} />
               </div>
               {/* Row 4: Mã thiết bị + Tên thiết bị */}
               <div className="flex gap-4">
@@ -727,6 +678,19 @@ export default function WorkReportPage() {
                 <div className="flex items-center flex-1">
                   <label className={lbl} style={{ width: 110 }}>{t('pms.workReport.equipmentName')}</label>
                   <input type="text" readOnly value={task.equipmentName || task.equipmentAssetName || task.equipmentGroupName || ''} className={inpRo} />
+                </div>
+              </div>
+              {/* Row 4b: Giờ chạy thiết bị + Giờ hiện tại */}
+              <div className="flex gap-4">
+                <div className="flex items-center flex-1">
+                  <label className={lbl}>{t('pms.workReport.equipRunningHours')}</label>
+                  <input type="number" readOnly value={equipmentRunningHours} className={inpRo} />
+                  <span className="text-gray-500 text-sm ml-2 shrink-0">{t('pms.workReport.hoursUnit')}</span>
+                </div>
+                <div className="flex items-center flex-1">
+                  <label className={lbl}>{t('pms.workReport.currentEquipHours')}</label>
+                  <input type="number" readOnly value={currentEquipmentHours} className={inpRo} />
+                  <span className="text-gray-500 text-sm ml-2 shrink-0">{t('pms.workReport.hoursUnit')}</span>
                 </div>
               </div>
               {/* Row 5: Mô tả thiết bị */}
@@ -784,7 +748,6 @@ export default function WorkReportPage() {
           <div className="flex-shrink-0">
             <div className="flex border-b border-gray-200 text-sm">
               {([
-                { key: 'report' as BottomTab, label: t('pms.workReport.tabReport') },
                 { key: 'checklist' as BottomTab, label: t('pms.workReport.tabChecklist') },
                 { key: 'materials' as BottomTab, label: t('pms.workReport.tabMaterials') },
                 { key: 'risk' as BottomTab, label: t('pms.workReport.tabRisk') },
@@ -808,43 +771,6 @@ export default function WorkReportPage() {
             </div>
 
             <div className="px-4 py-4 text-sm">
-              {/* Báo cáo tab */}
-              {activeTab === 'report' && (
-                <div className="space-y-2.5">
-                  <div className="flex gap-4">
-                    <div className="flex items-center flex-1">
-                      <label className={lbl} style={{ width: 160 }}>{t('pms.workReport.equipRunningHours')}</label>
-                      <input type="number" value={equipmentRunningHours} onChange={e => setEquipmentRunningHours(Number(e.target.value))} className={inp} />
-                      <span className="text-gray-500 text-sm ml-2 shrink-0">{t('pms.workReport.hoursUnit')}</span>
-                    </div>
-                    <div className="flex items-center flex-1">
-                      <label className={lbl} style={{ width: 190 }}>{t('pms.workReport.currentEquipHours')}</label>
-                      <input type="number" value={currentEquipmentHours} onChange={e => setCurrentEquipmentHours(Number(e.target.value))} className={inp} />
-                      <span className="text-gray-500 text-sm ml-2 shrink-0">{t('pms.workReport.hoursUnit')}</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="flex items-center flex-1">
-                      <label className={lbl} style={{ width: 160 }}>{t('pms.workReport.completionDate')} <span className="text-red-500">*</span></label>
-                      <input type="date" value={completionDate} onChange={e => setCompletionDate(e.target.value)} className={inp} />
-                    </div>
-                    <div className="flex items-center flex-1">
-                      <label className={lbl} style={{ width: 190 }}>{t('pms.workReport.actualDuration')}</label>
-                      <input type="number" value={actualDuration} onChange={e => setActualDuration(Number(e.target.value))} className={inp} />
-                      <span className="text-gray-500 text-sm ml-2 shrink-0">{t('pms.workReport.hoursUnit')}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-start">
-                    <label className={`${lbl} pt-1.5`} style={{ width: 160 }}>{t('pms.workReport.workReport')}</label>
-                    <textarea rows={3} value={reportText} onChange={e => setReportText(e.target.value)} placeholder={t('pms.workReport.enterInfo')} className={`${inp} resize-y`} />
-                  </div>
-                  <div className="flex items-center gap-2 pl-[160px]">
-                    <Paperclip size={14} className="text-gray-400" />
-                    <button className="text-sm text-blue-600 hover:underline">{t('pms.workReport.attachFile')}</button>
-                  </div>
-                </div>
-              )}
-
               {/* Hạng mục kiểm tra tab */}
               {activeTab === 'checklist' && (() => {
                 const items = checklistItems.length > 0 ? checklistItems : (task.checklistItems || [])
@@ -1397,13 +1323,13 @@ export default function WorkReportPage() {
             <span className="text-sm font-semibold text-gray-700">{t('pms.workReport.generalInfo')}</span>
           </div>
           <div className="px-4 py-3 space-y-3 text-sm border-b border-gray-200">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={reportCompleted} onChange={e => setReportCompleted(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
-              <span className="text-gray-700">{t('pms.workReport.confirmComplete')}</span>
-            </label>
             <div className="flex items-center">
-              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">{t('pms.workReport.reportDate')}</label>
-              <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className={inp} />
+              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">{t('pms.workReport.startDate')}</label>
+              <input type="datetime-local" readOnly value={startDate} className={inpRo} />
+            </div>
+            <div className="flex items-center">
+              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">{t('pms.workReport.endDate')}</label>
+              <input type="datetime-local" readOnly value={endDate} className={inpRo} />
             </div>
             <div className="flex items-center">
               <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">{t('pms.workReport.statusLabel')}</label>
@@ -1413,26 +1339,12 @@ export default function WorkReportPage() {
               )}
             </div>
             <div className="flex items-center">
-              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">{t('pms.workReport.dueDateLabel')}</label>
-              <input type="date" readOnly value={task.nextDueAt ? task.nextDueAt.substring(0, 10) : ''} className={inpRo} />
-            </div>
-            <div className="flex items-center">
               <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">{t('pms.workReport.priorityLabel')}</label>
               <input type="text" readOnly value={priorityLabel} className={inpRo} />
             </div>
             <div className="flex items-center">
               <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">{t('pms.workReport.assigneeLabel')}</label>
-              <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} className={inp}>
-                <option value="">{t('pms.workReport.selectOption')}</option>
-                {crewMembers.map(c => <option key={c.id} value={c.fullName}>{c.fullName} - {c.rank?.rankName || ''}</option>)}
-              </select>
-            </div>
-            <div className="flex items-center">
-              <label className="text-gray-500 w-28 text-right pr-3 shrink-0 text-sm">{t('pms.workReport.receiverLabel')}</label>
-              <select value={reportReceiver} onChange={e => setReportReceiver(e.target.value)} className={inp}>
-                <option value="">{t('pms.workReport.selectOption')}</option>
-                {crewMembers.map(c => <option key={c.id} value={c.fullName}>{c.fullName} - {c.rank?.rankName || ''}</option>)}
-              </select>
+              <input type="text" readOnly value={assignedTo} className={inpRo} />
             </div>
           </div>
 
