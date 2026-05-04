@@ -4,7 +4,7 @@ import {
   Ship, Plus, RefreshCw, Pencil, Trash2,
   AlertTriangle,
   X, Loader2, Download,
-  ExternalLink, FileText,
+  ExternalLink, FileText, Map
 } from 'lucide-react';
 import { ENV } from '../../config/env';
 import './VesselsPage.css';
@@ -241,6 +241,9 @@ export const VesselsPage: React.FC = () => {
         </div>
         <div className="vp-header-right">
           <button className="vp-btn vp-btn--ghost" onClick={fetchData} title="Làm mới"><RefreshCw size={13} /></button>
+          <button className="vp-btn vp-btn--outline" onClick={() => navigate('/vessels/tracking')} title="Bản đồ tracking">
+            <Map size={13} /> Tracking Map
+          </button>
           <button className="vp-btn vp-btn--outline"><Download size={13} /> Xuất excel</button>
           <button className="vp-btn vp-btn--primary" onClick={openCreate}><Plus size={13} /> Thêm mới</button>
         </div>

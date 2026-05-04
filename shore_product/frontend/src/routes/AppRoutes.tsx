@@ -2,7 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { TopNavLayout } from '../components/layout';
 import { CategoryManagementPage, CrewListPage, CrewDetailPage, CertificateMonitorPage, MasterSchedulePage, VesselsPage, ReportPage, VesselReportDetailPage, ReportDetailPage, VoyageListPage, VoyageDetailPage, VoyageFormPage } from '../pages';
-import { VesselDetailPage } from '../pages/VesselManagement';
+import { VesselDetailPage, VesselTrackingPage } from '../pages/VesselManagement';
 import { SyncDashboardPage } from '../pages/SyncManagement';
 import { WorkAssignmentPage } from '../pages/WorkAssignment';
 import { OnboardingDashboardPage, OnboardingDetailPage } from '../pages/OnboardingManagement';
@@ -74,6 +74,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/sync" element={<SyncDashboardPage />} />
         <Route path="/work-assignments" element={<WorkAssignmentPage />} />
         <Route path="/vessels" element={<VesselsPage />} />
+        <Route path="/vessels/tracking" element={<VesselTrackingPage />} />
         <Route path="/vessels/:id" element={<VesselDetailPage />} />
         <Route path="/vessels/:vesselId/crew/:id" element={<CrewDetailPage />} />
         <Route path="/pms/master-schedule" element={<MasterSchedulePage />} />

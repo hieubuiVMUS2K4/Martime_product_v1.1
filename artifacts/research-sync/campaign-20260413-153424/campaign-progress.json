@@ -1,0 +1,20 @@
+﻿{
+    "status":  "completed",
+    "preset":  "Custom",
+    "campaign_root":  "F:\\NCKH\\Product\\Martime_product_v1.1\\artifacts\\research-sync\\campaign-20260413-153424",
+    "total_profiles":  2,
+    "total_record_counts":  1,
+    "total_scenarios":  2,
+    "total_repetitions":  10,
+    "completed_scenarios":  2,
+    "current_scenario_index":  2,
+    "progress_percent":  100,
+    "current_profile":  "",
+    "current_record_count":  0,
+    "current_simulated_nodes":  0,
+    "current_repetitions":  0,
+    "current_scenario_name":  "",
+    "current_scenario_path":  "",
+    "updated_at_utc":  "2026-04-13T15:38:24.0931023Z",
+    "note":  "Campaign completed successfully."
+}

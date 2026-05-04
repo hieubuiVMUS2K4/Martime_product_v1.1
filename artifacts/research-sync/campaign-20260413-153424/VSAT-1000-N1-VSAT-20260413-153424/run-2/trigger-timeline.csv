@@ -1,0 +1,5 @@
+﻿"scenario","repetition","iteration","timestamp_utc","pending_before","pending_after","benchmark_synced_before","benchmark_synced_after","global_pending_before","global_pending_after","progress_detected","trigger_latency_ms","response_json"
+"VSAT-1000-N1","2","1","2026-04-13T15:34:52.4433763Z","1000","900","0","100","1000","900","True","370.28","{""message"":""Đồng bộ hoàn tất"",""totalSynced"":0,""pendingRecords"":1000}"
+"VSAT-1000-N1","2","2","2026-04-13T15:34:58.3238801Z","900","600","100","400","900","600","True","2796.951","{""message"":""Đồng bộ hoàn tất"",""totalSynced"":200,""pendingRecords"":700}"
+"VSAT-1000-N1","2","3","2026-04-13T15:35:04.3764606Z","600","300","400","700","602","302","True","2855.31","{""message"":""Đồng bộ hoàn tất"",""totalSynced"":200,""pendingRecords"":402}"
+"VSAT-1000-N1","2","4","2026-04-13T15:35:11.5770796Z","300","0","700","1000","302","0","True","3941.242","{""message"":""Đồng bộ hoàn tất"",""totalSynced"":302,""pendingRecords"":0}"

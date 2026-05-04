@@ -128,10 +128,39 @@ public class SyncController : ControllerBase
             // Run enough batches to clear all ready items
             var batchSize = _configuration.GetValue("Sync:BatchSize", 100);
             var maxBatches = (int)Math.Ceiling((double)readyToSync / Math.Max(batchSize, 1)) + 1;
+            var triggerInterBatchDelayMs = Math.Max(0, _configuration.GetValue("Sync:TriggerInterBatchDelayMs", 150));
+            var previousPending = initialPending;
+            var noProgressCount = 0;
+            const int noProgressLimit = 3;
 
             for (int i = 0; i < maxBatches && !cts.IsCancellationRequested; i++)
             {
                 await _syncService.ExecuteSyncAsync(cts.Token);
+
+                var pendingAfterBatch = await _context.SyncQueue
+                    .AsNoTracking()
+                    .Where(s => s.SyncedAt == null)
+                    .CountAsync(cts.Token);
+
+                if (pendingAfterBatch >= previousPending)
+                {
+                    noProgressCount++;
+                    if (noProgressCount >= noProgressLimit)
+                    {
+                        _logger.LogWarning("Trigger sync loop stopped early after {NoProgressLimit} no-progress batches to avoid retry burst.", noProgressLimit);
+                        break;
+                    }
+                }
+                else
+                {
+                    noProgressCount = 0;
+                }
+
+                previousPending = pendingAfterBatch;
+                if (triggerInterBatchDelayMs > 0)
+                {
+                    await Task.Delay(triggerInterBatchDelayMs, cts.Token);
+                }
             }
 
             // Pull from shore (master data, assignments)

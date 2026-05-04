@@ -8,6 +8,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 namespace MaritimeEdge.Services.Core;
 
 public interface ISyncService
@@ -54,6 +55,28 @@ public class SyncService : ISyncService
     // Key = ManifestId, Value = earliest next retry time (UTC).
     private static readonly ConcurrentDictionary<Guid, DateTime> _uploadCooldowns = new();
     private static readonly TimeSpan _uploadFailureCooldown = TimeSpan.FromMinutes(5);
+    private static readonly SemaphoreSlim _pushGate = new(1, 1);
+    private static readonly ConcurrentDictionary<string, TokenBucketState> _tokenBuckets = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<long, double> _previousRetryDelaySeconds = new();
+    private static readonly object _connectivityLock = new();
+    private static volatile bool _shoreReachable = true;
+    private static DateTime _warmupUntilUtc = DateTime.MinValue;
+
+    private readonly record struct RetryPolicyConfig(
+        double BaseDelaySeconds,
+        double CapDelaySeconds,
+        string Strategy,
+        double JitterMultiplier,
+        int WarmupMaxSeconds,
+        double TokenBucketRatePerSecond,
+        int TokenBucketBurst,
+        int MaxInFlightBatches);
+
+    private sealed class TokenBucketState
+    {
+        public double Tokens { get; set; }
+        public DateTime LastRefillUtc { get; set; }
+    }
 
     // Network type: read from config (Sync:NetworkType). In production this would be detected from router API.
     // Supported values: None, Satellite_Iridium, Satellite_VSAT, Cellular_4G, Shore_WiFi
@@ -99,44 +122,83 @@ public class SyncService : ISyncService
 
     public async Task ExecuteSyncAsync(CancellationToken cancellationToken)
     {
+        var retryPolicy = LoadRetryPolicyConfig();
+        if (!await TryEnterPushGateAsync(retryPolicy.MaxInFlightBatches, cancellationToken))
+        {
+            _logger.LogDebug("Skipping sync cycle because in-flight batch limit has been reached.");
+            return;
+        }
+
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<EdgeDbContext>();
 
-        var networkType = await GetCurrentNetworkStatusAsync();
-        var allowedPriorities = GetAllowedPriorities(networkType);
-
-        _logger.LogInformation("Starting Sync. Network: {Network}. Allowed: [{Priorities}]",
-            networkType, string.Join(", ", allowedPriorities));
-
-        if (allowedPriorities.Count == 0)
+        try
         {
-            _logger.LogWarning("No sync allowed on current network.");
-            return;
-        }
 
-        // Fetch pending items based on priority and retry count
-        var batchSize = _configuration.GetValue("Sync:BatchSize", 100);
-        var pendingItems = await context.SyncQueue
-            .Where(q => q.SyncedAt == null)
-            .Where(q => allowedPriorities.Contains(q.Priority))
-            .Where(q => q.RetryCount < q.MaxRetries)
-            .Where(q => q.NextRetryAt == null || q.NextRetryAt <= DateTime.UtcNow)
-            .OrderBy(q => q.Priority) // Critical first
-            .ThenBy(q => q.CreatedAt) // FIFO
-            .Take(batchSize)
-            .ToListAsync(cancellationToken);
+            var networkType = await GetCurrentNetworkStatusAsync();
+            var allowedPriorities = GetAllowedPriorities(networkType);
+            var nodeId = _configuration["SyncSecurity:NodeId"] ?? _configuration["Vessel:IMO"] ?? "UNKNOWN";
+            var nowUtc = DateTime.UtcNow;
 
-        if (pendingItems.Count == 0)
-        {
+            _logger.LogInformation("Starting Sync. Network: {Network}. Allowed: [{Priorities}]",
+                networkType, string.Join(", ", allowedPriorities));
+
+            if (ShouldDelayForReconnectWarmup(nowUtc, nodeId))
+            {
+                _logger.LogInformation("Reconnect warm-up active until {WarmupUntil:u}. Deferring push batch to avoid retry herd.", _warmupUntilUtc);
+                await ProcessFileTransferCycleAsync(context, cancellationToken);
+                return;
+            }
+
+            if (allowedPriorities.Count == 0)
+            {
+                _logger.LogWarning("No sync allowed on current network.");
+                return;
+            }
+
+            // Fetch pending items based on priority and retry count
+            var batchSize = GetAdaptiveBatchSize(networkType);
+            var pendingItems = await context.SyncQueue
+                .Where(q => q.SyncedAt == null)
+                .Where(q => allowedPriorities.Contains(q.Priority))
+                .Where(q => q.RetryCount < q.MaxRetries)
+                .Where(q => q.NextRetryAt == null || q.NextRetryAt <= DateTime.UtcNow)
+                .OrderBy(q => q.Priority) // Critical first
+                .ThenBy(q => q.CreatedAt) // FIFO
+                .Take(batchSize)
+                .ToListAsync(cancellationToken);
+
+            if (pendingItems.Count == 0)
+            {
+                await ProcessFileTransferCycleAsync(context, cancellationToken);
+                return;
+            }
+
+            _logger.LogInformation("Found {Count} pending sync items", pendingItems.Count);
+
+            if (!TryConsumeToken(nodeId, retryPolicy, nowUtc))
+            {
+                var tokenDelaySeconds = GetTokenBucketDeferralSeconds(nodeId);
+                foreach (var item in pendingItems)
+                {
+                    item.NextRetryAt = nowUtc.AddSeconds(tokenDelaySeconds);
+                    item.LastError = LimitLastError($"Deferred by token bucket ({tokenDelaySeconds:F2}s)");
+                }
+
+                await context.SaveChangesAsync(cancellationToken);
+                _logger.LogInformation("Token bucket throttled retry burst for node {NodeId}. Deferred {Count} items by {Delay:F2}s.", nodeId, pendingItems.Count, tokenDelaySeconds);
+                await ProcessFileTransferCycleAsync(context, cancellationToken);
+                return;
+            }
+
+            // Send batch to shore
+            await SendBatchToShoreAsync(pendingItems, context, cancellationToken);
             await ProcessFileTransferCycleAsync(context, cancellationToken);
-            return;
         }
-
-        _logger.LogInformation("Found {Count} pending sync items", pendingItems.Count);
-
-        // Send batch to shore
-        await SendBatchToShoreAsync(pendingItems, context, cancellationToken);
-        await ProcessFileTransferCycleAsync(context, cancellationToken);
+        finally
+        {
+            _pushGate.Release();
+        }
     }
 
     /// <summary>
@@ -156,7 +218,8 @@ public class SyncService : ISyncService
         var context = scope.ServiceProvider.GetRequiredService<EdgeDbContext>();
         var conflictHandler = scope.ServiceProvider.GetService<ISyncConflictHandler>();
 
-        var nodeId = _configuration["Vessel:IMO"] ?? "UNKNOWN";
+        var nodeId = _configuration["SyncSecurity:NodeId"] ?? _configuration["Vessel:IMO"] ?? "UNKNOWN";
+        var retryPolicy = LoadRetryPolicyConfig();
 
         try
         {
@@ -338,7 +401,8 @@ public class SyncService : ISyncService
             return;
         }
 
-        var nodeId = _configuration["Vessel:IMO"] ?? "UNKNOWN";
+        var nodeId = _configuration["SyncSecurity:NodeId"] ?? _configuration["Vessel:IMO"] ?? "UNKNOWN";
+        var retryPolicy = LoadRetryPolicyConfig();
 
         // Map SyncQueue → SyncQueueItemDto (wire format)
         var dtoItems = items.Select(q => new Maritime.Shared.DTOs.Sync.SyncQueueItemDto
@@ -440,18 +504,19 @@ public class SyncService : ISyncService
                             continue;
                         }
 
-                        item.RetryCount++;
-                        item.LastError = LimitLastError(failureSummary);
-                        item.NextRetryAt = DateTime.UtcNow.AddMinutes(Math.Pow(item.RetryCount, 2));
+                        ScheduleRetry(item, failureSummary, retryPolicy, nodeId);
                     }
                 }
                 else
                 {
+                    UpdateShoreReachability(isReachable: true, nodeId: nodeId, retryPolicy: retryPolicy);
                     var now = DateTime.UtcNow;
                     foreach (var item in items)
                     {
                         item.SyncedAt = now;
                         item.LastError = null;
+                        item.NextRetryAt = null;
+                        _previousRetryDelaySeconds.TryRemove(item.Id, out _);
                         if (Guid.TryParse(item.RecordKey, out var id) && item.TableName == "maritime_report")
                         {
                             try { await context.Database.ExecuteSqlRawAsync($"UPDATE maritime_reports SET is_synced = true WHERE id = '{id}'"); } catch { }
@@ -463,33 +528,30 @@ public class SyncService : ISyncService
             else
             {
                 _logger.LogWarning("Shore API returned {Status}", response.StatusCode);
+                UpdateShoreReachability(isReachable: false, nodeId: nodeId, retryPolicy: retryPolicy);
                 // Retry all items
                 foreach (var item in items)
                 {
-                    item.RetryCount++;
-                    item.LastError = LimitLastError($"HTTP {(int)response.StatusCode}");
-                    item.NextRetryAt = DateTime.UtcNow.AddMinutes(Math.Pow(item.RetryCount, 2));
+                    ScheduleRetry(item, $"HTTP {(int)response.StatusCode}", retryPolicy, nodeId);
                 }
             }
         }
         catch (HttpRequestException ex)
         {
             _logger.LogWarning(ex, "Cannot reach shore API");
+            UpdateShoreReachability(isReachable: false, nodeId: nodeId, retryPolicy: retryPolicy);
             foreach (var item in items)
             {
-                item.RetryCount++;
-                item.LastError = LimitLastError($"Network: {ex.Message}");
-                item.NextRetryAt = DateTime.UtcNow.AddMinutes(Math.Pow(item.RetryCount, 2));
+                ScheduleRetry(item, $"Network: {ex.Message}", retryPolicy, nodeId);
             }
         }
         catch (TaskCanceledException)
         {
             _logger.LogWarning("Shore API request timed out");
+            UpdateShoreReachability(isReachable: false, nodeId: nodeId, retryPolicy: retryPolicy);
             foreach (var item in items)
             {
-                item.RetryCount++;
-                item.LastError = LimitLastError("Timeout");
-                item.NextRetryAt = DateTime.UtcNow.AddMinutes(Math.Pow(item.RetryCount, 2));
+                ScheduleRetry(item, "Timeout", retryPolicy, nodeId);
             }
         }
 
@@ -523,6 +585,157 @@ public class SyncService : ISyncService
         }
 
         return message[..(maxLength - 3)] + "...";
+    }
+
+    private static bool ShouldUseDecorrelatedJitter(string strategy)
+    {
+        return string.Equals(strategy, "decorrelated", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private RetryPolicyConfig LoadRetryPolicyConfig()
+    {
+        var baseDelaySeconds = Math.Max(0.25, _configuration.GetValue("Sync:RetryBaseSeconds", 2.0));
+        var capDelaySeconds = Math.Max(baseDelaySeconds, _configuration.GetValue("Sync:RetryCapSeconds", 300.0));
+        var strategy = _configuration["Sync:RetryJitterStrategy"] ?? "full";
+        var jitterMultiplier = Math.Max(0.1, _configuration.GetValue("Sync:RetryJitterMultiplier", 1.0));
+        var warmupMaxSeconds = Math.Max(0, _configuration.GetValue("Sync:ReconnectWarmupMaxSeconds", 120));
+        var tokenRate = Math.Max(0.1, _configuration.GetValue("Sync:RetryTokenBucket:RatePerSecond", 2.0));
+        var tokenBurst = Math.Max(1, _configuration.GetValue("Sync:RetryTokenBucket:Burst", 5));
+        var maxInFlight = Math.Max(1, _configuration.GetValue("Sync:MaxInFlightBatches", 1));
+        return new RetryPolicyConfig(baseDelaySeconds, capDelaySeconds, strategy, jitterMultiplier, warmupMaxSeconds, tokenRate, tokenBurst, maxInFlight);
+    }
+
+    private void ScheduleRetry(SyncQueue item, string reason, RetryPolicyConfig policy, string nodeId)
+    {
+        var nowUtc = DateTime.UtcNow;
+        item.RetryCount++;
+        var delay = ComputeJitterDelaySeconds(item, policy);
+        item.NextRetryAt = nowUtc.AddSeconds(delay);
+        item.LastError = LimitLastError(reason);
+
+        _logger.LogDebug(
+            "Retry scheduled for {Table}/{Key}: attempt={Attempt}, delay={Delay:F3}s, next={NextRetryAt:u}",
+            item.TableName,
+            item.RecordKey,
+            item.RetryCount,
+            delay,
+            item.NextRetryAt);
+    }
+
+    private double ComputeJitterDelaySeconds(SyncQueue item, RetryPolicyConfig policy)
+    {
+        var exponent = Math.Max(0, item.RetryCount - 1);
+        var ceiling = Math.Min(policy.CapDelaySeconds, policy.BaseDelaySeconds * Math.Pow(2, exponent));
+        ceiling = Math.Max(policy.BaseDelaySeconds, ceiling);
+        var jitterCeiling = Math.Max(policy.BaseDelaySeconds, ceiling * policy.JitterMultiplier);
+
+        if (ShouldUseDecorrelatedJitter(policy.Strategy))
+        {
+            var previous = _previousRetryDelaySeconds.TryGetValue(item.Id, out var prevDelay)
+                ? Math.Max(policy.BaseDelaySeconds, prevDelay)
+                : policy.BaseDelaySeconds;
+            var upperBound = Math.Min(policy.CapDelaySeconds, 3 * previous);
+            var delay = NextRandomDouble(policy.BaseDelaySeconds, Math.Max(policy.BaseDelaySeconds, upperBound));
+            _previousRetryDelaySeconds[item.Id] = delay;
+            return delay;
+        }
+
+        var fullJitterDelay = NextRandomDouble(0, jitterCeiling);
+        _previousRetryDelaySeconds[item.Id] = fullJitterDelay;
+        return fullJitterDelay;
+    }
+
+    private static double NextRandomDouble(double minInclusive, double maxInclusive)
+    {
+        if (maxInclusive <= minInclusive)
+            return minInclusive;
+
+        var scale = RandomNumberGenerator.GetInt32(0, int.MaxValue) / (double)int.MaxValue;
+        return minInclusive + ((maxInclusive - minInclusive) * scale);
+    }
+
+    private static bool TryConsumeToken(string nodeId, RetryPolicyConfig policy, DateTime nowUtc)
+    {
+        var bucket = _tokenBuckets.GetOrAdd(
+            nodeId,
+            _ => new TokenBucketState
+            {
+                Tokens = policy.TokenBucketBurst,
+                LastRefillUtc = nowUtc
+            });
+
+        lock (bucket)
+        {
+            var elapsedSeconds = Math.Max(0, (nowUtc - bucket.LastRefillUtc).TotalSeconds);
+            var replenished = Math.Min(policy.TokenBucketBurst, bucket.Tokens + (elapsedSeconds * policy.TokenBucketRatePerSecond));
+            bucket.LastRefillUtc = nowUtc;
+
+            if (replenished < 1)
+            {
+                bucket.Tokens = replenished;
+                return false;
+            }
+
+            bucket.Tokens = replenished - 1;
+            return true;
+        }
+    }
+
+    private static double GetTokenBucketDeferralSeconds(string nodeId)
+    {
+        var seededHash = Math.Abs(nodeId.GetHashCode(StringComparison.OrdinalIgnoreCase));
+        var offset = seededHash % 1000;
+        var random = NextRandomDouble(0.25, 2.0);
+        return Math.Round(random + (offset / 10000.0), 3);
+    }
+
+    private static bool ShouldDelayForReconnectWarmup(DateTime nowUtc, string nodeId)
+    {
+        _ = nodeId;
+        if (_warmupUntilUtc == DateTime.MinValue)
+            return false;
+
+        return nowUtc < _warmupUntilUtc;
+    }
+
+    private void UpdateShoreReachability(bool isReachable, string nodeId, RetryPolicyConfig retryPolicy)
+    {
+        lock (_connectivityLock)
+        {
+            var previous = _shoreReachable;
+            _shoreReachable = isReachable;
+
+            if (!previous && isReachable && retryPolicy.WarmupMaxSeconds > 0)
+            {
+                var seededHash = Math.Abs(($"{nodeId}:{DateTime.UtcNow:yyyyMMddHHmm}").GetHashCode(StringComparison.OrdinalIgnoreCase));
+                var deterministicOffset = seededHash % (retryPolicy.WarmupMaxSeconds + 1);
+                var randomOffset = (int)Math.Round(NextRandomDouble(0, retryPolicy.WarmupMaxSeconds));
+                var warmupSeconds = Math.Min(retryPolicy.WarmupMaxSeconds, Math.Max(deterministicOffset, randomOffset));
+                _warmupUntilUtc = DateTime.UtcNow.AddSeconds(warmupSeconds);
+                _logger.LogWarning("Shore connectivity restored. Applying randomized warm-up window of {WarmupSeconds}s until {WarmupUntil:u}.", warmupSeconds, _warmupUntilUtc);
+            }
+            else if (!isReachable)
+            {
+                _warmupUntilUtc = DateTime.MinValue;
+            }
+        }
+    }
+
+    private async Task<bool> TryEnterPushGateAsync(int maxInFlight, CancellationToken cancellationToken)
+    {
+        _ = cancellationToken;
+        if (maxInFlight <= 1)
+            return await _pushGate.WaitAsync(0);
+
+        // Current implementation has one worker instance; this gate still protects against concurrent API-triggered sync loops.
+        return await _pushGate.WaitAsync(0);
+    }
+
+    private int GetAdaptiveBatchSize(NetworkType networkType)
+    {
+        var defaultBatchSize = Math.Max(1, _configuration.GetValue("Sync:BatchSize", 100));
+        var configured = _configuration.GetValue<int?>($"Sync:AdaptiveProfiles:{networkType}:BatchSize");
+        return configured.HasValue ? Math.Max(1, configured.Value) : defaultBatchSize;
     }
 
     private async Task<List<Maritime.Shared.DTOs.Sync.SyncFileReferenceDto>> BuildOutgoingFileReferencesAsync(
@@ -2045,6 +2258,7 @@ public class SyncService : ISyncService
             
             case NetworkType.Cellular_4G:
             case NetworkType.Shore_WiFi:
+            case NetworkType.Satellite_LEO:
                 return new List<SyncPriority> { SyncPriority.Critical, SyncPriority.Operational, SyncPriority.Low };
             
             default:
@@ -2073,6 +2287,9 @@ public class SyncService : ISyncService
                 return new List<SyncPriority> { SyncPriority.Critical, SyncPriority.Operational };
 
             case NetworkType.Shore_WiFi:
+                return new List<SyncPriority> { SyncPriority.Critical, SyncPriority.Operational, SyncPriority.Low };
+
+            case NetworkType.Satellite_LEO:
                 return new List<SyncPriority> { SyncPriority.Critical, SyncPriority.Operational, SyncPriority.Low };
 
             default:

@@ -376,3 +376,34 @@ function Get-ResearchSeriesStatistics {
         ci95 = [math]::Round($ci95, 3)
     }
 }
+
+function Get-ResearchPercentile {
+    param(
+        [double[]]$Values,
+        [double]$Percentile = 95
+    )
+
+    $series = @($Values | Where-Object { $null -ne $_ } | Sort-Object)
+    if ($series.Count -eq 0) {
+        return $null
+    }
+
+    if ($Percentile -le 0) {
+        return [math]::Round($series[0], 3)
+    }
+
+    if ($Percentile -ge 100) {
+        return [math]::Round($series[$series.Count - 1], 3)
+    }
+
+    $position = ($Percentile / 100.0) * ($series.Count - 1)
+    $lower = [int][math]::Floor($position)
+    $upper = [int][math]::Ceiling($position)
+    if ($lower -eq $upper) {
+        return [math]::Round($series[$lower], 3)
+    }
+
+    $weight = $position - $lower
+    $interpolated = $series[$lower] + (($series[$upper] - $series[$lower]) * $weight)
+    return [math]::Round($interpolated, 3)
+}

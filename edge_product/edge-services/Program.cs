@@ -198,9 +198,40 @@ namespace MaritimeEdge
             // Add AI Chat Service
             builder.Services.AddScoped<IChatService, ChatService>();
 
+            // NMEA Parser
+            builder.Services.AddSingleton<MaritimeEdge.Services.Parsers.NmeaParser>();
+
             // Add Background Services
-            builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.TelemetrySimulatorService>();
-            builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.SignalKDataCollectorService>();
+            var telemetrySimulatorEnabled = builder.Configuration.GetValue("TelemetrySimulator:Enabled", false);
+            if (telemetrySimulatorEnabled)
+            {
+                builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.TelemetrySimulatorService>();
+            }
+
+            var signalKCollectorEnabled = builder.Configuration.GetValue("SignalK:Enabled", false);
+            if (signalKCollectorEnabled)
+            {
+                builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.SignalKDataCollectorService>();
+            }
+
+            var nmeaPlaybackEnabled = builder.Configuration.GetValue("NmeaPlayback:Enabled", false);
+            if (nmeaPlaybackEnabled)
+            {
+                builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.NmeaPlaybackService>();
+            }
+
+            var gpsCollectorEnabled = builder.Configuration.GetValue("GpsCollector:Enabled", false);
+            if (gpsCollectorEnabled)
+            {
+                builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.GpsCollectorService>();
+            }
+
+            var positionSyncEnqueuerEnabled = builder.Configuration.GetValue("PositionSyncEnqueuer:Enabled", true);
+            if (positionSyncEnqueuerEnabled)
+            {
+                builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.PositionSyncEnqueuerService>();
+            }
+
             builder.Services.AddHostedService<MaritimeEdge.Services.Core.DataCleanupService>();
             if (builder.Configuration.GetValue("Sync:Enabled", true))
             {

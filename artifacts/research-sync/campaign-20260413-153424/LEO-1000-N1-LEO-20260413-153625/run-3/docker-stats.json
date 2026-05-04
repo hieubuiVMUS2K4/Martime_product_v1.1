@@ -1,0 +1,24 @@
+﻿[
+    {
+        "BlockIO":  "570MB / 38.8MB",
+        "CPUPerc":  "0.04%",
+        "Container":  "maritime-edge-postgres",
+        "ID":  "1936510ca9c2",
+        "MemPerc":  "3.06%",
+        "MemUsage":  "480.7MiB / 15.33GiB",
+        "Name":  "maritime-edge-postgres",
+        "NetIO":  "2.44MB / 6.5MB",
+        "PIDs":  "8"
+    },
+    {
+        "BlockIO":  "527MB / 43.6MB",
+        "CPUPerc":  "0.13%",
+        "Container":  "shore_product-postgres-1",
+        "ID":  "2f74f0973905",
+        "MemPerc":  "1.88%",
+        "MemUsage":  "295.8MiB / 15.33GiB",
+        "Name":  "shore_product-postgres-1",
+        "NetIO":  "22.6MB / 15.2MB",
+        "PIDs":  "8"
+    }
+]

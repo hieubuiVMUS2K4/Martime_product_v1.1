@@ -204,6 +204,21 @@ namespace ProductApi.Data
                 entity.HasIndex(vp => new { vp.VesselId, vp.Timestamp });
             });
 
+            // Configure PositionData (synced from Edge — snake_case table name)
+            modelBuilder.Entity<PositionData>(entity =>
+            {
+                entity.ToTable("position_data");
+
+                entity.Property(e => e.Latitude).HasPrecision(10, 7);
+                entity.Property(e => e.Longitude).HasPrecision(10, 7);
+                entity.Property(e => e.SpeedOverGround).HasPrecision(5, 2);
+                entity.Property(e => e.CourseOverGround).HasPrecision(5, 2);
+
+                entity.HasIndex(e => e.Timestamp).IsDescending();
+                entity.HasIndex(e => e.OriginNode);
+                entity.HasIndex(e => new { e.OriginNode, e.Timestamp });
+            });
+
             // Configure FuelConsumption
             modelBuilder.Entity<FuelConsumption>(entity =>
             {

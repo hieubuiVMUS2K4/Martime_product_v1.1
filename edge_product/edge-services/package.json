@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "generate:nmea:vietnam": "node ./Scripts/generate-vietnam-route-nmea.js --output ./TestData/nmea/vietnam-coastal-route.nmea --minutes 180 --interval 1 --speed 14.0"
+  },
   "dependencies": {
     "@types/jspdf": "^1.3.3",
     "jspdf": "^4.2.0",

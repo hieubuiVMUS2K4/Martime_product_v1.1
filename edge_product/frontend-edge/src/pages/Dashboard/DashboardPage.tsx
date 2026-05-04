@@ -178,6 +178,245 @@ export function DashboardPage() {
           </div>
         </div>
 
+        {/* Pitch & Roll Card — IMO Maritime Standard */}
+        {(() => {
+          const p = navigation?.pitch ?? 0;
+          const r = navigation?.roll ?? 0;
+          const absP = Math.abs(p);
+          const absR = Math.abs(r);
+
+          // ── Maritime Thresholds (IMO MSC.1/Circ.1228 & Intact Stability Code) ──
+          // Pitch: Normal ≤3° | Caution ≤7° | Warning ≤10° | DANGER >10°
+          const pitchLevel = absP <= 3 ? 'normal' : absP <= 7 ? 'caution' : absP <= 10 ? 'warning' : 'danger';
+          // Roll:  Normal ≤5° | Caution ≤15° | Warning ≤25° | DANGER >25°
+          const rollLevel  = absR <= 5 ? 'normal' : absR <= 15 ? 'caution' : absR <= 25 ? 'warning' : 'danger';
+
+          // Pitch alarm text
+          const getPitchText = () => {
+            if (absP <= 3) return null;
+            if (absP <= 7) return '🟡 Pitch cao — Giảm tốc độ, theo dõi hàng hóa';
+            if (absP <= 10) return '🟠 Pitch cao — Thời tiết xấu, báo cáo Captain, kiểm tra chằng buộc';
+            return '🔴 DANGER Pitch — Kích hoạt quy trình ứng phó thời tiết cực đoan';
+          };
+          const getRollText = () => {
+            if (absR <= 5) return null;
+            if (absR <= 15) return '🟡 Roll cao — Cố định đồ đạc, hạn chế đi lại trên boong';
+            if (absR <= 25) return '🟠 Roll cao — Rủi ro xô hàng, báo cáo Captain ngay';
+            return '🔴 DANGER Roll — Nguy cơ lật! Kích hoạt SOP khẩn cấp';
+          };
+          const pitchAlert = getPitchText();
+          const rollAlert = getRollText();
+          const hasAlert = pitchAlert || rollAlert;
+          const showDanger = pitchLevel === 'danger' || rollLevel === 'danger';
+          const showWarning = pitchLevel === 'warning' || rollLevel === 'warning';
+          const showCaution = pitchLevel === 'caution' || rollLevel === 'caution';
+
+          const badgeColor = showDanger ? 'bg-red-100 text-red-700 animate-pulse' :
+                              showWarning ? 'bg-orange-100 text-orange-700' :
+                              showCaution ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-green-100 text-green-700';
+          const badgeDot = showDanger ? 'bg-red-500 animate-ping' :
+                           showWarning ? 'bg-orange-500' :
+                           showCaution ? 'bg-yellow-500' : 'bg-green-500';
+          const badgeLabel = showDanger ? 'CÓ CẢNH BÁO' :
+                             showWarning ? 'CẢNH BÁO' :
+                             showCaution ? 'THẬN TRỌNG' : 'BÌNH THƯỜNG';
+
+          return (
+        <div className={`bg-white rounded-xl shadow-lg border ${
+          showDanger ? 'border-red-400 shadow-red-200' :
+          showWarning ? 'border-orange-300' :
+          showCaution ? 'border-yellow-300' : 'border-gray-100'
+        } overflow-hidden transition-all duration-500`}>
+          {/* Header */}
+          <div className={`p-4 border-b flex items-center justify-between ${
+            showDanger ? 'bg-red-50 border-red-200' :
+            showWarning ? 'bg-orange-50 border-orange-200' :
+            showCaution ? 'bg-yellow-50 border-yellow-200' : ''
+          }`}>
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Activity className={`w-5 h-5 ${showDanger ? 'text-red-600' : showWarning ? 'text-orange-600' : showCaution ? 'text-yellow-600' : 'text-green-600'}`} />
+              Vessel Attitude
+            </h3>
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${badgeColor}`}>
+              <span className={`inline-block w-2 h-2 rounded-full ${badgeDot}`} />
+              {badgeLabel}
+            </div>
+          </div>
+
+          {/* Alert Banner - chỉ hiển thị cho giá trị có cảnh báo */}
+          {hasAlert && (
+            <div className="px-4 py-2 space-y-1">
+              {pitchAlert && (
+                <div className={`text-xs font-medium leading-relaxed px-3 py-1.5 rounded ${
+                  pitchLevel === 'danger' ? 'bg-red-100 text-red-800' :
+                  pitchLevel === 'warning' ? 'bg-orange-100 text-orange-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {pitchAlert}
+                </div>
+              )}
+              {rollAlert && (
+                <div className={`text-xs font-medium leading-relaxed px-3 py-1.5 rounded ${
+                  rollLevel === 'danger' ? 'bg-red-100 text-red-800' :
+                  rollLevel === 'warning' ? 'bg-orange-100 text-orange-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {rollAlert}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* ─── PITCH ─── */}
+              <div className={`rounded-xl p-4 ${
+                pitchLevel === 'danger' ? 'bg-red-50 ring-2 ring-red-300' :
+                pitchLevel === 'warning' ? 'bg-orange-50 ring-1 ring-orange-200' :
+                pitchLevel === 'caution' ? 'bg-yellow-50' : 'bg-gray-50'
+              }`}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                    <span className={`inline-block w-2.5 h-2.5 rounded-full ${
+                      pitchLevel === 'danger' ? 'bg-red-500 animate-pulse' :
+                      pitchLevel === 'warning' ? 'bg-orange-500' :
+                      pitchLevel === 'caution' ? 'bg-yellow-500' : 'bg-green-500'
+                    }`} />
+                    PITCH (Chúi)
+                    <span className="text-[10px] text-gray-400 font-normal ml-1">IMO MSC.1/Circ.1228</span>
+                  </span>
+                  <span className={`text-xl font-bold font-mono tabular-nums flex-shrink-0 ${
+                    pitchLevel === 'danger' ? 'text-red-600' :
+                    pitchLevel === 'warning' ? 'text-orange-600' :
+                    pitchLevel === 'caution' ? 'text-yellow-600' : 'text-green-600'
+                  }`}>
+                    {p > 0 ? '+' : ''}{p.toFixed(1)}°
+                  </span>
+                </div>
+
+                {/* Pitch Bar */}
+                <div className="relative h-6 bg-gray-200/70 rounded-full overflow-hidden mb-2">
+                  {/* Color zones */}
+                  <div className="absolute inset-0 flex">
+                    <div className="h-full w-[20%] bg-gradient-to-r from-red-400 to-orange-400 opacity-40 rounded-l-full" />
+                    <div className="h-full w-[30%] bg-gradient-to-r from-orange-400 to-yellow-400 opacity-40" />
+                    <div className="h-full w-[50%] bg-gradient-to-r from-yellow-400 via-green-400 to-yellow-400 opacity-40" />
+                  </div>
+                  {/* Center mark */}
+                  <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 z-10" />
+                  {/* Value indicator */}
+                  <div className="absolute inset-y-0 flex items-center transition-all duration-300 z-20"
+                    style={{ left: `${50 + (p / 15) * 50}%`, transform: 'translateX(-50%)' }}>
+                    <div className={`w-4 h-4 rounded-full border-2 border-white shadow-md ${
+                      pitchLevel === 'danger' ? 'bg-red-500 animate-pulse' :
+                      pitchLevel === 'warning' ? 'bg-orange-500' :
+                      pitchLevel === 'caution' ? 'bg-yellow-500' : 'bg-green-500'
+                    }`} />
+                  </div>
+                </div>
+                {/* Scale labels */}
+                <div className="flex justify-between text-[10px] text-gray-400 mb-2">
+                  <span>-15°</span><span>-10°</span><span>-5°</span><span className="font-bold text-gray-500">0°</span><span>+5°</span><span>+10°</span><span>+15°</span>
+                </div>
+                {/* Pitch status */}
+                <div className={`text-xs font-medium ${
+                  pitchLevel === 'danger' ? 'text-red-600' :
+                  pitchLevel === 'warning' ? 'text-orange-600' :
+                  pitchLevel === 'caution' ? 'text-yellow-600' : 'text-green-600'
+                }`}>
+                  {getPitchText()}
+                </div>
+              </div>
+
+              {/* ─── ROLL ─── */}
+              <div className={`rounded-xl p-4 ${
+                rollLevel === 'danger' ? 'bg-red-50 ring-2 ring-red-300' :
+                rollLevel === 'warning' ? 'bg-orange-50 ring-1 ring-orange-200' :
+                rollLevel === 'caution' ? 'bg-yellow-50' : 'bg-gray-50'
+              }`}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                    <span className={`inline-block w-2.5 h-2.5 rounded-full ${
+                      rollLevel === 'danger' ? 'bg-red-500 animate-pulse' :
+                      rollLevel === 'warning' ? 'bg-orange-500' :
+                      rollLevel === 'caution' ? 'bg-yellow-500' : 'bg-green-500'
+                    }`} />
+                    ROLL (Nghiêng)
+                    <span className="text-[10px] text-gray-400 font-normal ml-1">IMO Intact Stability Code</span>
+                  </span>
+                  <span className={`text-xl font-bold font-mono tabular-nums flex-shrink-0 ${
+                    rollLevel === 'danger' ? 'text-red-600' :
+                    rollLevel === 'warning' ? 'text-orange-600' :
+                    rollLevel === 'caution' ? 'text-yellow-600' : 'text-green-600'
+                  }`}>
+                    {r > 0 ? '+' : ''}{r.toFixed(1)}°
+                  </span>
+                </div>
+
+                {/* Roll Bar */}
+                <div className="relative h-6 bg-gray-200/70 rounded-full overflow-hidden mb-2">
+                  {/* Color zones */}
+                  <div className="absolute inset-0 flex">
+                    <div className="h-full w-[17%] bg-gradient-to-r from-red-500 to-orange-500 opacity-40 rounded-l-full" />
+                    <div className="h-full w-[33%] bg-gradient-to-r from-orange-500 to-yellow-400 opacity-40" />
+                    <div className="h-full w-[50%] bg-gradient-to-r from-yellow-400 via-green-400 to-yellow-400 opacity-40" />
+                  </div>
+                  {/* Center mark */}
+                  <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 z-10" />
+                  {/* Value indicator */}
+                  <div className="absolute inset-y-0 flex items-center transition-all duration-300 z-20"
+                    style={{ left: `${50 + (r / 35) * 50}%`, transform: 'translateX(-50%)' }}>
+                    <div className={`w-4 h-4 rounded-full border-2 border-white shadow-md ${
+                      rollLevel === 'danger' ? 'bg-red-500 animate-pulse' :
+                      rollLevel === 'warning' ? 'bg-orange-500' :
+                      rollLevel === 'caution' ? 'bg-yellow-500' : 'bg-green-500'
+                    }`} />
+                  </div>
+                </div>
+                {/* Scale labels */}
+                <div className="flex justify-between text-[10px] text-gray-400 mb-2">
+                  <span>-35°</span><span>-15°</span><span>-5°</span><span className="font-bold text-gray-500">0°</span><span>+5°</span><span>+15°</span><span>+35°</span>
+                </div>
+                {/* Roll status */}
+                <div className={`text-xs font-medium ${
+                  rollLevel === 'danger' ? 'text-red-600' :
+                  rollLevel === 'warning' ? 'text-orange-600' :
+                  rollLevel === 'caution' ? 'text-yellow-600' : 'text-green-600'
+                }`}>
+                  {getRollText()}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="mt-3 pt-2 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-400">
+              <span className="flex items-center gap-1.5">
+                <span className={`inline-block w-2 h-2 rounded-full ${
+                  navigation?.timestamp ? 'bg-green-400 animate-pulse' : 'bg-gray-300'
+                }`} />
+                {navigation?.timestamp
+                  ? `Cập nhật: ${new Date(navigation.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+                  : 'Chưa có dữ liệu'}
+              </span>
+              <span className="flex items-center gap-3">
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-2 h-2 rounded-full bg-green-500" /> ≤3° (P) / ≤5° (R)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-2 h-2 rounded-full bg-yellow-500" /> 
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-2 h-2 rounded-full bg-red-500" /> Nguy hiểm
+                </span>
+                <span className="font-mono text-[10px] bg-gray-100 px-2 py-0.5 rounded">MPU6050</span>
+              </span>
+            </div>
+          </div>
+        </div>
+          );
+        })()}
+
         {/* Main Engine Card */}
         <div className="bg-white rounded shadow">
           <div className="p-4 border-b">

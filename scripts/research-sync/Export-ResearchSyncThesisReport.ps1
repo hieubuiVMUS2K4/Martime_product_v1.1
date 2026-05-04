@@ -35,6 +35,9 @@ foreach ($group in $grouped) {
     $avgTrigger = @($items | Where-Object { -not [string]::IsNullOrWhiteSpace($_.avg_trigger_latency_ms) } | ForEach-Object { [double]$_.avg_trigger_latency_ms })
     $maxTrigger = @($items | Where-Object { -not [string]::IsNullOrWhiteSpace($_.max_trigger_latency_ms) } | ForEach-Object { [double]$_.max_trigger_latency_ms })
     $retryTotals = @($items | Where-Object { -not [string]::IsNullOrWhiteSpace($_.retry_count_total) } | ForEach-Object { [int]$_.retry_count_total })
+    $retryCollisions = @($items | Where-Object { -not [string]::IsNullOrWhiteSpace($_.retry_collision_rate_pct) } | ForEach-Object { [double]$_.retry_collision_rate_pct })
+    $peakRequestRates = @($items | Where-Object { -not [string]::IsNullOrWhiteSpace($_.peak_request_rate_rps) } | ForEach-Object { [double]$_.peak_request_rate_rps })
+    $shoreErrorRates = @($items | Where-Object { -not [string]::IsNullOrWhiteSpace($_.shore_error_rate_pct) } | ForEach-Object { [double]$_.shore_error_rate_pct })
     $cpuValues = @($items | Where-Object { -not [string]::IsNullOrWhiteSpace($_.primary_cpu_percent) } | ForEach-Object { [double]$_.primary_cpu_percent })
     $memoryValues = @($items | Where-Object { -not [string]::IsNullOrWhiteSpace($_.primary_memory_bytes) } | ForEach-Object { [double]$_.primary_memory_bytes })
 
@@ -42,6 +45,9 @@ foreach ($group in $grouped) {
     $avgTriggerStats = Get-ResearchSeriesStatistics -Values $avgTrigger
     $maxTriggerStats = Get-ResearchSeriesStatistics -Values $maxTrigger
     $retryStats = Get-ResearchSeriesStatistics -Values ($retryTotals | ForEach-Object { [double]$_ })
+    $retryCollisionStats = Get-ResearchSeriesStatistics -Values $retryCollisions
+    $peakRequestRateStats = Get-ResearchSeriesStatistics -Values $peakRequestRates
+    $shoreErrorRateStats = Get-ResearchSeriesStatistics -Values $shoreErrorRates
     $cpuStats = Get-ResearchSeriesStatistics -Values $cpuValues
     $memoryStats = Get-ResearchSeriesStatistics -Values ($memoryValues | ForEach-Object { ($_ / 1MB) })
 
@@ -52,6 +58,8 @@ foreach ($group in $grouped) {
         repetitions = $repetitions
         success_rate_pct = [math]::Round((100.0 * $successCount / $repetitions), 2)
         avg_queue_drain_seconds = $queueDrainStats.mean
+        p50_queue_drain_seconds = (Get-ResearchPercentile -Values $queueDrain -Percentile 50)
+        p95_queue_drain_seconds = (Get-ResearchPercentile -Values $queueDrain -Percentile 95)
         median_queue_drain_seconds = $queueDrainStats.median
         std_queue_drain_seconds = $queueDrainStats.std_dev
         ci95_queue_drain_seconds = $queueDrainStats.ci95
@@ -67,6 +75,12 @@ foreach ($group in $grouped) {
         std_retry_count_total = $retryStats.std_dev
         ci95_retry_count_total = $retryStats.ci95
         max_retry_count_total = $retryStats.max
+        avg_retry_collision_rate_pct = $retryCollisionStats.mean
+        p95_retry_collision_rate_pct = (Get-ResearchPercentile -Values $retryCollisions -Percentile 95)
+        avg_peak_request_rate_rps = $peakRequestRateStats.mean
+        p95_peak_request_rate_rps = (Get-ResearchPercentile -Values $peakRequestRates -Percentile 95)
+        avg_shore_error_rate_pct = $shoreErrorRateStats.mean
+        p95_shore_error_rate_pct = (Get-ResearchPercentile -Values $shoreErrorRates -Percentile 95)
         avg_primary_cpu_percent = $cpuStats.mean
         median_primary_cpu_percent = $cpuStats.median
         std_primary_cpu_percent = $cpuStats.std_dev
@@ -76,6 +90,56 @@ foreach ($group in $grouped) {
         std_primary_memory_mb = $memoryStats.std_dev
         ci95_primary_memory_mb = $memoryStats.ci95
     })
+}
+
+$resumeSummaryPath = Join-Path $CampaignRoot 'resume-summary.csv'
+if (Test-Path -LiteralPath $resumeSummaryPath) {
+    $resumeRows = Import-Csv -LiteralPath $resumeSummaryPath
+    foreach ($row in $resumeRows) {
+        $reportRows.Add([pscustomobject]@{
+            scenario_type = 'file-resume'
+            network_profile = 'VSAT'
+            record_count = [int]$row.file_size_mb
+            repetitions = 1
+            success_rate_pct = 100
+            avg_queue_drain_seconds = [double]$row.time_to_recover_seconds
+            p50_queue_drain_seconds = [double]$row.time_to_recover_seconds
+            p95_queue_drain_seconds = [double]$row.time_to_recover_seconds
+            median_queue_drain_seconds = [double]$row.time_to_recover_seconds
+            std_queue_drain_seconds = 0
+            ci95_queue_drain_seconds = 0
+            min_queue_drain_seconds = [double]$row.time_to_recover_seconds
+            max_queue_drain_seconds = [double]$row.time_to_recover_seconds
+            avg_trigger_latency_ms = $null
+            median_trigger_latency_ms = $null
+            std_trigger_latency_ms = $null
+            ci95_trigger_latency_ms = $null
+            max_trigger_latency_ms = $null
+            avg_retry_count_total = $null
+            median_retry_count_total = $null
+            std_retry_count_total = $null
+            ci95_retry_count_total = $null
+            max_retry_count_total = $null
+            avg_retry_collision_rate_pct = $null
+            p95_retry_collision_rate_pct = $null
+            avg_peak_request_rate_rps = $null
+            p95_peak_request_rate_rps = $null
+            avg_shore_error_rate_pct = $null
+            p95_shore_error_rate_pct = $null
+            avg_primary_cpu_percent = $null
+            median_primary_cpu_percent = $null
+            std_primary_cpu_percent = $null
+            ci95_primary_cpu_percent = $null
+            avg_primary_memory_mb = $null
+            median_primary_memory_mb = $null
+            std_primary_memory_mb = $null
+            ci95_primary_memory_mb = $null
+            resume_efficiency = [double]$row.resume_efficiency
+            bytes_retransmitted_ratio_pct = [double]$row.bytes_retransmitted_ratio_pct
+            interruption_count = [int]$row.interruption_count
+            scenario_name = $row.scenario
+        })
+    }
 }
 
 $reportRows | Sort-Object network_profile, record_count | Export-Csv -LiteralPath $OutputPath -NoTypeInformation -Encoding UTF8

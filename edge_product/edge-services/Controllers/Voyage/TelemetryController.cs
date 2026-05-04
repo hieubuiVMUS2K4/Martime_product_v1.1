@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
+using MaritimeEdge.DTOs;
 using MaritimeEdge.Models;
 
 namespace MaritimeEdge.Controllers.Voyage;
@@ -118,6 +120,113 @@ public class TelemetryController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting latest navigation");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// POST: Nhận dữ liệu Pitch/Roll từ cảm biến MPU6050 (ESP32) qua WiFi
+    /// Cho phép anonymous vì cảm biến không có cơ chế đăng nhập
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("navigation")]
+    public async Task<IActionResult> PostNavigationData([FromBody] SensorNavigationDto dto)
+    {
+        try
+        {
+            if (dto == null)
+                return BadRequest(new { error = "Invalid sensor data" });
+
+            var navigation = new NavigationData
+            {
+                Id = Guid.NewGuid(),
+                Timestamp = DateTime.UtcNow,
+                Pitch = dto.Pitch,
+                Roll = dto.Roll,
+                HeadingTrue = dto.HeadingTrue,
+                HeadingMagnetic = dto.HeadingMagnetic,
+                SpeedThroughWater = dto.SpeedThroughWater,
+                Depth = dto.Depth,
+                IsSynced = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.NavigationData.Add(navigation);
+
+            // Giữ tối đa 1000 bản ghi navigation gần nhất trên edge
+            var count = await _context.NavigationData.CountAsync();
+            if (count > 1000)
+            {
+                var toDelete = await _context.NavigationData
+                    .OrderBy(n => n.Timestamp)
+                    .Take(count - 1000)
+                    .ToListAsync();
+                _context.NavigationData.RemoveRange(toDelete);
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Sensor data received: Pitch={Pitch}, Roll={Roll}",
+                dto.Pitch, dto.Roll);
+
+            return CreatedAtAction(nameof(GetLatestNavigation), new { id = navigation.Id }, navigation);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving navigation sensor data");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// GET: Lịch sử dữ liệu navigation
+    /// </summary>
+    [HttpGet("navigation/history")]
+    public async Task<IActionResult> GetNavigationHistory(
+        [FromQuery] int hours = 24,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 100)
+    {
+        try
+        {
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 100;
+            if (pageSize > 1000) pageSize = 1000;
+
+            var since = DateTime.UtcNow.AddHours(-hours);
+
+            var query = _context.NavigationData
+                .AsNoTracking()
+                .Where(n => n.Timestamp >= since)
+                .OrderByDescending(n => n.Timestamp);
+
+            var totalCount = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+            var data = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return Ok(new
+            {
+                data,
+                pagination = new
+                {
+                    currentPage = page,
+                    pageSize,
+                    totalCount,
+                    totalPages,
+                    hasNextPage = page < totalPages,
+                    hasPreviousPage = page > 1
+                },
+                timeRange = new { since, hours }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting navigation history");
             return StatusCode(500, new { error = "Internal server error" });
         }
     }

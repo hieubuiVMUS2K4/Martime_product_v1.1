@@ -18,6 +18,7 @@ public class SignalKDataCollectorService : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<SignalKDataCollectorService> _logger;
     private readonly IConfiguration _configuration;
+    private readonly string _vesselImo;
 
     public SignalKDataCollectorService(
         IServiceProvider serviceProvider,
@@ -27,6 +28,9 @@ public class SignalKDataCollectorService : BackgroundService
         _serviceProvider = serviceProvider;
         _logger = logger;
         _configuration = configuration;
+        _vesselImo = _configuration["SyncSecurity:NodeId"]
+                  ?? _configuration["Vessel:IMO"]
+                  ?? "UNKNOWN";
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -119,7 +123,8 @@ public class SignalKDataCollectorService : BackgroundService
                     Hdop = 1.0,
                     Source = "SignalK",
                     IsSynced = false,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    OriginNode = _vesselImo // Set IMO thực để khớp với Shore filter
                 };
 
                 await dbContext.PositionData.AddAsync(pos, cancellationToken);

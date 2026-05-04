@@ -25,19 +25,26 @@ public class SyncBackgroundWorker : BackgroundService
     {
         _logger.LogInformation("Sync Background Worker started.");
 
-        var pushInterval = TimeSpan.FromSeconds(_configuration.GetValue("Sync:HighPriorityInterval", 60));
         var pullInterval = TimeSpan.FromSeconds(_configuration.GetValue("Sync:SyncInterval", 300));
         var heartbeatInterval = TimeSpan.FromSeconds(_configuration.GetValue("Sync:HeartbeatInterval", 60));
+        var defaultPushInterval = TimeSpan.FromSeconds(_configuration.GetValue("Sync:HighPriorityInterval", 60));
         var lastPull = DateTime.MinValue;
         var lastHeartbeat = DateTime.MinValue;
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            var pushInterval = defaultPushInterval;
             try
             {
                 using (var scope = _serviceProvider.CreateScope())
                 {
                     var syncService = scope.ServiceProvider.GetRequiredService<ISyncService>();
+                    var network = await syncService.GetCurrentNetworkStatusAsync();
+                    var networkPushIntervalSeconds = _configuration.GetValue<double?>(
+                        $"Sync:NetworkPushIntervalsSeconds:{network}");
+                    pushInterval = networkPushIntervalSeconds.HasValue
+                        ? TimeSpan.FromSeconds(Math.Max(1, networkPushIntervalSeconds.Value))
+                        : defaultPushInterval;
 
                     if (DateTime.UtcNow - lastHeartbeat >= heartbeatInterval)
                     {
@@ -55,14 +62,26 @@ public class SyncBackgroundWorker : BackgroundService
                         lastPull = DateTime.UtcNow;
                     }
                 }
+
+                await Task.Delay(pushInterval, stoppingToken);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred during sync execution.");
-            }
 
-            // Wait for next push cycle
-            await Task.Delay(pushInterval, stoppingToken);
+                try
+                {
+                    await Task.Delay(defaultPushInterval, stoppingToken);
+                }
+                catch (TaskCanceledException)
+                {
+                    break;
+                }
+            }
         }
 
         _logger.LogInformation("Sync Background Worker stopping.");

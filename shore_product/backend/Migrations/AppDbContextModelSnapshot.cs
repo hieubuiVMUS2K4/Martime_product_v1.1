@@ -4979,15 +4979,18 @@ namespace productapi.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<double?>("CourseOverGround")
+                        .HasPrecision(5, 2)
                         .HasColumnType("double precision");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<double>("Latitude")
+                        .HasPrecision(10, 7)
                         .HasColumnType("double precision");
 
                     b.Property<double>("Longitude")
+                        .HasPrecision(10, 7)
                         .HasColumnType("double precision");
 
                     b.Property<string>("OriginNode")
@@ -5001,6 +5004,7 @@ namespace productapi.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<double?>("SpeedOverGround")
+                        .HasPrecision(5, 2)
                         .HasColumnType("double precision");
 
                     b.Property<DateTime>("Timestamp")
@@ -5011,7 +5015,14 @@ namespace productapi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PositionData");
+                    b.HasIndex("OriginNode");
+
+                    b.HasIndex("Timestamp")
+                        .IsDescending();
+
+                    b.HasIndex("OriginNode", "Timestamp");
+
+                    b.ToTable("position_data", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.PositionReport", b =>
@@ -5805,6 +5816,12 @@ namespace productapi.Migrations
                     b.Property<DateTime?>("LastHeartbeatAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("LastKeyRotatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastKeyVersionAcknowledgedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime?>("LastPullAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -5816,6 +5833,9 @@ namespace productapi.Migrations
 
                     b.Property<long>("LastReceivedVersion")
                         .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("LastSignedRequestAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("NodeId")
                         .IsRequired()
@@ -5846,6 +5866,10 @@ namespace productapi.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
 
+                    b.Property<string>("SigningKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<long>("TotalDeliveredCount")
                         .HasColumnType("bigint");
 
@@ -5858,6 +5882,10 @@ namespace productapi.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("IsOnline");
+
+                    b.HasIndex("IsRegistered");
+
+                    b.HasIndex("IsRevoked");
 
                     b.HasIndex("NodeId")
                         .IsUnique();

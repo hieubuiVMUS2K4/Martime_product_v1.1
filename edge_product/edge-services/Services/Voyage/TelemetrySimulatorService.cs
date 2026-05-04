@@ -14,95 +14,99 @@ namespace MaritimeEdge.Services.Voyage;
         private readonly ILogger<TelemetrySimulatorService> _logger;
         private readonly IConfiguration _configuration;
         private readonly Random _random = new Random();
+    private readonly string _vesselImo;
+    
+    // Counters for different update intervals
+    private int _tickCounter = 0;
+    private const int POSITION_NAV_INTERVAL = 1;  // Every tick (60s)
+    private const int ENGINE_GEN_INTERVAL = 1;    // Every tick (60s)
+    private const int ENVIRONMENTAL_INTERVAL = 5;  // Every 5 ticks (300s = 5min)
+
+    public TelemetrySimulatorService(
+        IServiceProvider serviceProvider,
+        ILogger<TelemetrySimulatorService> logger,
+        IConfiguration configuration)
+    {
+        _serviceProvider = serviceProvider;
+        _logger = logger;
+        _configuration = configuration;
+        _vesselImo = _configuration["SyncSecurity:NodeId"]
+                  ?? _configuration["Vessel:IMO"]
+                  ?? "UNKNOWN";
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        // Check if simulator is enabled in configuration
+        var enabled = _configuration.GetValue<bool>("TelemetrySimulator:Enabled", true);
         
-        // Counters for different update intervals
-        private int _tickCounter = 0;
-        private const int POSITION_NAV_INTERVAL = 1;  // Every tick (60s)
-        private const int ENGINE_GEN_INTERVAL = 1;    // Every tick (60s)
-        private const int ENVIRONMENTAL_INTERVAL = 5;  // Every 5 ticks (300s = 5min)
-
-        public TelemetrySimulatorService(
-            IServiceProvider serviceProvider,
-            ILogger<TelemetrySimulatorService> logger,
-            IConfiguration configuration)
+        if (!enabled)
         {
-            _serviceProvider = serviceProvider;
-            _logger = logger;
-            _configuration = configuration;
+            _logger.LogInformation("Telemetry Simulator is DISABLED in configuration. No data will be generated.");
+            return; // Exit immediately
         }
 
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        _logger.LogInformation("Telemetry Simulator Service started");
+
+        // Get configurable interval (default: 60 seconds)
+        var intervalSeconds = _configuration.GetValue<int>("TelemetrySimulator:IntervalSeconds", 60);
+        var retentionHours = _configuration.GetValue<int>("TelemetrySimulator:DataRetentionHours", 24);
+        
+        _logger.LogInformation(
+            "Simulator config - Interval: {Interval}s, Retention: {Retention}h", 
+            intervalSeconds, retentionHours);
+
+        // Wait 10 seconds before starting simulation
+        await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+
+        while (!stoppingToken.IsCancellationRequested)
         {
-            // Check if simulator is enabled in configuration
-            var enabled = _configuration.GetValue<bool>("TelemetrySimulator:Enabled", true);
-            
-            if (!enabled)
+            try
             {
-                _logger.LogInformation("Telemetry Simulator is DISABLED in configuration. No data will be generated.");
-                return; // Exit immediately
-            }
+                _tickCounter++;
+                
+                using var scope = _serviceProvider.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<EdgeDbContext>();
 
-            _logger.LogInformation("Telemetry Simulator Service started");
-
-            // Get configurable interval (default: 60 seconds)
-            var intervalSeconds = _configuration.GetValue<int>("TelemetrySimulator:IntervalSeconds", 60);
-            var retentionHours = _configuration.GetValue<int>("TelemetrySimulator:DataRetentionHours", 24);
-            
-            _logger.LogInformation(
-                "Simulator config - Interval: {Interval}s, Retention: {Retention}h", 
-                intervalSeconds, retentionHours);
-
-            // Wait 10 seconds before starting simulation
-            await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
-
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                try
+                // Position and Navigation: Every tick (60s)
+                if (_tickCounter % POSITION_NAV_INTERVAL == 0)
                 {
-                    _tickCounter++;
-                    
-                    using var scope = _serviceProvider.CreateScope();
-                    var dbContext = scope.ServiceProvider.GetRequiredService<EdgeDbContext>();
-
-                    // Position and Navigation: Every tick (60s)
-                    if (_tickCounter % POSITION_NAV_INTERVAL == 0)
-                    {
-                        await SimulatePositionData(dbContext);
-                        await SimulateNavigationData(dbContext);
-                    }
-
-                    // Engine and Generator: Every tick (60s)
-                    if (_tickCounter % ENGINE_GEN_INTERVAL == 0)
-                    {
-                        await SimulateEngineData(dbContext);
-                        await SimulateGeneratorData(dbContext);
-                    }
-
-                    // Environmental: Every 5 ticks (300s = 5 minutes)
-                    if (_tickCounter % ENVIRONMENTAL_INTERVAL == 0)
-                    {
-                        await SimulateEnvironmentalData(dbContext);
-                    }
-
-                    await dbContext.SaveChangesAsync(stoppingToken);
-
-                    _logger.LogDebug("Telemetry data simulated (tick {Tick}): Pos/Nav={PosNav}, Engine/Gen={EngGen}, Env={Env}",
-                        _tickCounter,
-                        _tickCounter % POSITION_NAV_INTERVAL == 0,
-                        _tickCounter % ENGINE_GEN_INTERVAL == 0,
-                        _tickCounter % ENVIRONMENTAL_INTERVAL == 0);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error simulating telemetry data");
+                    await SimulatePositionData(dbContext);
+                    await SimulateNavigationData(dbContext);
                 }
 
-                // Update based on configured interval (default: 60 seconds)
-                await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
+                // Engine and Generator: Every tick (60s)
+                if (_tickCounter % ENGINE_GEN_INTERVAL == 0)
+                {
+                    await SimulateEngineData(dbContext);
+                    await SimulateGeneratorData(dbContext);
+                }
+
+                // Environmental: Every 5 ticks (300s = 5 minutes)
+                if (_tickCounter % ENVIRONMENTAL_INTERVAL == 0)
+                {
+                    await SimulateEnvironmentalData(dbContext);
+                }
+
+                await dbContext.SaveChangesAsync(stoppingToken);
+
+                _logger.LogDebug("Telemetry data simulated (tick {Tick}): Pos/Nav={PosNav}, Engine/Gen={EngGen}, Env={Env}",
+                    _tickCounter,
+                    _tickCounter % POSITION_NAV_INTERVAL == 0,
+                    _tickCounter % ENGINE_GEN_INTERVAL == 0,
+                    _tickCounter % ENVIRONMENTAL_INTERVAL == 0);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error simulating telemetry data");
             }
 
-            _logger.LogInformation("Telemetry Simulator Service stopped");
+            // Update based on configured interval (default: 60 seconds)
+            await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
         }
+
+        _logger.LogInformation("Telemetry Simulator Service stopped");
+    }
 
         private async Task SimulatePositionData(EdgeDbContext dbContext)
         {
@@ -131,7 +135,8 @@ namespace MaritimeEdge.Services.Voyage;
                 Hdop = 1.0 + _random.NextDouble(),
                 Source = "GPS",
                 IsSynced = false,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                OriginNode = _vesselImo // Set IMO thực để khớp với Shore filter
             };
 
             await dbContext.PositionData.AddAsync(newPosition);
