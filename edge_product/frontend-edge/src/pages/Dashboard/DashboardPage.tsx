@@ -277,16 +277,16 @@ export function DashboardPage() {
                 pitchLevel === 'caution' ? 'bg-yellow-50' : 'bg-gray-50'
               }`}>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-                    <span className={`inline-block w-2.5 h-2.5 rounded-full ${
+                  <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 min-w-0 overflow-hidden">
+                    <span className={`inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 ${
                       pitchLevel === 'danger' ? 'bg-red-500 animate-pulse' :
                       pitchLevel === 'warning' ? 'bg-orange-500' :
                       pitchLevel === 'caution' ? 'bg-yellow-500' : 'bg-green-500'
                     }`} />
-                    PITCH (Chúi)
-                    <span className="text-[10px] text-gray-400 font-normal ml-1">IMO MSC.1/Circ.1228</span>
+                    <span className="truncate">PITCH (Chúi)</span>
+                    <span className="text-[10px] text-gray-400 font-normal flex-shrink-0 hidden sm:inline">IMO MSC.1/Circ.1228</span>
                   </span>
-                  <span className={`text-xl font-bold font-mono tabular-nums flex-shrink-0 ${
+                  <span className={`text-xl font-bold font-mono tabular-nums flex-shrink-0 ml-2 ${
                     pitchLevel === 'danger' ? 'text-red-600' :
                     pitchLevel === 'warning' ? 'text-orange-600' :
                     pitchLevel === 'caution' ? 'text-yellow-600' : 'text-green-600'
@@ -295,16 +295,22 @@ export function DashboardPage() {
                   </span>
                 </div>
 
-                {/* Pitch Bar */}
-                <div className="relative h-6 bg-gray-200/70 rounded-full overflow-hidden mb-2">
-                  {/* Color zones */}
-                  <div className="absolute inset-0 flex">
-                    <div className="h-full w-[20%] bg-gradient-to-r from-red-400 to-orange-400 opacity-40 rounded-l-full" />
-                    <div className="h-full w-[30%] bg-gradient-to-r from-orange-400 to-yellow-400 opacity-40" />
-                    <div className="h-full w-[50%] bg-gradient-to-r from-yellow-400 via-green-400 to-yellow-400 opacity-40" />
-                  </div>
+                {/* Pitch Bar - gradient mượt: đỏ→cam→vàng→xanh→vàng→cam→đỏ */}
+                <div className="relative h-6 rounded-full overflow-hidden mb-2"
+                  style={{
+                    background: `linear-gradient(to right,
+                      #ef4444 0%,
+                      #f97316 17%,
+                      #eab308 33%,
+                      #22c55e 50%,
+                      #eab308 67%,
+                      #f97316 83%,
+                      #ef4444 100%
+                    )`,
+                    opacity: 0.7
+                  }}>
                   {/* Center mark */}
-                  <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 z-10" />
+                  <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-500 z-10" />
                   {/* Value indicator */}
                   <div className="absolute inset-y-0 flex items-center transition-all duration-300 z-20"
                     style={{ left: `${50 + (p / 15) * 50}%`, transform: 'translateX(-50%)' }}>
@@ -336,16 +342,16 @@ export function DashboardPage() {
                 rollLevel === 'caution' ? 'bg-yellow-50' : 'bg-gray-50'
               }`}>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-                    <span className={`inline-block w-2.5 h-2.5 rounded-full ${
+                  <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 min-w-0 overflow-hidden">
+                    <span className={`inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 ${
                       rollLevel === 'danger' ? 'bg-red-500 animate-pulse' :
                       rollLevel === 'warning' ? 'bg-orange-500' :
                       rollLevel === 'caution' ? 'bg-yellow-500' : 'bg-green-500'
                     }`} />
-                    ROLL (Nghiêng)
-                    <span className="text-[10px] text-gray-400 font-normal ml-1">IMO Intact Stability Code</span>
+                    <span className="truncate">ROLL (Nghiêng)</span>
+                    <span className="text-[10px] text-gray-400 font-normal flex-shrink-0 hidden sm:inline">IMO Intact Stability Code</span>
                   </span>
-                  <span className={`text-xl font-bold font-mono tabular-nums flex-shrink-0 ${
+                  <span className={`text-xl font-bold font-mono tabular-nums flex-shrink-0 ml-2 ${
                     rollLevel === 'danger' ? 'text-red-600' :
                     rollLevel === 'warning' ? 'text-orange-600' :
                     rollLevel === 'caution' ? 'text-yellow-600' : 'text-green-600'
@@ -354,16 +360,22 @@ export function DashboardPage() {
                   </span>
                 </div>
 
-                {/* Roll Bar */}
-                <div className="relative h-6 bg-gray-200/70 rounded-full overflow-hidden mb-2">
-                  {/* Color zones */}
-                  <div className="absolute inset-0 flex">
-                    <div className="h-full w-[17%] bg-gradient-to-r from-red-500 to-orange-500 opacity-40 rounded-l-full" />
-                    <div className="h-full w-[33%] bg-gradient-to-r from-orange-500 to-yellow-400 opacity-40" />
-                    <div className="h-full w-[50%] bg-gradient-to-r from-yellow-400 via-green-400 to-yellow-400 opacity-40" />
-                  </div>
+                {/* Roll Bar - gradient mượt: đỏ→cam→vàng→xanh→vàng→cam→đỏ */}
+                <div className="relative h-6 rounded-full overflow-hidden mb-2"
+                  style={{
+                    background: `linear-gradient(to right,
+                      #ef4444 0%,
+                      #f97316 14%,
+                      #eab308 29%,
+                      #22c55e 50%,
+                      #eab308 71%,
+                      #f97316 86%,
+                      #ef4444 100%
+                    )`,
+                    opacity: 0.7
+                  }}>
                   {/* Center mark */}
-                  <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 z-10" />
+                  <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-500 z-10" />
                   {/* Value indicator */}
                   <div className="absolute inset-y-0 flex items-center transition-all duration-300 z-20"
                     style={{ left: `${50 + (r / 35) * 50}%`, transform: 'translateX(-50%)' }}>

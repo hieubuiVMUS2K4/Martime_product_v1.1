@@ -48,27 +48,43 @@ interface VesselMapProps {
   className?: string;
 }
 
+/** SVG hình thuyền — nhìn từ trên xuống */
+const shipSvg = `<svg width="24" height="24" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Thân tàu -->
+  <path d="M10 70 Q20 40 30 30 L70 30 Q80 40 90 70 L85 75 Q75 65 65 60 L35 60 Q25 65 15 75 Z" fill="white"/>
+  <!-- Mũi tàu -->
+  <path d="M45 20 L50 10 L55 20 Z" fill="white"/>
+  <!-- Đài chỉ huy -->
+  <rect x="40" y="25" width="20" height="18" rx="2" fill="white" stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>
+  <!-- Cột ăn-ten -->
+  <line x1="50" y1="10" x2="50" y2="5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="46" y1="7" x2="54" y2="7" stroke="white" stroke-width="1" stroke-linecap="round"/>
+  <!-- Cửa sổ cabin -->
+  <rect x="43" y="28" width="5" height="4" rx="1" fill="rgba(0,0,0,0.25)"/>
+  <rect x="52" y="28" width="5" height="4" rx="1" fill="rgba(0,0,0,0.25)"/>
+  <!-- Đường nước -->
+  <path d="M12 72 Q25 68 50 70 Q75 72 88 70" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" fill="none"/>
+</svg>`;
+
 /** Tạo icon tàu với màu tùy chỉnh */
 function makeShipIcon(color: string) {
   return new L.DivIcon({
     className: 'vessel-marker',
     html: `<div style="
-      width: 28px; height: 28px;
+      width: 36px; height: 36px;
       background: ${color};
       border: 3px solid white;
-      border-radius: 50%;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      border-radius: 8px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.3), 0 0 0 2px ${color}33;
       display: flex;
       align-items: center;
       justify-content: center;
     ">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="white">
-        <path d="M12 2L4 20h16L12 2z" />
-      </svg>
+      ${shipSvg}
     </div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -20],
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -22],
   });
 }
 
