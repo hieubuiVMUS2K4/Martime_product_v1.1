@@ -34,14 +34,20 @@ import { useTranslationSafe } from '@/contexts/I18nContext'
 // Navigation items with translation keys
 const getNavigation = (t: (key: string) => string) => [
   { name: t('nav.dashboard'), to: '/dashboard', icon: LayoutDashboard },
-  // { name: t('nav.navigation'), to: '/navigation', icon: Navigation }, // Temporarily hidden
-  // { name: t('nav.engine'), to: '/engine', icon: Zap }, // Temporarily hidden
-  // { name: t('nav.fuelAnalytics'), to: '/fuel-analytics', icon: Fuel }, // Temporarily hidden
-  // { name: t('nav.alarms'), to: '/alarms', icon: AlertTriangle }, // Temporarily hidden
+  { name: t('nav.shipData') || 'Ship Data', to: '/ship-data', icon: Anchor },
   { name: t('nav.crew'), icon: Users, subItems: [
     { name: t('nav.crewMembers'), to: '/crew/members', icon: Users },
     { name: t('nav.certificate'), to: '/crew/certificates', icon: Shield },
   ] },
+  { 
+    name: 'Quản lý khai thác',
+    icon: Compass,
+    subItems: [
+      { name: t('nav.ports') || 'Ports', to: '/ports', icon: MapPin },
+      { name: t('nav.voyage'), to: '/voyage', icon: Ship },
+      { name: t('nav.reporting'), to: '/reporting', icon: ClipboardList },
+    ]
+  },
   { 
     name: t('nav.pms'), 
     icon: Calendar, 
@@ -67,10 +73,6 @@ const getNavigation = (t: (key: string) => string) => [
       { name: t('nav.workPlanning') || 'Danh sách công việc', to: '/pms/work-planning', icon: ClipboardList },
     ]
   },
-  { name: t('nav.reporting'), to: '/reporting', icon: ClipboardList },
-  { name: t('nav.shipData') || 'Ship Data', to: '/ship-data', icon: Anchor },
-  { name: t('nav.voyage'), to: '/voyage', icon: Ship },
-  { name: t('nav.ports') || 'Ports', to: '/ports', icon: MapPin },
   // { name: t('nav.compliance'), to: '/compliance', icon: FileText }, // Temporarily hidden
   { 
     name: t('nav.safety'), 
@@ -105,6 +107,9 @@ export function Sidebar() {
   const [expandedMenus, setExpandedMenus] = useState<string[]>(() => {
     const initial: string[] = [t('nav.pms')]
     if (location.pathname.startsWith('/crew')) initial.push(t('nav.crew'))
+    if (location.pathname.startsWith('/ports') || location.pathname.startsWith('/voyage') || location.pathname.startsWith('/reporting')) {
+      initial.push('Quản lý khai thác')
+    }
     return initial
   })
   const userRoleCode = useAuthStore(s => s.user?.roleCode?.toUpperCase())
