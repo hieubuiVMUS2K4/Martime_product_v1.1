@@ -35,12 +35,12 @@ import { useTranslationSafe } from '@/contexts/I18nContext'
 const getNavigation = (t: (key: string) => string) => [
   { name: t('nav.dashboard'), to: '/dashboard', icon: LayoutDashboard },
   { name: t('nav.shipData') || 'Ship Data', to: '/ship-data', icon: Anchor },
-  { name: t('nav.crew'), icon: Users, subItems: [
-    { name: t('nav.crewMembers'), to: '/crew/members', icon: Users },
-    { name: t('nav.certificate'), to: '/crew/certificates', icon: Shield },
+  { name: t('nav.crewManagement'), icon: Users, subItems: [
+    { name: t('nav.crewMembersManagement'), to: '/crew/members', icon: Users },
+    { name: t('nav.certificateManagement'), to: '/crew/certificates', icon: Shield },
   ] },
   { 
-    name: 'Quản lý khai thác',
+    name: t('nav.operationsManagement'),
     icon: Compass,
     subItems: [
       { name: t('nav.ports') || 'Ports', to: '/ports', icon: MapPin },
@@ -56,9 +56,9 @@ const getNavigation = (t: (key: string) => string) => [
         name: t('nav.catalog'), 
         icon: FolderOpen, 
         children: [
-          { name: t('nav.equipmentAssets'), to: '/pms/catalog/assets', icon: Settings },
-          { name: t('nav.materials'), to: '/pms/catalog/materials', icon: Boxes },
-          { name: t('nav.storeLocations'), to: '/pms/catalog/store-locations', icon: Warehouse },
+          { name: t('nav.equipmentManagement'), to: '/pms/catalog/assets', icon: Settings },
+          { name: t('nav.materialsManagement'), to: '/pms/catalog/materials', icon: Boxes },
+          { name: t('nav.storeLocationsManagement'), to: '/pms/catalog/store-locations', icon: Warehouse },
         ]
       },
       {
@@ -106,9 +106,9 @@ export function Sidebar() {
   const [logbooksOpen, setLogbooksOpen] = useState(location.pathname.startsWith('/logbooks'))
   const [expandedMenus, setExpandedMenus] = useState<string[]>(() => {
     const initial: string[] = [t('nav.pms')]
-    if (location.pathname.startsWith('/crew')) initial.push(t('nav.crew'))
+    if (location.pathname.startsWith('/crew')) initial.push(t('nav.crewManagement'))
     if (location.pathname.startsWith('/ports') || location.pathname.startsWith('/voyage') || location.pathname.startsWith('/reporting')) {
-      initial.push('Quản lý khai thác')
+      initial.push(t('nav.operationsManagement'))
     }
     return initial
   })

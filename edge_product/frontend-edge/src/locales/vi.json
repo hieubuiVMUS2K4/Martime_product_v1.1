@@ -96,7 +96,13 @@
     "shipData": "Dữ liệu tàu",
     "auditLog": "Nhật ký kiểm toán",
     "crewMembers": "Danh sách thuyền viên",
-    "certificate": "Chứng chỉ"
+    "certificate": "Chứng chỉ",
+    "operationsManagement": "Quản lý khai thác",
+    "crewManagement": "Quản lý thuyền viên",
+    "crewMembersManagement": "Quản lý danh sách thuyền viên",
+    "equipmentManagement": "Quản lý thiết bị",
+    "materialsManagement": "Quản lý vật tư",
+    "storeLocationsManagement": "Quản lý kho"
   },
   "header": {
     "title": "Vận hành tàu",

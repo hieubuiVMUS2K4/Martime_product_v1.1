@@ -96,7 +96,13 @@
     "shipData": "Ship Data",
     "auditLog": "Audit Log",
     "crewMembers": "Crew Members",
-    "certificate": "Certificate"
+    "certificate": "Certificate",
+    "operationsManagement": "Operations Management",
+    "crewManagement": "Crew Management",
+    "crewMembersManagement": "Crew Members Management",
+    "equipmentManagement": "Equipment Management",
+    "materialsManagement": "Materials Management",
+    "storeLocationsManagement": "Store Management"
   },
   "header": {
     "title": "Vessel Operations",
