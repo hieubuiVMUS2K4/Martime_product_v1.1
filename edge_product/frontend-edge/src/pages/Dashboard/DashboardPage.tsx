@@ -62,9 +62,28 @@ export function DashboardPage() {
 
   useEffect(() => {
     loadDashboardData()
-    const interval = setInterval(loadDashboardData, 5000) // Refresh every 5s to see simulator updates
+    const interval = setInterval(loadDashboardData, 5000) // Refresh every 5s for full dashboard data
     return () => clearInterval(interval)
   }, [loadDashboardData])
+
+  // ── Fast polling riêng cho Vessel Attitude (Pitch/Roll) ──
+  // ESP32 gửi dữ liệu mỗi ~1s, nên poll ở 1s để hiển thị real-time
+  const refreshNavigation = useCallback(async () => {
+    try {
+      const navData = await telemetryService.getLatestNavigation()
+      if (navData) {
+        setNavigation(navData)
+        setCurrentNavigation(navData)
+      }
+    } catch (error) {
+      // Bỏ qua lỗi để không spam console (ESP có thể offline)
+    }
+  }, [setCurrentNavigation])
+
+  useEffect(() => {
+    const fastInterval = setInterval(refreshNavigation, 1000) // 1s = khớp tốc độ gửi của ESP
+    return () => clearInterval(fastInterval)
+  }, [refreshNavigation])
 
   if (loading) {
     return (

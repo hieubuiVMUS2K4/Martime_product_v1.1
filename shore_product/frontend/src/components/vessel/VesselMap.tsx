@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import plannedRouteData from '../../assets/planned-route.json';
@@ -30,6 +30,7 @@ export interface VesselTrackData {
   color: string;
   position: GpsPoint;
   route: GpsPoint[];
+  dashArray?: string; // e.g. "2,4" or "5,8"
 }
 
 /** Props cho VesselMap component */
@@ -46,39 +47,47 @@ interface VesselMapProps {
   height?: string;
   /** CSS class */
   className?: string;
+  /** Id tàu cần focus — map sẽ flyTo vị trí tàu đó */
+  focusVesselId?: string;
+  /** Callback khi click vào marker tàu */
+  onVesselSelect?: (vesselId: string) => void;
 }
 
-/** SVG hình thuyền — nhìn từ trên xuống */
-const shipSvg = `<svg width="24" height="24" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Thân tàu -->
-  <path d="M10 70 Q20 40 30 30 L70 30 Q80 40 90 70 L85 75 Q75 65 65 60 L35 60 Q25 65 15 75 Z" fill="white"/>
-  <!-- Mũi tàu -->
-  <path d="M45 20 L50 10 L55 20 Z" fill="white"/>
+/** SVG hình thuyền — nhìn từ trên xuống, mũi nhọn hướng lên để hiển thị hướng đi */
+const shipSvg = `<svg width="26" height="26" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Mũi tàu nhọn (hướng đi) -->
+  <path d="M50 2 L60 28 L55 30 L50 25 L45 30 L40 28 Z" fill="white"/>
+  <!-- Thân tàu hình thoi -->
+  <path d="M40 28 L20 45 Q15 55 18 65 L30 75 Q40 80 50 80 Q60 80 70 75 L82 65 Q85 55 80 45 L60 28 Z" fill="white"/>
+  <!-- Boong tàu -->
+  <path d="M38 32 L22 48 Q18 56 22 64 L32 72 Q40 76 50 76 Q60 76 68 72 L78 64 Q82 56 78 48 L62 32 Z" fill="rgba(255,255,255,0.5)"/>
   <!-- Đài chỉ huy -->
-  <rect x="40" y="25" width="20" height="18" rx="2" fill="white" stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>
-  <!-- Cột ăn-ten -->
-  <line x1="50" y1="10" x2="50" y2="5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="46" y1="7" x2="54" y2="7" stroke="white" stroke-width="1" stroke-linecap="round"/>
+  <rect x="42" y="30" width="16" height="14" rx="2" fill="white" stroke="rgba(0,0,0,0.2)" stroke-width="1"/>
+  <!-- Cột radar -->
+  <line x1="50" y1="28" x2="50" y2="6" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+  <line x1="44" y1="10" x2="56" y2="10" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
   <!-- Cửa sổ cabin -->
-  <rect x="43" y="28" width="5" height="4" rx="1" fill="rgba(0,0,0,0.25)"/>
-  <rect x="52" y="28" width="5" height="4" rx="1" fill="rgba(0,0,0,0.25)"/>
+  <rect x="45" y="33" width="4" height="3" rx="1" fill="rgba(0,0,0,0.2)"/>
+  <rect x="51" y="33" width="4" height="3" rx="1" fill="rgba(0,0,0,0.2)"/>
   <!-- Đường nước -->
-  <path d="M12 72 Q25 68 50 70 Q75 72 88 70" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" fill="none"/>
+  <path d="M18 68 Q30 64 50 66 Q70 68 82 66" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" fill="none"/>
 </svg>`;
 
-/** Tạo icon tàu với màu tùy chỉnh */
-function makeShipIcon(color: string) {
+/** Tạo icon tàu với màu tùy chỉnh và hướng đi (courseOverGround) */
+function makeShipIcon(color: string, course?: number) {
+  const rotation = course != null ? course : 0;
   return new L.DivIcon({
     className: 'vessel-marker',
     html: `<div style="
       width: 36px; height: 36px;
       background: ${color};
       border: 3px solid white;
-      border-radius: 8px;
+      border-radius: 50%;
       box-shadow: 0 3px 10px rgba(0,0,0,0.3), 0 0 0 2px ${color}33;
       display: flex;
       align-items: center;
       justify-content: center;
+      transform: rotate(${rotation}deg);
     ">
       ${shipSvg}
     </div>`,
@@ -88,21 +97,38 @@ function makeShipIcon(color: string) {
   });
 }
 
+/** Dash array patterns for different routes */
+const dashPatterns = [
+  '2,4',    // Route 1: South
+  '5,8',    // Route 2: North  
+  '3,6',    // Route 3: Central
+  '4,7',    // Route 4: Southwest
+  '6,9',    // Route 5: Regional
+];
+
+/** Get dash pattern by vessel index */
+function getDashPattern(index: number): string {
+  return dashPatterns[index % dashPatterns.length];
+}
+
 /** Component con để tự động fly-to và fit bounds */
 function MapController({ 
   currentPosition, 
   positions, 
   vessels,
-  autoFit 
+  autoFit,
+  focusVesselId,
 }: {
   currentPosition: GpsPoint | null;
   positions: GpsPoint[];
   vessels?: VesselTrackData[];
   autoFit: boolean;
+  focusVesselId?: string;
 }) {
   const map = useMap();
   const prevLat = useRef<number | null>(null);
   const prevLng = useRef<number | null>(null);
+  const prevFocusId = useRef<string | null>(null);
 
   useEffect(() => {
     if (!currentPosition) return;
@@ -156,6 +182,21 @@ function MapController({
     map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
   }, [positions, vessels, map, autoFit]);
 
+  // Fly to focused vessel when focusVesselId changes
+  useEffect(() => {
+    if (!focusVesselId || focusVesselId === prevFocusId.current) return;
+    prevFocusId.current = focusVesselId;
+
+    if (vessels) {
+      const vessel = vessels.find(v => v.id === focusVesselId);
+      if (vessel && vessel.position) {
+        map.flyTo([vessel.position.latitude, vessel.position.longitude], 13, {
+          duration: 1,
+        });
+      }
+    }
+  }, [focusVesselId, vessels, map]);
+
   return null;
 }
 
@@ -166,6 +207,8 @@ export const VesselMap: React.FC<VesselMapProps> = ({
   autoFit = true,
   height = '600px',
   className = '',
+  focusVesselId,
+  onVesselSelect,
 }) => {
   const isMulti = vessels && vessels.length > 0;
 
@@ -212,6 +255,7 @@ export const VesselMap: React.FC<VesselMapProps> = ({
           positions={isMulti ? [] : (positions || [])}
           vessels={vessels}
           autoFit={autoFit}
+          focusVesselId={focusVesselId}
         />
 
         {/* Tuyến đường dự định Vũng Tàu → Hải Phòng */}
@@ -229,6 +273,7 @@ export const VesselMap: React.FC<VesselMapProps> = ({
         {/* ── Multi-vessel mode ── */}
         {isMulti && vessels.map((v, idx) => {
           const vColor = v.color || colorPalette[idx % colorPalette.length];
+          const vDashArray = v.dashArray || getDashPattern(idx);
           const vRoute: [number, number][] = (v.route || [])
             .filter(p => p.latitude && p.longitude)
             .map(p => [p.latitude, p.longitude]);
@@ -236,36 +281,71 @@ export const VesselMap: React.FC<VesselMapProps> = ({
 
           return (
             <React.Fragment key={v.id}>
-              {/* Route polyline */}
+              {/* Route polyline with dashed style */}
               {vRoute.length >= 2 && (
-                <Polyline positions={vRoute} color={vColor} weight={2.5} opacity={0.6} smoothFactor={1} />
+                <Polyline 
+                  positions={vRoute} 
+                  color={vColor} 
+                  weight={2.5} 
+                  opacity={0.7}
+                  dashArray={vDashArray}
+                  smoothFactor={1} 
+                />
               )}
-              {/* Marker */}
+              {/* Marker with auto-open tooltip chứa đầy đủ thông tin */}
               {hasPos && (
                 <Marker
                   position={[v.position.latitude, v.position.longitude]}
-                  icon={makeShipIcon(vColor)}
+                  icon={makeShipIcon(vColor, v.position.courseOverGround)}
+                  eventHandlers={{
+                    click: () => onVesselSelect?.(v.id),
+                  }}
                 >
-                  <Popup>
-                    <div className="text-sm min-w-[180px]">
-                      <div className="font-bold text-base mb-1" style={{ color: vColor }}>🚢 {v.name}</div>
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-gray-700">
-                        <span className="text-gray-500">Lat:</span>
-                        <span className="font-mono">{v.position.latitude.toFixed(6)}°</span>
-                        <span className="text-gray-500">Lon:</span>
-                        <span className="font-mono">{v.position.longitude.toFixed(6)}°</span>
-                        {v.position.speedOverGround != null && (
-                          <><span className="text-gray-500">Speed:</span><span className="font-semibold">{v.position.speedOverGround.toFixed(1)} kn</span></>
-                        )}
-                        {v.position.courseOverGround != null && (
-                          <><span className="text-gray-500">Course:</span><span className="font-semibold">{v.position.courseOverGround.toFixed(1)}°</span></>
-                        )}
-                        {v.position.timestamp && (
-                          <><span className="text-gray-500">Time:</span><span>{new Date(v.position.timestamp).toLocaleTimeString()}</span></>
-                        )}
+                  {/* Tooltip permanent — tự động hiện thông tin đầy đủ, không cần click */}
+                  <Tooltip permanent direction="top" offset={[0, -12]}>
+                    <div
+                      className="text-sm min-w-[220px] rounded-lg shadow-xl border bg-white"
+                      style={{ borderColor: vColor, borderWidth: '1.5px' }}
+                    >
+                      {/* Header */}
+                      <div
+                        className="font-bold text-base px-3 py-2 rounded-t-lg flex items-center justify-between"
+                        style={{ backgroundColor: vColor, color: 'white' }}
+                      >
+                        <span>🚢 {v.name}</span>
+                      </div>
+                      {/* Body */}
+                      <div className="px-3 py-2 space-y-1.5">
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                          <span className="text-gray-500 text-xs">Latitude:</span>
+                          <span className="font-mono text-sm font-semibold">{v.position.latitude.toFixed(6)}°</span>
+                          <span className="text-gray-500 text-xs">Longitude:</span>
+                          <span className="font-mono text-sm font-semibold">{v.position.longitude.toFixed(6)}°</span>
+                          {v.position.speedOverGround != null && (
+                            <>
+                              <span className="text-gray-500 text-xs">Speed:</span>
+                              <span className="font-semibold text-sm">{v.position.speedOverGround.toFixed(1)} kn</span>
+                            </>
+                          )}
+                          {v.position.courseOverGround != null && (
+                            <>
+                              <span className="text-gray-500 text-xs">Course:</span>
+                              <span className="font-semibold text-sm">{v.position.courseOverGround.toFixed(1)}°</span>
+                            </>
+                          )}
+                          {v.position.timestamp && (
+                            <>
+                              <span className="text-gray-500 text-xs">Time (UTC):</span>
+                              <span className="text-sm">{new Date(v.position.timestamp).toLocaleTimeString('en-GB')}</span>
+                            </>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400 pt-1.5 border-t border-gray-100">
+                          Route: {vDashArray} • {vRoute.length} waypoints
+                        </div>
                       </div>
                     </div>
-                  </Popup>
+                  </Tooltip>
                 </Marker>
               )}
             </React.Fragment>
@@ -276,28 +356,42 @@ export const VesselMap: React.FC<VesselMapProps> = ({
         {!isMulti && currentPosition && currentPosition.latitude && currentPosition.longitude && (
           <Marker
             position={[currentPosition.latitude, currentPosition.longitude]}
-            icon={makeShipIcon('#ef4444')}
+            icon={makeShipIcon('#ef4444', currentPosition.courseOverGround)}
           >
             <Popup>
-              <div className="text-sm min-w-[180px]">
-                <div className="font-bold text-base mb-1">🚢 Vessel Position</div>
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-gray-700">
-                  <span className="text-gray-500">Lat:</span>
-                  <span className="font-mono">{currentPosition.latitude.toFixed(6)}°</span>
-                  <span className="text-gray-500">Lon:</span>
-                  <span className="font-mono">{currentPosition.longitude.toFixed(6)}°</span>
-                  {currentPosition.speedOverGround != null && (
-                    <><span className="text-gray-500">Speed:</span><span className="font-semibold">{currentPosition.speedOverGround.toFixed(1)} kn</span></>
-                  )}
-                  {currentPosition.courseOverGround != null && (
-                    <><span className="text-gray-500">Course:</span><span className="font-semibold">{currentPosition.courseOverGround.toFixed(1)}°</span></>
-                  )}
-                  {currentPosition.timestamp && (
-                    <><span className="text-gray-500">Time:</span><span>{new Date(currentPosition.timestamp).toLocaleTimeString()}</span></>
-                  )}
-                  {currentPosition.satellitesUsed != null && (
-                    <><span className="text-gray-500">Satellites:</span><span>{currentPosition.satellitesUsed}</span></>
-                  )}
+              <div className="text-sm min-w-[220px]">
+                <div className="font-bold text-base mb-2 pb-2 border-b">🚢 Vessel Position</div>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-gray-700">
+                    <span className="text-gray-500 text-xs">Latitude:</span>
+                    <span className="font-mono text-sm">{currentPosition.latitude.toFixed(6)}°</span>
+                    <span className="text-gray-500 text-xs">Longitude:</span>
+                    <span className="font-mono text-sm">{currentPosition.longitude.toFixed(6)}°</span>
+                    {currentPosition.speedOverGround != null && (
+                      <>
+                        <span className="text-gray-500 text-xs">Speed Over Ground:</span>
+                        <span className="font-semibold text-sm">{currentPosition.speedOverGround.toFixed(1)} kn</span>
+                      </>
+                    )}
+                    {currentPosition.courseOverGround != null && (
+                      <>
+                        <span className="text-gray-500 text-xs">Course Over Ground:</span>
+                        <span className="font-semibold text-sm">{currentPosition.courseOverGround.toFixed(1)}°</span>
+                      </>
+                    )}
+                    {currentPosition.timestamp && (
+                      <>
+                        <span className="text-gray-500 text-xs">Time (UTC):</span>
+                        <span className="text-sm">{new Date(currentPosition.timestamp).toLocaleTimeString('en-GB')}</span>
+                      </>
+                    )}
+                    {currentPosition.satellitesUsed != null && (
+                      <>
+                        <span className="text-gray-500 text-xs">Satellites:</span>
+                        <span className="text-sm">{currentPosition.satellitesUsed}</span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </Popup>

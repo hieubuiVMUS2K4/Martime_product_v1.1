@@ -181,6 +181,42 @@ export function NoonReportForm() {
       } finally {
         setLoadingCrew(false);
       }
+      
+      // Auto-load pitch/roll from latest navigation data
+      try {
+        const navData = await maritimeService.telemetry.getLatest('navigation');
+        if (navData) {
+          const p = navData.pitch ?? 0;
+          const r = navData.roll ?? 0;
+          const absP = Math.abs(p);
+          const absR = Math.abs(r);
+          
+          const pitchLevel = absP <= 3 ? 'BÌNH THƯỜNG' : absP <= 7 ? 'THẬN TRỌNG' : absP <= 10 ? 'CẢNH BÁO' : 'NGUY HIỂM';
+          const rollLevel  = absR <= 5 ? 'BÌNH THƯỜNG' : absR <= 15 ? 'THẬN TRỌNG' : absR <= 25 ? 'CẢNH BÁO' : 'NGUY HIỂM';
+          
+          const hasWarning = pitchLevel === 'CẢNH BÁO' || pitchLevel === 'NGUY HIỂM' || 
+                            rollLevel === 'CẢNH BÁO' || rollLevel === 'NGUY HIỂM';
+          
+          const now = new Date();
+          const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+          const dateStr = now.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          
+          // Auto-fill safetyIncidents with formatted warning if there's any warning
+          const warningText = hasWarning 
+            ? `[AUTO ${timeStr} ${dateStr}] Cảnh báo độ nghiêng/chúi - Pitch: ${p.toFixed(1)}° (${pitchLevel}) | Roll: ${r.toFixed(1)}° (${rollLevel})`
+            : undefined;
+          
+          setFormData(prev => ({
+            ...prev,
+            pitch: p,
+            roll: r,
+            ...(warningText ? { safetyIncidents: warningText } : {}),
+          }));
+          console.log('✅ Auto-loaded pitch/roll from navigation:', p, r, hasWarning ? `⚠️ ${warningText}` : '✓ Normal');
+        }
+      } catch (err) {
+        // Silent - pitch/roll data is optional
+      }
     };
     
     loadAutoData();
@@ -219,6 +255,8 @@ export function NoonReportForm() {
           mainEngineRunningHours: report.mainEngineRunningHours,
           auxEngineRunningHours: report.auxEngineRunningHours,
           cargoOnBoard: report.cargoOnBoard,
+          pitch: report.pitch,
+          roll: report.roll,
           generalRemarks: report.generalRemarks || '',
           preparedBy: report.preparedBy || '',
           completedTaskIds: report.completedTaskIds || [],
@@ -1263,6 +1301,11 @@ export function NoonReportForm() {
               <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
                 <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
                 Safety Incidents (if any)
+                {(formData.safetyIncidents || '').includes('[AUTO]') && (
+                  <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-orange-100 text-orange-700 rounded-full">
+                    AUTO
+                  </span>
+                )}
               </label>
               <input
                 type="text"

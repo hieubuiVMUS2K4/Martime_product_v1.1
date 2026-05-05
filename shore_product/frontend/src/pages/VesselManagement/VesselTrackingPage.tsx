@@ -57,12 +57,23 @@ const VESSEL_COLORS = [
   '#6366f1', '#84cc16', '#06b6d4', '#d946ef',
 ];
 
+// Dash patterns for different routes
+const DASH_PATTERNS = [
+  '2,4',    // Route 1: South
+  '5,8',    // Route 2: North
+  '3,6',    // Route 3: Central
+  '4,7',    // Route 4: Southwest
+  '6,9',    // Route 5: Regional
+];
+
 export const VesselTrackingPage: React.FC = () => {
   const [vessels, setVessels] = useState<VesselOption[]>([]);
   const [selectedHours, setSelectedHours] = useState<number>(24);
   const [allVesselData, setAllVesselData] = useState<VesselTrackData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [focusVesselId, setFocusVesselId] = useState<string | null>(null);
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
 
   // Lấy danh sách tàu và dữ liệu vị trí của tất cả
   useEffect(() => {
@@ -110,17 +121,19 @@ export const VesselTrackingPage: React.FC = () => {
       results.forEach((result, idx) => {
         if (result.status === 'fulfilled' && result.value.data?.latest) {
           const d = result.value.data;
+          const latest = d.latest; // non-null after the guard above
           const v = vessels[idx];
           trackData.push({
             id: v.id,
             name: v.name,
             color: VESSEL_COLORS[idx % VESSEL_COLORS.length],
+            dashArray: DASH_PATTERNS[idx % DASH_PATTERNS.length],
             position: {
-              latitude: d.latest.latitude,
-              longitude: d.latest.longitude,
-              speedOverGround: d.latest.speedOverGround ?? undefined,
-              courseOverGround: d.latest.courseOverGround ?? undefined,
-              timestamp: d.latest.timestamp,
+              latitude: latest.latitude,
+              longitude: latest.longitude,
+              speedOverGround: latest.speedOverGround ?? undefined,
+              courseOverGround: latest.courseOverGround ?? undefined,
+              timestamp: latest.timestamp,
             },
             route: (d.route || []).map(p => ({
               latitude: p.latitude,
@@ -137,6 +150,8 @@ export const VesselTrackingPage: React.FC = () => {
       if (trackData.length === 0) {
         setError('Không có tàu nào có dữ liệu vị trí.');
       }
+      // Lần load đầu tiên thành công — tắt autoFit cho các lần sau
+      if (isFirstLoad) setIsFirstLoad(false);
     } catch (err: any) {
       setError(err?.message || 'Failed to load position data');
       console.error('Failed to load positions:', err);
@@ -171,11 +186,15 @@ export const VesselTrackingPage: React.FC = () => {
         {/* Controls Bar */}
         <div className="flex flex-wrap items-center gap-3 mb-4 bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-200 dark:border-gray-700">
           {/* Legend */}
-          <div className="flex flex-wrap items-center gap-3">
-            {allVesselData.map(v => (
-              <div key={v.id} className="flex items-center gap-1.5 text-xs">
+          <div className="flex flex-wrap items-center gap-4">
+            {allVesselData.map((v, idx) => (
+              <div key={v.id} className="flex items-center gap-2 text-xs">
                 <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: v.color }} />
                 <span className="font-medium text-gray-700 dark:text-gray-200">{v.name}</span>
+                <span className="text-gray-400">•</span>
+                <svg className="w-8 h-2" style={{ stroke: v.color }}>
+                  <line x1="0" y1="50%" x2="8" y2="50%" strokeWidth="1.5" strokeDasharray={v.dashArray} />
+                </svg>
               </div>
             ))}
             {allVesselData.length === 0 && !loading && (
@@ -235,14 +254,60 @@ export const VesselTrackingPage: React.FC = () => {
             </div>
           </div>
         ) : (
-          <VesselMap
-            vessels={allVesselData.length > 0 ? allVesselData : undefined}
-            positions={[]}
-            currentPosition={null}
-            autoFit={true}
-            height="600px"
-            className="mb-4"
-          />
+          <div className="relative mb-4">
+            {/* Danh sách tàu — overlay góc trái trên map */}
+            {allVesselData.length > 0 && (
+              <div className="absolute top-3 left-3 z-[1000] max-h-[calc(100%-24px)] overflow-y-auto">
+                <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 w-64">
+                  <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                    <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                      <span>🚢</span> Vessels
+                      <span className="ml-auto text-xs font-normal text-gray-400">({allVesselData.length})</span>
+                    </h3>
+                  </div>
+                  <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {allVesselData.map(v => (
+                      <button
+                        key={v.id}
+                        onClick={() => setFocusVesselId(v.id)}
+                        className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                          focusVesselId === v.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                        }`}
+                      >
+                        <span
+                          className="inline-block w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: v.color }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                            {v.name}
+                          </div>
+                          {v.position.speedOverGround != null && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {v.position.speedOverGround.toFixed(1)} kn
+                              {v.position.courseOverGround != null && ` • ${v.position.courseOverGround.toFixed(0)}°`}
+                            </div>
+                          )}
+                        </div>
+                        <svg className="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            <VesselMap
+              vessels={allVesselData.length > 0 ? allVesselData : undefined}
+              positions={[]}
+              currentPosition={null}
+              autoFit={isFirstLoad}
+              height="600px"
+              focusVesselId={focusVesselId ?? undefined}
+              onVesselSelect={(id) => setFocusVesselId(id)}
+            />
+          </div>
         )}
 
         {/* Summary info */}

@@ -1,0 +1,100 @@
+// Seed vessel data using EF Core
+using Microsoft.EntityFrameworkCore;
+using Maritime.Shared.Models;
+using System;
+using System.Collections.Generic;
+
+// Get services from Program configuration
+var builder = Host.CreateDefaultBuilder(args);
+builder.ConfigureServices(services =>
+{
+    services.AddDbContext<MaritimeDbContext>(options =>
+        options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
+});
+
+var host = builder.Build();
+
+using (var scope = host.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<MaritimeDbContext>();
+    
+    Console.WriteLine("🚀 Starting seed vessel data insertion...\n");
+
+    try
+    {
+        // Ensure database exists
+        dbContext.Database.EnsureCreated();
+        Console.WriteLine("✅ Database ready\n");
+
+        // Vessels data
+        var vessels = new List<Vessel>
+        {
+            new Vessel { Id = Guid.Parse("550e8400-e29b-41d4-a716-446655440001"), Name = "MV SAIGON TRADER", IMO = "9234567", MMSI = 563001234, CallSign = "HCSG" },
+            new Vessel { Id = Guid.Parse("550e8400-e29b-41d4-a716-446655440002"), Name = "MV HANOI EXPRESS", IMO = "9234568", MMSI = 563001235, CallSign = "HCSH" },
+            new Vessel { Id = Guid.Parse("550e8400-e29b-41d4-a716-446655440003"), Name = "MV DANANG PRIDE", IMO = "9234569", MMSI = 563001236, CallSign = "HCSD" },
+            new Vessel { Id = Guid.Parse("550e8400-e29b-41d4-a716-446655440004"), Name = "MV SIHANOUK BAY", IMO = "9234570", MMSI = 563001237, CallSign = "HCSB" },
+            new Vessel { Id = Guid.Parse("550e8400-e29b-41d4-a716-446655440005"), Name = "MV PHU QUOC VESSEL", IMO = "9234571", MMSI = 563001238, CallSign = "HCSP" }
+        };
+
+        // Add vessels if they don't exist
+        var existingVessels = dbContext.Vessels.ToList();
+        var vesselsToAdd = vessels.Where(v => !existingVessels.Any(e => e.Id == v.Id)).ToList();
+        
+        if (vesselsToAdd.Any())
+        {
+            dbContext.Vessels.AddRange(vesselsToAdd);
+            await dbContext.SaveChangesAsync();
+            Console.WriteLine($"✅ Added {vesselsToAdd.Count} vessels\n");
+        }
+
+        // Create positions for each vessel
+        var positions = new List<VesselPosition>();
+        var vesselIds = vessels.Select(v => v.Id).ToList();
+        var baseTime = DateTime.UtcNow;
+
+        for (int i = 0; i < vesselIds.Count; i++)
+        {
+            var vesselId = vesselIds[i];
+            
+            // Create 10 waypoints per vessel
+            for (int j = 0; j < 10; j++)
+            {
+                var lat = 8.0 + i * 2 + j * 0.1;
+                var lon = 104.0 + i * 2 + j * 0.1;
+                
+                positions.Add(new VesselPosition
+                {
+                    Id = Guid.Parse($"650e8400-e29b-41d4-a716-{446655440000 + i * 10 + j:000000}"),
+                    VesselId = vesselId,
+                    Latitude = lat,
+                    Longitude = lon,
+                    SpeedOverGround = 10 + (j % 5),
+                    CourseOverGround = (j * 36) % 360,
+                    Timestamp = baseTime.AddHours(j)
+                });
+            }
+        }
+
+        var existingPositions = dbContext.VesselPositions.ToList();
+        var positionsToAdd = positions.Where(p => !existingPositions.Any(e => e.Id == p.Id)).ToList();
+        
+        if (positionsToAdd.Any())
+        {
+            dbContext.VesselPositions.AddRange(positionsToAdd);
+            await dbContext.SaveChangesAsync();
+            Console.WriteLine($"✅ Added {positionsToAdd.Count} position waypoints\n");
+        }
+
+        Console.WriteLine("✅ Seed data insertion completed successfully!");
+        Console.WriteLine("📊 Seed data status:");
+        Console.WriteLine($"  • {vessels.Count} vessels in database");
+        Console.WriteLine($"  • {positions.Count} waypoints total");
+        Console.WriteLine($"  • 5 different dashed line patterns ready");
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"❌ Error: {ex.Message}");
+        Console.Error.WriteLine(ex.StackTrace);
+        Environment.Exit(1);
+    }
+}
