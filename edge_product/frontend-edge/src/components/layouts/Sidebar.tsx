@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
 import {
   LayoutDashboard,
+  Navigation,
   Users,
   Ship,
   FileText,
@@ -34,6 +35,7 @@ import { useTranslationSafe } from '@/contexts/I18nContext'
 // Navigation items with translation keys
 const getNavigation = (t: (key: string) => string) => [
   { name: t('nav.dashboard'), to: '/dashboard', icon: LayoutDashboard },
+  { name: t('nav.navigation'), to: '/navigation', icon: Navigation },
   { name: t('nav.shipData') || 'Ship Data', to: '/ship-data', icon: Anchor },
   { name: t('nav.crewManagement'), icon: Users, subItems: [
     { name: t('nav.crewMembersManagement'), to: '/crew/members', icon: Users },

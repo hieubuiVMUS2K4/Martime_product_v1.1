@@ -46,6 +46,9 @@ import { PositionReportForm } from './pages/Reporting/PositionReportForm'
 // Ship Data
 import { ShipDataPage } from './pages/ShipData/ShipDataPage'
 
+// Navigation Pages
+import { NavigationPage } from './pages/Navigation/NavigationPage'
+
 // Logbook Pages
 import { DeckLogPage } from './pages/logbooks/DeckLogPage'
 import { EngineLogPage } from './pages/logbooks/EngineLogPage'
@@ -82,7 +85,7 @@ function App() {
       <Route path="/" element={<AuthGuard><MainLayout /></AuthGuard>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
-        {/* <Route path="navigation" element={<NavigationPage />} /> */} {/* Temporarily hidden */}
+        <Route path="navigation" element={<NavigationPage />} />
         {/* <Route path="engine" element={<EnginePage />} /> */} {/* Temporarily hidden */}
         {/* <Route path="alarms" element={<AlarmsPage />} /> */} {/* Temporarily hidden */}
         <Route path="crew" element={<Navigate to="/crew/members" replace />} />

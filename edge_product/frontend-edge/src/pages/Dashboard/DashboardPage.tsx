@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { useEffect, useState, useCallback } from 'react'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { dashboardService, alarmService, telemetryService } from '@/services/maritime.service'
 import { useMaritimeStore } from '@/stores/maritime.store'
 import type { DashboardStats } from '@/types/maritime.types'
@@ -9,17 +9,10 @@ import plannedRouteData from '@/assets/planned-route.json'
 import { 
   AlertTriangle, 
   Users, 
-  Wrench, 
-  Fuel,
+  Wrench,
   Activity,
   Navigation,
-  Thermometer,
-  Gauge,
-  Settings,
-  Wind,
-  CloudRain,
-  Eye,
-  Sun
+  Settings
 } from 'lucide-react'
 
 export function DashboardPage() {
@@ -28,13 +21,12 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [position, setPosition] = useState<any>(null)
   const [navigation, setNavigation] = useState<any>(null)
-  const [engine, setEngine] = useState<any>(null)
   const [history, setHistory] = useState<any[]>([])
   const { setDashboardStats, setActiveAlarms, setCurrentPosition, setCurrentNavigation } = useMaritimeStore()
 
   // Khởi tạo một số dữ liệu trống cho biểu đồ lúc ban đầu
   useEffect(() => {
-    const initialData = Array.from({ length: 30 }).map((_, i) => ({
+    const initialData = Array.from({ length: 30 }).map(() => ({
       time: '', pitch: 0, roll: 0, rpm: 0
     }))
     setHistory(initialData)
@@ -43,12 +35,11 @@ export function DashboardPage() {
   const loadDashboardData = useCallback(async () => {
     try {
       // Load all dashboard data in parallel
-      const [dashStats, alarms, posData, navData, engineData] = await Promise.all([
+      const [dashStats, alarms, posData, navData] = await Promise.all([
         dashboardService.getStats(),
         alarmService.getActiveAlarms(),
         telemetryService.getLatestPosition(),
         telemetryService.getLatestNavigation(),
-        telemetryService.getEngineStatus(),
         // telemetryService.getEnvironmentalData(),
       ])
 
@@ -56,7 +47,6 @@ export function DashboardPage() {
       setStats(dashStats)
       setPosition(posData)
       setNavigation(navData)
-      setEngine(engineData?.[0] || null) // Get first engine
       // setEnvironmental(envData)
       
       // Update Zustand store
@@ -697,17 +687,6 @@ export function GaugeSmall({ label, value, percent, color = '#22c55e' }: { label
         <div className="text-2xl font-bold text-gray-900 mb-2">{value}</div>
       )}
       <p className="text-xs text-gray-500">{label}</p>
-    </div>
-  )
-}
-
-// Task Item Component
-function TaskItem({ number, task, dueDate }: { number: string; task: string; dueDate?: string }) {
-  return (
-    <div className="flex items-center gap-3 text-sm">
-      <span className="text-gray-500">{number}.</span>
-      <span className="flex-1 text-gray-900">{task}</span>
-      {dueDate && <span className="text-gray-500">{dueDate}</span>}
     </div>
   )
 }

@@ -89,6 +89,10 @@ export interface CreateNoonReportDto {
   cargoOnBoard?: number;
   cargoDescription?: string;
   
+  // Vessel Motion (IMO Maritime Standard)
+  pitch?: number; // Pitching angle in degrees
+  roll?: number; // Rolling angle in degrees
+  
   // Remarks
   operationalRemarks?: string;
   machineryRemarks?: string;
