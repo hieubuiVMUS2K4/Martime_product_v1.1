@@ -1,7 +1,8 @@
 param(
     [ValidateSet('Custom', 'Smoke', 'FullMatrix')][string]$Preset = 'Custom',
-    [string[]]$Profiles = @('LAN', '4G', 'VSAT', 'HF'),
+    [string[]]$Profiles = @('LAN', '4G', 'VSAT', 'LEO', 'HF'),
     [int[]]$RecordCounts = @(100, 1000, 5000, 10000),
+    [int[]]$SimulatedNodeCounts = @(1),
     [int]$Repetitions = 10,
     [int]$LanRepetitions = 10,
     [int]$FourGRepetitions = 10,
@@ -32,6 +33,7 @@ switch ($Preset) {
     'Smoke' {
         $Profiles = @('LAN')
         $RecordCounts = @(10, 100)
+        $SimulatedNodeCounts = @(1)
         $Repetitions = 1
         $LanRepetitions = 1
         $FourGRepetitions = 1
@@ -39,8 +41,9 @@ switch ($Preset) {
         $HfRepetitions = 1
     }
     'FullMatrix' {
-        $Profiles = @('LAN', '4G', 'VSAT', 'HF')
+        $Profiles = @('LAN', '4G', 'VSAT', 'LEO', 'HF')
         $RecordCounts = @(100, 1000, 5000, 10000)
+        $SimulatedNodeCounts = @(1, 5, 20)
         $LanRepetitions = [math]::Max($LanRepetitions, 10)
         $FourGRepetitions = [math]::Max($FourGRepetitions, 10)
         $VsatRepetitions = [math]::Max($VsatRepetitions, 15)
@@ -56,7 +59,7 @@ if ([string]::IsNullOrWhiteSpace($EdgeAccessToken)) {
 $campaignRoot = New-ResearchDirectory -Path (Join-Path $ArtifactsRoot ("campaign-{0}" -f ([DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss'))))
 $aggregate = New-Object System.Collections.Generic.List[object]
 $campaignProgressPath = Join-Path $campaignRoot 'campaign-progress.json'
-$totalScenarioCount = @($Profiles).Count * @($RecordCounts).Count
+$totalScenarioCount = @($Profiles).Count * @($RecordCounts).Count * @($SimulatedNodeCounts).Count
 $totalRepetitionCount = 0
 
 foreach ($profile in $Profiles) {
@@ -65,10 +68,11 @@ foreach ($profile in $Profiles) {
         '4G' { $FourGRepetitions }
         'VSAT' { $VsatRepetitions }
         'HF' { $HfRepetitions }
+        'LEO' { $FourGRepetitions }
         default { $Repetitions }
     }
 
-    $totalRepetitionCount += ($profileRepetitionCount * @($RecordCounts).Count)
+    $totalRepetitionCount += ($profileRepetitionCount * @($RecordCounts).Count * @($SimulatedNodeCounts).Count)
 }
 
 function Update-CampaignProgressState {
@@ -78,6 +82,7 @@ function Update-CampaignProgressState {
         [int]$ScenarioIndex,
         [string]$CurrentProfile,
         [int]$CurrentRecordCount,
+        [int]$CurrentSimulatedNodes,
         [int]$CurrentRepetitions,
         [string]$CurrentScenarioName,
         [string]$CurrentScenarioPath,
@@ -102,6 +107,7 @@ function Update-CampaignProgressState {
         progress_percent = $progressPercent
         current_profile = $CurrentProfile
         current_record_count = $CurrentRecordCount
+        current_simulated_nodes = $CurrentSimulatedNodes
         current_repetitions = $CurrentRepetitions
         current_scenario_name = $CurrentScenarioName
         current_scenario_path = $CurrentScenarioPath
@@ -132,20 +138,23 @@ foreach ($profile in $Profiles) {
         '4G' { $FourGRepetitions }
         'VSAT' { $VsatRepetitions }
         'HF' { $HfRepetitions }
+        'LEO' { $FourGRepetitions }
         default { $Repetitions }
     }
 
     foreach ($recordCount in $RecordCounts) {
-        $scenarioName = '{0}-{1}' -f $profile, $recordCount
+        foreach ($simulatedNodes in $SimulatedNodeCounts) {
+        $scenarioName = '{0}-{1}-N{2}' -f $profile, $recordCount, $simulatedNodes
         $scenarioIndex++
         Write-ResearchLog -Message "Running scenario $scenarioName with repetitions=$profileRepetitions"
-        Update-CampaignProgressState -Status 'running-scenario' -CompletedScenarios ($scenarioIndex - 1) -ScenarioIndex $scenarioIndex -CurrentProfile $profile -CurrentRecordCount $recordCount -CurrentRepetitions $profileRepetitions -CurrentScenarioName $scenarioName -Note 'Scenario execution started.'
+        Update-CampaignProgressState -Status 'running-scenario' -CompletedScenarios ($scenarioIndex - 1) -ScenarioIndex $scenarioIndex -CurrentProfile $profile -CurrentRecordCount $recordCount -CurrentSimulatedNodes $simulatedNodes -CurrentRepetitions $profileRepetitions -CurrentScenarioName $scenarioName -Note 'Scenario execution started.'
 
         try {
             & "$PSScriptRoot\Invoke-ResearchSyncScenario.ps1" `
                 -ScenarioName $scenarioName `
                 -NetworkProfile $profile `
                 -RecordCount $recordCount `
+                -SimulatedNodeCount $simulatedNodes `
                 -Repetitions $profileRepetitions `
                 -EdgeBaseUrl $EdgeBaseUrl `
                 -InternalApiKey $InternalApiKey `
@@ -163,13 +172,13 @@ foreach ($profile in $Profiles) {
                 -ScenarioTimeoutSeconds $ScenarioTimeoutSeconds
         }
         catch {
-            Update-CampaignProgressState -Status 'failed' -CompletedScenarios ($scenarioIndex - 1) -ScenarioIndex $scenarioIndex -CurrentProfile $profile -CurrentRecordCount $recordCount -CurrentRepetitions $profileRepetitions -CurrentScenarioName $scenarioName -Note $_.Exception.Message
+            Update-CampaignProgressState -Status 'failed' -CompletedScenarios ($scenarioIndex - 1) -ScenarioIndex $scenarioIndex -CurrentProfile $profile -CurrentRecordCount $recordCount -CurrentSimulatedNodes $simulatedNodes -CurrentRepetitions $profileRepetitions -CurrentScenarioName $scenarioName -Note $_.Exception.Message
             throw
         }
 
         $latestScenarioDir = Get-ChildItem -LiteralPath $campaignRoot -Directory | Where-Object { $_.Name -like "$scenarioName-*" } | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
         $latestScenarioPath = if ($null -ne $latestScenarioDir) { $latestScenarioDir.FullName } else { $null }
-        Update-CampaignProgressState -Status 'scenario-finished' -CompletedScenarios $scenarioIndex -ScenarioIndex $scenarioIndex -CurrentProfile $profile -CurrentRecordCount $recordCount -CurrentRepetitions $profileRepetitions -CurrentScenarioName $scenarioName -CurrentScenarioPath $latestScenarioPath -Note 'Scenario execution finished. Aggregating results.'
+        Update-CampaignProgressState -Status 'scenario-finished' -CompletedScenarios $scenarioIndex -ScenarioIndex $scenarioIndex -CurrentProfile $profile -CurrentRecordCount $recordCount -CurrentSimulatedNodes $simulatedNodes -CurrentRepetitions $profileRepetitions -CurrentScenarioName $scenarioName -CurrentScenarioPath $latestScenarioPath -Note 'Scenario execution finished. Aggregating results.'
         if ($null -eq $latestScenarioDir) {
             continue
         }
@@ -179,6 +188,7 @@ foreach ($profile in $Profiles) {
             foreach ($row in @(Import-Csv -LiteralPath $summaryPath)) {
                 $aggregate.Add($row)
             }
+        }
         }
     }
 }

@@ -39,6 +39,7 @@ public class SessionAuthMiddleware
         "/api/health",
         "/swagger",
         "/uploads",
+        "/api/telemetry/navigation", // Sensor data from ESP/MPU6050 (no auth)
     };
 
     // For these paths, resolve Bearer token if present (to allow authenticated users),

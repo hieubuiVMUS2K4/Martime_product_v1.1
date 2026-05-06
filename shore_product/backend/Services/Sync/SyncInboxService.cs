@@ -1103,6 +1103,11 @@ public class SyncInboxService : ISyncInboxService
                     break;
             }
 
+            if (item.TableName == "position_data" && (action == "CREATE" || action == "UPDATE" || action == "SNAPSHOT"))
+            {
+                await AutoUpdateVesselPositionAsync(item);
+            }
+
             await LogSyncOperation(item, "SUCCESS");
         }
         catch (Exception ex)
@@ -3146,5 +3151,59 @@ public class SyncInboxService : ISyncInboxService
             vesselName: signOffVesselName,
             crewMemberId: record.CrewMemberId,
             crewName: signOffCrewName);
+    }
+
+    private async Task AutoUpdateVesselPositionAsync(SyncQueueItemDto item)
+    {
+        if (string.IsNullOrWhiteSpace(item.Payload)) return;
+        try 
+        {
+            var cleanPayload = NormalizePayloadToCamelCase(StripNavigationProperties(item.Payload));
+            var positionData = JsonSerializer.Deserialize<ProductApi.Models.PositionData>(cleanPayload, _jsonOptions);
+            
+            if (positionData != null && !string.IsNullOrWhiteSpace(positionData.OriginNode))
+            {
+                var vessel = await _context.Vessels.FirstOrDefaultAsync(v => v.IMO == positionData.OriginNode);
+                if (vessel != null)
+                {
+                    var vesselPos = new ProductApi.Models.VesselPosition
+                    {
+                        Id = positionData.Id, // Link ID mapping to prevent duplicate creation on retry
+                        VesselId = vessel.Id,
+                        Latitude = positionData.Latitude,
+                        Longitude = positionData.Longitude,
+                        Speed = positionData.SpeedOverGround,
+                        Course = positionData.CourseOverGround,
+                        Timestamp = positionData.Timestamp,
+                        Source = positionData.Source ?? "GPS"
+                    };
+                    
+                    var existing = await _context.VesselPositions.FindAsync(vesselPos.Id);
+                    if (existing == null)
+                    {
+                        await _context.VesselPositions.AddAsync(vesselPos);
+                        await _context.SaveChangesAsync();
+                        _logger.LogInformation("Auto-created VesselPosition for {VesselName} at {Lat},{Lon}", vessel.Name, vesselPos.Latitude, vesselPos.Longitude);
+                    }
+                    else
+                    {
+                        existing.Latitude = vesselPos.Latitude;
+                        existing.Longitude = vesselPos.Longitude;
+                        existing.Speed = vesselPos.Speed;
+                        existing.Course = vesselPos.Course;
+                        existing.Timestamp = vesselPos.Timestamp;
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("AutoUpdateVesselPositionAsync: Vessel not found with IMO={IMO}", positionData.OriginNode);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to auto-update VesselPosition from position_data");
+        }
     }
 }

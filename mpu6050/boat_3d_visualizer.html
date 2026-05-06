@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Boat - MPU6050 Real-time Visualization</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { overflow: hidden; background: #0a0a1a; font-family: 'Segoe UI', Tahoma, sans-serif; }
+  #container { width: 100vw; height: 100vh; display: block; }
+
+  /* HUD Overlay */
+  #hud {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    text-align: center;
+    pointer-events: none;
+  }
+  #hud h1 {
+    color: #fff;
+    font-size: 22px;
+    font-weight: 300;
+    letter-spacing: 4px;
+    text-shadow: 0 0 20px rgba(0,150,255,0.5);
+  }
+  #hud .sub {
+    color: rgba(255,255,255,0.5);
+    font-size: 12px;
+    letter-spacing: 2px;
+    margin-top: 4px;
+  }
+
+  /* Connection Panel */
+  #connect-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    background: rgba(10,10,30,0.95);
+    border: 1px solid rgba(0,150,255,0.3);
+    border-radius: 16px;
+    padding: 40px 50px;
+    text-align: center;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 0 60px rgba(0,100,255,0.15);
+    transition: opacity 0.5s, transform 0.5s;
+  }
+  #connect-panel.hidden {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+    pointer-events: none;
+  }
+  #connect-panel .icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+  #connect-panel h2 {
+    color: #fff;
+    font-size: 20px;
+    font-weight: 400;
+    margin-bottom: 8px;
+  }
+  #connect-panel p {
+    color: rgba(255,255,255,0.5);
+    font-size: 13px;
+    margin-bottom: 24px;
+    max-width: 320px;
+  }
+  #connect-btn {
+    background: linear-gradient(135deg, #0066ff, #00ccff);
+    color: #fff;
+    border: none;
+    padding: 14px 40px;
+    font-size: 16px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: 1px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    pointer-events: auto;
+  }
+  #connect-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(0,150,255,0.4);
+  }
+  #connect-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Data Panel */
+  #data-panel {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    gap: 60px;
+    background: rgba(10,10,30,0.8);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 20px 50px;
+    pointer-events: none;
+  }
+  .data-item {
+    text-align: center;
+  }
+  .data-item .label {
+    color: rgba(255,255,255,0.4);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+  .data-item .value {
+    color: #fff;
+    font-size: 36px;
+    font-weight: 300;
+    font-variant-numeric: tabular-nums;
+  }
+  .data-item .value .deg {
+    font-size: 18px;
+    color: rgba(255,255,255,0.3);
+  }
+  .data-item .unit {
+    color: rgba(255,255,255,0.3);
+    font-size: 13px;
+    margin-left: 2px;
+  }
+  #pitch-value { color: #ff6b6b; }
+  #roll-value  { color: #4ecdc4; }
+
+  /* Mini indicator dots */
+  .dot-bar {
+    display: flex;
+    gap: 3px;
+    justify-content: center;
+    margin-top: 6px;
+  }
+  .dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    transition: background 0.2s;
+  }
+  .dot.active {
+    background: currentColor;
+    box-shadow: 0 0 6px currentColor;
+  }
+
+  /* Status bar */
+  #status-bar {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: rgba(255,255,255,0.4);
+    font-size: 12px;
+    letter-spacing: 1px;
+    pointer-events: none;
+  }
+  #status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ff4444;
+    transition: background 0.3s;
+  }
+  #status-dot.connected {
+    background: #44ff44;
+    box-shadow: 0 0 10px rgba(68,255,68,0.5);
+    animation: pulse-dot 1.5s infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  /* Keyboard hint */
+  #keyboard-hint {
+    position: fixed;
+    bottom: 110px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    color: rgba(255,255,255,0.15);
+    font-size: 11px;
+    letter-spacing: 1px;
+    pointer-events: none;
+    transition: opacity 0.5s;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    #data-panel {
+      gap: 30px;
+      padding: 16px 30px;
+      bottom: 20px;
+    }
+    .data-item .value {
+      font-size: 24px;
+    }
+    #connect-panel {
+      padding: 30px;
+      width: 90%;
+    }
+    #hud h1 { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Connect Panel -->
+<div id="connect-panel">
+  <div class="icon">⛵</div>
+  <h2>Kết nối cảm biến MPU6050</h2>
+  <p>Kết nối thiết bị ESP của bạn qua WebSerial để xem trực quan chuyển động của thuyền theo dữ liệu Pitch &amp; Roll thực tế.</p>
+  <button id="connect-btn">🔗 Kết nối thiết bị</button>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <h1>⛵ BOAT 3D VISUALIZER</h1>
+  <div class="sub">MPU6050 · Real-time Orientation</div>
+</div>
+
+<div id="status-bar">
+  <span id="status-dot"></span>
+  <span id="status-text">Chưa kết nối</span>
+</div>
+
+<!-- 3D Canvas -->
+<div id="container"></div>
+
+<!-- Data Panel -->
+<div id="data-panel">
+  <div class="data-item">
+    <div class="label">Pitch (Chúi)</div>
+    <div class="value" id="pitch-value">0.00<span class="deg">°</span></div>
+    <div class="dot-bar" id="pitch-dots"></div>
+  </div>
+  <div class="data-item">
+    <div class="label">Roll (Nghiêng)</div>
+    <div class="value" id="roll-value">0.00<span class="deg">°</span></div>
+    <div class="dot-bar" id="roll-dots"></div>
+  </div>
+</div>
+
+<div id="keyboard-hint">⌨️ Phím R: Reset góc · Phím Space: Tạm dừng · Chuột: Xoay góc nhìn</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ─── STATE ───────────────────────────────────────────────
+const state = {
+  pitch: 0,
+  roll: 0,
+  connected: false,
+  paused: false,
+  serialPort: null,
+  reader: null,
+  simMode: false
+};
+
+// ─── DOM REFS ────────────────────────────────────────────
+const container = document.getElementById('container');
+const connectPanel = document.getElementById('connect-panel');
+const connectBtn = document.getElementById('connect-btn');
+const statusDot = document.getElementById('status-dot');
+const statusText = document.getElementById('status-text');
+const pitchValue = document.getElementById('pitch-value');
+const rollValue = document.getElementById('roll-value');
+const pitchDots = document.getElementById('pitch-dots');
+const rollDots = document.getElementById('roll-dots');
+const keyboardHint = document.getElementById('keyboard-hint');
+
+// Build dot bars
+for (let i = 0; i < 21; i++) {
+  const d1 = document.createElement('div'); d1.className = 'dot'; pitchDots.appendChild(d1);
+  const d2 = document.createElement('div'); d2.className = 'dot'; rollDots.appendChild(d2);
+}
+
+function updateDots(container, value, center = 10) {
+  const dots = container.querySelectorAll('.dot');
+  const idx = Math.round(value / 2) + center;
+  dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+}
+
+// ─── THREE.JS SETUP ─────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a1628);
+scene.fog = new THREE.Fog(0x0a1628, 30, 80);
+
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(8, 5, 10);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+container.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(window.innerWidth, window.innerHeight);
+labelRenderer.domElement.style.position = 'absolute';
+labelRenderer.domElement.style.top = '0';
+labelRenderer.domElement.style.left = '0';
+labelRenderer.domElement.style.pointerEvents = 'none';
+container.appendChild(labelRenderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.5, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 3;
+controls.maxDistance = 30;
+controls.maxPolarAngle = Math.PI / 2.1;
+controls.update();
+
+// ─── LIGHTING ───────────────────────────────────────────
+const ambientLight = new THREE.AmbientLight(0x334466, 0.5);
+scene.add(ambientLight);
+
+const sunLight = new THREE.DirectionalLight(0xffeedd, 2.5);
+sunLight.position.set(15, 20, 10);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.width = 2048;
+sunLight.shadow.mapSize.height = 2048;
+sunLight.shadow.camera.near = 0.5;
+sunLight.shadow.camera.far = 50;
+sunLight.shadow.camera.left = -15;
+sunLight.shadow.camera.right = 15;
+sunLight.shadow.camera.top = 15;
+sunLight.shadow.camera.bottom = -15;
+scene.add(sunLight);
+
+const fillLight = new THREE.DirectionalLight(0x4488ff, 0.6);
+fillLight.position.set(-10, 5, -10);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
+rimLight.position.set(0, -5, -15);
+scene.add(rimLight);
+
+const hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x1a2a3a, 0.6);
+scene.add(hemiLight);
+
+// ─── SKYBOX (Stars) ─────────────────────────────────────
+const starsGeo = new THREE.BufferGeometry();
+const starCount = 2000;
+const starPos = new Float32Array(starCount * 3);
+for (let i = 0; i < starCount * 3; i++) {
+  starPos[i] = (Math.random() - 0.5) * 200;
+  starPos[i] *= i % 3 === 1 ? 0.3 : 1; // flatten vertically
+}
+starsGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+const starMat = new THREE.PointsMaterial({
+  color: 0xffffff,
+  size: 0.12,
+  transparent: true,
+  opacity: 0.8,
+  sizeAttenuation: true
+});
+const stars = new THREE.Points(starsGeo, starMat);
+scene.add(stars);
+
+// ─── OCEAN ──────────────────────────────────────────────
+const oceanGeo = new THREE.PlaneGeometry(60, 60, 80, 80);
+oceanGeo.rotateX(-Math.PI / 2);
+const oceanMat = new THREE.MeshPhysicalMaterial({
+  color: 0x0a2a4a,
+  roughness: 0.3,
+  metalness: 0.1,
+  transparent: true,
+  opacity: 0.85,
+  envMapIntensity: 0.6,
+});
+const ocean = new THREE.Mesh(oceanGeo, oceanMat);
+ocean.position.y = -0.3;
+ocean.receiveShadow = true;
+scene.add(ocean);
+
+// Store ocean vertices for animation
+const oceanPos = ocean.geometry.attributes.position;
+
+// ─── BUILD BOAT ─────────────────────────────────────────
+const boatGroup = new THREE.Group();
+boatGroup.position.y = 0;
+scene.add(boatGroup);
+
+function createBoat() {
+  // === HULL ===
+  const hullGroup = new THREE.Group();
+
+  // Hull body - custom shape using a lathe-like approach with merged boxes
+  const hullMat = new THREE.MeshPhysicalMaterial({
+    color: 0x2c3e50,
+    roughness: 0.4,
+    metalness: 0.6,
+    envMapIntensity: 0.4
+  });
+
+  // Main hull - tapered box
+  const hullShape = new THREE.Shape();
+  hullShape.moveTo(-1.6, 0);
+  hullShape.quadraticCurveTo(-1.8, 0.6, -1.4, 1.0);
+  hullShape.quadraticCurveTo(-0.7, 1.3, 0, 1.3);
+  hullShape.quadraticCurveTo(0.7, 1.3, 1.4, 1.0);
+  hullShape.quadraticCurveTo(1.8, 0.6, 1.6, 0);
+  hullShape.quadraticCurveTo(1.4, -0.4, 0, -0.5);
+  hullShape.quadraticCurveTo(-1.4, -0.4, -1.6, 0);
+
+  const extrudeSettings = {
+    steps: 1,
+    depth: 3.5,
+    bevelEnabled: true,
+    bevelThickness: 0.2,
+    bevelSize: 0.1,
+    bevelSegments: 8
+  };
+  const hullGeo = new THREE.ExtrudeGeometry(hullShape, extrudeSettings);
+  const hull = new THREE.Mesh(hullGeo, hullMat);
+  hull.position.set(0, -0.3, -1.75);
+  hull.rotation.x = Math.PI / 2;
+  hull.castShadow = true;
+  hull.receiveShadow = true;
+  hullGroup.add(hull);
+
+  // Keel (bottom fin)
+  const keelMat = new THREE.MeshPhysicalMaterial({
+    color: 0x1a252f,
+    roughness: 0.6,
+    metalness: 0.3
+  });
+  const keelGeo = new THREE.BoxGeometry(0.08, 0.5, 1.8);
+  const keel = new THREE.Mesh(keelGeo, keelMat);
+  keel.position.set(0, -0.7, 0);
+  hullGroup.add(keel);
+
+  // Deck
+  const deckMat = new THREE.MeshPhysicalMaterial({
+    color: 0x8B7355,
+    roughness: 0.8,
+    metalness: 0.0
+  });
+  const deckShape = new THREE.Shape();
+  deckShape.moveTo(-1.3, 0);
+  deckShape.quadraticCurveTo(-1.4, 0.4, -1.1, 0.7);
+  deckShape.quadraticCurveTo(-0.5, 0.9, 0, 0.9);
+  deckShape.quadraticCurveTo(0.5, 0.9, 1.1, 0.7);
+  deckShape.quadraticCurveTo(1.4, 0.4, 1.3, 0);
+  deckShape.quadraticCurveTo(1.1, -0.3, 0, -0.35);
+  deckShape.quadraticCurveTo(-1.1, -0.3, -1.3, 0);
+
+  const deckExtrude = {
+    steps: 1,
+    depth: 2.8,
+    bevelEnabled: true,
+    bevelThickness: 0.05,
+    bevelSize: 0.03,
+    bevelSegments: 4
+  };
+  const deckGeo = new THREE.ExtrudeGeometry(deckShape, deckExtrude);
+  const deck = new THREE.Mesh(deckGeo, deckMat);
+  deck.position.set(0, 0.2, -1.4);
+  deck.rotation.x = Math.PI / 2;
+  deck.receiveShadow = true;
+  hullGroup.add(deck);
+
+  // Deck railing
+  const railMat = new THREE.MeshPhysicalMaterial({
+    color: 0x34495e,
+    roughness: 0.5,
+    metalness: 0.5
+  });
+  const railPositions = [
+    [-1.2, 0.5, 0.8], [1.2, 0.5, 0.8],
+    [-1.2, 0.5, -0.2], [1.2, 0.5, -0.2],
+    [-1.2, 0.5, -1.2], [1.2, 0.5, -1.2],
+    [-0.6, 0.5, 1.9], [0.6, 0.5, 1.9],
+  ];
+  railPositions.forEach(pos => {
+    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.25, 6), railMat);
+    pillar.position.set(pos[0], 0.4, pos[2]);
+    hullGroup.add(pillar);
+  });
+
+  // === CABIN (Superstructure) ===
+  const cabinMat = new THREE.MeshPhysicalMaterial({
+    color: 0xecf0f1,
+    roughness: 0.3,
+    metalness: 0.1
+  });
+  const cabinRoofMat = new THREE.MeshPhysicalMaterial({
+    color: 0x2c3e50,
+    roughness: 0.5,
+    metalness: 0.3
+  });
+
+  // Main cabin
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 1.2), cabinMat);
+  cabin.position.set(0, 0.7, -0.3);
+  cabin.castShadow = true;
+  hullGroup.add(cabin);
+
+  // Cabin roof
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.08, 1.3), cabinRoofMat);
+  roof.position.set(0, 0.98, -0.3);
+  roof.castShadow = true;
+  hullGroup.add(roof);
+
+  // Windows
+  const windowMat = new THREE.MeshPhysicalMaterial({
+    color: 0x74b9ff,
+    roughness: 0.05,
+    metalness: 0.9,
+    envMapIntensity: 1.0,
+    transparent: true,
+    opacity: 0.7
+  });
+  const winPositions = [
+    [-0.35, 0.7, 0.4], [0.35, 0.7, 0.4],
+    [-0.35, 0.7, -0.2], [0.35, 0.7, -0.2],
+    [-0.35, 0.7, -0.8], [0.35, 0.7, -0.8],
+  ];
+  winPositions.forEach(pos => {
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2), windowMat);
+    win.position.set(pos[0], 0.7, pos[2]);
+    win.rotation.y = pos[2] > 0 ? 0 : Math.PI;
+    hullGroup.add(win);
+  });
+
+  // Front window
+  const fWin = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.25), windowMat);
+  fWin.position.set(0, 0.75, 0.65);
+  hullGroup.add(fWin);
+
+  // === COMMAND BRIDGE (Upper deck) ===
+  const bridgeMat = new THREE.MeshPhysicalMaterial({
+    color: 0xbdc3c7,
+    roughness: 0.3,
+    metalness: 0.2
+  });
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.3, 0.8), bridgeMat);
+  bridge.position.set(0, 1.2, -0.2);
+  bridge.castShadow = true;
+  hullGroup.add(bridge);
+
+  // Bridge roof
+  const bridgeRoof = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.06, 0.9), cabinRoofMat);
+  bridgeRoof.position.set(0, 1.38, -0.2);
+  bridgeRoof.castShadow = true;
+  hullGroup.add(bridgeRoof);
+
+  // Bridge windows
+  const bwPositions = [
+    [-0.3, 1.2, 0.25], [0.3, 1.2, 0.25],
+    [0, 1.2, 0.25],
+  ];
+  bwPositions.forEach(pos => {
+    const bw = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.15), windowMat);
+    bw.position.set(pos[0], 1.2, pos[2]);
+    hullGroup.add(bw);
+  });
+
+  // === MAST ===
+  const mastMat = new THREE.MeshPhysicalMaterial({
+    color: 0x7f8c8d,
+    roughness: 0.5,
+    metalness: 0.4
+  });
+
+  // Main mast
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 2.0, 8), mastMat);
+  mast.position.set(0, 1.5, 1.0);
+  hullGroup.add(mast);
+
+  // Cross beam
+  const cross = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8, 6), mastMat);
+  cross.rotation.z = Math.PI / 2;
+  cross.position.set(0, 2.3, 1.0);
+  hullGroup.add(cross);
+
+  // === SAIL / FLAG ===
+  const sailMat = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    roughness: 0.8,
+    metalness: 0.0,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.9
+  });
+
+  const sailShape = new THREE.Shape();
+  sailShape.moveTo(0, 0);
+  sailShape.quadraticCurveTo(0.25, 0.5, 0, 1.0);
+  sailShape.quadraticCurveTo(-0.15, 0.5, 0, 0);
+  const sailGeo = new THREE.ShapeGeometry(sailShape);
+  const sail = new THREE.Mesh(sailGeo, sailMat);
+  sail.position.set(0.42, 1.2, 1.0);
+  hullGroup.add(sail);
+
+  // Small flag on top
+  const flagMat = new THREE.MeshPhysicalMaterial({
+    color: 0xff6b6b,
+    roughness: 0.5,
+    metalness: 0.0,
+    side: THREE.DoubleSide
+  });
+  const flagGeo = new THREE.PlaneGeometry(0.2, 0.15);
+  const flag = new THREE.Mesh(flagGeo, flagMat);
+  flag.position.set(0.12, 2.55, 1.0);
+  hullGroup.add(flag);
+
+  // === BOW ACCESSORY ===
+  const bowMat = new THREE.MeshPhysicalMaterial({
+    color: 0x34495e,
+    roughness: 0.5,
+    metalness: 0.4
+  });
+  // Bow rail
+  for (let i = 0; i < 3; i++) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.15, 6), bowMat);
+    post.position.set(-0.3 + i * 0.3, 0.4, 1.5);
+    hullGroup.add(post);
+  }
+
+  // Bow cross rail
+  const bowRail = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.7, 6), bowMat);
+  bowRail.rotation.x = Math.PI / 2;
+  bowRail.position.set(0, 0.5, 1.5);
+  hullGroup.add(bowRail);
+
+  // === STERN ACCESSORY ===
+  // Stern flag pole
+  const sternPole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.6, 6), mastMat);
+  sternPole.position.set(0, 0.8, -1.6);
+  hullGroup.add(sternPole);
+
+  // Small stern flag
+  const sternFlag = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.12, 0.1),
+    new THREE.MeshPhysicalMaterial({ color: 0x00a8ff, roughness: 0.5, side: THREE.DoubleSide })
+  );
+  sternFlag.position.set(0.08, 1.05, -1.6);
+  hullGroup.add(sternFlag);
+
+  boatGroup.add(hullGroup);
+}
+
+createBoat();
+
+// ─── AXIS INDICATOR (in 3D space) ──────────────────────
+function createAxisLabel(text, color, position) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  div.style.color = color;
+  div.style.fontSize = '14px';
+  div.style.fontWeight = 'bold';
+  div.style.textShadow = '0 0 10px rgba(0,0,0,0.8)';
+  const label = new CSS2DObject(div);
+  label.position.copy(position);
+  return label;
+}
+
+// ─── UPDATE LOOP ────────────────────────────────────────
+let time = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  time += 0.005;
+
+  // Simulate if not connected
+  if (!state.connected && state.simMode) {
+    state.pitch = Math.sin(time * 0.7) * 15;
+    state.roll = Math.sin(time * 0.5) * 12;
+  }
+
+  // Apply rotation to boat group
+  // Note: In 3D: pitch = rotation around X (gật), roll = rotation around Z (nghiêng)
+  boatGroup.rotation.x = 0;
+  boatGroup.rotation.z = 0;
+  boatGroup.rotation.order = 'YXZ';
+  
+  // Convert degrees to radians
+  const pitchRad = THREE.MathUtils.degToRad(state.pitch);
+  const rollRad = THREE.MathUtils.degToRad(state.roll);
+  
+  // Apply: first pitch (around local X), then roll (around local Z)
+  // We use quaternion for proper sequential rotation
+  const quat = new THREE.Quaternion();
+  const euler = new THREE.Euler(pitchRad, 0, rollRad, 'YXZ');
+  quat.setFromEuler(euler);
+  boatGroup.quaternion.copy(quat);
+
+  // Animate ocean waves
+  const pos = oceanPos.array;
+  for (let i = 0; i < pos.length; i += 3) {
+    const x = pos[i];
+    const z = pos[i + 2];
+    pos[i + 1] = Math.sin(x * 0.3 + time * 0.8) * 0.06
+               + Math.sin(z * 0.4 + time * 0.6) * 0.08
+               + Math.sin((x + z) * 0.2 + time * 1.2) * 0.04;
+  }
+  oceanPos.needsUpdate = true;
+  ocean.geometry.computeVertexNormals();
+
+  // Update HUD
+  if (!state.paused) {
+    pitchValue.innerHTML = `${state.pitch.toFixed(2)}<span class="deg">°</span>`;
+    rollValue.innerHTML = `${state.roll.toFixed(2)}<span class="deg">°</span>`;
+    updateDots(pitchDots, state.pitch);
+    updateDots(rollDots, state.roll);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+}
+
+// ─── WEBSERIAL ─────────────────────────────────────────
+async function connectSerial() {
+  try {
+    // Check if WebSerial is supported
+    if (!('serial' in navigator)) {
+      alert('Trình duyệt không hỗ trợ WebSerial. Vui lòng dùng Chrome/Edge mới nhất.\n\nSẽ chạy chế độ mô phỏng để demo.');
+      state.simMode = true;
+      enterSimMode();
+      return;
+    }
+
+    const port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200 });
+
+    state.serialPort = port;
+    state.connected = true;
+
+    connectPanel.classList.add('hidden');
+    statusDot.classList.add('connected');
+    statusText.textContent = 'Đã kết nối · Đang nhận dữ liệu...';
+    keyboardHint.style.opacity = '0.3';
+
+    // Read data
+    const textDecoder = new TextDecoderStream();
+    const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+    const reader = textDecoder.readable.getReader();
+    state.reader = reader;
+
+    let buffer = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += value;
+      
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // Keep incomplete line
+      
+      for (const line of lines) {
+        parseDataLine(line);
+      }
+    }
+  } catch (err) {
+    if (err.name === 'NotFoundError' || err.message?.includes('No port selected')) {
+      // User cancelled - offer simulation mode
+      const useSim = confirm('Bạn có muốn chạy chế độ mô phỏng để xem trước không?');
+      if (useSim) {
+        state.simMode = true;
+        enterSimMode();
+      }
+    } else {
+      console.error('Serial error:', err);
+      statusText.textContent = 'Lỗi kết nối: ' + err.message;
+      setTimeout(() => {
+        if (state.simMode === false) {
+          state.simMode = true;
+          enterSimMode();
+        }
+      }, 2000);
+    }
+  }
+}
+
+function parseDataLine(line) {
+  // Format: "Pitch: 1.23 \t|\tRoll: 0.45"
+  const pitchMatch = line.match(/Pitch:\s*([-\d.]+)/i);
+  const rollMatch = line.match(/Roll:\s*([-\d.]+)/i);
+  
+  if (pitchMatch && rollMatch) {
+    state.pitch = parseFloat(pitchMatch[1]) || 0;
+    state.roll = parseFloat(rollMatch[1]) || 0;
+  }
+}
+
+function enterSimMode() {
+  connectPanel.classList.add('hidden');
+  statusDot.classList.add('connected');
+  statusDot.style.background = '#ffaa00';
+  statusDot.style.boxShadow = '0 0 10px rgba(255,170,0,0.5)';
+  statusText.textContent = '🔄 Chế độ mô phỏng';
+  keyboardHint.textContent = '🖱️ Chuột: Xoay góc nhìn · Mô phỏng chuyển động tự động';
+  connectBtn.textContent = '🔄 Đang mô phỏng...';
+  
+  // Start with some initial values
+  state.simMode = true;
+}
+
+// ─── KEYBOARD CONTROLS ─────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'r' || e.key === 'R') {
+    state.pitch = 0;
+    state.roll = 0;
+  }
+  if (e.key === ' ') {
+    e.preventDefault();
+    state.paused = !state.paused;
+  }
+});
+
+// ─── RESIZE ─────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  labelRenderer.setSize(w, h);
+});
+
+// ─── START ──────────────────────────────────────────────
+connectBtn.addEventListener('click', connectSerial);
+
+// Check if WebSerial is available
+if (!('serial' in navigator)) {
+  connectBtn.textContent = '🔌 WebSerial không khả dụng · Chạy mô phỏng';
+}
+
+animate();
+
+// If no connection after 3 seconds, prompt simulation
+setTimeout(() => {
+  if (!state.connected && !state.simMode && !connectPanel.classList.contains('hidden')) {
+    connectBtn.textContent = '⏭️ Bỏ qua và chạy mô phỏng';
+    connectBtn.onclick = async () => {
+      try {
+        await connectSerial();
+      } catch {
+        state.simMode = true;
+        enterSimMode();
+      }
+    };
+  }
+}, 3000);
+
+console.log('⛵ Boat 3D Visualizer ready!');
+console.log('📡 Kết nối ESP qua WebSerial hoặc dùng chế độ mô phỏng.');
+</script>
+</body>
+</html>

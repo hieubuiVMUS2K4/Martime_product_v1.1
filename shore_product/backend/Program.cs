@@ -303,6 +303,12 @@ if (autoMigrateDatabase)
                 CREATE UNIQUE INDEX IF NOT EXISTS ""IX_voyage_reviews_VoyageId"" ON voyage_reviews (""VoyageId"");
                 CREATE INDEX IF NOT EXISTS ""IX_voyage_reviews_ReviewStatus"" ON voyage_reviews (""ReviewStatus"");
             ");
+            // ── Migration: Add IsRunning column to EngineData ──
+            await db.Database.ExecuteSqlRawAsync(@"
+                ALTER TABLE ""EngineData""
+                ADD COLUMN IF NOT EXISTS ""IsRunning"" boolean NOT NULL DEFAULT false;
+            ");
+
             await db.Database.ExecuteSqlRawAsync(@"
                 ALTER TABLE crew_members
                 ADD COLUMN IF NOT EXISTS ""VesselId"" uuid;

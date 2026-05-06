@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory = $true)][string]$ScenarioName,
-    [Parameter(Mandatory = $true)][ValidateSet('LAN', '4G', 'VSAT', 'HF')][string]$NetworkProfile,
+    [Parameter(Mandatory = $true)][ValidateSet('LAN', '4G', 'VSAT', 'LEO', 'HF')][string]$NetworkProfile,
     [Parameter(Mandatory = $true)][int]$RecordCount,
+    [ValidateRange(1, 200)][int]$SimulatedNodeCount = 1,
     [int]$Repetitions = 1,
     [string]$EdgeBaseUrl = 'http://localhost:5001',
     [string]$InternalApiKey,
@@ -13,7 +14,7 @@ param(
     [string]$EdgeContainerName = 'maritime-edge-postgres',
     [string]$EdgeDatabase = 'maritime_edge',
     [string]$EdgeDatabaseUser = 'edge_user',
-    [string[]]$StatsContainers = @('maritime-edge-postgres', 'maritime-edge-collector'),
+    [string[]]$StatsContainers = @('maritime-edge-postgres', 'maritime-edge-collector', 'shore_product-postgres-1', 'shore_product-backend-1'),
     [switch]$ApplyNetworkProfile,
     [switch]$ResetPendingQueue,
     [int]$MaxTriggerIterations = 300,
@@ -63,6 +64,7 @@ function Update-ScenarioProgressState {
         scenario = $ScenarioName
         network = $NetworkProfile
         record_count = $RecordCount
+        simulated_node_count = $SimulatedNodeCount
         repetitions = $Repetitions
         current_repetition = $Repetition
         status = $Status
@@ -134,6 +136,64 @@ FROM (
     return Invoke-PostgresJsonQuery -ContainerName $EdgeContainerName -Database $EdgeDatabase -Username $EdgeDatabaseUser -Sql $benchmarkSql
 }
 
+function Get-BenchmarkRetryCollisionMetrics {
+    param([Parameter(Mandatory = $true)][string]$BenchmarkRunId)
+
+    $collisionSql = @"
+WITH retry_rows AS (
+    SELECT date_trunc('second', COALESCE(next_retry_at, created_at)) AS retry_second
+    FROM sync_queue
+    WHERE payload LIKE '%BENCH-$BenchmarkRunId-%'
+      AND retry_count > 0
+),
+buckets AS (
+    SELECT retry_second, COUNT(*)::int AS bucket_count
+    FROM retry_rows
+    GROUP BY retry_second
+),
+aggregated AS (
+    SELECT
+        COALESCE((SELECT COUNT(*) FROM retry_rows), 0)::int AS retried_records,
+        COALESCE((SELECT SUM(bucket_count) FROM buckets WHERE bucket_count > 1), 0)::int AS collided_records,
+        COALESCE((SELECT MAX(bucket_count) FROM buckets), 0)::int AS peak_retry_bucket
+)
+SELECT row_to_json(t)
+FROM (
+    SELECT
+        retried_records,
+        collided_records,
+        peak_retry_bucket,
+        CASE
+            WHEN retried_records = 0 THEN 0
+            ELSE ROUND((collided_records::numeric / retried_records::numeric) * 100, 3)
+        END AS retry_collision_rate_pct
+    FROM aggregated
+) t;
+"@
+
+    return Invoke-PostgresJsonQuery -ContainerName $EdgeContainerName -Database $EdgeDatabase -Username $EdgeDatabaseUser -Sql $collisionSql
+}
+
+function Get-PeakRequestRate {
+    param([Parameter(Mandatory = $true)][object[]]$DetailRows)
+
+    if ($DetailRows.Count -eq 0) {
+        return 0
+    }
+
+    $buckets = @{}
+    foreach ($row in $DetailRows) {
+        $key = ([DateTime]$row.timestamp_utc).ToString('yyyy-MM-ddTHH:mm:ss')
+        if (-not $buckets.ContainsKey($key)) {
+            $buckets[$key] = 0
+        }
+
+        $buckets[$key] += 1
+    }
+
+    return ($buckets.Values | Measure-Object -Maximum).Maximum
+}
+
 Write-ResearchLog -Message "Scenario root: $scenarioRoot"
 Update-ScenarioProgressState -Status 'initializing' -Repetition 0 -PendingBefore $null -PendingCurrent $null -Note 'Scenario created.'
 
@@ -165,7 +225,7 @@ for ($rep = 1; $rep -le $Repetitions; $rep++) {
     Update-ScenarioProgressState -Status 'seeding' -Repetition $rep -RepetitionDir $repetitionDir -PendingBefore $null -PendingCurrent $null -Note 'Generating and applying benchmark seed.'
 
     & "$PSScriptRoot\New-ResearchSyncQueueSeed.ps1" `
-        -RecordCount $RecordCount `
+        -RecordCount ($RecordCount * $SimulatedNodeCount) `
         -Priority 2 `
         -RunId $runId `
         -OutputSqlPath $sqlPath `
@@ -321,6 +381,7 @@ for ($rep = 1; $rep -le $Repetitions; $rep++) {
     $stopwatch.Stop()
     $finalStatus = Get-EdgeSyncStatus -BaseUrl $EdgeBaseUrl -InternalApiKey $InternalApiKey -AccessToken $EdgeAccessToken
     $benchmarkMetrics = Get-BenchmarkSyncMetrics -BenchmarkRunId $runId
+    $collisionMetrics = Get-BenchmarkRetryCollisionMetrics -BenchmarkRunId $runId
     $pendingFinal = [int]$benchmarkMetrics.pending_records
     $statsSnapshot = Get-DockerStatsSnapshot -ContainerNames $StatsContainers
     $statsMetrics = Convert-DockerStatsSnapshotToMetrics -StatsSnapshot $statsSnapshot
@@ -330,6 +391,14 @@ for ($rep = 1; $rep -le $Repetitions; $rep++) {
     if ($detailRows.Count -gt 0) {
         $avgTriggerLatency = [math]::Round((($detailRows | Measure-Object -Property trigger_latency_ms -Average).Average), 3)
         $maxTriggerLatency = [math]::Round((($detailRows | Measure-Object -Property trigger_latency_ms -Maximum).Maximum), 3)
+    }
+    $peakRequestRateRps = Get-PeakRequestRate -DetailRows ($detailRows.ToArray())
+    $shoreErrorRatePct = 0
+    if ([int]$benchmarkMetrics.queued_records -gt 0) {
+        $shoreErrorRatePct = [math]::Round((([int]$benchmarkMetrics.queued_records - [int]$benchmarkMetrics.synced_records) / [double][int]$benchmarkMetrics.queued_records) * 100, 3)
+        if ($shoreErrorRatePct -lt 0) {
+            $shoreErrorRatePct = 0
+        }
     }
 
     $primaryContainerMetrics = $statsMetrics | Where-Object {
@@ -358,6 +427,7 @@ for ($rep = 1; $rep -le $Repetitions; $rep++) {
         network = $NetworkProfile
         repetition = $rep
         record_count = $RecordCount
+        simulated_node_count = $SimulatedNodeCount
         pending_before = $pendingBefore
         pending_after = $pendingFinal
         global_pending_before = $globalPendingBefore
@@ -371,6 +441,10 @@ for ($rep = 1; $rep -le $Repetitions; $rep++) {
         benchmark_pending_records = $benchmarkMetrics.pending_records
         retried_records = $benchmarkMetrics.retried_records
         retry_count_total = $benchmarkMetrics.retry_count_total
+        retry_collision_rate_pct = if ($null -ne $collisionMetrics) { $collisionMetrics.retry_collision_rate_pct } else { 0 }
+        peak_retry_bucket = if ($null -ne $collisionMetrics) { $collisionMetrics.peak_retry_bucket } else { 0 }
+        peak_request_rate_rps = $peakRequestRateRps
+        shore_error_rate_pct = $shoreErrorRatePct
         primary_cpu_percent = if ($null -ne $primaryContainerMetrics) { $primaryContainerMetrics.cpu_percent } else { $null }
         primary_memory_bytes = if ($null -ne $primaryContainerMetrics) { $primaryContainerMetrics.memory_usage_bytes } else { $null }
         success = ($pendingFinal -eq 0)

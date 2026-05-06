@@ -294,6 +294,8 @@ public class EngineData
     
     public int? AlarmStatus { get; set; } // Bitmap of active alarms
     
+    public bool IsRunning { get; set; } = false;
+    
     public bool IsSynced { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

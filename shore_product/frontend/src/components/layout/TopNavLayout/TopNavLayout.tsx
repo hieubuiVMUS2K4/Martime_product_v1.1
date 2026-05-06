@@ -39,8 +39,8 @@ const navItems: NavItemDef[] = [
     ]
   },
   { type: 'link', path: '/vessels', label: 'Danh sách tàu' },
-  { type: 'link', path: '/voyages', label: 'Hải trình' },
-  /*{
+  { type: 'link', path: '/vessels/tracking', label: '🛰️ Tracking' },
+  {
     type: 'dropdown',
     label: 'Thông tin',
     groups: [
@@ -62,7 +62,7 @@ const navItems: NavItemDef[] = [
         ]
       }
     ]
-  },*/
+  },
   { type: 'link', path: '/report', label: 'Báo cáo' },
   { type: 'link', path: '/sync',   label: 'Đồng bộ' },
 ];

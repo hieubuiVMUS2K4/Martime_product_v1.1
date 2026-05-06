@@ -1,0 +1,3 @@
+﻿"scenario","repetition","iteration","timestamp_utc","pending_before","pending_after","benchmark_synced_before","benchmark_synced_after","global_pending_before","global_pending_after","progress_detected","trigger_latency_ms","response_json"
+"LEO-1000-N1","4","1","2026-04-13T15:37:42.9079873Z","1000","300","0","700","1000","300","True","7655.404","{""message"":""Đồng bộ hoàn tất"",""totalSynced"":600,""pendingRecords"":400}"
+"LEO-1000-N1","4","2","2026-04-13T15:37:52.0658843Z","300","0","700","1000","300","0","True","5898.472","{""message"":""Đồng bộ hoàn tất"",""totalSynced"":300,""pendingRecords"":0}"

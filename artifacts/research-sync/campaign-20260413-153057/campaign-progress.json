@@ -1,0 +1,20 @@
+﻿{
+    "status":  "failed",
+    "preset":  "Custom",
+    "campaign_root":  "F:\\NCKH\\Product\\Martime_product_v1.1\\artifacts\\research-sync\\campaign-20260413-153057",
+    "total_profiles":  2,
+    "total_record_counts":  1,
+    "total_scenarios":  2,
+    "total_repetitions":  10,
+    "completed_scenarios":  0,
+    "current_scenario_index":  1,
+    "progress_percent":  0,
+    "current_profile":  "VSAT",
+    "current_record_count":  1000,
+    "current_simulated_nodes":  1,
+    "current_repetitions":  5,
+    "current_scenario_name":  "VSAT-1000-N1",
+    "current_scenario_path":  "",
+    "updated_at_utc":  "2026-04-13T15:31:25.0561705Z",
+    "note":  "Argument types do not match"
+}

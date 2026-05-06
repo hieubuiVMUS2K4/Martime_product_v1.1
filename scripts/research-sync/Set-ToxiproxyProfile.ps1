@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('LAN', '4G', 'VSAT', 'HF', 'OFFLINE')][string]$Profile,
+    [ValidateSet('LAN', '4G', 'VSAT', 'LEO', 'HF', 'OFFLINE')][string]$Profile,
     [string]$ApiBaseUrl = 'http://localhost:8474',
     [string]$ProxyName = 'shore',
     [string]$Listen = '0.0.0.0:8666',
@@ -108,6 +108,13 @@ switch ($Profile) {
         Add-Toxic -Name 'upstream_bandwidth_vsat' -Type 'bandwidth' -Stream 'upstream' -Attributes @{ rate = 250 }
         Add-Toxic -Name 'downstream_bandwidth_vsat' -Type 'bandwidth' -Stream 'downstream' -Attributes @{ rate = 250 }
         Write-ResearchLog -Message 'Applied VSAT profile.'
+    }
+    'LEO' {
+        Add-Toxic -Name 'upstream_latency_leo' -Type 'latency' -Stream 'upstream' -Attributes @{ latency = 35; jitter = 8 }
+        Add-Toxic -Name 'downstream_latency_leo' -Type 'latency' -Stream 'downstream' -Attributes @{ latency = 35; jitter = 8 }
+        Add-Toxic -Name 'upstream_bandwidth_leo' -Type 'bandwidth' -Stream 'upstream' -Attributes @{ rate = 102400 }
+        Add-Toxic -Name 'downstream_bandwidth_leo' -Type 'bandwidth' -Stream 'downstream' -Attributes @{ rate = 102400 }
+        Write-ResearchLog -Message 'Applied LEO-like profile.'
     }
     'HF' {
         Add-Toxic -Name 'upstream_latency_hf' -Type 'latency' -Stream 'upstream' -Attributes @{ latency = 1200; jitter = 250 }
